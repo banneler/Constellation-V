@@ -13,11 +13,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.utils import ChromeType
+# REMOVED: The problematic 'ChromeType' import has been deleted from this line.
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine (Corrected Selenium): Starting run...")
+        print("Cognito Intelligence Engine (Final Selenium): Starting run...")
         driver = None
         try:
             # --- Securely load credentials ---
@@ -39,8 +39,8 @@ class handler(BaseHTTPRequestHandler):
             options.add_argument("--disable-gpu")
             options.add_argument("--disable-dev-shm-usage")
             
-            # --- Use webdriver-manager to handle the driver correctly ---
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()), options=options)
+            # *** THE FIX: Use the default ChromeDriverManager installer, which is more robust ***
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
             
             # --- Stage 1: Scrape the News Source ---
             target_url = "https://www.mutualofomaha.com/about/newsroom/news-releases"
