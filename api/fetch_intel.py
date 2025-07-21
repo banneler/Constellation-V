@@ -44,6 +44,11 @@ class handler(BaseHTTPRequestHandler):
         options.add_argument("--disable-dev-tools")
         options.add_argument("--no-zygote")
         
+        # *** THE FIX: Point all temporary directories to the writable /tmp folder ***
+        options.add_argument("--user-data-dir=/tmp/user-data")
+        options.add_argument("--data-path=/tmp/data-path")
+        options.add_argument("--disk-cache-dir=/tmp/cache-dir")
+        
         driver = webdriver.Chrome(options=options)
         
         # --- Stage 1: Scrape the News Source using Selenium ---
@@ -53,17 +58,16 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             driver.get(target_url)
-            # Wait for the main news list container to be present on the page
             WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".news-release-listing--list"))
+                EC.presence_of_element_located((By.CSS_SELECTOR, "li.news-release-listing-item h3.title a"))
             )
             
-            # Now that the page is loaded, get the HTML and parse with BeautifulSoup
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             article_links = soup.select("li.news-release-listing-item h3.title a")
             
             if not article_links:
                 self.send_response(200)
+                self.send_header('Content-type', 'application/json')
                 self.end_headers()
                 self.wfile.write(b'{"message": "Selenium ran but found no article links."}')
                 return
@@ -77,7 +81,6 @@ class handler(BaseHTTPRequestHandler):
                     print(f"Skipping already processed article: {article_url}")
                     continue
 
-                # The rest of the logic remains the same...
                 driver.get(article_url)
                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "content")))
                 article_soup = BeautifulSoup(driver.page_source, 'html.parser')
