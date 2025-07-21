@@ -16,7 +16,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine (Final Path Fix): Starting run...")
+        # *** THE DEFINITIVE FIX: Set the cache path using an environment variable BEFORE initializing the manager. ***
+        os.environ['WDM_LOCAL'] = '/tmp/webdriver_manager_cache'
+        
+        print("Cognito Intelligence Engine (Final Cache Fix): Starting run...")
         driver = None
         try:
             # --- Securely load credentials ---
@@ -38,9 +41,8 @@ class handler(BaseHTTPRequestHandler):
             options.add_argument("--disable-gpu")
             options.add_argument("--disable-dev-shm-usage")
             
-            # *** THE DEFINITIVE FIX: Tell webdriver-manager to use the /tmp directory ***
-            # This installs the driver in the only writable location on Vercel.
-            service = Service(ChromeDriverManager(path="/tmp/chromedriver").install())
+            # This now correctly uses the cache path set in the environment variable
+            service = Service(ChromeDriverManager().install())
             
             driver = webdriver.Chrome(service=service, options=options)
             
