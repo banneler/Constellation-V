@@ -12,14 +12,12 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+# --- Vercel-Specific Imports for the pre-built browser ---
+from chrome_driver_py import binary_path
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # *** THE DEFINITIVE FIX: Set the cache path using an environment variable BEFORE initializing the manager. ***
-        os.environ['WDM_LOCAL'] = '/tmp/webdriver_manager_cache'
-        
-        print("Cognito Intelligence Engine (Final Cache Fix): Starting run...")
+        print("Cognito Intelligence Engine (Pre-built Chrome): Starting run...")
         driver = None
         try:
             # --- Securely load credentials ---
@@ -41,9 +39,8 @@ class handler(BaseHTTPRequestHandler):
             options.add_argument("--disable-gpu")
             options.add_argument("--disable-dev-shm-usage")
             
-            # This now correctly uses the cache path set in the environment variable
-            service = Service(ChromeDriverManager().install())
-            
+            # *** THE DEFINITIVE FIX: Use the pre-installed browser from chrome-driver-py ***
+            service = Service(executable_path=binary_path)
             driver = webdriver.Chrome(service=service, options=options)
             
             # --- Stage 1: Scrape the News Source ---
