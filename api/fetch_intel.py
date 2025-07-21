@@ -18,7 +18,7 @@ from chrome_driver_py import binary_path
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         print("Cognito Intelligence Engine (Pre-built Chrome): Starting run...")
-        driver = None
+        driver = None  # Initialize driver to None
         try:
             # --- Securely load credentials ---
             SUPABASE_URL = os.environ.get("SUPABASE_URL")
