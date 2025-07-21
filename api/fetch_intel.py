@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 import urllib.parse
 from supabase import create_client, Client
 from openai import OpenAI
-# Vercel requires this specific import for the handler
 from http.server import BaseHTTPRequestHandler
 import json
 
@@ -33,27 +32,30 @@ class handler(BaseHTTPRequestHandler):
         target_url = "https://www.mutualofomaha.com/about/newsroom/news-releases"
         account_name = "Mutual of Omaha"
         base_url = "https://www.mutualofomaha.com"
-        headers = {'User-Agent': 'Mozilla/5.0'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
         try:
             response = requests.get(target_url, headers=headers)
             response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
-            article_links = soup.select("h3.title a")
+            
+            # *** CORRECTED SELECTOR ***
+            # The links are inside list items with the class 'news-release-listing-item'
+            article_links = soup.select(".news-release-listing-item a")
 
             if not article_links:
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({"message": "No new articles to process."}).encode())
+                self.wfile.write(json.dumps({"message": "No new article links found on the page."}).encode())
                 return
             
             processed_count = 0
-            for link in article_links[:2]:
+            for link in article_links[:2]: # Process the top 2 latest articles
                 article_url = urllib.parse.urljoin(base_url, link.get('href'))
                 
-                existing_alert_res = supabase.table('cognito_alerts').select('id').eq('source_url', article_url).execute()
-                if existing_alert_res.data:
+                existing_alert_res = supabase.table('cognito_alerts').select('id', count='exact').eq('source_url', article_url).execute()
+                if existing_alert_res.count > 0:
                     print(f"Skipping already processed article: {article_url}")
                     continue
 
@@ -65,7 +67,7 @@ class handler(BaseHTTPRequestHandler):
 
                 raw_text = content_area.get_text(separator='\n', strip=True)
 
-                prompt = "You are an expert sales intelligence analyst..."
+                prompt = "You are an expert sales intelligence analyst..." # Abridged for clarity
                 
                 completion = client.chat.completions.create(
                     model="google/gemini-pro",
@@ -102,5 +104,5 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": f"Error scraping source: {e}"}).encode())
+            self.wfile.write(json.dumps({"error": f"Error scraping source: {str(e)}"}).encode())
         return
