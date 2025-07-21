@@ -13,12 +13,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 # --- Vercel-Specific Imports for the pre-built browser ---
-from chrome_driver_py import binary_path
+from chromedriver_py import binary_path as DRIVER_PATH
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine (Pre-built Chrome): Starting run...")
-        driver = None  # Initialize driver to None
+        print("Cognito Intelligence Engine (Final Fix): Starting run...")
+        driver = None
         try:
             # --- Securely load credentials ---
             SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -39,8 +39,8 @@ class handler(BaseHTTPRequestHandler):
             options.add_argument("--disable-gpu")
             options.add_argument("--disable-dev-shm-usage")
             
-            # *** THE DEFINITIVE FIX: Use the pre-installed browser from chrome-driver-py ***
-            service = Service(executable_path=binary_path)
+            # *** THE DEFINITIVE FIX: Use the pre-installed browser from chromedriver-py ***
+            service = Service(executable_path=DRIVER_PATH)
             driver = webdriver.Chrome(service=service, options=options)
             
             # --- Stage 1: Scrape the News Source ---
@@ -80,7 +80,7 @@ class handler(BaseHTTPRequestHandler):
                 if not content_area: continue
                 
                 raw_text = content_area.get_text(separator='\n', strip=True)
-                prompt = "You are an expert sales intelligence analyst..."
+                prompt = "You are an expert sales intelligence analyst. Analyze the following press release text and determine if it contains an actionable trigger for a telecommunications salesperson. The triggers are: 'C-Suite Change', 'Expansion' (new offices, significant hiring), or 'Technology' (new tech initiatives, digital transformation). If a trigger is found, provide a JSON object with: trigger_type, headline, summary. The headline should be a concise, impactful title. The summary should be a 2-sentence explanation of the news and its relevance. If no trigger is found, respond with {\"trigger_type\": \"None\"}."
 
                 completion = client.chat.completions.create(
                     model="google/gemini-pro",
