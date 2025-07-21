@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import urllib.parse
 from supabase import create_client, Client
 from openai import OpenAI
+# Vercel requires this specific import for the handler
 from http.server import BaseHTTPRequestHandler
 import json
 
@@ -39,19 +40,20 @@ class handler(BaseHTTPRequestHandler):
             response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # *** CORRECTED SELECTOR ***
-            # The links are inside list items with the class 'news-release-listing-item'
-            article_links = soup.select(".news-release-listing-item a")
+            # *** FINAL CORRECTED SELECTOR ***
+            # The links are inside a div with class 'news-release-listing--item--content'
+            article_links = soup.select(".news-release-listing--item--content a")
 
             if not article_links:
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({"message": "No new article links found on the page."}).encode())
+                self.wfile.write(json.dumps({"message": "No new article links found on the page with the new selector."}).encode())
                 return
             
             processed_count = 0
-            for link in article_links[:2]: # Process the top 2 latest articles
+            # Process up to the latest 3 articles
+            for link in article_links[:3]:
                 article_url = urllib.parse.urljoin(base_url, link.get('href'))
                 
                 existing_alert_res = supabase.table('cognito_alerts').select('id', count='exact').eq('source_url', article_url).execute()
@@ -67,7 +69,7 @@ class handler(BaseHTTPRequestHandler):
 
                 raw_text = content_area.get_text(separator='\n', strip=True)
 
-                prompt = "You are an expert sales intelligence analyst..." # Abridged for clarity
+                prompt = "You are an expert sales intelligence analyst. Analyze the following press release text and determine if it contains an actionable trigger for a telecommunications salesperson. The triggers are: 'C-Suite Change', 'Expansion' (new offices, significant hiring), or 'Technology' (new tech initiatives, digital transformation). If a trigger is found, provide a JSON object with: trigger_type, headline, summary. The headline should be a concise, impactful title. The summary should be a 2-sentence explanation of the news and its relevance. If no trigger is found, respond with {\"trigger_type\": \"None\"}."
                 
                 completion = client.chat.completions.create(
                     model="google/gemini-pro",
