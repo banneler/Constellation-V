@@ -6,13 +6,19 @@ from supabase import create_client, Client
 from openai import OpenAI
 from http.server import BaseHTTPRequestHandler
 import json
-# --- Vercel-Specific Selenium Import ---
-from selenium_chrome_headless.python import create_driver
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.utils import ChromeType
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine (Vercel Headless): Starting run...")
-        driver = None  # Initialize driver to None
+        print("Cognito Intelligence Engine (Corrected Selenium): Starting run...")
+        driver = None
         try:
             # --- Securely load credentials ---
             SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -26,20 +32,29 @@ class handler(BaseHTTPRequestHandler):
             supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
             client = OpenAI(api_key=OPENAI_API_KEY, base_url="https://integrate.api.nvidia.com/v1")
 
-            # --- Create the Vercel-optimized Selenium driver ---
-            driver = create_driver()
-
+            # --- Configure Selenium for Vercel/Headless environment ---
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--no-sandbox')
+            options.add_argument("--disable-gpu")
+            options.add_argument("--disable-dev-shm-usage")
+            
+            # --- Use webdriver-manager to handle the driver correctly ---
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()), options=options)
+            
             # --- Stage 1: Scrape the News Source ---
             target_url = "https://www.mutualofomaha.com/about/newsroom/news-releases"
             account_name = "Mutual of Omaha"
             base_url = "https://www.mutualofomaha.com"
             
             driver.get(target_url)
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "li.news-release-listing-item h3.title a"))
+            )
             
-            # Use BeautifulSoup to parse the page source from Selenium
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             article_links = soup.select("li.news-release-listing-item h3.title a")
-
+            
             if not article_links:
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
@@ -57,6 +72,7 @@ class handler(BaseHTTPRequestHandler):
                     continue
 
                 driver.get(article_url)
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "content")))
                 article_soup = BeautifulSoup(driver.page_source, 'html.parser')
                 content_area = article_soup.find('div', class_='content')
                 
