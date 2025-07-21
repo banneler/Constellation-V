@@ -13,11 +13,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 # --- Vercel-Specific Imports for the pre-built browser ---
-from chromedriver_py import binary_path as DRIVER_PATH
+from chrome_headless_browser_v2 import get_driver
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine (Final Fix): Starting run...")
+        print("Cognito Intelligence Engine (Headless Bundle): Starting run...")
         driver = None
         try:
             # --- Securely load credentials ---
@@ -31,17 +31,9 @@ class handler(BaseHTTPRequestHandler):
 
             supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
             client = OpenAI(api_key=OPENAI_API_KEY, base_url="https://integrate.api.nvidia.com/v1")
-
-            # --- Configure Selenium for Vercel/Headless environment ---
-            options = Options()
-            options.add_argument('--headless')
-            options.add_argument('--no-sandbox')
-            options.add_argument("--disable-gpu")
-            options.add_argument("--disable-dev-shm-usage")
             
-            # *** THE DEFINITIVE FIX: Use the pre-installed browser from chromedriver-py ***
-            service = Service(executable_path=DRIVER_PATH)
-            driver = webdriver.Chrome(service=service, options=options)
+            # *** THE DEFINITIVE FIX: Use the bundled chrome-headless-browser-v2 driver ***
+            driver = get_driver()
             
             # --- Stage 1: Scrape the News Source ---
             target_url = "https://www.mutualofomaha.com/about/newsroom/news-releases"
