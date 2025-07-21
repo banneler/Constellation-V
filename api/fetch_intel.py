@@ -4,11 +4,9 @@ from bs4 import BeautifulSoup
 import urllib.parse
 from supabase import create_client, Client
 from openai import OpenAI
-# Vercel requires this specific import for the handler
 from http.server import BaseHTTPRequestHandler
 import json
 
-# The handler must be a class that inherits from BaseHTTPRequestHandler
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         print("Cognito Intelligence Engine: Starting run...")
@@ -40,19 +38,18 @@ class handler(BaseHTTPRequestHandler):
             response.raise_for_status()
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # *** FINAL CORRECTED SELECTOR ***
-            # The links are inside a div with class 'news-release-listing--item--content'
-            article_links = soup.select(".news-release-listing--item--content a")
+            # *** FINAL, MORE ROBUST SELECTOR ***
+            # Finds all list items, then finds the link within the h3 tag inside it.
+            article_links = soup.select("li.news-release-listing-item h3.title a")
 
             if not article_links:
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({"message": "No new article links found on the page with the new selector."}).encode())
+                self.wfile.write(json.dumps({"message": "Selector failed again. No articles found."}).encode())
                 return
             
             processed_count = 0
-            # Process up to the latest 3 articles
             for link in article_links[:3]:
                 article_url = urllib.parse.urljoin(base_url, link.get('href'))
                 
