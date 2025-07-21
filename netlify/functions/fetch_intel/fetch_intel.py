@@ -100,3 +100,4 @@ def handler(event, context):
             "body": json.dumps({"error": f"An error occurred: {str(e)}"})
         }
 
+
