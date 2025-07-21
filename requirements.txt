@@ -3,4 +3,4 @@ beautifulsoup4
 supabase
 openai
 selenium
-webdriver-manager
+chrome-driver-py
