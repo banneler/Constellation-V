@@ -13,12 +13,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-# This is now needed to specify the OS for Vercel's Linux environment
-from webdriver_manager.core.os_manager import ChromeType
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine (Final Vercel Fix): Starting run...")
+        print("Cognito Intelligence Engine (Final Path Fix): Starting run...")
         driver = None
         try:
             # --- Securely load credentials ---
@@ -42,7 +40,7 @@ class handler(BaseHTTPRequestHandler):
             
             # *** THE DEFINITIVE FIX: Tell webdriver-manager to use the /tmp directory ***
             # This installs the driver in the only writable location on Vercel.
-            service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+            service = Service(ChromeDriverManager(path="/tmp/chromedriver").install())
             
             driver = webdriver.Chrome(service=service, options=options)
             
