@@ -2,5 +2,5 @@ requests
 beautifulsoup4
 supabase
 openai
-selenium
-chromedriver-py
+selenium==4.11.2
+chrome-headless-browser-v2
