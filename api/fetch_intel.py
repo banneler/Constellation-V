@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine (Playwright): Starting run...")
+        print("Cognito Intelligence Engine (Playwright with postinstall): Starting run...")
         
         try:
             # --- Securely load credentials ---
@@ -26,7 +26,6 @@ class handler(BaseHTTPRequestHandler):
             client = OpenAI(api_key=OPENAI_API_KEY, base_url="https://integrate.api.nvidia.com/v1")
 
             with sync_playwright() as p:
-                # Playwright will automatically use a compatible browser
                 browser = p.chromium.launch()
                 page = browser.new_page()
 
@@ -37,7 +36,6 @@ class handler(BaseHTTPRequestHandler):
                 
                 page.goto(target_url, wait_until='domcontentloaded')
                 
-                # Use BeautifulSoup to parse the page source from Playwright
                 soup = BeautifulSoup(page.content(), 'html.parser')
                 article_links = soup.select("li.news-release-listing-item h3.title a")
 
