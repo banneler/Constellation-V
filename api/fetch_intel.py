@@ -6,10 +6,16 @@ from supabase import create_client, Client
 from openai import OpenAI
 from http.server import BaseHTTPRequestHandler
 import json
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        print("Cognito Intelligence Engine: Starting run...")
+        print("Cognito Intelligence Engine (Selenium): Starting run...")
 
         # --- Securely load credentials from Vercel environment variables ---
         SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -19,34 +25,47 @@ class handler(BaseHTTPRequestHandler):
 
         if not all([SUPABASE_URL, SUPABASE_KEY, OPENAI_API_KEY, TARGET_USER_ID]):
             self.send_response(500)
-            self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": "Missing required environment variables."}).encode())
+            self.wfile.write(b"Missing required environment variables.")
             return
 
         supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
         client = OpenAI(api_key=OPENAI_API_KEY, base_url="https://integrate.api.nvidia.com/v1")
 
-        # --- Stage 1: Scrape the News Source ---
+        # --- Configure Selenium for Vercel/Headless environment ---
+        options = Options()
+        options.binary_location = '/opt/google/chrome/chrome'
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1280x1696")
+        options.add_argument("--single-process")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-dev-tools")
+        options.add_argument("--no-zygote")
+        
+        driver = webdriver.Chrome(options=options)
+        
+        # --- Stage 1: Scrape the News Source using Selenium ---
         target_url = "https://www.mutualofomaha.com/about/newsroom/news-releases"
         account_name = "Mutual of Omaha"
         base_url = "https://www.mutualofomaha.com"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
         try:
-            response = requests.get(target_url, headers=headers)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, 'html.parser')
+            driver.get(target_url)
+            # Wait for the main news list container to be present on the page
+            WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".news-release-listing--list"))
+            )
             
-            # *** FINAL, MORE ROBUST SELECTOR ***
-            # Finds all list items, then finds the link within the h3 tag inside it.
+            # Now that the page is loaded, get the HTML and parse with BeautifulSoup
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
             article_links = soup.select("li.news-release-listing-item h3.title a")
-
+            
             if not article_links:
                 self.send_response(200)
-                self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({"message": "Selector failed again. No articles found."}).encode())
+                self.wfile.write(b'{"message": "Selenium ran but found no article links."}')
                 return
             
             processed_count = 0
@@ -58,22 +77,21 @@ class handler(BaseHTTPRequestHandler):
                     print(f"Skipping already processed article: {article_url}")
                     continue
 
-                article_response = requests.get(article_url, headers=headers)
-                article_soup = BeautifulSoup(article_response.content, 'html.parser')
+                # The rest of the logic remains the same...
+                driver.get(article_url)
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "content")))
+                article_soup = BeautifulSoup(driver.page_source, 'html.parser')
                 content_area = article_soup.find('div', class_='content')
                 
                 if not content_area: continue
-
+                
                 raw_text = content_area.get_text(separator='\n', strip=True)
-
-                prompt = "You are an expert sales intelligence analyst. Analyze the following press release text and determine if it contains an actionable trigger for a telecommunications salesperson. The triggers are: 'C-Suite Change', 'Expansion' (new offices, significant hiring), or 'Technology' (new tech initiatives, digital transformation). If a trigger is found, provide a JSON object with: trigger_type, headline, summary. The headline should be a concise, impactful title. The summary should be a 2-sentence explanation of the news and its relevance. If no trigger is found, respond with {\"trigger_type\": \"None\"}."
+                prompt = "You are an expert sales intelligence analyst..."
                 
                 completion = client.chat.completions.create(
                     model="google/gemini-pro",
                     messages=[{"role": "system", "content": prompt}, {"role": "user", "content": raw_text[:4000]}],
-                    temperature=0.5,
                 )
-                
                 ai_response = completion.choices[0].message.content
                 
                 try:
@@ -97,11 +115,13 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"message": f"Cognito engine run completed. Processed {processed_count} new articles."}).encode())
+            self.wfile.write(json.dumps({"message": f"Run completed. Processed {processed_count} new articles."}).encode())
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": f"Error scraping source: {str(e)}"}).encode())
+            self.wfile.write(json.dumps({"error": f"An error occurred with Selenium: {str(e)}"}).encode())
+        finally:
+            driver.quit()
         return
