@@ -1,13 +1,19 @@
-# Final Netlify configuration with explicit function declaration
+# Final Netlify configuration with explicit function declarations
 [build]
   command = "playwright install chromium"
   publish = "."
 
-# This section explicitly tells Netlify about our function.
+# This section explicitly tells Netlify about BOTH functions.
 [functions]
-  included_files = ["!node_modules/**"] # A standard optimization
+  included_files = ["netlify/functions/**"]
+
+  # Explicitly declare our main intelligence engine
   [functions.fetch_intel]
-    # This ensures our function is included in the deployment.
+    runtime = "python"
+
+  # Explicitly declare our simple test function
+  [functions.hello]
+    runtime = "python"
 
 [[redirects]]
   from = "/*"
