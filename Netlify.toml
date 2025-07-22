@@ -1,0 +1,14 @@
+# Final Netlify configuration for a Python Playwright function
+[build]
+  # This command runs first, installing the browser Playwright needs
+  command = "playwright install chromium"
+  publish = "."
+
+[functions]
+  # This tells Netlify where to find our function scripts
+  directory = "netlify/functions/"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
