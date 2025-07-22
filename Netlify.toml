@@ -1,12 +1,13 @@
-# Final Netlify configuration for a Python Playwright function
+# Final Netlify configuration with explicit function declaration
 [build]
-  # This command runs first, installing the browser Playwright needs
   command = "playwright install chromium"
   publish = "."
 
+# This section explicitly tells Netlify about our function.
 [functions]
-  # This tells Netlify where to find our function scripts
-  directory = "netlify/functions/"
+  included_files = ["!node_modules/**"] # A standard optimization
+  [functions.fetch_intel]
+    # This ensures our function is included in the deployment.
 
 [[redirects]]
   from = "/*"
