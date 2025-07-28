@@ -98,8 +98,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // --- ACTION CENTER LOGIC ---
-    function showActionCenter(alertId) {
+
+    // --- ACTION CENTER LOGIC (GEMINI INTEGRATED) ---
+    async function showActionCenter(alertId) {
         state.selectedAlert = state.alerts.find(a => a.id === alertId);
         if (!state.selectedAlert) return;
 
@@ -109,11 +110,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             alert(`Error: Could not find the corresponding account (ID: ${state.selectedAlert.account_id}) in your Constellation database.`);
             return;
         }
+        
+        // Show a temporary loading state in the modal
+        showModal('Action Center', '<p class="placeholder-text">Generating AI suggestion...</p>', null, false, `<button id="modal-close-btn" class="btn-secondary">Close</button>`);
+        document.getElementById('modal-close-btn').addEventListener('click', hideModal);
+
+        // Fetch the AI-generated outreach copy
+        const outreachCopy = await generateOutreachCopy(state.selectedAlert, account);
 
         const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id);
         const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
-
-        const outreachCopy = generateOutreachCopy(state.selectedAlert, account);
 
         let suggestedContactId = null;
         if(relevantContacts.length > 0) {
@@ -161,8 +167,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>`;
 
-        showModal('Action Center', modalBody, null, false, `<button id="modal-close-btn" class="btn-secondary">Close</button>`);
-        
+        // Update the modal with the full content
+        const modalBodyElement = document.getElementById('modal-body');
+        if (modalBodyElement) {
+            modalBodyElement.innerHTML = modalBody;
+        }
+
         const contactSelector = document.getElementById('contact-selector');
         
         // Attach all event listeners FIRST
@@ -181,37 +191,51 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function generateOutreachCopy(alert, account) {
-        const accountName = account ? account.name : '[Account Name]';
-        let subject = ``;
-        let body = ``;
+    async function generateOutreachCopy(alert, account) {
+        try {
+            // Invoke the Supabase Edge Function
+            const { data, error } = await supabase.functions.invoke('get-gemini-suggestion', {
+                body: { alertData: alert, accountData: account }
+            });
 
-        switch (alert.trigger_type) {
-            case 'C-Suite Change':
-                subject = `Congratulations on the new role`;
-                body = `Hi [FirstName],\n\nI saw the news about your new role as CIO at ${accountName} — congratulations.\n\nLeaders taking on new roles are often re-evaluating their infrastructure to support their vision. If exploring high-speed fiber or new cloud connectivity solutions is on your roadmap, I'd welcome a brief chat.\n\nBest regards,\n[Your Name]`;
-                break;
-            case 'Expansion':
-                subject = `Regarding ${accountName}'s new campus`;
-                body = `Hi [FirstName],\n\nCongratulations on the news about the new campus expansion in West Omaha. That's a significant project and great for the area.\n\nAs you scope out the infrastructure needs for a facility of that size, our team at Great Plains Communications specializes in providing foundational high-availability fiber and managed services. \n\nWould be happy to connect when the time is right.\n\nBest regards,\n[Your Name]`;
-                break;
-            default:
-                subject = `Following up on ${accountName}'s latest news`;
-                body = `Hi [FirstName],\n\nI saw the recent news about "${alert.headline}" and wanted to reach out.\n\n[Add your personalized message here]\n\nBest regards,\n[Your Name]`;
+            if (error) {
+                throw error;
+            }
+            
+            // The edge function should return a JSON object with { subject, body }
+            return data; 
+        } catch (error) {
+            console.error("Error invoking Supabase Edge Function:", error);
+            // Provide a fallback template in case the AI call fails
+            return { 
+                subject: `Following up on ${account.name}'s latest news`, 
+                body: `Hi [FirstName],\n\nI saw the recent news about "${alert.headline}" and wanted to reach out.\n\n[Could not generate AI suggestion. Please write your message here.]\n\nBest regards,\n[Your Name]`
+            };
         }
-        return { subject, body };
     }
 
     // --- ACTION HANDLERS (Integration with Constellation) ---
-    function handleContactChange(e) {
+    async function handleContactChange(e) {
         const selectedContactId = e.target.value;
         const outreachBodyTextarea = document.getElementById('outreach-body');
-        if (!selectedContactId || !outreachBodyTextarea) return;
+        const outreachSubjectInput = document.getElementById('outreach-subject');
+        
+        if (!outreachBodyTextarea || !outreachSubjectInput) return;
 
-        const contact = state.contacts.find(c => c.id === Number(selectedContactId));
-        if (contact) {
-            let originalBody = generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id)).body;
-            outreachBodyTextarea.value = originalBody.replace(/\[FirstName\]/g, `${contact.first_name}`);
+        // Generate the base AI copy first, regardless of contact selection
+        const aiCopy = await generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id));
+        outreachSubjectInput.value = aiCopy.subject; // Set the subject
+
+        // Now, personalize the body with the selected contact
+        if (selectedContactId) {
+            const contact = state.contacts.find(c => c.id === Number(selectedContactId));
+            if (contact) {
+                outreachBodyTextarea.value = aiCopy.body.replace(/\[FirstName\]/g, `${contact.first_name}`);
+            } else {
+                 outreachBodyTextarea.value = aiCopy.body; // Use the generic version if contact not found
+            }
+        } else {
+            outreachBodyTextarea.value = aiCopy.body; // Use the generic version if no contact is selected
         }
     }
 
