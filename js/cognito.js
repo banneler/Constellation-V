@@ -58,7 +58,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     function renderAlerts() {
         alertsContainer.innerHTML = '';
         
-        // *** FIX #1: Correctly filter for the archive view ***
         const alertsToRender = state.viewMode === 'dashboard'
             ? state.alerts.filter(a => a.status === 'New').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             : state.alerts.filter(a => a.status !== 'New').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -74,7 +73,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 card.className = 'alert-card';
                 card.dataset.alertId = alert.id;
 
-                // *** FIX #2: Conditionally show the action buttons only for "New" alerts ***
                 const actionButtonsHTML = alert.status === 'New' ? `
                     <div class="alert-actions">
                         <button class="btn-primary action-btn" data-action="action">Action</button>
@@ -100,10 +98,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-
-// js/cognito.js
-
-    // --- ACTION CENTER LOGIC (Based on your last working version) ---
+    // --- ACTION CENTER LOGIC ---
     function showActionCenter(alertId) {
         state.selectedAlert = state.alerts.find(a => a.id === alertId);
         if (!state.selectedAlert) return;
@@ -206,44 +201,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         return { subject, body };
     }
- 
-
-function generateOutreachCopy(alert, account) {
-    const accountName = account ? account.name : '[Account Name]';
-    let subject = ``;
-    let body = ``;
-
-    switch (alert.trigger_type) {
-        case 'C-Suite Change':
-            subject = `Congratulations on the new role`;
-            body = `Hi [FirstName],\n\nI saw the news about your new role as CIO at ${accountName} — congratulations.\n\nLeaders taking on new roles are often re-evaluating their infrastructure to support their vision. If exploring high-speed fiber or new cloud connectivity solutions is on your roadmap, I'd welcome a brief chat.\n\nBest regards,\n[Your Name]`;
-            break;
-        case 'Expansion':
-            subject = `Regarding ${accountName}'s new campus`;
-            body = `Hi [FirstName],\n\nCongratulations on the news about the new campus expansion in West Omaha. That's a significant project and great for the area.\n\nAs you scope out the infrastructure needs for a facility of that size, our team at Great Plains Communications specializes in providing foundational high-availability fiber and managed services. \n\nWould be happy to connect when the time is right.\n\nBest regards,\n[Your Name]`;
-            break;
-        default:
-            subject = `Following up on ${accountName}'s latest news`;
-            body = `Hi [FirstName],\n\nI saw the recent news about "${alert.headline}" and wanted to reach out.\n\n[Add your personalized message here]\n\nBest regards,\n[Your Name]`;
-    }
-    return { subject, body };
-}
-
 
     // --- ACTION HANDLERS (Integration with Constellation) ---
+    function handleContactChange(e) {
+        const selectedContactId = e.target.value;
+        const outreachBodyTextarea = document.getElementById('outreach-body');
+        if (!selectedContactId || !outreachBodyTextarea) return;
 
-function handleContactChange(e) {
-    const selectedContactId = e.target.value;
-    const outreachBodyTextarea = document.getElementById('outreach-body');
-    if (!selectedContactId || !outreachBodyTextarea) return;
-
-    const contact = state.contacts.find(c => c.id === Number(selectedContactId));
-    if (contact) {
-        // This logic is simplified to always replace the placeholder, preventing repeated name insertions.
-        let originalBody = generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id)).body;
-        outreachBodyTextarea.value = originalBody.replace(/\[FirstName\]/g, `${contact.first_name}`);
+        const contact = state.contacts.find(c => c.id === Number(selectedContactId));
+        if (contact) {
+            let originalBody = generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id)).body;
+            outreachBodyTextarea.value = originalBody.replace(/\[FirstName\]/g, `${contact.first_name}`);
+        }
     }
-}
 
     function handleEmailAction() {
         const contactId = document.getElementById('contact-selector').value;
