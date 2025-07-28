@@ -168,11 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         const contactSelector = document.getElementById('contact-selector');
         
-        if (suggestedContactId) {
-            contactSelector.value = suggestedContactId;
-            contactSelector.dispatchEvent(new Event('change'));
-        }
-
+        // Attach all event listeners FIRST
         document.getElementById('modal-close-btn').addEventListener('click', hideModal);
         contactSelector.addEventListener('change', handleContactChange);
         document.getElementById('send-email-btn').addEventListener('click', handleEmailAction);
@@ -180,8 +176,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('create-template-btn').addEventListener('click', handleCreateTemplate);
         document.getElementById('log-interaction-btn').addEventListener('click', handleLogInteraction);
         document.getElementById('create-task-btn').addEventListener('click', handleCreateTask);
-    }
 
+        // THEN, set the suggested value and dispatch the event
+        if (suggestedContactId) {
+            contactSelector.value = suggestedContactId;
+            contactSelector.dispatchEvent(new Event('change'));
+        }
    // js/cognito.js
 
 function generateOutreachCopy(alert, account) {
