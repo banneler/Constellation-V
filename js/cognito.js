@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dashboardViewBtn = document.getElementById('view-dashboard-btn');
     const archiveViewBtn = document.getElementById('view-archive-btn');
     const alertsContainer = document.getElementById('alerts-container');
+    const pageTitle = document.querySelector('#cognito-view h2');
 
 
     // --- DATA FETCHING ---
@@ -70,6 +71,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const card = document.createElement('div');
                 card.className = 'alert-card';
                 card.dataset.alertId = alert.id;
+
+                // *** FIX #1: Conditionally show the action buttons only for "New" alerts ***
+                const actionButtonsHTML = alert.status === 'New' ? `
+                    <div class="alert-actions">
+                        <button class="btn-primary action-btn" data-action="action">Action</button>
+                        <button class="btn-secondary action-btn" data-action="dismiss">Dismiss</button>
+                    </div>` : '';
+
                 card.innerHTML = `
                     <div class="alert-header">
                         <span class="alert-trigger-type" data-type="${alert.trigger_type}">${alert.trigger_type}</span>
@@ -79,13 +88,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <h5 class="alert-headline">${alert.headline}</h5>
                     <p class="alert-summary">${alert.summary}</p>
                     <div class="alert-footer">
-                        <span class="alert-source">Source: <a href="${alert.source_url}" target="_blank">${alert.source_name}</a></span>
+                        <span class="alert-source">Source: <a href="${alert.source_url}" target="_blank">${alert.source_name || 'N/A'}</a></span>
                         <span class="alert-date">${formatDate(alert.created_at)}</span>
                     </div>
-                    <div class="alert-actions">
-                        <button class="btn-primary action-btn" data-action="action">Action</button>
-                        <button class="btn-secondary action-btn" data-action="dismiss">Dismiss</button>
-                    </div>
+                    ${actionButtonsHTML} 
                 `;
                 alertsContainer.appendChild(card);
             });
@@ -93,7 +99,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
 
-    // --- ACTION CENTER LOGIC ---
+    // --- ACTION CENTER LOGIC (Based on your last working version) ---
     function showActionCenter(alertId) {
         state.selectedAlert = state.alerts.find(a => a.id === alertId);
         if (!state.selectedAlert) return;
@@ -121,9 +127,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         const modalBody = `
-            <h4>Action Center: ${account.name}</h4>
-            <div class="action-center-grid">
-                <div class="action-center-col">
+            <div class="action-center-content">
+                <div class="action-center-section">
+                    <h5>Suggested Outreach</h5>
                     <label for="contact-selector">Suggested Contact:</label>
                     <select id="contact-selector" ${relevantContacts.length === 0 ? 'disabled' : ''}>
                         <option value="">-- Select a Contact --</option>
@@ -140,7 +146,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                          <button class="btn-primary" id="send-email-btn">Open Email Client</button>
                     </div>
                 </div>
-                <div class="action-center-col">
+                <div class="action-center-section">
+                    <h5>Log Actions in Constellation</h5>
                     <label for="log-interaction-notes">Log an Interaction:</label>
                     <textarea id="log-interaction-notes" rows="4" placeholder="e.g., Emailed the new CIO..." ${relevantContacts.length === 0 ? 'disabled' : ''}></textarea>
                     <button class="btn-secondary" id="log-interaction-btn" style="width: 100%; margin-bottom: 15px;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Log to Constellation</button>
@@ -333,8 +340,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     function setupPageEventListeners() {
         setupModalListeners();
 
+        // *** FIX #2: Correctly handle the view toggle buttons ***
         dashboardViewBtn.addEventListener('click', () => {
             state.viewMode = 'dashboard';
+            pageTitle.textContent = 'New Alerts';
             dashboardViewBtn.classList.add('active');
             archiveViewBtn.classList.remove('active');
             renderAlerts();
@@ -342,6 +351,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         archiveViewBtn.addEventListener('click', () => {
             state.viewMode = 'archive';
+            pageTitle.textContent = 'Intelligence Archive';
             archiveViewBtn.classList.add('active');
             dashboardViewBtn.classList.remove('active');
             renderAlerts();
@@ -360,7 +370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (action === 'action') {
                 showActionCenter(alertId);
             } else if (action === 'dismiss') {
-                showModal("Confirm Dismissal", "Are you sure you want to dismiss this alert? It will be moved to the archive.", () => {
+                showModal("Confirm Dismissal", "Are you sure you want to dismiss this alert?", () => {
                     updateAlertStatus(alertId, 'Dismissed');
                     hideModal();
                 });
