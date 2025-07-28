@@ -24,7 +24,6 @@ export function formatMonthYear(dateString) {
     const date = new Date(Date.UTC(year, month - 1, 2)); 
     return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', timeZone: 'UTC' });
 }
-}
 
 export function formatSimpleDate(dateString) {
     if (!dateString) return "N/A";
