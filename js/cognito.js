@@ -57,9 +57,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- RENDER FUNCTIONS ---
     function renderAlerts() {
         alertsContainer.innerHTML = '';
-        const alertsToRender = state.viewMode === 'dashboard' ?
-            state.alerts.filter(a => a.status === 'New') :
-            state.alerts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        // *** FIX #1: Correctly filter for the archive view ***
+        const alertsToRender = state.viewMode === 'dashboard'
+            ? state.alerts.filter(a => a.status === 'New').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            : state.alerts.filter(a => a.status !== 'New').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         if (alertsToRender.length === 0 && state.viewMode === 'dashboard') {
             alertsContainer.innerHTML = `<p class="placeholder-text">No new intelligence alerts today. The archive is available if you need to review past items.</p>`;
@@ -72,7 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 card.className = 'alert-card';
                 card.dataset.alertId = alert.id;
 
-                // *** FIX #1: Conditionally show the action buttons only for "New" alerts ***
+                // *** FIX #2: Conditionally show the action buttons only for "New" alerts ***
                 const actionButtonsHTML = alert.status === 'New' ? `
                     <div class="alert-actions">
                         <button class="btn-primary action-btn" data-action="action">Action</button>
@@ -91,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <span class="alert-source">Source: <a href="${alert.source_url}" target="_blank">${alert.source_name || 'N/A'}</a></span>
                         <span class="alert-date">${formatDate(alert.created_at)}</span>
                     </div>
-                    ${actionButtonsHTML} 
+                    ${actionButtonsHTML}
                 `;
                 alertsContainer.appendChild(card);
             });
@@ -210,7 +212,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const contact = state.contacts.find(c => c.id === Number(selectedContactId));
         if (contact) {
-            outreachBodyTextarea.value = outreachBodyTextarea.value.replace(/\[Contact Name\]/g, `${contact.first_name}`);
+            // This logic is simplified to always replace the placeholder, preventing repeated name insertions.
+            let originalBody = generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id)).body;
+            outreachBodyTextarea.value = originalBody.replace(/\[Contact Name\]/g, `${contact.first_name}`);
         }
     }
 
@@ -339,8 +343,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
-
-        // *** FIX #2: Correctly handle the view toggle buttons ***
+        
         dashboardViewBtn.addEventListener('click', () => {
             state.viewMode = 'dashboard';
             pageTitle.textContent = 'New Alerts';
