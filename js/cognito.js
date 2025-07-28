@@ -207,18 +207,19 @@ function generateOutreachCopy(alert, account) {
 
 
     // --- ACTION HANDLERS (Integration with Constellation) ---
-    function handleContactChange(e) {
-        const selectedContactId = e.target.value;
-        const outreachBodyTextarea = document.getElementById('outreach-body');
-        if (!selectedContactId || !outreachBodyTextarea) return;
 
-        const contact = state.contacts.find(c => c.id === Number(selectedContactId));
-        if (contact) {
-            // This logic is simplified to always replace the placeholder, preventing repeated name insertions.
-            let originalBody = generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id)).body;
-            outreachBodyTextarea.value = originalBody.replace(/\[Contact Name\]/g, `${contact.first_name}`);
-        }
+function handleContactChange(e) {
+    const selectedContactId = e.target.value;
+    const outreachBodyTextarea = document.getElementById('outreach-body');
+    if (!selectedContactId || !outreachBodyTextarea) return;
+
+    const contact = state.contacts.find(c => c.id === Number(selectedContactId));
+    if (contact) {
+        // This logic is simplified to always replace the placeholder, preventing repeated name insertions.
+        let originalBody = generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id)).body;
+        outreachBodyTextarea.value = originalBody.replace(/\[FirstName\]/g, `${contact.first_name}`);
     }
+}
 
     function handleEmailAction() {
         const contactId = document.getElementById('contact-selector').value;
