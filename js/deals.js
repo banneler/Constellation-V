@@ -257,7 +257,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         let currentCommit = 0, bestCase = 0, totalFunnel = 0;
         state.deals.forEach((deal) => {
             const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null; // Safer date parsing
-            const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
+const dealYear = dealCloseDate ? dealCloseDate.getUTCFullYear() : null;
+const dealMonth = dealCloseDate ? dealCloseDate.getUTCMonth() : null;
+const isCurrentMonth = dealYear === currentYear && dealMonth === currentMonth;
             totalFunnel += deal.mrc || 0;
             if (isCurrentMonth) {
                 bestCase += deal.mrc || 0;
