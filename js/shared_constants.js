@@ -14,10 +14,16 @@ export function formatDate(dateString) {
     return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+// js/shared_constants.js
+
 export function formatMonthYear(dateString) {
     if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long' });
+    // Split the "YYYY-MM" string to avoid timezone conversion errors
+    const [year, month] = dateString.split('-');
+    // Create a date in UTC to ensure it doesn't shift to the previous day
+    const date = new Date(Date.UTC(year, month - 1, 2)); 
+    return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', timeZone: 'UTC' });
+}
 }
 
 export function formatSimpleDate(dateString) {
