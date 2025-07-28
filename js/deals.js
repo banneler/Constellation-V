@@ -232,48 +232,62 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
-    const renderDealsMetrics = () => {
-        if (!metricCurrentCommit) return;
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
-        const isMyTeamView = state.dealsViewMode === 'all' && isManager;
-        if (metricCurrentCommitTitle && metricBestCaseTitle) {
-            metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
-            metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
+// js/deals.js
+
+const renderDealsMetrics = () => {
+    if (!metricCurrentCommit) return;
+
+    // Check if the user is a manager and is in the team view
+    const isManager = state.currentUser.user_metadata?.is_manager === true;
+    const isMyTeamView = state.dealsViewMode === 'all' && isManager;
+
+    // Update metric card titles based on the current view
+    if (metricCurrentCommitTitle && metricBestCaseTitle) {
+        metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
+        metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
+    }
+
+    // *** THIS IS THE CORE FIX ***
+    // Calculate the effective quota: sum of all users for team view, or just the current user's for personal view.
+    let effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
+
+    if (commitTotalQuota && bestCaseTotalQuota) {
+        if (isMyTeamView) {
+            commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
+            bestCaseTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
+            commitTotalQuota.classList.remove('hidden');
+            bestCaseTotalQuota.classList.remove('hidden');
+        } else {
+            commitTotalQuota.classList.add('hidden');
+            bestCaseTotalQuota.classList.add('hidden');
         }
-        let effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
-        if (commitTotalQuota && bestCaseTotalQuota) {
-            if (isMyTeamView) {
-                commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
-                bestCaseTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
-                commitTotalQuota.classList.remove('hidden');
-                bestCaseTotalQuota.classList.remove('hidden');
-            } else {
-                commitTotalQuota.classList.add('hidden');
-                bestCaseTotalQuota.classList.add('hidden');
-            }
+    }
+    
+    // The rest of the function remains the same, calculating metrics against the correct deals list
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    let currentCommit = 0, bestCase = 0, totalFunnel = 0;
+    
+    state.deals.forEach((deal) => {
+        const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
+        const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
+        totalFunnel += deal.mrc || 0;
+        if (isCurrentMonth) {
+            bestCase += deal.mrc || 0;
+            if (deal.is_committed) currentCommit += deal.mrc || 0;
         }
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        let currentCommit = 0, bestCase = 0, totalFunnel = 0;
-        state.deals.forEach((deal) => {
-            const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null; // Safer date parsing
-const dealYear = dealCloseDate ? dealCloseDate.getUTCFullYear() : null;
-const dealMonth = dealCloseDate ? dealCloseDate.getUTCMonth() : null;
-const isCurrentMonth = dealYear === currentYear && dealMonth === currentMonth;
-            totalFunnel += deal.mrc || 0;
-            if (isCurrentMonth) {
-                bestCase += deal.mrc || 0;
-                if (deal.is_committed) currentCommit += deal.mrc || 0;
-            }
-        });
-        metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
-        metricBestCase.textContent = formatCurrencyK(bestCase);
-        metricFunnel.textContent = formatCurrencyK(totalFunnel);
-        const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-        const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-        document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
-        document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
-    };
+    });
+
+    metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
+    metricBestCase.textContent = formatCurrencyK(bestCase);
+    metricFunnel.textContent = formatCurrencyK(totalFunnel);
+
+    const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+    const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+    
+    document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
+    document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
+};
 
     // --- NEW: Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
