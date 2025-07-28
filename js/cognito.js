@@ -100,96 +100,98 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
     // --- ACTION CENTER LOGIC (GEMINI INTEGRATED) ---
-    async function showActionCenter(alertId) {
-        state.selectedAlert = state.alerts.find(a => a.id === alertId);
-        if (!state.selectedAlert) return;
+    // js/cognito.js
 
-        const account = state.accounts.find(acc => acc.id === state.selectedAlert.account_id);
-        
-        if (!account) {
-            alert(`Error: Could not find the corresponding account (ID: ${state.selectedAlert.account_id}) in your Constellation database.`);
-            return;
-        }
-        
-        // Show a temporary loading state in the modal
-        showModal('Action Center', '<p class="placeholder-text">Generating AI suggestion...</p>', null, false, `<button id="modal-close-btn" class="btn-secondary">Close</button>`);
-        document.getElementById('modal-close-btn').addEventListener('click', hideModal);
+async function showActionCenter(alertId) {
+    state.selectedAlert = state.alerts.find(a => a.id === alertId);
+    if (!state.selectedAlert) return;
 
-        // Fetch the AI-generated outreach copy
-        const outreachCopy = await generateOutreachCopy(state.selectedAlert, account);
+    const account = state.accounts.find(acc => acc.id === state.selectedAlert.account_id);
+    
+    if (!account) {
+        alert(`Error: Could not find the corresponding account (ID: ${state.selectedAlert.account_id}) in your Constellation database.`);
+        return;
+    }
+    
+    // Show a temporary loading state in the modal immediately
+    showModal('Action Center', '<p class="placeholder-text">Generating AI suggestion...</p>', null, false, `<button id="modal-close-btn" class="btn-secondary">Close</button>`);
+    document.getElementById('modal-close-btn').addEventListener('click', hideModal);
 
-        const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id);
-        const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
+    // Fetch the AI-generated outreach copy in the background
+    const outreachCopy = await generateOutreachCopy(state.selectedAlert, account);
 
-        let suggestedContactId = null;
-        if(relevantContacts.length > 0) {
-            if(state.selectedAlert.trigger_type === 'C-Suite Change') {
-                const cLevelContact = relevantContacts.find(c => c.title && (c.title.includes('CIO') || c.title.includes('CTO') || c.title.includes('Chief')));
-                suggestedContactId = cLevelContact ? cLevelContact.id : relevantContacts[0].id;
-            } else {
-                suggestedContactId = relevantContacts[0].id;
-            }
-        }
-        
-        const modalBody = `
-            <div class="action-center-content">
-                <div class="action-center-section">
-                    <h5>Suggested Outreach</h5>
-                    <label for="contact-selector">Suggested Contact:</label>
-                    <select id="contact-selector" ${relevantContacts.length === 0 ? 'disabled' : ''}>
-                        <option value="">-- Select a Contact --</option>
-                        ${contactOptions}
-                    </select>
-                    
-                    <label for="outreach-subject">Suggested Subject:</label>
-                    <input type="text" id="outreach-subject" value="${outreachCopy.subject}">
-                    <label for="outreach-body">Suggested Body:</label>
-                    <textarea id="outreach-body" rows="8">${outreachCopy.body}</textarea>
-                    <div class="action-buttons">
-                         <button class="btn-secondary" id="copy-btn">Copy</button>
-                         <button class="btn-secondary" id="create-template-btn">Create Campaign Email Template</button>
-                         <button class="btn-primary" id="send-email-btn">Open Email Client</button>
-                    </div>
-                </div>
-                <div class="action-center-section">
-                    <h5>Log Actions in Constellation</h5>
-                    <label for="log-interaction-notes">Log an Interaction:</label>
-                    <textarea id="log-interaction-notes" rows="4" placeholder="e.g., Emailed the new CIO..." ${relevantContacts.length === 0 ? 'disabled' : ''}></textarea>
-                    <button class="btn-secondary" id="log-interaction-btn" style="width: 100%; margin-bottom: 15px;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Log to Constellation</button>
+    const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id);
+    const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
 
-                    <label for="create-task-desc">Create a Task:</label>
-                    <input type="text" id="create-task-desc" placeholder="e.g., Follow up with new CIO in 1 week" ${relevantContacts.length === 0 ? 'disabled' : ''}>
-                    <label for="create-task-due-date">Due Date:</label>
-                    <input type="date" id="create-task-due-date" ${relevantContacts.length === 0 ? 'disabled' : ''}>
-                    <button class="btn-primary" id="create-task-btn" style="width: 100%;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Create in Constellation</button>
-                    
-                    ${relevantContacts.length === 0 ? '<p class="placeholder-text" style="color: var(--warning-yellow); margin-top: 10px;">Add a contact to this account in Constellation to enable logging and task creation.</p>' : ''}
-                </div>
-            </div>`;
-
-        // Update the modal with the full content
-        const modalBodyElement = document.getElementById('modal-body');
-        if (modalBodyElement) {
-            modalBodyElement.innerHTML = modalBody;
-        }
-
-        const contactSelector = document.getElementById('contact-selector');
-        
-        // Attach all event listeners FIRST
-        document.getElementById('modal-close-btn').addEventListener('click', hideModal);
-        contactSelector.addEventListener('change', handleContactChange);
-        document.getElementById('send-email-btn').addEventListener('click', handleEmailAction);
-        document.getElementById('copy-btn').addEventListener('click', handleCopyAction);
-        document.getElementById('create-template-btn').addEventListener('click', handleCreateTemplate);
-        document.getElementById('log-interaction-btn').addEventListener('click', handleLogInteraction);
-        document.getElementById('create-task-btn').addEventListener('click', handleCreateTask);
-
-        // THEN, set the suggested value and dispatch the event
-        if (suggestedContactId) {
-            contactSelector.value = suggestedContactId;
-            contactSelector.dispatchEvent(new Event('change'));
+    let suggestedContactId = null;
+    if(relevantContacts.length > 0) {
+        if(state.selectedAlert.trigger_type === 'C-Suite Change') {
+            const cLevelContact = relevantContacts.find(c => c.title && (c.title.includes('CIO') || c.title.includes('CTO') || c.title.includes('Chief')));
+            suggestedContactId = cLevelContact ? cLevelContact.id : relevantContacts[0].id;
+        } else {
+            suggestedContactId = relevantContacts[0].id;
         }
     }
+    
+    const modalBody = `
+        <div class="action-center-content">
+            <div class="action-center-section">
+                <h5>Suggested Outreach</h5>
+                <label for="contact-selector">Suggested Contact:</label>
+                <select id="contact-selector" ${relevantContacts.length === 0 ? 'disabled' : ''}>
+                    <option value="">-- Select a Contact --</option>
+                    ${contactOptions}
+                </select>
+                
+                <label for="outreach-subject">Suggested Subject:</label>
+                <input type="text" id="outreach-subject" value="${outreachCopy.subject}">
+                <label for="outreach-body">Suggested Body:</label>
+                <textarea id="outreach-body" rows="8">${outreachCopy.body}</textarea>
+                <div class="action-buttons">
+                     <button class="btn-secondary" id="copy-btn">Copy</button>
+                     <button class="btn-secondary" id="create-template-btn">Create Campaign Email Template</button>
+                     <button class="btn-primary" id="send-email-btn">Open Email Client</button>
+                </div>
+            </div>
+            <div class="action-center-section">
+                <h5>Log Actions in Constellation</h5>
+                <label for="log-interaction-notes">Log an Interaction:</label>
+                <textarea id="log-interaction-notes" rows="4" placeholder="e.g., Emailed the new CIO..." ${relevantContacts.length === 0 ? 'disabled' : ''}></textarea>
+                <button class="btn-secondary" id="log-interaction-btn" style="width: 100%; margin-bottom: 15px;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Log to Constellation</button>
+
+                <label for="create-task-desc">Create a Task:</label>
+                <input type="text" id="create-task-desc" placeholder="e.g., Follow up with new CIO in 1 week" ${relevantContacts.length === 0 ? 'disabled' : ''}>
+                <label for="create-task-due-date">Due Date:</label>
+                <input type="date" id="create-task-due-date" ${relevantContacts.length === 0 ? 'disabled' : ''}>
+                <button class="btn-primary" id="create-task-btn" style="width: 100%;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Create in Constellation</button>
+                
+                ${relevantContacts.length === 0 ? '<p class="placeholder-text" style="color: var(--warning-yellow); margin-top: 10px;">Add a contact to this account in Constellation to enable logging and task creation.</p>' : ''}
+            </div>
+        </div>`;
+
+    // Now that the AI content has arrived, replace the loading message with the full modal body
+    const modalBodyElement = document.getElementById('modal-body');
+    if (modalBodyElement) {
+        modalBodyElement.innerHTML = modalBody;
+    }
+
+    const contactSelector = document.getElementById('contact-selector');
+    
+    // Re-attach all the necessary event listeners to the new content
+    document.getElementById('modal-close-btn').addEventListener('click', hideModal);
+    contactSelector.addEventListener('change', handleContactChange);
+    document.getElementById('send-email-btn').addEventListener('click', handleEmailAction);
+    document.getElementById('copy-btn').addEventListener('click', handleCopyAction);
+    document.getElementById('create-template-btn').addEventListener('click', handleCreateTemplate);
+    document.getElementById('log-interaction-btn').addEventListener('click', handleLogInteraction);
+    document.getElementById('create-task-btn').addEventListener('click', handleCreateTask);
+
+    // Set the suggested value and dispatch the event
+    if (suggestedContactId) {
+        contactSelector.value = suggestedContactId;
+        contactSelector.dispatchEvent(new Event('change'));
+    }
+}
 
     async function generateOutreachCopy(alert, account) {
         try {
