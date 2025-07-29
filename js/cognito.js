@@ -19,7 +19,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         contacts: [],
         alerts: [],
         selectedAlert: null,
-        viewMode: 'dashboard'
+        viewMode: 'dashboard',
+        // NEW: Store the initial AI suggestion for re-use with custom prompts
+        initialSuggestionSubject: null,
+        initialSuggestionBody: null
     };
 
     // --- DOM SELECTORS ---
@@ -126,6 +129,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Fetch the initial AI-generated outreach copy in the background
         const initialOutreachCopy = await generateOutreachCopy(state.selectedAlert, account);
+        // NEW: Store the initial suggestion in state
+        state.initialSuggestionSubject = initialOutreachCopy.subject;
+        state.initialSuggestionBody = initialOutreachCopy.body;
+
 
         const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id);
         const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
@@ -285,7 +292,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             customOutreachBodyTextarea.value = 'Generating...';
             console.log("Calling generateCustomOutreachCopy..."); // DEBUG LOG
 
-            const customOutreachCopy = await generateCustomOutreachCopy(state.selectedAlert, account, customPrompt);
+            // UPDATED: Pass initial suggestion content to the custom generation function
+            const customOutreachCopy = await generateCustomOutreachCopy(
+                state.selectedAlert,
+                account,
+                customPrompt,
+                state.initialSuggestionSubject, // Pass initial subject
+                state.initialSuggestionBody     // Pass initial body
+            );
 
             // Hide loading state
             generateCustomBtn.disabled = false;
@@ -379,11 +393,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // NEW FUNCTION: For custom prompt generation
-    async function generateCustomOutreachCopy(alert, account, customPrompt) {
+    // UPDATED: Added previousSubject and previousBody parameters
+    async function generateCustomOutreachCopy(alert, account, customPrompt, previousSubject, previousBody) {
         try {
             console.log("Invoking generate-custom-suggestion Edge Function..."); // DEBUG LOG
             const { data, error } = await supabase.functions.invoke('generate-custom-suggestion', {
-                body: { alertData: alert, accountData: account, customPrompt: customPrompt }
+                body: {
+                    alertData: alert,
+                    accountData: account,
+                    customPrompt: customPrompt,
+                    previousSubject: previousSubject, // Pass previous subject
+                    previousBody: previousBody        // Pass previous body
+                }
             });
 
             if (error) {
@@ -408,9 +429,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         // Always generate the base AI copy for the default suggestion fields
         // This ensures the initial suggestion is re-personalilzed if contact changes
-        const initialAiCopy = await generateOutreachCopy(state.selectedAlert, state.accounts.find(acc => acc.id === state.selectedAlert.account_id));
-        outreachSubjectInput.value = initialAiCopy.subject; // Set the subject for initial suggestion
-        handlePersonalizeOutreach(initialAiCopy, selectedContactId, false); // Personalize initial body
+        // NOTE: We don't need to re-invoke generateOutreachCopy here if initialOutreachCopy is already stored.
+        // We can just use state.initialSuggestionSubject and state.initialSuggestionBody.
+        const initialAiCopyForPersonalization = {
+            subject: state.initialSuggestionSubject,
+            body: state.initialSuggestionBody
+        };
+        outreachSubjectInput.value = initialAiCopyForPersonalization.subject; // Set the subject for initial suggestion
+        handlePersonalizeOutreach(initialAiCopyForPersonalization, selectedContactId, false); // Personalize initial body
 
         // Also update the custom suggestion body if it's currently displayed
         if (customSuggestionOutput && customSuggestionOutput.style.display === 'block') {
