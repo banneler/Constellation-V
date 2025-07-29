@@ -680,7 +680,8 @@ label {
 /* --- BUTTONS --- */
 .btn-primary,
 .btn-danger,
-.btn-secondary {
+.btn-secondary,
+.btn-tertiary { /* Added btn-tertiary here */
     padding: 0.625rem 0.9375rem;
     border: none;
     color: var(--text-light);
@@ -702,7 +703,8 @@ label {
 /* Adjust padding for buttons that explicitly contain text AND icon */
 .btn-danger:has(span),
 .btn-secondary:has(span),
-.btn-primary:has(span) {
+.btn-primary:has(span),
+.btn-tertiary:has(span) { /* Added btn-tertiary here */
     padding: 8px 12px;
     min-width: unset;
     height: auto;
@@ -710,7 +712,8 @@ label {
 
 body:not(.theme-green) .btn-primary,
 body:not(.theme-green) .btn-danger,
-body:not(.theme-green) .btn-secondary {
+body:not(.theme-green) .btn-secondary,
+body:not(.theme-green) .btn-tertiary { /* Added btn-tertiary here */
     border-radius: 5px;
 }
 
@@ -728,6 +731,46 @@ body:not(.theme-green) .btn-secondary {
     background-color: var(--secondary-gray);
     box-shadow: 0 2px 5px var(--shadow-medium);
 }
+
+/* --- NEW: btn-tertiary for the "Refine with Custom Prompt" button --- */
+.btn-tertiary {
+    background-color: transparent; /* No background */
+    border: 1px solid var(--border-color); /* Subtle border */
+    color: var(--text-medium); /* Lighter text color */
+    box-shadow: none; /* No shadow by default */
+    padding: 8px 12px; /* Ensure appropriate padding */
+    width: 100%; /* Make it full width for consistent layout in modal */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.btn-tertiary:hover {
+    background-color: var(--bg-light); /* Slight background on hover */
+    color: var(--text-light); /* Brighter text on hover */
+    transform: translateY(-1px); /* Slight lift */
+    box-shadow: 0 2px 5px var(--shadow-light); /* Subtle shadow on hover */
+    border-color: var(--primary-blue); /* Highlight border */
+}
+
+.btn-tertiary:active {
+    transform: translateY(0); /* Press down effect */
+    box-shadow: inset 0 1px 3px var(--shadow-light); /* Inset shadow for pressed look */
+}
+
+body.theme-green .btn-tertiary {
+    background-color: transparent;
+    border: 1px solid var(--text-medium);
+    color: var(--text-medium);
+    box-shadow: 0 0 5px rgba(0, 255, 65, 0.2);
+}
+
+body.theme-green .btn-tertiary:hover {
+    background-color: rgba(0, 255, 65, 0.1); /* Subtle green background on hover */
+    border-color: var(--text-light);
+    color: var(--text-light);
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.6);
+}
+/* End of btn-tertiary styles */
+
 
 body.theme-green .btn-primary {
     background-color: var(--secondary-gray);
@@ -1966,6 +2009,7 @@ button,
 .btn-primary,
 .btn-danger,
 .btn-secondary,
+.btn-tertiary, /* Added btn-tertiary here */
 table,
 th,
 td,
@@ -2118,7 +2162,7 @@ body.theme-green .marketing-indicator {
 }
 
 .cognito-logo-magnifying-glass {
-    height: 1.0em;  
+    height: 1.0em;    
     width: auto;
     margin: 0 0.05em -0.1em 0.05em;
     transition: transform 0.3s ease-in-out;
@@ -2313,7 +2357,7 @@ body.theme-green .marketing-indicator {
 
 /* Style the magnifying glass SVG */
 .cognito-logo-magnifying-glass {
-    height: 1.0em;  
+    height: 1.0em;    
     width: auto;
     margin: 0 0.05em -0.1em 0.05em;
     transition: transform 0.3s ease-in-out;
