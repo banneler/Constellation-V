@@ -20,10 +20,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         alerts: [],
         selectedAlert: null,
         viewMode: 'dashboard',
-        // NEW: Store the initial AI suggestion for re-use with custom prompts
         initialSuggestionSubject: null,
         initialSuggestionBody: null
     };
+
+    // NEW: Define the original base prompt text here
+    // This is the instruction set you give to Gemini for the initial suggestion,
+    // excluding any dynamic data like account name or alert summary.
+    const ORIGINAL_PROMPT_BASE_TEXT = `
+        You are an expert telecommunications sales executive working for Great Plains Communications. 
+        Based on what you know about the products and services your company offers, Write a concise, 
+        professional outreach email based on this intelligence. Let's leave out bracketed sections 
+        that require user input or selection in your final response. Read through your response twice 
+        and modify before providing your final suggested text. Finally, we want to be careful to not sound 
+        robotic or AI generated. You got this! Oh, and the code that receives this is looking for [FirstName] 
+        to lookup the associated contacts name and do not include anything past the valediction. 
+        My email client populates my signature.
+    `.trim(); // .trim() removes leading/trailing whitespace from the template literal
+
 
     // --- DOM SELECTORS ---
     const dashboardViewBtn = document.getElementById('view-dashboard-btn');
@@ -35,8 +49,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // These will be re-selected within showActionCenter or a helper function
     // to ensure they exist after modal content is updated.
     let initialAiSuggestionSection, refineSuggestionBtn, outreachSubjectInput, outreachBodyTextarea;
-    let customPromptSection, customPromptInput, generateCustomBtn, cancelCustomBtn, customSuggestionOutput;
-    let customOutreachSubjectInput, customOutreachBodyTextarea;
+    let customPromptSection, customPromptInput, generateCustomBtn, cancelCustomBtn;
+    let customSuggestionOutput, customOutreachSubjectInput, customOutreachBodyTextarea;
     let copyCustomBtn, createTemplateCustomBtn, sendEmailCustomBtn;
     let contactSelector, logInteractionNotes, logInteractionBtn, createTaskDesc, createTaskDueDate, createTaskBtn, noContactMessage;
 
@@ -292,13 +306,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             customOutreachBodyTextarea.value = 'Generating...';
             console.log("Calling generateCustomOutreachCopy..."); // DEBUG LOG
 
-            // UPDATED: Pass initial suggestion content to the custom generation function
+            // UPDATED: Pass initial suggestion content AND the original base prompt to the custom generation function
             const customOutreachCopy = await generateCustomOutreachCopy(
                 state.selectedAlert,
                 account,
                 customPrompt,
                 state.initialSuggestionSubject, // Pass initial subject
-                state.initialSuggestionBody     // Pass initial body
+                state.initialSuggestionBody,    // Pass initial body
+                ORIGINAL_PROMPT_BASE_TEXT       // Pass the original base prompt
             );
 
             // Hide loading state
@@ -393,8 +408,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // NEW FUNCTION: For custom prompt generation
-    // UPDATED: Added previousSubject and previousBody parameters
-    async function generateCustomOutreachCopy(alert, account, customPrompt, previousSubject, previousBody) {
+    // UPDATED: Added originalBasePrompt parameter
+    async function generateCustomOutreachCopy(alert, account, customPrompt, previousSubject, previousBody, originalBasePrompt) {
         try {
             console.log("Invoking generate-custom-suggestion Edge Function..."); // DEBUG LOG
             const { data, error } = await supabase.functions.invoke('generate-custom-suggestion', {
@@ -402,8 +417,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     alertData: alert,
                     accountData: account,
                     customPrompt: customPrompt,
-                    previousSubject: previousSubject, // Pass previous subject
-                    previousBody: previousBody        // Pass previous body
+                    previousSubject: previousSubject,
+                    previousBody: previousBody,
+                    originalBasePrompt: originalBasePrompt // Pass the original base prompt
                 }
             });
 
@@ -429,7 +445,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         // Always generate the base AI copy for the default suggestion fields
         // This ensures the initial suggestion is re-personalilzed if contact changes
-        // NOTE: We don't need to re-invoke generateOutreachCopy here if initialOutreachCopy is already stored.
         // We can just use state.initialSuggestionSubject and state.initialSuggestionBody.
         const initialAiCopyForPersonalization = {
             subject: state.initialSuggestionSubject,
