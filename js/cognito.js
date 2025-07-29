@@ -21,7 +21,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectedAlert: null,
         viewMode: 'dashboard',
         initialSuggestionSubject: null,
-        initialSuggestionBody: null
+        initialSuggestionBody: null,
+        // NEW: Filter state variables
+        filterTriggerType: '',
+        filterRelevance: '',
+        filterAccountId: ''
     };
 
     const ORIGINAL_PROMPT_BASE_TEXT = `
@@ -41,13 +45,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const alertsContainer = document.getElementById('alerts-container');
     const pageTitle = document.querySelector('#cognito-view h2');
 
+    // NEW: Filter DOM Selectors
+    const filterTriggerTypeSelect = document.getElementById('filter-trigger-type');
+    const filterRelevanceSelect = document.getElementById('filter-relevance');
+    const filterAccountSelect = document.getElementById('filter-account');
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
+
+
     // --- MODAL ELEMENTS (Dynamic, fetched after modal body is rendered) ---
     let initialAiSuggestionSection, refineSuggestionBtn, outreachSubjectInput, outreachBodyTextarea;
     let customPromptSection, customPromptInput, generateCustomBtn, cancelCustomBtn;
     let customSuggestionOutput, customOutreachSubjectInput, customOutreachBodyTextarea;
-    let copyCustomBtn, createTemplateCustomBtn, sendEmailCustomBtn;
+    let copyCustomBtn, sendEmailCustomBtn; // Removed createTemplateCustomBtn
     let contactSelector, logInteractionNotes, logInteractionBtn, createTaskDesc, createTaskDueDate, createTaskBtn, noContactMessage;
-    // NEW: DOM elements for relevance score display
     let alertRelevanceDisplay, alertRelevanceEmoji;
 
 
@@ -73,21 +83,52 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.accounts = accounts || [];
         state.contacts = contacts || [];
 
+        populateAccountFilter(); // NEW: Populate the account filter dropdown
         renderAlerts();
     }
+
+    // NEW: Function to populate the Account filter dropdown
+    function populateAccountFilter() {
+        filterAccountSelect.innerHTML = '<option value="">All Accounts</option>'; // Reset
+        state.accounts.forEach(account => {
+            const option = document.createElement('option');
+            option.value = account.id;
+            option.textContent = account.name;
+            filterAccountSelect.appendChild(option);
+        });
+        // Set selected value if filter is already active
+        if (state.filterAccountId) {
+            filterAccountSelect.value = state.filterAccountId;
+        }
+    }
+
 
     // --- RENDER FUNCTIONS ---
     function renderAlerts() {
         alertsContainer.innerHTML = '';
         
-        const alertsToRender = state.viewMode === 'dashboard'
-            ? state.alerts.filter(a => a.status === 'New').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            : state.alerts.filter(a => a.status !== 'New').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        let alertsToRender = state.viewMode === 'dashboard'
+            ? state.alerts.filter(a => a.status === 'New')
+            : state.alerts.filter(a => a.status !== 'New');
+
+        // NEW: Apply filters
+        if (state.filterTriggerType) {
+            alertsToRender = alertsToRender.filter(alert => alert.trigger_type === state.filterTriggerType);
+        }
+        if (state.filterRelevance) {
+            alertsToRender = alertsToRender.filter(alert => alert.relevance_score === parseInt(state.filterRelevance));
+        }
+        if (state.filterAccountId) {
+            alertsToRender = alertsToRender.filter(alert => alert.account_id === parseInt(state.filterAccountId));
+        }
+
+        alertsToRender.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Always sort by date
+
 
         if (alertsToRender.length === 0 && state.viewMode === 'dashboard') {
             alertsContainer.innerHTML = `<p class="placeholder-text">No new intelligence alerts today. The archive is available if you need to review past items.</p>`;
         } else if (alertsToRender.length === 0) {
-            alertsContainer.innerHTML = `<p class="placeholder-text">The Intelligence Archive is empty.</p>`;
+            alertsContainer.innerHTML = `<p class="placeholder-text">The Intelligence Archive is empty or no alerts match your filters.</p>`; // Updated message
         } else {
             alertsToRender.forEach(alert => {
                 const account = state.accounts.find(acc => acc.id === alert.account_id);
@@ -101,9 +142,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <button class="btn-secondary action-btn" data-action="dismiss">Dismiss</button>
                     </div>` : '';
                 
-                // NEW: Prepare relevance score display for the card (optional, but good for overview)
                 const relevanceScore = alert.relevance_score || 0;
-                const relevanceEmoji = relevanceScore >= 4 ? ' 🔥' : ''; // Fire emoji for 4 or 5
+                const relevanceEmoji = relevanceScore >= 4 ? ' 🔥' : '';
                 const relevanceDisplay = `<span class="alert-relevance-pill">Score: ${relevanceScore}/5${relevanceEmoji}</span>`;
 
 
@@ -118,7 +158,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="alert-footer">
                         <span class="alert-source">Source: <a href="${alert.source_url}" target="_blank">${alert.source_name || 'N/A'}</a></span>
                         <span class="alert-date">${formatDate(alert.created_at)}</span>
-                        ${relevanceDisplay} </div>
+                        ${relevanceDisplay}
+                    </div>
                     ${actionButtonsHTML}
                 `;
                 alertsContainer.appendChild(card);
@@ -139,11 +180,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
         
-        // Show a temporary loading state in the modal immediately
         showModal('Action Center', '<p class="placeholder-text">Generating AI suggestion...</p>', null, false, `<button id="modal-close-btn" class="btn-secondary">Close</button>`);
         document.getElementById('modal-close-btn').addEventListener('click', hideModal);
 
-        // Fetch the initial AI-generated outreach copy in the background
         const initialOutreachCopy = await generateOutreachCopy(state.selectedAlert, account);
         state.initialSuggestionSubject = initialOutreachCopy.subject;
         state.initialSuggestionBody = initialOutreachCopy.body;
@@ -161,9 +200,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         
-        // NEW: Get relevance score for display in modal
-        const currentRelevanceScore = state.selectedAlert.relevance_score || 0; // Default to 0 if not set
-        const modalRelevanceEmoji = currentRelevanceScore >= 4 ? ' 🔥' : ''; // Fire emoji for 4 or 5
+        const currentRelevanceScore = state.selectedAlert.relevance_score || 0;
+        const modalRelevanceEmoji = currentRelevanceScore >= 4 ? ' 🔥' : '';
         const relevanceSectionHTML = `<p class="alert-relevance">Relevance: <span id="relevance-score-display">${currentRelevanceScore}/5</span><span id="relevance-fire-emoji">${modalRelevanceEmoji}</span></p>`;
 
 
@@ -171,7 +209,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="action-center-content">
                 <div class="action-center-section">
                     <h5>Suggested Outreach</h5>
-                    ${relevanceSectionHTML} <label for="contact-selector">Suggested Contact:</label>
+                    ${relevanceSectionHTML}
+                    <label for="contact-selector">Suggested Contact:</label>
                     <select id="contact-selector" ${relevantContacts.length === 0 ? 'disabled' : ''}>
                         <option value="">-- Select a Contact --</option>
                         ${contactOptions}
@@ -184,7 +223,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <textarea id="outreach-body" rows="8" readonly>${initialOutreachCopy.body}</textarea>
                         <div class="action-buttons">
                             <button class="btn-secondary" id="copy-btn">Copy</button>
-                            <button class="btn-secondary" id="create-template-btn">Create Campaign Email Template</button>
                             <button class="btn-primary" id="send-email-btn">Open Email Client</button>
                         </div>
                         <button class="btn-tertiary" id="refine-suggestion-btn" style="margin-top: 15px;">Refine with Custom Prompt</button>
@@ -206,7 +244,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <textarea id="custom-outreach-body" rows="8" readonly></textarea>
                             <div class="action-buttons">
                                 <button class="btn-secondary" id="copy-custom-btn">Copy Custom</button>
-                                <button class="btn-secondary" id="create-template-custom-btn">Create Custom Template</button>
                                 <button class="btn-primary" id="send-email-custom-btn">Open Email Client (Custom)</button>
                             </div>
                         </div>
@@ -231,7 +268,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>`;
 
-        // Now that the AI content has arrived, replace the loading message with the full modal body
         const modalBodyElement = document.getElementById('modal-body');
         if (modalBodyElement) {
             modalBodyElement.innerHTML = modalBodyContent; 
@@ -252,68 +288,63 @@ document.addEventListener("DOMContentLoaded", async () => {
         customOutreachSubjectInput = document.getElementById('custom-outreach-subject');
         customOutreachBodyTextarea = document.getElementById('custom-outreach-body');
         copyCustomBtn = document.getElementById('copy-custom-btn');
-        createTemplateCustomBtn = document.getElementById('create-template-custom-btn');
-        sendEmailCustomBtn = document.getElementById('send-email-custom-btn');
-
+        sendEmailCustomBtn = document.getElementById('send-email-custom-btn'); // Removed createTemplateCustomBtn
+        
         logInteractionNotes = document.getElementById('log-interaction-notes');
         logInteractionBtn = document.getElementById('log-interaction-btn');
         createTaskDesc = document.getElementById('create-task-desc');
         createTaskDueDate = document.getElementById('create-task-due-date');
         createTaskBtn = document.getElementById('create-task-btn');
         noContactMessage = document.getElementById('no-contact-message');
-        // NEW: Select relevance score display elements
         alertRelevanceDisplay = document.getElementById('relevance-score-display');
         alertRelevanceEmoji = document.getElementById('relevance-fire-emoji');
 
 
-        // Initial state for custom prompt section
         initialAiSuggestionSection.style.display = 'block';
         customPromptSection.style.display = 'none';
 
-        // Re-attach all the necessary event listeners to the new content
         document.getElementById('modal-close-btn').addEventListener('click', hideModal);
         contactSelector.addEventListener('change', handleContactChange);
-        document.getElementById('send-email-btn').addEventListener('click', () => handleEmailAction(false)); // Not custom
-        document.getElementById('copy-btn').addEventListener('click', () => handleCopyAction(false)); // Not custom
-        document.getElementById('create-template-btn').addEventListener('click', () => handleCreateTemplate(false)); // Not custom
+        document.getElementById('send-email-btn').addEventListener('click', () => handleEmailAction(false));
+        document.getElementById('copy-btn').addEventListener('click', () => handleCopyAction(false));
+        // REMOVED: createTemplateBtn event listener
         document.getElementById('log-interaction-btn').addEventListener('click', handleLogInteraction);
         document.getElementById('create-task-btn').addEventListener('click', handleCreateTask);
 
         // --- NEW CUSTOM PROMPT EVENT LISTENERS ---
         refineSuggestionBtn.addEventListener('click', () => {
-            console.log("Refine button clicked. Hiding initial suggestion and showing custom prompt section."); // DEBUG LOG
+            console.log("Refine button clicked. Hiding initial suggestion and showing custom prompt section.");
             initialAiSuggestionSection.style.display = 'none';
             customPromptSection.style.display = 'block';
-            customSuggestionOutput.style.display = 'none'; // Hide output when showing input
-            customPromptInput.value = ''; // Clear previous prompt
-            customOutreachSubjectInput.value = ''; // Clear previous custom result
-            customOutreachBodyTextarea.value = ''; // Clear previous custom result
+            customSuggestionOutput.style.display = 'none';
+            customPromptInput.value = '';
+            customOutreachSubjectInput.value = '';
+            customOutreachBodyTextarea.value = '';
         });
 
         cancelCustomBtn.addEventListener('click', () => {
-            console.log("Cancel custom prompt button clicked. Showing initial suggestion."); // DEBUG LOG
+            console.log("Cancel custom prompt button clicked. Showing initial suggestion.");
             customPromptSection.style.display = 'none';
             initialAiSuggestionSection.style.display = 'block';
         });
 
         generateCustomBtn.addEventListener('click', async () => {
-            console.log("Generate custom button clicked."); // DEBUG LOG
+            console.log("Generate custom button clicked.");
             const customPrompt = customPromptInput.value.trim();
-            console.log("Value of customPromptInput (raw):", customPromptInput.value); // DEBUG LOG
-            console.log("Trimmed customPrompt:", customPrompt); // DEBUG LOG
+            console.log("Value of customPromptInput (raw):", customPromptInput.value);
+            console.log("Trimmed customPrompt:", customPrompt);
 
             if (!customPrompt) {
                 alert("Please enter a prompt to generate a custom suggestion.");
-                console.log("Custom prompt was empty, showing alert."); // DEBUG LOG
+                console.log("Custom prompt was empty, showing alert.");
                 return;
             }
 
-            // Show loading state
             generateCustomBtn.disabled = true;
             generateCustomBtn.textContent = 'Generating...';
             customOutreachSubjectInput.value = 'Generating...';
             customOutreachBodyTextarea.value = 'Generating...';
-            console.log("Calling generateCustomOutreachCopy..."); // DEBUG LOG
+            console.log("Calling generateCustomOutreachCopy...");
 
             const customOutreachCopy = await generateCustomOutreachCopy(
                 state.selectedAlert,
@@ -324,10 +355,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ORIGINAL_PROMPT_BASE_TEXT
             );
 
-            // Hide loading state
             generateCustomBtn.disabled = false;
             generateCustomBtn.textContent = 'Generate Custom Suggestion';
-            console.log("generateCustomOutreachCopy returned:", customOutreachCopy); // DEBUG LOG
+            console.log("generateCustomOutreachCopy returned:", customOutreachCopy);
 
             if (customOutreachCopy) {
                 customOutreachSubjectInput.value = customOutreachCopy.subject;
@@ -337,23 +367,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                  customOutreachSubjectInput.value = 'Error generating suggestion.';
                  customOutreachBodyTextarea.value = 'Please try again or check the console for details.';
-                 console.error("Custom outreach copy was null or undefined."); // DEBUG LOG
+                 console.error("Custom outreach copy was null or undefined.");
             }
         });
 
-        // Event listeners for custom suggestion action buttons
         copyCustomBtn.addEventListener('click', () => handleCopyAction(true));
-        createTemplateCustomBtn.addEventListener('click', () => handleCreateTemplate(true));
+        // REMOVED: createTemplateCustomBtn event listener
         sendEmailCustomBtn.addEventListener('click', () => handleEmailAction(true));
 
 
-        // Set the suggested value and dispatch the event
         if (suggestedContactId) {
             contactSelector.value = suggestedContactId;
             contactSelector.dispatchEvent(new Event('change'));
         }
 
-        // Adjust disabled states and messages based on relevantContacts
         if (relevantContacts.length === 0) {
             logInteractionNotes.disabled = true;
             logInteractionBtn.disabled = true;
@@ -489,6 +516,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // REMOVED: handleCreateTemplate function (no longer used)
+    /*
     async function handleCreateTemplate(isCustom = false) { 
         console.log("Create template action triggered. Is custom:", isCustom);
         const templateName = prompt("Please enter a name for your new email template:");
@@ -513,6 +542,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             alert(`Template "${templateName}" created successfully and is now available in the Campaigns hub.`);
         }
     }
+    */
 
     async function handleLogInteraction() {
         console.log("Log interaction triggered.");
@@ -629,6 +659,32 @@ document.addEventListener("DOMContentLoaded", async () => {
                     hideModal();
                 });
             }
+        });
+
+        // NEW: Filter event listeners
+        filterTriggerTypeSelect.addEventListener('change', (e) => {
+            state.filterTriggerType = e.target.value;
+            renderAlerts();
+        });
+
+        filterRelevanceSelect.addEventListener('change', (e) => {
+            state.filterRelevance = e.target.value;
+            renderAlerts();
+        });
+
+        filterAccountSelect.addEventListener('change', (e) => {
+            state.filterAccountId = e.target.value;
+            renderAlerts();
+        });
+
+        clearFiltersBtn.addEventListener('click', () => {
+            state.filterTriggerType = '';
+            state.filterRelevance = '';
+            state.filterAccountId = '';
+            filterTriggerTypeSelect.value = '';
+            filterRelevanceSelect.value = '';
+            filterAccountSelect.value = '';
+            renderAlerts();
         });
     }
 
