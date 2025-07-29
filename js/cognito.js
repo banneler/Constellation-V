@@ -24,9 +24,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         initialSuggestionBody: null
     };
 
-    // NEW: Define the original base prompt text here
-    // This is the instruction set you give to Gemini for the initial suggestion,
-    // excluding any dynamic data like account name or alert summary.
     const ORIGINAL_PROMPT_BASE_TEXT = `
         You are an expert telecommunications sales executive working for Great Plains Communications. 
         Based on what you know about the products and services your company offers, Write a concise, 
@@ -36,8 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         robotic or AI generated. You got this! Oh, and the code that receives this is looking for [FirstName] 
         to lookup the associated contacts name and do not include anything past the valediction. 
         My email client populates my signature.
-    `.trim(); // .trim() removes leading/trailing whitespace from the template literal
-
+    `.trim();
 
     // --- DOM SELECTORS ---
     const dashboardViewBtn = document.getElementById('view-dashboard-btn');
@@ -46,13 +42,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pageTitle = document.querySelector('#cognito-view h2');
 
     // --- MODAL ELEMENTS (Dynamic, fetched after modal body is rendered) ---
-    // These will be re-selected within showActionCenter or a helper function
-    // to ensure they exist after modal content is updated.
     let initialAiSuggestionSection, refineSuggestionBtn, outreachSubjectInput, outreachBodyTextarea;
     let customPromptSection, customPromptInput, generateCustomBtn, cancelCustomBtn;
     let customSuggestionOutput, customOutreachSubjectInput, customOutreachBodyTextarea;
     let copyCustomBtn, createTemplateCustomBtn, sendEmailCustomBtn;
     let contactSelector, logInteractionNotes, logInteractionBtn, createTaskDesc, createTaskDueDate, createTaskBtn, noContactMessage;
+    // NEW: DOM elements for relevance score display
+    let alertRelevanceDisplay, alertRelevanceEmoji;
 
 
     // --- DATA FETCHING ---
@@ -104,6 +100,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <button class="btn-primary action-btn" data-action="action">Action</button>
                         <button class="btn-secondary action-btn" data-action="dismiss">Dismiss</button>
                     </div>` : '';
+                
+                // NEW: Prepare relevance score display for the card (optional, but good for overview)
+                const relevanceScore = alert.relevance_score || 0;
+                const relevanceEmoji = relevanceScore >= 4 ? ' 🔥' : ''; // Fire emoji for 4 or 5
+                const relevanceDisplay = `<span class="alert-relevance-pill">Score: ${relevanceScore}/5${relevanceEmoji}</span>`;
+
 
                 card.innerHTML = `
                     <div class="alert-header">
@@ -116,7 +118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="alert-footer">
                         <span class="alert-source">Source: <a href="${alert.source_url}" target="_blank">${alert.source_name || 'N/A'}</a></span>
                         <span class="alert-date">${formatDate(alert.created_at)}</span>
-                    </div>
+                        ${relevanceDisplay} </div>
                     ${actionButtonsHTML}
                 `;
                 alertsContainer.appendChild(card);
@@ -143,10 +145,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Fetch the initial AI-generated outreach copy in the background
         const initialOutreachCopy = await generateOutreachCopy(state.selectedAlert, account);
-        // NEW: Store the initial suggestion in state
         state.initialSuggestionSubject = initialOutreachCopy.subject;
         state.initialSuggestionBody = initialOutreachCopy.body;
-
 
         const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id);
         const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
@@ -161,12 +161,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         
-        // Construct the full modal body (now including the custom prompt sections)
+        // NEW: Get relevance score for display in modal
+        const currentRelevanceScore = state.selectedAlert.relevance_score || 0; // Default to 0 if not set
+        const modalRelevanceEmoji = currentRelevanceScore >= 4 ? ' 🔥' : ''; // Fire emoji for 4 or 5
+        const relevanceSectionHTML = `<p class="alert-relevance">Relevance: <span id="relevance-score-display">${currentRelevanceScore}/5</span><span id="relevance-fire-emoji">${modalRelevanceEmoji}</span></p>`;
+
+
         const modalBodyContent = `
             <div class="action-center-content">
                 <div class="action-center-section">
                     <h5>Suggested Outreach</h5>
-                    <label for="contact-selector">Suggested Contact:</label>
+                    ${relevanceSectionHTML} <label for="contact-selector">Suggested Contact:</label>
                     <select id="contact-selector" ${relevantContacts.length === 0 ? 'disabled' : ''}>
                         <option value="">-- Select a Contact --</option>
                         ${contactOptions}
@@ -256,6 +261,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         createTaskDueDate = document.getElementById('create-task-due-date');
         createTaskBtn = document.getElementById('create-task-btn');
         noContactMessage = document.getElementById('no-contact-message');
+        // NEW: Select relevance score display elements
+        alertRelevanceDisplay = document.getElementById('relevance-score-display');
+        alertRelevanceEmoji = document.getElementById('relevance-fire-emoji');
+
 
         // Initial state for custom prompt section
         initialAiSuggestionSection.style.display = 'block';
@@ -306,14 +315,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             customOutreachBodyTextarea.value = 'Generating...';
             console.log("Calling generateCustomOutreachCopy..."); // DEBUG LOG
 
-            // UPDATED: Pass initial suggestion content AND the original base prompt to the custom generation function
             const customOutreachCopy = await generateCustomOutreachCopy(
                 state.selectedAlert,
                 account,
                 customPrompt,
-                state.initialSuggestionSubject, // Pass initial subject
-                state.initialSuggestionBody,    // Pass initial body
-                ORIGINAL_PROMPT_BASE_TEXT       // Pass the original base prompt
+                state.initialSuggestionSubject,
+                state.initialSuggestionBody,
+                ORIGINAL_PROMPT_BASE_TEXT
             );
 
             // Hide loading state
@@ -325,7 +333,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 customOutreachSubjectInput.value = customOutreachCopy.subject;
                 customOutreachBodyTextarea.value = customOutreachCopy.body;
                 customSuggestionOutput.style.display = 'block';
-                // Adjust body for selected contact if any
                 handlePersonalizeOutreach({ subject: customOutreachCopy.subject, body: customOutreachCopy.body }, contactSelector.value, true);
             } else {
                  customOutreachSubjectInput.value = 'Error generating suggestion.';
@@ -335,9 +342,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         // Event listeners for custom suggestion action buttons
-        copyCustomBtn.addEventListener('click', () => handleCopyAction(true)); // Pass true for custom
-        createTemplateCustomBtn.addEventListener('click', () => handleCreateTemplate(true)); // Pass true for custom
-        sendEmailCustomBtn.addEventListener('click', () => handleEmailAction(true)); // Pass true for custom
+        copyCustomBtn.addEventListener('click', () => handleCopyAction(true));
+        createTemplateCustomBtn.addEventListener('click', () => handleCreateTemplate(true));
+        sendEmailCustomBtn.addEventListener('click', () => handleEmailAction(true));
 
 
         // Set the suggested value and dispatch the event
@@ -364,12 +371,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // Function to handle personalization of any outreach (initial or custom)
     function handlePersonalizeOutreach(outreachCopy, selectedContactId, isCustomTarget = false) {
         const targetBodyTextarea = isCustomTarget ? customOutreachBodyTextarea : outreachBodyTextarea;
         if (!targetBodyTextarea) {
-            console.error("Target textarea not found for personalization."); // DEBUG LOG
-            return; // Safeguard
+            console.error("Target textarea not found for personalization.");
+            return;
         }
 
         if (selectedContactId) {
@@ -382,12 +388,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             targetBodyTextarea.value = outreachCopy.body;
         }
-        console.log("Personalization applied to", isCustomTarget ? "custom" : "initial", "outreach."); // DEBUG LOG
+        console.log("Personalization applied to", isCustomTarget ? "custom" : "initial", "outreach.");
     }
 
     async function generateOutreachCopy(alert, account) {
         try {
-            console.log("Invoking get-gemini-suggestion Edge Function..."); // DEBUG LOG
+            console.log("Invoking get-gemini-suggestion Edge Function...");
             const { data, error } = await supabase.functions.invoke('get-gemini-suggestion', {
                 body: { alertData: alert, accountData: account }
             });
@@ -396,7 +402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 throw error;
             }
             
-            console.log("get-gemini-suggestion returned data:", data); // DEBUG LOG
+            console.log("get-gemini-suggestion returned data:", data);
             return data; 
         } catch (error) {
             console.error("Error invoking get-gemini-suggestion Edge Function:", error);
@@ -407,11 +413,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // NEW FUNCTION: For custom prompt generation
-    // UPDATED: Added originalBasePrompt parameter
     async function generateCustomOutreachCopy(alert, account, customPrompt, previousSubject, previousBody, originalBasePrompt) {
         try {
-            console.log("Invoking generate-custom-suggestion Edge Function..."); // DEBUG LOG
+            console.log("Invoking generate-custom-suggestion Edge Function...");
             const { data, error } = await supabase.functions.invoke('generate-custom-suggestion', {
                 body: {
                     alertData: alert,
@@ -419,7 +423,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     customPrompt: customPrompt,
                     previousSubject: previousSubject,
                     previousBody: previousBody,
-                    originalBasePrompt: originalBasePrompt // Pass the original base prompt
+                    originalBasePrompt: originalBasePrompt
                 }
             });
 
@@ -427,7 +431,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 throw error;
             }
             
-            console.log("generate-custom-suggestion returned data:", data); // DEBUG LOG
+            console.log("generate-custom-suggestion returned data:", data);
             return data;
         } catch (error) {
             console.error("Error invoking generate-custom-suggestion Edge Function:", error);
@@ -441,30 +445,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- ACTION HANDLERS (Integration with Constellation) ---
     async function handleContactChange(e) {
         const selectedContactId = e.target.value;
-        console.log("Contact selector changed to:", selectedContactId); // DEBUG LOG
+        console.log("Contact selector changed to:", selectedContactId);
         
-        // Always generate the base AI copy for the default suggestion fields
-        // This ensures the initial suggestion is re-personalilzed if contact changes
-        // We can just use state.initialSuggestionSubject and state.initialSuggestionBody.
         const initialAiCopyForPersonalization = {
             subject: state.initialSuggestionSubject,
             body: state.initialSuggestionBody
         };
-        outreachSubjectInput.value = initialAiCopyForPersonalization.subject; // Set the subject for initial suggestion
-        handlePersonalizeOutreach(initialAiCopyForPersonalization, selectedContactId, false); // Personalize initial body
+        outreachSubjectInput.value = initialAiCopyForPersonalization.subject;
+        handlePersonalizeOutreach(initialAiCopyForPersonalization, selectedContactId, false);
 
-        // Also update the custom suggestion body if it's currently displayed
         if (customSuggestionOutput && customSuggestionOutput.style.display === 'block') {
              const currentCustomSubject = customOutreachSubjectInput.value;
              const currentCustomBody = customOutreachBodyTextarea.value;
-             if (currentCustomSubject && currentCustomBody) { // Only re-personalize if there's content
+             if (currentCustomSubject && currentCustomBody) {
                  handlePersonalizeOutreach({subject: currentCustomSubject, body: currentCustomBody}, selectedContactId, true);
              }
         }
     }
 
     function handleEmailAction(isCustom = false) { 
-        console.log("Email action triggered. Is custom:", isCustom); // DEBUG LOG
+        console.log("Email action triggered. Is custom:", isCustom);
         const contactId = contactSelector.value;
         if (!contactId) {
             alert('Please select a contact to email.');
@@ -482,7 +482,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function handleCopyAction(isCustom = false) { 
-        console.log("Copy action triggered. Is custom:", isCustom); // DEBUG LOG
+        console.log("Copy action triggered. Is custom:", isCustom);
         const body = isCustom ? customOutreachBodyTextarea.value : outreachBodyTextarea.value;
         navigator.clipboard.writeText(body).then(() => {
             alert('Email body copied to clipboard!');
@@ -490,7 +490,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleCreateTemplate(isCustom = false) { 
-        console.log("Create template action triggered. Is custom:", isCustom); // DEBUG LOG
+        console.log("Create template action triggered. Is custom:", isCustom);
         const templateName = prompt("Please enter a name for your new email template:");
         if (!templateName || templateName.trim() === '') {
             alert("Template name cannot be empty.");
@@ -515,7 +515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleLogInteraction() {
-        console.log("Log interaction triggered."); // DEBUG LOG
+        console.log("Log interaction triggered.");
         const selectedContactId = contactSelector.value;
         if (!selectedContactId) {
             alert('Please select a contact to log this interaction against.');
@@ -548,7 +548,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleCreateTask() {
-        console.log("Create task triggered."); // DEBUG LOG
+        console.log("Create task triggered.");
         const selectedContactId = contactSelector.value;
         if (!selectedContactId) {
             alert('Please select a contact to associate with this task.');
@@ -583,7 +583,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function updateAlertStatus(alertId, newStatus) {
-        console.log(`Updating alert ${alertId} status to ${newStatus}.`); // DEBUG LOG
+        console.log(`Updating alert ${alertId} status to ${newStatus}.`);
         const { error } = await supabase.from('cognito_alerts').update({ status: newStatus }).eq('id', alertId);
         if (error) {
             alert('Error updating alert status: ' + error.message);
