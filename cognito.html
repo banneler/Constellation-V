@@ -278,75 +278,76 @@
         </main>
     </div>
 
-    <div id="modal-backdrop" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <h3 id="modal-title"></h3>
-            <div id="modal-body">
-                <div class="action-center-content">
-                    <div class="action-center-section">
-                        <h5>Suggested Outreach</h5>
-                        <label for="contact-selector">Suggested Contact:</label>
-                        <select id="contact-selector">
-                            <option value="">-- Select a Contact --</option>
-                            </select>
-                        
-                        <div id="initial-ai-suggestion-section">
-                            <label for="outreach-subject">Suggested Subject:</label>
-                            <input type="text" id="outreach-subject" value="" readonly>
-                            <label for="outreach-body">Suggested Body:</label>
-                            <textarea id="outreach-body" rows="8" readonly></textarea>
-                            <div class="action-buttons">
-                                <button class="btn-secondary" id="copy-btn">Copy</button>
-                                <button class="btn-secondary" id="create-template-btn">Create Campaign Email Template</button>
-                                <button class="btn-primary" id="send-email-btn">Open Email Client</button>
-                            </div>
-                            <button class="btn-tertiary" id="refine-suggestion-btn" style="margin-top: 15px;">Refine with Custom Prompt</button>
+<div id="modal-backdrop" class="modal-backdrop hidden">
+    <div class="modal-content">
+        <h3 id="modal-title"></h3>
+        <div id="modal-body">
+            <div class="action-center-content">
+                <div class="action-center-section">
+                    <h5>Suggested Outreach</h5>
+                    <p class="alert-relevance">Relevance: <span id="relevance-score-display"></span><span id="relevance-fire-emoji"></span></p>
+                    <label for="contact-selector">Suggested Contact:</label>
+                    <select id="contact-selector">
+                        <option value="">-- Select a Contact --</option>
+                        </select>
+                    
+                    <div id="initial-ai-suggestion-section">
+                        <label for="outreach-subject">Suggested Subject:</label>
+                        <input type="text" id="outreach-subject" value="" readonly>
+                        <label for="outreach-body">Suggested Body:</label>
+                        <textarea id="outreach-body" rows="8" readonly></textarea>
+                        <div class="action-buttons">
+                            <button class="btn-secondary" id="copy-btn">Copy</button>
+                            <button class="btn-secondary" id="create-template-btn">Create Campaign Email Template</button>
+                            <button class="btn-primary" id="send-email-btn">Open Email Client</button>
                         </div>
-
-                        <div id="custom-prompt-section" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                            <h5>Custom Suggestion Generator</h5>
-                            <p class="placeholder-text">Enter your specific instructions to refine or get a new email suggestion based on the alert.</p>
-                            <label for="custom-prompt-input">Your Custom Prompt:</label>
-                            <textarea id="custom-prompt-input" rows="4" placeholder="e.g., 'Make the email more urgent and focus on a direct call to action for a meeting.'"></textarea>
-                            <button class="btn-primary" id="generate-custom-btn" style="width: 100%; margin-top: 10px;">Generate Custom Suggestion</button>
-                            <button class="btn-secondary" id="cancel-custom-btn" style="width: 100%; margin-top: 10px;">Back to Initial Suggestion</button>
-
-                            <div id="custom-suggestion-output" style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
-                                <h6>Custom AI Suggestion:</h6>
-                                <label for="custom-outreach-subject">Subject:</label>
-                                <input type="text" id="custom-outreach-subject" value="" readonly>
-                                <label for="custom-outreach-body">Body:</label>
-                                <textarea id="custom-outreach-body" rows="8" readonly></textarea>
-                                <div class="action-buttons">
-                                    <button class="btn-secondary" id="copy-custom-btn">Copy Custom</button>
-                                    <button class="btn-secondary" id="create-template-custom-btn">Create Custom Template</button>
-                                    <button class="btn-primary" id="send-email-custom-btn">Open Email Client (Custom)</button>
-                                </div>
-                            </div>
-                        </div>
+                        <button class="btn-tertiary" id="refine-suggestion-btn" style="margin-top: 15px;">Refine with Custom Prompt</button>
                     </div>
 
-                    <div class="action-center-section">
-                        <h5>Log Actions in Constellation</h5>
-                        <label for="log-interaction-notes">Log an Interaction:</label>
-                        <textarea id="log-interaction-notes" rows="4" placeholder="e.g., Emailed the new CIO..."></textarea>
-                        <button class="btn-secondary" id="log-interaction-btn" style="width: 100%; margin-bottom: 15px;">Log to Constellation</button>
+                    <div id="custom-prompt-section" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                        <h5>Custom Suggestion Generator</h5>
+                        <p class="placeholder-text">Enter your specific instructions to refine or get a new email suggestion based on the alert.</p>
+                        <label for="custom-prompt-input">Your Custom Prompt:</label>
+                        <textarea id="custom-prompt-input" rows="4" placeholder="e.g., 'Make the email more urgent and focus on a direct call to action for a meeting.'"></textarea>
+                        <button class="btn-primary" id="generate-custom-btn" style="width: 100%; margin-top: 10px;">Generate Custom Suggestion</button>
+                        <button class="btn-secondary" id="cancel-custom-btn" style="width: 100%; margin-top: 10px;">Back to Initial Suggestion</button>
 
-                        <label for="create-task-desc">Create a Task:</label>
-                        <input type="text" id="create-task-desc" placeholder="e.g., Follow up with new CIO in 1 week">
-                        <label for="create-task-due-date">Due Date:</label>
-                        <input type="date" id="create-task-due-date">
-                        <button class="btn-primary" id="create-task-btn" style="width: 100%;">Create in Constellation</button>
-                        
-                        <p class="placeholder-text" style="color: var(--warning-yellow); margin-top: 10px; display: none;" id="no-contact-message">
-                            Add a contact to this account in Constellation to enable logging and task creation.
-                        </p>
+                        <div id="custom-suggestion-output" style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
+                            <h6>Custom AI Suggestion:</h6>
+                            <label for="custom-outreach-subject">Subject:</label>
+                            <input type="text" id="custom-outreach-subject" value="" readonly>
+                            <label for="custom-outreach-body">Body:</label>
+                            <textarea id="custom-outreach-body" rows="8" readonly></textarea>
+                            <div class="action-buttons">
+                                <button class="btn-secondary" id="copy-custom-btn">Copy Custom</button>
+                                <button class="btn-secondary" id="create-template-custom-btn">Create Custom Template</button>
+                                <button class="btn-primary" id="send-email-custom-btn">Open Email Client (Custom)</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <div class="action-center-section">
+                    <h5>Log Actions in Constellation</h5>
+                    <label for="log-interaction-notes">Log an Interaction:</label>
+                    <textarea id="log-interaction-notes" rows="4" placeholder="e.g., Emailed the new CIO..."></textarea>
+                    <button class="btn-secondary" id="log-interaction-btn" style="width: 100%; margin-bottom: 15px;">Log to Constellation</button>
+
+                    <label for="create-task-desc">Create a Task:</label>
+                    <input type="text" id="create-task-desc" placeholder="e.g., Follow up with new CIO in 1 week">
+                    <label for="create-task-due-date">Due Date:</label>
+                    <input type="date" id="create-task-due-date">
+                    <button class="btn-primary" id="create-task-btn" style="width: 100%;">Create in Constellation</button>
+                    
+                    <p class="placeholder-text" style="color: var(--warning-yellow); margin-top: 10px; display: none;" id="no-contact-message">
+                        Add a contact to this account in Constellation to enable logging and task creation.
+                    </p>
+                </div>
             </div>
-            <div id="modal-actions" class="modal-actions"></div>
         </div>
+        <div id="modal-actions" class="modal-actions"></div>
     </div>
+</div>
 
     <script type="module" src="js/cognito.js"></script>
 </body>
