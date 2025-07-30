@@ -160,32 +160,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function showActionCenter(alertId) {
         state.selectedAlert = state.alerts.find(a => a.id === alertId);
         if (!state.selectedAlert) return;
-
+    
         const account = state.accounts.find(acc => acc.id === state.selectedAlert.account_id);
-        
         if (!account) {
             alert(`Error: Could not find the corresponding account (ID: ${state.selectedAlert.account_id}) in your Constellation database.`);
             return;
         }
         
-        // **MODIFIED:** Add the "Mark Completed" button to the modal footer
-        showModal('Action Center', '<p class="placeholder-text">Generating AI suggestion...</p>', null, false, `
+        showModal('Action Center', `
+            <div class="loader"></div>
+            <p class="placeholder-text" style="text-align: center;">Generating AI suggestion...</p>
+        `, null, false, `
             <button id="modal-mark-completed-btn" class="btn-primary">Mark Completed</button>
             <button id="modal-close-btn" class="btn-secondary">Close</button>
         `);
-
-        // **MODIFIED:** Add event listeners for the new footer buttons
+        
+        document.getElementById('modal-mark-completed-btn').style.display = 'none';
+    
         document.getElementById('modal-close-btn').addEventListener('click', hideModal);
         document.getElementById('modal-mark-completed-btn').addEventListener('click', handleMarkCompleted);
-
-
+    
         const initialOutreachCopy = await generateOutreachCopy(state.selectedAlert, account);
+        
+        document.getElementById('modal-mark-completed-btn').style.display = 'inline-block';
+    
         state.initialSuggestionSubject = initialOutreachCopy.subject;
         state.initialSuggestionBody = initialOutreachCopy.body;
-
+    
         const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id);
         const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
-
+    
         let suggestedContactId = null;
         if(relevantContacts.length > 0) {
             if(state.selectedAlert.trigger_type === 'C-Suite Change') {
@@ -199,8 +203,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const currentRelevanceScore = state.selectedAlert.relevance_score || 0;
         const modalRelevanceEmoji = currentRelevanceScore >= 4 ? ' 🔥' : '';
         const relevanceSectionHTML = `<p class="alert-relevance">Relevance: <span id="relevance-score-display">${currentRelevanceScore}/5</span><span id="relevance-fire-emoji">${modalRelevanceEmoji}</span></p>`;
-
-
+    
         const modalBodyContent = `
             <div class="action-center-content">
                 <div class="action-center-section">
@@ -211,7 +214,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <option value="">-- Select a Contact --</option>
                         ${contactOptions}
                     </select>
-                    
                     <div id="initial-ai-suggestion-section">
                         <label for="outreach-subject">Suggested Subject:</label>
                         <input type="text" id="outreach-subject" value="${initialOutreachCopy.subject}" readonly>
@@ -223,7 +225,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         </div>
                         <button class="btn-tertiary" id="refine-suggestion-btn" style="margin-top: 15px;">Refine with Custom Prompt</button>
                     </div>
-
                     <div id="custom-prompt-section" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                         <h5>Custom Suggestion Generator</h5>
                         <p class="placeholder-text">Enter your specific instructions to refine or get a new email suggestion based on the alert.</p>
@@ -231,7 +232,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <textarea id="custom-prompt-input" rows="4" placeholder="e.g., 'Make the email more urgent and focus on a direct call to action for a meeting.'"></textarea>
                         <button class="btn-primary" id="generate-custom-btn" style="width: 100%; margin-top: 10px;">Generate Custom Suggestion</button>
                         <button class="btn-secondary" id="cancel-custom-btn" style="width: 100%; margin-top: 10px;">Back to Initial Suggestion</button>
-
                         <div id="custom-suggestion-output" style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
                             <h6>Custom AI Suggestion:</h6>
                             <label for="custom-outreach-subject">Subject:</label>
@@ -245,30 +245,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                         </div>
                     </div>
                 </div>
-
                 <div class="action-center-section">
                     <h5>Log Actions in Constellation</h5>
                     <label for="log-interaction-notes">Log an Interaction:</label>
                     <textarea id="log-interaction-notes" rows="4" placeholder="e.g., Emailed the new CIO..." ${relevantContacts.length === 0 ? 'disabled' : ''}></textarea>
                     <button class="btn-secondary" id="log-interaction-btn" style="width: 100%; margin-bottom: 15px;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Log to Constellation</button>
-
                     <label for="create-task-desc">Create a Task:</label>
                     <input type="text" id="create-task-desc" placeholder="e.g., Follow up with new CIO in 1 week" ${relevantContacts.length === 0 ? 'disabled' : ''}>
                     <label for="create-task-due-date">Due Date:</label>
                     <input type="date" id="create-task-due-date" ${relevantContacts.length === 0 ? 'disabled' : ''}>
                     <button class="btn-primary" id="create-task-btn" style="width: 100%;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Create in Constellation</button>
-                    
                     <p class="placeholder-text" style="color: var(--warning-yellow); margin-top: 10px; ${relevantContacts.length === 0 ? '' : 'display: none;'}" id="no-contact-message">
                         Add a contact to this account in Constellation to enable logging and task creation.
                     </p>
                 </div>
             </div>`;
-
+    
         const modalBodyElement = document.getElementById('modal-body');
         if (modalBodyElement) {
             modalBodyElement.innerHTML = modalBodyContent; 
         }
-
+    
         // Re-select all elements now that they are in the DOM
         contactSelector = document.getElementById('contact-selector');
         initialAiSuggestionSection = document.getElementById('initial-ai-suggestion-section');
@@ -292,16 +289,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         noContactMessage = document.getElementById('no-contact-message');
         alertRelevanceDisplay = document.getElementById('relevance-score-display');
         alertRelevanceEmoji = document.getElementById('relevance-fire-emoji');
-
+    
         initialAiSuggestionSection.style.display = 'block';
         customPromptSection.style.display = 'none';
-
+    
         contactSelector.addEventListener('change', handleContactChange);
         document.getElementById('send-email-btn').addEventListener('click', () => handleEmailAction(false));
         document.getElementById('copy-btn').addEventListener('click', () => handleCopyAction(false));
         document.getElementById('log-interaction-btn').addEventListener('click', handleLogInteraction);
         document.getElementById('create-task-btn').addEventListener('click', handleCreateTask);
-
+    
         refineSuggestionBtn.addEventListener('click', () => {
             initialAiSuggestionSection.style.display = 'none';
             customPromptSection.style.display = 'block';
@@ -310,33 +307,33 @@ document.addEventListener("DOMContentLoaded", async () => {
             customOutreachSubjectInput.value = '';
             customOutreachBodyTextarea.value = '';
         });
-
+    
         cancelCustomBtn.addEventListener('click', () => {
             customPromptSection.style.display = 'none';
             initialAiSuggestionSection.style.display = 'block';
         });
-
+    
         generateCustomBtn.addEventListener('click', async () => {
             const customPrompt = customPromptInput.value.trim();
             if (!customPrompt) {
                 alert("Please enter a prompt to generate a custom suggestion.");
                 return;
             }
-
+    
             generateCustomBtn.disabled = true;
             generateCustomBtn.textContent = 'Generating...';
             customOutreachSubjectInput.value = 'Generating...';
             customOutreachBodyTextarea.value = 'Generating...';
-
+    
             const customOutreachCopy = await generateCustomOutreachCopy(
                 state.selectedAlert, account, customPrompt,
                 state.initialSuggestionSubject, state.initialSuggestionBody,
                 ORIGINAL_PROMPT_BASE_TEXT
             );
-
+    
             generateCustomBtn.disabled = false;
             generateCustomBtn.textContent = 'Generate Custom Suggestion';
-
+    
             if (customOutreachCopy) {
                 customOutreachSubjectInput.value = customOutreachCopy.subject;
                 customOutreachBodyTextarea.value = customOutreachCopy.body;
@@ -347,15 +344,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 customOutreachBodyTextarea.value = 'Please try again or check the console for details.';
             }
         });
-
+    
         copyCustomBtn.addEventListener('click', () => handleCopyAction(true));
         sendEmailCustomBtn.addEventListener('click', () => handleEmailAction(true));
-
+    
         if (suggestedContactId) {
             contactSelector.value = suggestedContactId;
             contactSelector.dispatchEvent(new Event('change'));
         }
-
+    
         if (relevantContacts.length === 0) {
             logInteractionNotes.disabled = true;
             logInteractionBtn.disabled = true;
@@ -468,7 +465,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
     
-    // **NEW:** Function for the "Mark Completed" button
     async function handleMarkCompleted() {
         if (!state.selectedAlert) return;
         console.log(`Marking alert ${state.selectedAlert.id} as completed.`);
@@ -498,7 +494,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             date: new Date().toISOString()
         });
 
-        // **MODIFIED:** Removed status update and modal hiding
         if (error) {
             alert('Error logging interaction: ' + error.message);
         } else {
@@ -530,7 +525,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             user_id: state.currentUser.id
         });
 
-        // **MODIFIED:** Removed status update and modal hiding
         if (error) {
             alert('Error creating task: ' + error.message);
         } else {
