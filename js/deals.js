@@ -308,7 +308,7 @@ const renderDealsMetrics = () => {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return;
 
-        const stages = ["New", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
+        const stages = ["Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
         const stageOptions = stages.map(s => `<option value="${s}" ${deal.stage === s ? 'selected' : ''}>${s}</option>`).join('');
 
         const accountOptions = state.accounts
