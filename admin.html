@@ -6,6 +6,8 @@
     <title>Constellation - Admin Portal</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="crm-container">
@@ -13,8 +15,8 @@
             <div data-svg-loader="assets/logo.svg"></div>
             <h2 class="text-xl font-bold text-center mb-4" style="color: var(--text-light);">ADMIN</h2>
             <a href="#user-management" class="nav-button admin-nav active">User Management</a>
-            <a href="#content-management" class="nav-button admin-nav">Content Management</a>
             <a href="#activity-log" class="nav-button admin-nav">Activity Log</a>
+            <a href="#analytics" class="nav-button admin-nav">Analytics</a>
             <div class="nav-bottom-section">
                  <a href="command-center.html" class="nav-button" style="text-align: center; font-size: 0.8rem;">Exit Admin Portal</a>
             </div>
@@ -24,21 +26,35 @@
             <div id="user-management-view" class="content-view active-view">
                 <h2>User Management</h2>
                 <div class="action-buttons" style="margin-bottom: 1.5rem;"><button id="invite-user-btn" class="btn-primary">Invite New User</button></div>
-                <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
-            </div>
-
-            <div id="content-management-view" class="content-view hidden">
-                <h2>Content Management</h2>
-                <div class="deals-view-toggle" style="margin-bottom: 1.5rem;">
-                    <button id="view-templates-btn" class="btn-secondary content-view-btn active">Email Templates</button>
-                    <button id="view-sequences-btn" class="btn-secondary content-view-btn">Marketing Sequences</button>
-                </div>
-                <div class="table-container"><table id="content-management-table"><thead></thead><tbody></tbody></table></div>
+                <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Last Login</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
             </div>
 
             <div id="activity-log-view" class="content-view hidden">
                 <h2>System Activity Log</h2>
                 <div class="table-container"><table id="activity-log-table"><thead><tr><th>Date</th><th>User</th><th>Type</th><th>Description</th><th>Related Contact</th><th>Related Account</th></tr></thead><tbody></tbody></table></div>
+            </div>
+
+            <div id="analytics-view" class="content-view hidden">
+                <h2>System Analytics</h2>
+                <div class="filter-bar">
+                    <select id="analytics-rep-filter"></select>
+                    <select id="analytics-date-filter">
+                        <option value="this_month">This Month</option>
+                        <option value="last_month">Last Month</option>
+                        <option value="last_2_months">Previous 2 Months</option>
+                        <option value="this_fiscal_year">This Fiscal Year</option>
+                        <option value="last_365_days">Last 365 Days</option>
+                    </select>
+                </div>
+                <div id="analytics-charts-container" class="charts-grid">
+                    <div class="chart-container"><h4>Activities Logged</h4><div class="chart-wrapper"><canvas id="activities-chart"></canvas></div></div>
+                    <div class="chart-container"><h4>Contacts Put in Sequence</h4><div class="chart-wrapper"><canvas id="sequences-chart"></canvas></div></div>
+                    <div class="chart-container"><h4>Campaigns Completed</h4><div class="chart-wrapper"><canvas id="campaigns-chart"></canvas></div></div>
+                    <div class="chart-container"><h4>Tasks Past Due</h4><div class="chart-wrapper"><canvas id="tasks-chart"></canvas></div></div>
+                    <div class="chart-container"><h4>Deals Added to Funnel</h4><div class="chart-wrapper"><canvas id="new-deals-chart"></canvas></div></div>
+                    <div class="chart-container"><h4>Value of New Deals</h4><div class="chart-wrapper"><canvas id="new-deals-value-chart"></canvas></div></div>
+                    <div class="chart-container"><h4>Closed Won Deals</h4><div class="chart-wrapper"><canvas id="closed-won-chart"></canvas></div></div>
+                </div>
             </div>
         </main>
     </div>
