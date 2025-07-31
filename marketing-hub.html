@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +9,25 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body class="theme-dark">
-    <div id="auth-container" class="auth-container hidden">
+    <div id="auth-container" class="auth-container">
+        <div class="auth-box">
+            <div data-svg-loader="assets/logo.svg"></div>
+            <h3 id="auth-title">Marketing Hub Login</h3>
+            <p id="auth-error" class="auth-error"></p>
+            <form id="auth-form">
+                <input type="email" id="auth-email" placeholder="Email" required>
+                <input type="password" id="auth-password" placeholder="Password" required>
+                <div id="signup-fields" class="hidden">
+                    <input type="password" id="auth-confirm-password" placeholder="Confirm Password">
+                </div>
+                <button type="submit" id="auth-submit-btn" class="btn-primary full-width">Login</button>
+            </form>
+            <a href="#" id="auth-toggle-link">Need an account? Sign Up</a>
+            <a href="#" id="forgot-password-link">Forgot Password?</a>
         </div>
+    </div>
 
     <div id="marketing-hub-container" class="crm-container hidden">
         <nav class="nav-sidebar">
@@ -20,18 +37,41 @@
             <a href="#email-templates" class="nav-button">Email Templates</a>
             <a href="#sequences" class="nav-button">Sequences</a>
             <a href="#social-posts" class="nav-button">Social Posts</a>
+            
+            <button id="download-sequence-template-btn" class="btn-secondary full-width hidden" style="margin-top: 20px;">Download Sequence Template</button>
 
             <div class="user-menu" style="margin-top: auto;">
+                <div class="user-menu-header">
+                    <div data-svg-loader="assets/user-icon.svg"></div>
+                    <span id="user-name-display">Loading...</span>
                 </div>
+                <div id="user-menu-popup" class="user-menu-popup">
+                    <button id="theme-toggle-btn" class="nav-button">
+                        Theme: <span id="theme-name">Dark</span>
+                    </button>
+                    <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
+                </div>
+            </div>
         </nav>
         <main class="content-area">
             <div id="marketing-hub-content" class="content-view active-view">
-
-                <div id="templates-sequences-view" class="split-view">
-                    <div class="item-list-container">
+                
+                <div id="templates-sequences-view">
+                    <div class="split-view">
+                        <div class="item-list-container">
+                            <button id="create-new-item-btn" class="btn-primary full-width">Create New Item</button>
+                            <button id="import-item-btn" class="btn-secondary full-width">Import from CSV</button>
+                            <input type="file" id="item-csv-input" accept=".csv" class="hidden">
+                            <button id="delete-selected-item-btn" class="btn-danger full-width" style="margin-top: 10px;">Delete Selected Item</button>
+                            <h4 id="list-header">Email Templates</h4>
+                            <div id="item-list" class="item-list">
+                                </div>
                         </div>
-                    <div id="dynamic-details-panel" class="details-panel">
+                        <div id="dynamic-details-panel" class="details-panel">
+                            <h3>Select an item to view details</h3>
+                            <p>Choose an email template or sequence from the list on the left.</p>
                         </div>
+                    </div>
                 </div>
 
                 <div id="social-post-view" class="hidden">
@@ -66,7 +106,6 @@
                       </form>
                     </div>
                 </div>
-
             </div>
         </main>
     </div>
