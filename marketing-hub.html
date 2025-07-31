@@ -77,7 +77,7 @@
                 <div id="social-post-view" class="hidden">
                     <h2>Create a Shared Social Post</h2>
                     <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
-                      Use this form to create pre-approved posts for the Social Hub.
+                      Use this form to create pre-approved posts that will appear in the "Social Hub" for team members to share on LinkedIn.
                     </p>
                     <div id="create-post-form-container" class="action-center-section">
                       <form id="create-post-form">
@@ -97,7 +97,7 @@
                         </div>
                         <div class="form-checkbox-group">
                           <input type="checkbox" id="is-dynamic-link" name="is-dynamic-link" checked>
-                          <label for="is-dynamic-link">This link is optimized for social sharing</label>
+                          <label for="is-dynamic-link">This link is optimized for social sharing (has an Open Graph image)</label>
                         </div>
                         <div class="form-buttons" style="margin-top: 1rem;">
                           <button type="submit" id="submit-post-btn" class="btn-primary">Add Post to Social Hub</button>
@@ -111,7 +111,12 @@
     </div>
 
     <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
         </div>
+    </div>
 
     <script type="module" src="js/marketing-hub.js"></script>
 </body>
