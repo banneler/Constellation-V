@@ -9,7 +9,8 @@ import {
     setupModalListeners,
     showModal,
     hideModal,
-    setupUserMenuAndAuth
+    setupUserMenuAndAuth,
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
