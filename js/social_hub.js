@@ -4,7 +4,7 @@ import {
     SUPABASE_ANON_KEY,
     updateActiveNavLink,
     setupUserMenuAndAuth,
-    loadSVGs // Import the SVG loader
+    loadSVGs // <<< 1. IMPORT THE SVG LOADER
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -177,7 +177,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- INITIALIZATION ---
     async function initializePage() {
-        await loadSVGs(); // Call the SVG loader first
+        await loadSVGs(); // <<< 2. CALL THE SVG LOADER
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
