@@ -220,20 +220,48 @@
         border-radius: 0 10px 10px 0;
     }
     
-    .nav-button {
-        background: none;
-        border: none;
-        color: var(--text-medium);
-        padding: 0.9375rem;
-        margin: 0.3125rem 0;
-        text-align: left;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background-color 0.2s, color 0.2s, transform 0.1s;
-        text-decoration: none;
-        font-weight: 600;
-        display: block;
-    }
+    Of course, and my apologies again for the rough day. It's frustrating when things don't work, and I appreciate you giving me another chance to help.
+
+You've correctly identified the issue. Adding the "Social Hub" button increased the total space needed by the navigation links, and the browser is shrinking other elements, like the logo, to make everything fit.
+
+Here is a simple modification to your CSS that will reduce the vertical padding on the navigation buttons. This should reclaim enough space to allow your logo to return to its full size without making the buttons look too crowded.
+
+Suggested CSS Modification
+Find the .nav-button rule in your css/style.css file.
+
+Current Rule:
+
+CSS
+
+.nav-button {
+    background: none;
+    border: none;
+    color: var(--text-medium);
+    padding: 0.9375rem;
+    margin: 0.3125rem 0;
+    text-align: left;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    text-decoration: none;
+    font-weight: 600;
+    display: block;
+}
+
+.nav-button {
+    background: none;
+    border: none;
+    color: var(--text-medium);
+    padding: 0.75rem 0.9375rem; /* Reduced top/bottom padding */
+    margin: 0.125rem 0; /* Reduced top/bottom margin */
+    text-align: left;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    text-decoration: none;
+    font-weight: 600;
+    display: block;
+}
     
     body:not(.theme-green) .nav-button {
         border-radius: 5px;
