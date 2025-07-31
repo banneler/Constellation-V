@@ -10,7 +10,8 @@ import {
     showModal,
     hideModal,
     updateActiveNavLink,
-    setupUserMenuAndAuth
+    setupUserMenuAndAuth,
+    loadSVGs // Added loadSVGs to the import list
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -33,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dashboardTable = document.querySelector("#dashboard-table tbody");
     const recentActivitiesTable = document.querySelector("#recent-activities-table tbody");
     const allTasksTable = document.querySelector("#all-tasks-table tbody");
-    const myTasksTable = document.querySelector("#my-tasks-table tbody"); 
+    const myTasksTable = document.querySelector("#my-tasks-table tbody");
     const addNewTaskBtn = document.getElementById("add-new-task-btn");
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
@@ -53,24 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const newTheme = themes[currentThemeIndex];
         applyTheme(newTheme);
     }
-// In social_hub.js, marketing-hub.js, etc.
-// Make sure to import it from your shared file
-import { loadSVGs, ... } from './shared_constants.js';
 
-// ...
-
-async function initializePage() {
-    await loadSVGs(); // Call this first to load icons
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        // ... rest of your initialization code
-    } else {
-        window.location.href = "index.html";
-    }
-}
-
-initializePage();
     // --- Utility ---
     function getStartOfLocalDayISO() {
         const today = new Date();
@@ -86,7 +70,7 @@ initializePage();
         const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...publicPromises];
-        const allTableNames = [...userSpecificTables, ...publicTables]; 
+        const allTableNames = [...userSpecificTables, ...publicTables];
 
         try {
             const results = await Promise.allSettled(allPromises);
@@ -132,7 +116,6 @@ initializePage();
         allTasksTable.innerHTML = "";
         recentActivitiesTable.innerHTML = "";
 
-        // Time-zone-safe way to get today's date string
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -142,14 +125,12 @@ initializePage();
         // Render My Tasks
         state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).forEach(task => {
             const row = myTasksTable.insertRow();
-
             if (task.due_date) {
                 const dueDateString = task.due_date.slice(0, 10);
                 if (dueDateString < localDateString) {
                     row.classList.add('past-due');
                 }
             }
-
             let linkedEntity = 'N/A';
             if (task.contact_id) {
                 const contact = state.contacts.find(c => c.id === task.contact_id);
@@ -171,21 +152,17 @@ initializePage();
         // Render Sequence Steps Due
         state.contact_sequences
             .filter(cs => {
-                if (!cs.next_step_due_date || cs.status !== "Active") {
-                    return false;
-                }
+                if (!cs.next_step_due_date || cs.status !== "Active") return false;
                 const dueDateString = cs.next_step_due_date.slice(0, 10);
                 return dueDateString <= localDateString;
             })
             .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
             .forEach(cs => {
                 const row = dashboardTable.insertRow();
-
                 const dueDateString = cs.next_step_due_date.slice(0, 10);
                 if (dueDateString < localDateString) {
                     row.classList.add('past-due');
                 }
-
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
                 if (!contact || !sequence) return;
@@ -194,27 +171,22 @@ initializePage();
                 const desc = step.subject || step.message || "";
 
                 let btnHtml;
-                // *** FIX START: Hardcoded LinkedIn homepage URL ***
-                if (step.type.toLowerCase() === "linkedin") { // Removed contact.linkedin_url check
+                if (step.type.toLowerCase() === "linkedin") {
                     btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
                 } else if (step.type.toLowerCase() === "email" && contact.email) {
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}" data-contact-id="${contact.id}" data-subject="${encodeURIComponent(step.subject)}" data-message="${encodeURIComponent(step.message)}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
                 }
-                // *** FIX END ***
-
                 row.innerHTML = `<td>${formatSimpleDate(cs.next_step_due_date)}</td><td>${contact.first_name} ${contact.last_name}</td><td>${sequence.name}</td><td>${step.step_number}: ${step.type}</td><td>${desc}</td><td><div class="button-group-wrapper">${btnHtml}</div></td>`;
             });
 
         // Render Upcoming Sequence Tasks
         state.contact_sequences
             .filter(cs => {
-                if (!cs.next_step_due_date || cs.status !== "Active") {
-                    return false;
-                }
+                if (!cs.next_step_due_date || cs.status !== "Active") return false;
                 const dueDateString = cs.next_step_due_date.slice(0, 10);
-                return dueDateString > localDateString; // Filters for future dates
+                return dueDateString > localDateString;
             })
             .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
             .forEach(cs => {
@@ -240,16 +212,13 @@ initializePage();
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
-        themeToggleBtn.addEventListener("click", cycleTheme);
-
-        logoutBtn.addEventListener("click", async () => {
+        if (themeToggleBtn) themeToggleBtn.addEventListener("click", cycleTheme);
+        if (logoutBtn) logoutBtn.addEventListener("click", async () => {
             await supabase.auth.signOut();
             window.location.href = "index.html";
         });
-        
-        // No accountSearch on this page, so no event listener for it.
 
-        addNewTaskBtn.addEventListener('click', () => {
+        if (addNewTaskBtn) addNewTaskBtn.addEventListener('click', () => {
             const contactsOptions = state.contacts.map(c => `<option value="c-${c.id}">${c.first_name} ${c.last_name} (Contact)</option>`).join('');
             const accountsOptions = state.accounts.map(a => `<option value="a-${a.id}">${a.name} (Account)</option>`).join('');
             showModal('Add New Task', `
@@ -330,16 +299,13 @@ initializePage();
                 completeStep(csId);
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
-                const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl); // This will now be 'https://www.linkedin.com/feed/'
-
-                console.log("Attempting to open LinkedIn URL:", linkedinUrl); // For debugging
-
+                const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl);
                 if (linkedinUrl) {
-                    window.open(linkedinUrl, "_blank"); // Open LinkedIn URL in a new tab
+                    window.open(linkedinUrl, "_blank");
                 } else {
-                    alert("LinkedIn URL is missing from button data attribute."); // Fallback alert
+                    alert("LinkedIn URL is missing from button data attribute.");
                 }
-                completeStep(csId); // Complete the step after opening the URL
+                completeStep(csId);
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.id);
                 completeStep(csId);
@@ -359,12 +325,13 @@ initializePage();
 
     // --- INITIALIZATION ---
     async function initializePage() {
+        await loadSVGs(); // Call this first to load icons
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
         const savedThemeIndex = themes.indexOf(savedTheme);
         currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
         applyTheme(themes[currentThemeIndex]);
         updateActiveNavLink();
-        
+
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
