@@ -9,7 +9,8 @@ import {
     showModal,
     hideModal,
     updateActiveNavLink,
-    setupUserMenuAndAuth
+    setupUserMenuAndAuth,
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -411,6 +412,7 @@ const renderDealsMetrics = () => {
 
     // --- App Initialization ---
     async function initializePage() {
+        await loadSVGs();
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
         const savedThemeIndex = themes.indexOf(savedTheme);
         currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
