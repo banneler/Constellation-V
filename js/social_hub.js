@@ -4,7 +4,7 @@ import {
     SUPABASE_ANON_KEY,
     updateActiveNavLink,
     setupUserMenuAndAuth,
-    loadSVGs
+    loadSVGs // 1. Import the SVG loader
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -49,6 +49,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
+        if (!aiContainer || !marketingContainer) return;
         aiContainer.innerHTML = '';
         marketingContainer.innerHTML = '';
         const visiblePosts = state.allPosts.filter(post => !state.userInteractions.has(post.id));
@@ -100,9 +101,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalBackdrop.classList.remove('hidden');
 
         if (item.type === 'marketing_post') {
-            postTextArea.value = item.approved_copy; // Use pre-approved copy directly
+            postTextArea.value = item.approved_copy;
         } else {
-            // Call the Edge Function to get an initial suggestion
             const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
             if (error) {
                 postTextArea.value = "Error generating suggestion. Please write your own or try again.";
@@ -113,7 +113,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function hideModal() { modalBackdrop.classList.add('hidden'); }
+    function hideModal() { 
+        if(modalBackdrop) modalBackdrop.classList.add('hidden'); 
+    }
 
     async function handleDismissPost(postId) {
         try {
@@ -126,33 +128,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             state.userInteractions.add(postId);
         } catch (error) {
-            console.error("Error dismissing post:", error);
-            alert("Could not dismiss the post. Please try again.");
+            if (error.code !== '23505') { // Gracefully handle duplicate dismiss clicks
+                console.error("Error dismissing post:", error);
+                alert("Could not dismiss the post. Please try again.");
+            }
         }
     }
 
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
-        modalCloseBtn.addEventListener('click', hideModal);
-        modalBackdrop.addEventListener('click', (event) => {
+        if (modalCloseBtn) modalCloseBtn.addEventListener('click', hideModal);
+        if (modalBackdrop) modalBackdrop.addEventListener('click', (event) => {
             if (event.target === modalBackdrop) hideModal();
         });
 
-        copyTextBtn.addEventListener('click', () => {
+        if (copyTextBtn) copyTextBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(postTextArea.value).then(() => {
                 copyTextBtn.textContent = 'Copied!';
                 setTimeout(() => { copyTextBtn.textContent = 'Copy Text'; }, 2000);
             });
         });
 
-        postToLinkedInBtn.addEventListener('click', function() {
+        if (postToLinkedInBtn) postToLinkedInBtn.addEventListener('click', function() {
             const url = this.dataset.url;
             if (!url) return;
             window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
         });
 
-        // Event listener for the "Refine" button
-        generateCustomBtn.addEventListener('click', async () => {
+        if (generateCustomBtn) generateCustomBtn.addEventListener('click', async () => {
             const originalText = postTextArea.value;
             const customPrompt = customPromptInput.value.trim();
             if (!customPrompt) {
@@ -169,7 +172,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 alert("Error refining post. Please check the console.");
             } else {
                 postTextArea.value = data.suggestion;
-                customPromptInput.value = ''; // Clear prompt input
+                customPromptInput.value = '';
             }
 
             generateCustomBtn.textContent = 'Regenerate';
@@ -179,6 +182,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- INITIALIZATION ---
     async function initializePage() {
+        await loadSVGs(); // 2. CALL THE SVG LOADER
+
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
@@ -187,8 +192,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await loadSocialContent();
         } else {
+            // Redirect to index if there's no session on initial load
             window.location.href = "index.html";
         }
+
+        // 3. ADD THE AUTH STATE CHANGE LISTENER TO HANDLE TOKEN REFRESHES
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === "SIGNED_IN" && session) {
+                state.currentUser = session.user;
+                await setupUserMenuAndAuth(supabase, state);
+                updateActiveNavLink();
+                await loadSocialContent();
+            } else if (event === "SIGNED_OUT") {
+                window.location.href = "index.html";
+            }
+        });
     }
 
     initializePage();
