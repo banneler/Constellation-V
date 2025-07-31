@@ -15,21 +15,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         marketingPosts: []
     };
     
-    // --- MOCK DATA (to be replaced with API calls to your Mac mini server) ---
+    // --- MOCK DATA (UPDATED to show dynamic vs. flat links) ---
     const mockAiArticles = [
         {
             type: 'ai',
             title: "Nebraska Announces New $50M Tech Startup Fund",
             url: "https://www.nebraska-tech-news.com/story1",
             source: "Nebraska Tech News",
-            summary: "A new state-backed initiative aims to bolster the local tech ecosystem by providing seed funding to promising startups in the telecommunications and agriculture tech sectors."
+            summary: "A new state-backed initiative aims to bolster the local tech ecosystem by providing seed funding...",
+            is_dynamic_link: true // This link has OG tags and will show a rich preview ✨
         },
         {
             type: 'ai',
             title: "Omaha-Based FiberNet Completes City-Wide Network Upgrade",
             url: "https://www.telecom-journal.net/omaha-fibernet",
             source: "Telecom Journal",
-            summary: "FiberNet has successfully finished its multi-year project to bring 10-gigabit fiber optic internet access to every neighborhood in Omaha."
+            summary: "FiberNet has successfully finished its multi-year project to bring 10-gigabit fiber optic internet access...",
+            is_dynamic_link: false // This link is 'flat' and will not generate a preview
         }
     ];
 
@@ -38,7 +40,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             type: 'marketing',
             title: "We're Hiring! Join Our Innovative Engineering Team",
             link: "https://www.constellation-careers.com/engineering",
-            approvedCopy: "Ready to build the future of telecommunications? We're looking for passionate engineers to join our growing team. Make your mark on the industry. #Hiring #NebraskaJobs #TechCareers #Engineering"
+            approvedCopy: "Ready to build the future of telecommunications? We're looking for passionate engineers... #Hiring",
+            is_dynamic_link: true // Our own links should always be dynamic ✨
         }
     ];
 
@@ -56,10 +59,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- DATA FETCHING ---
     async function loadSocialContent() {
         // TODO: Replace mock data with fetch calls to your local server
-        // Example: const response = await fetch('http://your-mac-mini-ip/ai-articles');
         state.aiArticles = mockAiArticles;
         state.marketingPosts = mockMarketingPosts;
-
         renderSocialContent();
     }
 
@@ -89,14 +90,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         const sourceName = isMarketing ? 'Marketing Team' : item.source;
         const triggerType = isMarketing ? 'Campaign Asset' : 'News Article';
 
+        // NEW: Check for the dynamic link flag and create the indicator
+        const dynamicLinkIndicator = item.is_dynamic_link
+            ? `<span class="dynamic-link-indicator" title="This link will generate a rich preview on LinkedIn">✨</span>`
+            : '';
+
         const card = document.createElement('div');
-        card.className = 'alert-card'; // Reusing your existing CSS class for consistency
+        card.className = 'alert-card';
 
         card.innerHTML = `
             <div class="alert-header">
                 <span class="alert-trigger-type">${triggerType}</span>
             </div>
-            <h5 class="alert-headline">${headline}</h5>
+            <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
             <p class="alert-summary">${summary}</p>
             <div class="alert-footer">
                 <span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span>
@@ -164,8 +170,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state); // From shared_constants.js
-            updateActiveNavLink(); // From shared_constants.js
+            await setupUserMenuAndAuth(supabase, state);
+            updateActiveNavLink();
             setupPageEventListeners();
             await loadSocialContent();
         } else {
