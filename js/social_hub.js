@@ -179,6 +179,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- INITIALIZATION ---
     async function initializePage() {
+        await loadSVGs(); // Call this first to load icons
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
