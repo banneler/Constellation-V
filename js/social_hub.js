@@ -4,7 +4,7 @@ import {
     SUPABASE_ANON_KEY,
     updateActiveNavLink,
     setupUserMenuAndAuth,
-    loadSVGs // 1. Import the SVG loader
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -180,37 +180,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-  // --- INITIALIZATION ---
-async function initializePage() {
-    await loadSVGs();
-    // These event listeners are for static elements, so we can set them up once.
-    setupPageEventListeners();
+    // --- INITIALIZATION (REVISED) ---
+    async function initializePage() {
+        await loadSVGs();
+        // These event listeners are for static elements, so we can set them up once.
+        setupPageEventListeners();
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
-        // If the user signs out or the session is invalid, redirect.
-        if (event === 'SIGNED_OUT' || !session) {
-            state.currentUser = null;
-            window.location.href = "index.html";
-            return;
-        }
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            // If the user signs out or the session is invalid, redirect.
+            if (event === 'SIGNED_OUT' || !session) {
+                state.currentUser = null;
+                window.location.href = "index.html";
+                return;
+            }
 
-        // **THE FIX:**
-        // This check prevents the code from re-running if the auth state change
-        // is for the same user (e.g., a token refresh).
-        // The optional chaining (?.) safely handles the initial state where currentUser is null.
-        if (state.currentUser?.id === session.user.id) {
-            return; // Do nothing if the user is already loaded.
-        }
-        
-        // This block will now only run once for the initial load
-        // or if a *different* user signs in.
-        state.currentUser = session.user;
-        await setupUserMenuAndAuth(supabase, state);
-        updateActiveNavLink();
-        await loadSocialContent();
-    });
-}
+            // This check prevents the code from re-running if the auth state change
+            // is for the same user (e.g., a token refresh).
+            // The optional chaining (?.) safely handles the initial state where currentUser is null.
+            if (state.currentUser?.id === session.user.id) {
+                return; // Do nothing if the user is already loaded.
+            }
+            
+            // This block will now only run once for the initial load
+            // or if a *different* user signs in.
+            state.currentUser = session.user;
+            await setupUserMenuAndAuth(supabase, state);
+            updateActiveNavLink();
+            await loadSocialContent();
+        });
+    }
 
-initializePage();
-
+    initializePage();
 });
