@@ -6,7 +6,8 @@ import {
     setupModalListeners,
     showModal,
     hideModal,
-    loadSVGs
+    loadSVGs, // Corrected function name
+    setupUserMenuAndAuth
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -21,6 +22,14 @@ let state = {
 };
 
 // --- DATA FETCHING ---
+const loadAllDataForView = async () => {
+    switch (state.currentView) {
+        case 'user-management': await loadUserData(); break;
+        case 'content-management': await loadContentData(); break;
+        case 'activity-log': await loadActivityLogData(); break;
+    }
+};
+
 async function loadUserData() {
     const { data, error } = await supabase.rpc('get_all_users_with_roles');
     if (error) { alert(`Could not load user data: ${error.message}`); return; }
@@ -42,13 +51,6 @@ async function loadActivityLogData() {
     renderActivityLogTable();
 }
 
-const loadAllDataForView = async () => {
-    switch (state.currentView) {
-        case 'user-management': await loadUserData(); break;
-        case 'content-management': await loadContentData(); break;
-        case 'activity-log': await loadActivityLogData(); break;
-    }
-};
 
 // --- RENDER FUNCTIONS ---
 function renderUserTable() {
@@ -56,23 +58,31 @@ function renderUserTable() {
     if (!tableBody) return;
     tableBody.innerHTML = state.allUsers
         .sort((a, b) => (a.full_name || "z").localeCompare(b.full_name || "z"))
-        .map(user => `
+        .map(user => {
+            const isSelf = user.user_id === state.currentUser.id;
+            const deactivateButton = isSelf ? '' : `<button class="btn-danger deactivate-user-btn" data-user-id="${user.user_id}" data-user-name="${user.full_name}">Deactivate</button>`;
+            return `
             <tr data-user-id="${user.user_id}">
                 <td><input type="text" class="form-control user-name-input" value="${user.full_name || ''}"></td>
                 <td>${user.email || 'N/A'}</td>
                 <td><input type="number" class="form-control user-quota-input" value="${user.monthly_quota || 0}"></td>
-                <td><input type="checkbox" class="is-manager-checkbox" ${user.is_manager ? 'checked' : ''}></td>
-                <td>
-                    <button class="btn-primary save-user-btn" data-user-id="${user.user_id}">Save</button>
-                    </td>
-            </tr>
-        `).join('');
+                <td><input type="checkbox" class="is-manager-checkbox" ${user.is_manager ? 'checked' : ''} ${isSelf ? 'disabled' : ''}></td>
+                <td class="action-buttons">${deactivateButton}<button class="btn-primary save-user-btn" data-user-id="${user.user_id}">Save</button></td>
+            </tr>`;
+        }).join('');
 }
 
 function renderContentManagementView() {
     const itemList = document.getElementById('item-list');
     itemList.innerHTML = state.sharedTemplates.map(t => `<div class="list-item" data-id="${t.id}" data-type="template">${t.name}</div>`).join('');
-    renderTemplateDetails(); // Will show placeholder or selected template
+    
+    // Highlight the selected item
+    const currentSelection = itemList.querySelector(`[data-id='${state.selectedTemplateId}']`);
+    if (currentSelection) {
+        currentSelection.classList.add('selected');
+    }
+    
+    renderTemplateDetails();
 }
 
 function renderTemplateDetails() {
@@ -114,6 +124,7 @@ function renderActivityLogTable() {
     `).join('');
 }
 
+
 // --- HANDLER FUNCTIONS ---
 async function handleSaveUser(e) {
     const button = e.target;
@@ -146,19 +157,31 @@ async function handleSaveUser(e) {
 }
 
 function handleInviteUser() {
-    showModal("Invite New User",
-        `<label>Email Address:</label><input type="email" id="modal-invite-email" required>`,
-        async () => {
+    showModal("Invite New User", `<label>Email Address:</label><input type="email" id="modal-invite-email" required>`, async () => {
             const email = document.getElementById('modal-invite-email').value;
             if(!email) { alert("Email is required."); return false; }
-
-            const { error } = await supabase.auth.admin.inviteUserByEmail(email);
+            const { data, error } = await supabase.auth.admin.inviteUserByEmail(email);
             if(error) { alert(`Error inviting user: ${error.message}`); return false; }
-            
             alert(`Invitation sent to ${email}.`);
             return true;
         }
     );
+}
+
+function handleDeactivateUser(e) {
+    const userId = e.target.dataset.userId;
+    const userName = e.target.dataset.userName;
+    showModal("Confirm Deactivation", `Are you sure you want to deactivate ${userName}? They will no longer be able to log in.`, async () => {
+        try {
+            const { data, error } = await supabase.rpc('deactivate_user', { target_user_id: userId });
+            if (error) throw error;
+            alert(data);
+            await loadUserData();
+        } catch (error) {
+            alert(`Failed to deactivate user: ${error.message}`);
+        }
+        hideModal();
+    });
 }
 
 function handleCreateNewItem() {
@@ -170,27 +193,24 @@ async function handleSaveTemplate() {
     const id = document.getElementById('template-id')?.value;
     const name = document.getElementById('template-name')?.value.trim();
     if (!name) { alert('Template name is required.'); return; }
-
     const templateData = { name, subject: document.getElementById('template-subject')?.value.trim(), body: document.getElementById('template-body')?.value, is_shared: true, user_id: state.currentUser.id };
-
     const { error } = id ? await supabase.from('email_templates').update(templateData).eq('id', id) : await supabase.from('email_templates').insert(templateData);
-
     if (error) { alert("Error saving template: " + error.message); }
     else { alert("Shared template saved successfully!"); await loadContentData(); }
 }
 
 async function handleDeleteTemplate() {
-    if (!state.selectedTemplateId) return;
-    showModal("Confirm Deletion", "Are you sure you want to delete this shared template?", async () => {
+     if (!state.selectedTemplateId) return;
+     showModal("Confirm Deletion", "Are you sure you want to delete this shared template?", async () => {
         const { error } = await supabase.from('email_templates').delete().eq('id', state.selectedTemplateId);
-        if (error) { alert("Error deleting template: " + error.message); }
+        if (error) alert("Error deleting template: " + error.message);
         else {
             alert("Template deleted.");
             state.selectedTemplateId = null;
             await loadContentData();
         }
         hideModal();
-    });
+     });
 }
 
 function handleNavigation() {
@@ -198,10 +218,10 @@ function handleNavigation() {
     state.currentView = hash.substring(1);
 
     document.querySelectorAll('.admin-nav').forEach(link => link.classList.remove('active'));
-    document.querySelector(`.admin-nav[href="${hash}"]`).classList.add('active');
+    document.querySelector(`.admin-nav[href="${hash}"]`)?.classList.add('active');
 
     document.querySelectorAll('.content-view').forEach(view => view.classList.add('hidden'));
-    document.getElementById(`${state.currentView}-view`).classList.remove('hidden');
+    document.getElementById(`${state.currentView}-view`)?.classList.remove('hidden');
 
     loadAllDataForView();
 }
@@ -212,6 +232,7 @@ function setupPageEventListeners() {
     
     document.getElementById('user-management-table')?.addEventListener('click', e => {
         if (e.target.matches('.save-user-btn')) handleSaveUser(e);
+        if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
     });
     
     document.getElementById('invite-user-btn')?.addEventListener('click', handleInviteUser);
@@ -220,8 +241,10 @@ function setupPageEventListeners() {
     document.getElementById('item-list')?.addEventListener('click', e => {
         const item = e.target.closest('.list-item');
         if(item) {
+            document.querySelectorAll('#item-list .list-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
             state.selectedTemplateId = Number(item.dataset.id);
-            renderContentManagementView(); // Re-render to highlight selection
+            renderTemplateDetails();
         }
     });
 
@@ -233,8 +256,8 @@ function setupPageEventListeners() {
 
 // --- INITIALIZATION ---
 async function initializePage() {
-    loadSVGs();
     setupModalListeners();
+    loadSVGs(); // Corrected function name
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -242,7 +265,7 @@ async function initializePage() {
         return;
     }
     state.currentUser = session.user;
-
+    
     if (!state.currentUser.user_metadata?.is_admin) {
         alert("Access Denied: You must be an admin to view this page.");
         window.location.href = "command-center.html";
