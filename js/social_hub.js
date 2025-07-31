@@ -3,8 +3,7 @@ import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     updateActiveNavLink,
-    setupUserMenuAndAuth,
-    loadSVGs
+    setupUserMenuAndAuth
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -31,10 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- DATA FETCHING ---
     async function loadSocialContent() {
-        if (!state.currentUser) {
-            console.error("loadSocialContent called without a user.");
-            return;
-        }
+        if (!state.currentUser) return;
         try {
             const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').order('created_at', { ascending: false });
             if (postsError) throw postsError;
@@ -47,14 +43,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderSocialContent();
         } catch (error) {
             console.error("Error fetching Social Hub content:", error);
-            aiContainer.innerHTML = `<p class="placeholder-text" style="color: var(--danger-red);">Error loading data. Check console for details.</p>`;
-            marketingContainer.innerHTML = '';
         }
     }
 
     // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
-        if (!aiContainer || !marketingContainer) return;
         aiContainer.innerHTML = '';
         marketingContainer.innerHTML = '';
         const visiblePosts = state.allPosts.filter(post => !state.userInteractions.has(post.id));
@@ -106,8 +99,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalBackdrop.classList.remove('hidden');
 
         if (item.type === 'marketing_post') {
-            postTextArea.value = item.approved_copy;
+            postTextArea.value = item.approved_copy; // Use pre-approved copy directly
         } else {
+            // Call the Edge Function to get an initial suggestion
             const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
             if (error) {
                 postTextArea.value = "Error generating suggestion. Please write your own or try again.";
@@ -118,9 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function hideModal() { 
-        if(modalBackdrop) modalBackdrop.classList.add('hidden'); 
-    }
+    function hideModal() { modalBackdrop.classList.add('hidden'); }
 
     async function handleDismissPost(postId) {
         try {
@@ -133,34 +125,33 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             state.userInteractions.add(postId);
         } catch (error) {
-            if (error.code !== '23505') { // Gracefully handle duplicate dismiss clicks
-                console.error("Error dismissing post:", error);
-                alert("Could not dismiss the post. Please try again.");
-            }
+            console.error("Error dismissing post:", error);
+            alert("Could not dismiss the post. Please try again.");
         }
     }
 
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
-        if (modalCloseBtn) modalCloseBtn.addEventListener('click', hideModal);
-        if (modalBackdrop) modalBackdrop.addEventListener('click', (event) => {
+        modalCloseBtn.addEventListener('click', hideModal);
+        modalBackdrop.addEventListener('click', (event) => {
             if (event.target === modalBackdrop) hideModal();
         });
 
-        if (copyTextBtn) copyTextBtn.addEventListener('click', () => {
+        copyTextBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(postTextArea.value).then(() => {
                 copyTextBtn.textContent = 'Copied!';
                 setTimeout(() => { copyTextBtn.textContent = 'Copy Text'; }, 2000);
             });
         });
 
-        if (postToLinkedInBtn) postToLinkedInBtn.addEventListener('click', function() {
+        postToLinkedInBtn.addEventListener('click', function() {
             const url = this.dataset.url;
             if (!url) return;
             window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
         });
 
-        if (generateCustomBtn) generateCustomBtn.addEventListener('click', async () => {
+        // Event listener for the "Refine" button
+        generateCustomBtn.addEventListener('click', async () => {
             const originalText = postTextArea.value;
             const customPrompt = customPromptInput.value.trim();
             if (!customPrompt) {
@@ -177,7 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 alert("Error refining post. Please check the console.");
             } else {
                 postTextArea.value = data.suggestion;
-                customPromptInput.value = '';
+                customPromptInput.value = ''; // Clear prompt input
             }
 
             generateCustomBtn.textContent = 'Regenerate';
@@ -187,10 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- INITIALIZATION ---
     async function initializePage() {
-        await loadSVGs(); 
-        
         const { data: { session } } = await supabase.auth.getSession();
-        
         if (session) {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
