@@ -8,7 +8,8 @@ import {
     hideModal,
     addDays,
     updateActiveNavLink,
-    setupUserMenuAndAuth
+    setupUserMenuAndAuth,
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -577,6 +578,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- App Initialization ---
     async function initializePage() {
+        await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
