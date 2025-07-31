@@ -11,7 +11,8 @@ import {
     showModal,
     hideModal,
     updateActiveNavLink,
-    setupUserMenuAndAuth
+    setupUserMenuAndAuth,
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1392,6 +1393,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function initializePage() {
+        await loadSVGs();
         if (deleteCampaignBtn) {
             deleteCampaignBtn.disabled = true;
         }
