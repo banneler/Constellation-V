@@ -6,6 +6,7 @@
     <title>Constellation - Admin Portal</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
@@ -15,20 +16,21 @@
             <div data-svg-loader="assets/logo.svg"></div>
             <h2 class="text-xl font-bold text-center mb-4" style="color: var(--text-light);">ADMIN</h2>
             
-            <a href="admin.html" class="nav-button active">User Management</a>
+            <a href="#user-management" class="nav-button admin-nav active">User Management</a>
+            <a href="#content-management" class="nav-button admin-nav">Content Management</a>
+            <a href="#system-analytics" class="nav-button admin-nav">System Analytics</a>
             
             <div class="nav-bottom-section">
-                 <a href="command-center.html" class="nav-button" style="text-align: center; font-size: 0.8rem;">Exit Admin</a>
+                 <a href="command-center.html" class="nav-button" style="text-align: center; font-size: 0.8rem;">Exit Admin Portal</a>
             </div>
         </nav>
         
         <main class="content-area">
-            <div id="admin-portal" class="content-view active-view">
+            <div id="user-management-view" class="content-view active-view">
                 <h2>Admin Portal: User Management</h2>
                 <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
                   Manage user roles and sales quotas from this portal.
                 </p>
-
                 <div class="table-container">
                     <table id="user-management-table">
                         <thead>
@@ -40,9 +42,56 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            </tbody>
+                        <tbody></tbody>
                     </table>
+                </div>
+            </div>
+
+            <div id="content-management-view" class="content-view hidden">
+                <h2>Admin Portal: Shared Content</h2>
+                <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
+                  Create and manage email templates and marketing sequences that are available to all users.
+                </p>
+                <div id="templates-sequences-view">
+                    <div class="split-view">
+                        <div class="item-list-container">
+                            <button id="create-new-item-btn" class="btn-primary full-width">Create New</button>
+                            <h4 id="list-header">Shared Email Templates</h4>
+                            <div id="item-list" class="item-list"></div>
+                        </div>
+                        <div id="dynamic-details-panel" class="details-panel">
+                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="system-analytics-view" class="content-view hidden">
+                <h2>Admin Portal: System Analytics</h2>
+                <div class="deals-metrics-container" id="team-metrics-container">
+                    </div>
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h4>Team Funnel by Stage</h4>
+                        <div class="chart-wrapper">
+                            <canvas id="team-deals-by-stage-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h4>Sales Leaderboard (Current Month Commit)</h4>
+                        <div class="table-container">
+                             <table id="leaderboard-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Sales Rep</th>
+                                        <th>Committed MRC</th>
+                                        <th>Quota %</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
