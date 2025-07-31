@@ -46,9 +46,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authToggleLink = document.getElementById("auth-toggle-link");
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
+
     const navEmailTemplates = document.querySelector('a[href="#email-templates"]');
     const navSequences = document.querySelector('a[href="#sequences"]');
     const navSocialPosts = document.querySelector('a[href="#social-posts"]');
+
     const createNewItemBtn = document.getElementById('create-new-item-btn');
     const importItemBtn = document.getElementById('import-item-btn');
     const itemCsvInput = document.getElementById('item-csv-input');
@@ -57,8 +59,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const listHeader = document.getElementById('list-header');
     const dynamicDetailsPanel = document.getElementById('dynamic-details-panel');
     const downloadSequenceTemplateBtn = document.getElementById('download-sequence-template-btn');
+    
     const templatesSequencesView = document.getElementById('templates-sequences-view');
     const socialPostView = document.getElementById('social-post-view');
+    
     const createPostForm = document.getElementById('create-post-form');
     const submitPostBtn = document.getElementById('submit-post-btn');
     const formFeedback = document.getElementById('form-feedback');
@@ -569,8 +573,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .update({ name: updatedName, description: updatedDescription })
                     .eq("id", state.selectedSequenceId);
                 alert("Sequence details saved successfully!");
-                state.originalSequenceName = updatedName;
-                state.originalSequenceDescription = updatedDescription;
             } catch (error) {
                 console.error("Error saving sequence details:", error.message);
                 alert("Error saving sequence details: " + error.message);
@@ -896,13 +898,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
 
-        if (document.getElementById("theme-toggle-btn")) document.getElementById("theme-toggle-btn").addEventListener("click", cycleTheme);
-        if (document.getElementById("logout-btn")) document.getElementById("logout-btn").addEventListener("click", () => supabase.auth.signOut());
-        
+        const themeToggleBtn = document.getElementById("theme-toggle-btn");
+        if (themeToggleBtn) themeToggleBtn.addEventListener("click", cycleTheme);
+
+        const logoutBtn = document.getElementById("logout-btn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", async () => {
+                await supabase.auth.signOut();
+                window.location.href = "marketing-hub.html";
+            });
+        }
+
         if (authForm) {
             authForm.addEventListener("submit", async (e) => {
                 e.preventDefault();
@@ -981,53 +992,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 renderContent();
             });
         }
-        if (navSocialPosts) {
-            navSocialPosts.addEventListener('click', (e) => {
-                e.preventDefault();
-                state.currentView = 'social-posts';
-                renderContent();
-            });
-        }
+        
         if (itemList) itemList.addEventListener('click', handleItemListClick);
         if (createNewItemBtn) createNewItemBtn.addEventListener('click', handleCreateNewItem);
         if (importItemBtn) importItemBtn.addEventListener('click', handleImportItem);
         if (deleteSelectedItemBtn) deleteSelectedItemBtn.addEventListener('click', handleDeleteSelectedItem);
         if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.addEventListener('click', downloadCsvTemplate);
-        if (createPostForm) {
-            createPostForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                submitPostBtn.disabled = true;
-                submitPostBtn.textContent = 'Submitting...';
-                formFeedback.style.display = 'none';
 
-                const newPost = {
-                    type: 'marketing_post',
-                    title: document.getElementById('post-title').value.trim(),
-                    link: document.getElementById('post-link').value.trim(),
-                    approved_copy: document.getElementById('post-copy').value.trim(),
-                    is_dynamic_link: document.getElementById('is-dynamic-link').checked,
-                    source_name: 'Marketing Team',
-                    status: 'new'
-                };
-
-                try {
-                    const { error } = await supabase.from('social_hub_posts').insert(newPost);
-                    if (error) throw error;
-                    formFeedback.textContent = '✅ Success! The post has been added to the Social Hub.';
-                    formFeedback.style.color = 'var(--success-color)';
-                    formFeedback.style.display = 'block';
-                    createPostForm.reset();
-                } catch (error) {
-                    console.error('Error submitting post:', error);
-                    formFeedback.textContent = `❌ Error: ${error.message}`;
-                    formFeedback.style.color = 'var(--danger-red)';
-                    formFeedback.style.display = 'block';
-                } finally {
-                    submitPostBtn.disabled = false;
-                    submitPostBtn.textContent = 'Add Post to Social Hub';
-                }
-            });
-        }
         if (itemCsvInput) {
             itemCsvInput.addEventListener("change", async (e) => {
                 if (state.currentView !== 'sequences' || !state.selectedSequenceId) return;
@@ -1088,7 +1059,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- App Initialization ---
     async function initializePage() {
-        await loadSVGs();
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
         const savedThemeIndex = themes.indexOf(savedTheme);
         currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
