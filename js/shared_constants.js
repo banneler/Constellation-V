@@ -361,3 +361,27 @@ export async function setupUserMenuAndAuth(supabase, state) {
     // Mark the element to show that listeners have been attached
     userMenuHeader.dataset.listenerAttached = 'true';
 }
+// Add this function to shared_constants.js
+
+export async function loadSVGs() {
+  const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
+  
+  for (const placeholder of svgPlaceholders) {
+    const svgUrl = placeholder.dataset.svgLoader;
+    if (svgUrl) {
+      try {
+        const response = await fetch(svgUrl);
+        if (!response.ok) throw new Error(`Failed to load SVG: ${response.statusText}`);
+        
+        const svgText = await response.text();
+        const svgElement = new DOMParser().parseFromString(svgText, "image/svg+xml").documentElement;
+        
+        // Replace placeholder with the actual SVG element
+        placeholder.parentNode.replaceChild(svgElement, placeholder);
+      } catch (error) {
+        console.error(`Could not load SVG from ${svgUrl}`, error);
+        placeholder.innerHTML = '';
+      }
+    }
+  }
+}
