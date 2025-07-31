@@ -1,5 +1,5 @@
 // js/sequences.js
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, addDays } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, addDays, loadSVGs } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("sequences.js script started parsing.");
@@ -576,6 +576,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- App Initialization ---
     async function initializePage() {
+        await loadSVGs();
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
         const savedThemeIndex = themes.indexOf(savedTheme);
         currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
