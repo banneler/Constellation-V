@@ -9,7 +9,8 @@ import {
     setupModalListeners,
     showModal,
     hideModal,
-    setupUserMenuAndAuth
+    setupUserMenuAndAuth,
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -45,10 +46,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authToggleLink = document.getElementById("auth-toggle-link");
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
-
     const navEmailTemplates = document.querySelector('a[href="#email-templates"]');
     const navSequences = document.querySelector('a[href="#sequences"]');
-
+    const navSocialPosts = document.querySelector('a[href="#social-posts"]');
     const createNewItemBtn = document.getElementById('create-new-item-btn');
     const importItemBtn = document.getElementById('import-item-btn');
     const itemCsvInput = document.getElementById('item-csv-input');
@@ -57,7 +57,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const listHeader = document.getElementById('list-header');
     const dynamicDetailsPanel = document.getElementById('dynamic-details-panel');
     const downloadSequenceTemplateBtn = document.getElementById('download-sequence-template-btn');
-
+    const templatesSequencesView = document.getElementById('templates-sequences-view');
+    const socialPostView = document.getElementById('social-post-view');
+    const createPostForm = document.getElementById('create-post-form');
+    const submitPostBtn = document.getElementById('submit-post-btn');
+    const formFeedback = document.getElementById('form-feedback');
 
     // --- Helper functions ---
     const showTemporaryMessage = (message, isSuccess = true) => {
@@ -134,7 +138,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 supabase.from("email_templates").select("*"),
                 supabase.from("marketing_sequences").select("*"),
                 supabase.from("marketing_sequence_steps").select("*"),
-                // MODIFIED: Ensure your column names here are correct.
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
 
@@ -157,26 +160,35 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Render Content Based on View ---
     const renderContent = () => {
-        if (state.currentView === 'email-templates') {
-            if (listHeader) listHeader.textContent = 'Email Templates';
-            if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
-            if (importItemBtn) importItemBtn.classList.add('hidden');
-            if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
-            if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
-            renderTemplateList();
-            renderTemplateDetails();
-        } else if (state.currentView === 'sequences') {
-            if (listHeader) listHeader.textContent = 'Marketing Sequences';
-            if (createNewItemBtn) createNewItemBtn.textContent = 'New Marketing Sequence';
-            if (importItemBtn) importItemBtn.classList.remove('hidden');
-            if (importItemBtn) importItemBtn.textContent = 'Import Steps from CSV';
-            if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Sequence';
-            if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
-            renderSequenceList();
-            renderSequenceDetails();
-        }
+        const isSocialView = state.currentView === 'social-posts';
+
+        if (templatesSequencesView) templatesSequencesView.classList.toggle('hidden', isSocialView);
+        if (socialPostView) socialPostView.classList.toggle('hidden', !isSocialView);
+        
         if (navEmailTemplates) navEmailTemplates.classList.toggle('active', state.currentView === 'email-templates');
         if (navSequences) navSequences.classList.toggle('active', state.currentView === 'sequences');
+        if (navSocialPosts) navSocialPosts.classList.toggle('active', isSocialView);
+
+        if (!isSocialView) {
+            if (state.currentView === 'email-templates') {
+                if (listHeader) listHeader.textContent = 'Email Templates';
+                if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
+                if (importItemBtn) importItemBtn.classList.add('hidden');
+                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
+                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
+                renderTemplateList();
+                renderTemplateDetails();
+            } else if (state.currentView === 'sequences') {
+                if (listHeader) listHeader.textContent = 'Marketing Sequences';
+                if (createNewItemBtn) createNewItemBtn.textContent = 'New Marketing Sequence';
+                if (importItemBtn) importItemBtn.classList.remove('hidden');
+                if (importItemBtn) importItemBtn.textContent = 'Import Steps from CSV';
+                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Sequence';
+                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
+                renderSequenceList();
+                renderSequenceDetails();
+            }
+        }
     };
 
     // --- Email Templates Render Functions ---
@@ -197,10 +209,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             item.dataset.type = 'template';
 
             if (template.user_id !== state.currentUser.id) {
-                // This is a shared template
-                // MODIFIED: Ensure user_id matches your table
                 const creator = state.user_quotas.find(u => u && u.user_id === template.user_id);
-                // MODIFIED: Ensure full_name matches your table
                 const creatorName = creator ? creator.full_name : 'an unknown user';
                 item.innerHTML = `
                     <div class="template-list-item-content">
@@ -209,7 +218,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                 `;
             } else {
-                // MODIFIED: This is the user's own template, now formatted to match
                 item.innerHTML = `
                     <div class="template-list-item-content">
                          <span class="template-name">${template.name}</span>
@@ -828,8 +836,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             showModal("Confirm Deletion", "Are you sure? This will delete the marketing sequence and all its steps. This cannot be undone.", async () => {
-                await supabase.from("marketing_sequences").delete().eq("id", state.selectedSequenceId);
                 await supabase.from("marketing_sequence_steps").delete().eq("marketing_sequence_id", state.selectedSequenceId);
+                await supabase.from("marketing_sequences").delete().eq("id", state.selectedSequenceId);
                 state.selectedSequenceId = null;
                 await loadAllData();
                 hideModal();
@@ -853,8 +861,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        } else {
-            alert('Your browser does not support downloading files directly. Please copy the content manually.');
         }
     }
     
@@ -891,7 +897,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             return true;
         }
     }
-
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
