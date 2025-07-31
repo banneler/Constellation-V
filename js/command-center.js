@@ -53,7 +53,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         const newTheme = themes[currentThemeIndex];
         applyTheme(newTheme);
     }
+// In social_hub.js, marketing-hub.js, etc.
+// Make sure to import it from your shared file
+import { loadSVGs, ... } from './shared_constants.js';
 
+// ...
+
+async function initializePage() {
+    await loadSVGs(); // Call this first to load icons
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        // ... rest of your initialization code
+    } else {
+        window.location.href = "index.html";
+    }
+}
+
+initializePage();
     // --- Utility ---
     function getStartOfLocalDayISO() {
         const today = new Date();
