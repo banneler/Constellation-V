@@ -5,6 +5,7 @@ import {
     setupModalListeners,
     showModal,
     hideModal,
+    svgLoader // <<< CORRECTLY IMPORTED
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -39,7 +40,6 @@ function renderUserTable() {
 
 // --- DATA FETCHING & UPDATING ---
 async function loadAllData() {
-    // Call the secure PostgreSQL function we created
     const { data, error } = await supabase.rpc('get_all_users_with_roles');
 
     if (error) {
@@ -67,7 +67,6 @@ async function handleSaveUser(e) {
     button.disabled = true;
 
     try {
-        // 1. Update the public.user_quotas table
         const { error: quotaError } = await supabase
             .from('user_quotas')
             .update(updatedData)
@@ -75,7 +74,6 @@ async function handleSaveUser(e) {
 
         if (quotaError) throw quotaError;
 
-        // 2. Call the secure function to update the user's role in auth.users
         const { error: roleError } = await supabase.rpc('set_manager_status', {
             target_user_id: userId,
             is_manager_status: isManagerStatus
@@ -98,10 +96,11 @@ async function handleSaveUser(e) {
 // --- INITIALIZATION ---
 async function initializePage() {
     setupModalListeners();
+    svgLoader(); // <<< FIXED: Added the call to load SVGs
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-        window.location.href = "index.html"; // Should be handled by HTML, but as a fallback
+        window.location.href = "index.html";
         return;
     }
     state.currentUser = session.user;
@@ -113,7 +112,6 @@ async function initializePage() {
         return;
     }
 
-    // Set up event listener for the whole table
     const table = document.getElementById('user-management-table');
     if (table) {
         table.addEventListener('click', e => {
