@@ -180,33 +180,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION (REVISED) ---
+    // --- INITIALIZATION (REVISED & ALIGNED WITH OTHER PAGES) ---
     async function initializePage() {
         await loadSVGs();
-        // These event listeners are for static elements, so we can set them up once.
         setupPageEventListeners();
 
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            // If the user signs out or the session is invalid, redirect.
-            if (event === 'SIGNED_OUT' || !session) {
-                state.currentUser = null;
-                window.location.href = "index.html";
-                return;
-            }
-
-            // This check prevents the code from re-running if the auth state change
-            // is for the same user (e.g., a token refresh).
-            // The optional chaining (?.) safely handles the initial state where currentUser is null.
-            if (state.currentUser?.id === session.user.id) {
-                return; // Do nothing if the user is already loaded.
-            }
-            
-            // This block will now only run once for the initial load
-            // or if a *different* user signs in.
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             updateActiveNavLink();
             await loadSocialContent();
+        } else {
+            // No session on initial load, redirect to login.
+            window.location.href = "index.html";
+        }
+
+        // Add the listener for real-time changes AFTER the initial load.
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === "SIGNED_OUT") {
+                window.location.href = "index.html";
+            } else if (event === "SIGNED_IN" && (!state.currentUser || state.currentUser.id !== session.user.id)) {
+                // A different user signed in, reload the page to get their data.
+                window.location.reload();
+            }
         });
     }
 
