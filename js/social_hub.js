@@ -11,40 +11,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let state = {
         currentUser: null,
-        aiArticles: [],
-        marketingPosts: []
+        allPosts: [], // Will hold all posts from the DB
+        userInteractions: new Set() // Will hold IDs of posts the user has dismissed
     };
     
-    // --- MOCK DATA (UPDATED to show dynamic vs. flat links) ---
-    const mockAiArticles = [
-        {
-            type: 'ai',
-            title: "Nebraska Announces New $50M Tech Startup Fund",
-            url: "https://www.nebraska-tech-news.com/story1",
-            source: "Nebraska Tech News",
-            summary: "A new state-backed initiative aims to bolster the local tech ecosystem by providing seed funding...",
-            is_dynamic_link: true // This link has OG tags and will show a rich preview ✨
-        },
-        {
-            type: 'ai',
-            title: "Omaha-Based FiberNet Completes City-Wide Network Upgrade",
-            url: "https://www.telecom-journal.net/omaha-fibernet",
-            source: "Telecom Journal",
-            summary: "FiberNet has successfully finished its multi-year project to bring 10-gigabit fiber optic internet access...",
-            is_dynamic_link: false // This link is 'flat' and will not generate a preview
-        }
-    ];
-
-    const mockMarketingPosts = [
-        {
-            type: 'marketing',
-            title: "We're Hiring! Join Our Innovative Engineering Team",
-            link: "https://www.constellation-careers.com/engineering",
-            approvedCopy: "Ready to build the future of telecommunications? We're looking for passionate engineers... #Hiring",
-            is_dynamic_link: true // Our own links should always be dynamic ✨
-        }
-    ];
-
     // --- DOM SELECTORS ---
     const aiContainer = document.getElementById('ai-articles-container');
     const marketingContainer = document.getElementById('marketing-posts-container');
@@ -58,10 +28,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- DATA FETCHING ---
     async function loadSocialContent() {
-        // TODO: Replace mock data with fetch calls to your local server
-        state.aiArticles = mockAiArticles;
-        state.marketingPosts = mockMarketingPosts;
-        renderSocialContent();
+        if (!state.currentUser) return;
+
+        try {
+            console.log("Fetching data from Supabase...");
+
+            // 1. Fetch all posts from the Social Hub table
+            const { data: posts, error: postsError } = await supabase
+                .from('social_hub_posts')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (postsError) throw postsError;
+            state.allPosts = posts || [];
+
+            // 2. Fetch all of the current user's interactions
+            const { data: interactions, error: interactionsError } = await supabase
+                .from('user_post_interactions')
+                .select('post_id')
+                .eq('user_id', state.currentUser.id);
+            
+            if (interactionsError) throw interactionsError;
+            
+            // Store the IDs of interacted posts in a Set for quick lookups
+            state.userInteractions = new Set(interactions.map(i => i.post_id));
+            
+            console.log(`Found ${state.allPosts.length} total posts.`);
+            console.log(`User has interacted with ${state.userInteractions.size} posts.`);
+
+            renderSocialContent();
+
+        } catch (error) {
+            console.error("Error fetching Social Hub content:", error);
+            aiContainer.innerHTML = `<p class="placeholder-text">Error loading content. Please check the console.</p>`;
+        }
     }
 
     // --- RENDER FUNCTIONS ---
@@ -69,34 +69,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         aiContainer.innerHTML = '';
         marketingContainer.innerHTML = '';
 
-        if (state.aiArticles.length === 0) {
-            aiContainer.innerHTML = `<p class="placeholder-text">No new articles found by the scraper.</p>`;
+        // Filter out posts that the user has already interacted with
+        const visiblePosts = state.allPosts.filter(post => !state.userInteractions.has(post.id));
+
+        const aiArticles = visiblePosts.filter(p => p.type === 'ai_article');
+        const marketingPosts = visiblePosts.filter(p => p.type === 'marketing_post');
+        
+        if (aiArticles.length === 0) {
+            aiContainer.innerHTML = `<p class="placeholder-text">No new articles found.</p>`;
         } else {
-            state.aiArticles.forEach(item => aiContainer.appendChild(createSocialCard(item)));
+            aiArticles.forEach(item => aiContainer.appendChild(createSocialCard(item)));
         }
 
-        if (state.marketingPosts.length === 0) {
+        if (marketingPosts.length === 0) {
             marketingContainer.innerHTML = `<p class="placeholder-text">No new posts from the marketing team.</p>`;
         } else {
-            state.marketingPosts.forEach(item => marketingContainer.appendChild(createSocialCard(item)));
+            marketingPosts.forEach(item => marketingContainer.appendChild(createSocialCard(item)));
         }
     }
 
     function createSocialCard(item) {
-        const isMarketing = item.type === 'marketing';
         const headline = item.title;
-        const link = item.url || item.link;
-        const summary = isMarketing ? item.approvedCopy : item.summary;
-        const sourceName = isMarketing ? 'Marketing Team' : item.source;
-        const triggerType = isMarketing ? 'Campaign Asset' : 'News Article';
+        const link = item.link;
+        const summary = item.summary || item.approved_copy;
+        const sourceName = item.source_name || 'Marketing Team';
+        const triggerType = item.type === 'marketing_post' ? 'Campaign Asset' : 'News Article';
 
-        // NEW: Check for the dynamic link flag and create the indicator
         const dynamicLinkIndicator = item.is_dynamic_link
             ? `<span class="dynamic-link-indicator" title="This link will generate a rich preview on LinkedIn">✨</span>`
             : '';
 
         const card = document.createElement('div');
         card.className = 'alert-card';
+        card.id = `post-card-${item.id}`; // Add an ID to the card for easy removal
 
         card.innerHTML = `
             <div class="alert-header">
@@ -108,36 +113,66 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span>
             </div>
             <div class="alert-actions">
-                <button class="btn-primary prepare-post-btn">Prepare Post</button>
+                <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}">Dismiss</button>
+                <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
             </div>
         `;
 
-        card.querySelector('.prepare-post-btn').addEventListener('click', () => {
-            openPostModal(item);
-        });
+        card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
+        card.querySelector('.dismiss-post-btn').addEventListener('click', () => handleDismissPost(item.id));
         
         return card;
     }
 
-    // --- MODAL LOGIC ---
+    // --- MODAL & ACTION LOGIC ---
     function openPostModal(item) {
-        const isMarketing = item.type === 'marketing';
-        const link = item.url || item.link;
-        
         modalTitle.textContent = item.title;
-        modalArticleLink.href = link;
-        modalArticleLink.textContent = link;
+        modalArticleLink.href = item.link;
+        modalArticleLink.textContent = item.link;
         
-        postTextArea.value = isMarketing 
-            ? item.approvedCopy 
-            : `Sharing an interesting article from ${item.source}:\n\n"${item.summary}"\n\n#NebraskaTech #Telecommunications`;
+        postTextArea.value = item.approved_copy || `Sharing an interesting article from ${item.source_name}:\n\n"${item.summary}"\n\n#NebraskaTech #Telecommunications`;
 
-        postToLinkedInBtn.dataset.url = link;
+        postToLinkedInBtn.dataset.url = item.link;
         modalBackdrop.classList.remove('hidden');
     }
 
     function hideModal() {
         modalBackdrop.classList.add('hidden');
+    }
+
+    async function handleDismissPost(postId) {
+        try {
+            // Add a record to the user_post_interactions table
+            const { error } = await supabase.from('user_post_interactions').insert({
+                user_id: state.currentUser.id,
+                post_id: postId,
+                status: 'dismissed'
+            });
+
+            if (error) {
+                // Handle potential unique constraint violation gracefully (e.g., user double-clicks)
+                if (error.code === '23505') { // Unique violation code for PostgreSQL
+                    console.log("Interaction already logged for this post.");
+                } else {
+                    throw error;
+                }
+            }
+
+            // Visually remove the card from the UI
+            const cardToRemove = document.getElementById(`post-card-${postId}`);
+            if (cardToRemove) {
+                cardToRemove.style.transition = 'opacity 0.5s';
+                cardToRemove.style.opacity = '0';
+                setTimeout(() => cardToRemove.remove(), 500);
+            }
+            
+            // Add the post ID to our local state to prevent re-rendering if data is re-loaded
+            state.userInteractions.add(postId);
+
+        } catch (error) {
+            console.error("Error dismissing post:", error);
+            alert("Could not dismiss the post. Please try again.");
+        }
     }
 
     // --- EVENT LISTENER SETUP ---
@@ -151,9 +186,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         copyTextBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(postTextArea.value).then(() => {
-                const originalText = copyTextBtn.textContent;
                 copyTextBtn.textContent = 'Copied!';
-                setTimeout(() => { copyTextBtn.textContent = originalText; }, 2000);
+                setTimeout(() => { copyTextBtn.textContent = 'Copy Text'; }, 2000);
             });
         });
 
