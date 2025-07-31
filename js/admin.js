@@ -5,7 +5,7 @@ import {
     setupModalListeners,
     showModal,
     hideModal,
-    svgLoader // <<< CORRECTLY IMPORTED
+    loadSVGs
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -96,7 +96,7 @@ async function handleSaveUser(e) {
 // --- INITIALIZATION ---
 async function initializePage() {
     setupModalListeners();
-    svgLoader(); // <<< FIXED: Added the call to load SVGs
+    loadSVGs(); // <<< FIXED: Added the call to load SVGs
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
