@@ -25,11 +25,14 @@
             <div id="user-management-view" class="content-view active-view">
                 <h2>User Management</h2>
                 <div class="action-buttons" style="margin-bottom: 1.5rem;"><button id="invite-user-btn" class="btn-primary">Invite New User</button></div>
-                <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Last Login</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+                <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Last Login</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Exclude from Reporting?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
             </div>
 
             <div id="content-management-view" class="content-view hidden">
                 <h2>Content Management</h2>
+                <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
+                  Manage which templates and sequences are shared across the organization.
+                </p>
                 <div class="deals-view-toggle" style="margin-bottom: 1.5rem;">
                     <button id="view-templates-btn" class="btn-secondary content-view-btn active">Email Templates</button>
                     <button id="view-sequences-btn" class="btn-secondary content-view-btn">Marketing Sequences</button>
@@ -55,7 +58,7 @@
                 </div>
                 <div id="analytics-charts-container" class="charts-grid">
                     <div class="chart-container"><h4>Activities Logged</h4><div class="chart-wrapper"><canvas id="activities-chart"></canvas></div></div>
-                    <div class="chart-container"><h4>Contacts Put in Sequence</h4><div class="chart-wrapper"><canvas id="sequences-chart"></canvas></div></div>
+                    <div class="chart-container"><h4>Contacts in Sequence</h4><div class="chart-wrapper"><canvas id="sequences-chart"></canvas></div></div>
                     <div class="chart-container"><h4>Campaigns Completed</h4><div class="chart-wrapper"><canvas id="campaigns-chart"></canvas></div></div>
                     <div class="chart-container"><h4>Tasks Past Due</h4><div class="chart-wrapper"><canvas id="tasks-chart"></canvas></div></div>
                     <div class="chart-container"><h4>Deals Added to Funnel</h4><div class="chart-wrapper"><canvas id="new-deals-chart"></canvas></div></div>
