@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="crm-container">
@@ -16,7 +15,6 @@
             <h2 class="text-xl font-bold text-center mb-4" style="color: var(--text-light);">ADMIN</h2>
             
             <a href="#user-management" class="nav-button admin-nav active">User Management</a>
-            <a href="#content-management" class="nav-button admin-nav">Content Management</a>
             <a href="#activity-log" class="nav-button admin-nav">Activity Log</a>
             
             <div class="nav-bottom-section">
@@ -43,20 +41,6 @@
                         </thead>
                         <tbody></tbody>
                     </table>
-                </div>
-            </div>
-
-            <div id="content-management-view" class="content-view hidden">
-                <h2>Shared Content Management</h2>
-                 <div class="split-view">
-                    <div class="item-list-container">
-                        <button id="create-new-item-btn" class="btn-primary full-width">Create Shared Template</button>
-                        <h4 id="list-header">Shared Email Templates</h4>
-                        <div id="item-list" class="item-list"></div>
-                    </div>
-                    <div id="dynamic-details-panel" class="details-panel">
-                        <p>Select a template to edit, or create a new one.</p>
-                    </div>
                 </div>
             </div>
 
