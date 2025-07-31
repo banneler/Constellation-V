@@ -46,11 +46,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authToggleLink = document.getElementById("auth-toggle-link");
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
-
     const navEmailTemplates = document.querySelector('a[href="#email-templates"]');
     const navSequences = document.querySelector('a[href="#sequences"]');
     const navSocialPosts = document.querySelector('a[href="#social-posts"]');
-
     const createNewItemBtn = document.getElementById('create-new-item-btn');
     const importItemBtn = document.getElementById('import-item-btn');
     const itemCsvInput = document.getElementById('item-csv-input');
@@ -59,13 +57,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const listHeader = document.getElementById('list-header');
     const dynamicDetailsPanel = document.getElementById('dynamic-details-panel');
     const downloadSequenceTemplateBtn = document.getElementById('download-sequence-template-btn');
-    
     const templatesSequencesView = document.getElementById('templates-sequences-view');
     const socialPostView = document.getElementById('social-post-view');
-    
     const createPostForm = document.getElementById('create-post-form');
     const submitPostBtn = document.getElementById('submit-post-btn');
     const formFeedback = document.getElementById('form-feedback');
+
 
     // --- Helper functions ---
     const showTemporaryMessage = (message, isSuccess = true) => {
@@ -623,7 +620,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleSequenceStepActions(e) {
-        const target = e.target;
+        const target = e.target.closest('button');
+        if (!target) return;
+    
         const row = target.closest("tr[data-id]");
         if (!row) return;
 
@@ -634,7 +633,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        if (target.classList.contains("edit-step-btn")) {
+        if (target.matches(".edit-step-btn, .edit-step-btn *")) {
             if (state.editingStepId && state.editingStepId !== stepId) {
                 alert("Please save or cancel the current step edit before editing another step.");
                 return;
@@ -645,7 +644,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.originalStepValues = { ...currentStep };
             }
             renderSequenceSteps();
-        } else if (target.classList.contains("save-step-btn")) {
+        } else if (target.matches(".save-step-btn, .save-step-btn *")) {
             const updatedStep = {
                 id: stepId,
                 step_number: parseInt(row.cells[0].textContent, 10),
@@ -678,11 +677,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.originalStepValues = {};
                 await loadAllData();
             }
-        } else if (target.classList.contains("cancel-step-btn")) {
+        } else if (target.matches(".cancel-step-btn, .cancel-step-btn *")) {
             state.editingStepId = null;
             state.originalStepValues = {};
             renderSequenceSteps();
-        } else if (target.classList.contains("delete-step-btn")) {
+        } else if (target.matches(".delete-step-btn, .delete-step-btn *")) {
             if (state.editingStepId) {
                 alert("Please save or cancel the current step edit before deleting a step.");
                 return;
@@ -693,13 +692,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 hideModal();
                 alert("Step deleted.");
             });
-        } else if (target.classList.contains("move-up-btn")) {
+        } else if (target.matches(".move-up-btn, .move-up-btn *")) {
             if (state.isEditingSequenceDetails || state.editingStepId) {
                 alert("Please save or cancel any active edits before reordering steps.");
                 return;
             }
             await handleMoveStep(stepId, 'up');
-        } else if (target.classList.contains("move-down-btn")) {
+        } else if (target.matches(".move-down-btn, .move-down-btn *")) {
             if (state.isEditingSequenceDetails || state.editingStepId) {
                 alert("Please save or cancel any active edits before reordering steps.");
                 return;
@@ -728,14 +727,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.selectedSequenceId = newSeq[0].id;
             await loadAllData();
             hideModal();
-            renderSequenceDetails();
-            document.querySelectorAll("#item-list .list-item").forEach(item => {
-                if (Number(item.dataset.id) === state.selectedSequenceId && item.dataset.type === 'sequence') {
-                    item.classList.add("selected");
-                } else {
-                    item.classList.remove("selected");
-                }
-            });
             return true;
         } else {
             alert("Sequence name is required.");
@@ -903,17 +894,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     function setupPageEventListeners() {
         setupModalListeners();
 
-        const themeToggleBtn = document.getElementById("theme-toggle-btn");
-        if (themeToggleBtn) themeToggleBtn.addEventListener("click", cycleTheme);
-
-        const logoutBtn = document.getElementById("logout-btn");
-        if (logoutBtn) {
-            logoutBtn.addEventListener("click", async () => {
-                await supabase.auth.signOut();
-                window.location.href = "marketing-hub.html";
-            });
-        }
-
+        if (document.getElementById("theme-toggle-btn")) document.getElementById("theme-toggle-btn").addEventListener("click", cycleTheme);
+        if (document.getElementById("logout-btn")) document.getElementById("logout-btn").addEventListener("click", () => supabase.auth.signOut());
+        
         if (authForm) {
             authForm.addEventListener("submit", async (e) => {
                 e.preventDefault();
@@ -992,12 +975,54 @@ document.addEventListener("DOMContentLoaded", async () => {
                 renderContent();
             });
         }
-        
+        if (navSocialPosts) {
+            navSocialPosts.addEventListener('click', (e) => {
+                e.preventDefault();
+                state.currentView = 'social-posts';
+                renderContent();
+            });
+        }
         if (itemList) itemList.addEventListener('click', handleItemListClick);
         if (createNewItemBtn) createNewItemBtn.addEventListener('click', handleCreateNewItem);
         if (importItemBtn) importItemBtn.addEventListener('click', handleImportItem);
         if (deleteSelectedItemBtn) deleteSelectedItemBtn.addEventListener('click', handleDeleteSelectedItem);
         if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.addEventListener('click', downloadCsvTemplate);
+        
+        if (createPostForm) {
+            createPostForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                submitPostBtn.disabled = true;
+                submitPostBtn.textContent = 'Submitting...';
+                formFeedback.style.display = 'none';
+
+                const newPost = {
+                    type: 'marketing_post',
+                    title: document.getElementById('post-title').value.trim(),
+                    link: document.getElementById('post-link').value.trim(),
+                    approved_copy: document.getElementById('post-copy').value.trim(),
+                    is_dynamic_link: document.getElementById('is-dynamic-link').checked,
+                    source_name: 'Marketing Team',
+                    status: 'new'
+                };
+
+                try {
+                    const { error } = await supabase.from('social_hub_posts').insert(newPost);
+                    if (error) throw error;
+                    formFeedback.textContent = '✅ Success! The post has been added to the Social Hub.';
+                    formFeedback.style.color = 'var(--success-color)';
+                    formFeedback.style.display = 'block';
+                    createPostForm.reset();
+                } catch (error) {
+                    console.error('Error submitting post:', error);
+                    formFeedback.textContent = `❌ Error: ${error.message}`;
+                    formFeedback.style.color = 'var(--danger-red)';
+                    formFeedback.style.display = 'block';
+                } finally {
+                    submitPostBtn.disabled = false;
+                    submitPostBtn.textContent = 'Add Post to Social Hub';
+                }
+            });
+        }
 
         if (itemCsvInput) {
             itemCsvInput.addEventListener("change", async (e) => {
@@ -1059,6 +1084,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- App Initialization ---
     async function initializePage() {
+        await loadSVGs();
+        
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
         const savedThemeIndex = themes.indexOf(savedTheme);
         currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
@@ -1074,6 +1101,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const hash = window.location.hash;
             if (hash === '#sequences') {
                 state.currentView = 'sequences';
+            } else if (hash === '#social-posts') {
+                state.currentView = 'social-posts';
             } else {
                 state.currentView = 'email-templates';
             }
@@ -1095,6 +1124,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const hash = window.location.hash;
                 if (hash === '#sequences') {
                     state.currentView = 'sequences';
+                } else if (hash === '#social-posts') {
+                    state.currentView = 'social-posts';
                 } else {
                     state.currentView = 'email-templates';
                 }
