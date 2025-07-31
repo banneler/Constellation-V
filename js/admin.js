@@ -3,7 +3,6 @@ import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     formatDate,
-    formatCurrencyK,
     setupModalListeners,
     showModal,
     hideModal,
@@ -16,201 +15,106 @@ let state = {
     currentUser: null,
     allUsers: [],
     sharedTemplates: [],
-    sharedSequences: [],
-    sequence_steps: [],
-    allDeals: [],
-    allAccounts: [],
+    activityLog: [],
     currentView: 'user-management',
-    contentView: 'templates',
     selectedTemplateId: null,
-    selectedSequenceId: null,
 };
 
 // --- DATA FETCHING ---
-
 async function loadUserData() {
     const { data, error } = await supabase.rpc('get_all_users_with_roles');
-    if (error) {
-        alert(`Could not load user data: ${error.message}`);
-        return;
-    }
+    if (error) { alert(`Could not load user data: ${error.message}`); return; }
     state.allUsers = data || [];
     renderUserTable();
 }
 
 async function loadContentData() {
-    const [
-        { data: templates, error: tError },
-        { data: sequences, error: sError },
-        { data: steps, error: stError }
-    ] = await Promise.all([
-        supabase.from('email_templates').select('*').eq('is_shared', true),
-        supabase.from('marketing_sequences').select('*').eq('is_shared', true),
-        supabase.from('marketing_sequence_steps').select('*') // Steps are linked by ID, no need to filter here
-    ]);
-
-    if (tError || sError || stError) console.error("Error loading content data:", tError || sError || stError);
-    state.sharedTemplates = templates || [];
-    state.sharedSequences = sequences || [];
-    state.sequence_steps = steps || [];
+    const { data, error } = await supabase.from('email_templates').select('*').eq('is_shared', true);
+    if (error) { alert(`Could not load shared templates: ${error.message}`); return; }
+    state.sharedTemplates = data || [];
     renderContentManagementView();
 }
 
-async function loadAnalyticsData() {
-    const [
-        { data: deals, error: dError },
-        { data: accounts, error: aError },
-        { data: users, error: uError }
-    ] = await Promise.all([
-        supabase.from('deals').select('*'),
-        supabase.from('accounts').select('*'),
-        supabase.rpc('get_all_users_with_roles') // Use our secure function
-    ]);
-
-    if (dError || aError || uError) console.error("Error loading analytics data:", dError || aError || uError);
-    state.allDeals = deals || [];
-    state.allAccounts = accounts || [];
-    state.allUsers = users || []; // This now includes quota info
-    renderAnalyticsDashboard();
+async function loadActivityLogData() {
+    const { data, error } = await supabase.rpc('get_system_activity_log');
+    if (error) { alert(`Could not load activity log: ${error.message}`); return; }
+    state.activityLog = data || [];
+    renderActivityLogTable();
 }
 
-// --- RENDER FUNCTIONS ---
+const loadAllDataForView = async () => {
+    switch (state.currentView) {
+        case 'user-management': await loadUserData(); break;
+        case 'content-management': await loadContentData(); break;
+        case 'activity-log': await loadActivityLogData(); break;
+    }
+};
 
+// --- RENDER FUNCTIONS ---
 function renderUserTable() {
     const tableBody = document.querySelector("#user-management-table tbody");
     if (!tableBody) return;
-    tableBody.innerHTML = "";
-    state.allUsers
-        .sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""))
-        .forEach(user => {
-            const row = tableBody.insertRow();
-            row.dataset.userId = user.user_id;
-            row.innerHTML = `
+    tableBody.innerHTML = state.allUsers
+        .sort((a, b) => (a.full_name || "z").localeCompare(b.full_name || "z"))
+        .map(user => `
+            <tr data-user-id="${user.user_id}">
                 <td><input type="text" class="form-control user-name-input" value="${user.full_name || ''}"></td>
                 <td>${user.email || 'N/A'}</td>
                 <td><input type="number" class="form-control user-quota-input" value="${user.monthly_quota || 0}"></td>
                 <td><input type="checkbox" class="is-manager-checkbox" ${user.is_manager ? 'checked' : ''}></td>
-                <td><button class="btn-primary save-user-btn" data-user-id="${user.user_id}">Save</button></td>
-            `;
-        });
+                <td>
+                    <button class="btn-primary save-user-btn" data-user-id="${user.user_id}">Save</button>
+                    </td>
+            </tr>
+        `).join('');
 }
 
 function renderContentManagementView() {
-    const listHeader = document.getElementById('list-header');
     const itemList = document.getElementById('item-list');
-    const detailsPanel = document.getElementById('dynamic-details-panel');
-
-    if (state.contentView === 'templates') {
-        listHeader.textContent = 'Shared Email Templates';
-        itemList.innerHTML = state.sharedTemplates.map(t => `<div class="list-item" data-id="${t.id}" data-type="template">${t.name}</div>`).join('');
-        detailsPanel.innerHTML = '<p>Select a template or create a new one.</p>';
-        if(state.selectedTemplateId) renderTemplateDetails();
-    } else {
-        // Future implementation for sequences
-    }
+    itemList.innerHTML = state.sharedTemplates.map(t => `<div class="list-item" data-id="${t.id}" data-type="template">${t.name}</div>`).join('');
+    renderTemplateDetails(); // Will show placeholder or selected template
 }
 
 function renderTemplateDetails() {
     const detailsPanel = document.getElementById('dynamic-details-panel');
     const template = state.sharedTemplates.find(t => t.id === state.selectedTemplateId);
-
     if (template) {
         detailsPanel.innerHTML = `
             <h3>Template Details</h3>
-            <div id="template-form-container">
-                <input type="hidden" id="template-id" value="${template.id}">
-                <label>Template Name:</label><input type="text" id="template-name" value="${template.name || ''}" required>
-                <label>Subject:</label><input type="text" id="template-subject" value="${template.subject || ''}">
-                <label>Email Body:</label><textarea id="template-body" rows="10">${template.body || ''}</textarea>
-                <div class="form-buttons">
-                    <button id="save-template-btn" class="btn-primary">Save Template</button>
-                    <button id="delete-template-btn" class="btn-danger">Delete Template</button>
-                </div>
+            <input type="hidden" id="template-id" value="${template.id}">
+            <label>Template Name:</label><input type="text" id="template-name" value="${template.name || ''}" required>
+            <label>Subject:</label><input type="text" id="template-subject" value="${template.subject || ''}">
+            <label>Email Body:</label><textarea id="template-body" rows="10">${template.body || ''}</textarea>
+            <div class="form-buttons">
+                <button id="save-template-btn" class="btn-primary">Save Template</button>
+                <button id="delete-template-btn" class="btn-danger">Delete Template</button>
             </div>`;
     } else {
-        detailsPanel.innerHTML = `
-            <h3>New Shared Template</h3>
-            <div id="template-form-container">
-                 <input type="hidden" id="template-id" value="">
-                <label>Template Name:</label><input type="text" id="template-name" value="" required>
-                <label>Subject:</label><input type="text" id="template-subject" value="">
-                <label>Email Body:</label><textarea id="template-body" rows="10"></textarea>
-                <div class="form-buttons">
-                    <button id="save-template-btn" class="btn-primary">Save Template</button>
-                </div>
-            </div>`;
+        detailsPanel.innerHTML = `<h3>New Shared Template</h3>
+            <input type="hidden" id="template-id" value="">
+            <label>Template Name:</label><input type="text" id="template-name" value="" required>
+            <label>Subject:</label><input type="text" id="template-subject" value="">
+            <label>Email Body:</label><textarea id="template-body" rows="10"></textarea>
+            <div class="form-buttons"><button id="save-template-btn" class="btn-primary">Save Template</button></div>`;
     }
 }
 
-function renderAnalyticsDashboard() {
-    const metricsContainer = document.getElementById('team-metrics-container');
-    const leaderboardBody = document.querySelector('#leaderboard-table tbody');
-
-    // Metrics calculation
-    const totalQuota = state.allUsers.reduce((sum, user) => sum + (user.monthly_quota || 0), 0);
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    let currentCommit = 0, bestCase = 0, totalFunnel = 0;
-
-    state.allDeals.forEach(deal => {
-        const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
-        const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
-        totalFunnel += deal.mrc || 0;
-        if (isCurrentMonth) {
-            bestCase += deal.mrc || 0;
-            if (deal.is_committed) currentCommit += deal.mrc || 0;
-        }
-    });
-
-    metricsContainer.innerHTML = `
-        <div class="metric-card">
-            <div class="metric-title">Team Current Commit</div>
-            <div class="metric-value">${formatCurrencyK(currentCommit)}</div>
-            <span class="metric-quota-percent">${totalQuota > 0 ? ((currentCommit/totalQuota)*100).toFixed(1) : 0}% of ${formatCurrencyK(totalQuota)}</span>
-        </div>
-        <div class="metric-card">
-            <div class="metric-title">Team Best Case</div>
-            <div class="metric-value">${formatCurrencyK(bestCase)}</div>
-             <span class="metric-quota-percent">${totalQuota > 0 ? ((bestCase/totalQuota)*100).toFixed(1) : 0}% of ${formatCurrencyK(totalQuota)}</span>
-        </div>
-        <div class="metric-card">
-            <div class="metric-title">Total Team Funnel</div>
-            <div class="metric-value">${formatCurrencyK(totalFunnel)}</div>
-        </div>
-    `;
-
-    // Leaderboard calculation
-    const leaderboardData = state.allUsers.map(user => {
-        const userCommit = state.allDeals
-            .filter(d => {
-                const closeDate = d.close_month ? new Date(d.close_month + '-02') : null;
-                return d.user_id === user.user_id && d.is_committed && closeDate && closeDate.getMonth() === currentMonth && closeDate.getFullYear() === currentYear;
-            })
-            .reduce((sum, d) => sum + (d.mrc || 0), 0);
-        
-        return {
-            name: user.full_name,
-            commit: userCommit,
-            quota: user.monthly_quota || 0,
-            quotaPercent: user.monthly_quota > 0 ? ((userCommit / user.monthly_quota) * 100) : 0
-        };
-    }).sort((a, b) => b.commit - a.commit);
-
-    leaderboardBody.innerHTML = leaderboardData.map((user, index) => `
+function renderActivityLogTable() {
+    const tableBody = document.querySelector("#activity-log-table tbody");
+    if (!tableBody) return;
+    tableBody.innerHTML = state.activityLog.map(log => `
         <tr>
-            <td>${index + 1}</td>
-            <td>${user.name}</td>
-            <td>${formatCurrencyK(user.commit)}</td>
-            <td>${user.quotaPercent.toFixed(1)}%</td>
+            <td>${formatDate(log.activity_date)}</td>
+            <td>${log.user_name}</td>
+            <td>${log.activity_type}</td>
+            <td>${log.description}</td>
+            <td>${log.contact_name || 'N/A'}</td>
+            <td>${log.account_name || 'N/A'}</td>
         </tr>
     `).join('');
-    
-    // Chart rendering (you can add your chart.js logic here)
 }
 
-
 // --- HANDLER FUNCTIONS ---
-
 async function handleSaveUser(e) {
     const button = e.target;
     const row = button.closest('tr');
@@ -241,6 +145,54 @@ async function handleSaveUser(e) {
     }
 }
 
+function handleInviteUser() {
+    showModal("Invite New User",
+        `<label>Email Address:</label><input type="email" id="modal-invite-email" required>`,
+        async () => {
+            const email = document.getElementById('modal-invite-email').value;
+            if(!email) { alert("Email is required."); return false; }
+
+            const { error } = await supabase.auth.admin.inviteUserByEmail(email);
+            if(error) { alert(`Error inviting user: ${error.message}`); return false; }
+            
+            alert(`Invitation sent to ${email}.`);
+            return true;
+        }
+    );
+}
+
+function handleCreateNewItem() {
+    state.selectedTemplateId = null;
+    renderTemplateDetails();
+}
+
+async function handleSaveTemplate() {
+    const id = document.getElementById('template-id')?.value;
+    const name = document.getElementById('template-name')?.value.trim();
+    if (!name) { alert('Template name is required.'); return; }
+
+    const templateData = { name, subject: document.getElementById('template-subject')?.value.trim(), body: document.getElementById('template-body')?.value, is_shared: true, user_id: state.currentUser.id };
+
+    const { error } = id ? await supabase.from('email_templates').update(templateData).eq('id', id) : await supabase.from('email_templates').insert(templateData);
+
+    if (error) { alert("Error saving template: " + error.message); }
+    else { alert("Shared template saved successfully!"); await loadContentData(); }
+}
+
+async function handleDeleteTemplate() {
+    if (!state.selectedTemplateId) return;
+    showModal("Confirm Deletion", "Are you sure you want to delete this shared template?", async () => {
+        const { error } = await supabase.from('email_templates').delete().eq('id', state.selectedTemplateId);
+        if (error) { alert("Error deleting template: " + error.message); }
+        else {
+            alert("Template deleted.");
+            state.selectedTemplateId = null;
+            await loadContentData();
+        }
+        hideModal();
+    });
+}
+
 function handleNavigation() {
     const hash = window.location.hash || '#user-management';
     state.currentView = hash.substring(1);
@@ -254,51 +206,6 @@ function handleNavigation() {
     loadAllDataForView();
 }
 
-function handleCreateNewItem() {
-    if(state.contentView === 'templates') {
-        state.selectedTemplateId = null;
-        renderTemplateDetails();
-    }
-}
-
-async function handleSaveTemplate() {
-    const id = document.getElementById('template-id')?.value;
-    const name = document.getElementById('template-name')?.value.trim();
-    if (!name) { alert('Template name is required.'); return; }
-
-    const templateData = {
-        name,
-        subject: document.getElementById('template-subject')?.value.trim(),
-        body: document.getElementById('template-body')?.value,
-        is_shared: true, // All templates from admin are shared
-        user_id: state.currentUser.id
-    };
-
-    let error;
-    if (id) {
-        ({ error } = await supabase.from('email_templates').update(templateData).eq('id', id));
-    } else {
-        ({ error } = await supabase.from('email_templates').insert(templateData));
-    }
-
-    if (error) { alert("Error saving template: " + error.message); }
-    else { alert("Shared template saved successfully!"); await loadContentData(); }
-}
-
-async function handleDeleteTemplate() {
-     if (!state.selectedTemplateId) return;
-     showModal("Confirm Deletion", "Are you sure you want to delete this shared template?", async () => {
-        const { error } = await supabase.from('email_templates').delete().eq('id', state.selectedTemplateId);
-        if (error) alert("Error deleting template: " + error.message);
-        else {
-            alert("Template deleted.");
-            state.selectedTemplateId = null;
-            await loadContentData();
-        }
-        hideModal();
-     });
-}
-
 // --- EVENT LISTENER SETUP ---
 function setupPageEventListeners() {
     window.addEventListener('hashchange', handleNavigation);
@@ -306,15 +213,15 @@ function setupPageEventListeners() {
     document.getElementById('user-management-table')?.addEventListener('click', e => {
         if (e.target.matches('.save-user-btn')) handleSaveUser(e);
     });
+    
+    document.getElementById('invite-user-btn')?.addEventListener('click', handleInviteUser);
 
     document.getElementById('create-new-item-btn')?.addEventListener('click', handleCreateNewItem);
     document.getElementById('item-list')?.addEventListener('click', e => {
         const item = e.target.closest('.list-item');
         if(item) {
-            if(item.dataset.type === 'template') {
-                state.selectedTemplateId = Number(item.dataset.id);
-                renderTemplateDetails();
-            }
+            state.selectedTemplateId = Number(item.dataset.id);
+            renderContentManagementView(); // Re-render to highlight selection
         }
     });
 
@@ -341,7 +248,8 @@ async function initializePage() {
         window.location.href = "command-center.html";
         return;
     }
-
+    
+    await setupUserMenuAndAuth(supabase, state);
     setupPageEventListeners();
     handleNavigation();
 }
