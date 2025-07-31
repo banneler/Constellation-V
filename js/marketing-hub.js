@@ -10,7 +10,7 @@ import {
     showModal,
     hideModal,
     setupUserMenuAndAuth,
-    svgLoader
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -21,7 +21,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         emailTemplates: [],
         sequences: [],
         sequence_steps: [],
-        socialPosts: [], // <<< NEW: State for social posts
         user_quotas: [],
         selectedTemplateId: null,
         selectedSequenceId: null,
@@ -47,15 +46,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authToggleLink = document.getElementById("auth-toggle-link");
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
-
-    // --- View Containers & Navigation ---
     const navEmailTemplates = document.querySelector('a[href="#email-templates"]');
     const navSequences = document.querySelector('a[href="#sequences"]');
-    const navSocialHub = document.querySelector('a[href="#social-posts"]');
-    const templatesSequencesView = document.getElementById('templates-sequences-view');
-    const socialPostView = document.getElementById('social-post-view');
-
-    // --- Templates & Sequences Specific ---
+    const navSocialPosts = document.querySelector('a[href="#social-posts"]');
     const createNewItemBtn = document.getElementById('create-new-item-btn');
     const importItemBtn = document.getElementById('import-item-btn');
     const itemCsvInput = document.getElementById('item-csv-input');
@@ -64,10 +57,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const listHeader = document.getElementById('list-header');
     const dynamicDetailsPanel = document.getElementById('dynamic-details-panel');
     const downloadSequenceTemplateBtn = document.getElementById('download-sequence-template-btn');
-
-    // --- Social Hub Specific ---
+    const templatesSequencesView = document.getElementById('templates-sequences-view');
+    const socialPostView = document.getElementById('social-post-view');
     const createPostForm = document.getElementById('create-post-form');
-    // We will create the social post list container dynamically inside the render function.
+    const submitPostBtn = document.getElementById('submit-post-btn');
+    const formFeedback = document.getElementById('form-feedback');
 
     // --- Helper functions ---
     const showTemporaryMessage = (message, isSuccess = true) => {
@@ -135,31 +129,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!state.currentUser) return;
 
         try {
-            // <<< FIXED: Reverted to fetching tables separately to avoid DB join errors.
             const [
                 { data: emailTemplates, error: templatesError },
                 { data: sequences, error: sequencesError },
                 { data: sequenceSteps, error: sequenceStepsError },
-                { data: socialPosts, error: socialPostsError },
                 { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
                 supabase.from("email_templates").select("*"),
                 supabase.from("marketing_sequences").select("*"),
                 supabase.from("marketing_sequence_steps").select("*"),
-                supabase.from("social_posts").select("*"),
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
 
             if (templatesError) throw templatesError;
             if (sequencesError) throw sequencesError;
             if (sequenceStepsError) throw sequenceStepsError;
-            if (socialPostsError) throw socialPostsError;
             if (userQuotasError) throw userQuotasError;
 
             state.emailTemplates = emailTemplates || [];
             state.sequences = sequences || [];
             state.sequence_steps = sequenceSteps || [];
-            state.socialPosts = socialPosts || [];
             state.user_quotas = userQuotas || [];
 
             renderContent();
@@ -171,41 +160,38 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Render Content Based on View ---
     const renderContent = () => {
-        if (templatesSequencesView) templatesSequencesView.classList.add('hidden');
-        if (socialPostView) socialPostView.classList.add('hidden');
+        const isSocialView = state.currentView === 'social-posts';
 
-        if (state.currentView === 'email-templates' || state.currentView === 'sequences') {
-            if(templatesSequencesView) templatesSequencesView.classList.remove('hidden');
-        }
-
-        if (state.currentView === 'email-templates') {
-            if (listHeader) listHeader.textContent = 'Email Templates';
-            if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
-            if (importItemBtn) importItemBtn.classList.add('hidden');
-            if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
-            if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
-            renderTemplateList();
-            renderTemplateDetails();
-        } else if (state.currentView === 'sequences') {
-            if (listHeader) listHeader.textContent = 'Marketing Sequences';
-            if (createNewItemBtn) createNewItemBtn.textContent = 'New Marketing Sequence';
-            if (importItemBtn) importItemBtn.classList.remove('hidden');
-            if (importItemBtn) importItemBtn.textContent = 'Import Steps from CSV';
-            if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Sequence';
-            if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
-            renderSequenceList();
-            renderSequenceDetails();
-        } else if (state.currentView === 'social-posts') {
-            if (socialPostView) socialPostView.classList.remove('hidden');
-            renderSocialPostsList();
-        }
+        if (templatesSequencesView) templatesSequencesView.classList.toggle('hidden', isSocialView);
+        if (socialPostView) socialPostView.classList.toggle('hidden', !isSocialView);
 
         if (navEmailTemplates) navEmailTemplates.classList.toggle('active', state.currentView === 'email-templates');
         if (navSequences) navSequences.classList.toggle('active', state.currentView === 'sequences');
-        if (navSocialHub) navSocialHub.classList.toggle('active', state.currentView === 'social-posts');
-    };
+        if (navSocialPosts) navSocialPosts.classList.toggle('active', isSocialView);
 
-    // --- Email Templates (Complete) ---
+        if (!isSocialView) {
+            if (state.currentView === 'email-templates') {
+                if (listHeader) listHeader.textContent = 'Email Templates';
+                if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
+                if (importItemBtn) importItemBtn.classList.add('hidden');
+                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
+                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
+                renderTemplateList();
+                renderTemplateDetails();
+            } else if (state.currentView === 'sequences') {
+                if (listHeader) listHeader.textContent = 'Marketing Sequences';
+                if (createNewItemBtn) createNewItemBtn.textContent = 'New Marketing Sequence';
+                if (importItemBtn) importItemBtn.classList.remove('hidden');
+                if (importItemBtn) importItemBtn.textContent = 'Import Steps from CSV';
+                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Sequence';
+                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
+                renderSequenceList();
+                renderSequenceDetails();
+            }
+        }
+    };
+    
+    // --- Email Templates Render Functions ---
     const renderTemplateList = () => {
         if (!itemList) return;
         itemList.innerHTML = "";
@@ -383,7 +369,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // --- Sequences (Complete) ---
+    // --- Sequences Render Functions ---
     const renderSequenceList = () => {
         if (!itemList) return;
         itemList.innerHTML = "";
@@ -480,6 +466,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderSequenceDetails = () => {
         state.selectedTemplateId = null;
+        state.isEditingSequenceDetails = false;
+        state.editingStepId = null;
 
         const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
 
@@ -492,6 +480,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <label for="sequence-name-input">Name:</label>
                         <input type="text" id="sequence-name-input" class="form-control" value="${sequence.name || ''}" ${state.isEditingSequenceDetails ? '' : 'disabled'}>
                         <input type="hidden" id="sequence-id" value="${sequence.id}">
+                        <input type="hidden" id="sequence-type" value="marketing">
                     </div>
                     <div class="full-span-grid-item">
                         <label for="sequence-description-textarea">Description:</label>
@@ -580,12 +569,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .update({ name: updatedName, description: updatedDescription })
                     .eq("id", state.selectedSequenceId);
                 alert("Sequence details saved successfully!");
+                state.originalSequenceName = updatedName;
+                state.originalSequenceDescription = updatedDescription;
             } catch (error) {
                 console.error("Error saving sequence details:", error.message);
                 alert("Error saving sequence details: " + error.message);
             }
+        } else {
+            alert("No changes to save.");
         }
-        
+
         state.isEditingSequenceDetails = false;
         await loadAllData();
     }
@@ -630,9 +623,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleSequenceStepActions(e) {
-        const target = e.target.closest('button');
-        if (!target) return;
-    
+        const target = e.target;
         const row = target.closest("tr[data-id]");
         if (!row) return;
 
@@ -643,7 +634,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        if (target.matches(".edit-step-btn, .edit-step-btn *")) {
+        if (target.classList.contains("edit-step-btn")) {
             if (state.editingStepId && state.editingStepId !== stepId) {
                 alert("Please save or cancel the current step edit before editing another step.");
                 return;
@@ -654,7 +645,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.originalStepValues = { ...currentStep };
             }
             renderSequenceSteps();
-        } else if (target.matches(".save-step-btn, .save-step-btn *")) {
+        } else if (target.classList.contains("save-step-btn")) {
             const updatedStep = {
                 id: stepId,
                 step_number: parseInt(row.cells[0].textContent, 10),
@@ -687,11 +678,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.originalStepValues = {};
                 await loadAllData();
             }
-        } else if (target.matches(".cancel-step-btn, .cancel-step-btn *")) {
+        } else if (target.classList.contains("cancel-step-btn")) {
             state.editingStepId = null;
             state.originalStepValues = {};
             renderSequenceSteps();
-        } else if (target.matches(".delete-step-btn, .delete-step-btn *")) {
+        } else if (target.classList.contains("delete-step-btn")) {
             if (state.editingStepId) {
                 alert("Please save or cancel the current step edit before deleting a step.");
                 return;
@@ -702,13 +693,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 hideModal();
                 alert("Step deleted.");
             });
-        } else if (target.matches(".move-up-btn, .move-up-btn *")) {
+        } else if (target.classList.contains("move-up-btn")) {
             if (state.isEditingSequenceDetails || state.editingStepId) {
                 alert("Please save or cancel any active edits before reordering steps.");
                 return;
             }
             await handleMoveStep(stepId, 'up');
-        } else if (target.matches(".move-down-btn, .move-down-btn *")) {
+        } else if (target.classList.contains("move-down-btn")) {
             if (state.isEditingSequenceDetails || state.editingStepId) {
                 alert("Please save or cancel any active edits before reordering steps.");
                 return;
@@ -737,6 +728,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.selectedSequenceId = newSeq[0].id;
             await loadAllData();
             hideModal();
+            renderSequenceDetails();
+            document.querySelectorAll("#item-list .list-item").forEach(item => {
+                if (Number(item.dataset.id) === state.selectedSequenceId && item.dataset.type === 'sequence') {
+                    item.classList.add("selected");
+                } else {
+                    item.classList.remove("selected");
+                }
+            });
             return true;
         } else {
             alert("Sequence name is required.");
@@ -866,8 +865,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     async function handlePasswordReset() {
-        // This function remains the same as your stable version
+        const resetEmailInput = document.getElementById('reset-email');
+        const resetEmail = resetEmailInput ? resetEmailInput.value.trim() : '';
+        
+        const resetPasswordBody = `
+            <p>Enter your email to receive a password reset link.</p>
+            <input type="email" id="reset-email" placeholder="Email" required value="${resetEmail || ''}">
+        `;
+        const modalActions = `<button id="modal-confirm-btn" class="btn-primary">Send Reset Link</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`;
+
+        if (!resetEmail) {
+            showModal('Reset Password', `<p style="color: var(--error-color);">Please enter your email.</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
+            return false;
+        }
+
+        const currentConfirmBtn = document.getElementById('modal-confirm-btn');
+        if (currentConfirmBtn) {
+            currentConfirmBtn.disabled = true;
+            currentConfirmBtn.textContent = 'Sending...';
+        }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+            redirectTo: 'https://banneler.github.io/Constellation-IV/reset-password.html',
+        });
+
+        if (error) {
+            showModal('Reset Password', `<p style="color: var(--error-color);">Error: ${error.message}</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
+            return false;
+        } else {
+            showModal('Reset Password', `<p style="color: var(--success-color);">Password reset link sent to ${resetEmail}. Check your inbox!</p>`, null, false, `<button id="modal-ok-btn" class="btn-primary">Close</button>`);
+            return true;
+        }
     }
+
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
@@ -947,3 +977,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+}
