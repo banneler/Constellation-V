@@ -31,7 +31,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- DATA FETCHING ---
     async function loadSocialContent() {
-        if (!state.currentUser) return;
+        if (!state.currentUser) {
+            console.error("loadSocialContent called without a user.");
+            return;
+        }
         try {
             const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').order('created_at', { ascending: false });
             if (postsError) throw postsError;
@@ -44,6 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderSocialContent();
         } catch (error) {
             console.error("Error fetching Social Hub content:", error);
+            aiContainer.innerHTML = `<p class="placeholder-text" style="color: var(--danger-red);">Error loading data. Check console for details.</p>`;
+            marketingContainer.innerHTML = '';
         }
     }
 
@@ -180,7 +185,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION (Aligned with the working pattern of other pages) ---
+    // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs(); 
         
@@ -188,23 +193,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         if (session) {
             state.currentUser = session.user;
-            // Setup core functionalities that depend on a user session
             await setupUserMenuAndAuth(supabase, state);
             updateActiveNavLink();
-            setupPageEventListeners(); // Setup page-specific listeners
-            await loadSocialContent(); // Load the page's data
+            setupPageEventListeners();
+            await loadSocialContent();
         } else {
-            // No session on initial load, redirect to login.
             window.location.href = "index.html";
         }
-
-        // Add a simple listener for real-time SIGNED_OUT events (like logging out from another tab).
-        supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_OUT') {
-                state.currentUser = null;
-                window.location.href = "index.html";
-            }
-        });
     }
 
     initializePage();
