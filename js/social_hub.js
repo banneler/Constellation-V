@@ -180,34 +180,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION ---
-    async function initializePage() {
-        await loadSVGs(); // 2. CALL THE SVG LOADER
+  // --- INITIALIZATION ---
+async function initializePage() {
+    await loadSVGs();
+    // These event listeners are for static elements, so we can set them up once.
+    setupPageEventListeners();
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            updateActiveNavLink();
-            setupPageEventListeners();
-            await loadSocialContent();
-        } else {
-            // Redirect to index if there's no session on initial load
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        // If the user signs out or the session is invalid, redirect.
+        if (event === 'SIGNED_OUT' || !session) {
+            state.currentUser = null;
             window.location.href = "index.html";
+            return;
         }
 
-        // 3. ADD THE AUTH STATE CHANGE LISTENER TO HANDLE TOKEN REFRESHES
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === "SIGNED_IN" && session) {
-                state.currentUser = session.user;
-                await setupUserMenuAndAuth(supabase, state);
-                updateActiveNavLink();
-                await loadSocialContent();
-            } else if (event === "SIGNED_OUT") {
-                window.location.href = "index.html";
-            }
-        });
-    }
+        // **THE FIX:**
+        // This check prevents the code from re-running if the auth state change
+        // is for the same user (e.g., a token refresh).
+        // The optional chaining (?.) safely handles the initial state where currentUser is null.
+        if (state.currentUser?.id === session.user.id) {
+            return; // Do nothing if the user is already loaded.
+        }
+        
+        // This block will now only run once for the initial load
+        // or if a *different* user signs in.
+        state.currentUser = session.user;
+        await setupUserMenuAndAuth(supabase, state);
+        updateActiveNavLink();
+        await loadSocialContent();
+    });
+}
 
-    initializePage();
+initializePage();
+
 });
