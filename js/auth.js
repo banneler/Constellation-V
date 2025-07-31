@@ -5,7 +5,8 @@ import {
     SUPABASE_ANON_KEY,
     showModal,
     hideModal,
-    setupModalListeners
+    setupModalListeners,
+    loadSVGs
     // Removed direct import of modal DOM elements like modalBackdrop, modalTitle, etc.
     // These are now handled internally by showModal and hideModal.
 } from './shared_constants.js';
@@ -258,6 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- App Initialization (Auth Page) ---
     // This runs once when the page loads to set the initial UI state and handle redirects
     supabase.auth.onAuthStateChange(async (event, session) => {
+        await loadSVGs();
         console.log("Auth event fired on auth page:", event);
         if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
             console.log("User is signed in or has an initial session. Redirecting.");
