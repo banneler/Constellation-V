@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constellation - Admin Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="crm-container">
+        <nav class="nav-sidebar">
+            </nav>
+        
+        <main class="content-area">
+            <div id="admin-portal" class="content-view active-view">
+                <h2>Admin Portal: User Management</h2>
+                <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
+                  Manage user roles, sales quotas, and other system settings from this portal.
+                </p>
+
+                <div class="table-container">
+                    <table id="user-management-table">
+                        <thead>
+                            <tr>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>Monthly Quota ($)</th>
+                                <th>Is Manager?</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { SUPABASE_URL, SUPABASE_ANON_KEY } from './js/shared_constants.js';
+        import { loadSidebar } from './js/sidebar-loader.js';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session) {
+                const state = { currentUser: session.user };
+                await loadSidebar(supabase, state);
+                
+                // Now that the sidebar is loaded, import and run the admin script
+                const adminScript = document.createElement('script');
+                adminScript.type = 'module';
+                adminScript.src = './js/admin.js';
+                document.body.appendChild(adminScript);
+
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+    </script>
+</body>
+</html>
