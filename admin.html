@@ -6,19 +6,15 @@
     <title>Constellation - Admin Portal</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="crm-container">
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
             <h2 class="text-xl font-bold text-center mb-4" style="color: var(--text-light);">ADMIN</h2>
-            
             <a href="#user-management" class="nav-button admin-nav active">User Management</a>
             <a href="#content-management" class="nav-button admin-nav">Content Management</a>
             <a href="#activity-log" class="nav-button admin-nav">Activity Log</a>
-            
             <div class="nav-bottom-section">
                  <a href="command-center.html" class="nav-button" style="text-align: center; font-size: 0.8rem;">Exit Admin Portal</a>
             </div>
@@ -27,71 +23,27 @@
         <main class="content-area">
             <div id="user-management-view" class="content-view active-view">
                 <h2>User Management</h2>
-                <div class="action-buttons" style="margin-bottom: 1.5rem;">
-                    <button id="invite-user-btn" class="btn-primary">Invite New User</button>
-                </div>
-                <div class="table-container">
-                    <table id="user-management-table">
-                        <thead>
-                            <tr>
-                                <th>Full Name</th>
-                                <th>Email</th>
-                                <th>Monthly Quota ($)</th>
-                                <th>Is Manager?</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
+                <div class="action-buttons" style="margin-bottom: 1.5rem;"><button id="invite-user-btn" class="btn-primary">Invite New User</button></div>
+                <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
             </div>
 
             <div id="content-management-view" class="content-view hidden">
-                <h2>Shared Content Management</h2>
-                 <div class="split-view">
-                    <div class="item-list-container">
-                        <button id="create-new-item-btn" class="btn-primary full-width">Create Shared Template</button>
-                        <h4 id="list-header">Shared Email Templates</h4>
-                        <div id="item-list" class="item-list"></div>
-                    </div>
-                    <div id="dynamic-details-panel" class="details-panel">
-                        <p>Select a template to edit, or create a new one.</p>
-                    </div>
+                <h2>Content Management</h2>
+                <div class="deals-view-toggle" style="margin-bottom: 1.5rem;">
+                    <button id="view-templates-btn" class="btn-secondary content-view-btn active">Email Templates</button>
+                    <button id="view-sequences-btn" class="btn-secondary content-view-btn">Marketing Sequences</button>
                 </div>
+                <div class="table-container"><table id="content-management-table"><thead></thead><tbody></tbody></table></div>
             </div>
 
             <div id="activity-log-view" class="content-view hidden">
                 <h2>System Activity Log</h2>
-                <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
-                  A log of the last 200 activities across the system.
-                </p>
-                <div class="table-container">
-                    <table id="activity-log-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>User</th>
-                                <th>Type</th>
-                                <th>Description</th>
-                                <th>Related Contact</th>
-                                <th>Related Account</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
+                <div class="table-container"><table id="activity-log-table"><thead><tr><th>Date</th><th>User</th><th>Type</th><th>Description</th><th>Related Contact</th><th>Related Account</th></tr></thead><tbody></tbody></table></div>
             </div>
         </main>
     </div>
 
-    <div id="modal-backdrop" class="modal-backdrop hidden">
-        <div class="modal-content">
-            <h3 id="modal-title"></h3>
-            <div id="modal-body"></div>
-            <div id="modal-actions" class="modal-actions"></div>
-        </div>
-    </div>
-
+    <div id="modal-backdrop" class="modal-backdrop hidden"><div class="modal-content"><h3 id="modal-title"></h3><div id="modal-body"></div><div id="modal-actions" class="modal-actions"></div></div></div>
     <script type="module" src="js/admin.js"></script>
 </body>
 </html>
