@@ -180,30 +180,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION (REVISED & ALIGNED WITH OTHER PAGES) ---
+    // --- INITIALIZATION (Aligned with the working pattern of other pages) ---
     async function initializePage() {
-        await loadSVGs();
-        setupPageEventListeners();
-
+        await loadSVGs(); 
+        
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
             state.currentUser = session.user;
+            // Setup core functionalities that depend on a user session
             await setupUserMenuAndAuth(supabase, state);
             updateActiveNavLink();
-            await loadSocialContent();
+            setupPageEventListeners(); // Setup page-specific listeners
+            await loadSocialContent(); // Load the page's data
         } else {
             // No session on initial load, redirect to login.
             window.location.href = "index.html";
         }
 
-        // Add the listener for real-time changes AFTER the initial load.
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === "SIGNED_OUT") {
+        // Add a simple listener for real-time SIGNED_OUT events (like logging out from another tab).
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT') {
+                state.currentUser = null;
                 window.location.href = "index.html";
-            } else if (event === "SIGNED_IN" && (!state.currentUser || state.currentUser.id !== session.user.id)) {
-                // A different user signed in, reload the page to get their data.
-                window.location.reload();
             }
         });
     }
