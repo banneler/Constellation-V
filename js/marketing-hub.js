@@ -9,8 +9,7 @@ import {
     setupModalListeners,
     showModal,
     hideModal,
-    setupUserMenuAndAuth,
-    loadSVGs
+    setupUserMenuAndAuth
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -46,9 +45,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authToggleLink = document.getElementById("auth-toggle-link");
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
+
     const navEmailTemplates = document.querySelector('a[href="#email-templates"]');
     const navSequences = document.querySelector('a[href="#sequences"]');
-    const navSocialPosts = document.querySelector('a[href="#social-posts"]');
+
     const createNewItemBtn = document.getElementById('create-new-item-btn');
     const importItemBtn = document.getElementById('import-item-btn');
     const itemCsvInput = document.getElementById('item-csv-input');
@@ -57,11 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const listHeader = document.getElementById('list-header');
     const dynamicDetailsPanel = document.getElementById('dynamic-details-panel');
     const downloadSequenceTemplateBtn = document.getElementById('download-sequence-template-btn');
-    const templatesSequencesView = document.getElementById('templates-sequences-view');
-    const socialPostView = document.getElementById('social-post-view');
-    const createPostForm = document.getElementById('create-post-form');
-    const submitPostBtn = document.getElementById('submit-post-btn');
-    const formFeedback = document.getElementById('form-feedback');
+
 
     // --- Helper functions ---
     const showTemporaryMessage = (message, isSuccess = true) => {
@@ -138,6 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 supabase.from("email_templates").select("*"),
                 supabase.from("marketing_sequences").select("*"),
                 supabase.from("marketing_sequence_steps").select("*"),
+                // MODIFIED: Ensure your column names here are correct.
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
 
@@ -160,37 +157,28 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Render Content Based on View ---
     const renderContent = () => {
-        const isSocialView = state.currentView === 'social-posts';
-
-        if (templatesSequencesView) templatesSequencesView.classList.toggle('hidden', isSocialView);
-        if (socialPostView) socialPostView.classList.toggle('hidden', !isSocialView);
-
+        if (state.currentView === 'email-templates') {
+            if (listHeader) listHeader.textContent = 'Email Templates';
+            if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
+            if (importItemBtn) importItemBtn.classList.add('hidden');
+            if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
+            if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
+            renderTemplateList();
+            renderTemplateDetails();
+        } else if (state.currentView === 'sequences') {
+            if (listHeader) listHeader.textContent = 'Marketing Sequences';
+            if (createNewItemBtn) createNewItemBtn.textContent = 'New Marketing Sequence';
+            if (importItemBtn) importItemBtn.classList.remove('hidden');
+            if (importItemBtn) importItemBtn.textContent = 'Import Steps from CSV';
+            if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Sequence';
+            if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
+            renderSequenceList();
+            renderSequenceDetails();
+        }
         if (navEmailTemplates) navEmailTemplates.classList.toggle('active', state.currentView === 'email-templates');
         if (navSequences) navSequences.classList.toggle('active', state.currentView === 'sequences');
-        if (navSocialPosts) navSocialPosts.classList.toggle('active', isSocialView);
-
-        if (!isSocialView) {
-            if (state.currentView === 'email-templates') {
-                if (listHeader) listHeader.textContent = 'Email Templates';
-                if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
-                if (importItemBtn) importItemBtn.classList.add('hidden');
-                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
-                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
-                renderTemplateList();
-                renderTemplateDetails();
-            } else if (state.currentView === 'sequences') {
-                if (listHeader) listHeader.textContent = 'Marketing Sequences';
-                if (createNewItemBtn) createNewItemBtn.textContent = 'New Marketing Sequence';
-                if (importItemBtn) importItemBtn.classList.remove('hidden');
-                if (importItemBtn) importItemBtn.textContent = 'Import Steps from CSV';
-                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Sequence';
-                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
-                renderSequenceList();
-                renderSequenceDetails();
-            }
-        }
     };
-    
+
     // --- Email Templates Render Functions ---
     const renderTemplateList = () => {
         if (!itemList) return;
@@ -209,7 +197,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             item.dataset.type = 'template';
 
             if (template.user_id !== state.currentUser.id) {
+                // This is a shared template
+                // MODIFIED: Ensure user_id matches your table
                 const creator = state.user_quotas.find(u => u && u.user_id === template.user_id);
+                // MODIFIED: Ensure full_name matches your table
                 const creatorName = creator ? creator.full_name : 'an unknown user';
                 item.innerHTML = `
                     <div class="template-list-item-content">
@@ -218,6 +209,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                 `;
             } else {
+                // MODIFIED: This is the user's own template, now formatted to match
                 item.innerHTML = `
                     <div class="template-list-item-content">
                          <span class="template-name">${template.name}</span>
@@ -836,8 +828,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             showModal("Confirm Deletion", "Are you sure? This will delete the marketing sequence and all its steps. This cannot be undone.", async () => {
-                await supabase.from("marketing_sequence_steps").delete().eq("marketing_sequence_id", state.selectedSequenceId);
                 await supabase.from("marketing_sequences").delete().eq("id", state.selectedSequenceId);
+                await supabase.from("marketing_sequence_steps").delete().eq("marketing_sequence_id", state.selectedSequenceId);
                 state.selectedSequenceId = null;
                 await loadAllData();
                 hideModal();
@@ -861,6 +853,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        } else {
+            alert('Your browser does not support downloading files directly. Please copy the content manually.');
         }
     }
     
@@ -902,79 +896,213 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
-        if (document.getElementById("theme-toggle-btn")) document.getElementById("theme-toggle-btn").addEventListener("click", cycleTheme);
-        if (document.getElementById("logout-btn")) document.getElementById("logout-btn").addEventListener("click", () => supabase.auth.signOut());
-        
-        if (authForm) { /* Existing auth form listeners... */ }
-        
-        // Navigation listeners
-        if (navEmailTemplates) navEmailTemplates.addEventListener('click', (e) => { e.preventDefault(); state.currentView = 'email-templates'; window.location.hash = 'email-templates'; renderContent(); });
-        if (navSequences) navSequences.addEventListener('click', (e) => { e.preventDefault(); state.currentView = 'sequences'; window.location.hash = 'sequences'; renderContent(); });
-        if (navSocialHub) navSocialHub.addEventListener('click', (e) => { e.preventDefault(); state.currentView = 'social-posts'; window.location.hash = 'social-posts'; renderContent(); });
-        
-        // Listeners for Templates & Sequences View
+
+        const themeToggleBtn = document.getElementById("theme-toggle-btn");
+        if (themeToggleBtn) themeToggleBtn.addEventListener("click", cycleTheme);
+
+        const logoutBtn = document.getElementById("logout-btn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", async () => {
+                await supabase.auth.signOut();
+                window.location.href = "marketing-hub.html";
+            });
+        }
+
+        if (authForm) {
+            authForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const email = authEmailInput.value.trim();
+                const password = authPasswordInput.value.trim();
+                clearErrorMessage();
+
+                let error;
+                if (isLoginMode) {
+                    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+                    error = signInError;
+                } else {
+                    const confirmPassword = authConfirmPasswordInput.value.trim();
+                    if (password !== confirmPassword) {
+                        showTemporaryMessage("Passwords do not match.", false);
+                        return;
+                    }
+                    const { error: signUpError } = await supabase.auth.signUp({ email, password });
+                    error = signUpError;
+                    if (!error) {
+                        showTemporaryMessage("Account created successfully! Please check your email for a confirmation link.", true);
+                        isLoginMode = true;
+                        updateAuthUI();
+                        return;
+                    }
+                }
+
+                if (error) {
+                    showTemporaryMessage(error.message, false);
+                } else {
+                    authForm.reset();
+                }
+            });
+        }
+
+        if (authToggleLink) {
+            authToggleLink.addEventListener("click", (e) => {
+                e.preventDefault();
+                isLoginMode = !isLoginMode;
+                updateAuthUI();
+            });
+        }
+
+        if (forgotPasswordLink) {
+            forgotPasswordLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                const resetPasswordBody = `
+                    <p>Enter your email to receive a password reset link.</p>
+                    <input type="email" id="reset-email" placeholder="Email" required>
+                `;
+                showModal(
+                    'Reset Password',
+                    resetPasswordBody,
+                    handlePasswordReset,
+                    true,
+                    `<button id="modal-confirm-btn" class="btn-primary">Send Reset Link</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+                );
+            });
+        }
+
+        if (navEmailTemplates) {
+            navEmailTemplates.addEventListener('click', (e) => {
+                e.preventDefault();
+                state.currentView = 'email-templates';
+                state.selectedTemplateId = null;
+                state.selectedSequenceId = null;
+                renderContent();
+            });
+        }
+        if (navSequences) {
+            navSequences.addEventListener('click', (e) => {
+                e.preventDefault();
+                state.currentView = 'sequences';
+                state.selectedTemplateId = null;
+                state.selectedSequenceId = null;
+                renderContent();
+            });
+        }
+
         if (itemList) itemList.addEventListener('click', handleItemListClick);
         if (createNewItemBtn) createNewItemBtn.addEventListener('click', handleCreateNewItem);
         if (importItemBtn) importItemBtn.addEventListener('click', handleImportItem);
         if (deleteSelectedItemBtn) deleteSelectedItemBtn.addEventListener('click', handleDeleteSelectedItem);
         if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.addEventListener('click', downloadCsvTemplate);
-        if (itemCsvInput) itemCsvInput.addEventListener("change", async (e) => { /* existing CSV logic */ });
-        
-        // NEW: Listeners for Social Hub View
-        if (createPostForm) createPostForm.addEventListener('submit', handleCreateSocialPost);
-        document.body.addEventListener('click', (e) => {
-             if (e.target.closest('.delete-post-btn')) {
-                handleDeleteSocialPost(e);
-             }
-        });
+
+
+        if (itemCsvInput) {
+            itemCsvInput.addEventListener("change", async (e) => {
+                if (state.currentView !== 'sequences' || !state.selectedSequenceId) return;
+                const f = e.target.files[0];
+                if (!f) return;
+                const r = new FileReader();
+                r.onload = async function(e) {
+                    const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
+                    const selectedSequence = state.sequences.find((s) => s.id === state.selectedSequenceId);
+                    const existingSteps = state.sequence_steps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
+                    let nextAvailableStepNumber = existingSteps.length > 0 ? Math.max(...existingSteps.map(s => s.step_number)) + 1 : 1;
+
+                    const newRecords = rows
+                        .slice(1)
+                        .map((row) => {
+                            const c = parseCsvRow(row);
+                            if (c.length < 5) {
+                                console.warn("Skipping row due to insufficient columns:", row);
+                                return null;
+                            }
+                            const currentStepNumber = nextAvailableStepNumber++;
+                            const delayDays = parseInt(c[4], 10);
+
+                            if (isNaN(delayDays)) {
+                                console.warn("Skipping row due to invalid delay_days:", row, "Delay Days:", delayDays);
+                                return null;
+                            }
+
+                            return {
+                                marketing_sequence_id: state.selectedSequenceId,
+                                step_number: currentStepNumber,
+                                type: c[1] || "",
+                                subject: c[2] || "",
+                                message: c[3] || "",
+                                delay_days: delayDays,
+                                user_id: state.currentUser.id
+                            };
+                        })
+                        .filter(record => record !== null);
+
+                    if (newRecords.length > 0) {
+                        const { error } = await supabase.from("marketing_sequence_steps").insert(newRecords);
+                        if (error) {
+                            alert("Error importing sequence steps: " + error.message);
+                        } else {
+                            alert(`${newRecords.length} steps imported into "${selectedSequence.name}".`);
+                            await loadAllData();
+                        }
+                    } else {
+                        alert("No valid records found to import. Please ensure your CSV matches the template format.");
+                    }
+                };
+                r.readAsText(f);
+                e.target.value = "";
+            });
+        }
     }
 
     // --- App Initialization ---
     async function initializePage() {
-        svgLoader();
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        applyTheme(savedTheme);
-        setupPageEventListeners();
+        const savedThemeIndex = themes.indexOf(savedTheme);
+        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
+        applyTheme(themes[currentThemeIndex]);
 
-        supabase.auth.onAuthStateChange(async (_event, session) => {
-            const userJustLoggedIn = session && !state.currentUser;
-            const userJustLoggedOut = !session && state.currentUser;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            state.currentUser = session.user;
+            if (authContainer) authContainer.classList.add('hidden');
+            if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
+            await setupUserMenuAndAuth(supabase, state);
+            setupPageEventListeners();
+            const hash = window.location.hash;
+            if (hash === '#sequences') {
+                state.currentView = 'sequences';
+            } else {
+                state.currentView = 'email-templates';
+            }
+            await loadAllData();
+        } else {
+            if (authContainer) authContainer.classList.remove('hidden');
+            if (marketingHubContainer) marketingHubContainer.classList.add('hidden');
+            isLoginMode = true;
+            updateAuthUI();
+            setupPageEventListeners();
+        }
 
-            if (userJustLoggedIn) {
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session) {
                 state.currentUser = session.user;
-                authContainer.classList.add('hidden');
-                marketingHubContainer.classList.remove('hidden');
-
+                if (authContainer) authContainer.classList.add('hidden');
+                if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
                 await setupUserMenuAndAuth(supabase, state);
-                
-                const hash = window.location.hash.substring(1);
-                if (hash === 'sequences') {
+                const hash = window.location.hash;
+                if (hash === '#sequences') {
                     state.currentView = 'sequences';
-                } else if (hash === 'social-posts') {
-                    state.currentView = 'social-posts';
                 } else {
                     state.currentView = 'email-templates';
                 }
-                
                 await loadAllData();
-
-            } else if (userJustLoggedOut) {
+            } else {
                 state.currentUser = null;
-                authContainer.classList.remove('hidden');
-                marketingHubContainer.classList.add('hidden');
+                if (authContainer) authContainer.classList.remove('hidden');
+                if (marketingHubContainer) marketingHubContainer.classList.add('hidden');
                 isLoginMode = true;
                 updateAuthUI();
             }
         });
-
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-            authContainer.classList.remove('hidden');
-            marketingHubContainer.classList.add('hidden');
-            updateAuthUI();
-        }
     }
 
     initializePage();
 });
-}
