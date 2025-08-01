@@ -2567,3 +2567,50 @@ body.theme-green .marketing-indicator {
     color: var(--primary-blue);
     text-align: center;
 }
+/* --- ADMIN SETTINGS PAGE --- */
+.settings-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 1.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+}
+
+.settings-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background-color: var(--bg-dark);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-list-item:last-child {
+    border-bottom: none;
+}
+
+.settings-list-item span {
+    font-weight: 500;
+}
+
+.delete-setting-btn {
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.2rem 0.5rem;
+}
+
+.settings-add-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.settings-add-form input {
+    margin: 0;
+    flex-grow: 1;
+}
+
+.settings-add-form button {
+    margin: 0;
+}
