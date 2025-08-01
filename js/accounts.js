@@ -12,7 +12,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         deals: [],
         selectedAccountId: null,
         tasks: [], // Ensure 'tasks' is included in your state
-        isFormDirty: false // State to track unsaved changes
+        isFormDirty: false, // State to track unsaved changes
+        dealStages: [] // NEW: Add dealStages to state
     };
 
     // --- DOM Element Selectors ---
@@ -87,8 +88,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        // Ensure 'tasks' is part of the tables being fetched for the user
-        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
+        // Ensure 'tasks' and 'deal_stages' are included in your state
+        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks", "deal_stages"];
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
@@ -274,8 +275,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     function handleEditDeal(dealId) {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return alert("Deal not found!");
-        const stages = ["New", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
-        const stageOptions = stages.map(s => `<option value="${s}" ${deal.stage === s ? 'selected' : ''}>${s}</option>`).join('');
+        
+        const stageOptions = state.dealStages.map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
+
         showModal("Edit Deal", `
             <label>Deal Name:</label><input type="text" id="modal-deal-name" value="${deal.name || ''}" required>
             <label>Term:</label><input type="text" id="modal-deal-term" value="${deal.term || ''}" placeholder="e.g., 12 months">
@@ -500,17 +502,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (addDealBtn) {
             addDealBtn.addEventListener("click", () => {
                 if (!state.selectedAccountId) return alert("Please select an account first.");
+                
+                const stageOptions = state.dealStages.map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
+
                 showModal("Create New Deal", `
                     <label>Deal Name:</label><input type="text" id="modal-deal-name" required>
                     <label>Term:</label><input type="text" id="modal-deal-term" placeholder="e.g., 12 months">
-                    <label>Stage:</label><select id="modal-deal-stage" required>
-                        <option value="New">New</option>
-                        <option value="Qualifying">Qualifying</option>
-                        <option value="Proposal">Proposal</option>
-                        <option value="Negotiation">Negotiation</option>
-                        <option value="Closed Won">Closed Won</option>
-                        <option value="Closed Lost">Closed Lost</option>
-                    </select>
+                    <label>Stage:</label><select id="modal-deal-stage" required>${stageOptions}</select>
                     <label>Monthly Recurring Revenue (MRC):</label><input type="number" id="modal-deal-mrc" min="0" value="0">
                     <label>Close Month:</label><input type="month" id="modal-deal-close-month">
                     <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated"></textarea>
