@@ -280,7 +280,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
@@ -469,7 +468,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             addDealBtn.addEventListener("click", () => {
                 if (!state.selectedAccountId) return alert("Please select an account first.");
                 
-                const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
+                const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
 
                 showModal("Create New Deal", `
                     <label>Deal Name:</label><input type="text" id="modal-deal-name" required>
