@@ -2553,7 +2553,7 @@ body.theme-green .marketing-indicator {
 
 .chart-table-view th, .chart-table-view td {
     padding: 8px;
-    text-align: left;
+    text-align: center;
     border-bottom: 1px solid var(--border-color);
 }
 
