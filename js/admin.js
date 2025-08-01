@@ -343,32 +343,6 @@ async function handleSaveUser(e) {
     }
 }
 
-function handleInviteUser() {
-    showModal(
-        'Invite New User',
-        `
-            <label for="invite-email">Email:</label>
-            <input type="email" id="invite-email" required>
-        `,
-        async () => {
-            const email = document.getElementById('invite-email').value;
-            if (!email) {
-                alert('Email is required.');
-                return false;
-            }
-            const { error } = await supabase.functions.invoke('invite-user', {
-                body: { email }
-            });
-            if (error) {
-                alert('Error inviting user: ' + error.message);
-                return false;
-            }
-            alert('User invited successfully!');
-            return true;
-        }
-    );
-}
-
 function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
 
 async function handleContentToggle(e) {
@@ -437,8 +411,6 @@ function setupPageEventListeners() {
         if (e.target.matches('.save-user-btn')) handleSaveUser(e);
         if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
     });
-    
-    document.getElementById('invite-user-btn')?.addEventListener('click', handleInviteUser);
 
     document.getElementById('content-management-table')?.addEventListener('change', e => {
         if (e.target.matches('.share-toggle')) handleContentToggle(e);
