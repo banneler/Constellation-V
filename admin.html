@@ -26,6 +26,21 @@
             <div id="user-management-view" class="content-view active-view">
                 <h2>User Management</h2>
                 <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Last Login</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Exclude from Reporting?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+                
+                <div id="reassignment-section" class="hidden" style="margin-top: 2rem;">
+                    <h3>Bulk Data Reassignment</h3>
+                    <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
+                      Quickly reassign all open deals, contacts, and accounts from one user to another. This is useful when a team member's role changes or they leave the company.
+                    </p>
+                    <div class="filter-bar">
+                        <label for="reassign-from-user">Reassign records FROM:</label>
+                        <select id="reassign-from-user"></select>
+                        <label for="reassign-to-user">TO:</label>
+                        <select id="reassign-to-user"></select>
+                        <button id="reassign-btn" class="btn-primary">Reassign</button>
+                    </div>
+                </div>
+
             </div>
 
             <div id="content-management-view" class="content-view hidden">
