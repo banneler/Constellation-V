@@ -94,11 +94,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function loadAllData() {
         if (!state.currentUser) return;
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
-        const sharedTables = ["sequence_steps", "email_log", "activity_types"];
+        const sharedTables = ["sequence_steps", "email_log"];
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
+
+        // --- NEW: Robust fetching for activity_types ---
+        let activityTypesData = [];
+        const { data: sharedActivityTypes, error: sharedError } = await supabase.from("activity_types").select("*");
+        if (sharedError) {
+            console.error("Error fetching shared activity types:", sharedError);
+        } else {
+            activityTypesData = sharedActivityTypes || [];
+        }
+
+        // Add user-specific types in case shared fails or for custom types
+        const { data: userActivityTypes, error: userError } = await supabase.from("activity_types").select("*").eq("user_id", state.currentUser.id);
+        if (userError) {
+            console.error("Error fetching user-specific activity types:", userError);
+        } else if (userActivityTypes && userActivityTypes.length > 0) {
+            activityTypesData = [...activityTypesData, ...userActivityTypes];
+        }
+
+        state.activityTypes = activityTypesData;
+        // --- END NEW LOGIC ---
 
         try {
             const results = await Promise.allSettled(allPromises);
