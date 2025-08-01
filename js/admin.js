@@ -343,7 +343,30 @@ async function handleSaveUser(e) {
     }
 }
 
-function handleInviteUser() { showModal('Invite User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
+function handleInviteUser() {
+    showModal(
+        'Invite New User',
+        `
+            <label for="invite-email">Email:</label>
+            <input type="email" id="invite-email" required>
+        `,
+        async () => {
+            const email = document.getElementById('invite-email').value;
+            if (!email) {
+                alert('Email is required.');
+                return false;
+            }
+            const { error } = await supabase.auth.admin.inviteUserByEmail(email);
+            if (error) {
+                alert('Error inviting user: ' + error.message);
+                return false;
+            }
+            alert('User invited successfully!');
+            return true;
+        }
+    );
+}
+
 function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
 
 async function handleContentToggle(e) {
