@@ -252,8 +252,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     content: 'Quota',
                                     enabled: true,
                                     position: 'start',
-                                    backgroundColor: 'rgba(0,0,0,0.6)',
-                                    color: 'var(--completed-color)'
+                                    backgroundColor: 'transparent', // Changed this from black
+                                    color: 'var(--text-strong)' // Changed to a brighter color
                                 }
                             }
                         }
