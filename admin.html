@@ -60,59 +60,66 @@
                 <div id="analytics-charts-container" class="charts-grid">
                     <div class="chart-container" id="activities-chart-container">
                         <h4>Activities Logged</h4>
-                        <div class="analytics-metric-card">
-                            <div class="metric-value-large" id="activities-metric">0</div>
-                            <button class="btn-secondary chart-toggle-btn"><i class="fas fa-chart-bar"></i></button>
+                        <div class="analytics-metric-card"><div class="metric-value-large" id="activities-metric">0</div></div>
+                        <div class="chart-wrapper hidden">
+                            <canvas id="activities-chart"></canvas>
+                            <div class="chart-table-view hidden"></div>
+                            <button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button>
                         </div>
-                        <div class="chart-wrapper hidden"><canvas id="activities-chart"></canvas></div>
                     </div>
                     <div class="chart-container" id="sequences-chart-container">
                         <h4>Contacts in Sequence</h4>
-                        <div class="analytics-metric-card">
-                            <div class="metric-value-large" id="sequences-metric">0</div>
-                            <button class="btn-secondary chart-toggle-btn"><i class="fas fa-chart-bar"></i></button>
+                        <div class="analytics-metric-card"><div class="metric-value-large" id="sequences-metric">0</div></div>
+                        <div class="chart-wrapper hidden">
+                            <canvas id="sequences-chart"></canvas>
+                            <div class="chart-table-view hidden"></div>
+                            <button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button>
                         </div>
-                        <div class="chart-wrapper hidden"><canvas id="sequences-chart"></canvas></div>
                     </div>
                     <div class="chart-container" id="campaigns-chart-container">
                         <h4>Campaigns Completed</h4>
-                        <div class="analytics-metric-card">
-                            <div class="metric-value-large" id="campaigns-metric">0</div>
-                            <button class="btn-secondary chart-toggle-btn"><i class="fas fa-chart-bar"></i></button>
+                        <div class="analytics-metric-card"><div class="metric-value-large" id="campaigns-metric">0</div></div>
+                        <div class="chart-wrapper hidden">
+                            <canvas id="campaigns-chart"></canvas>
+                             <div class="chart-table-view hidden"></div>
+                            <button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button>
                         </div>
-                        <div class="chart-wrapper hidden"><canvas id="campaigns-chart"></canvas></div>
                     </div>
                     <div class="chart-container" id="tasks-chart-container">
                         <h4>Tasks Past Due</h4>
-                        <div class="analytics-metric-card">
-                            <div class="metric-value-large" id="tasks-metric">0</div>
-                            <button class="btn-secondary chart-toggle-btn"><i class="fas fa-chart-bar"></i></button>
+                        <div class="analytics-metric-card"><div class="metric-value-large" id="tasks-metric">0</div></div>
+                        <div class="chart-wrapper hidden">
+                            <canvas id="tasks-chart"></canvas>
+                             <div class="chart-table-view hidden"></div>
+                            <button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button>
                         </div>
-                        <div class="chart-wrapper hidden"><canvas id="tasks-chart"></canvas></div>
                     </div>
                     <div class="chart-container" id="new-deals-chart-container">
                         <h4>Deals Added to Funnel</h4>
-                        <div class="analytics-metric-card">
-                            <div class="metric-value-large" id="new-deals-metric">0</div>
-                             <button class="btn-secondary chart-toggle-btn"><i class="fas fa-chart-bar"></i></button>
+                        <div class="analytics-metric-card"><div class="metric-value-large" id="new-deals-metric">0</div></div>
+                        <div class="chart-wrapper hidden">
+                            <canvas id="new-deals-chart"></canvas>
+                             <div class="chart-table-view hidden"></div>
+                            <button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button>
                         </div>
-                        <div class="chart-wrapper hidden"><canvas id="new-deals-chart"></canvas></div>
                     </div>
                     <div class="chart-container" id="new-deals-value-chart-container">
                         <h4>Value of New Deals</h4>
-                        <div class="analytics-metric-card">
-                            <div class="metric-value-large" id="new-deals-value-metric">$0K</div>
-                            <button class="btn-secondary chart-toggle-btn"><i class="fas fa-chart-bar"></i></button>
+                        <div class="analytics-metric-card"><div class="metric-value-large" id="new-deals-value-metric">$0K</div></div>
+                        <div class="chart-wrapper hidden">
+                            <canvas id="new-deals-value-chart"></canvas>
+                             <div class="chart-table-view hidden"></div>
+                            <button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button>
                         </div>
-                        <div class="chart-wrapper hidden"><canvas id="new-deals-value-chart"></canvas></div>
                     </div>
                     <div class="chart-container" id="closed-won-chart-container">
                         <h4>Closed Won Deals</h4>
-                        <div class="analytics-metric-card">
-                            <div class="metric-value-large" id="closed-won-metric">$0K</div>
-                            <button class="btn-secondary chart-toggle-btn"><i class="fas fa-chart-bar"></i></button>
+                        <div class="analytics-metric-card"><div class="metric-value-large" id="closed-won-metric">$0K</div></div>
+                        <div class="chart-wrapper hidden">
+                            <canvas id="closed-won-chart"></canvas>
+                             <div class="chart-table-view hidden"></div>
+                            <button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button>
                         </div>
-                        <div class="chart-wrapper hidden"><canvas id="closed-won-chart"></canvas></div>
                     </div>
                 </div>
                  <h2 style="margin-top: 2rem;">System Activity Log</h2>
