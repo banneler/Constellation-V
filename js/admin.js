@@ -199,8 +199,8 @@ function renderAnalyticsDashboard() {
     const closedWonDeals = state.analyticsData.deals.filter(d => {
         const userMatch = (userId === 'all' || d.user_id === userId);
         const userIncluded = usersForAnalytics.some(u => u.user_id === d.user_id);
-        if (!d.updated_at) return false;
-        const closedDate = new Date(d.updated_at);
+        if (!d.close_month) return false;
+        const closedDate = new Date(d.close_month + '-02');
         return userIncluded && userMatch && d.stage === 'Closed Won' && closedDate >= startDate && closedDate <= endDate;
     });
 
@@ -356,7 +356,9 @@ function handleInviteUser() {
                 alert('Email is required.');
                 return false;
             }
-            const { error } = await supabase.auth.admin.inviteUserByEmail(email);
+            const { error } = await supabase.functions.invoke('invite-user', {
+                body: { email }
+            });
             if (error) {
                 alert('Error inviting user: ' + error.message);
                 return false;
