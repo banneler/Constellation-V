@@ -2614,3 +2614,37 @@ body.theme-green .marketing-indicator {
 .settings-add-form button {
     margin: 0;
 }
+/* --- NEW THEMES --- */
+.theme-blue {
+    --bg-dark: #0a192f;
+    --bg-medium: #172a45;
+    --bg-light: #303C55;
+    --bg-very-light: #4F5D75;
+    --text-strong: #ccd6f6;
+    --text-medium: #a8b2d1;
+    --text-light: #8892b0;
+    --primary-blue: #64ffda;
+    --primary-green: #64ffda;
+    --border-color: #303C55;
+    --shadow-color: rgba(2, 12, 27, 0.7);
+    --completed-color: #64ffda;
+    --past-due-color: #ff79c6;
+    --modal-overlay-color: rgba(10, 25, 47, 0.85);
+}
+
+.theme-corporate {
+    --bg-dark: #f4f7fa;
+    --bg-medium: #ffffff;
+    --bg-light: #eef2f7;
+    --bg-very-light: #dfe6ed;
+    --text-strong: #2d3748;
+    --text-medium: #4a5568;
+    --text-light: #718096;
+    --primary-blue: #2a69ac;
+    --primary-green: #38a169;
+    --border-color: #cbd5e0;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --completed-color: #38a169;
+    --past-due-color: #c53030;
+    --modal-overlay-color: rgba(200, 215, 225, 0.6);
+}
