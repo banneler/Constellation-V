@@ -45,7 +45,63 @@ async function loadUserData() {
     if (error) { alert(`Could not load user data: ${error.message}`); return; }
     state.allUsers = data || [];
     renderUserTable();
+    renderReassignmentTool(); // New function call
 }
+
+function renderReassignmentTool() {
+    const reassignmentSection = document.getElementById('reassignment-section');
+    const fromUserSelect = document.getElementById('reassign-from-user');
+    const toUserSelect = document.getElementById('reassign-to-user');
+
+    if (!reassignmentSection || !fromUserSelect || !toUserSelect) return;
+
+    const userOptions = state.allUsers
+        .sort((a, b) => (a.full_name || 'Z').localeCompare(b.full_name || 'Z'))
+        .map(user => `<option value="${user.user_id}">${user.full_name || user.email}</option>`)
+        .join('');
+
+    fromUserSelect.innerHTML = `<option value="">-- Select User --</option>${userOptions}`;
+    toUserSelect.innerHTML = `<option value="">-- Select User --</option>${userOptions}`;
+
+    reassignmentSection.classList.remove('hidden');
+}
+
+async function handleReassignment() {
+    const fromUserId = document.getElementById('reassign-from-user').value;
+    const toUserId = document.getElementById('reassign-to-user').value;
+
+    if (!fromUserId || !toUserId) {
+        alert('Please select both a "from" and a "to" user.');
+        return;
+    }
+
+    if (fromUserId === toUserId) {
+        alert('Cannot reassign records to the same user.');
+        return;
+    }
+
+    const fromUser = state.allUsers.find(u => u.user_id === fromUserId);
+    const toUser = state.allUsers.find(u => u.user_id === toUserId);
+
+    showModal(
+        'Confirm Reassignment',
+        `Are you sure you want to reassign all open deals, contacts, and accounts from <strong>${fromUser.full_name}</strong> to <strong>${toUser.full_name}</strong>? This action cannot be undone.`,
+        async () => {
+            try {
+                const { error } = await supabase.rpc('reassign_user_records', {
+                    from_user_id: fromUserId,
+                    to_user_id: toUserId
+                });
+                if (error) throw error;
+                alert('Records reassigned successfully!');
+            } catch (error) {
+                alert('Error during reassignment: ' + error.message);
+            }
+            hideModal();
+        }
+    );
+}
+
 
 async function loadContentData() {
     const [ { data: t, error: tE }, { data: s, error: sE } ] = await Promise.all([
@@ -411,6 +467,8 @@ function setupPageEventListeners() {
         if (e.target.matches('.save-user-btn')) handleSaveUser(e);
         if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
     });
+
+    document.getElementById('reassign-btn')?.addEventListener('click', handleReassignment);
 
     document.getElementById('content-management-table')?.addEventListener('change', e => {
         if (e.target.matches('.share-toggle')) handleContentToggle(e);
