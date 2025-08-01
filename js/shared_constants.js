@@ -1,11 +1,72 @@
+// js/shared_constants.js
+
 // --- SHARED CONSTANTS AND FUNCTIONS ---
 
 export const SUPABASE_URL = "https://pjxcciepfypzrfmlfchj.supabase.co";
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqeGNjaWVwZnlwenJmbWxmY2hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxMTU4NDQsImV4cCI6MjA2NzY5MTg0NH0.m_jyE0e4QFevI-mGJHYlGmA12lXf8XoMDoiljUav79c";
 
-export const themes = ["dark", "light", "green"];
+export const themes = ["dark", "light", "green", "blue", "corporate"]; // Added blue & corporate back
 
-// --- SHARED UTILITY FUNCTIONS ---
+// --- NEW: Centralized, Database-Driven Theme Management ---
+let currentThemeIndex = 0;
+
+function applyTheme(themeName) {
+    const themeNameSpan = document.getElementById("theme-name");
+    document.body.className = '';
+    document.body.classList.add(`theme-${themeName}`);
+    if (themeNameSpan) {
+        const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
+        themeNameSpan.textContent = capitalizedThemeName;
+    }
+}
+
+async function saveThemePreference(supabase, userId, themeName) {
+    const { error } = await supabase
+        .from('user_preferences')
+        .upsert({ user_id: userId, theme: themeName }, { onConflict: 'user_id' });
+    if (error) {
+        console.error("Error saving theme preference:", error);
+    }
+}
+
+export async function setupTheme(supabase, user) {
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    if (!themeToggleBtn) return;
+
+    // 1. Load user's theme from the database
+    const { data, error } = await supabase
+        .from('user_preferences')
+        .select('theme')
+        .eq('user_id', user.id)
+        .single();
+
+    let currentTheme = 'dark'; // Default theme
+    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
+        console.error("Error fetching theme:", error);
+    } else if (data) {
+        currentTheme = data.theme;
+    } else {
+        // If no preference exists, save the default one for the user
+        await saveThemePreference(supabase, user.id, currentTheme);
+    }
+    
+    // 2. Apply the loaded theme
+    currentThemeIndex = themes.indexOf(currentTheme);
+    if (currentThemeIndex === -1) currentThemeIndex = 0; // Fallback if theme isn't in our list
+    applyTheme(themes[currentThemeIndex]);
+
+    // 3. Setup the click listener to cycle and save the theme
+    themeToggleBtn.addEventListener("click", () => {
+        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+        const newTheme = themes[currentThemeIndex];
+        applyTheme(newTheme);
+        saveThemePreference(supabase, user.id, newTheme);
+    });
+}
+// --- END OF NEW THEME LOGIC ---
+
+
+// --- EXISTING SHARED UTILITY FUNCTIONS (PRESERVED FROM YOUR FILE) ---
 
 export function formatDate(dateString) {
     if (!dateString) return "N/A";
@@ -13,13 +74,9 @@ export function formatDate(dateString) {
     return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-// js/shared_constants.js
-
 export function formatMonthYear(dateString) {
     if (!dateString) return "N/A";
-    // Split the "YYYY-MM" string to avoid timezone conversion errors
     const [year, month] = dateString.split('-');
-    // Create a date in UTC to ensure it doesn't shift to the previous day
     const date = new Date(Date.UTC(year, month - 1, 2)); 
     return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', timeZone: 'UTC' });
 }
@@ -78,7 +135,7 @@ export function updateActiveNavLink() {
     });
 }
 
-// --- MODAL FUNCTIONS ---
+// --- MODAL FUNCTIONS (PRESERVED FROM YOUR FILE) ---
 
 export const modalBackdrop = document.getElementById("modal-backdrop");
 export const modalTitle = document.getElementById("modal-title");
@@ -230,7 +287,7 @@ function handleEscapeKey(e) {
 }
 
 
-// --- USER MENU & AUTH LOGIC (CORRECTED) ---
+// --- USER MENU & AUTH LOGIC (MODIFIED) ---
 export async function setupUserMenuAndAuth(supabase, state) {
     const userMenuHeader = document.querySelector('.user-menu-header');
 
@@ -245,29 +302,26 @@ export async function setupUserMenuAndAuth(supabase, state) {
         return;
     }
 
-    // --- FIX STARTS HERE ---
-    // Check if listeners are already attached. If so, just update the name and exit.
     if (userMenuHeader.dataset.listenerAttached === 'true') {
-        // We still might need to update the user's name if it changed, so we'll do that part.
         const userNameDisplay = document.getElementById('user-name-display');
         const { data: userData } = await supabase.from('user_quotas').select('full_name').eq('user_id', state.currentUser.id).single();
         if (userNameDisplay && userData) {
             userNameDisplay.textContent = userData.full_name || 'User';
         }
-        return; // Exit to avoid re-attaching listeners
+        return; 
     }
-    // --- END OF INITIAL CHECK ---
 
     const userMenuPopup = document.getElementById('user-menu-popup');
     const userNameDisplay = document.getElementById('user-name-display');
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    const themeNameSpan = document.getElementById("theme-name");
     const logoutBtn = document.getElementById("logout-btn");
 
-    if (!userMenuPopup || !userNameDisplay || !themeToggleBtn || !logoutBtn) {
+    if (!userMenuPopup || !userNameDisplay || !logoutBtn) {
         console.error("One or more user menu elements are missing on this page.");
         return;
     }
+
+    // Call the new centralized theme setup function
+    await setupTheme(supabase, state.currentUser);
 
     const { data: userData, error: userError } = await supabase
         .from('user_quotas')
@@ -321,7 +375,6 @@ export async function setupUserMenuAndAuth(supabase, state) {
         userNameDisplay.textContent = userData.full_name || 'User';
     }
 
-    // Attach listeners
     userMenuHeader.addEventListener('click', (e) => {
         e.stopPropagation();
         userMenuPopup.classList.toggle('show');
@@ -337,31 +390,9 @@ export async function setupUserMenuAndAuth(supabase, state) {
         await supabase.auth.signOut();
         window.location.href = "index.html";
     });
-
-    let currentThemeIndex = themes.indexOf(localStorage.getItem('crm-theme') || 'dark');
-
-    function applyThemeToPage(themeName) {
-        document.body.className = '';
-        document.body.classList.add(`theme-${themeName}`);
-        if(themeNameSpan) {
-            const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
-            themeNameSpan.textContent = capitalizedThemeName;
-        }
-        localStorage.setItem('crm-theme', themeName);
-    }
-
-    themeToggleBtn.addEventListener("click", () => {
-        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-        const newTheme = themes[currentThemeIndex];
-        applyThemeToPage(newTheme);
-    });
-
-    applyThemeToPage(themes[currentThemeIndex]);
     
-    // Mark the element to show that listeners have been attached
     userMenuHeader.dataset.listenerAttached = 'true';
 }
-// Add this function to shared_constants.js
 
 export async function loadSVGs() {
   const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
@@ -376,11 +407,10 @@ export async function loadSVGs() {
         const svgText = await response.text();
         const svgElement = new DOMParser().parseFromString(svgText, "image/svg+xml").documentElement;
         
-        // Replace placeholder with the actual SVG element
         placeholder.parentNode.replaceChild(svgElement, placeholder);
       } catch (error) {
         console.error(`Could not load SVG from ${svgUrl}`, error);
-        placeholder.innerHTML = '';
+        placeholder.innerHTML = '<!-- SVG failed to load -->';
       }
     }
   }
