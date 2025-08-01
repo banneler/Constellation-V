@@ -114,6 +114,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    // --- Chart Colors & Helpers ---
+    const monochromeGreenPalette = ['#004d00', '#006600', '#008000', '#009900', '#00b300', '#00cc00', '#003300', '#00e600'];
+    function createChartGradient(ctx, chartArea, index, totalDatasets) {
+        if (!chartArea || !ctx) return 'rgba(0,0,0,0.5)';
+        const baseGreen = monochromeGreenPalette[(index * Math.floor(monochromeGreenPalette.length / totalDatasets)) % monochromeGreenPalette.length];
+        const lightenColor = (color, percent) => {
+            const f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF;
+            return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
+        }
+        const gradient = ctx.createLinearGradient(chartArea.left, chartArea.top, chartArea.right, chartArea.bottom);
+        gradient.addColorStop(0, baseGreen);
+        gradient.addColorStop(1, lightenColor(baseGreen, 0.2));
+        return gradient;
+    }
+
     // --- Helper to get filtered deals ---
     function getFutureDeals() {
         const today = new Date();
@@ -130,7 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Render Functions ---
     function renderDealsByStageChart() {
         if (!dealsByStageCanvas || !stageChartEmptyMessage) return;
-        const futureDeals = getFutureDeals(); // Use filtered deals
+        const futureDeals = getFutureDeals();
         const openDeals = futureDeals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
         
         if (openDeals.length === 0) {
@@ -157,15 +172,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 labels: labels,
                 datasets: [{
                     label: 'Deals by Stage', data: data,
-                    backgroundColor: 'var(--primary-blue)',
+                    backgroundColor: (context) => createChartGradient(context.chart.ctx, context.chart.chartArea, context.dataIndex, labels.length),
                     borderColor: 'var(--bg-medium)', borderWidth: 2, hoverOffset: 10
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'right', labels: { color: 'var(--text-medium)', font: { size: 14 } } },
-                    tooltip: { callbacks: { label: (c) => `${c.label || ''}: ${c.parsed} deals` } }
+                    legend: { position: 'right', labels: { color: 'var(--text-medium)', font: { size: 17, weight: 'normal' }, padding: 20 } },
+                    tooltip: { callbacks: { label: (c) => `${c.label || ''}: ${c.parsed} deals (${((c.parsed / c.dataset.data.reduce((s, cur) => s + cur, 0)) * 100).toFixed(1)}%)` } }
                 },
             }
         });
@@ -174,7 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     function renderDealsByTimeChart() {
         if (!dealsByTimeCanvas || !timeChartEmptyMessage) return;
         
-        const futureDeals = getFutureDeals(); // Use filtered deals
+        const futureDeals = getFutureDeals();
         const openDeals = futureDeals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost' && d.close_month);
 
         if (openDeals.length === 0) {
@@ -211,7 +226,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (state.dealsByTimeChart) state.dealsByTimeChart.destroy();
         state.dealsByTimeChart = new Chart(dealsByTimeCanvas, {
             type: 'bar',
-            data: { labels: labels, datasets: [{ data: data, backgroundColor: 'var(--primary-blue)' }] },
+            data: { 
+                labels: labels, 
+                datasets: [{ 
+                    data: data, 
+                    backgroundColor: (c) => createChartGradient(c.chart.ctx, c.chart.chartArea, c.dataIndex, labels.length),
+                    borderColor: 'var(--bg-light)', borderWidth: 1, borderRadius: 5
+                }] 
+            },
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: {
@@ -237,7 +259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                     }
                 },
-                scales: { x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false } } }
+                scales: { x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false }, barPercentage: 0.7, categoryPercentage: 0.6 } }
             }
         });
     }
@@ -245,7 +267,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const renderDealsPage = () => {
         if (!dealsTableBody) return;
         
-        const futureDeals = getFutureDeals(); // Use filtered deals
+        const futureDeals = getFutureDeals();
         const dealsWithAccount = futureDeals.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
         
         dealsWithAccount.sort((a, b) => {
@@ -289,7 +311,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         
-        const futureDeals = getFutureDeals(); // Use filtered deals
+        const futureDeals = getFutureDeals();
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         let currentCommit = 0, bestCase = 0;
@@ -371,8 +393,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             const th = e.target.closest("th.sortable");
             if (!th) return;
             const sortKey = th.dataset.sort;
-            state.dealsSortBy = sortKey;
-            state.dealsSortDir = state.dealsSortDir === "asc" ? "desc" : "asc";
+            if (state.dealsSortBy === sortKey) {
+                state.dealsSortDir = state.dealsSortDir === "asc" ? "desc" : "asc";
+            } else {
+                state.dealsSortBy = sortKey;
+                state.dealsSortDir = "asc";
+            }
             renderDealsPage();
         });
 
@@ -415,14 +441,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        applyTheme(savedTheme);
+        const savedThemeIndex = themes.indexOf(savedTheme);
+        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
+        applyTheme(themes[currentThemeIndex]);
         updateActiveNavLink();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             if (dealsViewToggleDiv) {
-                dealsViewToggleDiv.classList.toggle('hidden', state.currentUser.user_metadata?.is_manager !== true);
+                const isManager = state.currentUser.user_metadata?.is_manager === true;
+                dealsViewToggleDiv.classList.toggle('hidden', !isManager);
+                if(isManager) {
+                    viewMyDealsBtn.classList.add('active');
+                    viewAllDealsBtn.classList.remove('active');
+                }
             }
             setupPageEventListeners();
             await loadAllData();
