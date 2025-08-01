@@ -2639,19 +2639,21 @@ body.theme-green .marketing-indicator {
 /* Add glow effects for NEON theme */
 .theme-blue .card-title,
 .theme-blue .header h1,
-.theme-blue .metric-card .value {
-    text-shadow: 0 0 5px var(--text-strong), 0 0 10px var(--text-strong);
+.theme-blue .metric-card .value,
+.theme-blue .nav-link.active {
+    text-shadow: 0 0 5px var(--text-strong), 0 0 10px var(--text-strong), 0 0 15px var(--primary-blue);
 }
 
 .theme-blue .btn-primary {
     text-shadow: 0 0 3px #fff;
-    box-shadow: 0 0 8px var(--primary-blue);
+    box-shadow: 0 0 8px var(--primary-blue), inset 0 0 4px var(--primary-blue);
 }
 
 
-/* --- Windows 95 Theme --- */
+/* --- Windows 95/XP Theme --- */
 .theme-corporate {
-    --bg-dark: #008080; /* Classic Teal background */
+    /* We keep the color variables for UI elements */
+    --bg-dark: #008080; /* Fallback color */
     --bg-medium: #c0c0c0; /* Classic UI Grey */
     --bg-light: #dfdfdf;
     --bg-very-light: #ffffff;
@@ -2667,10 +2669,22 @@ body.theme-green .marketing-indicator {
     --modal-overlay-color: rgba(0, 0, 0, 0.5);
 }
 
-/* Add specific overrides for Windows 95 theme */
+/* Add specific overrides for Windows theme */
 .theme-corporate {
     font-family: 'MS Sans Serif', 'Tahoma', 'Verdana', sans-serif !important;
 }
+
+/* --- THIS IS THE KEY CHANGE --- */
+/* Override the body background specifically for this theme */
+body.theme-corporate {
+    /* Use local asset path with a fallback color */
+    background: var(--bg-dark) url('../assets/bliss.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed; /* Prevents the background from scrolling with content */
+    background-repeat: no-repeat;
+}
+
 
 .theme-corporate .card,
 .theme-corporate .btn,
