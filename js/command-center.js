@@ -39,21 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
 
-    // --- Theme Logic ---
-    let currentThemeIndex = 0;
-    function applyTheme(themeName) {
-        if (!themeNameSpan) return;
-        document.body.className = '';
-        document.body.classList.add(`theme-${themeName}`);
-        const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
-        themeNameSpan.textContent = capitalizedThemeName;
-        localStorage.setItem('crm-theme', themeName);
-    }
-    function cycleTheme() {
-        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-        const newTheme = themes[currentThemeIndex];
-        applyTheme(newTheme);
-    }
+ 
 
     // --- Utility ---
     function getStartOfLocalDayISO() {
@@ -323,19 +309,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION ---
+ // --- App Initialization ---
     async function initializePage() {
-        await loadSVGs(); // Call this first to load icons
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        const savedThemeIndex = themes.indexOf(savedTheme);
-        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
-        applyTheme(themes[currentThemeIndex]);
+        await loadSVGs();
         updateActiveNavLink();
-
+        
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
+            // This function now handles loading the user's name AND their saved theme
+            await setupUserMenuAndAuth(supabase, state); 
+            
             setupPageEventListeners();
             await loadAllData();
         } else {
@@ -345,3 +329,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
