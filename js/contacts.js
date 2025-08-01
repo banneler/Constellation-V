@@ -462,6 +462,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!state.selectedContactId) return alert("Please select a contact to log activity for.");
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
             const typeOptions = state.activityTypes.map(t => `<option value="${t.type_name}">${t.type_name}</option>`).join('');
+            
             showModal("Log Activity", `
                 <label>Activity Type:</label><select id="modal-activity-type" required>${typeOptions || '<option value="">No types found</option>'}</select>
                 <label>Description:</label><textarea id="modal-activity-description" rows="4" required></textarea>
