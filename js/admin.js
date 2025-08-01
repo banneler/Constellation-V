@@ -60,21 +60,35 @@ async function loadContentData() {
 
 async function loadAnalyticsData() {
     const tablesToFetch = ['activities', 'contact_sequences', 'campaigns', 'tasks', 'deals'];
-    const promises = tablesToFetch.map(table => supabase.from(table).select('*'));
     
-    const [ { data: users, error: userError }, { data: log, error: logError }, ...results ] = await Promise.all([
-        supabase.rpc('get_all_users_with_last_login'),
-        supabase.rpc('get_system_activity_log'),
-        ...promises
-    ]);
-
-    if(userError || logError) { alert('Could not load user or log data for analytics.'); return; }
+    // First, get the list of users to ensure we can filter analytics data properly
+    const { data: users, error: userError } = await supabase.rpc('get_all_users_with_last_login');
+    if(userError) {
+        alert('Could not load user data for analytics.');
+        return;
+    }
     state.allUsers = users || [];
-    state.activityLog = log || [];
-    
+
+    // This RPC function might not exist yet, let's handle that gracefully.
+    const { data: log, error: logError } = await supabase.rpc('get_system_activity_log');
+    if(logError) {
+         console.warn('Could not load system activity log. This may be an expected error if the function does not exist yet.');
+         state.activityLog = []; // Set to empty array to prevent errors
+    } else {
+        state.activityLog = log || [];
+    }
+
+    const promises = tablesToFetch.map(table => supabase.from(table).select('*'));
+    const results = await Promise.all(promises);
+
     results.forEach((result, index) => {
         const tableName = tablesToFetch[index];
-        state.analyticsData[tableName] = result.data || [];
+        if (result.error) {
+            console.error(`Error fetching analytics data for ${tableName}:`, result.error);
+            state.analyticsData[tableName] = [];
+        } else {
+            state.analyticsData[tableName] = result.data || [];
+        }
     });
     
     populateAnalyticsFilters();
@@ -215,7 +229,58 @@ function renderChart(canvasId, data, isCurrency = false) {
     const chartLabels = isIndividual ? data.map(d => d.label) : [data.label];
     const chartData = isIndividual ? data.map(d => d.value) : [data.value];
 
-    state.charts[canvasId] = new Chart(ctx, { /* ... Chart.js options ... */ });
+    // Placeholder for Chart.js options
+    state.charts[canvasId] = new Chart(ctx, {
+        type: isIndividual ? 'bar' : 'doughnut',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: isIndividual ? '' : data.label,
+                data: chartData,
+                backgroundColor: isIndividual ? 'rgba(74, 144, 226, 0.6)' : ['#4a90e2', '#50e3c2', '#f5a623', '#f8e71c', '#7ed321'],
+                borderColor: 'rgba(255, 255, 255, 0.7)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: !isIndividual,
+                    position: 'right',
+                },
+                 tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            let value = context.parsed.y || context.parsed;
+                            if (isCurrency) {
+                                label += formatCurrencyK(value);
+                            } else {
+                                label += value;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    display: isIndividual,
+                     ticks: {
+                        callback: function(value) {
+                            return isCurrency ? formatCurrencyK(value) : value;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 // --- HANDLER FUNCTIONS ---
@@ -242,10 +307,10 @@ async function handleSaveUser(e) {
     }
 }
 
-function handleInviteUser() { /* ... unchanged ... */ }
-function handleDeactivateUser(e) { /* ... unchanged ... */ }
-async function handleContentToggle(e) { /* ... unchanged ... */ }
-async function handleDeleteContent(e) { /* ... unchanged ... */ }
+function handleInviteUser() { showModal('Invite User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
+function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
+async function handleContentToggle(e) { alert('Feature coming soon!'); }
+async function handleDeleteContent(e) { alert('Feature coming soon!'); }
 
 function handleNavigation() {
     const hash = window.location.hash || '#user-management';
@@ -257,7 +322,31 @@ function handleNavigation() {
     loadAllDataForView();
 }
 
-function getDateRange(rangeKey) { /* ... unchanged ... */ }
+function getDateRange(rangeKey) {
+    const now = new Date();
+    let startDate = new Date();
+    const endDate = new Date(now);
+
+    switch (rangeKey) {
+        case 'this_month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+        case 'last_month':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            endDate.setDate(0); // End of last month
+            break;
+        case 'last_2_months':
+             startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+             break;
+        case 'this_fiscal_year': // Assuming fiscal year starts Jan 1
+             startDate = new Date(now.getFullYear(), 0, 1);
+             break;
+        case 'last_365_days':
+             startDate.setDate(now.getDate() - 365);
+             break;
+    }
+    return { startDate, endDate };
+}
 
 // --- EVENT LISTENER SETUP ---
 function setupPageEventListeners() {
@@ -305,20 +394,27 @@ function setupPageEventListeners() {
 // --- INITIALIZATION ---
 async function initializePage() {
     setupModalListeners();
-    loadSVGs();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = "index.html"; return; }
-    state.currentUser = session.user;
+    await loadSVGs();
     
-    if (!state.currentUser.user_metadata?.is_admin) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        window.location.href = "index.html";
+        return;
+    }
+    
+    state.currentUser = session.user;
+
+    // IMPORTANT: Check for admin privileges *before* doing anything else
+    if (state.currentUser.user_metadata?.is_admin !== true) {
         alert("Access Denied: You must be an admin to view this page.");
         window.location.href = "command-center.html";
         return;
     }
     
+    // Now that we've confirmed the user is an admin, proceed with setup
     await setupUserMenuAndAuth(supabase, state);
     setupPageEventListeners();
-    handleNavigation();
+    handleNavigation(); // This will trigger the initial data load
 }
 
 initializePage();
