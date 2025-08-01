@@ -283,19 +283,47 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+
+        // --- NEW: Filter for current and future deals before calculating metrics ---
+        const futureDeals = state.deals.filter(deal => {
+            if (!deal.close_month) {
+                return true; // Always include deals without a close month
+            }
+            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
+            // Keep deal if year is future, or if it's this year and month is not in the past.
+            return dealYear > currentYear || (dealYear === currentYear && (dealMonth - 1) >= currentMonth);
+        });
+        // --- END OF NEW CODE ---
+
         let currentCommit = 0, bestCase = 0, totalFunnel = 0;
         
-        state.deals.forEach((deal) => {
+        // --- UPDATED: Iterate over 'futureDeals' instead of 'state.deals' ---
+        futureDeals.forEach((deal) => {
             const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
             const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
+            
+            // Funnel should only include future deals
             totalFunnel += deal.mrc || 0;
+
             if (isCurrentMonth) {
                 bestCase += deal.mrc || 0;
                 if (deal.is_committed) currentCommit += deal.mrc || 0;
             }
         });
+
+        metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
+        metricBestCase.textContent = formatCurrencyK(bestCase);
+        metricFunnel.textContent = formatCurrencyK(totalFunnel); // This now correctly reflects the filtered funnel
+
+        const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+        const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+        
+        document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
+        document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
+    };
 
         metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
         metricBestCase.textContent = formatCurrencyK(bestCase);
@@ -456,4 +484,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
