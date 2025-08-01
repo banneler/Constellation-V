@@ -216,19 +216,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    const renderDealsPage = () => {
+   const renderDealsPage = () => {
         if (!dealsTableBody) return;
-        const dealsWithAccount = state.deals.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
-        dealsWithAccount.sort((a, b) => {
-            const valA = a[state.dealsSortBy]; const valB = b[state.dealsSortBy];
+
+        // --- NEW: Filter for current and future deals ---
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth() + 1; // JavaScript months are 0-11
+
+        const dealsWithAccount = state.deals.map((deal) => ({
+            ...deal,
+            account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A",
+        }));
+
+        const futureDeals = dealsWithAccount.filter(deal => {
+            if (!deal.close_month) {
+                return true; // Always show deals that don't have a close month set
+            }
+            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
+            // Keep the deal if its year is in the future,
+            // OR if it's this year and the month is not in the past.
+            return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
+        });
+        // --- END OF NEW CODE ---
+
+        futureDeals.sort((a, b) => { // Changed to sort the filtered list
+            const valA = a[state.dealsSortBy];
+            const valB = b[state.dealsSortBy];
             let comparison = (typeof valA === "string") ? (valA || "").localeCompare(valB || "") : (valA > valB ? 1 : -1);
             return state.dealsSortDir === "desc" ? comparison * -1 : comparison;
         });
+
         dealsTableBody.innerHTML = "";
-        dealsWithAccount.forEach((deal) => {
+        futureDeals.forEach((deal) => { // Changed to iterate over the filtered list
             const row = dealsTableBody.insertRow();
             row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td class="deal-name-link" data-deal-id="${deal.id}">${deal.name}</td><td>${deal.term || ""}</td><td>${deal.account_name}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><div class="button-group-wrapper"><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></div></td>`;
         });
+
         document.querySelectorAll("#deals-table th.sortable").forEach((th) => {
             th.classList.remove("asc", "desc");
             if (th.dataset.sort === state.dealsSortBy) th.classList.add(state.dealsSortDir);
@@ -432,3 +456,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
