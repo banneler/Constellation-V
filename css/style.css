@@ -2616,27 +2616,40 @@ body.theme-green .marketing-indicator {
 }
 
 }
-/* --- NEW THEMES (REVISED) --- */
+/* --- NEW THEMES (REVISED & ENHANCED) --- */
 
-/* NEON Theme */
+/* --- NEON Theme --- */
 .theme-blue {
     --bg-dark: #000000;
-    --bg-medium: #111111;
-    --bg-light: #222222;
-    --bg-very-light: #333333;
+    --bg-medium: #0d0d0d;
+    --bg-light: #1a1a1a;
+    --bg-very-light: #2a2a2a;
     --text-strong: #00ffff; /* Cyan */
     --text-medium: #cccccc;
     --text-light: #bbbbbb;
-    --primary-blue: #ff00ff; /* Magenta */
-    --primary-green: #00ff00; /* Lime Green */
+    --primary-blue: #f92772; /* Hot Pink */
+    --primary-green: #a6e22e; /* Lime Green */
     --border-color: #00ffff;
-    --shadow-color: rgba(255, 0, 255, 0.3); /* Magenta glow */
-    --completed-color: #00ff00;
-    --past-due-color: #ffcc00; /* Neon Yellow for warnings */
-    --modal-overlay-color: rgba(0, 0, 0, 0.8);
+    --shadow-color: rgba(249, 39, 114, 0.4); /* Pink glow */
+    --completed-color: #a6e22e;
+    --past-due-color: #fd971f; /* Neon Orange */
+    --modal-overlay-color: rgba(0, 0, 0, 0.85);
 }
 
-/* Windows 95 Theme */
+/* Add glow effects for NEON theme */
+.theme-blue .card-title,
+.theme-blue .header h1,
+.theme-blue .metric-card .value {
+    text-shadow: 0 0 5px var(--text-strong), 0 0 10px var(--text-strong);
+}
+
+.theme-blue .btn-primary {
+    text-shadow: 0 0 3px #fff;
+    box-shadow: 0 0 8px var(--primary-blue);
+}
+
+
+/* --- Windows 95 Theme --- */
 .theme-corporate {
     --bg-dark: #008080; /* Classic Teal background */
     --bg-medium: #c0c0c0; /* Classic UI Grey */
@@ -2652,4 +2665,46 @@ body.theme-green .marketing-indicator {
     --completed-color: #008000;
     --past-due-color: #800000;
     --modal-overlay-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Add specific overrides for Windows 95 theme */
+.theme-corporate {
+    font-family: 'MS Sans Serif', 'Tahoma', 'Verdana', sans-serif !important;
+}
+
+.theme-corporate .card,
+.theme-corporate .btn,
+.theme-corporate .btn-primary,
+.theme-corporate .btn-secondary,
+.theme-corporate .btn-danger,
+.theme-corporate input,
+.theme-corporate select,
+.theme-corporate textarea,
+.theme-corporate .modal-content,
+.theme-corporate .metric-card,
+.theme-corporate .nav-link {
+    border-radius: 0;
+}
+
+.theme-corporate .btn,
+.theme-corporate .btn-primary,
+.theme-corporate .btn-secondary,
+.theme-corporate .btn-danger {
+    border-style: outset;
+    border-width: 2px;
+    border-color: #dfdfdf #808080 #808080 #dfdfdf;
+    background-color: var(--bg-medium);
+    color: var(--text-strong);
+}
+
+.theme-corporate .btn:active,
+.theme-corporate .btn-primary:active,
+.theme-corporate .btn-secondary:active,
+.theme-corporate .btn-danger:active {
+    border-style: inset;
+}
+
+.theme-corporate .btn-primary {
+    background-color: var(--primary-blue);
+    color: white;
 }
