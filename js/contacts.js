@@ -22,16 +22,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequences: [],
         sequence_steps: [],
         activities: [],
+        activityTypes: [], // Add activityTypes to state
         contact_sequences: [],
         selectedContactId: null,
         deals: [],
         tasks: [],
         email_log: [],
-        isFormDirty: false // NEW: State to track unsaved changes
+        isFormDirty: false
     };
 
     // --- DOM Element Selectors ---
-    const navSidebar = document.querySelector(".nav-sidebar"); // NEW: Selector for the whole sidebar
+    const navSidebar = document.querySelector(".nav-sidebar");
     const contactList = document.getElementById("contact-list");
     const contactForm = document.getElementById("contact-form");
     const contactSearch = document.getElementById("contact-search");
@@ -61,24 +62,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
     // --- Dirty Check and Navigation ---
-
-    // NEW: Function to handle navigating away from the page
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
             showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", () => {
-                state.isFormDirty = false; // Acknowledge discard and allow navigation
+                state.isFormDirty = false;
                 window.location.href = url;
             });
         } else {
-            window.location.href = url; // No changes, navigate immediately
+            window.location.href = url;
         }
     };
     
-    // NEW: Function to handle switching between contacts
     const confirmAndSwitchContact = (newContactId) => {
         if (state.isFormDirty) {
             showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch contacts?", () => {
-                state.isFormDirty = false; // Acknowledge discard
+                state.isFormDirty = false;
                 state.selectedContactId = newContactId;
                 renderContactList();
                 renderContactDetails();
@@ -96,7 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function loadAllData() {
         if (!state.currentUser) return;
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
-        const sharedTables = ["sequence_steps", "email_log"];
+        const sharedTables = ["sequence_steps", "email_log", "activity_types"]; // Fetch activity_types
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
@@ -132,7 +130,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 hideContactDetails(false, true);
             }
-            console.log("State sequences after loadAllData:", state.sequences);
         }
     }
 
@@ -201,7 +198,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
             contactAccountNameSelect.value = contact.account_id || "";
 
-            // NEW: Reset dirty flag when loading new data into the form
             state.isFormDirty = false;
 
             contactActivitiesList.innerHTML = "";
@@ -301,7 +297,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (clearSelection) {
             state.selectedContactId = null;
             document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
-            state.isFormDirty = false; // NEW: Reset dirty flag
+            state.isFormDirty = false;
         }
     };
 
@@ -310,7 +306,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         setupModalListeners();
         updateActiveNavLink();
         
-        // NEW: Intercept main navigation
         navSidebar.addEventListener('click', (e) => {
             const navButton = e.target.closest('a.nav-button');
             if (navButton) {
@@ -319,7 +314,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        // NEW: Intercept logout
         document.getElementById("logout-btn").addEventListener("click", (e) => {
             e.preventDefault();
             const logoutUrl = e.target.href || 'index.html';
@@ -337,12 +331,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
         
-        // NEW: Flag form as dirty on any input
         contactForm.addEventListener('input', () => {
             state.isFormDirty = true;
         });
 
-        // NEW: Handle browser-level navigation
         window.addEventListener('beforeunload', (event) => {
             if (state.isFormDirty) {
                 event.preventDefault();
@@ -354,7 +346,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         addContactBtn.addEventListener("click", () => {
             const action = () => {
-                state.isFormDirty = false; // Form is now clean
+                state.isFormDirty = false;
                 hideContactDetails(false, true);
                 contactForm.querySelector("#contact-first-name").focus();
             };
@@ -415,7 +407,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { data: newContactData } = await supabase.from("contacts").insert([data]).select();
                 if (newContactData?.length > 0) state.selectedContactId = newContactData[0].id;
             }
-            state.isFormDirty = false; // NEW: Reset dirty flag after saving
+            state.isFormDirty = false;
             await loadAllData();
             alert("Contact saved successfully!");
         });
@@ -425,7 +417,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             showModal("Confirm Deletion", "Are you sure you want to delete this contact?", async () => {
                 await supabase.from("contacts").delete().eq("id", state.selectedContactId);
                 state.selectedContactId = null;
-                state.isFormDirty = false; // NEW: Reset dirty flag
+                state.isFormDirty = false;
                 await loadAllData();
                 hideModal();
                 alert("Contact deleted successfully.");
@@ -469,16 +461,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         logActivityBtn.addEventListener("click", () => {
             if (!state.selectedContactId) return alert("Please select a contact to log activity for.");
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
+            const typeOptions = state.activityTypes.map(t => `<option value="${t.type_name}">${t.type_name}</option>`).join('');
             showModal("Log Activity", `
-                <label>Activity Type:</label><input type="text" id="modal-activity-type" required placeholder="e.g., Call, Email, Meeting">
+                <label>Activity Type:</label><select id="modal-activity-type" required>${typeOptions}</select>
                 <label>Description:</label><textarea id="modal-activity-description" rows="4" required></textarea>
             `, async () => {
-                const type = document.getElementById('modal-activity-type').value.trim();
+                const type = document.getElementById('modal-activity-type').value;
                 const description = document.getElementById('modal-activity-description').value.trim();
                 if (!type || !description) return alert("Activity type and description are required.");
                 const { error } = await supabase.from('activities').insert({
                     contact_id: state.selectedContactId,
-                    account_id: contact?.account_id, // Use optional chaining
+                    account_id: contact?.account_id,
                     type: type,
                     description: description,
                     user_id: state.currentUser.id,
@@ -501,7 +494,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return alert(`Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}". Remove them from current sequence first.`);
             }
 
-            const availableSequences = state.sequences; // Removed .filter(s => s.status === 'Active')
+            const availableSequences = state.sequences;
             const sequenceOptions = availableSequences.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
             showModal("Assign Sequence", `
@@ -540,7 +533,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!activeContactSequence) return alert("Contact is not in an active sequence.");
 
             showModal("Confirm Removal", `Are you sure you want to remove this contact from "${state.sequences.find(s => s.id === activeContactSequence.sequence_id)?.name || 'Unknown'}" sequence?`, async () => {
-                const { error } = await supabase.from('contact_sequences').update({ status: 'Removed' /* removed_at: new Date().toISOString() */ }).eq('id', activeContactSequence.id); // FIXED LINE
+                const { error } = await supabase.from('contact_sequences').update({ status: 'Removed' }).eq('id', activeContactSequence.id);
                 if (error) {
                     alert("Error removing from sequence: " + error.message);
                 } else {
@@ -565,7 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     description,
                     due_date: dueDate || null,
                     contact_id: state.selectedContactId,
-                    account_id: contact?.account_id, // Use optional chaining
+                    account_id: contact?.account_id,
                     user_id: state.currentUser.id,
                     status: 'Pending'
                 };
