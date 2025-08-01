@@ -255,7 +255,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return alert("Deal not found!");
         
-        // Dynamically create options from fetched dealStages
         const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
 
         showModal("Edit Deal", `
@@ -470,8 +469,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             addDealBtn.addEventListener("click", () => {
                 if (!state.selectedAccountId) return alert("Please select an account first.");
                 
-                // Dynamically create options from fetched dealStages
-                const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
+                const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
 
                 showModal("Create New Deal", `
                     <label>Deal Name:</label><input type="text" id="modal-deal-name" required>
