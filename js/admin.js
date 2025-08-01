@@ -20,6 +20,8 @@ let state = {
     allSequences: [],
     activityLog: [],
     analyticsData: {},
+    dealStages: [],
+    activityTypes: [],
     charts: {},
     currentView: 'user-management',
     contentView: 'templates',
@@ -36,16 +38,112 @@ const loadAllDataForView = async () => {
         case 'user-management': await loadUserData(); break;
         case 'content-management': await loadContentData(); break;
         case 'analytics': await loadAnalyticsData(); break;
+        case 'settings': await loadSettingsData(); break;
     }
     document.body.classList.remove('loading');
 };
+
+async function loadSettingsData() {
+    const [{ data: stages, error: stagesError }, { data: types, error: typesError }] = await Promise.all([
+        supabase.from('deal_stages').select('*').order('sort_order'),
+        supabase.from('activity_types').select('*').order('type_name')
+    ]);
+
+    if (stagesError || typesError) {
+        alert('Error loading settings: ' + (stagesError?.message || typesError?.message));
+        return;
+    }
+
+    state.dealStages = stages || [];
+    state.activityTypes = types || [];
+    renderSettingsPage();
+}
+
+function renderSettingsPage() {
+    const dealStagesList = document.getElementById('deal-stages-list');
+    const activityTypesList = document.getElementById('activity-types-list');
+
+    if (!dealStagesList || !activityTypesList) return;
+
+    dealStagesList.innerHTML = state.dealStages.map(stage => `
+        <li data-id="${stage.id}" class="settings-list-item">
+            <span>${stage.stage_name}</span>
+            <button class="btn-danger btn-sm delete-setting-btn" data-type="deal_stage">&times;</button>
+        </li>
+    `).join('');
+
+    activityTypesList.innerHTML = state.activityTypes.map(type => `
+        <li data-id="${type.id}" class="settings-list-item">
+            <span>${type.type_name}</span>
+            <button class="btn-danger btn-sm delete-setting-btn" data-type="activity_type">&times;</button>
+        </li>
+    `).join('');
+}
+
+
+async function handleAddSetting(type) {
+    if (type === 'deal_stage') {
+        const input = document.getElementById('new-deal-stage-name');
+        const name = input.value.trim();
+        if (!name) return;
+
+        const maxOrder = Math.max(0, ...state.dealStages.map(s => s.sort_order));
+        const { error } = await supabase.from('deal_stages').insert({
+            stage_name: name,
+            sort_order: maxOrder + 1,
+            user_id: state.currentUser.id
+        });
+
+        if (error) {
+            alert('Error adding deal stage: ' + error.message);
+        } else {
+            input.value = '';
+            await loadSettingsData();
+        }
+    } else if (type === 'activity_type') {
+        const input = document.getElementById('new-activity-type-name');
+        const name = input.value.trim();
+        if (!name) return;
+
+        const { error } = await supabase.from('activity_types').insert({
+            type_name: name,
+            user_id: state.currentUser.id
+        });
+
+        if (error) {
+            alert('Error adding activity type: ' + error.message);
+        } else {
+            input.value = '';
+            await loadSettingsData();
+        }
+    }
+}
+
+async function handleDeleteSetting(e) {
+    const item = e.target.closest('.settings-list-item');
+    const id = item.dataset.id;
+    const type = e.target.dataset.type;
+    const tableName = type === 'deal_stage' ? 'deal_stages' : 'activity_types';
+    const itemName = item.querySelector('span').textContent;
+
+    showModal('Confirm Deletion', `Are you sure you want to delete "${itemName}"? This cannot be undone.`, async () => {
+        const { error } = await supabase.from(tableName).delete().eq('id', id);
+        if (error) {
+            alert('Error deleting item: ' + error.message);
+        } else {
+            await loadSettingsData();
+        }
+        hideModal();
+    });
+}
+
 
 async function loadUserData() {
     const { data, error } = await supabase.from('admin_users_view').select('*');
     if (error) { alert(`Could not load user data: ${error.message}`); return; }
     state.allUsers = data || [];
     renderUserTable();
-    renderReassignmentTool(); // New function call
+    renderReassignmentTool();
 }
 
 function renderReassignmentTool() {
@@ -529,6 +627,14 @@ function setupPageEventListeners() {
                 toggleBtn.dataset.view = 'chart';
                 toggleBtn.innerHTML = '<i class="fas fa-table"></i>';
             }
+        }
+    });
+    
+    document.getElementById('add-deal-stage-btn')?.addEventListener('click', () => handleAddSetting('deal_stage'));
+    document.getElementById('add-activity-type-btn')?.addEventListener('click', () => handleAddSetting('activity_type'));
+    document.getElementById('settings-view')?.addEventListener('click', e => {
+        if (e.target.matches('.delete-setting-btn')) {
+            handleDeleteSetting(e);
         }
     });
 }
