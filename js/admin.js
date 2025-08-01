@@ -472,6 +472,9 @@ async function handleSaveUser(e) {
     const userId = row.dataset.userId;
     const isManagerStatus = row.querySelector('.is-manager-checkbox').checked;
     const excludeReportingStatus = row.querySelector('.exclude-reporting-checkbox').checked;
+    const fullName = row.querySelector('.user-name-input').value.trim();
+    const monthlyQuota = parseInt(row.querySelector('.user-quota-input').value, 10) || 0;
+
     e.target.disabled = true;
 
     try {
@@ -483,8 +486,8 @@ async function handleSaveUser(e) {
         if (rpcError) throw rpcError;
 
         const { error: quotaError } = await supabase.from('user_quotas').update({
-            full_name: row.querySelector('.user-name-input').value.trim(),
-            monthly_quota: parseInt(row.querySelector('.user-quota-input').value, 10) || 0
+            full_name: fullName,
+            monthly_quota: monthlyQuota
         }).eq('user_id', userId);
         if (quotaError) throw quotaError;
         
