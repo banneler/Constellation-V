@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentUser: null,
         deals: [],
         accounts: [],
+        dealStages: [], // Add dealStages to state
         dealsSortBy: "name",
         dealsSortDir: "asc",
         dealsViewMode: 'mine',
@@ -71,15 +72,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (state.dealsViewMode === 'mine') {
             dealsQuery.eq("user_id", state.currentUser.id);
         }
-        const accountsQuery = supabase.from("accounts").select("*"); // Fetch all accounts for mapping names
+        const accountsQuery = supabase.from("accounts").select("*");
         const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
+        const dealStagesQuery = supabase.from("deal_stages").select("stage_name").order('sort_order'); // Fetch deal stages
         let allQuotasQuery;
         if (state.currentUser.user_metadata?.is_manager === true) {
             allQuotasQuery = supabase.from("user_quotas").select("monthly_quota");
         }
         
-        const promises = [dealsQuery, accountsQuery, currentUserQuotaQuery];
-        const allTableNames = ["deals", "accounts", "currentUserQuota"];
+        const promises = [dealsQuery, accountsQuery, currentUserQuotaQuery, dealStagesQuery];
+        const allTableNames = ["deals", "accounts", "currentUserQuota", "dealStages"];
         
         if (allQuotasQuery) {
             promises.push(allQuotasQuery);
@@ -183,7 +185,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         dealsByTimeCanvas.classList.remove('hidden');
         timeChartEmptyMessage.classList.add('hidden');
         openDeals.forEach(deal => {
-            // FIX: Append a day to avoid timezone issues when parsing 'YYYY-MM' strings
             const closeDate = new Date(deal.close_month + '-02');
             const diffTime = closeDate - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -233,75 +234,65 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
-// js/deals.js
+    const renderDealsMetrics = () => {
+        if (!metricCurrentCommit) return;
+        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        const isMyTeamView = state.dealsViewMode === 'all' && isManager;
 
-const renderDealsMetrics = () => {
-    if (!metricCurrentCommit) return;
-
-    // Check if the user is a manager and is in the team view
-    const isManager = state.currentUser.user_metadata?.is_manager === true;
-    const isMyTeamView = state.dealsViewMode === 'all' && isManager;
-
-    // Update metric card titles based on the current view
-    if (metricCurrentCommitTitle && metricBestCaseTitle) {
-        metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
-        metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
-    }
-
-    // *** THIS IS THE CORE FIX ***
-    // Calculate the effective quota: sum of all users for team view, or just the current user's for personal view.
-    let effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
-
-    if (commitTotalQuota && bestCaseTotalQuota) {
-        if (isMyTeamView) {
-            commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
-            bestCaseTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
-            commitTotalQuota.classList.remove('hidden');
-            bestCaseTotalQuota.classList.remove('hidden');
-        } else {
-            commitTotalQuota.classList.add('hidden');
-            bestCaseTotalQuota.classList.add('hidden');
+        if (metricCurrentCommitTitle && metricBestCaseTitle) {
+            metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
+            metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
         }
-    }
-    
-    // The rest of the function remains the same, calculating metrics against the correct deals list
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    let currentCommit = 0, bestCase = 0, totalFunnel = 0;
-    
-    state.deals.forEach((deal) => {
-        const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
-        const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
-        totalFunnel += deal.mrc || 0;
-        if (isCurrentMonth) {
-            bestCase += deal.mrc || 0;
-            if (deal.is_committed) currentCommit += deal.mrc || 0;
+
+        let effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
+
+        if (commitTotalQuota && bestCaseTotalQuota) {
+            if (isMyTeamView) {
+                commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
+                bestCaseTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
+                commitTotalQuota.classList.remove('hidden');
+                bestCaseTotalQuota.classList.remove('hidden');
+            } else {
+                commitTotalQuota.classList.add('hidden');
+                bestCaseTotalQuota.classList.add('hidden');
+            }
         }
-    });
+        
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        let currentCommit = 0, bestCase = 0, totalFunnel = 0;
+        
+        state.deals.forEach((deal) => {
+            const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
+            const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
+            totalFunnel += deal.mrc || 0;
+            if (isCurrentMonth) {
+                bestCase += deal.mrc || 0;
+                if (deal.is_committed) currentCommit += deal.mrc || 0;
+            }
+        });
 
-    metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
-    metricBestCase.textContent = formatCurrencyK(bestCase);
-    metricFunnel.textContent = formatCurrencyK(totalFunnel);
+        metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
+        metricBestCase.textContent = formatCurrencyK(bestCase);
+        metricFunnel.textContent = formatCurrencyK(totalFunnel);
 
-    const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-    const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-    
-    document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
-    document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
-};
+        const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+        const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+        
+        document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
+        document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
+    };
 
-    // --- NEW: Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
         const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
         if (error) {
             alert('Error updating commit status: ' + error.message);
-            // Revert checkbox on error
             const checkbox = dealsTableBody.querySelector(`.commit-deal-checkbox[data-deal-id="${dealId}"]`);
             if (checkbox) checkbox.checked = !isCommitted;
         } else {
             const deal = state.deals.find(d => d.id === dealId);
             if (deal) deal.is_committed = isCommitted;
-            renderDealsMetrics(); // Only re-render metrics, not the whole page
+            renderDealsMetrics();
         }
     }
 
@@ -309,8 +300,7 @@ const renderDealsMetrics = () => {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return;
 
-        const stages = ["Discovery", "Negotiation", "Proposal", "Closed Won", "Closed Lost"];
-        const stageOptions = stages.map(s => `<option value="${s}" ${deal.stage === s ? 'selected' : ''}>${s}</option>`).join('');
+        const stageOptions = state.dealStages.map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
 
         const accountOptions = state.accounts
             .sort((a,b) => a.name.localeCompare(b.name))
