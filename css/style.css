@@ -291,6 +291,17 @@ body.theme-green .btn-secondary.active {
     border: 1px solid var(--border-color);
     box-shadow: 0 6px 15px var(--shadow-medium);
     transition: background-color 0.3s, border-color 0.3s;
+    /* --- ADD THESE LINES --- */
+    display: flex;
+    flex-direction: column;
+}
+
+.analytics-metric-card {
+    display: flex; 
+    justify-content: center;
+    align-items: center; 
+    /* --- ADD THIS LINE --- */
+    flex-grow: 1; /* This makes the card fill the remaining space */
 }
 
 body:not(.theme-green) .chart-container {
