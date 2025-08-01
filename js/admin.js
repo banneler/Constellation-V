@@ -221,26 +221,25 @@ function renderChart(canvasId, data, isCurrency = false) {
     const chartData = isIndividual ? data.map(d => d.value) : [data.value];
 
     state.charts[canvasId] = new Chart(ctx, {
-        type: isIndividual ? 'bar' : 'doughnut',
+        type: 'bar', // CHANGED: Always use 'bar' chart
         data: {
             labels: chartLabels,
             datasets: [{
                 label: chartLabels.join(', '),
                 data: chartData,
-                backgroundColor: isIndividual 
-                    ? 'rgba(74, 144, 226, 0.6)' 
-                    : ['#4a90e2', '#50e3c2', '#f5a623', '#f8e71c', '#7ed321', '#bd10e0', '#9013fe'],
-                borderColor: 'rgba(54, 54, 54, 0.7)',
-                borderWidth: 1
+                backgroundColor: 'rgba(74, 144, 226, 0.6)',
+                borderColor: 'rgba(74, 144, 226, 1)',
+                borderWidth: 1,
+                borderRadius: 4
             }]
         },
         options: {
+            indexAxis: isIndividual ? 'y' : 'x', // Use horizontal bars for individual lists
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: !isIndividual,
-                    position: 'right',
+                    display: false // No need for a legend on bar charts like this
                 },
                  tooltip: {
                     callbacks: {
@@ -249,7 +248,7 @@ function renderChart(canvasId, data, isCurrency = false) {
                             if (label) {
                                 label += ': ';
                             }
-                            let value = context.parsed.y || context.parsed;
+                            let value = context.parsed.y || context.parsed.x;
                             if (isCurrency) {
                                 label += formatCurrencyK(value);
                             } else {
@@ -263,9 +262,19 @@ function renderChart(canvasId, data, isCurrency = false) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    display: isIndividual,
+                    ticks: {
+                        callback: function(value, index) {
+                            // For horizontal bars, the value is on the x-axis
+                            if (isIndividual) return this.getLabelForValue(value);
+                            return isCurrency ? formatCurrencyK(value) : value;
+                        }
+                    }
+                },
+                x: {
                      ticks: {
                         callback: function(value) {
+                             // For vertical bars, the value is on the y-axis
+                            if (!isIndividual) return this.getLabelForValue(value);
                             return isCurrency ? formatCurrencyK(value) : value;
                         }
                     }
@@ -318,7 +327,7 @@ async function handleContentToggle(e) {
     const { error } = await supabase.from(tableName).update({ is_shared: isShared }).eq('id', id);
     if (error) {
         alert(`Error updating status: ${error.message}`);
-        e.target.checked = !isShared; // Revert checkbox on error
+        e.target.checked = !isShared;
     } else {
         console.log(`${type} ${id} shared status set to ${isShared}`);
     }
