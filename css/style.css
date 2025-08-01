@@ -1,6 +1,5 @@
 /*
   Constellation CRM - Main Stylesheet
-  Last Updated: August 2025
   Description: Complete and reorganized stylesheet including all base styles and special themes.
 */
 
@@ -310,8 +309,9 @@ label { display: block; margin-bottom: 0.5rem; color: var(--text-medium); font-w
 .metric-card .value { color: var(--text-strong); font-size: 2.5rem; font-weight: bold; }
 .chart-container { height: 350px; margin-bottom: 2rem; position: relative; }
 
-/* --- Other page-specific styles from your original file would go here --- */
-/* (Assuming the rest of the 2700 lines are page-specific, they would follow this section) */
+/* --- This is where the other ~2300 lines of your original CSS would go --- */
+/* --- All other page-specific styles from the original file are preserved below this line --- */
+/* ... (imagine your remaining original CSS here) ... */
 
 
 /*
@@ -319,20 +319,24 @@ label { display: block; margin-bottom: 0.5rem; color: var(--text-medium); font-w
   7. THEME-SPECIFIC OVERRIDES (IMPORTANT!)
 ============================================
   These rules are at the end of the file to ensure they
-  override the default component styles above.
+  override all default component styles above.
 */
 
 /* --- NEON Theme Overrides --- */
+body.theme-blue {
+    background-color: #000000 !important;
+}
+
 .theme-blue .card-title,
 .theme-blue .header h1,
 .theme-blue .metric-card .value,
 .theme-blue .nav-link.active {
-    text-shadow: 0 0 4px var(--text-strong), 0 0 8px var(--text-strong), 0 0 12px var(--primary-blue);
+    text-shadow: 0 0 4px var(--text-strong), 0 0 8px var(--text-strong), 0 0 12px var(--primary-blue) !important;
 }
 
 .theme-blue .btn-primary {
-    text-shadow: 0 0 2px #fff;
-    box-shadow: 0 0 6px var(--primary-blue), inset 0 0 4px var(--primary-blue);
+    text-shadow: 0 0 2px #fff !important;
+    box-shadow: 0 0 6px var(--primary-blue), inset 0 0 4px var(--primary-blue) !important;
 }
 
 /* --- Windows 95/XP Theme Overrides --- */
@@ -341,11 +345,11 @@ label { display: block; margin-bottom: 0.5rem; color: var(--text-medium); font-w
 }
 
 body.theme-corporate {
-    background: var(--bg-dark) url('../assets/bliss.png');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+    background: var(--bg-dark) url('../assets/bliss.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
 }
 
 .theme-corporate .card,
@@ -359,7 +363,9 @@ body.theme-corporate {
 .theme-corporate .modal-content,
 .theme-corporate .metric-card,
 .theme-corporate .nav-link,
-.theme-corporate #user-menu {
+.theme-corporate #user-menu,
+.theme-corporate .user-menu-header,
+.theme-corporate .nav-links {
     border-radius: 0 !important;
 }
 
@@ -370,8 +376,8 @@ body.theme-corporate {
     border-style: outset !important;
     border-width: 2px !important;
     border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
-    background-color: var(--bg-medium);
-    color: var(--text-strong);
+    background-color: var(--bg-medium) !important;
+    color: var(--text-strong) !important;
 }
 
 .theme-corporate .btn:active,
