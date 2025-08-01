@@ -169,6 +169,7 @@ function renderAnalyticsDashboard() {
     const usersForAnalytics = state.allUsers.filter(u => !u.exclude_from_reporting);
     
     const filterDataByCreationDate = (data, dateField) => data.filter(item => {
+        if (!item[dateField]) return false;
         const itemDate = new Date(item[dateField]);
         const userMatch = (userId === 'all' || item.user_id === userId);
         const userIncluded = usersForAnalytics.some(u => u.user_id === item.user_id);
@@ -190,7 +191,6 @@ function renderAnalyticsDashboard() {
         }).sort((a,b) => b.value - a.value);
     };
     
-    // Calculate all metrics with corrected logic
     const activities = filterDataByCreationDate(state.analyticsData.activities, 'date');
     const sequences = filterDataByCreationDate(state.analyticsData.contact_sequences, 'last_completed_date');
     const campaigns = filterDataByCreationDate(state.analyticsData.campaigns, 'completed_at');
@@ -199,27 +199,29 @@ function renderAnalyticsDashboard() {
     const closedWonDeals = state.analyticsData.deals.filter(d => {
         const userMatch = (userId === 'all' || d.user_id === userId);
         const userIncluded = usersForAnalytics.some(u => u.user_id === d.user_id);
+        if (!d.updated_at) return false;
         const closedDate = new Date(d.updated_at);
         return userIncluded && userMatch && d.stage === 'Closed Won' && closedDate >= startDate && closedDate <= endDate;
     });
 
-    // Update UI based on view mode (Combined vs Individual)
     const isIndividualView = (userId === 'all' && chartView === 'individual');
     
     document.querySelectorAll('.chart-container').forEach(container => {
         const metricCard = container.querySelector('.analytics-metric-card');
         const chartWrapper = container.querySelector('.chart-wrapper');
+        const toggleBtn = container.querySelector('.chart-toggle-btn');
         
         if (isIndividualView) {
             metricCard.classList.add('hidden');
             chartWrapper.classList.remove('hidden');
+            toggleBtn.classList.remove('hidden');
         } else {
             metricCard.classList.remove('hidden');
             chartWrapper.classList.add('hidden');
+            toggleBtn.classList.add('hidden');
         }
     });
 
-    // Populate metric cards for Combined view
     document.getElementById('activities-metric').textContent = activities.length;
     document.getElementById('sequences-metric').textContent = sequences.length;
     document.getElementById('campaigns-metric').textContent = campaigns.length;
@@ -228,7 +230,6 @@ function renderAnalyticsDashboard() {
     document.getElementById('new-deals-value-metric').textContent = formatCurrencyK(newDeals.reduce((s, d) => s + (d.mrc || 0), 0));
     document.getElementById('closed-won-metric').textContent = formatCurrencyK(closedWonDeals.reduce((s, d) => s + (d.mrc || 0), 0));
 
-    // Render charts for the Individual view
     renderChart('activities-chart', groupByUser(activities), false);
     renderChart('sequences-chart', groupByUser(sequences), false);
     renderChart('campaigns-chart', groupByUser(campaigns), false);
@@ -447,7 +448,8 @@ function setupPageEventListeners() {
     document.getElementById('analytics-charts-container').addEventListener('click', e => {
         const toggleBtn = e.target.closest('.chart-toggle-btn');
         if (toggleBtn) {
-            const container = toggleBtn.closest('.chart-wrapper');
+            const chartHeader = toggleBtn.closest('.chart-header');
+            const container = chartHeader.closest('.chart-container');
             const canvas = container.querySelector('canvas');
             const tableView = container.querySelector('.chart-table-view');
             
@@ -459,7 +461,7 @@ function setupPageEventListeners() {
                         value: chartInstance.data.datasets[0].data[index]
                     }));
                     const isCurrency = canvas.id.includes('value') || canvas.id.includes('won');
-                    renderTableForChart(canvas.id.replace('-chart', '-chart-container'), chartData, isCurrency);
+                    renderTableForChart(container.id, chartData, isCurrency);
                 }
                 canvas.classList.add('hidden');
                 tableView.classList.remove('hidden');
