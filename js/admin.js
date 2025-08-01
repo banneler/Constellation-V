@@ -41,7 +41,6 @@ const loadAllDataForView = async () => {
 };
 
 async function loadUserData() {
-    // UPDATED: Fetches from the new 'admin_users_view'
     const { data, error } = await supabase.from('admin_users_view').select('*');
     if (error) { alert(`Could not load user data: ${error.message}`); return; }
     state.allUsers = data || [];
@@ -62,7 +61,6 @@ async function loadContentData() {
 async function loadAnalyticsData() {
     const tablesToFetch = ['activities', 'contact_sequences', 'campaigns', 'tasks', 'deals'];
     
-    // UPDATED: Fetches from the new 'admin_users_view' and 'admin_activity_log_view'
     const { data: users, error: userError } = await supabase.from('admin_users_view').select('*');
     if(userError) {
         alert('Could not load user data for analytics.');
@@ -118,7 +116,6 @@ function renderUserTable() {
 }
 
 function renderContentTable() {
-    // This function remains unchanged as it was already working
     const table = document.getElementById('content-management-table');
     const thead = table.querySelector('thead');
     const tbody = table.querySelector('tbody');
@@ -145,7 +142,6 @@ function renderContentTable() {
 }
 
 function renderActivityLogTable() {
-    // This function remains unchanged
     const tableBody = document.querySelector("#activity-log-table tbody");
     if (!tableBody) return;
     tableBody.innerHTML = state.activityLog.map(log => `
@@ -160,7 +156,6 @@ function renderActivityLogTable() {
 }
 
 function populateAnalyticsFilters() {
-    // This function remains unchanged
     const repFilter = document.getElementById('analytics-rep-filter');
     repFilter.innerHTML = '<option value="all">All Reps</option>';
     state.allUsers.filter(u => !u.exclude_from_reporting).forEach(user => {
@@ -169,7 +164,6 @@ function populateAnalyticsFilters() {
 }
 
 function renderAnalyticsDashboard() {
-    // This function remains largely unchanged, just ensure data keys are correct
     const { userId, dateRange, chartView } = state.analyticsFilters;
     const { startDate, endDate } = getDateRange(dateRange);
     const usersForAnalytics = state.allUsers.filter(u => !u.exclude_from_reporting);
@@ -218,14 +212,67 @@ function renderAnalyticsDashboard() {
 }
 
 function renderChart(canvasId, data, isCurrency = false) {
-    // This function remains unchanged
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
     if (state.charts[canvasId]) state.charts[canvasId].destroy();
+    
     const isIndividual = Array.isArray(data);
     const chartLabels = isIndividual ? data.map(d => d.label) : [data.label];
     const chartData = isIndividual ? data.map(d => d.value) : [data.value];
-    state.charts[canvasId] = new Chart(ctx, { /* ... Chart.js options ... */ });
+
+    state.charts[canvasId] = new Chart(ctx, {
+        type: isIndividual ? 'bar' : 'doughnut',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: chartLabels.join(', '),
+                data: chartData,
+                backgroundColor: isIndividual 
+                    ? 'rgba(74, 144, 226, 0.6)' 
+                    : ['#4a90e2', '#50e3c2', '#f5a623', '#f8e71c', '#7ed321', '#bd10e0', '#9013fe'],
+                borderColor: 'rgba(54, 54, 54, 0.7)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: !isIndividual,
+                    position: 'right',
+                },
+                 tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            let value = context.parsed.y || context.parsed;
+                            if (isCurrency) {
+                                label += formatCurrencyK(value);
+                            } else {
+                                label += value;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    display: isIndividual,
+                     ticks: {
+                        callback: function(value) {
+                            return isCurrency ? formatCurrencyK(value) : value;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 async function handleSaveUser(e) {
@@ -236,7 +283,6 @@ async function handleSaveUser(e) {
     e.target.disabled = true;
 
     try {
-        // UPDATED: Still need RPC to update user_metadata since views are read-only
         const { error: rpcError } = await supabase.rpc('set_user_metadata_admin', {
             target_user_id: userId,
             is_manager_status: isManagerStatus,
@@ -255,17 +301,49 @@ async function handleSaveUser(e) {
         alert(`Failed to save user: ${error.message}`);
     } finally {
         e.target.disabled = false;
-        loadUserData(); // Reload user data to reflect changes
+        loadUserData();
     }
 }
 
 function handleInviteUser() { showModal('Invite User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
 function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
-async function handleContentToggle(e) { alert('Feature coming soon!'); }
-async function handleDeleteContent(e) { alert('Feature coming soon!'); }
+
+async function handleContentToggle(e) {
+    const row = e.target.closest('tr');
+    const id = row.dataset.id;
+    const type = row.dataset.type;
+    const isShared = e.target.checked;
+    const tableName = type === 'template' ? 'email_templates' : 'marketing_sequences';
+
+    const { error } = await supabase.from(tableName).update({ is_shared: isShared }).eq('id', id);
+    if (error) {
+        alert(`Error updating status: ${error.message}`);
+        e.target.checked = !isShared; // Revert checkbox on error
+    } else {
+        console.log(`${type} ${id} shared status set to ${isShared}`);
+    }
+}
+
+async function handleDeleteContent(e) {
+    const row = e.target.closest('tr');
+    const id = row.dataset.id;
+    const type = row.dataset.type;
+    const tableName = type === 'template' ? 'email_templates' : 'marketing_sequences';
+    const itemName = row.querySelector('td:first-child').textContent;
+    
+    showModal(`Confirm Deletion`, `Are you sure you want to delete "${itemName}"? This cannot be undone.`, async () => {
+        const { error } = await supabase.from(tableName).delete().eq('id', id);
+        if (error) {
+            alert(`Error deleting ${type}: ${error.message}`);
+        } else {
+            alert(`${type} deleted successfully.`);
+            loadContentData();
+        }
+        hideModal();
+    });
+}
 
 function handleNavigation() {
-    // This function remains unchanged
     const hash = window.location.hash || '#user-management';
     state.currentView = hash.substring(1);
     document.querySelectorAll('.admin-nav').forEach(link => link.classList.remove('active'));
@@ -276,7 +354,6 @@ function handleNavigation() {
 }
 
 function getDateRange(rangeKey) {
-    // This function remains unchanged
     const now = new Date();
     let startDate = new Date();
     const endDate = new Date(now);
@@ -291,13 +368,15 @@ function getDateRange(rangeKey) {
 }
 
 function setupPageEventListeners() {
-    // This function remains unchanged
     window.addEventListener('hashchange', handleNavigation);
+    
     document.getElementById('user-management-table')?.addEventListener('click', e => {
         if (e.target.matches('.save-user-btn')) handleSaveUser(e);
         if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
     });
+    
     document.getElementById('invite-user-btn')?.addEventListener('click', handleInviteUser);
+
     document.getElementById('content-management-table')?.addEventListener('change', e => {
         if (e.target.matches('.share-toggle')) handleContentToggle(e);
     });
@@ -310,6 +389,7 @@ function setupPageEventListeners() {
         state.contentView = e.target.id === 'view-templates-btn' ? 'templates' : 'sequences';
         renderContentTable();
     }));
+
     document.getElementById('analytics-rep-filter')?.addEventListener('change', e => {
         state.analyticsFilters.userId = e.target.value;
         document.getElementById('analytics-chart-view-toggle').style.display = e.target.value === 'all' ? 'flex' : 'none';
@@ -329,7 +409,6 @@ function setupPageEventListeners() {
     });
 }
 
-// --- INITIALIZATION ---
 async function initializePage() {
     setupModalListeners();
     await loadSVGs();
