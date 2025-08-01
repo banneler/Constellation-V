@@ -74,7 +74,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         const accountsQuery = supabase.from("accounts").select("*");
         const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
-        // NEW: Fetch deal stages
         const dealStagesQuery = supabase.from("deal_stages").select("stage_name, sort_order").order('sort_order');
         let allQuotasQuery;
         if (state.currentUser.user_metadata?.is_manager === true) {
@@ -115,31 +114,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // --- Chart Colors & Helpers ---
-    const monochromeGreenPalette = ['#004d00', '#006600', '#008000', '#009900', '#00b300', '#00cc00', '#003300', '#00e600'];
-    function createChartGradient(ctx, chartArea, index, totalDatasets) {
-        if (!chartArea || !ctx) return 'rgba(0,0,0,0.5)';
-        const baseGreen = monochromeGreenPalette[(index * Math.floor(monochromeGreenPalette.length / totalDatasets)) % monochromeGreenPalette.length];
-        const lightenColor = (color, percent) => {
-            const f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF;
-            return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
-        }
-        const gradient = ctx.createLinearGradient(chartArea.left, chartArea.top, chartArea.right, chartArea.bottom);
-        gradient.addColorStop(0, baseGreen);
-        gradient.addColorStop(1, lightenColor(baseGreen, 0.2));
-        return gradient;
+    // --- Helper to get filtered deals ---
+    function getFutureDeals() {
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth() + 1; // JS months are 0-11
+
+        return state.deals.filter(deal => {
+            if (!deal.close_month) return true;
+            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
+            return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
+        });
     }
 
     // --- Render Functions ---
     function renderDealsByStageChart() {
         if (!dealsByStageCanvas || !stageChartEmptyMessage) return;
-        const openDeals = state.deals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
+        const futureDeals = getFutureDeals(); // Use filtered deals
+        const openDeals = futureDeals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
+        
         if (openDeals.length === 0) {
             dealsByStageCanvas.classList.add('hidden');
             stageChartEmptyMessage.classList.remove('hidden');
             if (state.dealsByStageChart) { state.dealsByStageChart.destroy(); state.dealsByStageChart = null; }
             return;
         }
+
         dealsByStageCanvas.classList.remove('hidden');
         stageChartEmptyMessage.classList.add('hidden');
         const stageCounts = openDeals.reduce((acc, deal) => {
@@ -157,15 +157,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 labels: labels,
                 datasets: [{
                     label: 'Deals by Stage', data: data,
-                    backgroundColor: (context) => createChartGradient(context.chart.ctx, context.chart.chartArea, context.dataIndex, labels.length),
+                    backgroundColor: 'var(--primary-blue)',
                     borderColor: 'var(--bg-medium)', borderWidth: 2, hoverOffset: 10
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'right', labels: { color: 'var(--text-medium)', font: { size: 17, weight: 'normal' }, padding: 20 } },
-                    tooltip: { callbacks: { label: (c) => `${c.label || ''}: ${c.parsed} deals (${((c.parsed / c.dataset.data.reduce((s, cur) => s + cur, 0)) * 100).toFixed(1)}%)` } }
+                    legend: { position: 'right', labels: { color: 'var(--text-medium)', font: { size: 14 } } },
+                    tooltip: { callbacks: { label: (c) => `${c.label || ''}: ${c.parsed} deals` } }
                 },
             }
         });
@@ -173,18 +173,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function renderDealsByTimeChart() {
         if (!dealsByTimeCanvas || !timeChartEmptyMessage) return;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const funnel = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '90+ Days': 0 };
-        const openDeals = state.deals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost' && d.close_month);
+        
+        const futureDeals = getFutureDeals(); // Use filtered deals
+        const openDeals = futureDeals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost' && d.close_month);
+
         if (openDeals.length === 0) {
             dealsByTimeCanvas.classList.add('hidden');
             timeChartEmptyMessage.classList.remove('hidden');
             if (state.dealsByTimeChart) { state.dealsByTimeChart.destroy(); state.dealsByTimeChart = null; }
             return;
         }
+        
         dealsByTimeCanvas.classList.remove('hidden');
         timeChartEmptyMessage.classList.add('hidden');
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const funnel = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '90+ Days': 0 };
+        
         openDeals.forEach(deal => {
             const closeDate = new Date(deal.close_month + '-02');
             const diffTime = closeDate - today;
@@ -194,72 +200,72 @@ document.addEventListener("DOMContentLoaded", async () => {
             else if (diffDays >= 61 && diffDays <= 90) { funnel['61-90 Days'] += deal.mrc || 0; }
             else if (diffDays > 90) { funnel['90+ Days'] += deal.mrc || 0; }
         });
+
         const labels = Object.keys(funnel);
         const data = Object.values(funnel);
+
+        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        const isMyTeamView = state.dealsViewMode === 'all' && isManager;
+        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
 
         if (state.dealsByTimeChart) state.dealsByTimeChart.destroy();
         state.dealsByTimeChart = new Chart(dealsByTimeCanvas, {
             type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: (c) => createChartGradient(c.chart.ctx, c.chart.chartArea, c.dataIndex, labels.length),
-                    borderColor: 'var(--bg-light)', borderWidth: 1, borderRadius: 5
-                }]
-            },
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: 'var(--primary-blue)' }] },
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `MRC: ${formatCurrency(c.parsed.x)}` } } },
-                scales: { x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false }, barPercentage: 0.7, categoryPercentage: 0.6 } }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (c) => `MRC: ${formatCurrency(c.parsed.x)}` } },
+                    annotation: {
+                        annotations: {
+                            quotaLine: {
+                                type: 'line',
+                                scaleID: 'x',
+                                value: effectiveMonthlyQuota,
+                                borderColor: 'var(--completed-color)',
+                                borderWidth: 2,
+                                borderDash: [6, 6],
+                                label: {
+                                    content: 'Quota',
+                                    enabled: true,
+                                    position: 'start',
+                                    backgroundColor: 'rgba(0,0,0,0.6)',
+                                    color: 'var(--completed-color)'
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: { x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false } } }
             }
         });
     }
 
-   const renderDealsPage = () => {
+    const renderDealsPage = () => {
         if (!dealsTableBody) return;
-
-        // --- NEW: Filter for current and future deals ---
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth() + 1; // JavaScript months are 0-11
-
-        const dealsWithAccount = state.deals.map((deal) => ({
-            ...deal,
-            account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A",
-        }));
-
-        const futureDeals = dealsWithAccount.filter(deal => {
-            if (!deal.close_month) {
-                return true; // Always show deals that don't have a close month set
-            }
-            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
-            // Keep the deal if its year is in the future,
-            // OR if it's this year and the month is not in the past.
-            return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
-        });
-        // --- END OF NEW CODE ---
-
-        futureDeals.sort((a, b) => { // Changed to sort the filtered list
-            const valA = a[state.dealsSortBy];
-            const valB = b[state.dealsSortBy];
+        
+        const futureDeals = getFutureDeals(); // Use filtered deals
+        const dealsWithAccount = futureDeals.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
+        
+        dealsWithAccount.sort((a, b) => {
+            const valA = a[state.dealsSortBy]; const valB = b[state.dealsSortBy];
             let comparison = (typeof valA === "string") ? (valA || "").localeCompare(valB || "") : (valA > valB ? 1 : -1);
             return state.dealsSortDir === "desc" ? comparison * -1 : comparison;
         });
 
         dealsTableBody.innerHTML = "";
-        futureDeals.forEach((deal) => { // Changed to iterate over the filtered list
+        dealsWithAccount.forEach((deal) => {
             const row = dealsTableBody.insertRow();
             row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td class="deal-name-link" data-deal-id="${deal.id}">${deal.name}</td><td>${deal.term || ""}</td><td>${deal.account_name}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><div class="button-group-wrapper"><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></div></td>`;
         });
-
         document.querySelectorAll("#deals-table th.sortable").forEach((th) => {
             th.classList.remove("asc", "desc");
             if (th.dataset.sort === state.dealsSortBy) th.classList.add(state.dealsSortDir);
         });
     };
 
-  const renderDealsMetrics = () => {
+    const renderDealsMetrics = () => {
         if (!metricCurrentCommit) return;
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
@@ -269,7 +275,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
         }
 
-        let effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
+        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
 
         if (commitTotalQuota && bestCaseTotalQuota) {
             if (isMyTeamView) {
@@ -283,40 +289,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
-
-        // --- NEW: Filter for current and future deals before calculating metrics ---
-        const futureDeals = state.deals.filter(deal => {
-            if (!deal.close_month) {
-                return true; // Always include deals without a close month
-            }
-            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
-            // Keep deal if year is future, or if it's this year and month is not in the past.
-            return dealYear > currentYear || (dealYear === currentYear && (dealMonth - 1) >= currentMonth);
-        });
-        // --- END OF NEW CODE ---
-
-        let currentCommit = 0, bestCase = 0, totalFunnel = 0;
+        const futureDeals = getFutureDeals(); // Use filtered deals
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        let currentCommit = 0, bestCase = 0;
         
-        // --- UPDATED: Iterate over 'futureDeals' instead of 'state.deals' ---
         futureDeals.forEach((deal) => {
             const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
             const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
-            
-            // Funnel should only include future deals
-            totalFunnel += deal.mrc || 0;
-
             if (isCurrentMonth) {
                 bestCase += deal.mrc || 0;
                 if (deal.is_committed) currentCommit += deal.mrc || 0;
             }
         });
+        
+        const totalFunnel = futureDeals.reduce((sum, deal) => sum + (deal.mrc || 0), 0);
 
         metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
         metricBestCase.textContent = formatCurrencyK(bestCase);
-        metricFunnel.textContent = formatCurrencyK(totalFunnel); // This now correctly reflects the filtered funnel
+        metricFunnel.textContent = formatCurrencyK(totalFunnel);
 
         const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
         const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
@@ -329,8 +320,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
         if (error) {
             alert('Error updating commit status: ' + error.message);
-            const checkbox = dealsTableBody.querySelector(`.commit-deal-checkbox[data-deal-id="${dealId}"]`);
-            if (checkbox) checkbox.checked = !isCommitted;
         } else {
             const deal = state.deals.find(d => d.id === dealId);
             if (deal) deal.is_committed = isCommitted;
@@ -342,11 +331,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return;
         const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
-
-        const accountOptions = state.accounts
-            .sort((a,b) => (a.name || "").localeCompare(b.name || ""))
-            .map(acc => `<option value="${acc.id}" ${deal.account_id === acc.id ? 'selected' : ''}>${acc.name}</option>`)
-            .join('');
+        const accountOptions = state.accounts.sort((a,b) => (a.name || "").localeCompare(b.name || "")).map(acc => `<option value="${acc.id}" ${deal.account_id === acc.id ? 'selected' : ''}>${acc.name}</option>`).join('');
 
         showModal("Edit Deal", `
             <label>Deal Name:</label><input type="text" id="modal-deal-name" value="${deal.name || ''}" required>
@@ -357,11 +342,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             <label>Close Month:</label><input type="month" id="modal-deal-close-month" value="${deal.close_month || ''}">
             <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated">${deal.products || ''}</textarea>
         `, async () => {
-            const dealName = document.getElementById('modal-deal-name').value.trim();
-            if (!dealName) { alert('Deal name is required.'); return; }
-
             const updatedDeal = {
-                name: dealName,
+                name: document.getElementById('modal-deal-name').value.trim(),
                 account_id: Number(document.getElementById('modal-deal-account').value),
                 term: document.getElementById('modal-deal-term').value.trim(),
                 stage: document.getElementById('modal-deal-stage').value,
@@ -369,10 +351,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 close_month: document.getElementById('modal-deal-close-month').value || null,
                 products: document.getElementById('modal-deal-products').value.trim(),
             };
-            
+            if (!updatedDeal.name) return alert('Deal name is required.');
             const { error } = await supabase.from("deals").update(updatedDeal).eq("id", deal.id);
             if (error) { alert("Error updating deal: " + error.message); }
-            else { await loadAllData(); hideModal(); alert("Deal updated successfully!"); }
+            else { await loadAllData(); hideModal(); }
         });
     }
 
@@ -389,33 +371,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const th = e.target.closest("th.sortable");
             if (!th) return;
             const sortKey = th.dataset.sort;
-            if (state.dealsSortBy === sortKey) {
-                state.dealsSortDir = state.dealsSortDir === "asc" ? "desc" : "asc";
-            } else {
-                state.dealsSortBy = sortKey;
-                state.dealsSortDir = "asc";
-            }
+            state.dealsSortBy = sortKey;
+            state.dealsSortDir = state.dealsSortDir === "asc" ? "desc" : "asc";
             renderDealsPage();
         });
 
         dealsTableBody.addEventListener("click", (e) => {
             const editBtn = e.target.closest(".edit-deal-btn");
             const nameLink = e.target.closest(".deal-name-link");
-            if (editBtn) {
-                handleEditDeal(Number(editBtn.dataset.dealId));
-            } else if (nameLink) {
+            if (editBtn) handleEditDeal(Number(editBtn.dataset.dealId));
+            else if (nameLink) {
                 const deal = state.deals.find(d => d.id === Number(nameLink.dataset.dealId));
-                if (deal?.account_id) {
-                    window.location.href = `accounts.html?accountId=${deal.account_id}`;
-                }
+                if (deal?.account_id) window.location.href = `accounts.html?accountId=${deal.account_id}`;
             }
         });
         
         dealsTableBody.addEventListener("change", (e) => {
             const commitCheck = e.target.closest(".commit-deal-checkbox");
-            if (commitCheck) {
-                handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
-            }
+            if (commitCheck) handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
         });
 
         if (viewMyDealsBtn) {
@@ -429,10 +402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (viewAllDealsBtn) {
             viewAllDealsBtn.addEventListener('click', async () => {
                 const isManager = state.currentUser.user_metadata?.is_manager === true;
-                if (!isManager) {
-                    alert("You must be a manager to view all deals.");
-                    return;
-                }
+                if (!isManager) return alert("You must be a manager to view all deals.");
                 state.dealsViewMode = 'all';
                 viewAllDealsBtn.classList.add('active');
                 viewMyDealsBtn.classList.remove('active');
@@ -445,24 +415,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        const savedThemeIndex = themes.indexOf(savedTheme);
-        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
-        applyTheme(themes[currentThemeIndex]);
+        applyTheme(savedTheme);
         updateActiveNavLink();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             if (dealsViewToggleDiv) {
-                const isManager = state.currentUser.user_metadata?.is_manager === true;
-                if (!isManager) {
-                    dealsViewToggleDiv.classList.add('hidden');
-                    state.dealsViewMode = 'mine';
-                } else {
-                    dealsViewToggleDiv.classList.remove('hidden');
-                    viewMyDealsBtn.classList.add('active');
-                    viewAllDealsBtn.classList.remove('active');
-                }
+                dealsViewToggleDiv.classList.toggle('hidden', state.currentUser.user_metadata?.is_manager !== true);
             }
             setupPageEventListeners();
             await loadAllData();
