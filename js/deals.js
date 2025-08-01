@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentUser: null,
         deals: [],
         accounts: [],
-        dealStages: [], // Add dealStages to state
+        dealStages: [],
         dealsSortBy: "name",
         dealsSortDir: "asc",
         dealsViewMode: 'mine',
@@ -74,7 +74,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         const accountsQuery = supabase.from("accounts").select("*");
         const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
-        const dealStagesQuery = supabase.from("deal_stages").select("stage_name").order('sort_order'); // Fetch deal stages
+        // NEW: Fetch deal stages
+        const dealStagesQuery = supabase.from("deal_stages").select("stage_name, sort_order").order('sort_order');
         let allQuotasQuery;
         if (state.currentUser.user_metadata?.is_manager === true) {
             allQuotasQuery = supabase.from("user_quotas").select("monthly_quota");
@@ -299,11 +300,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     function handleEditDeal(dealId) {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return;
-
-        const stageOptions = state.dealStages.map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
+        const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
 
         const accountOptions = state.accounts
-            .sort((a,b) => a.name.localeCompare(b.name))
+            .sort((a,b) => (a.name || "").localeCompare(b.name || ""))
             .map(acc => `<option value="${acc.id}" ${deal.account_id === acc.id ? 'selected' : ''}>${acc.name}</option>`)
             .join('');
 
