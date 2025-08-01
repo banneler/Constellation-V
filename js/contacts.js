@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequences: [],
         sequence_steps: [],
         activities: [],
-        activityTypes: [], // Add activityTypes to state
+        activityTypes: [],
         contact_sequences: [],
         selectedContactId: null,
         deals: [],
@@ -180,7 +180,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.accounts
             .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
             .forEach((acc) => {
-                const o = document.createElement("option");
                 o.value = acc.id;
                 o.textContent = acc.name;
                 contactAccountNameSelect.appendChild(o);
