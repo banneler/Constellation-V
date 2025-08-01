@@ -2502,8 +2502,17 @@ CSS
     background-color: var(--bg-light);
 }
 
+/* --- ADMIN ANALYTICS FACELIFT V4 --- */
+.metric-value-large {
+    font-size: 2.5rem;
+    font-weight: 700; /* Bold */
+    margin: auto;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2); /* Subtle text shadow */
+}
+
 .chart-wrapper .chart-toggle-btn {
     position: absolute;
     top: 10px;
-    right: 10px;
+    left: 10px; /* Moved to top-left */
+    z-index: 10; /* Ensure it's on top of the chart */
 }
