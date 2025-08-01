@@ -11,15 +11,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         contact_sequences: [],
         deals: [],
         selectedAccountId: null,
-        tasks: [], // Ensure 'tasks' is included in your state
-        isFormDirty: false, // State to track unsaved changes
-        dealStages: [] // NEW: Add dealStages to state
+        tasks: [],
+        isFormDirty: false,
+        dealStages: []
     };
 
     // --- DOM Element Selectors ---
-    const navSidebar = document.querySelector(".nav-sidebar"); // Selector for the whole sidebar
+    const navSidebar = document.querySelector(".nav-sidebar");
     const accountList = document.getElementById("account-list");
-    const accountSearch = document.getElementById("account-search"); // Search Input
+    const accountSearch = document.getElementById("account-search");
     const addAccountBtn = document.getElementById("add-account-btn");
     const bulkImportAccountsBtn = document.getElementById("bulk-import-accounts-btn");
     const accountCsvInput = document.getElementById("account-csv-input");
@@ -32,30 +32,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
-
-    // Selector for the pending task reminder for accounts page
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
 
-
     // --- Dirty Check and Navigation ---
-
-    // Function to handle navigating away from the page
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
             showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", () => {
-                state.isFormDirty = false; // Acknowledge discard and allow navigation
+                state.isFormDirty = false;
                 window.location.href = url;
             });
         } else {
-            window.location.href = url; // No changes, navigate immediately
+            window.location.href = url;
         }
     };
     
-    // Function to handle switching between accounts
     const confirmAndSwitchAccount = (newAccountId) => {
         if (state.isFormDirty) {
             showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", () => {
-                state.isFormDirty = false; // Acknowledge discard
+                state.isFormDirty = false;
                 state.selectedAccountId = newAccountId;
                 renderAccountList();
                 renderAccountDetails();
@@ -67,7 +61,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderAccountDetails();
         }
     };
-
 
     // --- Theme Logic ---
     let currentThemeIndex = 0;
@@ -88,8 +81,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        // Ensure 'tasks' and 'deal_stages' are included in your state
-        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks", "deal_stages"];
+        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks", "dealStages"];
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
@@ -109,16 +101,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Critical error in loadAllData:", error);
         } finally {
             renderAccountList();
-            // Call renderAccountDetails after data is loaded to update reminder
             if (state.selectedAccountId) {
                 const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
                 if (updatedAccount) {
                     renderAccountDetails();
                 } else {
-                    hideAccountDetails(false, true); // Hide details if account not found (and hide reminder)
+                    hideAccountDetails(false, true);
                 }
             } else {
-                hideAccountDetails(false, true); // Hide details if no account selected (and hide reminder)
+                hideAccountDetails(false, true);
             }
         }
     }
@@ -148,7 +139,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!accountForm) return;
         const account = state.accounts.find((a) => a.id === state.selectedAccountId);
 
-        // Check for pending tasks related to this account and display reminder
         if (accountPendingTaskReminder && account) {
             const pendingAccountTasks = state.tasks.filter(task => 
                 task.status === 'Pending' && task.account_id === account.id
@@ -161,10 +151,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 accountPendingTaskReminder.classList.add('hidden');
             }
         } else if (accountPendingTaskReminder) {
-            // Hide if no account selected
             accountPendingTaskReminder.classList.add('hidden');
         }
-
 
         if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
         accountContactsList.innerHTML = "";
@@ -172,7 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         accountDealsTableBody.innerHTML = "";
 
         if (account) {
-            accountForm.classList.remove('hidden'); // Ensure form is visible
+            accountForm.classList.remove('hidden');
             accountForm.querySelector("#account-id").value = account.id;
             accountForm.querySelector("#account-name").value = account.name || "";
             accountForm.querySelector("#account-website").value = account.website || "";
@@ -181,12 +169,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             accountForm.querySelector("#account-address").value = account.address || "";
             accountForm.querySelector("#account-notes").value = account.notes || "";
             document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
-            // NEW: Added rendering for new fields
             accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
             accountForm.querySelector("#account-employees").value = account.employee_count || "";
             accountForm.querySelector("#account-is-customer").checked = account.is_customer;
             
-            // NEW: Reset dirty flag when loading new data into the form
             state.isFormDirty = false;
 
             state.deals
@@ -221,17 +207,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                     accountActivitiesList.appendChild(li);
                 });
         } else {
-            // This function is for clearing details when no account is selected
             hideAccountDetails(true, true);
         }
     };
 
-    // New helper function to hide/clear account details and reminder
     const hideAccountDetails = (hideForm = true, clearSelection = false) => {
         if (accountForm && hideForm) accountForm.classList.add('hidden');
-        else if (accountForm) accountForm.classList.remove('hidden'); // Ensure it's shown if not explicitly hidden
+        else if (accountForm) accountForm.classList.remove('hidden');
 
-        // Clear form fields
         accountForm.querySelector("#account-id").value = "";
         accountForm.querySelector("#account-name").value = "";
         accountForm.querySelector("#account-website").value = "";
@@ -240,24 +223,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         accountForm.querySelector("#account-address").value = "";
         accountForm.querySelector("#account-notes").value = "";
         document.getElementById("account-last-saved").textContent = "";
-        // NEW: Clear new form fields as well
         accountForm.querySelector("#account-sites").value = "";
         accountForm.querySelector("#account-employees").value = "";
         accountForm.querySelector("#account-is-customer").checked = false;
 
-
-        // Clear related lists
         if (accountContactsList) accountContactsList.innerHTML = "";
         if (accountActivitiesList) accountActivitiesList.innerHTML = "";
         if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
 
-        // Hide reminder
         if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
 
         if (clearSelection) {
             state.selectedAccountId = null;
             document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
-            state.isFormDirty = false; // Reset dirty flag when clearing selection
+            state.isFormDirty = false;
         }
     };
 
@@ -276,7 +255,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return alert("Deal not found!");
         
-        const stageOptions = state.dealStages.map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
+        // Dynamically create options from fetched dealStages
+        const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
 
         showModal("Edit Deal", `
             <label>Deal Name:</label><input type="text" id="modal-deal-name" value="${deal.name || ''}" required>
@@ -295,7 +275,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 products: document.getElementById('modal-deal-products').value.trim(),
             };
             if (!updatedDealData.name) return alert('Deal name is required.');
-            const { error } = await supabase.from('deals').update(updatedDealData).eq('id', dealId);
+            const { error } = await supabase.from('deals').update(updatedDealData).eq('id', deal.id);
             if (error) { alert('Error updating deal: ' + error.message); }
             else { await loadAllData(); hideModal(); alert('Deal updated successfully!'); }
         });
@@ -307,39 +287,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         setupModalListeners();
         updateActiveNavLink();
         
-        // Intercept all main navigation clicks
         const navSidebar = document.querySelector(".nav-sidebar");
         if (navSidebar) {
             navSidebar.addEventListener('click', (e) => {
                 const navButton = e.target.closest('a.nav-button');
                 if (navButton) {
-                    e.preventDefault(); // Prevent immediate navigation
+                    e.preventDefault();
                     handleNavigation(navButton.href);
                 }
             });
         }
 
-        // Intercept clicks on the logout button
         const logoutBtn = document.getElementById("logout-btn");
         if (logoutBtn) {
             logoutBtn.addEventListener("click", (e) => {
                 e.preventDefault();
-                handleNavigation('index.html'); // The logout logic is now handled after confirmation
+                handleNavigation('index.html');
             });
         }
 
-        // Flag form as dirty on any input
         if (accountForm) {
             accountForm.addEventListener('input', () => {
                 state.isFormDirty = true;
             });
         }
         
-        // Handle browser-level navigation (refresh, close tab)
         window.addEventListener('beforeunload', (event) => {
             if (state.isFormDirty) {
                 event.preventDefault();
-                event.returnValue = ''; // Required for legacy browsers
+                event.returnValue = '';
             }
         });
 
@@ -347,7 +323,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (addAccountBtn) {
             addAccountBtn.addEventListener("click", async () => {
-                // Use the confirmation function before adding a new account
                 if (state.isFormDirty) {
                      showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to proceed?", () => {
                         hideAccountDetails(false, true);
@@ -359,11 +334,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     if (error) return alert("Error creating account: " + error.message);
                                     state.isFormDirty = false;
                                     await loadAllData();
-                                    state.selectedAccountId = newAccountArr?.[0]?.id; // Use optional chaining for safety
+                                    state.selectedAccountId = newAccountArr?.[0]?.id;
                                     renderAccountList();
                                     renderAccountDetails();
                                     hideModal();
-                                } else { alert("Account name is required."); return false; } // Return false to prevent modal close
+                                } else { alert("Account name is required."); return false; }
                             }
                         );
                     });
@@ -376,17 +351,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 const { data: newAccountArr, error} = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
                                 if (error) return alert("Error creating account: " + error.message);
                                 await loadAllData();
-                                state.selectedAccountId = newAccountArr?.[0]?.id; // Use optional chaining for safety
+                                state.selectedAccountId = newAccountArr?.[0]?.id;
                                 renderAccountList();
                                 renderAccountDetails();
                                 hideModal();
-                            } else { alert("Account name is required."); return false; } // Return false to prevent modal close
+                            } else { alert("Account name is required."); return false; }
                         }
                     );
                 }
             });
         }
-
 
         if (accountList) {
             accountList.addEventListener("click", (e) => {
@@ -422,7 +396,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     address: accountForm.querySelector("#account-address")?.value.trim(),
                     notes: accountForm.querySelector("#account-notes")?.value,
                     last_saved: new Date().toISOString(),
-                    // NEW: Include the new fields in the update
                     quantity_of_sites: parseInt(accountForm.querySelector("#account-sites")?.value) || 0,
                     employee_count: parseInt(accountForm.querySelector("#account-employees")?.value) || 0,
                     is_customer: accountForm.querySelector("#account-is-customer")?.checked
@@ -432,13 +405,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { error } = await supabase.from("accounts").update(data).eq("id", id);
                 if(error) return alert("Error saving account: " + error.message);
 
-                // NEW: Reset dirty flag after successful save
                 state.isFormDirty = false;
                 await loadAllData();
                 alert("Account saved!");
             });
         }
-
 
         if (deleteAccountBtn) {
             deleteAccountBtn.addEventListener("click", async () => {
@@ -448,7 +419,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const { error } = await supabase.from("accounts").delete().eq("id", state.selectedAccountId);
                         if (error) return alert("Error deleting account: " + error.message);
                         state.selectedAccountId = null;
-                        state.isFormDirty = false; // NEW: Reset dirty flag
+                        state.isFormDirty = false;
                         await loadAllData();
                         hideModal();
                         alert("Account deleted successfully!");
@@ -465,8 +436,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const r = new FileReader();
                 r.onload = async function (e) {
                     const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
-                    // Assuming CSV headers are: name,website,industry,phone,address,notes,quantity_of_sites,employee_count,is_customer
-                    const newRecords = rows.slice(1).map((row) => { // Skip header row
+                    const newRecords = rows.slice(1).map((row) => {
                         const c = parseCsvRow(row);
                         return {
                             name: c[0] || "",
@@ -474,12 +444,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                             industry: c[2] || "",
                             phone: c[3] || "",
                             address: c[4] || "",
-                            // The original CSV template from accounts_template.csv only had 5 columns.
-                            // If user's CSV includes new fields, they need to be mapped here.
-                            // For safety, let's include the new fields as optional here, assuming they come after.
-                            quantity_of_sites: parseInt(c[5]) || 0, // Assuming 6th column if extended
-                            employee_count: parseInt(c[6]) || 0, // Assuming 7th column
-                            is_customer: c[7]?.toLowerCase() === 'true', // Assuming 8th column
+                            quantity_of_sites: parseInt(c[5]) || 0,
+                            employee_count: parseInt(c[6]) || 0,
+                            is_customer: c[7]?.toLowerCase() === 'true',
                             user_id: state.currentUser.id
                         };
                     });
@@ -503,7 +470,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             addDealBtn.addEventListener("click", () => {
                 if (!state.selectedAccountId) return alert("Please select an account first.");
                 
-                const stageOptions = state.dealStages.map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
+                const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
 
                 showModal("Create New Deal", `
                     <label>Deal Name:</label><input type="text" id="modal-deal-name" required>
@@ -520,7 +487,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const closeMonth = document.getElementById('modal-deal-close-month')?.value;
                     const products = document.getElementById('modal-deal-products')?.value.trim();
 
-                    if (!dealName) { alert('Deal name is required.'); return false; } // Return false to prevent modal close
+                    if (!dealName) { alert('Deal name is required.'); return false; }
 
                     const newDeal = {
                         user_id: state.currentUser.id,
@@ -534,12 +501,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         is_committed: false
                     };
                     const { error } = await supabase.from('deals').insert([newDeal]);
-                    if (error) { alert('Error creating deal: ' + error.message); return false; } // Return false on error
-                    else { await loadAllData(); hideModal(); alert('Deal created successfully!'); return true; } // Return true on success
+                    if (error) { alert('Error creating deal: ' + error.message); return false; }
+                    else { await loadAllData(); hideModal(); alert('Deal created successfully!'); return true; }
                 });
             });
         }
-
 
         if (accountContactsList) {
             accountContactsList.addEventListener("click", (e) => {
@@ -563,7 +529,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const dueDate = document.getElementById('modal-task-due-date')?.value;
                         if (!description) {
                             alert('Task description is required.');
-                            return false; // Return false to prevent modal close
+                            return false;
                         }
                         const newTask = {
                             user_id: state.currentUser.id,
@@ -575,12 +541,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const { error } = await supabase.from('tasks').insert([newTask]);
                         if (error) {
                             alert('Error: ' + error.message);
-                            return false; // Return false on error
+                            return false;
                         } else {
                             await loadAllData();
                             hideModal();
                             alert('Task created successfully!');
-                            return true; // Return true on success
+                            return true;
                         }
                     }
                 );
@@ -594,8 +560,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
-            setupPageEventListeners(); // Ensure listeners are set up before data load or user menu setup might trigger them.
-            await setupUserMenuAndAuth(supabase, state); // Call setupUserMenuAndAuth here
+            setupPageEventListeners();
+            await setupUserMenuAndAuth(supabase, state);
             const urlParams = new URLSearchParams(window.location.search);
             const accountIdFromUrl = urlParams.get('accountId');
             if (accountIdFromUrl) state.selectedAccountId = Number(accountIdFromUrl);
