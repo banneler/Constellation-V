@@ -93,8 +93,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
-        const sharedTables = ["sequence_steps", "email_log", "activity_types"]; // Fetch activity_types
+        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks", "activity_types"];
+        const sharedTables = ["sequence_steps", "email_log"];
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
