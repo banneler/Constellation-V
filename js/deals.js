@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
-    const renderDealsMetrics = () => {
+  const renderDealsMetrics = () => {
         if (!metricCurrentCommit) return;
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
@@ -317,17 +317,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
         metricBestCase.textContent = formatCurrencyK(bestCase);
         metricFunnel.textContent = formatCurrencyK(totalFunnel); // This now correctly reflects the filtered funnel
-
-        const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-        const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-        
-        document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
-        document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
-    };
-
-        metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
-        metricBestCase.textContent = formatCurrencyK(bestCase);
-        metricFunnel.textContent = formatCurrencyK(totalFunnel);
 
         const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
         const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
@@ -484,5 +473,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
-
