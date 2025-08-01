@@ -476,27 +476,30 @@ async function handleSaveUser(e) {
     const monthlyQuota = parseInt(row.querySelector('.user-quota-input').value, 10) || 0;
 
     e.target.disabled = true;
+    e.target.textContent = 'Saving...';
 
     try {
-        const { error: rpcError } = await supabase.rpc('set_user_metadata_admin', {
-            target_user_id: userId,
-            is_manager_status: isManagerStatus,
-            exclude_status: excludeReportingStatus
+        const { data, error } = await supabase.functions.invoke('update-user-admin', {
+            body: {
+                target_user_id: userId,
+                full_name: fullName,
+                monthly_quota: monthlyQuota,
+                is_manager: isManagerStatus,
+                exclude_from_reporting: excludeReportingStatus
+            }
         });
-        if (rpcError) throw rpcError;
 
-        const { error: quotaError } = await supabase.from('user_quotas').update({
-            full_name: fullName,
-            monthly_quota: monthlyQuota
-        }).eq('user_id', userId);
-        if (quotaError) throw quotaError;
-        
+        if (error) throw error;
+
+        console.log('Function response:', data);
         alert(`User updated successfully!`);
+
     } catch (error) {
         alert(`Failed to save user: ${error.message}`);
     } finally {
         e.target.disabled = false;
-        loadUserData();
+        e.target.textContent = 'Save';
+        loadUserData(); // Refresh the user list
     }
 }
 
