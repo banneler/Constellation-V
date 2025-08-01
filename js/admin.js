@@ -312,6 +312,7 @@ function renderTableForChart(containerId, data, isCurrency = false) {
     tableView.innerHTML = tableHtml;
 }
 
+
 async function handleSaveUser(e) {
     const row = e.target.closest('tr');
     const userId = row.dataset.userId;
