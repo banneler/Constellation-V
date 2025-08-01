@@ -61,6 +61,7 @@ async function loadContentData() {
 async function loadAnalyticsData() {
     const tablesToFetch = ['activities', 'contact_sequences', 'campaigns', 'tasks', 'deals'];
     
+    // First, get the list of users to ensure we can filter analytics data properly
     const { data: users, error: userError } = await supabase.rpc('get_all_users_with_last_login');
     if(userError) {
         alert('Could not load user data for analytics.');
@@ -215,13 +216,88 @@ function renderChart(canvasId, data, isCurrency = false) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
     if (state.charts[canvasId]) state.charts[canvasId].destroy();
+    
     const isIndividual = Array.isArray(data);
     const chartLabels = isIndividual ? data.map(d => d.label) : [data.label];
     const chartData = isIndividual ? data.map(d => d.value) : [data.value];
-    state.charts[canvasId] = new Chart(ctx, { /* ... Chart.js options ... */ });
+
+    state.charts[canvasId] = new Chart(ctx, {
+        type: isIndividual ? 'bar' : 'doughnut',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: isIndividual ? '' : data.label,
+                data: chartData,
+                backgroundColor: isIndividual ? 'rgba(74, 144, 226, 0.6)' : ['#4a90e2', '#50e3c2', '#f5a623', '#f8e71c', '#7ed321'],
+                borderColor: 'rgba(255, 255, 255, 0.7)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: !isIndividual,
+                    position: 'right',
+                },
+                 tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            let value = context.parsed.y || context.parsed;
+                            if (isCurrency) {
+                                label += formatCurrencyK(value);
+                            } else {
+                                label += value;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    display: isIndividual,
+                     ticks: {
+                        callback: function(value) {
+                            return isCurrency ? formatCurrencyK(value) : value;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
-async function handleSaveUser(e) { /* ... same as before ... */ }
+// --- HANDLER FUNCTIONS ---
+async function handleSaveUser(e) {
+    const row = e.target.closest('tr');
+    const userId = row.dataset.userId;
+    const updatedData = {
+        full_name: row.querySelector('.user-name-input').value.trim(),
+        monthly_quota: parseInt(row.querySelector('.user-quota-input').value, 10) || 0
+    };
+    const isManagerStatus = row.querySelector('.is-manager-checkbox').checked;
+    const excludeReportingStatus = row.querySelector('.exclude-reporting-checkbox').checked;
+
+    e.target.disabled = true;
+    try {
+        await supabase.from('user_quotas').update(updatedData).eq('user_id', userId);
+        await supabase.rpc('set_manager_status', { target_user_id: userId, is_manager_status: isManagerStatus });
+        await supabase.rpc('set_reporting_status', { target_user_id: userId, exclude_status: excludeReportingStatus });
+        alert(`User ${updatedData.full_name} updated successfully!`);
+    } catch (error) {
+        alert(`Failed to save user: ${error.message}`);
+    } finally {
+        e.target.disabled = false;
+    }
+}
+
 function handleInviteUser() { showModal('Invite User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
 function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
 async function handleContentToggle(e) { alert('Feature coming soon!'); }
@@ -237,24 +313,99 @@ function handleNavigation() {
     loadAllDataForView();
 }
 
-function getDateRange(rangeKey) { /* ... same as before ... */ }
+function getDateRange(rangeKey) {
+    const now = new Date();
+    let startDate = new Date();
+    const endDate = new Date(now);
 
-function setupPageEventListeners() { /* ... same as before ... */ }
+    switch (rangeKey) {
+        case 'this_month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+        case 'last_month':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            endDate.setDate(0); // End of last month
+            break;
+        case 'last_2_months':
+             startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+             break;
+        case 'this_fiscal_year': // Assuming fiscal year starts Jan 1
+             startDate = new Date(now.getFullYear(), 0, 1);
+             break;
+        case 'last_365_days':
+             startDate.setDate(now.getDate() - 365);
+             break;
+    }
+    return { startDate, endDate };
+}
 
+// --- EVENT LISTENER SETUP ---
+function setupPageEventListeners() {
+    window.addEventListener('hashchange', handleNavigation);
+    
+    document.getElementById('user-management-table')?.addEventListener('click', e => {
+        if (e.target.matches('.save-user-btn')) handleSaveUser(e);
+        if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
+    });
+    
+    document.getElementById('invite-user-btn')?.addEventListener('click', handleInviteUser);
+
+    document.getElementById('content-management-table')?.addEventListener('change', e => {
+        if (e.target.matches('.share-toggle')) handleContentToggle(e);
+    });
+    document.getElementById('content-management-table')?.addEventListener('click', e => {
+        if (e.target.matches('.delete-content-btn')) handleDeleteContent(e);
+    });
+    document.querySelectorAll('.content-view-btn').forEach(btn => btn.addEventListener('click', e => {
+        document.querySelectorAll('.content-view-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        state.contentView = e.target.id === 'view-templates-btn' ? 'templates' : 'sequences';
+        renderContentTable();
+    }));
+
+    document.getElementById('analytics-rep-filter')?.addEventListener('change', e => {
+        state.analyticsFilters.userId = e.target.value;
+        document.getElementById('analytics-chart-view-toggle').style.display = e.target.value === 'all' ? 'flex' : 'none';
+        renderAnalyticsDashboard();
+    });
+    document.getElementById('analytics-date-filter')?.addEventListener('change', e => {
+        state.analyticsFilters.dateRange = e.target.value;
+        renderAnalyticsDashboard();
+    });
+    document.getElementById('analytics-chart-view-toggle')?.addEventListener('click', e => {
+        if (e.target.matches('button')) {
+            document.querySelectorAll('#analytics-chart-view-toggle button').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            state.analyticsFilters.chartView = e.target.id === 'view-individual-btn' ? 'individual' : 'combined';
+            renderAnalyticsDashboard();
+        }
+    });
+}
+
+// --- INITIALIZATION ---
 async function initializePage() {
     setupModalListeners();
     await loadSVGs();
+    
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = "index.html"; return; }
+    if (!session) {
+        window.location.href = "index.html";
+        return;
+    }
+    
     state.currentUser = session.user;
+
+    // IMPORTANT: Check for admin privileges *before* doing anything else
     if (state.currentUser.user_metadata?.is_admin !== true) {
         alert("Access Denied: You must be an admin to view this page.");
         window.location.href = "command-center.html";
         return;
     }
+    
+    // Now that we've confirmed the user is an admin, proceed with setup
     await setupUserMenuAndAuth(supabase, state);
     setupPageEventListeners();
-    handleNavigation();
+    handleNavigation(); // This will trigger the initial data load
 }
 
 initializePage();
