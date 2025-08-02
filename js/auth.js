@@ -1,4 +1,4 @@
-// js/auth.js (REVISED)
+// js/auth.js
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupModalListeners();
 
     // --- DOM SELECTORS ---
-    const authContainer = document.getElementById("auth-container");
     const authForm = document.getElementById("auth-form");
     const authError = document.getElementById("auth-error");
     const authEmailInput = document.getElementById("auth-email");
@@ -48,6 +47,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         authConfirmPasswordInput.required = !isLoginMode;
     };
 
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('verified') === 'true') {
+        showTemporaryMessage("Email successfully verified! Please log in.", true);
+        // Clean the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // --- EVENT LISTENERS ---
     authToggleLink.addEventListener("click", (e) => {
         e.preventDefault();
@@ -69,7 +75,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (error) {
                 showTemporaryMessage(error.message, false);
             }
-            // SUCCESS: onAuthStateChange will handle the redirect. No redirect code needed here.
         } else {
             const confirmPassword = authConfirmPasswordInput.value.trim();
             if (password !== confirmPassword) {
@@ -84,31 +89,38 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else if (data.user && data.user.identities && data.user.identities.length === 0) {
                  showTemporaryMessage("This email is already in use. Please try logging in.", false);
             } else {
-                showModal("Check Your Email", "A verification link has been sent to your email address. Please verify your account before logging in.", () => {
+                // ** THIS IS THE CHANGED PART **
+                showTemporaryMessage("Account created! Please check your email for a verification link.", true);
+                setTimeout(() => {
                     isLoginMode = true;
                     updateAuthUI();
-                    hideModal();
-                }, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }, 3000); // Give user time to read the message before flipping to login
             }
         }
-        authSubmitBtn.disabled = false;
-        authSubmitBtn.textContent = isLoginMode ? "Login" : "Sign Up";
+        if (isLoginMode) { // Only re-enable if we didn't start the timeout
+             authSubmitBtn.disabled = false;
+             authSubmitBtn.textContent = "Login";
+        }
     });
 
     forgotPasswordLink.addEventListener('click', (e) => {
         e.preventDefault();
-        // (Your existing forgot password logic using showModal is good)
+        const resetPasswordBody = `
+            <p>Enter your email to receive a password reset link.</p>
+            <input type="email" id="reset-email" placeholder="Email" required>
+        `;
+        showModal('Reset Password', resetPasswordBody, async () => {
+            const email = document.getElementById('reset-email').value;
+            // ... your existing password reset logic
+        });
     });
 
-    // --- SINGLE SOURCE OF TRUTH FOR AUTH STATE ---
+    // --- AUTH STATE CHANGE HANDLER ---
     supabase.auth.onAuthStateChange((event, session) => {
-        console.log(`Auth event: ${event}`);
         if (event === "SIGNED_IN" && session) {
-            // This is the ONLY place we redirect from.
             window.location.href = "command-center.html";
         }
     });
 
-    // Initial UI setup
     updateAuthUI();
 });
