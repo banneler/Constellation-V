@@ -12,7 +12,7 @@ let currentThemeIndex = 0;
 
 function applyTheme(themeName) {
     const themeNameSpan = document.getElementById("theme-name");
-    document.body.className = '';
+    document.body.className = ''; // Clear existing theme classes
     document.body.classList.add(`theme-${themeName}`);
     if (themeNameSpan) {
         const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
@@ -40,26 +40,31 @@ export async function setupTheme(supabase, user) {
         .eq('user_id', user.id)
         .single();
 
-    let currentTheme = 'dark';
-    if (error && error.code !== 'PGRST116') {
+    let currentTheme = 'dark'; // Default theme
+    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
         console.error("Error fetching theme:", error);
     } else if (data) {
         currentTheme = data.theme;
     } else {
+        // If no preference exists in the DB, save the default one for the user
         await saveThemePreference(supabase, user.id, currentTheme);
     }
     
     currentThemeIndex = themes.indexOf(currentTheme);
-    if (currentThemeIndex === -1) currentThemeIndex = 0;
+    if (currentThemeIndex === -1) currentThemeIndex = 0; // Fallback if theme isn't in our list
     applyTheme(themes[currentThemeIndex]);
     localStorage.setItem('crm-theme', themes[currentThemeIndex]);
 
-    themeToggleBtn.addEventListener("click", () => {
-        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-        const newTheme = themes[currentThemeIndex];
-        applyTheme(newTheme);
-        saveThemePreference(supabase, user.id, newTheme);
-    });
+    // Ensure listener is only attached once
+    if (themeToggleBtn.dataset.listenerAttached !== 'true') {
+        themeToggleBtn.addEventListener("click", () => {
+            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+            const newTheme = themes[currentThemeIndex];
+            applyTheme(newTheme);
+            saveThemePreference(supabase, user.id, newTheme);
+        });
+        themeToggleBtn.dataset.listenerAttached = 'true';
+    }
 }
 
 // --- SHARED UTILITY FUNCTIONS ---
@@ -80,7 +85,10 @@ export function formatMonthYear(dateString) {
 export function formatSimpleDate(dateString) {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US");
+    // Adjust for timezone offset to display the correct local date
+    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+    const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+    return adjustedDate.toLocaleDateString("en-US");
 }
 
 export function formatCurrency(value) {
@@ -90,7 +98,7 @@ export function formatCurrency(value) {
 
 export function formatCurrencyK(value) {
     if (typeof value !== 'number') return '$0';
-    if (value >= 1000) {
+    if (Math.abs(value) >= 1000) {
         return `$${(value / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}K`;
     }
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -105,13 +113,13 @@ export function parseCsvRow(row) {
         if (char === '"') {
             inQuotes = !inQuotes;
         } else if (char === ',' && !inQuotes) {
-            result.push(current);
+            result.push(current.trim());
             current = '';
         } else {
             current += char;
         }
     }
-    result.push(current);
+    result.push(current.trim());
     return result;
 }
 
@@ -123,10 +131,10 @@ export function addDays(date, days) {
 
 export function updateActiveNavLink() {
     const currentPage = window.location.pathname.split("/").pop();
-    document.querySelectorAll(".nav-button").forEach(link => {
-        link.classList.remove("active");
-        if (link.getAttribute("href") === currentPage) {
-            link.classList.add("active");
+    document.querySelectorAll(".nav-sidebar .nav-button").forEach(link => {
+        const linkPage = link.getAttribute("href");
+        if(linkPage) {
+            link.classList.toggle("active", linkPage === currentPage);
         }
     });
 }
@@ -144,25 +152,74 @@ export function getCurrentModalCallbacks() { return { ...currentModalCallbacks }
 export function setCurrentModalCallbacks(callbacks) { currentModalCallbacks = { ...callbacks }; }
 
 export function _rebindModalActionListeners() {
-    // This function remains the same as before
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    const okBtn = document.getElementById('modal-ok-btn');
+
+    if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+            if (currentModalCallbacks.onConfirm) {
+                const result = await Promise.resolve(currentModalCallbacks.onConfirm());
+                if (result !== false) hideModal();
+            } else {
+                hideModal();
+            }
+        };
+    }
+    if (cancelBtn) {
+        cancelBtn.onclick = () => {
+             if (currentModalCallbacks.onCancel) {
+                currentModalCallbacks.onCancel();
+            }
+            hideModal();
+        };
+    }
+     if (okBtn) {
+        okBtn.onclick = () => {
+            if (currentModalCallbacks.onConfirm) {
+                 currentModalCallbacks.onConfirm();
+            }
+             hideModal();
+        };
+    }
 }
 
 export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
-    // This function remains the same as before
+    if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) return;
+
+    modalTitle.textContent = title;
+    modalBody.innerHTML = bodyHtml;
+
+    if (customActionsHtml) {
+        modalActions.innerHTML = customActionsHtml;
+    } else {
+        modalActions.innerHTML = `
+            <button id="modal-confirm-btn" class="btn-primary">Confirm</button>
+            ${showCancel ? '<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>' : ''}
+        `;
+    }
+
+    currentModalCallbacks = { onConfirm, onCancel };
+    _rebindModalActionListeners();
+    modalBackdrop.classList.remove("hidden");
 }
 
 export function hideModal() {
-    // This function remains the same as before
+    if (modalBackdrop) modalBackdrop.classList.add("hidden");
 }
 
+function handleBackdropClick(e) { if (e.target === modalBackdrop) hideModal(); }
+function handleEscapeKey(e) { if (e.key === "Escape") hideModal(); }
+
 export function setupModalListeners() {
-    // This function remains the same as before
+    if (modalBackdrop) modalBackdrop.addEventListener("click", handleBackdropClick);
+    window.addEventListener("keydown", handleEscapeKey);
 }
 
 // --- USER MENU & AUTH LOGIC (CORRECTED) ---
 export async function setupUserMenuAndAuth(supabase, state) {
     const userMenuHeader = document.querySelector('.user-menu-header');
-    if (!userMenuHeader) return; // Exit if not on a CRM page
+    if (!userMenuHeader) return;
 
     const userNameDisplay = document.getElementById('user-name-display');
     const userMenuPopup = document.getElementById('user-menu-popup');
@@ -173,7 +230,6 @@ export async function setupUserMenuAndAuth(supabase, state) {
         return;
     }
 
-    // --- FETCH USER DATA ---
     const { data: userData, error: userError } = await supabase
         .from('user_quotas')
         .select('full_name, monthly_quota')
@@ -186,7 +242,6 @@ export async function setupUserMenuAndAuth(supabase, state) {
         return;
     }
     
-    // --- ONBOARDING FOR NEW USERS ---
     if (!userData || !userData.full_name) {
         const modalBodyHtml = `
             <p>Welcome to Constellation! Please enter your details to get started.</p>
@@ -208,7 +263,6 @@ export async function setupUserMenuAndAuth(supabase, state) {
                 return false;
             }
 
-            // 1. FIRST, save the user's essential details.
             const { error: upsertError } = await supabase
                 .from('user_quotas')
                 .upsert({
@@ -223,18 +277,14 @@ export async function setupUserMenuAndAuth(supabase, state) {
                 return false;
             }
             
-            // 2. NOW that the user has a record, safely set up their theme.
             userNameDisplay.textContent = fullName;
             await setupTheme(supabase, state.currentUser);
-            
-            // 3. Attach menu listeners now that setup is complete.
             attachUserMenuListeners();
             return true;
 
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
     
     } else {
-        // --- SETUP FOR EXISTING USERS ---
         userNameDisplay.textContent = userData.full_name || 'User';
         await setupTheme(supabase, state.currentUser);
         attachUserMenuListeners();
@@ -283,7 +333,6 @@ export async function loadSVGs() {
           continue;
         }
         
-        // Add classes for styling if needed
         if (svgUrl.includes('logo.svg')) {
             svgElement.classList.add('nav-logo');
         } else if (svgUrl.includes('user-icon.svg')) {
@@ -294,7 +343,7 @@ export async function loadSVGs() {
 
       } catch (error) {
         console.error(`Could not load SVG from ${svgUrl}`, error);
-        placeholder.innerHTML = ''; // Clear placeholder on error
+        placeholder.innerHTML = '';
       }
     }
   }
