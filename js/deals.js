@@ -235,10 +235,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 label: {
                                     content: 'Quota',
                                     enabled: true,
-                                    position: 'end',
+                                    position: 'start',
                                     backgroundColor: 'transparent',
                                     color: 'var(--text-strong)',
-                                    rotation: -90 // Rotates the text vertically
+                                    xAdjust: -30,
+                                    yAdjust: 0,
+                                    rotation: -90
                                 }
                             }
                         }
