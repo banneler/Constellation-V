@@ -2785,30 +2785,29 @@ body.theme-blue {
 }
 
 /* --- Corporate (Windows 95/XP) Theme --- */
-html.theme-corporate {
-    background: #008080 !important;
-}
-
-html.theme-corporate body {
+/* --- Corporate Theme (Adapted to JS Bug) --- */
+body.theme-corporate {
     background: transparent url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
     background-size: cover !important;
     font-family: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif !important;
+    /* The teal color will now be the fallback on the body itself */
+    background-color: #008080 !important;
 }
 
-html.theme-corporate .crm-container {
+body.theme-corporate .crm-container {
     background: transparent !important;
 }
 
-html.theme-corporate .nav-sidebar,
-html.theme-corporate .details-panel,
-html.theme-corporate .modal-content,
-html.theme-corporate .auth-box,
-html.theme-corporate .chart-container,
-html.theme-corporate .metric-card,
-html.theme-corporate .downloads-section,
-html.theme-corporate table,
-html.theme-corporate th,
-html.theme-corporate .user-menu {
+body.theme-corporate .nav-sidebar,
+body.theme-corporate .details-panel,
+body.theme-corporate .modal-content,
+body.theme-corporate .auth-box,
+body.theme-corporate .chart-container,
+body.theme-corporate .metric-card,
+body.theme-corporate .downloads-section,
+body.theme-corporate table,
+body.theme-corporate th,
+body.theme-corporate .user-menu {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
     border-radius: 0 !important;
@@ -2818,11 +2817,11 @@ html.theme-corporate .user-menu {
     box-shadow: none !important;
 }
 
-html.theme-corporate .btn-primary,
-html.theme-corporate .btn-danger,
-html.theme-corporate .btn-secondary,
-html.theme-corporate .btn-tertiary,
-html.theme-corporate .nav-button {
+body.theme-corporate .btn-primary,
+body.theme-corporate .btn-danger,
+body.theme-corporate .btn-secondary,
+body.theme-corporate .btn-tertiary,
+body.theme-corporate .nav-button {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
     border-radius: 0 !important;
@@ -2832,17 +2831,17 @@ html.theme-corporate .nav-button {
     box-shadow: none !important;
 }
 
-html.theme-corporate .btn-primary:active,
-html.theme-corporate .btn-danger:active,
-html.theme-corporate .btn-secondary:active,
-html.theme-corporate .btn-tertiary:active,
-html.theme-corporate .nav-button:active {
+body.theme-corporate .btn-primary:active,
+body.theme-corporate .btn-danger:active,
+body.theme-corporate .btn-secondary:active,
+body.theme-corporate .btn-tertiary:active,
+body.theme-corporate .nav-button:active {
     border-style: inset !important;
 }
 
-html.theme-corporate input,
-html.theme-corporate select,
-html.theme-corporate textarea {
+body.theme-corporate input,
+body.theme-corporate select,
+body.theme-corporate textarea {
     background-color: #ffffff !important;
     color: #000000 !important;
     border-radius: 0 !important;
