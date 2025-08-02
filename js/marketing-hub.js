@@ -107,24 +107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // --- Theme Logic ---
-    let currentThemeIndex = 0;
-    function applyTheme(themeName) {
-        document.body.className = '';
-        document.body.classList.add(`theme-${themeName}`);
-        const themeNameSpan = document.getElementById("theme-name");
-        if (themeNameSpan) {
-            const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
-            themeNameSpan.textContent = capitalizedThemeName;
-        }
-        localStorage.setItem('crm-theme', themeName);
-    }
-    function cycleTheme() {
-        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-        const newTheme = themes[currentThemeIndex];
-        applyTheme(newTheme);
-    }
-
+   
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -894,7 +877,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     function setupPageEventListeners() {
         setupModalListeners();
 
-        if (document.getElementById("theme-toggle-btn")) document.getElementById("theme-toggle-btn").addEventListener("click", cycleTheme);
         if (document.getElementById("logout-btn")) document.getElementById("logout-btn").addEventListener("click", () => supabase.auth.signOut());
         
         if (authForm) {
