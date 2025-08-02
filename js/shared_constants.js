@@ -235,7 +235,9 @@ export async function setupUserMenuAndAuth(supabase, state) {
         .select('full_name, monthly_quota')
         .eq('user_id', state.currentUser.id)
         .single();
-
+    
+ console.log("DEBUG: User data from user_quotas table:", { userData, userError });
+    
     if (userError && userError.code !== 'PGRST116') {
         console.error('Error fetching user data:', userError);
         userNameDisplay.textContent = "Error";
@@ -348,3 +350,4 @@ export async function loadSVGs() {
     }
   }
 }
+
