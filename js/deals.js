@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 borderDash: [6, 6],
                                 label: {
                                     content: 'Quota',
-                                    enabled: true,
+                                    enabled: false,
                                     position: 'end', // Changed from 'start' to 'end'
                                     backgroundColor: 'transparent',
                                     color: 'red',
@@ -451,4 +451,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
