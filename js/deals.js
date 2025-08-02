@@ -367,7 +367,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
-        themeToggleBtn.addEventListener("click", cycleTheme);
         document.getElementById("logout-btn").addEventListener("click", async () => {
             await supabase.auth.signOut();
             window.location.href = "index.html";
@@ -446,6 +445,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
 
 
