@@ -194,7 +194,63 @@ document.addEventListener("DOMContentLoaded", async () => {
                 row.innerHTML = `<td>${formatDate(act.date)}</td><td>${account ? account.name : "N/A"}</td><td>${contact ? `${contact.first_name} ${contact.last_name}` : "N/A"}</td><td>${act.type}: ${act.description}</td>`;
             });
     }
+// --- Theme Handling ---
 
+// This helper function applies a theme class to the page
+function applyTheme(themeId) {
+    if (!themeId) return; // Don't do anything if the themeId is invalid
+
+    // Create a list of all possible theme IDs to remove
+    const allThemeIds = themes.map(t => t.id);
+
+    // Clean up old classes from both HTML and BODY tags
+    document.documentElement.classList.remove(...allThemeIds);
+    document.body.classList.remove(...allThemeIds);
+
+    // Add the new theme class to both tags for maximum CSS compatibility
+    document.documentElement.classList.add(themeId);
+    document.body.classList.add(themeId);
+
+    // Update the text in the theme picker button, if it exists
+    if (themeNameSpan) {
+        const themeObject = themes.find(t => t.id === themeId);
+        themeNameSpan.textContent = themeObject ? themeObject.name : 'Unknown';
+    }
+}
+
+// This is the new function that was missing
+async function cycleTheme() {
+    // Find the current theme from the body's class list
+    const currentTheme = document.body.className.split(' ').find(c => c.startsWith('theme-'));
+    const themeIds = themes.map(t => t.id);
+    
+    // Find the index of the current theme, or default to -1 if not found
+    const currentIndex = themeIds.indexOf(currentTheme);
+    
+    // Calculate the next theme's index, wrapping around to the start
+    const nextIndex = (currentIndex + 1) % themeIds.length;
+    const newThemeId = themeIds[nextIndex];
+
+    // Apply the new theme visually
+    applyTheme(newThemeId);
+
+    // Save the new theme to the database for the current user
+    if (state.currentUser) {
+        try {
+            // IMPORTANT: Verify your table is named 'user_profiles' and the column is 'last_used_theme'
+            const { error } = await supabase
+                .from('user_profiles') 
+                .update({ last_used_theme: newThemeId })
+                .eq('id', state.currentUser.id);
+
+            if (error) {
+                console.error("Error saving theme preference:", error);
+            }
+        } catch (err) {
+            console.error("A JavaScript error occurred while saving the theme:", err);
+        }
+    }
+}
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
@@ -329,4 +385,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
