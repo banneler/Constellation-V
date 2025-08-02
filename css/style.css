@@ -2796,7 +2796,7 @@ body.theme-corporate .crm-container {
     background: transparent !important;
 }
 
-/* This is the main rule with the new selectors added */
+/* This main rule styles all the various containers */
 body.theme-corporate .nav-sidebar,
 body.theme-corporate .details-panel,
 body.theme-corporate .modal-content,
@@ -2806,12 +2806,13 @@ body.theme-corporate .metric-card,
 body.theme-corporate table,
 body.theme-corporate th,
 body.theme-corporate .user-menu,
-body.theme-corporate .user-menu-header, /* Fix for user icon background */
-body.theme-corporate .item-list, /* Fix for pickers on left */
-body.theme-corporate .list-item, /* Fix for individual list items */
-body.theme-corporate #contact-sequence-status, /* Fix for Sequence Steps box */
-body.theme-corporate .form-checkbox-group, /* Fix for "is customer" box */
-body.theme-corporate .template-list-item /* Fix for template lists */ {
+body.theme-corporate .user-menu-header, /* Ensures user icon area has correct background */
+body.theme-corporate .item-list,
+body.theme-corporate .list-item,
+body.theme-corporate #contact-sequence-status,
+body.theme-corporate .form-checkbox-group,
+body.theme-corporate .template-list-item,
+body.theme-corporate .downloads-section {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
     border-radius: 0 !important;
@@ -2821,15 +2822,15 @@ body.theme-corporate .template-list-item /* Fix for template lists */ {
     box-shadow: none !important;
 }
 
-/* This new rule fixes the active nav button's gradient */
+/* Styles the active nav button */
 body.theme-corporate .nav-button.active {
-    background: #000080 !important; /* Classic Windows Title Bar Blue */
+    background: #008080 !important; /* Classic Teal */
     color: #FFFFFF !important;
     border-style: inset !important;
     text-shadow: none !important;
 }
 
-/* This rule styles all buttons */
+/* Styles all other buttons */
 body.theme-corporate .btn-primary,
 body.theme-corporate .btn-danger,
 body.theme-corporate .btn-secondary,
@@ -2837,7 +2838,7 @@ body.theme-corporate .btn-tertiary,
 body.theme-corporate .nav-button {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
-    border-radius: 0 !importan t;
+    border-radius: 0 !important;
     border-style: outset !important;
     border-width: 2px !important;
     border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
@@ -2852,7 +2853,7 @@ body.theme-corporate .nav-button:active {
     border-style: inset !important;
 }
 
-/* This rule styles all input fields */
+/* Styles all input fields */
 body.theme-corporate input,
 body.theme-corporate select,
 body.theme-corporate textarea {
@@ -2862,6 +2863,74 @@ body.theme-corporate textarea {
     border-style: inset !important;
     border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
     border-width: 2px !important;
+}
+
+/* --- NEW: SVG Color Overrides --- */
+
+/* Changes the main logo color to teal */
+body.theme-corporate .nav-logo path[fill="#FEFEFE"],
+body.theme-corporate .auth-logo path[fill="#FEFEFE"] {
+    fill: #008080 !important; 
+}
+
+/* Changes the user icon color to teal */
+body.theme-corporate .user-icon path[fill="#020202"],
+body.theme-corporate .user-icon path[fill="#090909"],
+body.theme-corporate .user-icon path[fill="#070707"],
+body.theme-corporate .user-icon path[fill="#111"],
+body.theme-corporate .user-icon path[fill="#0D0D0D"],
+body.theme-corporate .user-icon path[fill="#141414"],
+body.theme-corporate .user-icon path[fill="#252525"],
+body.theme-corporate .user-icon path[fill="#333"],
+body.theme-corporate .user-icon path[fill="#3F3F3F"],
+body.theme-corporate .user-icon path[fill="#575757"],
+body.theme-corporate .user-icon path[fill="#373737"],
+body.theme-corporate .user-icon path[fill="#2A2A2A"],
+body.theme-corporate .user-icon path[fill="#363636"],
+body.theme-corporate .user-icon path[fill="#151515"],
+body.theme-corporate .user-icon path[fill="#393939"],
+body.theme-corporate .user-icon path[fill="#313131"],
+body.theme-corporate .user-icon path[fill="#3A3A3A"],
+body.theme-corporate .user-icon path[fill="#2F2F2F"],
+body.theme-corporate .user-icon path[fill="#454545"],
+body.theme-corporate .user-icon path[fill="#282828"],
+body.theme-corporate .user-icon path[fill="#323232"],
+body.theme-corporate .user-icon path[fill="#474747"],
+body.theme-corporate .user-icon path[fill="#4A4A4A"],
+body.theme-corporate .user-icon path[fill="#2C2C2C"],
+body.theme-corporate .user-icon path[fill="#696969"],
+body.theme-corporate .user-icon path[fill="#858585"],
+body.theme-corporate .user-icon path[fill="#484848"],
+body.theme-corporate .user-icon path[fill="#595959"],
+body.theme-corporate .user-icon path[fill="#3D3D3D"],
+body.theme-corporate .user-icon path[fill="#565656"],
+body.theme-corporate .user-icon path[fill="#6B6B6B"],
+body.theme-corporate .user-icon path[fill="#2E2E2E"],
+body.theme-corporate .user-icon path[fill="#171717"],
+body.theme-corporate .user-icon path[fill="#656565"],
+body.theme-corporate .user-icon path[fill="#101010"],
+body.theme-corporate .user-icon path[fill="#0F0F0F"],
+body.theme-corporate .user-icon path[fill="#5B5B5B"],
+body.theme-corporate .user-icon path[fill="#5A5A5A"],
+body.theme-corporate .user-icon path[fill="#525252"],
+body.theme-corporate .user-icon path[fill="#010101"] {
+    fill: #008080 !important; /* Classic Teal */
+}
+
+/* Ensures the white parts of the user icon are grey */
+body.theme-corporate .user-icon path[fill="#FEFEFE"],
+body.theme-corporate .user-icon path[fill="#FDFDFD"],
+body.theme-corporate .user-icon path[fill="#F7F7F7"],
+body.theme-corporate .user-icon path[fill="#FBFBFB"],
+body.theme-corporate .user-icon path[fill="#FCFCFC"],
+body.theme-corporate .user-icon path[fill="#EDEDED"],
+body.theme-corporate .user-icon path[fill="#F6F6F6"],
+body.theme-corporate .user-icon path[fill="#F3F3F3"],
+body.theme-corporate .user-icon path[fill="#F0F0F0"],
+body.theme-corporate .user-icon path[fill="#FAFAFA"],
+body.theme-corporate .user-icon path[fill="#F9F9F9"],
+body.theme-corporate .user-icon path[fill="#F4F4F4"] {
+    fill: #c0c0c0 !important; /* Classic Grey */
 }
 /* --- FINAL GLOBAL ADJUSTMENT --- */
 
