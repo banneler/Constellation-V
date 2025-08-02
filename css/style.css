@@ -2618,107 +2618,197 @@ body.theme-green .marketing-indicator {
 }
 /* --- NEW THEMES (REVISED & ENHANCED) --- */
 
-/* --- NEON Theme --- */
-.theme-blue {
-    --bg-dark: #000000;
-    --bg-medium: #0d0d0d;
-    --bg-light: #1a1a1a;
-    --bg-very-light: #2a2a2a;
-    --text-strong: #00ffff; /* Cyan */
-    --text-medium: #cccccc;
-    --text-light: #bbbbbb;
-    --primary-blue: #f92772; /* Hot Pink */
-    --primary-green: #a6e22e; /* Lime Green */
-    --border-color: #00ffff;
-    --shadow-color: rgba(249, 39, 114, 0.4); /* Pink glow */
-    --completed-color: #a6e22e;
-    --past-due-color: #fd971f; /* Neon Orange */
-    --modal-overlay-color: rgba(0, 0, 0, 0.85);
-}
-
-/* Add glow effects for NEON theme */
-.theme-blue .card-title,
-.theme-blue .header h1,
-.theme-blue .metric-card .value,
-.theme-blue .nav-link.active {
-    text-shadow: 0 0 5px var(--text-strong), 0 0 10px var(--text-strong), 0 0 15px var(--primary-blue);
-}
-
-.theme-blue .btn-primary {
-    text-shadow: 0 0 3px #fff;
-    box-shadow: 0 0 8px var(--primary-blue), inset 0 0 4px var(--primary-blue);
-}
-
-
-/* --- Windows 95/XP Theme --- */
-.theme-corporate {
-    /* We keep the color variables for UI elements */
-    --bg-dark: #008080; /* Fallback color */
-    --bg-medium: #c0c0c0; /* Classic UI Grey */
-    --bg-light: #dfdfdf;
-    --bg-very-light: #ffffff;
-    --text-strong: #000000;
-    --text-medium: #000000;
-    --text-light: #000000;
-    --primary-blue: #000080; /* Classic Title Bar Blue */
-    --primary-green: #008000;
-    --border-color: #808080; /* Dark Grey for 3D effect */
-    --shadow-color: rgba(0, 0, 0, 0.4);
-    --completed-color: #008000;
-    --past-due-color: #800000;
-    --modal-overlay-color: rgba(0, 0, 0, 0.5);
-}
-
-/* Add specific overrides for Windows theme */
-.theme-corporate {
-    font-family: 'MS Sans Serif', 'Tahoma', 'Verdana', sans-serif !important;
-}
-
-/* --- THIS IS THE KEY CHANGE --- */
-/* Override the body background specifically for this theme */
+/* Corporate (Windows 95/XP) Theme */
 body.theme-corporate {
-    /* Use local asset path with a fallback color */
-    background: var(--bg-dark) url('../assets/bliss.png');
+    /* Set the core variables for this theme */
+    --bg-dark: #c0c0c0;          /* Classic UI Grey */
+    --bg-medium: #c0c0c0;
+    --bg-light: #dfdfdf;
+    --text-light: #000000;
+    --text-medium: #000000;
+    --primary-blue: #000080;     /* Classic Title Bar Blue */
+    --danger-red: #800000;
+    --secondary-gray: #c0c0c0;
+    --border-color: #808080;     /* Dark Grey for 3D effect */
+    --completed-color: #008000;
+    --warning-yellow: #808000;
+    --gradient-start: transparent; /* Make gradients transparent */
+    --gradient-end: transparent;
+    --shadow-light: rgba(0, 0, 0, 0.2);
+    --shadow-medium: rgba(0, 0, 0, 0.4);
+    --shadow-strong: rgba(0, 0, 0, 0.6);
+    --font-main: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif; /* Classic font */
+    --logo-primary-color: #000080;
+    --logo-secondary-color: #ffffff;
+    --meeting-purple: #000080;
+    --warning-bg: #c0c0c0;
+    --warning-text: #000000;
+    --warning-hover-bg: #dfdfdf;
+
+    /* * FIX 1: Set the body's background to the Bliss image.
+     * I've used a placeholder path. You MUST replace 'path/to/your/assets/bliss.png' 
+     * with the correct relative or absolute path to your image file.
+     * A fallback color is provided in case the image fails to load.
+    */
+    background-color: #008080; /* Teal fallback */
+    background-image: url('path/to/your/assets/bliss.png');
     background-size: cover;
     background-position: center;
-    background-attachment: fixed; /* Prevents the background from scrolling with content */
+    background-attachment: fixed; /* Keeps the image stationary on scroll */
     background-repeat: no-repeat;
 }
 
-
-.theme-corporate .card,
-.theme-corporate .btn,
-.theme-corporate .btn-primary,
-.theme-corporate .btn-secondary,
-.theme-corporate .btn-danger,
-.theme-corporate input,
-.theme-corporate select,
-.theme-corporate textarea,
-.theme-corporate .modal-content,
-.theme-corporate .metric-card,
-.theme-corporate .nav-link {
-    border-radius: 0;
+/* * FIX 2: Make the main container transparent.
+ * This is crucial. The .crm-container had a gradient that was drawn ON TOP of
+ * the body, hiding your Bliss background image. This makes it see-through.
+*/
+.theme-corporate .crm-container {
+    background: transparent;
 }
 
-.theme-corporate .btn,
+/* * FIX 3: Square off all corners for the classic Windows look.
+ * We'll also add the iconic 3D "outset" border to major UI elements.
+*/
+.theme-corporate .chart-container,
+.theme-corporate .metric-card,
+.theme-corporate .nav-sidebar,
+.theme-corporate .details-panel,
+.theme-corporate .modal-content,
+.theme-corporate .auth-box,
+.theme-corporate table,
+.theme-corporate .downloads-section,
+.theme-corporate input,
+.theme-corporate select,
+.theme-corporate textarea {
+    border-radius: 0 !important;
+    border: 1px solid var(--border-color);
+    border-style: outset;
+    border-width: 2px;
+    border-color: #dfdfdf #808080 #808080 #dfdfdf;
+    box-shadow: none !important;
+}
+
+.theme-corporate input,
+.theme-corporate select,
+.theme-corporate textarea {
+    border-style: inset; /* Inputs have an inset appearance */
+}
+
+/* Style buttons for the Win95 look */
 .theme-corporate .btn-primary,
+.theme-corporate .btn-danger,
 .theme-corporate .btn-secondary,
-.theme-corporate .btn-danger {
+.theme-corporate .btn-tertiary {
+    border-radius: 0;
     border-style: outset;
     border-width: 2px;
     border-color: #dfdfdf #808080 #808080 #dfdfdf;
     background-color: var(--bg-medium);
-    color: var(--text-strong);
+    color: var(--text-light);
+    box-shadow: none;
 }
 
-.theme-corporate .btn:active,
 .theme-corporate .btn-primary:active,
+.theme-corporate .btn-danger:active,
 .theme-corporate .btn-secondary:active,
-.theme-corporate .btn-danger:active {
+.theme-corporate .btn-tertiary:active {
     border-style: inset;
+    transform: translateY(1px);
 }
 
-.theme-corporate .btn-primary {
-    background-color: var(--primary-blue);
-    color: white;
+.theme-corporate .nav-button.active {
+    background: var(--primary-blue) !important;
+    color: #ffffff !important;
+    border: 2px inset #000080 !important;
+    box-shadow: none !important;
 }
+
+
+/* --- NEON / Blue Theme --- */
+body.theme-blue {
+    /* * FIX 4: Map the desired neon colors to the variables used throughout the CSS.
+     * Previously, this theme defined new variables that weren't being used.
+     * This ensures all existing components pick up the new colors correctly.
+    */
+    --bg-dark: #000000;
+    --bg-medium: #0d0d0d;
+    --bg-light: #1a1a1a;
+    --text-light: #00ffff;      /* Cyan */
+    --text-medium: #bbbbbb;
+    --primary-blue: #f92772;    /* Hot Pink */
+    --danger-red: #ff3333;      /* Neon Red */
+    --secondary-gray: #2a2a2a;
+    --border-color: #00ffff;
+    --completed-color: #a6e22e; /* Lime Green */
+    --warning-yellow: #fd971f;  /* Neon Orange */
+    --gradient-start: #000000;
+    --gradient-end: #0d0d0d;
+    --shadow-light: rgba(249, 39, 114, 0.2);  /* Pink glow */
+    --shadow-medium: rgba(249, 39, 114, 0.4);
+    --shadow-strong: rgba(249, 39, 114, 0.6);
+    --font-main: 'Orbitron', sans-serif; /* Sci-fi font */
+    --logo-primary-color: var(--primary-blue);
+    --logo-secondary-color: var(--text-light);
+    --meeting-purple: #ae81ff;  /* Neon Purple */
+    --warning-bg: rgba(253, 151, 31, 0.1);
+    --warning-text: #fd971f;
+    --warning-hover-bg: rgba(253, 151, 31, 0.2);
+}
+
+/* * FIX 5: Add the actual "glow" effect using text-shadow and box-shadow.
+ * These rules target key elements to give them the desired neon look.
+*/
+.theme-blue h1, .theme-blue h2, .theme-blue h3, .theme-blue h4,
+.theme-blue .metric-value, .theme-blue .nav-button.active,
+.theme-blue th {
+    text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
+}
+
+.theme-blue .btn-primary,
+.theme-blue .details-panel,
+.theme-blue .chart-container,
+.theme-blue .metric-card,
+.theme-blue .modal-content,
+.theme-blue .auth-box,
+.theme-blue .nav-button.active {
+    box-shadow: 0 0 5px var(--primary-blue), 0 0 10px var(--primary-blue), inset 0 0 3px var(--primary-blue);
+    border: 1px solid var(--primary-blue);
+}
+
+.theme-blue input:focus,
+.theme-blue select:focus,
+.theme-blue textarea:focus {
+    border-color: var(--primary-blue);
+    box-shadow: inset 1px 1px 3px var(--shadow-light), 0 0 8px var(--primary-blue);
+}
+
+
+/* --- FINAL GLOBAL ADJUSTMENT --- */
+
+/* * FIX 6: Update existing rules to exclude BOTH green and corporate themes from having rounded corners.
+*/
+body:not(.theme-green):not(.theme-corporate) .nav-sidebar { border-radius: 0 10px 10px 0; }
+body:not(.theme-green):not(.theme-corporate) .nav-button { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .chart-container { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .metric-card { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .downloads-section { border-radius: 8px; }
+body:not(.theme-green):not(.theme-corporate) .item-list { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .list-item.selected { box-shadow: inset 3px 0 0 0 var(--primary-blue); }
+body:not(.theme-green):not(.theme-corporate) .details-panel { border-radius: 8px; }
+body:not(.theme-green):not(.theme-corporate) #contact-sequence-status { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) input,
+body:not(.theme-green):not(.theme-corporate) select,
+body:not(.theme-green):not(.theme-corporate) textarea { border-radius: 4px; }
+body:not(.theme-green):not(.theme-corporate) .btn-primary,
+body:not(.theme-green):not(.theme-corporate) .btn-danger,
+body:not(.theme-green):not(.theme-corporate) .btn-secondary,
+body:not(.theme-green):not(.theme-corporate) .btn-tertiary { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) table { border-radius: 8px; overflow: hidden; }
+body:not(.theme-green):not(.theme-corporate) .modal-content { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) #account-activities-list li,
+body:not(.theme-green):not(.theme-corporate) #contact-activities-list li { border-radius: 4px; }
+body:not(.theme-green):not(.theme-corporate) .auth-box { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .table-container-scrollable { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .email-view-modal { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .email-view-body { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .user-menu-popup { border-radius: 5px 5px 0 0; }
