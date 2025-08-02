@@ -29,7 +29,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const deleteSequenceBtn = document.getElementById("delete-sequence-btn");
     const sequenceStepsTableBody = document.querySelector("#sequence-steps-table-body");
     const addStepBtn = document.getElementById("add-step-btn");
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
     const sequenceNameInput = document.getElementById("sequence-name-input");
     const sequenceDescriptionTextarea = document.getElementById("sequence-description-textarea");
@@ -39,22 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cancelEditSequenceBtn = document.getElementById("cancel-edit-sequence-btn");
     const sequenceDetailsPanel = document.getElementById("sequence-details-panel");
 
-    // --- Theme Logic ---
-    let currentThemeIndex = 0;
-    function applyTheme(themeName) {
-        if (!themeNameSpan) return;
-        document.body.className = '';
-        document.body.classList.add(`theme-${themeName}`);
-        const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
-        themeNameSpan.textContent = capitalizedThemeName;
-        localStorage.setItem('crm-theme', themeName);
-    }
-    function cycleTheme() {
-        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-        const newTheme = themes[currentThemeIndex];
-        applyTheme(newTheme);
-    }
-
+  
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -596,3 +580,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
