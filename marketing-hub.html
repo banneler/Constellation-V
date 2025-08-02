@@ -8,9 +8,16 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+    // This script runs synchronously to apply the theme before the page renders
+    (function() {
+        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+        document.body.className = `theme-${savedTheme}`;
+    })();
+    </script>
 </head>
 
-<body class="theme-dark">
+<body>
     <div id="auth-container" class="auth-container">
         <div class="auth-box">
             <div data-svg-loader="assets/logo.svg"></div>
