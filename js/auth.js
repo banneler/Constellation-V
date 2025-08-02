@@ -272,3 +272,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initial UI setup when the script loads
     updateAuthUI();
+});
