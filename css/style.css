@@ -2648,7 +2648,7 @@ body.theme-corporate {
    /* Ensure the teal background is set */
    background-color: #008080; /* Teal fallback */
    /* Correct path to the Bliss image */
-   background-image: url('/assets/bliss.png');
+   background-image: url('constellation-crm.com/assets/bliss.png');
    background-size: cover;
    background-position: center;
    background-attachment: fixed; /* Keeps the image stationary on scroll */
