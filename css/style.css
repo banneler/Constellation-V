@@ -2796,7 +2796,7 @@ body.theme-corporate .crm-container {
     background: transparent !important;
 }
 
-/* This main rule styles all the various containers */
+/* Added .alert-card to this main rule for Social Hub & Cognito pages */
 body.theme-corporate .nav-sidebar,
 body.theme-corporate .details-panel,
 body.theme-corporate .modal-content,
@@ -2806,13 +2806,14 @@ body.theme-corporate .metric-card,
 body.theme-corporate table,
 body.theme-corporate th,
 body.theme-corporate .user-menu,
-body.theme-corporate .user-menu-header, /* Ensures user icon area has correct background */
+body.theme-corporate .user-menu-header,
 body.theme-corporate .item-list,
 body.theme-corporate .list-item,
 body.theme-corporate #contact-sequence-status,
 body.theme-corporate .form-checkbox-group,
 body.theme-corporate .template-list-item,
-body.theme-corporate .downloads-section {
+body.theme-corporate .downloads-section,
+body.theme-corporate .alert-card {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
     border-radius: 0 !important;
@@ -2830,7 +2831,7 @@ body.theme-corporate .nav-button.active {
     text-shadow: none !important;
 }
 
-/* Styles all other buttons */
+/* This rule styles all buttons */
 body.theme-corporate .btn-primary,
 body.theme-corporate .btn-danger,
 body.theme-corporate .btn-secondary,
@@ -2853,7 +2854,7 @@ body.theme-corporate .nav-button:active {
     border-style: inset !important;
 }
 
-/* Styles all input fields */
+/* This rule styles all input fields */
 body.theme-corporate input,
 body.theme-corporate select,
 body.theme-corporate textarea {
@@ -2865,7 +2866,13 @@ body.theme-corporate textarea {
     border-width: 2px !important;
 }
 
-/* --- NEW: SVG Color Overrides --- */
+/* --- SVG and Logo Styling --- */
+
+/* Removes the drop-shadow glow from the logo */
+body.theme-corporate .auth-logo,
+body.theme-corporate .nav-logo {
+    filter: none !important;
+}
 
 /* Changes the main logo color to teal */
 body.theme-corporate .nav-logo path[fill="#FEFEFE"],
@@ -2931,7 +2938,7 @@ body.theme-corporate .user-icon path[fill="#FAFAFA"],
 body.theme-corporate .user-icon path[fill="#F9F9F9"],
 body.theme-corporate .user-icon path[fill="#F4F4F4"] {
     fill: #c0c0c0 !important; /* Classic Grey */
-} 
+}
 /* Removes the drop-shadow glow from the logo in the corporate theme */
 body.theme-corporate .auth-logo,
 body.theme-corporate .nav-logo {
