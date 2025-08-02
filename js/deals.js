@@ -226,26 +226,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                     annotation: {
                         annotations: {
                             quotaLine: {
-    type: 'line',
-    scaleID: 'x',
-    value: effectiveMonthlyQuota,
-    borderColor: 'red',
-    borderWidth: 2,
-    borderDash: [6, 6],
-    label: {
-        content: 'Quota',
-        enabled: true,
-        position: 'end', // Changed from 'start' to 'end'
-        backgroundColor: 'transparent',
-        color: 'red',
-        font: {
-            size: 14,
-            weight: 'bold'
-        },
-        xAdjust: -10, // Adjusts the position horizontally.
-        yAdjust: -15, // Adjusts the position vertically.
+                                        type: 'line',
+                                        scaleID: 'x',
+                                        value: effectiveMonthlyQuota,
+                                        borderColor: 'red',
+                                        borderWidth: 2,
+                                        borderDash: [6, 6],
+                                        label: {
+                                            content: 'Quota',
+                                            enabled: true,
+                                            position: 'end', // Changed from 'start' to 'end'
+                                            backgroundColor: 'transparent',
+                                            color: 'red',
+                                            font: {
+                                                size: 14,
+                                                weight: 'bold'
+                                            },
+                                            xAdjust: -10, // Adjusts the position horizontally.
+                                            yAdjust: -15, // Adjusts the position vertically.
     }
-}
+
                                 }
                             }
                         }
@@ -453,4 +453,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
