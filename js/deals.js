@@ -238,9 +238,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     position: 'start',
                                     backgroundColor: 'transparent',
                                     color: 'var(--text-strong)',
-                                    xAdjust: -30,
-                                    yAdjust: 0,
-                                    rotation: -90
+                                    font: {
+                                        size: 14
+                                    },
+                                    xAdjust: 0,
+                                    yAdjust: -15,
+                                    rotation: 0
                                 }
                             }
                         }
@@ -259,7 +262,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         dealsWithAccount.sort((a, b) => {
             const valA = a[state.dealsSortBy]; const valB = b[state.dealsSortBy];
-            let comparison = (typeof valA === "string") ? (valA || "").localeCompare(valB || "") : (valA > valB ? 1 : -1);
+            let comparison = (typeof valA === "string") ? (valA || "").localeCompare(b.name || "") : (valA > valB ? 1 : -1);
             return state.dealsSortDir === "desc" ? comparison * -1 : comparison;
         });
 
