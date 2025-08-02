@@ -2630,12 +2630,16 @@ body.theme-green .marketing-indicator {
     background-color: #008080 !important; /* The classic Teal! */
 }
 .theme-corporate body {
-    background-image: url('https://constellation-crm.com/assets/bliss.png') !important;
-    background-color: #008080 !important; /* Fallback in case image fails */
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+    /* * THE FIX: Using the 'background' shorthand property.
+     * This single property resets all other background values (like any old patterns)
+     * before applying the new ones. This ensures our image is the ONLY one.
+    */
+    background: #008080 url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
+    
+    /* We still need background-size separately for the 'cover' value */
+    background-size: cover !important;
+    
+    /* Keep the font setting */
     font-family: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif !important;
 }
 
