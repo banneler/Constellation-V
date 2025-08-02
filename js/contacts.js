@@ -110,7 +110,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         // Add user-specific types in case shared fails or for custom types
-        const { data: userActivityTypes, error: userError } = await supabase.from("activity_types").select("*").eq("user_id", state.currentUser.id);
+        const { data: userActivityTypes, error: userError } = await supabase.from("activity_types").select("*"); // Removed .eq("user_id", state.currentUser.id)
         if (userError) {
             console.error("Error fetching user-specific activity types:", userError);
         } else if (userActivityTypes && userActivityTypes.length > 0) {
@@ -308,7 +308,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(sequenceStatusContent) sequenceStatusContent.classList.add('hidden');
         if(noSequenceText) {
             noSequenceText.textContent = "Select a contact to see details.";
-            noSequenceText.classList.remove('hidden');
+            noSequenceText.classList.remove("hidden");
         }
         if(removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
         if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '';
@@ -512,7 +512,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!state.selectedContactId) return alert("Please select a contact to assign a sequence to.");
             const currentContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
             if (currentContactSequence) {
-                return alert(`Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}". Remove them from current sequence first.`);
+                return alert(`Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}"". Remove them from current sequence first.`);
             }
 
             const availableSequences = state.sequences;
