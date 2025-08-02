@@ -424,10 +424,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        const savedThemeIndex = themes.indexOf(savedTheme);
-        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
-        applyTheme(themes[currentThemeIndex]);
         updateActiveNavLink();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -450,5 +446,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
 
