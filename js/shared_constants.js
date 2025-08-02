@@ -27,6 +27,8 @@ async function saveThemePreference(supabase, userId, themeName) {
     if (error) {
         console.error("Error saving theme preference:", error);
     }
+    // New: Save to localStorage as well for instant loading
+    localStorage.setItem('crm-theme', themeName);
 }
 
 export async function setupTheme(supabase, user) {
@@ -40,7 +42,7 @@ export async function setupTheme(supabase, user) {
         .eq('user_id', user.id)
         .single();
 
-    let currentTheme = 'dark'; // Default theme
+    let currentTheme = localStorage.getItem('crm-theme') || 'dark'; // Use localStorage value as default
     if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
         console.error("Error fetching theme:", error);
     } else if (data) {
@@ -50,10 +52,11 @@ export async function setupTheme(supabase, user) {
         await saveThemePreference(supabase, user.id, currentTheme);
     }
     
-    // 2. Apply the loaded theme
+    // 2. Apply the loaded theme and update local storage if needed
     currentThemeIndex = themes.indexOf(currentTheme);
     if (currentThemeIndex === -1) currentThemeIndex = 0; // Fallback if theme isn't in our list
     applyTheme(themes[currentThemeIndex]);
+    localStorage.setItem('crm-theme', themes[currentThemeIndex]);
 
     // 3. Setup the click listener to cycle and save the theme
     themeToggleBtn.addEventListener("click", () => {
@@ -410,7 +413,7 @@ export async function loadSVGs() {
         placeholder.parentNode.replaceChild(svgElement, placeholder);
       } catch (error) {
         console.error(`Could not load SVG from ${svgUrl}`, error);
-        placeholder.innerHTML = '<!-- SVG failed to load -->';
+        placeholder.innerHTML = '';
       }
     }
   }
