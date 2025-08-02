@@ -242,8 +242,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                                         size: 14,
                                         weight: 'bold'
                                     },
-                                    xAdjust: -10, // Adjusts the position horizontally.
-                                    yAdjust: -15, // Adjusts the position vertically.
+                                    xAdjust: 0, // Adjusts the position horizontally.
+                                    yAdjust: -50, // Adjusts the position vertically.
                                 }
                             }
                         }
@@ -451,3 +451,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
