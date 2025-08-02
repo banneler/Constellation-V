@@ -2620,55 +2620,50 @@ body.theme-green .marketing-indicator {
 
 /* Corporate (Windows 95/XP) Theme */
 body.theme-corporate {
-    /* Set the core variables for this theme */
-    --bg-dark: #c0c0c0;          /* Classic UI Grey */
-    --bg-medium: #c0c0c0;
-    --bg-light: #dfdfdf;
-    --text-light: #000000;
-    --text-medium: #000000;
-    --primary-blue: #000080;     /* Classic Title Bar Blue */
-    --danger-red: #800000;
-    --secondary-gray: #c0c0c0;
-    --border-color: #808080;     /* Dark Grey for 3D effect */
-    --completed-color: #008000;
-    --warning-yellow: #808000;
-    --gradient-start: transparent; /* Make gradients transparent */
-    --gradient-end: transparent;
-    --shadow-light: rgba(0, 0, 0, 0.2);
-    --shadow-medium: rgba(0, 0, 0, 0.4);
-    --shadow-strong: rgba(0, 0, 0, 0.6);
-    --font-main: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif; /* Classic font */
-    --logo-primary-color: #000080;
-    --logo-secondary-color: #ffffff;
-    --meeting-purple: #000080;
-    --warning-bg: #c0c0c0;
-    --warning-text: #000000;
-    --warning-hover-bg: #dfdfdf;
+   /* Set the core variables for this theme */
+   --bg-dark: #c0c0c0;          /* Classic UI Grey */
+   --bg-medium: #c0c0c0;
+   --bg-light: #dfdfdf;
+   --text-light: #000000;
+   --text-medium: #000000;
+   --primary-blue: #000080;     /* Classic Title Bar Blue */
+   --danger-red: #800000;
+   --secondary-gray: #c0c0c0;
+   --border-color: #808080;     /* Dark Grey for 3D effect */
+   --completed-color: #008000;
+   --warning-yellow: #808000;
+   --gradient-start: transparent; /* Make gradients transparent */
+   --gradient-end: transparent;
+   --shadow-light: rgba(0, 0, 0, 0.2);
+   --shadow-medium: rgba(0, 0, 0, 0.4);
+   --shadow-strong: rgba(0, 0, 0, 0.6);
+   --font-main: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif; /* Classic font */
+   --logo-primary-color: #000080;
+   --logo-secondary-color: #ffffff;
+   --meeting-purple: #000080;
+   --warning-bg: #c0c0c0;
+   --warning-text: #000000;
+   --warning-hover-bg: #dfdfdf;
 
-    /* * FIX 1: Set the body's background to the Bliss image.
-     * I've used a placeholder path. You MUST replace 'path/to/your/assets/bliss.png' 
-     * with the correct relative or absolute path to your image file.
-     * A fallback color is provided in case the image fails to load.
-    */
-    background-color: #008080; /* Teal fallback */
-    background-image: url('/assets/bliss.png');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed; /* Keeps the image stationary on scroll */
-    background-repeat: no-repeat;
+   /* Ensure the teal background is set */
+   background-color: #008080; /* Teal fallback */
+   /* Correct path to the Bliss image */
+   background-image: url('/assets/bliss.png');
+   background-size: cover;
+   background-position: center;
+   background-attachment: fixed; /* Keeps the image stationary on scroll */
+   background-repeat: no-repeat;
+
+   /* Apply the classic font to the body */
+   font-family: var(--font-main);
 }
 
-/* * FIX 2: Make the main container transparent.
- * This is crucial. The .crm-container had a gradient that was drawn ON TOP of
- * the body, hiding your Bliss background image. This makes it see-through.
-*/
+/* Make the main container transparent */
 .theme-corporate .crm-container {
-    background: transparent;
+   background: transparent;
 }
 
-/* * FIX 3: Square off all corners for the classic Windows look.
- * We'll also add the iconic 3D "outset" border to major UI elements.
-*/
+/* Square off all corners and add the iconic 3D "outset" border */
 .theme-corporate .chart-container,
 .theme-corporate .metric-card,
 .theme-corporate .nav-sidebar,
@@ -2679,48 +2674,32 @@ body.theme-corporate {
 .theme-corporate .downloads-section,
 .theme-corporate input,
 .theme-corporate select,
-.theme-corporate textarea {
-    border-radius: 0 !important;
-    border: 1px solid var(--border-color);
-    border-style: outset;
-    border-width: 2px;
-    border-color: #dfdfdf #808080 #808080 #dfdfdf;
-    box-shadow: none !important;
+.theme-corporate textarea,
+.theme-corporate .btn-primary,
+.theme-corporate .btn-danger,
+.theme-corporate .btn-secondary,
+.theme-corporate .btn-tertiary,
+.theme-corporate .nav-button {
+   border-radius: 0 !important;
+   border: 1px solid var(--border-color);
+   border-style: outset;
+   border-width: 2px;
+   border-color: #dfdfdf #808080 #808080 #dfdfdf;
+   box-shadow: none !important;
 }
 
 .theme-corporate input,
 .theme-corporate select,
 .theme-corporate textarea {
-    border-style: inset; /* Inputs have an inset appearance */
+   border-style: inset; /* Inputs have an inset appearance */
 }
 
-/* Style buttons for the Win95 look */
-.theme-corporate .btn-primary,
-.theme-corporate .btn-danger,
-.theme-corporate .btn-secondary,
-.theme-corporate .btn-tertiary {
-    border-radius: 0;
-    border-style: outset;
-    border-width: 2px;
-    border-color: #dfdfdf #808080 #808080 #dfdfdf;
-    background-color: var(--bg-medium);
-    color: var(--text-light);
-    box-shadow: none;
-}
-
-.theme-corporate .btn-primary:active,
-.theme-corporate .btn-danger:active,
-.theme-corporate .btn-secondary:active,
-.theme-corporate .btn-tertiary:active {
-    border-style: inset;
-    transform: translateY(1px);
-}
-
+/* Style for active nav button */
 .theme-corporate .nav-button.active {
-    background: var(--primary-blue) !important;
-    color: #ffffff !important;
-    border: 2px inset #000080 !important;
-    box-shadow: none !important;
+   background: var(--primary-blue) !important;
+   color: #ffffff !important;
+   border: 2px inset #000080 !important;
+   box-shadow: none !important;
 }
 
 
