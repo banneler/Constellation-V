@@ -2618,65 +2618,36 @@ body.theme-green .marketing-indicator {
 }
 /* --- NEW THEMES (REVISED & ENHANCED) --- */
 
-/* --- NEW THEMES (FINAL & FORCED) --- */
+/* --- Corporate Theme (Final Specificity Fix) --- */
 
-/* --- Corporate (Windows 95/XP) Theme --- */
-
-/* FIX #1: Force the Teal fallback and Bliss background on the root elements.
- * We'll put the absolute URL you confirmed works.
- * We're also targeting the <html> tag to ensure the teal shows up in the "overscroll" area.
+/* FIX #1: Make our selectors more specific by starting with 'html.theme-corporate'.
+ * This will beat the general 'body' rule every time.
 */
-.theme-corporate html {
-    background-color: #008080 !important; /* The classic Teal! */
+html.theme-corporate {
+    background: #008080 !important; /* Ensures the overscroll area is teal */
 }
-.theme-corporate body {
-    /* * THE FIX: Using the 'background' shorthand property.
-     * This single property resets all other background values (like any old patterns)
-     * before applying the new ones. This ensures our image is the ONLY one.
-    */
-    background: #008080 url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
-    
-    /* We still need background-size separately for the 'cover' value */
+
+html.theme-corporate body {
+    background: transparent url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
     background-size: cover !important;
-    
-    /* Keep the font setting */
     font-family: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif !important;
 }
 
-/* FIX #2: Make the main container completely transparent to see the body background. */
-.theme-corporate .crm-container {
+/* FIX #2: Apply the same higher specificity to the rest of the rules. */
+html.theme-corporate .crm-container {
     background: transparent !important;
 }
 
-/* FIX #3: Directly apply the classic grey background and 3D borders to all components.
- * This is the most important fix. We are no longer using variables here, we are
- * setting the color directly and using !important to win the specificity battle.
-*/
-.theme-corporate .nav-sidebar,
-.theme-corporate .details-panel,
-.theme-corporate .modal-content,
-.theme-corporate .auth-box,
-.theme-corporate .chart-container,
-.theme-corporate .metric-card,
-.theme-corporate .downloads-section,
-.theme-corporate table,
-.theme-corporate th,
-.theme-corporate .user-menu {
-    background-color: #c0c0c0 !important; /* THE classic system grey! */
-    color: #000000 !important;
-    border-radius: 0 !important;
-    border-style: outset !important;
-    border-width: 2px !important;
-    border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
-    box-shadow: none !important;
-}
-
-/* Specific styles for buttons */
-.theme-corporate .btn-primary,
-.theme-corporate .btn-danger,
-.theme-corporate .btn-secondary,
-.theme-corporate .btn-tertiary,
-.theme-corporate .nav-button {
+html.theme-corporate .nav-sidebar,
+html.theme-corporate .details-panel,
+html.theme-corporate .modal-content,
+html.theme-corporate .auth-box,
+html.theme-corporate .chart-container,
+html.theme-corporate .metric-card,
+html.theme-corporate .downloads-section,
+html.theme-corporate table,
+html.theme-corporate th,
+html.theme-corporate .user-menu {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
     border-radius: 0 !important;
@@ -2685,18 +2656,32 @@ body.theme-green .marketing-indicator {
     border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
     box-shadow: none !important;
 }
-.theme-corporate .btn-primary:active,
-.theme-corporate .btn-danger:active,
-.theme-corporate .btn-secondary:active,
-.theme-corporate .btn-tertiary:active,
-.theme-corporate .nav-button:active {
+
+html.theme-corporate .btn-primary,
+html.theme-corporate .btn-danger,
+html.theme-corporate .btn-secondary,
+html.theme-corporate .btn-tertiary,
+html.theme-corporate .nav-button {
+    background-color: #c0c0c0 !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: outset !important;
+    border-width: 2px !important;
+    border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
+    box-shadow: none !important;
+}
+
+html.theme-corporate .btn-primary:active,
+html.theme-corporate .btn-danger:active,
+html.theme-corporate .btn-secondary:active,
+html.theme-corporate .btn-tertiary:active,
+html.theme-corporate .nav-button:active {
     border-style: inset !important;
 }
 
-/* Inputs should look "pressed in" */
-.theme-corporate input,
-.theme-corporate select,
-.theme-corporate textarea {
+html.theme-corporate input,
+html.theme-corporate select,
+html.theme-corporate textarea {
     background-color: #ffffff !important;
     color: #000000 !important;
     border-radius: 0 !important;
