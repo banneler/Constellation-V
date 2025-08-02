@@ -2932,6 +2932,11 @@ body.theme-corporate .user-icon path[fill="#F9F9F9"],
 body.theme-corporate .user-icon path[fill="#F4F4F4"] {
     fill: #c0c0c0 !important; /* Classic Grey */
 } 
+/* Removes the drop-shadow glow from the logo in the corporate theme */
+body.theme-corporate .auth-logo,
+body.theme-corporate .nav-logo {
+    filter: none !important;
+}
 /* --- FINAL GLOBAL ADJUSTMENT --- */
 
 /* * FIX 6: Update existing rules to exclude BOTH green and corporate themes from having rounded corners.
