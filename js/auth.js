@@ -15,12 +15,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- DOM SELECTORS ---
     const authForm = document.getElementById("auth-form");
+    const resetForm = document.getElementById("reset-form");
     const authError = document.getElementById("auth-error");
     const authEmailInput = document.getElementById("auth-email");
     const authPasswordInput = document.getElementById("auth-password");
     const authSubmitBtn = document.getElementById("auth-submit-btn");
     const authToggleLink = document.getElementById("auth-toggle-link");
     const forgotPasswordLink = document.getElementById("forgot-password-link");
+    const returnToLoginLink = document.getElementById("return-to-login-link");
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
 
@@ -60,12 +62,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateAuthUI();
     });
 
+    returnToLoginLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        authForm.classList.remove("hidden");
+        authToggleLink.classList.remove("hidden");
+        forgotPasswordLink.classList.remove("hidden");
+        resetForm.classList.add("hidden");
+        returnToLoginLink.classList.add("hidden");
+        clearErrorMessage();
+    });
+
+    forgotPasswordLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        authForm.classList.add("hidden");
+        authToggleLink.classList.add("hidden");
+        forgotPasswordLink.classList.add("hidden");
+        resetForm.classList.remove("hidden");
+        returnToLoginLink.classList.remove("hidden");
+        clearErrorMessage();
+    });
+
     authForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         authSubmitBtn.disabled = true;
         authSubmitBtn.textContent = isLoginMode ? "Logging in..." : "Signing up...";
         clearErrorMessage();
-
         const email = authEmailInput.value.trim();
         const password = authPasswordInput.value.trim();
 
@@ -101,32 +122,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    // ** THIS IS THE RESTORED FUNCTIONALITY **
-    forgotPasswordLink.addEventListener('click', (e) => {
+    resetForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const resetPasswordBody = `
-            <p>Enter your email address and we'll send you a link to reset your password.</p>
-            <input type="email" id="reset-email" placeholder="Email" required style="width: 100%; box-sizing: border-box;">
-        `;
-        showModal('Reset Password', resetPasswordBody, async () => {
-            const email = document.getElementById('reset-email').value;
-            if (!email) {
-                alert("Please enter an email address.");
-                return false; // Keep modal open
-            }
-            
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: 'https://banneler.github.io/Constellation-V-main/reset-password.html',
-            });
+        const resetSubmitBtn = document.getElementById("reset-submit-btn");
+        resetSubmitBtn.disabled = true;
+        resetSubmitBtn.textContent = "Sending...";
+        clearErrorMessage();
 
-            if (error) {
-                alert("Error sending reset email: " + error.message);
-                return false; // Keep modal open
-            }
-
-            alert("Password reset email sent! Please check your inbox.");
-            return true; // Close modal
+        const email = document.getElementById("reset-email").value;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://www.constellation-crm.com/reset-password.html',
         });
+
+        if (error) {
+            showTemporaryMessage(error.message, false);
+        } else {
+            showTemporaryMessage("Password reset email sent! Please check your inbox.", true);
+        }
+        resetSubmitBtn.disabled = false;
+        resetSubmitBtn.textContent = "Send Reset Link";
     });
 
     // --- AUTH STATE CHANGE HANDLER ---
