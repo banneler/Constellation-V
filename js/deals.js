@@ -36,7 +36,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dealsByTimeCanvas = document.getElementById('deals-by-time-chart');
     const timeChartEmptyMessage = document.getElementById('time-chart-empty-message');
     const dealsTableBody = document.querySelector("#deals-table tbody");
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
     const metricCurrentCommit = document.getElementById("metric-current-commit");
     const metricBestCase = document.getElementById("metric-best-case");
@@ -451,4 +450,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
