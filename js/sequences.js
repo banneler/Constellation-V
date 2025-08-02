@@ -215,7 +215,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         setupModalListeners();
         updateActiveNavLink();
         if (logoutBtn) logoutBtn.addEventListener("click", async () => { await supabase.auth.signOut(); window.location.href = "index.html"; });
-        if (themeToggleBtn) themeToggleBtn.addEventListener("click", cycleTheme);
         if (addSequenceBtn) addSequenceBtn.addEventListener("click", handleNewSequenceClick);
         if (importMarketingSequenceBtn) importMarketingSequenceBtn.addEventListener('click', showMarketingSequencesForImport);
         if (importSequenceBtn) importSequenceBtn.addEventListener("click", () => {
@@ -576,5 +575,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
 
