@@ -2651,7 +2651,7 @@ body.theme-corporate {
      * A fallback color is provided in case the image fails to load.
     */
     background-color: #008080; /* Teal fallback */
-    background-image: url('path/to/your/assets/bliss.png');
+    background-image: url('/assets/bliss.png');
     background-size: cover;
     background-position: center;
     background-attachment: fixed; /* Keeps the image stationary on scroll */
