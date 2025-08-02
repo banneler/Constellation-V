@@ -2938,3 +2938,32 @@ body:not(.theme-green):not(.theme-corporate) .table-container-scrollable { borde
 body:not(.theme-green):not(.theme-corporate) .email-view-modal { border-radius: 10px; }
 body:not(.theme-green):not(.theme-corporate) .email-view-body { border-radius: 5px; }
 body:not(.theme-green):not(.theme-corporate) .user-menu-popup { border-radius: 5px 5px 0 0; }
+
+/* --- NEW: Fix for Contact Activities List --- */
+
+/* Styles the list items for contact activities */
+body.theme-corporate #contact-activities-list li {
+    background-color: #dfdfdf !important; /* A slightly lighter grey for differentiation */
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: inset !important; /* Use an inset border to look like a sunken panel */
+    border-width: 2px !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: none !important;
+    border-left: 2px inset #808080 !important; /* Ensure the left border matches */
+}
+
+/* --- NEW: Fix for ALL Activity Lists --- */
+
+/* Styles the list items for both contact and account activities */
+body.theme-corporate #contact-activities-list li,
+body.theme-corporate #account-activities-list li {
+    background-color: #dfdfdf !important; /* A slightly lighter grey for differentiation */
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: inset !important; /* Use an inset border to look like a sunken panel */
+    border-width: 2px !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: none !important;
+    border-left: 2px inset #808080 !important; /* Ensure the left border matches */
+}
