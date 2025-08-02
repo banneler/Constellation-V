@@ -40,7 +40,7 @@ body.theme-dark {
     --bg-light: #4a4a4a;
     --text-light: #ffffff;
     --text-medium: #b0b0b0;
-    --primary-blue: #4a90e2;
+    --primary-: #4a90e2;
     --danger-red: #e74c3c;
     --secondary-gray: #6d6d6d;
     --border-color: #5a5a5a;
@@ -52,7 +52,7 @@ body.theme-dark {
     --shadow-medium: rgba(0, 0, 0, 0.5);
     --shadow-strong: rgba(0, 0, 0, 0.7);
     --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --logo-primary-color: var(--primary-blue);
+    --logo-primary-color: var(--primary-);
     --logo-secondary-color: var(--text-light);
     --meeting-purple: #8A2BE2;
     --warning-bg: #4d441a;
@@ -69,7 +69,7 @@ body.theme-light {
     --bg-light: #e9ecef;
     --text-light: #212529;
     --text-medium: #6c757d;
-    --primary-blue: #007bff;
+    --primary-: #007bff;
     --danger-red: #dc3545;
     --secondary-gray: #6c757d;
     --border-color: #dee2e6;
@@ -81,7 +81,7 @@ body.theme-light {
     --shadow-medium: rgba(0, 0, 0, 0.1);
     --shadow-strong: rgba(0, 0, 0, 0.15);
     --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --logo-primary-color: var(--primary-blue);
+    --logo-primary-color: var(--primary-);
     --logo-secondary-color: var(--text-light);
     --meeting-purple: #6A0DAD;
     --warning-bg: #fff8e1;
@@ -98,7 +98,7 @@ body.theme-green {
     --bg-light: #0a200a;
     --text-light: #00ff41;
     --text-medium: #00b32d;
-    --primary-blue: #00ff41;
+    --primary-: #00ff41;
     --danger-red: #00ff41;
     --secondary-gray: #008b25;
     --border-color: #005217;
@@ -167,7 +167,7 @@ body.theme-green::before {
     width: 250px;
     height: auto;
     margin-bottom: 0.75rem;
-    filter: drop-shadow(0 0 7px var(--primary-blue));
+    filter: drop-shadow(0 0 7px var(--primary-));
     transition: filter 0.3s;
 }
 
@@ -493,7 +493,7 @@ body:not(.theme-green) .item-list {
     display: inline-block;
     width: 0.6rem;
     height: 0.6rem;
-    background-color: var(--primary-blue);
+    background-color: var(--primary-);
     border-radius: 2px;
     margin-left: 0.5rem;
     vertical-align: middle;
@@ -510,13 +510,13 @@ body.theme-green .contact-list-indicator {
 }
 
 .list-item.selected {
-    background-color: var(--primary-blue);
+    background-color: var(--primary-);
     color: var(--text-light);
     font-weight: bold;
 }
 
 body:not(.theme-green) .list-item.selected {
-    box-shadow: inset 3px 0 0 0 var(--primary-blue);
+    box-shadow: inset 3px 0 0 0 var(--primary-);
 }
 
 .list-item:last-child {
@@ -662,8 +662,8 @@ input:focus,
 select:focus,
 textarea:focus {
     outline: none;
-    border-color: var(--primary-blue);
-    box-shadow: inset 1px 1px 3px var(--shadow-light), 0 0 5px var(--primary-blue);
+    border-color: var(--primary-);
+    box-shadow: inset 1px 1px 3px var(--shadow-light), 0 0 5px var(--primary-);
 }
 
 label {
@@ -729,7 +729,7 @@ body:not(.theme-green) .btn-tertiary { /* Added btn-tertiary here */
 }
 
 .btn-primary {
-    background-color: var(--primary-blue);
+    background-color: var(--primary-);
     box-shadow: 0 2px 5px var(--shadow-medium);
 }
 
@@ -759,7 +759,7 @@ body:not(.theme-green) .btn-tertiary { /* Added btn-tertiary here */
     color: var(--text-light); /* Brighter text on hover */
     transform: translateY(-1px); /* Slight lift */
     box-shadow: 0 2px 5px var(--shadow-light); /* Subtle shadow on hover */
-    border-color: var(--primary-blue); /* Highlight border */
+    border-color: var(--primary-); /* Highlight border */
 }
 
 .btn-tertiary:active {
@@ -997,7 +997,7 @@ table a {
 }
 
 table a:hover {
-    color: var(--primary-blue);
+    color: var(--primary-);
     text-decoration: underline;
 }
 
@@ -1017,8 +1017,8 @@ table input[type="checkbox"] {
 }
 
 table input[type="checkbox"]:checked {
-    background-color: var(--primary-blue);
-    border-color: var(--primary-blue);
+    background-color: var(--primary-);
+    border-color: var(--primary-);
 }
 
 table input[type="checkbox"]:checked::after {
@@ -1032,7 +1032,7 @@ table input[type="checkbox"]:checked::after {
 }
 
 table input[type="checkbox"]:focus {
-    box-shadow: 0 0 0 2px var(--primary-blue);
+    box-shadow: 0 0 0 2px var(--primary-);
 }
 
 
@@ -1105,7 +1105,7 @@ ul {
     padding: 0.5rem 0.75rem;
     margin-bottom: 0.3125rem;
     font-size: 0.875rem;
-    border-left: 3px solid var(--primary-blue);
+    border-left: 3px solid var(--primary-);
     box-shadow: 0 1px 3px var(--shadow-light);
     transition: background-color 0.3s, border-color 0.3s;
 }
@@ -1117,7 +1117,7 @@ body:not(.theme-green) #contact-activities-list li {
 
 /* Specific link styles for contacts list only */
 #account-contacts-list li a {
-    color: var(--primary-blue);
+    color: var(--primary-);
     text-decoration: underline;
     font-weight: 500;
     transition: color 0.2s, text-decoration 0.2s;
@@ -1135,7 +1135,7 @@ body.theme-green #account-contacts-list li a {
 }
 
 body.theme-green #account-contacts-list li a:hover {
-    color: var(--primary-blue);
+    color: var(--primary-);
     text-decoration: underline;
     text-shadow: none;
 }
@@ -1232,7 +1232,7 @@ body.theme-dark .auth-box {
     margin-top: 0.1rem;
     margin-bottom: 0.1rem;
     font-size: 0.8rem;
-    color: var(--primary-blue);
+    color: var(--primary-);
     text-decoration: none;
 }
 
@@ -1279,7 +1279,7 @@ body.theme-dark .auth-box {
 
 .spinner {
     border: 0.5rem solid var(--bg-light);
-    border-top: 0.5rem solid var(--primary-blue);
+    border-top: 0.5rem solid var(--primary-);
     border-radius: 50%;
     width: 3.75rem;
     height: 3.75rem;
@@ -1307,7 +1307,7 @@ body.theme-dark .auth-box {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--primary-blue);
+    background-color: var(--primary-);
 }
 
 ::-webkit-scrollbar-track {
@@ -1538,7 +1538,7 @@ body:not(.theme-green) .email-view-body {
 .user-icon path[fill="#5A5A5A"],
 .user-icon path[fill="#525252"],
 .user-icon path[fill="#010101"] {
-    fill: var(--primary-blue);
+    fill: var(--primary-);
     transition: fill 0.3s, filter 0.3s;
 }
 
@@ -1850,7 +1850,7 @@ body:not(.theme-green) .user-menu-popup {
 
 /* Campaign Details Panel Enhancements */
 #campaign-details h3 {
-    border-bottom: 2px solid var(--primary-blue);
+    border-bottom: 2px solid var(--primary-);
     padding-bottom: 0.625rem;
 }
 
@@ -1886,7 +1886,7 @@ body:not(.theme-green) .user-menu-popup {
 /* Adds a highlight to the top of the active workflow card */
 #active-call-view,
 #active-email-view {
-    border-top: 3px solid var(--primary-blue);
+    border-top: 3px solid var(--primary-);
 }
 
 /* Better spacing for the action buttons at the bottom */
@@ -1998,7 +1998,7 @@ body:not(.theme-green) .user-menu-popup {
 }
 
 #contact-phone-call-blitz:hover {
-    color: var(--primary-blue); /* Changes to primary blue on hover */
+    color: var(--primary-); /* Changes to primary  on hover */
     text-decoration: none;
 }
 
@@ -2180,10 +2180,10 @@ body.theme-green .marketing-indicator {
 }
 
 .cognito-logo-magnifying-glass #glassGradient stop:nth-child(1) {
-    stop-color: var(--primary-blue);
+    stop-color: var(--primary-);
 }
 .cognito-logo-magnifying-glass #glassGradient stop:nth-child(2) {
-    stop-color: var(--primary-blue);
+    stop-color: var(--primary-);
     stop-opacity: 0.7;
 }
 
@@ -2197,7 +2197,7 @@ body.theme-green .marketing-indicator {
 
 .cognito-nav-link.active h1 {
     color: var(--text-light);
-    text-shadow: 0 0 8px var(--primary-blue);
+    text-shadow: 0 0 8px var(--primary-);
 }
 
 .cognito-nav-link.active .cognito-logo-magnifying-glass {
@@ -2221,7 +2221,7 @@ body.theme-green .marketing-indicator {
 
 .alert-card {
     background-color: var(--bg-medium);
-    border-left: 5px solid var(--primary-blue);
+    border-left: 5px solid var(--primary-);
     padding: 1rem;
     border-radius: 8px;
     box-shadow: 0 4px 15px var(--shadow-medium);
@@ -2240,7 +2240,7 @@ body.theme-green .marketing-indicator {
 
 .alert-trigger-type {
     background-color: var(--bg-dark);
-    color: var(--primary-blue);
+    color: var(--primary-);
     padding: 0.25rem 0.5rem;
     border-radius: 10px;
 }
@@ -2283,7 +2283,7 @@ body.theme-green .marketing-indicator {
 }
 
 .alert-footer a {
-    color: var(--primary-blue);
+    color: var(--primary-);
     text-decoration: none;
 }
 .alert-footer a:hover {
@@ -2376,10 +2376,10 @@ body.theme-green .marketing-indicator {
 
 /* Style the gradient of the SVG to match our theme */
 .cognito-logo-magnifying-glass #glassGradient stop:nth-child(1) {
-    stop-color: var(--primary-blue);
+    stop-color: var(--primary-);
 }
 .cognito-logo-magnifying-glass #glassGradient stop:nth-child(2) {
-    stop-color: var(--primary-blue);
+    stop-color: var(--primary-);
     stop-opacity: 0.7;
 }
 
@@ -2395,7 +2395,7 @@ body.theme-green .marketing-indicator {
 /* Active state for when the user is on the Cognito page */
 .cognito-nav-link.active h1 {
     color: var(--text-light);
-    text-shadow: 0 0 8px var(--primary-blue);
+    text-shadow: 0 0 8px var(--primary-);
 }
 
 .cognito-nav-link.active .cognito-logo-magnifying-glass {
@@ -2460,7 +2460,7 @@ body.theme-green .marketing-indicator {
     margin-left: 0.25rem;
     font-size: 0.9em;
     cursor: help; /* Shows a question mark on hover, indicating the title tooltip */
-    filter: drop-shadow(0 0 3px var(--primary-blue));
+    filter: drop-shadow(0 0 3px var(--primary-));
 }
 /* --- ADMIN ANALYTICS FACELIFT V3 --- */
 .chart-table-view {
@@ -2564,7 +2564,7 @@ body.theme-green .marketing-indicator {
 
 .metric-value-large {
     font-weight: bold;
-    color: var(--primary-blue);
+    color: var(--primary-);
     text-align: center;
 }
 /* --- ADMIN SETTINGS PAGE --- */
@@ -2734,7 +2734,7 @@ body.theme-green {
 }
 
 /* --- NEON / Blue Theme --- */
-body.theme-blue {
+body.theme-Neon {
     --bg-dark: #000000;
     --bg-medium: #0d0d0d;
     --bg-light: #1a1a1a;
@@ -2760,26 +2760,26 @@ body.theme-blue {
     --warning-hover-bg: rgba(253, 151, 31, 0.2);
 }
 
-.theme-blue h1, .theme-blue h2, .theme-blue h3, .theme-blue h4,
-.theme-blue .metric-value, .theme-blue .nav-button.active,
-.theme-blue th {
+.theme-Neon h1, .theme-Neon h2, .theme-Neon h3, .theme-Neon h4,
+.theme-Neon .metric-value, .theme-Neon .nav-button.active,
+.theme-Neon th {
     text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
 }
 
-.theme-blue .btn-primary,
-.theme-blue .details-panel,
-.theme-blue .chart-container,
-.theme-blue .metric-card,
-.theme-blue .modal-content,
-.theme-blue .auth-box,
-.theme-blue .nav-button.active {
+.theme-Neon .btn-primary,
+.theme-Neon .details-panel,
+.theme-Neon .chart-container,
+.theme-Neon .metric-card,
+.theme-Neon .modal-content,
+.theme-Neon .auth-box,
+.theme-Neon .nav-button.active {
     box-shadow: 0 0 5px var(--primary-blue), 0 0 10px var(--primary-blue), inset 0 0 3px var(--primary-blue);
     border: 1px solid var(--primary-blue);
 }
 
-.theme-blue input:focus,
-.theme-blue select:focus,
-.theme-blue textarea:focus {
+.theme-Neon input:focus,
+.theme-Neon select:focus,
+.theme-Neon textarea:focus {
     border-color: var(--primary-blue);
     box-shadow: inset 1px 1px 3px var(--shadow-light), 0 0 8px var(--primary-blue);
 }
