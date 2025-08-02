@@ -261,10 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
     supabase.auth.onAuthStateChange(async (event, session) => {
         await loadSVGs();
         console.log("Auth event fired on auth page:", event);
-        const currentUrl = window.location.href;
-        const isPasswordResetFlow = currentUrl.includes('#access_token') && currentUrl.includes('type=recovery');
-
-        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session && !isPasswordResetFlow) {
+        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
             console.log("User is signed in or has an initial session. Redirecting.");
             window.location.href = "command-center.html";
         }
