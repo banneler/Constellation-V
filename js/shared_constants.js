@@ -3,7 +3,7 @@
 // --- SHARED CONSTANTS AND FUNCTIONS ---
 
 export const SUPABASE_URL = "https://pjxcciepfypzrfmlfchj.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqeGNjaWVwZnlwenJmbWxmY2hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxMTU4NDQsImV4cCI6MjA2NzY5MTg0NH0.m_jyE0e4QFevI-mGJHYlGmA12lXf8XoMDoiljUav79c";
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzIΙNiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqeGNjaWVwZnlwenJmbWxmY2hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxMTU4NDQsImV4cCI6MjA2NzY5MTg0NH0.m_jyE0e4QFevI-mGJHYlGmA12lXf8XoMDoiljUav79c";
 
 export const themes = ["dark", "light", "green", "blue", "corporate"];
 
@@ -12,7 +12,7 @@ let currentThemeIndex = 0;
 
 function applyTheme(themeName) {
     const themeNameSpan = document.getElementById("theme-name");
-    document.body.className = ''; // Clear existing theme classes
+    document.body.className = '';
     document.body.classList.add(`theme-${themeName}`);
     if (themeNameSpan) {
         const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
@@ -40,22 +40,20 @@ export async function setupTheme(supabase, user) {
         .eq('user_id', user.id)
         .single();
 
-    let currentTheme = 'dark'; // Default theme
-    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
+    let currentTheme = 'dark';
+    if (error && error.code !== 'PGRST116') {
         console.error("Error fetching theme:", error);
     } else if (data) {
         currentTheme = data.theme;
     } else {
-        // If no preference exists in the DB, save the default one for the user
         await saveThemePreference(supabase, user.id, currentTheme);
     }
     
     currentThemeIndex = themes.indexOf(currentTheme);
-    if (currentThemeIndex === -1) currentThemeIndex = 0; // Fallback if theme isn't in our list
+    if (currentThemeIndex === -1) currentThemeIndex = 0;
     applyTheme(themes[currentThemeIndex]);
     localStorage.setItem('crm-theme', themes[currentThemeIndex]);
 
-    // Ensure listener is only attached once
     if (themeToggleBtn.dataset.listenerAttached !== 'true') {
         themeToggleBtn.addEventListener("click", () => {
             currentThemeIndex = (currentThemeIndex + 1) % themes.length;
@@ -85,7 +83,6 @@ export function formatMonthYear(dateString) {
 export function formatSimpleDate(dateString) {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
-    // Adjust for timezone offset to display the correct local date
     const userTimezoneOffset = date.getTimezoneOffset() * 60000;
     const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
     return adjustedDate.toLocaleDateString("en-US");
@@ -235,9 +232,7 @@ export async function setupUserMenuAndAuth(supabase, state) {
         .select('full_name, monthly_quota')
         .eq('user_id', state.currentUser.id)
         .single();
-    
- console.log("DEBUG: User data from user_quotas table:", { userData, userError });
-    
+
     if (userError && userError.code !== 'PGRST116') {
         console.error('Error fetching user data:', userError);
         userNameDisplay.textContent = "Error";
@@ -274,11 +269,19 @@ export async function setupUserMenuAndAuth(supabase, state) {
                 }, { onConflict: 'user_id' });
 
             if (upsertError) {
-                console.error("Error saving user details:", upsertError);
-                alert("Could not save your details. Please try again: " + upsertError.message);
+                console.error("Error saving user details to user_quotas:", upsertError);
+                alert("Could not save your profile details. Please try again: " + upsertError.message);
                 return false;
             }
-            
+
+            const { error: updateUserError } = await supabase.auth.updateUser({
+                data: { full_name: fullName }
+            });
+
+            if (updateUserError) {
+                console.warn("Could not save full_name to user metadata:", updateUserError);
+            }
+
             userNameDisplay.textContent = fullName;
             await setupTheme(supabase, state.currentUser);
             attachUserMenuListeners();
@@ -350,4 +353,3 @@ export async function loadSVGs() {
     }
   }
 }
-
