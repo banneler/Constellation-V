@@ -235,9 +235,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 label: {
                                     content: 'Quota',
                                     enabled: true,
-                                    position: 'start',
-                                    backgroundColor: 'transparent', // Changed this from black
-                                    color: 'var(--text-strong)' // Changed to a brighter color
+                                    position: 'end',
+                                    backgroundColor: 'transparent',
+                                    color: 'var(--text-strong)',
+                                    rotation: -90 // Rotates the text vertically
                                 }
                             }
                         }
@@ -445,7 +446,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
-
-
-
