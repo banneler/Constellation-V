@@ -7,13 +7,6 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
-    <script>
-    // This script runs synchronously to apply the theme before the page renders
-    (function() {
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
-    })();
-    </script>
 </head>
 <body>
     <div class="crm-container">
@@ -162,7 +155,13 @@
             <div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
-
+    <script>
+    // This script runs synchronously to apply the theme before the page renders
+    (function() {
+        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+        document.body.className = `theme-${savedTheme}`;
+    })();
+    </script>
     <script type="module" src="js/cognito.js"></script>
 </body>
 </html>
