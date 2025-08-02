@@ -198,7 +198,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
-        if (themeToggleBtn) themeToggleBtn.addEventListener("click", cycleTheme);
         if (logoutBtn) logoutBtn.addEventListener("click", async () => {
             await supabase.auth.signOut();
             window.location.href = "index.html";
@@ -329,3 +328,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
