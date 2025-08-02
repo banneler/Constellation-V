@@ -50,7 +50,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('verified') === 'true') {
         showTemporaryMessage("Email successfully verified! Please log in.", true);
-        // Clean the URL
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -89,29 +88,44 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else if (data.user && data.user.identities && data.user.identities.length === 0) {
                  showTemporaryMessage("This email is already in use. Please try logging in.", false);
             } else {
-                // ** THIS IS THE CHANGED PART **
                 showTemporaryMessage("Account created! Please check your email for a verification link.", true);
                 setTimeout(() => {
                     isLoginMode = true;
                     updateAuthUI();
-                }, 3000); // Give user time to read the message before flipping to login
+                }, 3000);
             }
         }
-        if (isLoginMode) { // Only re-enable if we didn't start the timeout
+        if (isLoginMode) {
              authSubmitBtn.disabled = false;
              authSubmitBtn.textContent = "Login";
         }
     });
 
+    // ** THIS IS THE RESTORED FUNCTIONALITY **
     forgotPasswordLink.addEventListener('click', (e) => {
         e.preventDefault();
         const resetPasswordBody = `
-            <p>Enter your email to receive a password reset link.</p>
-            <input type="email" id="reset-email" placeholder="Email" required>
+            <p>Enter your email address and we'll send you a link to reset your password.</p>
+            <input type="email" id="reset-email" placeholder="Email" required style="width: 100%; box-sizing: border-box;">
         `;
         showModal('Reset Password', resetPasswordBody, async () => {
             const email = document.getElementById('reset-email').value;
-            // ... your existing password reset logic
+            if (!email) {
+                alert("Please enter an email address.");
+                return false; // Keep modal open
+            }
+            
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: 'https://banneler.github.io/Constellation-V-main/reset-password.html',
+            });
+
+            if (error) {
+                alert("Error sending reset email: " + error.message);
+                return false; // Keep modal open
+            }
+
+            alert("Password reset email sent! Please check your inbox.");
+            return true; // Close modal
         });
     });
 
