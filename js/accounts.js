@@ -62,23 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // --- Theme Logic ---
-    let currentThemeIndex = 0;
-    function applyTheme(themeName) {
-        if (!themeNameSpan) return;
-        document.body.className = '';
-        document.body.classList.add(`theme-${themeName}`);
-        const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
-        themeNameSpan.textContent = capitalizedThemeName;
-        localStorage.setItem('crm-theme', themeName);
-    }
-    function cycleTheme() {
-        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-        const newTheme = themes[currentThemeIndex];
-        applyTheme(newTheme);
-    }
-
-    // --- Data Fetching ---
+     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
