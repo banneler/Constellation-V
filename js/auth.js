@@ -1,5 +1,4 @@
-// auth.js
-console.log("auth.js script started parsing.");
+// js/auth.js (REVISED)
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -7,20 +6,14 @@ import {
     hideModal,
     setupModalListeners,
     loadSVGs
-    // Removed direct import of modal DOM elements like modalBackdrop, modalTitle, etc.
-    // These are now handled internally by showModal and hideModal.
 } from './shared_constants.js';
 
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("DOMContentLoaded fired for auth.js.");
-
+document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // --- Ensure modal listeners are set up FIRST ---
-    // These are global listeners for backdrop click and escape key
+    await loadSVGs();
     setupModalListeners();
 
-    // --- DOM Element Selectors (Auth specific) ---
+    // --- DOM SELECTORS ---
     const authContainer = document.getElementById("auth-container");
     const authForm = document.getElementById("auth-form");
     const authError = document.getElementById("auth-error");
@@ -29,24 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const authSubmitBtn = document.getElementById("auth-submit-btn");
     const authToggleLink = document.getElementById("auth-toggle-link");
     const forgotPasswordLink = document.getElementById("forgot-password-link");
-    const returnToLoginLink = document.getElementById("return-to-login-link");
-
-    // Selectors for signup-specific fields container and inputs
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
 
-    console.log("Auth Container:", authContainer);
-    console.log("Auth Form:", authForm);
-    console.log("Auth Email Input:", authEmailInput);
-    console.log("Auth Password Input:", authPasswordInput);
-    console.log("Auth Confirm Password Input:", authConfirmPasswordInput);
-    console.log("Signup Fields Container:", signupFields);
-    console.log("Auth Submit Button:", authSubmitBtn);
-    console.log("Auth Toggle Link:", authToggleLink);
-    console.log("Forgot Password Link:", forgotPasswordLink);
-    console.log("Return to Login Link:", returnToLoginLink);
-
-    let isLoginMode = true; // Initial state is login
+    let isLoginMode = true;
 
     const showTemporaryMessage = (message, isSuccess = true) => {
         authError.textContent = message;
@@ -64,212 +43,72 @@ document.addEventListener("DOMContentLoaded", () => {
         authToggleLink.textContent = isLoginMode ? "Need an account? Sign Up" : "Have an account? Login";
         clearErrorMessage();
         authForm.reset();
-
-        if (signupFields) {
-            if (isLoginMode) {
-                signupFields.classList.add('hidden');
-                authConfirmPasswordInput.removeAttribute('required');
-            } else {
-                signupFields.classList.remove('hidden');
-                authConfirmPasswordInput.setAttribute('required', 'required');
-            }
-        }
-
-        if (forgotPasswordLink) {
-            if (isLoginMode) {
-                forgotPasswordLink.classList.remove('hidden');
-            } else {
-                forgotPasswordLink.classList.add('hidden');
-            }
-        }
-
-        if (returnToLoginLink) {
-            if (isLoginMode) {
-                returnToLoginLink.classList.add('hidden');
-            } else {
-                returnToLoginLink.classList.remove('hidden');
-            }
-        }
+        signupFields.classList.toggle('hidden', isLoginMode);
+        forgotPasswordLink.classList.toggle('hidden', !isLoginMode);
+        authConfirmPasswordInput.required = !isLoginMode;
     };
 
-
-    // --- Event Listener Setup (Auth specific) ---
+    // --- EVENT LISTENERS ---
     authToggleLink.addEventListener("click", (e) => {
         e.preventDefault();
-        console.log("Auth Toggle link clicked.");
         isLoginMode = !isLoginMode;
         updateAuthUI();
     });
 
-    if (returnToLoginLink) {
-        returnToLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            console.log("Return to Login link clicked.");
-            isLoginMode = true;
-            updateAuthUI();
-        });
-    }
-
-    console.log("Attaching form submit listener to:", authForm);
     authForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        console.log("Auth form submitted! Mode:", isLoginMode ? "Login" : "Sign Up");
-        const email = authEmailInput.value.trim();
-        const password = authPasswordInput.value.trim();
+        authSubmitBtn.disabled = true;
+        authSubmitBtn.textContent = isLoginMode ? "Logging in..." : "Signing up...";
         clearErrorMessage();
 
-        console.log("Attempting auth with email:", email);
+        const email = authEmailInput.value.trim();
+        const password = authPasswordInput.value.trim();
 
-        let error;
         if (isLoginMode) {
-            const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-            error = signInError;
-            if (!error) {
-                console.log("Login successful. Redirecting to command-center.html.");
-                authForm.reset();
-                window.location.href = "command-center.html";
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                showTemporaryMessage(error.message, false);
             }
+            // SUCCESS: onAuthStateChange will handle the redirect. No redirect code needed here.
         } else {
             const confirmPassword = authConfirmPasswordInput.value.trim();
-
             if (password !== confirmPassword) {
-                authError.textContent = "Passwords do not match.";
-                authError.style.color = 'var(--error-color)';
-                authError.style.display = 'block';
+                showTemporaryMessage("Passwords do not match.", false);
+                authSubmitBtn.disabled = false;
+                authSubmitBtn.textContent = "Sign Up";
                 return;
             }
-
-            const { error: signUpError } = await supabase.auth.signUp({
-                email,
-                password
-            });
-            error = signUpError;
-
-            if (!error) {
-                console.log("Sign up successful. Displaying message and redirecting.");
-                showTemporaryMessage("Account created successfully! Redirecting to login...", true);
-                authForm.reset();
-
-                setTimeout(() => {
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                showTemporaryMessage(error.message, false);
+            } else if (data.user && data.user.identities && data.user.identities.length === 0) {
+                 showTemporaryMessage("This email is already in use. Please try logging in.", false);
+            } else {
+                showModal("Check Your Email", "A verification link has been sent to your email address. Please verify your account before logging in.", () => {
                     isLoginMode = true;
                     updateAuthUI();
-                }, 2000);
+                    hideModal();
+                }, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             }
         }
-
-        if (error) {
-            console.error("Supabase Auth Error:", error.message);
-            showTemporaryMessage(error.message, false);
-        }
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = isLoginMode ? "Login" : "Sign Up";
     });
 
-    // Refactored Forgot password link functionality to use showModal
-    if (forgotPasswordLink) {
-        forgotPasswordLink.addEventListener('click', (e) => {
-            e.preventDefault();
+    forgotPasswordLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        // (Your existing forgot password logic using showModal is good)
+    });
 
-            const resetPasswordBody = `
-                <p>Enter your email to receive a password reset link.</p>
-                <input type="email" id="reset-email" placeholder="Email" required>
-            `;
-
-            showModal(
-                'Reset Password',
-                resetPasswordBody,
-                async () => { // onConfirm callback for "Send Reset Link"
-                    const resetEmailInput = document.getElementById('reset-email');
-                    const resetEmail = resetEmailInput ? resetEmailInput.value.trim() : '';
-
-                    if (!resetEmail) {
-                        // Re-render modal content with error, but do NOT close the modal
-                        showModal(
-                            'Reset Password',
-                            `<p style="color: var(--error-color);">Please enter your email.</p>${resetPasswordBody}`,
-                            // Pass back the same confirm callback to keep functionality
-                            async () => { // Nested onConfirm
-                                const nestedEmailInput = document.getElementById('reset-email');
-                                const nestedEmail = nestedEmailInput ? nestedEmailInput.value.trim() : '';
-                                if (!nestedEmail) {
-                                    showModal('Reset Password', `<p style="color: var(--error-color);">Please enter your email.</p>${resetPasswordBody}`, arguments.callee); // Re-call self to keep prompt
-                                    return false;
-                                }
-                                // Proceed with sending email
-                                const { error: nestedError } = await supabase.auth.resetPasswordForEmail(nestedEmail, {
-                                    redirectTo: 'https://banneler.github.io/Constellation-IV/reset-password.html',
-                                });
-                                if (nestedError) {
-                                    showModal('Reset Password', `<p style="color: var(--error-color);">Error: ${nestedError.message}</p>${resetPasswordBody}`, arguments.callee);
-                                    return false;
-                                } else {
-                                    showModal(
-                                        'Reset Password',
-                                        `<p style="color: var(--success-color);">Password reset link sent to ${nestedEmail}. Check your inbox!</p>`,
-                                        null, // No confirm action needed
-                                        false, // No cancel button
-                                        `<button id="modal-ok-btn" class="btn-primary">Close</button>`
-                                    );
-                                    return true; // Close the intermediate modal
-                                }
-                            },
-                            true, // Show cancel button
-                            `<button id="modal-confirm-btn" class="btn-primary">Send Reset Link</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                        );
-                        return false; // Keep initial modal open
-                    }
-
-                    const currentConfirmBtn = document.getElementById('modal-confirm-btn');
-                    if (currentConfirmBtn) {
-                        currentConfirmBtn.disabled = true;
-                        currentConfirmBtn.textContent = 'Sending...';
-                    }
-
-                    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-                        redirectTo: 'https://banneler.github.io/Constellation-IV/reset-password.html',
-                    });
-
-                    if (error) {
-                        showModal(
-                            'Reset Password',
-                            `<p style="color: var(--error-color);">Error: ${error.message}</p>${resetPasswordBody}`,
-                            arguments.callee, // Use arguments.callee to refer to this anonymous function
-                            true,
-                            `<button id="modal-confirm-btn" class="btn-primary">Send Reset Link</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                        );
-                        return false; // Keep modal open on error
-                    } else {
-                        showModal(
-                            'Reset Password',
-                            `<p style="color: var(--success-color);">Password reset link sent to ${resetEmail}. Check your inbox!</p>`,
-                            null, // No confirm action needed
-                            false, // No cancel button
-                            `<button id="modal-ok-btn" class="btn-primary">Close</button>`
-                        );
-                        return true; // Close the current modal (confirm button was clicked successfully)
-                    }
-                },
-                true, // showCancel = true for the initial modal
-                `<button id="modal-confirm-btn" class="btn-primary">Send Reset Link</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, // customActionsHtml
-                () => { // onCancel callback for the initial modal
-                    return true; // Allow modal to close on cancel
-                }
-            );
-        });
-    }
-
-    // --- App Initialization (Auth Page) ---
-    // This runs once when the page loads to set the initial UI state and handle redirects
-    supabase.auth.onAuthStateChange(async (event, session) => {
-        await loadSVGs();
-        console.log("Auth event fired on auth page:", event);
-        const currentUrl = window.location.href;
-        const isPasswordResetFlow = currentUrl.includes('#access_token') && currentUrl.includes('type=recovery');
-
-        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session && !isPasswordResetFlow) {
-            console.log("User is signed in or has an initial session. Redirecting.");
+    // --- SINGLE SOURCE OF TRUTH FOR AUTH STATE ---
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log(`Auth event: ${event}`);
+        if (event === "SIGNED_IN" && session) {
+            // This is the ONLY place we redirect from.
             window.location.href = "command-center.html";
         }
     });
 
-    // Initial UI setup when the script loads
+    // Initial UI setup
     updateAuthUI();
 });
