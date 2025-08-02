@@ -2880,7 +2880,7 @@ body.theme-corporate .user-icon path[fill="#020202"],
 body.theme-corporate .user-icon path[fill="#090909"],
 /* (all other path fills from previous code block) */
 body.theme-corporate .user-icon path[fill="#010101"] {
-    fill: #008080 !important;
+    fill: #c0c0c0 !important;
 }
 /* ... (long list of user icon path selectors for white parts) ... */
 body.theme-corporate .user-icon path[fill="#FEFEFE"],
