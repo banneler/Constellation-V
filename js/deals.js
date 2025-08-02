@@ -229,7 +229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 type: 'line',
                                 scaleID: 'x',
                                 value: effectiveMonthlyQuota,
-                                borderColor: 'var(--completed-color)',
+                                borderColor: 'red',
                                 borderWidth: 2,
                                 borderDash: [6, 6],
                                 label: {
@@ -237,12 +237,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     enabled: true,
                                     position: 'start',
                                     backgroundColor: 'transparent',
-                                    color: 'var(--text-strong)',
+                                    color: 'red',
                                     font: {
-                                        size: 14
+                                        size: 14,
+                                        weight: 'bold'
                                     },
                                     xAdjust: 0,
-                                    yAdjust: -15,
+                                    yAdjust: 0,
                                     rotation: 0
                                 }
                             }
