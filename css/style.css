@@ -2785,29 +2785,33 @@ body.theme-blue {
 }
 
 /* --- Corporate (Windows 95/XP) Theme --- */
-/* --- Corporate Theme (Adapted to JS Bug) --- */
 body.theme-corporate {
-    background: transparent url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
+    background: #008080 url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
     background-size: cover !important;
     font-family: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif !important;
-    /* The teal color will now be the fallback on the body itself */
-    background-color: #008080 !important;
+    color: #000000 !important;
 }
 
 body.theme-corporate .crm-container {
     background: transparent !important;
 }
 
+/* This is the main rule with the new selectors added */
 body.theme-corporate .nav-sidebar,
 body.theme-corporate .details-panel,
 body.theme-corporate .modal-content,
 body.theme-corporate .auth-box,
 body.theme-corporate .chart-container,
 body.theme-corporate .metric-card,
-body.theme-corporate .downloads-section,
 body.theme-corporate table,
 body.theme-corporate th,
-body.theme-corporate .user-menu {
+body.theme-corporate .user-menu,
+body.theme-corporate .user-menu-header, /* Fix for user icon background */
+body.theme-corporate .item-list, /* Fix for pickers on left */
+body.theme-corporate .list-item, /* Fix for individual list items */
+body.theme-corporate #contact-sequence-status, /* Fix for Sequence Steps box */
+body.theme-corporate .form-checkbox-group, /* Fix for "is customer" box */
+body.theme-corporate .template-list-item /* Fix for template lists */ {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
     border-radius: 0 !important;
@@ -2817,6 +2821,15 @@ body.theme-corporate .user-menu {
     box-shadow: none !important;
 }
 
+/* This new rule fixes the active nav button's gradient */
+body.theme-corporate .nav-button.active {
+    background: #000080 !important; /* Classic Windows Title Bar Blue */
+    color: #FFFFFF !important;
+    border-style: inset !important;
+    text-shadow: none !important;
+}
+
+/* This rule styles all buttons */
 body.theme-corporate .btn-primary,
 body.theme-corporate .btn-danger,
 body.theme-corporate .btn-secondary,
@@ -2824,7 +2837,7 @@ body.theme-corporate .btn-tertiary,
 body.theme-corporate .nav-button {
     background-color: #c0c0c0 !important;
     color: #000000 !important;
-    border-radius: 0 !important;
+    border-radius: 0 !importan t;
     border-style: outset !important;
     border-width: 2px !important;
     border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
@@ -2839,6 +2852,7 @@ body.theme-corporate .nav-button:active {
     border-style: inset !important;
 }
 
+/* This rule styles all input fields */
 body.theme-corporate input,
 body.theme-corporate select,
 body.theme-corporate textarea {
