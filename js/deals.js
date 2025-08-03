@@ -52,26 +52,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
+
+        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        const isTeamView = state.dealsViewMode === 'all' && isManager;
+
+        // Base queries
         const dealsQuery = supabase.from("deals").select("*");
-        if (state.dealsViewMode === 'mine') {
-            dealsQuery.eq("user_id", state.currentUser.id);
-        }
         const accountsQuery = supabase.from("accounts").select("*");
-        const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
         const dealStagesQuery = supabase.from("deal_stages").select("stage_name, sort_order").order('sort_order');
-        let allQuotasQuery;
-        if (state.currentUser.user_metadata?.is_manager === true) {
-            allQuotasQuery = supabase.from("user_quotas").select("monthly_quota");
-        }
         
-        const promises = [dealsQuery, accountsQuery, currentUserQuotaQuery, dealStagesQuery];
-        const allTableNames = ["deals", "accounts", "currentUserQuota", "dealStages"];
-        
-        if (allQuotasQuery) {
-            promises.push(allQuotasQuery);
-            allTableNames.push("allUsersQuotas");
+        // Conditionally filter deals and accounts for 'My Deals' view
+        if (!isTeamView) {
+            dealsQuery.eq("user_id", state.currentUser.id);
+            accountsQuery.eq("user_id", state.currentUser.id);
         }
 
+        // Quota queries
+        const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
+        let allQuotasQuery = isManager ? supabase.from("user_quotas").select("monthly_quota") : Promise.resolve({ data: [], error: null });
+
+        const promises = [dealsQuery, accountsQuery, currentUserQuotaQuery, dealStagesQuery, allQuotasQuery];
+        const allTableNames = ["deals", "accounts", "currentUserQuota", "dealStages", "allUsersQuotas"];
+        
         try {
             const results = await Promise.allSettled(promises);
             results.forEach((result, index) => {
@@ -79,8 +81,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (result.status === "fulfilled" && !result.value.error) {
                     if (tableName === "currentUserQuota") {
                         state.currentUserQuota = result.value.data?.[0]?.monthly_quota || 0;
-                    } else if (tableName === "allUsersQuotas") {
-                        state.allUsersQuotas = result.value.data || [];
                     } else {
                         state[tableName] = result.value.data || [];
                     }
@@ -187,17 +187,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         timeChartEmptyMessage.classList.add('hidden');
         
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
         const funnel = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '90+ Days': 0 };
         
         openDeals.forEach(deal => {
-            const closeDate = new Date(deal.close_month + '-02');
-            const diffTime = closeDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            if (diffDays >= 0 && diffDays <= 30) { funnel['0-30 Days'] += deal.mrc || 0; }
-            else if (diffDays >= 31 && diffDays <= 60) { funnel['31-60 Days'] += deal.mrc || 0; }
-            else if (diffDays >= 61 && diffDays <= 90) { funnel['61-90 Days'] += deal.mrc || 0; }
-            else if (diffDays > 90) { funnel['90+ Days'] += deal.mrc || 0; }
+            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
+            const monthDiff = (dealYear - currentYear) * 12 + (dealMonth - 1 - currentMonth);
+
+            if (monthDiff === 0) { funnel['0-30 Days'] += deal.mrc || 0; }
+            else if (monthDiff === 1) { funnel['31-60 Days'] += deal.mrc || 0; }
+            else if (monthDiff === 2) { funnel['61-90 Days'] += deal.mrc || 0; }
+            else if (monthDiff > 2) { funnel['90+ Days'] += deal.mrc || 0; }
         });
 
         const labels = Object.keys(funnel);
@@ -235,15 +236,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 label: {
                                     content: 'Quota',
                                     enabled: false,
-                                    position: 'end', // Changed from 'start' to 'end'
+                                    position: 'end',
                                     backgroundColor: 'transparent',
                                     color: 'red',
                                     font: {
                                         size: 14,
                                         weight: 'bold'
                                     },
-                                    xAdjust: 0, // Adjusts the position horizontally.
-                                    yAdjust: -50, // Adjusts the position vertically.
+                                    xAdjust: 0,
+                                    yAdjust: -50,
                                 }
                             }
                         }
@@ -451,5 +452,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
-
