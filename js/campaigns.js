@@ -761,10 +761,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const membersToInsert = matchingContacts.map(c => ({
-                campaign_id: newCampaign.id,
-                contact_id: c.id,
-                user_id: state.currentUser.id
-            }));
+    campaign_id: newCampaign.id,
+    contact_id: c.id,
+    user_id: state.currentUser.id,
+    status: 'Pending' // Explicitly set the initial status
+}));
             const {
                 error: membersError
             } = await supabase.from('campaign_members').insert(membersToInsert);
