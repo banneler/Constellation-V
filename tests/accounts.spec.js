@@ -1,6 +1,7 @@
+
 const { test, expect } = require('@playwright/test');
 
-// A reusable setup block that runs before every test in this file.
+// This beforeEach block runs before each test in this file, ensuring we are logged in.
 test.beforeEach(async ({ page }) => {
   // 1. Log in
   await page.goto('/');
@@ -46,6 +47,9 @@ test('User can create and then edit a new account', async ({ page }) => {
   await page.locator('#account-industry').fill('Technology');
   await page.locator('#account-is-customer').check();
   await page.locator('button[type="submit"]:has-text("Save Changes")').click();
+
+  // Wait for the save confirmation to clear
+  await page.waitForTimeout(1000); // A brief pause for the "Account saved!" alert
 
   // To verify the save, we will click on another account and then click back
   await page.locator('.list-item').first().click();
