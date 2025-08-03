@@ -53,7 +53,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function loadAllData() {
         if (!state.currentUser) return;
 
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        // CORRECTED: Check app_metadata for manager status
+        const isManager = state.currentUser.app_metadata?.is_manager === true;
         const isTeamView = state.dealsViewMode === 'all' && isManager;
 
         // Base queries
@@ -61,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const accountsQuery = supabase.from("accounts").select("*");
         const dealStagesQuery = supabase.from("deal_stages").select("stage_name, sort_order").order('sort_order');
         
-        // Conditionally filter deals and accounts for 'My Deals' view
+        // This part is now correct because our RLS policies will allow the queries to succeed
         if (!isTeamView) {
             dealsQuery.eq("user_id", state.currentUser.id);
             accountsQuery.eq("user_id", state.currentUser.id);
@@ -204,7 +205,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const labels = Object.keys(funnel);
         const data = Object.values(funnel);
 
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        const isManager = state.currentUser.app_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
         const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
 
@@ -280,7 +281,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderDealsMetrics = () => {
         if (!metricCurrentCommit) return;
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        const isManager = state.currentUser.app_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
 
         if (metricCurrentCommitTitle && metricBestCaseTitle) {
@@ -417,7 +418,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (viewAllDealsBtn) {
             viewAllDealsBtn.addEventListener('click', async () => {
-                const isManager = state.currentUser.user_metadata?.is_manager === true;
+                const isManager = state.currentUser.app_metadata?.is_manager === true;
                 if (!isManager) return alert("You must be a manager to view all deals.");
                 state.dealsViewMode = 'all';
                 viewAllDealsBtn.classList.add('active');
@@ -436,7 +437,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             if (dealsViewToggleDiv) {
-                const isManager = state.currentUser.user_metadata?.is_manager === true;
+                const isManager = state.currentUser.app_metadata?.is_manager === true;
                 dealsViewToggleDiv.classList.toggle('hidden', !isManager);
                 if(isManager) {
                     viewMyDealsBtn.classList.add('active');
