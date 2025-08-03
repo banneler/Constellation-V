@@ -15,8 +15,6 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: 18
-
-    # NEW CACHING STEP: Add this section right here!
     - name: Cache Playwright browsers
       uses: actions/cache@v4
       id: playwright-cache
@@ -25,18 +23,16 @@ jobs:
         key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-playwright-
-
     - name: Install dependencies
       run: npm install
-
-    # MODIFIED STEP: Only install browsers if the cache didn't exist
     - name: Install Playwright Browsers
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       run: npx playwright install --with-deps
-
     - name: Run Playwright tests
       run: npx playwright test
-
+      env: # <-- NEW SECTION
+        TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL }}
+        TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD }}
     - uses: actions/upload-artifact@v4
       if: always()
       with:
