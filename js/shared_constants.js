@@ -1,356 +1,566 @@
-// js/shared_constants.js
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs } from './shared_constants.js';
 
-// --- SHARED CONSTANTS AND FUNCTIONS ---
+document.addEventListener("DOMContentLoaded", async () => {
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-export const SUPABASE_URL = "https://pjxcciepfypzrfmlfchj.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqeGNjaWVwZnlwenJmbWxmY2hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxMTU4NDQsImV4cCI6MjA2NzY5MTg0NH0.m_jyE0e4QFevI-mGJHYlGmA12lXf8XoMDoiljUav79c";
+    let state = {
+        currentUser: null,
+        contacts: [],
+        accounts: [],
+        activities: [],
+        contact_sequences: [],
+        deals: [],
+        selectedAccountId: null,
+        tasks: [],
+        isFormDirty: false,
+        dealStages: []
+    };
 
-export const themes = ["dark", "light", "green", "blue", "corporate"];
-
-// --- THEME MANAGEMENT ---
-let currentThemeIndex = 0;
-
-function applyTheme(themeName) {
-    const themeNameSpan = document.getElementById("theme-name");
-    document.body.className = '';
-    document.body.classList.add(`theme-${themeName}`);
-    if (themeNameSpan) {
-        const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
-        themeNameSpan.textContent = capitalizedThemeName;
-    }
-}
-
-async function saveThemePreference(supabase, userId, themeName) {
-    const { error } = await supabase
-        .from('user_preferences')
-        .upsert({ user_id: userId, theme: themeName }, { onConflict: 'user_id' });
-    if (error) {
-        console.error("Error saving theme preference:", error);
-    }
-    localStorage.setItem('crm-theme', themeName);
-}
-
-export async function setupTheme(supabase, user) {
+    // --- DOM Element Selectors ---
+    const navSidebar = document.querySelector(".nav-sidebar");
+    const accountList = document.getElementById("account-list");
+    const accountSearch = document.getElementById("account-search");
+    const addAccountBtn = document.getElementById("add-account-btn");
+    const bulkImportAccountsBtn = document.getElementById("bulk-import-accounts-btn");
+    const accountCsvInput = document.getElementById("account-csv-input");
+    const accountForm = document.getElementById("account-form");
+    const deleteAccountBtn = document.getElementById("delete-account-btn");
+    const addDealBtn = document.getElementById("add-deal-btn");
+    const addTaskAccountBtn = document.getElementById("add-task-account-btn");
+    const accountContactsList = document.getElementById("account-contacts-list");
+    const accountActivitiesList = document.getElementById("account-activities-list");
+    const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    if (!themeToggleBtn) return;
+    const themeNameSpan = document.getElementById("theme-name");
+    const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
 
-    const { data, error } = await supabase
-        .from('user_preferences')
-        .select('theme')
-        .eq('user_id', user.id)
-        .single();
-
-    let currentTheme = 'dark';
-    if (error && error.code !== 'PGRST116') {
-        console.error("Error fetching theme:", error);
-    } else if (data) {
-        currentTheme = data.theme;
-    } else {
-        await saveThemePreference(supabase, user.id, currentTheme);
-    }
-    
-    currentThemeIndex = themes.indexOf(currentTheme);
-    if (currentThemeIndex === -1) currentThemeIndex = 0;
-    applyTheme(themes[currentThemeIndex]);
-    localStorage.setItem('crm-theme', themes[currentThemeIndex]);
-
-    if (themeToggleBtn.dataset.listenerAttached !== 'true') {
-        themeToggleBtn.addEventListener("click", () => {
-            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-            const newTheme = themes[currentThemeIndex];
-            applyTheme(newTheme);
-            saveThemePreference(supabase, user.id, newTheme);
-        });
-        themeToggleBtn.dataset.listenerAttached = 'true';
-    }
-}
-
-// --- SHARED UTILITY FUNCTIONS ---
-
-export function formatDate(dateString) {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-export function formatMonthYear(dateString) {
-    if (!dateString) return "N/A";
-    const [year, month] = dateString.split('-');
-    const date = new Date(Date.UTC(year, month - 1, 2)); 
-    return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', timeZone: 'UTC' });
-}
-
-export function formatSimpleDate(dateString) {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-    const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-    return adjustedDate.toLocaleDateString("en-US");
-}
-
-export function formatCurrency(value) {
-    if (typeof value !== 'number') return '$0';
-    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
-export function formatCurrencyK(value) {
-    if (typeof value !== 'number') return '$0';
-    if (Math.abs(value) >= 1000) {
-        return `$${(value / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}K`;
-    }
-    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
-export function parseCsvRow(row) {
-    const result = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < row.length; i++) {
-        const char = row[i];
-        if (char === '"') {
-            inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-            result.push(current.trim());
-            current = '';
-        } else {
-            current += char;
-        }
-    }
-    result.push(current.trim());
-    return result;
-}
-
-export function addDays(date, days) {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-}
-
-export function updateActiveNavLink() {
-    const currentPage = window.location.pathname.split("/").pop();
-    document.querySelectorAll(".nav-sidebar .nav-button").forEach(link => {
-        const linkPage = link.getAttribute("href");
-        if(linkPage) {
-            link.classList.toggle("active", linkPage === currentPage);
-        }
-    });
-}
-
-// --- MODAL FUNCTIONS ---
-
-export const modalBackdrop = document.getElementById("modal-backdrop");
-export const modalTitle = document.getElementById("modal-title");
-export const modalBody = document.getElementById("modal-body");
-export const modalActions = document.getElementById("modal-actions");
-
-let currentModalCallbacks = { onConfirm: null, onCancel: null };
-
-export function getCurrentModalCallbacks() { return { ...currentModalCallbacks }; }
-export function setCurrentModalCallbacks(callbacks) { currentModalCallbacks = { ...callbacks }; }
-
-export function _rebindModalActionListeners() {
-    const confirmBtn = document.getElementById('modal-confirm-btn');
-    const cancelBtn = document.getElementById('modal-cancel-btn');
-    const okBtn = document.getElementById('modal-ok-btn');
-
-    if (confirmBtn) {
-        confirmBtn.onclick = async () => {
-            if (currentModalCallbacks.onConfirm) {
-                const result = await Promise.resolve(currentModalCallbacks.onConfirm());
-                if (result !== false) hideModal();
-            } else {
-                hideModal();
-            }
-        };
-    }
-    if (cancelBtn) {
-        cancelBtn.onclick = () => {
-             if (currentModalCallbacks.onCancel) {
-                currentModalCallbacks.onCancel();
-            }
-            hideModal();
-        };
-    }
-     if (okBtn) {
-        okBtn.onclick = () => {
-            if (currentModalCallbacks.onConfirm) {
-                 currentModalCallbacks.onConfirm();
-            }
-             hideModal();
-        };
-    }
-}
-
-export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
-    if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) return;
-
-    modalTitle.textContent = title;
-    modalBody.innerHTML = bodyHtml;
-
-    if (customActionsHtml) {
-        modalActions.innerHTML = customActionsHtml;
-    } else {
-        modalActions.innerHTML = `
-            <button id="modal-confirm-btn" class="btn-primary">Confirm</button>
-            ${showCancel ? '<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>' : ''}
-        `;
-    }
-
-    currentModalCallbacks = { onConfirm, onCancel };
-    _rebindModalActionListeners();
-    modalBackdrop.classList.remove("hidden");
-}
-
-export function hideModal() {
-    if (modalBackdrop) modalBackdrop.classList.add("hidden");
-}
-
-function handleBackdropClick(e) { if (e.target === modalBackdrop) hideModal(); }
-function handleEscapeKey(e) { if (e.key === "Escape") hideModal(); }
-
-export function setupModalListeners() {
-    if (modalBackdrop) modalBackdrop.addEventListener("click", handleBackdropClick);
-    window.addEventListener("keydown", handleEscapeKey);
-}
-
-// --- USER MENU & AUTH LOGIC (CORRECTED) ---
-export async function setupUserMenuAndAuth(supabase, state) {
-    const userMenuHeader = document.querySelector('.user-menu-header');
-    if (!userMenuHeader) return;
-
-    const userNameDisplay = document.getElementById('user-name-display');
-    const userMenuPopup = document.getElementById('user-menu-popup');
-    const logoutBtn = document.getElementById("logout-btn");
-
-    if (!userMenuPopup || !userNameDisplay || !logoutBtn) {
-        console.error("One or more user menu elements are missing.");
-        return;
-    }
-
-    const { data: userData, error: userError } = await supabase
-        .from('user_quotas')
-        .select('full_name, monthly_quota')
-        .eq('user_id', state.currentUser.id)
-        .single();
-
-    if (userError && userError.code !== 'PGRST116') {
-        console.error('Error fetching user data:', userError);
-        userNameDisplay.textContent = "Error";
-        return;
-    }
-    
-    if (!userData || !userData.full_name) {
-        const modalBodyHtml = `
-            <p>Welcome to Constellation! Please enter your details to get started.</p>
-            <div>
-                <label for="modal-full-name">Full Name</label>
-                <input type="text" id="modal-full-name" required>
-            </div>
-            <div>
-                <label for="modal-monthly-quota">Monthly Quota ($)</label>
-                <input type="number" id="modal-monthly-quota" required placeholder="e.g., 50000">
-            </div>
-        `;
-        showModal("Welcome!", modalBodyHtml, async () => {
-            const fullName = document.getElementById('modal-full-name')?.value.trim();
-            const monthlyQuota = document.getElementById('modal-monthly-quota')?.value;
-
-            if (!fullName || !monthlyQuota) {
-                alert("Please fill out all fields.");
-                return false;
-            }
-
-            const { error: upsertError } = await supabase
-                .from('user_quotas')
-                .upsert({
-                    user_id: state.currentUser.id,
-                    full_name: fullName,
-                    monthly_quota: Number(monthlyQuota)
-                }, { onConflict: 'user_id' });
-
-            if (upsertError) {
-                console.error("Error saving user details to user_quotas:", upsertError);
-                alert("Could not save your profile details. Please try again: " + upsertError.message);
-                return false;
-            }
-
-            const { error: updateUserError } = await supabase.auth.updateUser({
-                data: { full_name: fullName }
+    // --- Dirty Check and Navigation ---
+    const handleNavigation = (url) => {
+        if (state.isFormDirty) {
+            showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", () => {
+                state.isFormDirty = false;
+                window.location.href = url;
             });
-
-            if (updateUserError) {
-                console.warn("Could not save full_name to user metadata:", updateUserError);
-            }
-
-            userNameDisplay.textContent = fullName;
-            await setupTheme(supabase, state.currentUser);
-            attachUserMenuListeners();
-            return true;
-
-        }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
+        } else {
+            window.location.href = url;
+        }
+    };
     
-    } else {
-        userNameDisplay.textContent = userData.full_name || 'User';
-        await setupTheme(supabase, state.currentUser);
-        attachUserMenuListeners();
+    const confirmAndSwitchAccount = (newAccountId) => {
+        if (state.isFormDirty) {
+            showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", () => {
+                state.isFormDirty = false;
+                state.selectedAccountId = newAccountId;
+                renderAccountList();
+                renderAccountDetails();
+                hideModal();
+            });
+        } else {
+            state.selectedAccountId = newAccountId;
+            renderAccountList();
+            renderAccountDetails();
+        }
+    };
+
+     // --- Data Fetching ---
+    async function loadAllData() {
+        if (!state.currentUser) return;
+        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
+        const promises = userSpecificTables.map((table) =>
+            supabase.from(table).select("*").eq("user_id", state.currentUser.id)
+        );
+        const dealStagesPromise = supabase.from("deal_stages").select("*").eq("user_id", state.currentUser.id).order('sort_order');
+        promises.push(dealStagesPromise);
+
+        try {
+            const results = await Promise.allSettled(promises);
+            results.forEach((result, index) => {
+                const tableName = userSpecificTables[index];
+                if (result.status === "fulfilled" && !result.value.error) {
+                    state[tableName] = result.value.data || [];
+                } else {
+                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error : result.reason);
+                    state[tableName] = [];
+                }
+            });
+            const dealStagesResult = results[userSpecificTables.length];
+            if (dealStagesResult.status === "fulfilled" && !dealStagesResult.value.error) {
+                state.dealStages = dealStagesResult.value.data || [];
+            } else {
+                console.error(`Error fetching deal_stages:`, dealStagesResult.status === 'fulfilled' ? dealStagesResult.value.error : dealStagesResult.reason);
+                state.dealStages = [];
+            }
+        } catch (error) {
+            console.error("Critical error in loadAllData:", error);
+        } finally {
+            renderAccountList();
+            if (state.selectedAccountId) {
+                const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
+                if (updatedAccount) {
+                    renderAccountDetails();
+                } else {
+                    hideAccountDetails(false, true);
+                }
+            } else {
+                hideAccountDetails(false, true);
+            }
+        }
     }
 
-    function attachUserMenuListeners() {
-        if (userMenuHeader.dataset.listenerAttached === 'true') return;
+    // --- Render Functions ---
+    const renderAccountList = () => {
+        if (!accountList || !accountSearch) return;
+        const searchTerm = accountSearch.value.toLowerCase();
+        const filteredAccounts = state.accounts.filter(account =>
+            (account.name || "").toLowerCase().includes(searchTerm)
+        );
 
-        userMenuHeader.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userMenuPopup.classList.toggle('show');
+        accountList.innerHTML = "";
+        filteredAccounts
+            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+            .forEach((account) => {
+                const i = document.createElement("div");
+                i.className = "list-item";
+                i.textContent = account.name;
+                i.dataset.id = account.id;
+                if (account.id === state.selectedAccountId) i.classList.add("selected");
+                accountList.appendChild(i);
+            });
+    };
+
+    const renderAccountDetails = () => {
+        if (!accountForm) return;
+        const account = state.accounts.find((a) => a.id === state.selectedAccountId);
+
+        if (accountPendingTaskReminder && account) {
+            const pendingAccountTasks = state.tasks.filter(task => 
+                task.status === 'Pending' && task.account_id === account.id
+            );
+            if (pendingAccountTasks.length > 0) {
+                const taskCount = pendingAccountTasks.length;
+                accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
+                accountPendingTaskReminder.classList.remove('hidden');
+            } else {
+                accountPendingTaskReminder.classList.add('hidden');
+            }
+        } else if (accountPendingTaskReminder) {
+            accountPendingTaskReminder.classList.add('hidden');
+        }
+
+        if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
+        accountContactsList.innerHTML = "";
+        accountActivitiesList.innerHTML = "";
+        accountDealsTableBody.innerHTML = "";
+
+        if (account) {
+            accountForm.classList.remove('hidden');
+            accountForm.querySelector("#account-id").value = account.id;
+            accountForm.querySelector("#account-name").value = account.name || "";
+            accountForm.querySelector("#account-website").value = account.website || "";
+            accountForm.querySelector("#account-industry").value = account.industry || "";
+            accountForm.querySelector("#account-phone").value = account.phone || "";
+            accountForm.querySelector("#account-address").value = account.address || "";
+            accountForm.querySelector("#account-notes").value = account.notes || "";
+            document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
+            accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
+            accountForm.querySelector("#account-employees").value = account.employee_count || "";
+            accountForm.querySelector("#account-is-customer").checked = account.is_customer;
+            
+            state.isFormDirty = false;
+
+            state.deals
+                .filter((d) => d.account_id === account.id)
+                .forEach((deal) => {
+                    const row = accountDealsTableBody.insertRow();
+                    row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
+                });
+
+            state.contacts
+                .filter((c) => c.account_id === account.id)
+                .forEach((c) => {
+                    const li = document.createElement("li");
+                    const inSeq = state.contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+                    li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+                    accountContactsList.appendChild(li);
+                });
+            
+            state.activities
+                .filter((act) => act.account_id === account.id)
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .forEach((act) => {
+                    const c = state.contacts.find((c) => c.id === act.contact_id);
+                    const li = document.createElement("li");
+                    li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
+                    let borderColor = "var(--primary-blue)";
+                    const activityTypeLower = act.type.toLowerCase();
+                    if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
+                    else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
+                    else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
+                    li.style.borderLeftColor = borderColor;
+                    accountActivitiesList.appendChild(li);
+                });
+        } else {
+            hideAccountDetails(true, true);
+        }
+    };
+
+    const hideAccountDetails = (hideForm = true, clearSelection = false) => {
+        if (accountForm && hideForm) accountForm.classList.add('hidden');
+        else if (accountForm) accountForm.classList.remove('hidden');
+
+        accountForm.querySelector("#account-id").value = "";
+        accountForm.querySelector("#account-name").value = "";
+        accountForm.querySelector("#account-website").value = "";
+        accountForm.querySelector("#account-industry").value = "";
+        accountForm.querySelector("#account-phone").value = "";
+        accountForm.querySelector("#account-address").value = "";
+        accountForm.querySelector("#account-notes").value = "";
+        document.getElementById("account-last-saved").textContent = "";
+        accountForm.querySelector("#account-sites").value = "";
+        accountForm.querySelector("#account-employees").value = "";
+        accountForm.querySelector("#account-is-customer").checked = false;
+
+        if (accountContactsList) accountContactsList.innerHTML = "";
+        if (accountActivitiesList) accountActivitiesList.innerHTML = "";
+        if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
+
+        if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+
+        if (clearSelection) {
+            state.selectedAccountId = null;
+            document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
+            state.isFormDirty = false;
+        }
+    };
+
+    // --- Deal Handlers ---
+    async function handleCommitDeal(dealId, isCommitted) {
+        const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
+        if (error) {
+            alert('Error updating commit status: ' + error.message);
+        } else {
+            const deal = state.deals.find(d => d.id === dealId);
+            if (deal) deal.is_committed = isCommitted;
+        }
+    }
+
+    function handleEditDeal(dealId) {
+        const deal = state.deals.find(d => d.id === dealId);
+        if (!deal) return alert("Deal not found!");
+        
+        const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
+
+        showModal("Edit Deal", `
+            <label>Deal Name:</label><input type="text" id="modal-deal-name" value="${deal.name || ''}" required>
+            <label>Term:</label><input type="text" id="modal-deal-term" value="${deal.term || ''}" placeholder="e.g., 12 months">
+            <label>Stage:</label><select id="modal-deal-stage" required>${stageOptions}</select>
+            <label>Monthly Recurring Revenue (MRC):</label><input type="number" id="modal-deal-mrc" min="0" value="${deal.mrc || 0}">
+            <label>Close Month:</label><input type="month" id="modal-deal-close-month" value="${deal.close_month || ''}">
+            <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated">${deal.products || ''}</textarea>
+        `, async () => {
+            const updatedDealData = {
+                name: document.getElementById('modal-deal-name').value.trim(),
+                term: document.getElementById('modal-deal-term').value.trim(),
+                stage: document.getElementById('modal-deal-stage').value,
+                mrc: parseFloat(document.getElementById('modal-deal-mrc').value) || 0,
+                close_month: document.getElementById('modal-deal-close-month').value || null,
+                products: document.getElementById('modal-deal-products').value.trim(),
+            };
+            if (!updatedDealData.name) return alert('Deal name is required.');
+            const { error } = await supabase.from('deals').update(updatedDealData).eq('id', dealId);
+            if (error) { alert('Error updating deal: ' + error.message); }
+            else { await loadAllData(); hideModal(); alert('Deal updated successfully!'); }
         });
+    }
 
-        window.addEventListener('click', () => {
-            if (userMenuPopup.classList.contains('show')) {
-                userMenuPopup.classList.remove('show');
+    // --- Event Listener Setup ---
+    function setupPageEventListeners() {
+        setupModalListeners();
+        updateActiveNavLink();
+        
+        if (navSidebar) {
+            navSidebar.addEventListener('click', (e) => {
+                const navButton = e.target.closest('a.nav-button');
+                if (navButton) {
+                    e.preventDefault();
+                    handleNavigation(navButton.href);
+                }
+            });
+        }
+
+        const logoutBtn = document.getElementById("logout-btn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                handleNavigation('index.html');
+            });
+        }
+
+        if (accountForm) {
+            accountForm.addEventListener('input', () => {
+                state.isFormDirty = true;
+            });
+        }
+        
+        window.addEventListener('beforeunload', (event) => {
+            if (state.isFormDirty) {
+                event.preventDefault();
+                event.returnValue = '';
             }
         });
 
-        logoutBtn.addEventListener("click", async () => {
-            await supabase.auth.signOut();
+        if (accountSearch) accountSearch.addEventListener("input", renderAccountList);
+
+        if (addAccountBtn) {
+            addAccountBtn.addEventListener("click", async () => {
+                if (state.isFormDirty) {
+                     showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to proceed?", () => {
+                        hideAccountDetails(false, true);
+                        showModal("New Account Name", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
+                            async () => {
+                                const name = document.getElementById("modal-account-name")?.value.trim();
+                                if (name) {
+                                    const { data: newAccountArr, error} = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
+                                    if (error) return alert("Error creating account: " + error.message);
+                                    state.isFormDirty = false;
+                                    await loadAllData();
+                                    state.selectedAccountId = newAccountArr?.[0]?.id;
+                                    renderAccountList();
+                                    renderAccountDetails();
+                                    hideModal();
+                                } else { alert("Account name is required."); return false; }
+                            }
+                        );
+                    });
+                } else {
+                     hideAccountDetails(false, true);
+                     showModal("New Account Name", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
+                        async () => {
+                            const name = document.getElementById("modal-account-name")?.value.trim();
+                            if (name) {
+                                const { data: newAccountArr, error} = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
+                                if (error) return alert("Error creating account: " + error.message);
+                                await loadAllData();
+                                state.selectedAccountId = newAccountArr?.[0]?.id;
+                                renderAccountList();
+                                renderAccountDetails();
+                                hideModal();
+                            } else { alert("Account name is required."); return false; }
+                        }
+                    );
+                }
+            });
+        }
+
+        if (accountList) {
+            accountList.addEventListener("click", (e) => {
+                const item = e.target.closest(".list-item");
+                if (item) {
+                    const accountId = Number(item.dataset.id);
+                    if (accountId !== state.selectedAccountId) {
+                        confirmAndSwitchAccount(accountId);
+                    }
+                }
+            });
+        }
+        
+        if (accountDealsTableBody) {
+            accountDealsTableBody.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('.edit-deal-btn');
+                const commitCheck = e.target.closest('.commit-deal-checkbox');
+                if (editBtn) handleEditDeal(Number(editBtn.dataset.dealId));
+                if (commitCheck) handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
+            });
+        }
+
+        if (accountForm) {
+            accountForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const id = Number(accountForm.querySelector("#account-id")?.value);
+                if (!id) return;
+                const data = {
+                    name: accountForm.querySelector("#account-name")?.value.trim(),
+                    website: accountForm.querySelector("#account-website")?.value.trim(),
+                    industry: accountForm.querySelector("#account-industry")?.value.trim(),
+                    phone: accountForm.querySelector("#account-phone")?.value.trim(),
+                    address: accountForm.querySelector("#account-address")?.value.trim(),
+                    notes: accountForm.querySelector("#account-notes")?.value,
+                    last_saved: new Date().toISOString(),
+                    quantity_of_sites: parseInt(accountForm.querySelector("#account-sites")?.value) || 0,
+                    employee_count: parseInt(accountForm.querySelector("#account-employees")?.value) || 0,
+                    is_customer: accountForm.querySelector("#account-is-customer")?.checked
+                };
+                if (!data.name) return alert("Account name is required.");
+
+                const { error } = await supabase.from("accounts").update(data).eq("id", id);
+                if(error) return alert("Error saving account: " + error.message);
+
+                state.isFormDirty = false;
+                await loadAllData();
+                alert("Account saved!");
+            });
+        }
+
+        if (deleteAccountBtn) {
+            deleteAccountBtn.addEventListener("click", async () => {
+                if (!state.selectedAccountId) return;
+                showModal("Confirm Deletion", "Are you sure you want to delete this account? This cannot be undone.",
+                    async () => {
+                        const { error } = await supabase.from("accounts").delete().eq("id", state.selectedAccountId);
+                        if (error) return alert("Error deleting account: " + error.message);
+                        state.selectedAccountId = null;
+                        state.isFormDirty = false;
+                        await loadAllData();
+                        hideModal();
+                        alert("Account deleted successfully!");
+                    }
+                );
+            });
+        }
+
+        if (bulkImportAccountsBtn) bulkImportAccountsBtn.addEventListener("click", () => accountCsvInput.click());
+
+        if (accountCsvInput) {
+            accountCsvInput.addEventListener("change", (e) => {
+                const f = e.target.files[0]; if (!f) return;
+                const r = new FileReader();
+                r.onload = async function (e) {
+                    const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
+                    const newRecords = rows.slice(1).map((row) => {
+                        const c = parseCsvRow(row);
+                        return {
+                            name: c[0] || "",
+                            website: c[1] || "",
+                            industry: c[2] || "",
+                            phone: c[3] || "",
+                            address: c[4] || "",
+                            quantity_of_sites: parseInt(c[5]) || 0,
+                            employee_count: parseInt(c[6]) || 0,
+                            is_customer: c[7]?.toLowerCase() === 'true',
+                            user_id: state.currentUser.id
+                        };
+                    });
+                    if (newRecords.length > 0) {
+                        const { error } = await supabase.from("accounts").insert(newRecords);
+                        if (error) {
+                            alert("Error importing accounts: " + error.message);
+                        } else {
+                            alert(`${newRecords.length} accounts imported.`);
+                            await loadAllData();
+                        }
+                    } else {
+                        alert("No valid records found to import.");
+                    }
+                };
+                r.readAsText(f); e.target.value = "";
+            });
+        }
+
+        if (addDealBtn) {
+            addDealBtn.addEventListener("click", () => {
+                if (!state.selectedAccountId) return alert("Please select an account first.");
+                
+                const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
+
+                showModal("Create New Deal", `
+                    <label>Deal Name:</label><input type="text" id="modal-deal-name" required>
+                    <label>Term:</label><input type="text" id="modal-deal-term" placeholder="e.g., 12 months">
+                    <label>Stage:</label><select id="modal-deal-stage" required>${stageOptions}</select>
+                    <label>Monthly Recurring Revenue (MRC):</label><input type="number" id="modal-deal-mrc" min="0" value="0">
+                    <label>Close Month:</label><input type="month" id="modal-deal-close-month">
+                    <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated"></textarea>
+                `, async () => {
+                    const dealName = document.getElementById('modal-deal-name')?.value.trim();
+                    const term = document.getElementById('modal-deal-term')?.value.trim();
+                    const stage = document.getElementById('modal-deal-stage')?.value;
+                    const mrc = parseFloat(document.getElementById('modal-deal-mrc')?.value) || 0;
+                    const closeMonth = document.getElementById('modal-deal-close-month')?.value;
+                    const products = document.getElementById('modal-deal-products')?.value.trim();
+
+                    if (!dealName) { alert('Deal name is required.'); return false; }
+
+                    const newDeal = {
+                        user_id: state.currentUser.id,
+                        account_id: state.selectedAccountId,
+                        name: dealName,
+                        term: term,
+                        stage: stage,
+                        mrc: mrc,
+                        close_month: closeMonth || null,
+                        products: products,
+                        is_committed: false
+                    };
+                    const { error } = await supabase.from('deals').insert([newDeal]);
+                    if (error) { alert('Error creating deal: ' + error.message); return false; }
+                    else { await loadAllData(); hideModal(); alert('Deal created successfully!'); return true; }
+                });
+            });
+        }
+
+        if (accountContactsList) {
+            accountContactsList.addEventListener("click", (e) => {
+                const targetLink = e.target.closest(".contact-name-link");
+                if (targetLink) {
+                    e.preventDefault();
+                    handleNavigation(targetLink.href);
+                }
+            });
+        }
+
+        if (addTaskAccountBtn) {
+            addTaskAccountBtn.addEventListener("click", async () => {
+                if (!state.selectedAccountId) return alert("Please select an account to link the task.");
+                const currentAccount = state.accounts.find(a => a.id === state.selectedAccountId);
+                if (!currentAccount) return alert("Selected account not found.");
+                showModal(`Create Task for ${currentAccount.name}`,
+                    `<label>Description:</label><input type="text" id="modal-task-description" required><br><label>Due Date:</label><input type="date" id="modal-task-due-date">`,
+                    async () => {
+                        const description = document.getElementById('modal-task-description')?.value.trim();
+                        const dueDate = document.getElementById('modal-task-due-date')?.value;
+                        if (!description) {
+                            alert('Task description is required.');
+                            return false;
+                        }
+                        const newTask = {
+                            user_id: state.currentUser.id,
+                            description,
+                            due_date: dueDate || null,
+                            status: 'Pending',
+                            account_id: state.selectedAccountId
+                        };
+                        const { error } = await supabase.from('tasks').insert([newTask]);
+                        if (error) {
+                            alert('Error: ' + error.message);
+                            return false;
+                        } else {
+                            await loadAllData();
+                            hideModal();
+                            alert('Task created successfully!');
+                            return true;
+                        }
+                    }
+                );
+            });
+        }
+    }
+
+    // --- App Initialization ---
+    async function initializePage() {
+        await loadSVGs();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            state.currentUser = session.user;
+            setupPageEventListeners();
+            await setupUserMenuAndAuth(supabase, state);
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountIdFromUrl = urlParams.get('accountId');
+            if (accountIdFromUrl) state.selectedAccountId = Number(accountIdFromUrl);
+            // THE FIX: Call loadAllData without 'await'
+            loadAllData();
+        } else {
             window.location.href = "index.html";
-        });
-        
-        userMenuHeader.dataset.listenerAttached = 'true';
-    }
-}
-
-export async function loadSVGs() {
-  const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
-  
-  for (const placeholder of svgPlaceholders) {
-    const svgUrl = placeholder.dataset.svgLoader;
-    if (svgUrl) {
-      try {
-        const response = await fetch(svgUrl);
-        if (!response.ok) throw new Error(`Failed to load SVG: ${response.statusText}`);
-        
-        const svgText = await response.text();
-        const parser = new DOMParser();
-        const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
-        const svgElement = svgDoc.documentElement;
-
-        if (svgElement.querySelector('parsererror')) {
-          console.error(`Error parsing SVG from ${svgUrl}`);
-          continue;
         }
-        
-        if (svgUrl.includes('logo.svg')) {
-            svgElement.classList.add('nav-logo');
-        } else if (svgUrl.includes('user-icon.svg')) {
-            svgElement.classList.add('user-icon');
-        }
-
-        placeholder.replaceWith(svgElement);
-
-      } catch (error) {
-        console.error(`Could not load SVG from ${svgUrl}`, error);
-        placeholder.innerHTML = '';
-      }
     }
-  }
-}
 
+    initializePage();
+});
