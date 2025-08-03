@@ -1,4 +1,3 @@
-
 const { test, expect } = require('@playwright/test');
 
 // This beforeEach block runs before each test in this file, ensuring we are logged in.
@@ -35,26 +34,27 @@ test('User can create and then edit a new account', async ({ page }) => {
   await modalAccountNameInput.fill(uniqueAccountName);
   await page.locator('#modal-confirm-btn').click();
   
-  // THE FIX: Wait for the modal to disappear before continuing.
   await expect(page.locator('#modal-backdrop')).toBeHidden();
   
-  const newAccountInList = page.locator('.list-item.selected');
-  await expect(newAccountInList).toContainText(uniqueAccountName);
+  await expect(page.locator('.list-item.selected')).toContainText(uniqueAccountName);
 
   // --- PART 2: EDIT ACCOUNT ---
   const updatedWebsite = `https://www.${uniqueAccountName.toLowerCase()}.com`;
   await page.locator('#account-website').fill(updatedWebsite);
   await page.locator('#account-industry').fill('Technology');
   await page.locator('#account-is-customer').check();
+  
+  // Listen for the "alert" dialog that we know will appear
+  page.on('dialog', dialog => dialog.accept());
+  
   await page.locator('button[type="submit"]:has-text("Save Changes")').click();
 
-  // Wait for the save confirmation to clear
-  await page.waitForTimeout(1000); // A brief pause for the "Account saved!" alert
-
-  // To verify the save, we will click on another account and then click back
+  // THE FIX: Instead of using a stale locator, we find the element again by its unique text
+  // before we try to interact with it.
   await page.locator('.list-item').first().click();
-  await newAccountInList.click();
+  await page.locator('.list-item', { hasText: uniqueAccountName }).click();
 
+  // Verify the updated information is still there
   await expect(page.locator('#account-website')).toHaveValue(updatedWebsite);
   await expect(page.locator('#account-industry')).toHaveValue('Technology');
   await expect(page.locator('#account-is-customer')).toBeChecked();
