@@ -10,7 +10,7 @@ module.exports = defineConfig({
   reporter: 'html',
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. Your GitHub repo name is Constellation-V-main-9, so the GitHub Pages URL will follow this pattern. */
-    baseURL: 'https://banneler.github.io/Constellation-V-main-9',
+    baseURL: 'https://banneler.github.io/Constellation-V',
 
     trace: 'on-first-retry',
   },
