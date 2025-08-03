@@ -11,7 +11,7 @@ import {
     hideModal,
     updateActiveNavLink,
     setupUserMenuAndAuth,
-    loadSVGs // Added loadSVGs to the import list
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -39,8 +39,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
 
- 
-
     // --- Utility ---
     function getStartOfLocalDayISO() {
         const today = new Date();
@@ -51,6 +49,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
+        // Show loading state in tables
+        if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+
         const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks"];
         const publicTables = ["sequence_steps"];
         const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
@@ -72,6 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {
+            // Once all data is loaded, render the dashboard content.
             renderDashboard();
         }
     }
@@ -109,31 +111,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         const localDateString = `${year}-${month}-${day}`;
 
         // Render My Tasks
-        state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).forEach(task => {
-            const row = myTasksTable.insertRow();
-            if (task.due_date) {
-                const dueDateString = task.due_date.slice(0, 10);
-                if (dueDateString < localDateString) {
-                    row.classList.add('past-due');
+        const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+        if (pendingTasks.length > 0) {
+            pendingTasks.forEach(task => {
+                const row = myTasksTable.insertRow();
+                if (task.due_date) {
+                    const dueDateString = task.due_date.slice(0, 10);
+                    if (dueDateString < localDateString) {
+                        row.classList.add('past-due');
+                    }
                 }
-            }
-            let linkedEntity = 'N/A';
-            if (task.contact_id) {
-                const contact = state.contacts.find(c => c.id === task.contact_id);
-                if (contact) linkedEntity = `<a href="contacts.html?contactId=${contact.id}" class="contact-name-link">${contact.first_name} ${contact.last_name}</a> (Contact)`;
-            } else if (task.account_id) {
-                const account = state.accounts.find(a => a.id === task.account_id);
-                if (account) linkedEntity = `<a href="accounts.html?accountId=${account.id}" class="contact-name-link">${account.name}</a> (Account)`;
-            }
-            row.innerHTML = `<td>${formatSimpleDate(task.due_date)}</td><td>${task.description}</td><td>${linkedEntity}</td>
-                <td>
-                    <div class="button-group-wrapper">
-                        <button class="btn-primary mark-task-complete-btn" data-task-id="${task.id}">Complete</button>
-                        <button class="btn-secondary edit-task-btn" data-task-id="${task.id}">Edit</button>
-                        <button class="btn-danger delete-task-btn" data-task-id="${task.id}">Delete</button>
-                    </div>
-                </td>`;
-        });
+                let linkedEntity = 'N/A';
+                if (task.contact_id) {
+                    const contact = state.contacts.find(c => c.id === task.contact_id);
+                    if (contact) linkedEntity = `<a href="contacts.html?contactId=${contact.id}" class="contact-name-link">${contact.first_name} ${contact.last_name}</a> (Contact)`;
+                } else if (task.account_id) {
+                    const account = state.accounts.find(a => a.id === task.account_id);
+                    if (account) linkedEntity = `<a href="accounts.html?accountId=${account.id}" class="contact-name-link">${account.name}</a> (Account)`;
+                }
+                row.innerHTML = `<td>${formatSimpleDate(task.due_date)}</td><td>${task.description}</td><td>${linkedEntity}</td>
+                    <td>
+                        <div class="button-group-wrapper">
+                            <button class="btn-primary mark-task-complete-btn" data-task-id="${task.id}">Complete</button>
+                            <button class="btn-secondary edit-task-btn" data-task-id="${task.id}">Edit</button>
+                            <button class="btn-danger delete-task-btn" data-task-id="${task.id}">Delete</button>
+                        </div>
+                    </td>`;
+            });
+        } else {
+            myTasksTable.innerHTML = '<tr><td colspan="4">No pending tasks. Great job!</td></tr>';
+        }
+
 
         // Render Sequence Steps Due
         state.contact_sequences
@@ -308,19 +316,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
- // --- App Initialization ---
+    // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
-        
+
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
-            // This function now handles loading the user's name AND their saved theme
-            await setupUserMenuAndAuth(supabase, state); 
-            
+            await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
-            await loadAllData();
+            // CORRECTED: Call loadAllData without 'await' to allow the UI to render instantly.
+            // The data will populate asynchronously.
+            loadAllData();
         } else {
             window.location.href = "index.html";
         }
@@ -328,4 +336,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
