@@ -26,8 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         emailTemplates: [],
         user_quotas: [],
         campaignMembers: [],
-        selectedCampaignId: null,
-        currentIndex: 0
+        selectedCampaignId: null
+        // REMOVED: state.currentIndex - This was the source of the bug.
     };
 
     let originalModalContent = {
@@ -304,7 +304,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         summaryView.classList.add('hidden');
         activeCallView.classList.remove('hidden');
-        state.currentIndex = 0;
         displayCurrentCall();
     };
 
@@ -320,7 +319,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        if (state.currentIndex >= pendingCalls.length) {
+        // CORRECTED LOGIC: Check if there are any pending calls left.
+        if (pendingCalls.length === 0) {
             renderCampaignDetails();
             showModal("Call Blitz Complete", "All calls for this campaign have been logged or skipped!", () => {
                 hideModal();
@@ -329,15 +329,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const currentMember = pendingCalls[state.currentIndex];
+        const currentMember = pendingCalls[0]; // Always take the first one
         const contact = state.contacts.find(c => c.id === currentMember.contact_id);
         const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
 
         if (!contact) {
             console.error("Contact not found for campaign member:", currentMember);
-            handleSkipCall();
+            handleSkipCall(); // Skip this broken member
             return;
         }
+
+        // Set a data attribute on the action buttons to identify the current member
+        document.getElementById('log-call-btn').dataset.memberId = currentMember.id;
+        document.getElementById('skip-call-btn').dataset.memberId = currentMember.id;
 
         contactNameEl.textContent = `${contact.first_name || ''} ${contact.last_name || ''}`;
         contactCompanyEl.textContent = account ? account.name : 'No Company';
@@ -347,16 +351,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         callNotesEl.focus();
     };
 
-    const handleLogCall = async () => {
+    const handleLogCall = async (event) => {
         const notesEl = document.getElementById('call-notes');
         const notes = notesEl ? notesEl.value.trim() : '';
         if (!notes) {
             alert('Please enter call notes before logging.');
             return;
         }
+        
+        // CORRECTED: Get memberId from the button that was clicked
+        const memberId = Number(event.target.dataset.memberId);
+        const currentMember = state.campaignMembers.find(m => m.id === memberId);
 
-        const pendingCalls = state.campaignMembers.filter(m => m.status === 'Pending');
-        const currentMember = pendingCalls[state.currentIndex];
         if (!currentMember) {
             console.error("No current campaign member to log call for.");
             return;
@@ -399,15 +405,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        currentMember.status = 'Completed';
-        state.currentIndex++;
-        displayCurrentCall();
+        currentMember.status = 'Completed'; // Update local state immediately
+        displayCurrentCall(); // Refresh UI for next call
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
 
-    const handleSkipCall = async () => {
-        const pendingCalls = state.campaignMembers.filter(m => m.status === 'Pending');
-        const currentMember = pendingCalls[state.currentIndex];
+    const handleSkipCall = async (event) => {
+        // CORRECTED: Get memberId from the button that was clicked
+        const memberId = Number(event.target.dataset.memberId);
+        const currentMember = state.campaignMembers.find(m => m.id === memberId);
         if (!currentMember) {
             console.error("No current campaign member to skip call for.");
             return;
@@ -425,9 +431,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        currentMember.status = 'Skipped';
-        state.currentIndex++;
-        displayCurrentCall();
+        currentMember.status = 'Skipped'; // Update local state immediately
+        displayCurrentCall(); // Refresh UI for next call
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
 
@@ -438,7 +443,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         summaryView.classList.add('hidden');
         activeEmailView.classList.remove('hidden');
-        state.currentIndex = 0;
         displayCurrentEmail();
     };
 
@@ -453,7 +457,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        if (state.currentIndex >= pending.length) {
+        // CORRECTED LOGIC: Check if any pending emails are left.
+        if (pending.length === 0) {
             renderCampaignDetails();
             showModal("Guided Email Complete", "All guided emails for this campaign have been processed!", () => {
                 hideModal();
@@ -462,16 +467,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const currentMember = pending[state.currentIndex];
+        const currentMember = pending[0]; // Always take the first pending one
         const contact = state.contacts.find(c => c.id === currentMember.contact_id);
         const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
         const campaign = state.campaigns.find(c => c.id === currentMember.campaign_id);
 
         if (!contact || !campaign) {
             console.error("Associated contact or campaign not found for guided email.");
-            handleSkipEmail();
+            handleSkipEmail(); // Skip this broken member
             return;
         }
+        
+        // Set a data attribute on the action buttons to identify the current member
+        document.getElementById('open-email-client-btn').dataset.memberId = currentMember.id;
+        document.getElementById('skip-email-btn').dataset.memberId = currentMember.id;
+
 
         let emailBody = campaign.email_body || '';
         emailBody = emailBody.replace(/\[FirstName\]/g, contact.first_name || '');
@@ -484,7 +494,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         emailBodyTextareaEl.focus();
     };
 
-    const handleOpenEmailClient = async () => {
+    const handleOpenEmailClient = async (event) => {
         const to = document.getElementById('email-to-address')?.textContent;
         const subject = document.getElementById('email-subject')?.value;
         const body = document.getElementById('email-body-textarea')?.value;
@@ -497,8 +507,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const mailtoLink = `mailto:${to}?subject=${encodeURIComponent(subject || '')}&body=${encodeURIComponent(body || '')}`;
         window.location.href = mailtoLink;
 
-        const pending = state.campaignMembers.filter(m => m.status === 'Pending');
-        const currentMember = pending[state.currentIndex];
+        // CORRECTED: Get memberId from the button that was clicked
+        const memberId = Number(event.target.dataset.memberId);
+        const currentMember = state.campaignMembers.find(m => m.id === memberId);
         if (!currentMember) {
             console.error("No current campaign member for email client action.");
             return;
@@ -533,18 +544,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).eq('id', currentMember.id);
         if (memberUpdateError) console.error("Error updating campaign member status (email):", memberUpdateError);
 
-        currentMember.status = 'Completed';
-        state.currentIndex++;
+        currentMember.status = 'Completed'; // Update local state immediately
 
+        // Delay to allow the mail client to open before processing the next item
         setTimeout(async () => {
             displayCurrentEmail();
             await checkForCampaignCompletion(currentMember.campaign_id);
         }, 500);
     };
 
-    const handleSkipEmail = async () => {
-        const pending = state.campaignMembers.filter(m => m.status === 'Pending');
-        const currentMember = pending[state.currentIndex];
+    const handleSkipEmail = async (event) => {
+        // CORRECTED: Get memberId from the button that was clicked
+        const memberId = Number(event.target.dataset.memberId);
+        const currentMember = state.campaignMembers.find(m => m.id === memberId);
         if (!currentMember) {
             console.error("No current campaign member to skip email for.");
             return;
@@ -562,9 +574,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        currentMember.status = 'Skipped';
-        state.currentIndex++;
-        displayCurrentEmail();
+        currentMember.status = 'Skipped'; // Update local state immediately
+        displayCurrentEmail(); // Refresh UI for next email
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
 
@@ -621,7 +632,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         let sharedTemplatesOptions = '';
         if (sharedTemplates.length > 0) {
             const sharedOptionsHtml = sharedTemplates.map(t => {
-                // FIXED: Added a check for 'p' to prevent error on undefined records.
                 const creator = state.user_quotas.find(p => p && p.user_id === t.user_id);
                 const creatorName = creator ? creator.full_name : '';
                 const initials = getInitials(creatorName);
@@ -760,12 +770,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return false;
             }
 
+            // BUG FIX: Ensure new members have a 'Pending' status.
             const membersToInsert = matchingContacts.map(c => ({
-    campaign_id: newCampaign.id,
-    contact_id: c.id,
-    user_id: state.currentUser.id,
-    status: 'Pending' // Explicitly set the initial status
-}));
+                campaign_id: newCampaign.id,
+                contact_id: c.id,
+                user_id: state.currentUser.id,
+                status: 'Pending'
+            }));
             const {
                 error: membersError
             } = await supabase.from('campaign_members').insert(membersToInsert);
@@ -1067,7 +1078,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ${cloneButton}
                 `;
             } else {
-                // FIXED: Added a check for 'p' to prevent error on undefined records.
                 const creator = state.user_quotas.find(p => p && p.user_id === template.user_id);
                 const creatorName = creator ? creator.full_name : 'an unknown user';
                 attributionHtml = `<small class="template-attribution">Shared by ${creatorName}</small>`;
@@ -1298,7 +1308,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 supabase.from("contacts").select("*").eq("user_id", state.currentUser.id),
                 supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
                 supabase.from("email_templates").select("*"),
-                // Assuming your UUID column is 'id' and name column is 'full_name' based on the error
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
 
@@ -1382,13 +1391,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (campaignDetailsPanel) {
             campaignDetailsPanel.addEventListener('click', (e) => {
                 if (e.target.id === 'start-calling-btn') startCallBlitz();
-                else if (e.target.id === 'log-call-btn') handleLogCall();
-                else if (e.target.id === 'skip-call-btn') handleSkipCall();
+                else if (e.target.id === 'log-call-btn') handleLogCall(e); // Pass the event object
+                else if (e.target.id === 'skip-call-btn') handleSkipCall(e); // Pass the event object
                 else if (e.target.id === 'export-csv-btn') handleExportCsv();
                 else if (e.target.id === 'export-txt-btn') handleExportTxt();
                 else if (e.target.id === 'start-guided-email-btn') startGuidedEmail();
-                else if (e.target.id === 'open-email-client-btn') handleOpenEmailClient();
-                else if (e.target.id === 'skip-email-btn') handleSkipEmail();
+                else if (e.target.id === 'open-email-client-btn') handleOpenEmailClient(e); // Pass the event object
+                else if (e.target.id === 'skip-email-btn') handleSkipEmail(e); // Pass the event object
             });
         }
     }
