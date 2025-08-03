@@ -1,3 +1,5 @@
+// js/accounts.js
+
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
