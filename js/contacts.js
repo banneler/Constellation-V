@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequences: [],
         sequence_steps: [],
         activities: [],
-        activityTypes: [], // Add activityTypes to state
+        activityTypes: [],
         contact_sequences: [],
         selectedContactId: null,
         deals: [],
@@ -100,7 +100,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
 
-        // --- NEW: Robust fetching for activity_types ---
         let activityTypesData = [];
         const { data: sharedActivityTypes, error: sharedError } = await supabase.from("activity_types").select("*");
         if (sharedError) {
@@ -109,8 +108,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             activityTypesData = sharedActivityTypes || [];
         }
 
-        // Add user-specific types in case shared fails or for custom types
-        const { data: userActivityTypes, error: userError } = await supabase.from("activity_types").select("*"); // Removed .eq("user_id", state.currentUser.id)
+        const { data: userActivityTypes, error: userError } = await supabase.from("activity_types").select("*");
         if (userError) {
             console.error("Error fetching user-specific activity types:", userError);
         } else if (userActivityTypes && userActivityTypes.length > 0) {
@@ -118,7 +116,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         state.activityTypes = activityTypesData;
-        // --- END NEW LOGIC ---
 
         try {
             const results = await Promise.allSettled(allPromises);
@@ -178,6 +175,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
+    // NEW FUNCTION: Dedicated logic to populate the account dropdown
+    const populateAccountDropdown = () => {
+        const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
+        if (!contactAccountNameSelect) return;
+        
+        contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
+        state.accounts
+            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+            .forEach((acc) => {
+                const o = document.createElement("option");
+                o.value = acc.id;
+                o.textContent = acc.name;
+                contactAccountNameSelect.appendChild(o);
+            });
+    };
+
     const renderContactDetails = () => {
         const contact = state.contacts.find((c) => c.id === state.selectedContactId);
         if (!contactForm) return;
@@ -194,17 +207,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else if (contactPendingTaskReminder) {
             contactPendingTaskReminder.classList.add('hidden');
         }
-
-        const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
-        contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
-        state.accounts
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-            .forEach((acc) => {
-                const o = document.createElement("option");
-                o.value = acc.id;
-                o.textContent = acc.name;
-                contactAccountNameSelect.appendChild(o);
-            });
+        
+        // REFACTORED: Call the new dedicated function
+        populateAccountDropdown();
 
         if (contact) {
             contactForm.classList.remove('hidden');
@@ -216,7 +221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactForm.querySelector("#contact-title").value = contact.title || "";
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
-            contactAccountNameSelect.value = contact.account_id || "";
+            contactForm.querySelector("#contact-account-name").value = contact.account_id || "";
 
             state.isFormDirty = false;
 
@@ -368,6 +373,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const action = () => {
                 state.isFormDirty = false;
                 hideContactDetails(false, true);
+                // THE FIX: Call the new function here as well
+                populateAccountDropdown();
                 contactForm.querySelector("#contact-first-name").focus();
             };
             if (state.isFormDirty) {
