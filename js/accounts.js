@@ -69,7 +69,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
-        // NEW: Fetch deal stages
         const dealStagesPromise = supabase.from("deal_stages").select("*").eq("user_id", state.currentUser.id).order('sort_order');
         promises.push(dealStagesPromise);
 
@@ -84,7 +83,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     state[tableName] = [];
                 }
             });
-            // Handle the dealStages promise separately
             const dealStagesResult = results[userSpecificTables.length];
             if (dealStagesResult.status === "fulfilled" && !dealStagesResult.value.error) {
                 state.dealStages = dealStagesResult.value.data || [];
@@ -275,13 +273,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
         updateActiveNavLink();
         
-        const navSidebar = document.querySelector(".nav-sidebar");
         if (navSidebar) {
             navSidebar.addEventListener('click', (e) => {
                 const navButton = e.target.closest('a.nav-button');
@@ -559,7 +555,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const accountIdFromUrl = urlParams.get('accountId');
             if (accountIdFromUrl) state.selectedAccountId = Number(accountIdFromUrl);
-            await loadAllData();
+            // THE FIX: Call loadAllData without 'await'
+            loadAllData();
         } else {
             window.location.href = "index.html";
         }
