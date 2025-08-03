@@ -94,6 +94,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) {
                 showTemporaryMessage(error.message, false);
+            } else {
+                // EXPLICIT REDIRECT: If there's no error, we are logged in. Go to the command center.
+                window.location.href = "command-center.html";
             }
         } else {
             const confirmPassword = authConfirmPasswordInput.value.trim();
@@ -145,8 +148,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- AUTH STATE CHANGE HANDLER ---
     supabase.auth.onAuthStateChange((event, session) => {
+        // This listener is still useful for auto-login if a session already exists,
+        // but our form submission is now more reliable.
         if (event === "SIGNED_IN" && session) {
-            window.location.href = "command-center.html";
+            if (!window.location.pathname.includes('command-center.html')) {
+                window.location.href = "command-center.html";
+            }
         }
     });
 
