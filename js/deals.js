@@ -9,8 +9,7 @@ import {
     showModal,
     hideModal,
     updateActiveNavLink,
-    setupUserMenuAndAuth,
-    loadSVGs
+    setupUserMenuAndAuth
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -20,7 +19,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentUser: null,
         deals: [],
         accounts: [],
-        dealStages: [],
         dealsSortBy: "name",
         dealsSortDir: "asc",
         dealsViewMode: 'mine',
@@ -36,6 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dealsByTimeCanvas = document.getElementById('deals-by-time-chart');
     const timeChartEmptyMessage = document.getElementById('time-chart-empty-message');
     const dealsTableBody = document.querySelector("#deals-table tbody");
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
     const metricCurrentCommit = document.getElementById("metric-current-commit");
     const metricBestCase = document.getElementById("metric-best-case");
@@ -48,32 +47,44 @@ document.addEventListener("DOMContentLoaded", async () => {
     const commitTotalQuota = document.getElementById("commit-total-quota");
     const bestCaseTotalQuota = document.getElementById("best-case-total-quota");
 
+    // --- Theme Logic ---
+    let currentThemeIndex = 0;
+    function applyTheme(themeName) {
+        if (!themeNameSpan) return;
+        document.body.className = '';
+        document.body.classList.add(`theme-${themeName}`);
+        const capitalizedThemeName = themeName.charAt(0).toUpperCase() + themeName.slice(1);
+        themeNameSpan.textContent = capitalizedThemeName;
+        localStorage.setItem('crm-theme', themeName);
+    }
+    function cycleTheme() {
+        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+        const newTheme = themes[currentThemeIndex];
+        applyTheme(newTheme);
+    }
 
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-
-        // CORRECTED: Check user_metadata for manager status
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
-        const isTeamView = state.dealsViewMode === 'all' && isManager;
-
-        // Base queries
         const dealsQuery = supabase.from("deals").select("*");
-        const accountsQuery = supabase.from("accounts").select("*");
-        const dealStagesQuery = supabase.from("deal_stages").select("stage_name, sort_order").order('sort_order');
-        
-        if (!isTeamView) {
+        if (state.dealsViewMode === 'mine') {
             dealsQuery.eq("user_id", state.currentUser.id);
-            accountsQuery.eq("user_id", state.currentUser.id);
+        }
+        const accountsQuery = supabase.from("accounts").select("*"); // Fetch all accounts for mapping names
+        const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
+        let allQuotasQuery;
+        if (state.currentUser.user_metadata?.is_manager === true) {
+            allQuotasQuery = supabase.from("user_quotas").select("monthly_quota");
+        }
+        
+        const promises = [dealsQuery, accountsQuery, currentUserQuotaQuery];
+        const allTableNames = ["deals", "accounts", "currentUserQuota"];
+        
+        if (allQuotasQuery) {
+            promises.push(allQuotasQuery);
+            allTableNames.push("allUsersQuotas");
         }
 
-        // Quota queries
-        const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
-        let allQuotasQuery = isManager ? supabase.from("user_quotas").select("monthly_quota") : Promise.resolve({ data: [], error: null });
-
-        const promises = [dealsQuery, accountsQuery, currentUserQuotaQuery, dealStagesQuery, allQuotasQuery];
-        const allTableNames = ["deals", "accounts", "currentUserQuota", "dealStages", "allUsersQuotas"];
-        
         try {
             const results = await Promise.allSettled(promises);
             results.forEach((result, index) => {
@@ -81,6 +92,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (result.status === "fulfilled" && !result.value.error) {
                     if (tableName === "currentUserQuota") {
                         state.currentUserQuota = result.value.data?.[0]?.monthly_quota || 0;
+                    } else if (tableName === "allUsersQuotas") {
+                        state.allUsersQuotas = result.value.data || [];
                     } else {
                         state[tableName] = result.value.data || [];
                     }
@@ -113,32 +126,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         return gradient;
     }
 
-    // --- Helper to get filtered deals ---
-    function getFutureDeals() {
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth() + 1; // JS months are 0-11
-
-        return state.deals.filter(deal => {
-            if (!deal.close_month) return true;
-            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
-            return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
-        });
-    }
-
     // --- Render Functions ---
     function renderDealsByStageChart() {
         if (!dealsByStageCanvas || !stageChartEmptyMessage) return;
-        const futureDeals = getFutureDeals();
-        const openDeals = futureDeals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
-        
+        const openDeals = state.deals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
         if (openDeals.length === 0) {
             dealsByStageCanvas.classList.add('hidden');
             stageChartEmptyMessage.classList.remove('hidden');
             if (state.dealsByStageChart) { state.dealsByStageChart.destroy(); state.dealsByStageChart = null; }
             return;
         }
-
         dealsByStageCanvas.classList.remove('hidden');
         stageChartEmptyMessage.classList.add('hidden');
         const stageCounts = openDeals.reduce((acc, deal) => {
@@ -172,84 +169,45 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function renderDealsByTimeChart() {
         if (!dealsByTimeCanvas || !timeChartEmptyMessage) return;
-        
-        const futureDeals = getFutureDeals();
-        const openDeals = futureDeals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost' && d.close_month);
-
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const funnel = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '90+ Days': 0 };
+        const openDeals = state.deals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost' && d.close_month);
         if (openDeals.length === 0) {
             dealsByTimeCanvas.classList.add('hidden');
             timeChartEmptyMessage.classList.remove('hidden');
             if (state.dealsByTimeChart) { state.dealsByTimeChart.destroy(); state.dealsByTimeChart = null; }
             return;
         }
-        
         dealsByTimeCanvas.classList.remove('hidden');
         timeChartEmptyMessage.classList.add('hidden');
-        
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
-        const funnel = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '90+ Days': 0 };
-        
         openDeals.forEach(deal => {
-            const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
-            const monthDiff = (dealYear - currentYear) * 12 + (dealMonth - 1 - currentMonth);
-
-            if (monthDiff === 0) { funnel['0-30 Days'] += deal.mrc || 0; }
-            else if (monthDiff === 1) { funnel['31-60 Days'] += deal.mrc || 0; }
-            else if (monthDiff === 2) { funnel['61-90 Days'] += deal.mrc || 0; }
-            else if (monthDiff > 2) { funnel['90+ Days'] += deal.mrc || 0; }
+            // FIX: Append a day to avoid timezone issues when parsing 'YYYY-MM' strings
+            const closeDate = new Date(deal.close_month + '-02');
+            const diffTime = closeDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0 && diffDays <= 30) { funnel['0-30 Days'] += deal.mrc || 0; }
+            else if (diffDays >= 31 && diffDays <= 60) { funnel['31-60 Days'] += deal.mrc || 0; }
+            else if (diffDays >= 61 && diffDays <= 90) { funnel['61-90 Days'] += deal.mrc || 0; }
+            else if (diffDays > 90) { funnel['90+ Days'] += deal.mrc || 0; }
         });
-
         const labels = Object.keys(funnel);
         const data = Object.values(funnel);
-
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
-        const isMyTeamView = state.dealsViewMode === 'all' && isManager;
-        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
 
         if (state.dealsByTimeChart) state.dealsByTimeChart.destroy();
         state.dealsByTimeChart = new Chart(dealsByTimeCanvas, {
             type: 'bar',
-            data: { 
-                labels: labels, 
-                datasets: [{ 
-                    data: data, 
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
                     backgroundColor: (c) => createChartGradient(c.chart.ctx, c.chart.chartArea, c.dataIndex, labels.length),
                     borderColor: 'var(--bg-light)', borderWidth: 1, borderRadius: 5
-                }] 
+                }]
             },
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: (c) => `MRC: ${formatCurrency(c.parsed.x)}` } },
-                    annotation: {
-                        annotations: {
-                            quotaLine: {
-                                type: 'line',
-                                scaleID: 'x',
-                                value: effectiveMonthlyQuota,
-                                borderColor: 'red',
-                                borderWidth: 2,
-                                borderDash: [6, 6],
-                                label: {
-                                    content: 'Quota',
-                                    enabled: false,
-                                    position: 'end',
-                                    backgroundColor: 'transparent',
-                                    color: 'red',
-                                    font: {
-                                        size: 14,
-                                        weight: 'bold'
-                                    },
-                                    xAdjust: 0,
-                                    yAdjust: -50,
-                                }
-                            }
-                        }
-                    }
-                },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `MRC: ${formatCurrency(c.parsed.x)}` } } },
                 scales: { x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false }, barPercentage: 0.7, categoryPercentage: 0.6 } }
             }
         });
@@ -257,16 +215,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderDealsPage = () => {
         if (!dealsTableBody) return;
-        
-        const futureDeals = getFutureDeals();
-        const dealsWithAccount = futureDeals.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
-        
+        const dealsWithAccount = state.deals.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
         dealsWithAccount.sort((a, b) => {
             const valA = a[state.dealsSortBy]; const valB = b[state.dealsSortBy];
-            let comparison = (typeof valA === "string") ? (valA || "").localeCompare(b.name || "") : (valA > valB ? 1 : -1);
+            let comparison = (typeof valA === "string") ? (valA || "").localeCompare(valB || "") : (valA > valB ? 1 : -1);
             return state.dealsSortDir === "desc" ? comparison * -1 : comparison;
         });
-
         dealsTableBody.innerHTML = "";
         dealsWithAccount.forEach((deal) => {
             const row = dealsTableBody.insertRow();
@@ -278,73 +232,89 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
-    const renderDealsMetrics = () => {
-        if (!metricCurrentCommit) return;
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
-        const isMyTeamView = state.dealsViewMode === 'all' && isManager;
+// js/deals.js
 
-        if (metricCurrentCommitTitle && metricBestCaseTitle) {
-            metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
-            metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
+const renderDealsMetrics = () => {
+    if (!metricCurrentCommit) return;
+
+    // Check if the user is a manager and is in the team view
+    const isManager = state.currentUser.user_metadata?.is_manager === true;
+    const isMyTeamView = state.dealsViewMode === 'all' && isManager;
+
+    // Update metric card titles based on the current view
+    if (metricCurrentCommitTitle && metricBestCaseTitle) {
+        metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
+        metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
+    }
+
+    // *** THIS IS THE CORE FIX ***
+    // Calculate the effective quota: sum of all users for team view, or just the current user's for personal view.
+    let effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
+
+    if (commitTotalQuota && bestCaseTotalQuota) {
+        if (isMyTeamView) {
+            commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
+            bestCaseTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
+            commitTotalQuota.classList.remove('hidden');
+            bestCaseTotalQuota.classList.remove('hidden');
+        } else {
+            commitTotalQuota.classList.add('hidden');
+            bestCaseTotalQuota.classList.add('hidden');
         }
-
-        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
-
-        if (commitTotalQuota && bestCaseTotalQuota) {
-            if (isMyTeamView) {
-                commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
-                bestCaseTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
-                commitTotalQuota.classList.remove('hidden');
-                bestCaseTotalQuota.classList.remove('hidden');
-            } else {
-                commitTotalQuota.classList.add('hidden');
-                bestCaseTotalQuota.classList.add('hidden');
-            }
+    }
+    
+    // The rest of the function remains the same, calculating metrics against the correct deals list
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    let currentCommit = 0, bestCase = 0, totalFunnel = 0;
+    
+    state.deals.forEach((deal) => {
+        const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
+        const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
+        totalFunnel += deal.mrc || 0;
+        if (isCurrentMonth) {
+            bestCase += deal.mrc || 0;
+            if (deal.is_committed) currentCommit += deal.mrc || 0;
         }
-        
-        const futureDeals = getFutureDeals();
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        let currentCommit = 0, bestCase = 0;
-        
-        futureDeals.forEach((deal) => {
-            const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
-            const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
-            if (isCurrentMonth) {
-                bestCase += deal.mrc || 0;
-                if (deal.is_committed) currentCommit += deal.mrc || 0;
-            }
-        });
-        
-        const totalFunnel = futureDeals.reduce((sum, deal) => sum + (deal.mrc || 0), 0);
+    });
 
-        metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
-        metricBestCase.textContent = formatCurrencyK(bestCase);
-        metricFunnel.textContent = formatCurrencyK(totalFunnel);
+    metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
+    metricBestCase.textContent = formatCurrencyK(bestCase);
+    metricFunnel.textContent = formatCurrencyK(totalFunnel);
 
-        const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-        const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-        
-        document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
-        document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
-    };
+    const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+    const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
+    
+    document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
+    document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
+};
 
+    // --- NEW: Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
         const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
         if (error) {
             alert('Error updating commit status: ' + error.message);
+            // Revert checkbox on error
+            const checkbox = dealsTableBody.querySelector(`.commit-deal-checkbox[data-deal-id="${dealId}"]`);
+            if (checkbox) checkbox.checked = !isCommitted;
         } else {
             const deal = state.deals.find(d => d.id === dealId);
             if (deal) deal.is_committed = isCommitted;
-            renderDealsMetrics();
+            renderDealsMetrics(); // Only re-render metrics, not the whole page
         }
     }
 
     function handleEditDeal(dealId) {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return;
-        const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
-        const accountOptions = state.accounts.sort((a,b) => (a.name || "").localeCompare(b.name || "")).map(acc => `<option value="${acc.id}" ${deal.account_id === acc.id ? 'selected' : ''}>${acc.name}</option>`).join('');
+
+        const stages = ["Discovery", "Negotiation", "Proposal", "Closed Won", "Closed Lost"];
+        const stageOptions = stages.map(s => `<option value="${s}" ${deal.stage === s ? 'selected' : ''}>${s}</option>`).join('');
+
+        const accountOptions = state.accounts
+            .sort((a,b) => a.name.localeCompare(b.name))
+            .map(acc => `<option value="${acc.id}" ${deal.account_id === acc.id ? 'selected' : ''}>${acc.name}</option>`)
+            .join('');
 
         showModal("Edit Deal", `
             <label>Deal Name:</label><input type="text" id="modal-deal-name" value="${deal.name || ''}" required>
@@ -355,8 +325,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             <label>Close Month:</label><input type="month" id="modal-deal-close-month" value="${deal.close_month || ''}">
             <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated">${deal.products || ''}</textarea>
         `, async () => {
+            const dealName = document.getElementById('modal-deal-name').value.trim();
+            if (!dealName) { alert('Deal name is required.'); return; }
+
             const updatedDeal = {
-                name: document.getElementById('modal-deal-name').value.trim(),
+                name: dealName,
                 account_id: Number(document.getElementById('modal-deal-account').value),
                 term: document.getElementById('modal-deal-term').value.trim(),
                 stage: document.getElementById('modal-deal-stage').value,
@@ -364,16 +337,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 close_month: document.getElementById('modal-deal-close-month').value || null,
                 products: document.getElementById('modal-deal-products').value.trim(),
             };
-            if (!updatedDeal.name) return alert('Deal name is required.');
+            
             const { error } = await supabase.from("deals").update(updatedDeal).eq("id", deal.id);
             if (error) { alert("Error updating deal: " + error.message); }
-            else { await loadAllData(); hideModal(); }
+            else { await loadAllData(); hideModal(); alert("Deal updated successfully!"); }
         });
     }
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
+        themeToggleBtn.addEventListener("click", cycleTheme);
         document.getElementById("logout-btn").addEventListener("click", async () => {
             await supabase.auth.signOut();
             window.location.href = "index.html";
@@ -395,16 +369,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         dealsTableBody.addEventListener("click", (e) => {
             const editBtn = e.target.closest(".edit-deal-btn");
             const nameLink = e.target.closest(".deal-name-link");
-            if (editBtn) handleEditDeal(Number(editBtn.dataset.dealId));
-            else if (nameLink) {
+            if (editBtn) {
+                handleEditDeal(Number(editBtn.dataset.dealId));
+            } else if (nameLink) {
                 const deal = state.deals.find(d => d.id === Number(nameLink.dataset.dealId));
-                if (deal?.account_id) window.location.href = `accounts.html?accountId=${deal.account_id}`;
+                if (deal?.account_id) {
+                    window.location.href = `accounts.html?accountId=${deal.account_id}`;
+                }
             }
         });
         
         dealsTableBody.addEventListener("change", (e) => {
             const commitCheck = e.target.closest(".commit-deal-checkbox");
-            if (commitCheck) handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
+            if (commitCheck) {
+                handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
+            }
         });
 
         if (viewMyDealsBtn) {
@@ -418,7 +397,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (viewAllDealsBtn) {
             viewAllDealsBtn.addEventListener('click', async () => {
                 const isManager = state.currentUser.user_metadata?.is_manager === true;
-                if (!isManager) return alert("You must be a manager to view all deals.");
+                if (!isManager) {
+                    alert("You must be a manager to view all deals.");
+                    return;
+                }
                 state.dealsViewMode = 'all';
                 viewAllDealsBtn.classList.add('active');
                 viewMyDealsBtn.classList.remove('active');
@@ -429,7 +411,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- App Initialization ---
     async function initializePage() {
-        await loadSVGs();
+        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+        const savedThemeIndex = themes.indexOf(savedTheme);
+        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
+        applyTheme(themes[currentThemeIndex]);
         updateActiveNavLink();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -437,8 +422,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             await setupUserMenuAndAuth(supabase, state);
             if (dealsViewToggleDiv) {
                 const isManager = state.currentUser.user_metadata?.is_manager === true;
-                dealsViewToggleDiv.classList.toggle('hidden', !isManager);
-                if(isManager) {
+                if (!isManager) {
+                    dealsViewToggleDiv.classList.add('hidden');
+                    state.dealsViewMode = 'mine';
+                } else {
+                    dealsViewToggleDiv.classList.remove('hidden');
                     viewMyDealsBtn.classList.add('active');
                     viewAllDealsBtn.classList.remove('active');
                 }
