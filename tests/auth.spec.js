@@ -10,8 +10,8 @@ test('User can successfully log in', async ({ page }) => {
 
   // Fill in the email and password fields
   // IMPORTANT: Make sure these are the correct credentials for a test user.
-  await page.locator('#auth-email').fill('test@example.com');
-  await page.locator('#auth-password').fill('password123');
+  await page.locator('#auth-email').fill('banneler@gpcom.com');
+  await page.locator('#auth-password').fill('KCchiefs1');
 
   // Click the login button
   await page.locator('#auth-submit-btn').click();
