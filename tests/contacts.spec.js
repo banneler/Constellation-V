@@ -7,8 +7,8 @@ test.beforeEach(async ({ page }) => {
   // This reuses our proven login logic and ensures each test starts from a known state.
   await page.goto('/');
   await expect(page.locator('#auth-email')).toBeVisible({ timeout: 15000 });
-  await page.locator('#auth-email').fill('YOUR_TEST_EMAIL@example.com'); // <-- IMPORTANT
-  await page.locator('#auth-password').fill('YOUR_TEST_PASSWORD');   // <-- IMPORTANT
+  await page.locator('#auth-email').fill('banneler@gpcom.com'); // <-- IMPORTANT
+  await page.locator('#auth-password').fill('KCchiefs1');   // <-- IMPORTANT
   await page.locator('#auth-submit-btn').click();
 
   // Wait for the dashboard to be fully loaded by looking for the user's name.
