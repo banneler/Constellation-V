@@ -2967,3 +2967,34 @@ body.theme-corporate #account-activities-list li {
     box-shadow: none !important;
     border-left: 2px inset #808080 !important; /* Ensure the left border matches */
 }
+/* Before (in css/style.css)
+// missing the rules for these elements inside alert-card
+
+// After (add this block to the end of your style.css file)
+/* --- NEW: Action Card Text and Tag Fixes --- */
+
+/* Makes the headline text bold for better readability */
+body.theme-corporate .alert-headline {
+    font-weight: bold !important;
+}
+
+/* Flattens the "alert type" tag to look like plain text */
+body.theme-corporate .alert-trigger-type {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+}
+
+body.theme-corporate #contact-activities-list li,
+body.theme-corporate #account-activities-list li {
+    background-color: #dfdfdf !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: inset !important;
+    border-width: 2px !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: none !important;
+    border-left: 2px inset #808080 !important;
+}
