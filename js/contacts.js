@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let state = {
         currentUser: null,
         contacts: [],
-        accounts: [],
+        accounts: [], // Ensure accounts are loaded in state for mapping
         activities: [],
         contact_sequences: [],
         deals: [],
@@ -46,7 +46,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const emailViewBodyContent = document.getElementById("email-view-body-content");
     const contactPendingTaskReminder = document.getElementById("contact-pending-task-reminder");
     const importContactScreenshotBtn = document.getElementById("import-contact-screenshot-btn");
-    // NEW: Selectors for the camera feature
     const takePictureBtn = document.getElementById("take-picture-btn");
     const cameraInput = document.getElementById("camera-input");
 
@@ -83,12 +82,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
+        // Ensure 'accounts' is included in userSpecificTables to be loaded into state
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
         const sharedTables = ["sequence_steps", "email_log"];
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
-        // FIX: Define allTableNames here
         const allTableNames = [...userSpecificTables, ...sharedTables];
 
 
@@ -112,7 +111,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const results = await Promise.allSettled(allPromises);
             results.forEach((result, index) => {
-                const tableName = allTableNames[index]; // Now allTableNames is defined
+                const tableName = allTableNames[index];
                 if (result.status === "fulfilled") {
                     if (result.value.error) {
                         console.error(`Supabase error fetching ${tableName}:`, result.value.error.message);
@@ -333,6 +332,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             const contactData = data;
 
+            // --- NEW LOGIC FOR ACCOUNT MAPPING ---
+            let accountIdToLink = null;
+            if (contactData.company) {
+                // Find a matching account by name (case-insensitive)
+                const matchingAccount = state.accounts.find(
+                    acc => acc.name && contactData.company && acc.name.toLowerCase() === contactData.company.toLowerCase()
+                );
+                if (matchingAccount) {
+                    accountIdToLink = matchingAccount.id;
+                }
+            }
+            // --- END NEW LOGIC ---
+
             // Check for an existing contact by name
             let contactId = null;
             if (contactData.first_name || contactData.last_name) {
@@ -351,8 +363,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     email: contactData.email || '',
                     phone: contactData.phone || '',
                     title: contactData.title || '',
-                    // Assuming company can be updated if present in signature
-                    company: contactData.company || '' 
+                    account_id: accountIdToLink // Use the resolved account ID
                 }).eq('id', contactId);
             } else {
                 // Create a new contact
@@ -363,7 +374,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         email: contactData.email || '',
                         phone: contactData.phone || '',
                         title: contactData.title || '',
-                        company: contactData.company || '', // Include company for new contacts
+                        account_id: accountIdToLink, // Use the resolved account ID for new contacts
                         user_id: state.currentUser.id
                     }
                 ]).select();
@@ -381,7 +392,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         } catch (error) {
             console.error("Error invoking Edge Function or saving data:", error);
-            showModal("Error", "Failed to process image. Please try again or enter the details manually.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            showModal("Error", `Failed to process image: ${error.message}. Please try again or enter the details manually.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
 
@@ -762,7 +773,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
-        // MODIFIED: Event listener for the screenshot button to include camera option
         if (importContactScreenshotBtn) {
             importContactScreenshotBtn.addEventListener("click", () => {
                 showModal("Import Contact Information",
@@ -775,22 +785,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
             
-                // Listen for a paste event once to process the image
                 document.addEventListener('paste', handlePasteEvent, { once: true });
             });
         }
 
-        // NEW: Event listener for the "Take Picture" button
         if (takePictureBtn) {
             takePictureBtn.addEventListener("click", () => {
-                // Trigger the hidden file input to open the camera
                 cameraInput.click();
-                // Show a brief modal to indicate camera is opening
                 showModal("Camera Ready", "Your device camera should be opening. Please take a picture of the email signature or business card.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             });
         }
 
-        // NEW: Event listener for when a file is selected via the camera input
         if (cameraInput) {
             cameraInput.addEventListener('change', handleCameraInputChange);
         }
