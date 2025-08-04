@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
    
     // --- Data Fetching ---
-async function loadAllData() {
+    async function loadAllData() {
         if (!state.currentUser) return;
 
         try {
@@ -120,9 +120,7 @@ async function loadAllData() {
                 { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
                 supabase.from("email_templates").select("*"),
-                // MODIFIED: Fetch from the unified 'sequences' table
                 supabase.from("sequences").select("*"),
-                // MODIFIED: Fetch from the unified 'sequence_steps' table
                 supabase.from("sequence_steps").select("*"),
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
@@ -133,7 +131,6 @@ async function loadAllData() {
             if (userQuotasError) throw userQuotasError;
 
             state.emailTemplates = emailTemplates || [];
-            // MODIFIED: Filter for sequences where source is 'Marketing'
             state.sequences = sequences ? sequences.filter(s => s.source === 'Marketing') : [];
             state.sequence_steps = sequenceSteps || [];
             state.user_quotas = userQuotas || [];
@@ -552,7 +549,7 @@ async function loadAllData() {
         if (updatedName !== state.originalSequenceName || updatedDescription !== state.originalSequenceDescription) {
             try {
                 await supabase
-                    .from("marketing_sequences")
+                    .from("sequences")
                     .update({ name: updatedName, description: updatedDescription })
                     .eq("id", state.selectedSequenceId);
                 alert("Sequence details saved successfully!");
@@ -578,14 +575,14 @@ async function loadAllData() {
             alert("Please save or cancel any active edits before adding a new step.");
             return;
         }
-        const steps = state.sequence_steps.filter((s) => s.marketing_sequence_id === state.selectedSequenceId);
+        const steps = state.sequence_steps.filter((s) => s.sequence_id === state.selectedSequenceId);
         const nextNum = steps.length > 0 ? Math.max(...steps.map((s) => s.step_number)) + 1 : 1;
         showModal(
             "Add Sequence Step",
             `<label>Step Number</label><input type="number" id="modal-step-number" value="${nextNum}" required><label>Type</label><input type="text" id="modal-step-type" required placeholder="e.g., Email, Call, LinkedIn"><label>Subject (for Email)</label><input type="text" id="modal-step-subject" placeholder="Optional"><label>Message (for Email/Notes)</label><textarea id="modal-step-message" placeholder="Optional"></textarea><label>Delay (Days after previous step)</label><input type="number" id="modal-step-delay" value="0" required>`,
             async () => {
                 const newStep = {
-                    marketing_sequence_id: state.selectedSequenceId,
+                    sequence_id: state.selectedSequenceId,
                     step_number: parseInt(document.getElementById("modal-step-number").value),
                     type: document.getElementById("modal-step-type").value.trim(),
                     subject: document.getElementById("modal-step-subject").value.trim(),
@@ -597,7 +594,7 @@ async function loadAllData() {
                     alert("Step Type is required.");
                     return false;
                 }
-                await supabase.from("marketing_sequence_steps").insert([newStep]);
+                await supabase.from("sequence_steps").insert([newStep]);
                 await loadAllData();
                 hideModal();
                 return true;
@@ -646,7 +643,7 @@ async function loadAllData() {
             }
 
             try {
-                await supabase.from("marketing_sequence_steps")
+                await supabase.from("sequence_steps")
                     .update({
                         type: updatedStep.type,
                         subject: updatedStep.subject,
@@ -673,7 +670,7 @@ async function loadAllData() {
                 return;
             }
             showModal("Confirm Delete Step", "Are you sure you want to delete this step?", async () => {
-                await supabase.from("marketing_sequence_steps").delete().eq("id", stepId);
+                await supabase.from("sequence_steps").delete().eq("id", stepId);
                 await loadAllData();
                 hideModal();
                 alert("Step deleted.");
@@ -703,7 +700,7 @@ async function loadAllData() {
             }
 
             const { data: newSeq, error } = await supabase
-                .from("marketing_sequences")
+                .from("sequences")
                 .insert([{ name: name, description: "", user_id: state.currentUser.id }])
                 .select();
             if (error) {
@@ -725,7 +722,7 @@ async function loadAllData() {
         if (!currentStep) return;
 
         const currentSequenceSteps = state.sequence_steps
-            .filter(s => s.marketing_sequence_id === state.selectedSequenceId)
+            .filter(s => s.sequence_id === state.selectedSequenceId)
             .sort((a, b) => a.step_number - b.step_number);
 
         const currentStepIndex = currentSequenceSteps.findIndex(s => s.id === stepId);
@@ -743,10 +740,10 @@ async function loadAllData() {
                 currentStep.step_number = targetStep.step_number;
                 targetStep.step_number = tempStepNumber;
 
-                await supabase.from("marketing_sequence_steps")
+                await supabase.from("sequence_steps")
                     .update({ step_number: currentStep.step_number })
                     .eq("id", currentStep.id);
-                await supabase.from("marketing_sequence_steps")
+                await supabase.from("sequence_steps")
                     .update({ step_number: targetStep.step_number })
                     .eq("id", targetStep.id);
 
@@ -813,8 +810,8 @@ async function loadAllData() {
                 return;
             }
             showModal("Confirm Deletion", "Are you sure? This will delete the marketing sequence and all its steps. This cannot be undone.", async () => {
-                await supabase.from("marketing_sequence_steps").delete().eq("marketing_sequence_id", state.selectedSequenceId);
-                await supabase.from("marketing_sequences").delete().eq("id", state.selectedSequenceId);
+                await supabase.from("sequence_steps").delete().eq("sequence_id", state.selectedSequenceId);
+                await supabase.from("sequences").delete().eq("id", state.selectedSequenceId);
                 state.selectedSequenceId = null;
                 await loadAllData();
                 hideModal();
@@ -1018,7 +1015,7 @@ async function loadAllData() {
                 r.onload = async function(e) {
                     const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
                     const selectedSequence = state.sequences.find((s) => s.id === state.selectedSequenceId);
-                    const existingSteps = state.sequence_steps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
+                    const existingSteps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
                     let nextAvailableStepNumber = existingSteps.length > 0 ? Math.max(...existingSteps.map(s => s.step_number)) + 1 : 1;
 
                     const newRecords = rows
@@ -1038,7 +1035,7 @@ async function loadAllData() {
                             }
 
                             return {
-                                marketing_sequence_id: state.selectedSequenceId,
+                                sequence_id: state.selectedSequenceId,
                                 step_number: currentStepNumber,
                                 type: c[1] || "",
                                 subject: c[2] || "",
@@ -1050,7 +1047,7 @@ async function loadAllData() {
                         .filter(record => record !== null);
 
                     if (newRecords.length > 0) {
-                        const { error } = await supabase.from("marketing_sequence_steps").insert(newRecords);
+                        const { error } = await supabase.from("sequence_steps").insert(newRecords);
                         if (error) {
                             alert("Error importing sequence steps: " + error.message);
                         } else {
