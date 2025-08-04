@@ -689,7 +689,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function handleNewSequenceCreation() {
+async function handleNewSequenceCreation() {
         const name = document.getElementById("modal-sequence-name").value.trim();
         if (name) {
             const existingSequence = state.sequences.find(seq => seq.name.toLowerCase() === name.toLowerCase());
@@ -700,7 +700,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const { data: newSeq, error } = await supabase
                 .from("marketing_sequences")
-                .insert([{ name: name, description: "", user_id: state.currentUser.id }])
+                .insert([{
+                    name: name,
+                    description: "",
+                    user_id: state.currentUser.id,
+                    type: "Marketing" // THE FIX: Add the 'type' column
+                }])
                 .select();
             if (error) {
                 alert("Error adding sequence: " + error.message);
