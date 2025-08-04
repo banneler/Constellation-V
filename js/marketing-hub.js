@@ -119,8 +119,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 { data: sequenceSteps, error: sequenceStepsError },
                 { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
-                supabase.from("email_templates").select("*, user_quotas(full_name)"),
-                supabase.from("marketing_sequences").select("*, user_quotas(full_name)"),
+                supabase.from("email_templates").select("*"),
+                supabase.from("marketing_sequences").select("*"),
                 supabase.from("marketing_sequence_steps").select("*"),
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
