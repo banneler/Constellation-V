@@ -3028,3 +3028,164 @@ body.theme-corporate #account-activities-list li {
         display: block; /* Or flex, inline-block depending on your layout */
     }
 }
+/* Add these new styles to your css/style.css file */
+
+/* AI Generation Section Styling */
+.ai-generation-section {
+    background-color: var(--bg-medium); /* Slightly darker background than main content */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 30px; /* Space it out from the main sequence details */
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.ai-generation-section h3 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.ai-generation-section .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two columns for inputs */
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.ai-generation-section .form-grid .full-span-grid-item {
+    grid-column: 1 / -1; /* Make the textarea span full width */
+}
+
+.ai-generation-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.ai-generation-section input[type="number"],
+.ai-generation-section textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--input-border);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 1em;
+    box-sizing: border-box; /* Include padding in element's total width and height */
+}
+
+.ai-generation-section input[type="number"]:focus,
+.ai-generation-section textarea:focus {
+    border-color: var(--input-focus-border);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); /* Focus ring */
+}
+
+/* Checkbox Group Styling */
+.ai-generation-section .checkbox-group {
+    display: flex;
+    flex-direction: column; /* Stack checkboxes vertically */
+    gap: 8px; /* Space between checkboxes */
+    padding: 5px 0;
+}
+
+.ai-generation-section .checkbox-group input[type="checkbox"] {
+    margin-right: 8px;
+    width: auto; /* Override full-width for checkboxes */
+}
+
+.ai-generation-section .checkbox-group label {
+    display: inline-block; /* Keep label next to checkbox */
+    font-weight: normal; /* Reset font-weight for checkbox labels */
+    margin-bottom: 0;
+}
+
+/* Form Buttons within AI section */
+.ai-generation-section .form-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end; /* Align buttons to the right */
+    margin-top: 20px;
+}
+
+/* AI Generated Preview Section */
+.ai-generated-preview {
+    background-color: var(--bg-light); /* Lighter background for preview */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 30px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05); /* Inner shadow for preview */
+}
+
+.ai-generated-preview h4 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.ai-generated-preview .placeholder-text {
+    color: var(--text-color);
+    font-style: italic;
+    margin-bottom: 20px;
+}
+
+/* Styling for the dynamically generated table within the preview */
+.ai-generated-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.ai-generated-preview th,
+.ai-generated-preview td {
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    text-align: left;
+    color: var(--text-color);
+}
+
+.ai-generated-preview th {
+    background-color: var(--bg-medium);
+    font-weight: bold;
+}
+
+/* Styles for inline editing inputs in the preview table */
+.ai-generated-preview .edit-step-type,
+.ai-generated-preview .edit-step-delay,
+.ai-generated-preview .edit-step-subject,
+.ai-generated-preview .edit-step-message {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid var(--input-border);
+    border-radius: 3px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.ai-generated-preview .edit-step-message {
+    min-height: 80px; /* Ensure textarea has enough height */
+    resize: vertical;
+}
+
+/* Actions cell content for alignment */
+.ai-generated-preview .actions-cell-content {
+    display: grid;
+    grid-template-columns: 1fr; /* Stack buttons vertically for better touch targets */
+    gap: 5px;
+}
+
+/* Responsive adjustments for smaller screens if needed, though form-grid handles some */
+@media (max-width: 767px) {
+    .ai-generation-section .form-grid {
+        grid-template-columns: 1fr; /* Stack all inputs vertically on small screens */
+    }
+}
