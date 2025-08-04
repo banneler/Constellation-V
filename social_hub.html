@@ -30,14 +30,12 @@
                 </a>
 
                 <div class="user-menu" style="margin-top: auto;">
-                    <div class="user-menu-header">
-                        <div data-svg-loader="assets/user-icon.svg"></div>
-                        <span id="user-name-display">Loading...</span>
-                    </div>
-                    <div id="user-menu-popup" class="user-menu-popup">
-                        <button id="theme-toggle-btn" class="nav-button">Theme: <span id="theme-name">Dark</span></button>
-                        <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
-                    </div>
+                    <div data-svg-loader="assets/user-icon.svg"></div>
+                    <span id="user-name-display">Loading...</span>
+                </div>
+                <div id="user-menu-popup" class="user-menu-popup">
+                    <button id="theme-toggle-btn" class="nav-button">Theme: <span id="theme-name">Dark</span></button>
+                    <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
                 </div>
             </div>
         </nav>
@@ -45,6 +43,9 @@
         <main class="content-area">
             <div id="social-hub-view" class="content-view active-view">
                 <h2>Social Hub</h2>
+                <div id="social-hub-actions" class="filter-bar" style="justify-content: flex-end;">
+                    <button id="refresh-ai-data-btn" class="btn-primary">Refresh AI Data</button>
+                </div>
                 <p class="placeholder-text" style="margin-bottom: 40px;">Amplify our voice. Share relevant news and updates with your network.</p>
 
                 <h3>AI-Curated Content</h3>
