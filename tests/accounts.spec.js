@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-// This beforeEach block runs before each test in this file, ensuring we are logged in.
+// A reusable setup block that runs before each test in this file.
 test.beforeEach(async ({ page }) => {
   // 1. Log in
   await page.goto('/');
@@ -34,9 +34,11 @@ test('User can create and then edit a new account', async ({ page }) => {
   await modalAccountNameInput.fill(uniqueAccountName);
   await page.locator('#modal-confirm-btn').click();
   
+  // THE FIX: Wait for the modal to disappear before continuing.
   await expect(page.locator('#modal-backdrop')).toBeHidden();
   
-  await expect(page.locator('.list-item.selected')).toContainText(uniqueAccountName);
+  const newAccountInList = page.locator('.list-item.selected');
+  await expect(newAccountInList).toContainText(uniqueAccountName);
 
   // --- PART 2: EDIT ACCOUNT ---
   const updatedWebsite = `https://www.${uniqueAccountName.toLowerCase()}.com`;
