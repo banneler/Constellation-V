@@ -60,6 +60,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const emailViewDate = document.getElementById("email-view-date");
     const emailViewBodyContent = document.getElementById("email-view-body-content");
     const contactPendingTaskReminder = document.getElementById("contact-pending-task-reminder");
+    // NEW: Selector for the screenshot button
+    const importContactScreenshotBtn = document.getElementById("import-contact-screenshot-btn");
 
 
     // --- Dirty Check and Navigation ---
@@ -328,11 +330,96 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.isFormDirty = false;
         }
     };
+    
+    // NEW FUNCTION: Handles the paste event for importing a screenshot
+    async function handlePasteEvent(event) {
+        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+        let blob = null;
+    
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                blob = item.getAsFile();
+                break;
+            }
+        }
+    
+        if (blob) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Image = e.target.result.split(',')[1];
+                
+                // Show a loading state in the modal
+                const modalBody = document.getElementById('modal-body');
+                modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing screenshot...</p>`;
+    
+                try {
+                    // Call the new Supabase Edge Function
+                    const { data, error } = await supabase.functions.invoke('extract-contact-info', {
+                        body: { image: base64Image }
+                    });
+    
+                    if (error) throw error;
+                    
+                    const contactData = data;
+    
+                    // Check for an existing contact by name
+                    let contactId = null;
+                    if (contactData.first_name || contactData.last_name) {
+                        const existingContact = state.contacts.find(c =>
+                            c.first_name === contactData.first_name && c.last_name === contactData.last_name
+                        );
+                        if (existingContact) {
+                            contactId = existingContact.id;
+                        }
+                    }
+
+                    // Create or update the contact
+                    if (contactId) {
+                        // Update existing contact
+                        await supabase.from("contacts").update({
+                            email: contactData.email || '',
+                            phone: contactData.phone || '',
+                            title: contactData.title || ''
+                        }).eq('id', contactId);
+                    } else {
+                        // Create a new contact
+                        const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([
+                            {
+                                first_name: contactData.first_name || '',
+                                last_name: contactData.last_name || '',
+                                email: contactData.email || '',
+                                phone: contactData.phone || '',
+                                title: contactData.title || '',
+                                user_id: state.currentUser.id
+                            }
+                        ]).select();
+                        if (insertError) throw insertError;
+                        contactId = newContactArr?.[0]?.id;
+                    }
+    
+                    await loadAllData(); // Reload all data
+                    state.selectedContactId = contactId;
+                    renderContactList(); // Re-render list to highlight
+                    renderContactDetails(); // Display in form
+    
+                    hideModal();
+                    showModal("Success", `Contact information for ${contactData.first_name} ${contactData.last_name} imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    
+                } catch (error) {
+                    console.error("Error invoking Edge Function or saving data:", error);
+                    showModal("Error", "Failed to process screenshot. Please try again or enter the details manually.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
+            };
+            reader.readAsDataURL(blob);
+        } else {
+            showModal("Error", "No image found in clipboard. Please ensure you copied an image.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    }
+
 
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
-        updateActiveNavLink();
         
         navSidebar.addEventListener('click', (e) => {
             const navButton = e.target.closest('a.nav-button');
@@ -670,6 +757,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return true;
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
+
+        // NEW: Event listener for the screenshot button
+        if (importContactScreenshotBtn) {
+            importContactScreenshotBtn.addEventListener("click", () => {
+                showModal("Import Contact Screenshot",
+                    `<p>Please take a screenshot of the email signature and paste it into this window using CTRL+V (or CMD+V on Mac).</p>`,
+                    null, false,
+                    `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+                );
+            
+                // Listen for a paste event once to process the image
+                document.addEventListener('paste', handlePasteEvent, { once: true });
+            });
+        }
+
     }
 
     // --- App Initialization ---
