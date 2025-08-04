@@ -475,15 +475,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         const r = new FileReader();
         r.onload = async function(e) {
             const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
+            console.log("DEBUG: Total rows from CSV (including header):", rows.length); // DEBUG
             const existingSteps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
             let nextAvailableStepNumber = existingSteps.length > 0 ? Math.max(...existingSteps.map(s => s.step_number)) + 1 : 1;
 
-            const newRecords = rows.slice(1).map((row) => {
+            const newRecords = rows.slice(1).map((row, index) => { // Added index for debugging
                 const c = parseCsvRow(row);
-                if (c.length < 5) return null;
+                console.log(`DEBUG: Row ${index + 1} parsed:`, c); // DEBUG
+                if (c.length < 5) {
+                    console.warn(`DEBUG: Row ${index + 1} skipped: Less than 5 columns.`, c); // DEBUG
+                    return null;
+                }
                 const currentStepNumber = nextAvailableStepNumber++;
                 const delayDays = parseInt(c[4], 10);
-                if (isNaN(delayDays)) return null;
+                if (isNaN(delayDays)) {
+                    console.warn(`DEBUG: Row ${index + 1} skipped: Invalid delay_days.`, c[4]); // DEBUG
+                    return null;
+                }
+
+                // Log the type before conversion
+                console.log(`DEBUG: Row ${index + 1} original type:`, c[1]); // DEBUG
 
                 return {
                     sequence_id: state.selectedSequenceId,
@@ -497,10 +508,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 };
             }).filter(record => record !== null);
            
+            console.log("DEBUG: Number of records prepared for insert:", newRecords.length); // DEBUG
+            
             if (newRecords.length > 0) {
                 const { error } = await supabase.from("sequence_steps").insert(newRecords);
-                if (error) { showModal("Error", "Error importing steps: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
-                else { showModal("Success", `${newRecords.length} steps imported.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); await loadAllData(); }
+                if (error) {
+                    console.error("DEBUG: Supabase insert error:", error); // DEBUG
+                    showModal("Error", "Error importing steps: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
+                else {
+                    showModal("Success", `${newRecords.length} steps imported.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    await loadAllData();
+                }
             } else {
                 showModal("Info", "No valid records found to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             }
