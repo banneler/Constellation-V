@@ -11,7 +11,8 @@ import {
     hideModal,
     setupUserMenuAndAuth,
     loadSVGs,
-    updateActiveNavLink
+    updateActiveNavLink,
+    setupTheme // ADDED: Import the setupTheme function
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1124,4 +1125,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     initializePage();
-});
