@@ -383,8 +383,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const newStep = {
                 sequence_id: state.selectedSequenceId,
                 step_number: parseInt(document.getElementById("modal-step-number").value),
-                // REMOVED: .toLowerCase() to preserve casing from input/CSV
-                type: document.getElementById("modal-step-type").value.trim(), 
+                // RE-INTRODUCED: .toLowerCase() to ensure consistency in storage
+                type: document.getElementById("modal-step-type").value.trim().toLowerCase(), 
                 subject: document.getElementById("modal-step-subject").value.trim(),
                 message: document.getElementById("modal-step-message").value.trim(),
                 delay_days: parseInt(document.getElementById("modal-step-delay").value),
@@ -414,8 +414,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderSequenceSteps();
         } else if (target.classList.contains("save-step-btn")) {
             const updatedStep = {
-                // REMOVED: .toLowerCase() to preserve casing from input/CSV
-                type: row.querySelector(".edit-step-type").value.trim(),
+                // RE-INTRODUCED: .toLowerCase() to ensure consistency in storage
+                type: row.querySelector(".edit-step-type").value.trim().toLowerCase(),
                 subject: row.querySelector(".edit-step-subject").value.trim(),
                 message: row.querySelector(".edit-step-message").value.trim(),
                 delay_days: parseInt(row.querySelector(".edit-step-delay").value || 0, 10),
@@ -488,8 +488,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return {
                     sequence_id: state.selectedSequenceId,
                     step_number: currentStepNumber,
-                    // REMOVED: .toLowerCase() to preserve casing from CSV
-                    type: c[1] ? c[1].trim() : "", 
+                    // RE-INTRODUCED: .toLowerCase() to ensure consistency in storage
+                    type: c[1] ? c[1].trim().toLowerCase() : "", 
                     subject: c[2] || "",
                     message: c[3] || "",
                     delay_days: delayDays,
@@ -568,8 +568,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const newSteps = originalSteps.map(step => ({
                 sequence_id: newPersonalSequence.id,
                 step_number: step.step_number,
-                // REMOVED: .toLowerCase() to preserve casing from marketing sequence
-                type: step.type ? step.type.trim() : "",
+                // RE-INTRODUCED: .toLowerCase() to ensure consistency in storage
+                type: step.type ? step.type.trim().toLowerCase() : "",
                 subject: step.subject,
                 message: step.message,
                 delay_days: step.delay_days,
