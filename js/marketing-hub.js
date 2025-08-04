@@ -608,7 +608,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleSequenceStepActions(e) {
-        const target = e.target.closest('button');
+        const target = e.target.closest("button");
         if (!target) return;
     
         const row = target.closest("tr[data-id]");
@@ -634,91 +634,31 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderSequenceSteps();
         } else if (target.matches(".save-step-btn, .save-step-btn *")) {
             const updatedStep = {
-                id: stepId,
-                step_number: parseInt(row.cells[0].textContent, 10),
-                type: row.querySelector(".edit-step-type")?.value.trim() || '',
-                subject: row.querySelector(".edit-step-subject")?.value.trim() || '',
-                message: row.querySelector(".edit-step-message")?.value.trim() || '',
-                delay_days: parseInt(row.querySelector(".edit-step-delay")?.value || 0, 10),
+                type: row.querySelector(".edit-step-type").value.trim(),
+                subject: row.querySelector(".edit-step-subject").value.trim(),
+                message: row.querySelector(".edit-step-message").value.trim(),
+                delay_days: parseInt(row.querySelector(".edit-step-delay").value || 0, 10),
             };
-
-            if (!updatedStep.type) {
-                alert("Step Type is required.");
-                return;
-            }
-
-            try {
-                await supabase.from("sequence_steps")
-                    .update({
-                        type: updatedStep.type,
-                        subject: updatedStep.subject,
-                        message: updatedStep.message,
-                        delay_days: updatedStep.delay_days
-                    })
-                    .eq("id", updatedStep.id);
-                alert("Step saved successfully!");
-            } catch (error) {
-                console.error("Error saving step:", error.message);
-                alert("Error saving step: " + error.message);
-            } finally {
-                state.editingStepId = null;
-                state.originalStepValues = {};
-                await loadAllData();
-            }
-        } else if (target.matches(".cancel-step-btn, .cancel-step-btn *")) {
+            if (!updatedStep.type) { alert("Step Type is required."); return; }
+            await supabase.from("sequence_steps").update(updatedStep).eq("id", stepId);
             state.editingStepId = null;
-            state.originalStepValues = {};
+            await loadAllData();
+        } else if (target.classList.contains("cancel-step-btn")) {
+            state.editingStepId = null;
             renderSequenceSteps();
-        } else if (target.matches(".delete-step-btn, .delete-step-btn *")) {
-            if (state.editingStepId) {
-                alert("Please save or cancel the current step edit before deleting a step.");
-                return;
-            }
+        } else if (target.classList.contains("delete-step-btn")) {
+            if (state.editingStepId) { alert("Please save or cancel the current step edit first."); return; }
             showModal("Confirm Delete Step", "Are you sure you want to delete this step?", async () => {
                 await supabase.from("sequence_steps").delete().eq("id", stepId);
                 await loadAllData();
                 hideModal();
-                alert("Step deleted.");
             });
-        } else if (target.matches(".move-up-btn, .move-up-btn *")) {
-            if (state.isEditingSequenceDetails || state.editingStepId) {
-                alert("Please save or cancel any active edits before reordering steps.");
-                return;
-            }
+        } else if (target.classList.contains("move-up-btn")) {
+            if (state.editingStepId) { alert("Please save or cancel any active edits first."); return; }
             await handleMoveStep(stepId, 'up');
-        } else if (target.matches(".move-down-btn, .move-down-btn *")) {
-            if (state.isEditingSequenceDetails || state.editingStepId) {
-                alert("Please save or cancel any active edits before reordering steps.");
-                return;
-            }
+        } else if (target.classList.contains("move-down-btn")) {
+            if (state.editingStepId) { alert("Please save or cancel any active edits first."); return; }
             await handleMoveStep(stepId, 'down');
-        }
-    }
-
-    async function handleNewSequenceCreation() {
-        const name = document.getElementById("modal-sequence-name").value.trim();
-        if (name) {
-            const existingSequence = state.sequences.find(seq => seq.name.toLowerCase() === name.toLowerCase());
-            if (existingSequence) {
-                alert(`A marketing sequence with the name "${name}" already exists. Please choose a different name.`);
-                return false;
-            }
-
-            const { data: newSeq, error } = await supabase
-                .from("sequences")
-                .insert([{ name: name, description: "", source: 'Marketing', is_shared: true, user_id: state.currentUser.id }])
-                .select();
-            if (error) {
-                alert("Error adding sequence: " + error.message);
-                return false;
-            }
-            state.selectedSequenceId = newSeq[0].id;
-            await loadAllData();
-            hideModal();
-            return true;
-        } else {
-            alert("Sequence name is required.");
-            return false;
         }
     }
 
@@ -726,400 +666,163 @@ document.addEventListener("DOMContentLoaded", async () => {
         const currentStep = state.sequence_steps.find(s => s.id === stepId);
         if (!currentStep) return;
 
-        const currentSequenceSteps = state.sequence_steps
+        const allStepsInSequence = state.sequence_steps
             .filter(s => s.sequence_id === state.selectedSequenceId)
             .sort((a, b) => a.step_number - b.step_number);
 
-        const currentStepIndex = currentSequenceSteps.findIndex(s => s.id === stepId);
+        const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
+        let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
-        let targetStep = null;
-        if (direction === 'up' && currentStepIndex > 0) {
-            targetStep = currentSequenceSteps[currentStepIndex - 1];
-        } else if (direction === 'down' && currentStepIndex < currentSequenceSteps.length - 1) {
-            targetStep = currentSequenceSteps[currentStepIndex + 1];
-        }
+        if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
 
-        if (targetStep) {
-            try {
-                const tempStepNumber = currentStep.step_number;
-                currentStep.step_number = targetStep.step_number;
-                targetStep.step_number = tempStepNumber;
+        const targetStep = allStepsInSequence[targetIndex];
+        
+        const tempStepNumber = currentStep.step_number;
+        currentStep.step_number = targetStep.step_number;
+        targetStep.step_number = tempStepNumber;
 
-                await supabase.from("sequence_steps")
-                    .update({ step_number: currentStep.step_number })
-                    .eq("id", currentStep.id);
-                await supabase.from("sequence_steps")
-                    .update({ step_number: targetStep.step_number })
-                    .eq("id", targetStep.id);
+        await supabase.from("sequence_steps").update({ step_number: currentStep.step_number }).eq("id", currentStep.id);
+        await supabase.from("sequence_steps").update({ step_number: targetStep.step_number }).eq("id", targetStep.id);
+        
+        await loadAllData();
+    }
+    
+    function handleCsvImport(e) {
+        if (!state.selectedSequenceId) return;
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = async function(e) {
+            const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
+            const existingSteps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
+            let nextAvailableStepNumber = existingSteps.length > 0 ? Math.max(...existingSteps.map(s => s.step_number)) + 1 : 1;
 
-                await loadAllData();
-            } catch (error) {
-                console.error("Error reordering steps:", error.message);
-                alert("Error reordering steps: " + error.message);
+            const newRecords = rows.slice(1).map((row) => {
+                const c = parseCsvRow(row);
+                if (c.length < 5) return null;
+                const currentStepNumber = nextAvailableStepNumber++;
+                const delayDays = parseInt(c[4], 10);
+                if (isNaN(delayDays)) return null;
+
+                return {
+                    sequence_id: state.selectedSequenceId,
+                    step_number: currentStepNumber,
+                    type: c[1] || "",
+                    subject: c[2] || "",
+                    message: c[3] || "",
+                    delay_days: delayDays,
+                    user_id: state.currentUser.id
+                };
+            }).filter(record => record !== null);
+            
+            if (newRecords.length > 0) {
+                const { error } = await supabase.from("sequence_steps").insert(newRecords);
+                if (error) { alert("Error importing steps: " + error.message); }
+                else { alert(`${newRecords.length} steps imported.`); await loadAllData(); }
+            } else {
+                alert("No valid records found to import.");
             }
-        }
+        };
+        r.readAsText(f);
+        e.target.value = "";
     }
-
-    // --- Unified Click Handlers ---
-    function handleItemListClick(e) {
-        const item = e.target.closest(".list-item");
-        if (!item) return;
-
-        const itemId = Number(item.dataset.id);
-        const itemType = item.dataset.type;
-
-        itemList.querySelectorAll('.list-item').forEach(li => li.classList.remove('selected'));
-        item.classList.add('selected');
-
-        if (itemType === 'template') {
-            state.selectedTemplateId = itemId;
-            state.selectedSequenceId = null;
-            renderTemplateDetails();
-        } else if (itemType === 'sequence') {
-            state.selectedSequenceId = itemId;
-            state.selectedTemplateId = null;
-            renderSequenceDetails();
-        }
-    }
-
-    function handleCreateNewItem() {
-        if (state.currentView === 'email-templates') {
-            state.selectedTemplateId = null;
-            renderTemplateDetails();
-            dynamicDetailsPanel.querySelector('#template-name').focus();
-        } else if (state.currentView === 'sequences') {
-            state.selectedSequenceId = null;
-            showModal("New Marketing Sequence Name", `<label>Sequence Name</label><input type="text" id="modal-sequence-name" required>`, handleNewSequenceCreation);
-        }
-    }
-
-    function handleImportItem() {
-        if (state.currentView === 'sequences') {
-            if (!state.selectedSequenceId) return alert("Please select a marketing sequence to import steps into.");
-            if (state.isEditingSequenceDetails || state.editingStepId) {
-                alert("Please save or cancel any active edits before importing steps.");
+    
+    async function showMarketingSequencesForImport() {
+        try {
+            const { data: marketingSequences, error } = await supabase.from('sequences').select('id, name, source').eq('source', 'Marketing');
+            if (error) throw error;
+    
+            const personalSequenceNames = new Set(state.sequences.filter(s => s.source === 'Personal' && s.user_id === state.currentUser.id).map(s => s.name));
+            const availableSequences = marketingSequences.filter(ms => !personalSequenceNames.has(ms.name));
+    
+            if (availableSequences.length === 0) {
+                showModal("Import Marketing Sequence", "<p>All available marketing sequences have already been imported.</p>", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return;
             }
-            itemCsvInput.click();
-        }
-    }
-
-    async function handleDeleteSelectedItem() {
-        if (state.currentView === 'email-templates') {
-            if (!state.selectedTemplateId) return alert("Please select a template to delete.");
-            await handleDeleteTemplate();
-        } else if (state.currentView === 'sequences') {
-            if (!state.selectedSequenceId) return alert("Please select a marketing sequence to delete.");
-            if (state.isEditingSequenceDetails || state.editingStepId) {
-                alert("Please save or cancel any active edits before deleting the sequence.");
-                return;
-            }
-            showModal("Confirm Deletion", "Are you sure? This will delete the marketing sequence and all its steps. This cannot be undone.", async () => {
-                await supabase.from("sequence_steps").delete().eq("sequence_id", state.selectedSequenceId);
-                await supabase.from("sequences").delete().eq("id", state.selectedSequenceId);
-                state.selectedSequenceId = null;
-                await loadAllData();
-                hideModal();
-                alert("Marketing sequence deleted successfully.");
-            });
-        }
-    }
-
-    function downloadCsvTemplate() {
-        const csvContent = "step_number,type,subject,message,delay_days\n" +
-            "1,Email,Welcome Email,Hello [FirstName],0\n" +
-            "2,Call,Follow-up Call,Call [FirstName] to discuss,3\n" +
-            "3,LinkedIn,Connect on LinkedIn,Connect with [FirstName] on LinkedIn,5";
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', 'marketing_sequence_template.csv');
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+    
+            const sequenceOptionsHtml = availableSequences.map(seq => `
+                <div class="list-item" data-id="${seq.id}" style="cursor: pointer; margin-bottom: 5px;">
+                    <input type="radio" name="marketing_sequence" value="${seq.id}" id="seq-${seq.id}" style="margin-right: 10px;">
+                    <label for="seq-${seq.id}" style="flex-grow: 1; cursor: pointer;">${seq.name}</label>
+                </div>
+            `).join('');
+    
+            const modalBody = `<div class="import-modal-list">${sequenceOptionsHtml}</div>`;
+            showModal("Import Marketing Sequence", modalBody, importMarketingSequence);
+    
+        } catch (error) {
+            alert("Error fetching marketing sequences: " + error.message);
         }
     }
     
-    async function handlePasswordReset() {
-        const resetEmailInput = document.getElementById('reset-email');
-        const resetEmail = resetEmailInput ? resetEmailInput.value.trim() : '';
-        
-        const resetPasswordBody = `
-            <p>Enter your email to receive a password reset link.</p>
-            <input type="email" id="reset-email" placeholder="Email" required value="${resetEmail || ''}">
-        `;
-        const modalActions = `<button id="modal-confirm-btn" class="btn-primary">Send Reset Link</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`;
-
-        if (!resetEmail) {
-            showModal('Reset Password', `<p style="color: var(--error-color);">Please enter your email.</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
+    async function importMarketingSequence() {
+        const selectedRadio = document.querySelector('input[name="marketing_sequence"]:checked');
+        if (!selectedRadio) {
+            alert("Please select a sequence to import.");
             return false;
         }
-
-        const currentConfirmBtn = document.getElementById('modal-confirm-btn');
-        if (currentConfirmBtn) {
-            currentConfirmBtn.disabled = true;
-            currentConfirmBtn.textContent = 'Sending...';
-        }
-
-        const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-            redirectTo: 'https://banneler.github.io/Constellation-IV/reset-password.html',
-        });
-
-        if (error) {
-            showModal('Reset Password', `<p style="color: var(--error-color);">Error: ${error.message}</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
+    
+        const marketingSeqId = Number(selectedRadio.value);
+    
+        const { data: originalSequence, error: seqError } = await supabase.from('sequences').select('*').eq('id', marketingSeqId).single();
+        if (seqError) { alert("Error fetching original sequence: " + seqError.message); return false; }
+    
+        const { data: originalSteps, error: stepsError } = await supabase.from('sequence_steps').select('*').eq('sequence_id', marketingSeqId);
+        if (stepsError) { alert("Error fetching original steps: " + stepsError.message); return false; }
+    
+        const { data: newPersonalSequence, error: insertSeqError } = await supabase.from('sequences').insert({
+            name: originalSequence.name,
+            description: originalSequence.description,
+            source: 'Personal', // This will be a new personal copy
+            user_id: state.currentUser.id
+        }).select().single();
+    
+        if (insertSeqError) {
+            alert("Failed to create new sequence. You may already have a sequence with this name. Error: " + insertSeqError.message);
             return false;
-        } else {
-            showModal('Reset Password', `<p style="color: var(--success-color);">Password reset link sent to ${resetEmail}. Check your inbox!</p>`, null, false, `<button id="modal-ok-btn" class="btn-primary">Close</button>`);
-            return true;
         }
-    }
-
-
-    // --- Event Listener Setup ---
-    function setupPageEventListeners() {
-        setupModalListeners();
-
-        if (document.getElementById("logout-btn")) document.getElementById("logout-btn").addEventListener("click", () => supabase.auth.signOut());
-        
-        if (authForm) {
-            authForm.addEventListener("submit", async (e) => {
-                e.preventDefault();
-                const email = authEmailInput.value.trim();
-                const password = authPasswordInput.value.trim();
-                clearErrorMessage();
-
-                let error;
-                if (isLoginMode) {
-                    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-                    error = signInError;
-                } else {
-                    const confirmPassword = authConfirmPasswordInput.value.trim();
-                    if (password !== confirmPassword) {
-                        showTemporaryMessage("Passwords do not match.", false);
-                        return;
-                    }
-                    const { error: signUpError } = await supabase.auth.signUp({ email, password });
-                    error = signUpError;
-                    if (!error) {
-                        showTemporaryMessage("Account created successfully! Please check your email for a confirmation link.", true);
-                        isLoginMode = true;
-                        updateAuthUI();
-                        return;
-                    }
-                }
-
-                if (error) {
-                    showTemporaryMessage(error.message, false);
-                } else {
-                    authForm.reset();
-                }
-            });
+    
+        if (originalSteps && originalSteps.length > 0) {
+            const newSteps = originalSteps.map(step => ({
+                sequence_id: newPersonalSequence.id,
+                step_number: step.step_number,
+                type: step.type,
+                subject: step.subject,
+                message: step.message,
+                delay_days: step.delay_days,
+                user_id: state.currentUser.id
+            }));
+            const { error: insertStepsError } = await supabase.from('sequence_steps').insert(newSteps);
+            if (insertStepsError) {
+                await supabase.from('sequences').delete().eq('id', newPersonalSequence.id);
+                alert("Failed to copy sequence steps. Error: " + insertStepsError.message);
+                return false;
+            }
         }
-
-        if (authToggleLink) {
-            authToggleLink.addEventListener("click", (e) => {
-                e.preventDefault();
-                isLoginMode = !isLoginMode;
-                updateAuthUI();
-            });
-        }
-
-        if (forgotPasswordLink) {
-            forgotPasswordLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                const resetPasswordBody = `
-                    <p>Enter your email to receive a password reset link.</p>
-                    <input type="email" id="reset-email" placeholder="Email" required>
-                `;
-                showModal(
-                    'Reset Password',
-                    resetPasswordBody,
-                    handlePasswordReset,
-                    true,
-                    `<button id="modal-confirm-btn" class="btn-primary">Send Reset Link</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                );
-            });
-        }
-
-        if (navEmailTemplates) {
-            navEmailTemplates.addEventListener('click', (e) => {
-                e.preventDefault();
-                state.currentView = 'email-templates';
-                state.selectedTemplateId = null;
-                state.selectedSequenceId = null;
-                renderContent();
-            });
-        }
-        if (navSequences) {
-            navSequences.addEventListener('click', (e) => {
-                e.preventDefault();
-                state.currentView = 'sequences';
-                state.selectedTemplateId = null;
-                state.selectedSequenceId = null;
-                renderContent();
-            });
-        }
-        if (navSocialPosts) {
-            navSocialPosts.addEventListener('click', (e) => {
-                e.preventDefault();
-                state.currentView = 'social-posts';
-                renderContent();
-            });
-        }
-        if (itemList) itemList.addEventListener('click', handleItemListClick);
-        if (createNewItemBtn) createNewItemBtn.addEventListener('click', handleCreateNewItem);
-        if (importItemBtn) importItemBtn.addEventListener('click', handleImportItem);
-        if (deleteSelectedItemBtn) deleteSelectedItemBtn.addEventListener('click', handleDeleteSelectedItem);
-        if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.addEventListener('click', downloadCsvTemplate);
-        
-        if (createPostForm) {
-            createPostForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                submitPostBtn.disabled = true;
-                submitPostBtn.textContent = 'Submitting...';
-                formFeedback.style.display = 'none';
-
-                const newPost = {
-                    type: 'marketing_post',
-                    title: document.getElementById('post-title').value.trim(),
-                    link: document.getElementById('post-link').value.trim(),
-                    approved_copy: document.getElementById('post-copy').value.trim(),
-                    is_dynamic_link: document.getElementById('is-dynamic-link').checked,
-                    source_name: 'Marketing Team',
-                    status: 'new'
-                };
-
-                try {
-                    const { error } = await supabase.from('social_hub_posts').insert(newPost);
-                    if (error) throw error;
-                    formFeedback.textContent = '✅ Success! The post has been added to the Social Hub.';
-                    formFeedback.style.color = 'var(--success-color)';
-                    formFeedback.style.display = 'block';
-                    createPostForm.reset();
-                } catch (error) {
-                    console.error('Error submitting post:', error);
-                    formFeedback.textContent = `❌ Error: ${error.message}`;
-                    formFeedback.style.color = 'var(--danger-red)';
-                    formFeedback.style.display = 'block';
-                } finally {
-                    submitPostBtn.disabled = false;
-                    submitPostBtn.textContent = 'Add Post to Social Hub';
-                }
-            });
-        }
-
-        if (itemCsvInput) {
-            itemCsvInput.addEventListener("change", async (e) => {
-                if (state.currentView !== 'sequences' || !state.selectedSequenceId) return;
-                const f = e.target.files[0];
-                if (!f) return;
-                const r = new FileReader();
-                r.onload = async function(e) {
-                    const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
-                    const selectedSequence = state.sequences.find((s) => s.id === state.selectedSequenceId);
-                    const existingSteps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
-                    let nextAvailableStepNumber = existingSteps.length > 0 ? Math.max(...existingSteps.map(s => s.step_number)) + 1 : 1;
-
-                    const newRecords = rows
-                        .slice(1)
-                        .map((row) => {
-                            const c = parseCsvRow(row);
-                            if (c.length < 5) {
-                                console.warn("Skipping row due to insufficient columns:", row);
-                                return null;
-                            }
-                            const currentStepNumber = nextAvailableStepNumber++;
-                            const delayDays = parseInt(c[4], 10);
-
-                            if (isNaN(delayDays)) {
-                                console.warn("Skipping row due to invalid delay_days:", row, "Delay Days:", delayDays);
-                                return null;
-                            }
-
-                            return {
-                                sequence_id: state.selectedSequenceId,
-                                step_number: currentStepNumber,
-                                type: c[1] || "",
-                                subject: c[2] || "",
-                                message: c[3] || "",
-                                delay_days: delayDays,
-                                user_id: state.currentUser.id
-                            };
-                        })
-                        .filter(record => record !== null);
-
-                    if (newRecords.length > 0) {
-                        const { error } = await supabase.from("sequence_steps").insert(newRecords);
-                        if (error) {
-                            alert("Error importing sequence steps: " + error.message);
-                        } else {
-                            alert(`${newRecords.length} steps imported into "${selectedSequence.name}".`);
-                            await loadAllData();
-                        }
-                    } else {
-                        alert("No valid records found to import. Please ensure your CSV matches the template format.");
-                    }
-                };
-                r.readAsText(f);
-                e.target.value = "";
-            });
-        }
+    
+        alert(`Sequence "${originalSequence.name}" imported successfully!`);
+        await loadAllData();
+        state.selectedSequenceId = newPersonalSequence.id;
+        renderSequenceList();
+        renderSequenceDetails(newPersonalSequence.id);
+    
+        return true;
     }
 
     // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
-        
+        updateActiveNavLink();
+
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
-            if (authContainer) authContainer.classList.add('hidden');
-            if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
-            const hash = window.location.hash;
-            if (hash === '#sequences') {
-                state.currentView = 'sequences';
-            } else if (hash === '#social-posts') {
-                state.currentView = 'social-posts';
-            } else {
-                state.currentView = 'email-templates';
-            }
             await loadAllData();
         } else {
-            if (authContainer) authContainer.classList.remove('hidden');
-            if (marketingHubContainer) marketingHubContainer.classList.add('hidden');
-            isLoginMode = true;
-            updateAuthUI();
-            setupPageEventListeners();
+            window.location.href = "index.html";
         }
-
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session) {
-                state.currentUser = session.user;
-                if (authContainer) authContainer.classList.add('hidden');
-                if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
-                await setupUserMenuAndAuth(supabase, state);
-                const hash = window.location.hash;
-                if (hash === '#sequences') {
-                    state.currentView = 'sequences';
-                } else if (hash === '#social-posts') {
-                    state.currentView = 'social-posts';
-                } else {
-                    state.currentView = 'email-templates';
-                }
-                await loadAllData();
-            } else {
-                state.currentUser = null;
-                if (authContainer) authContainer.classList.remove('hidden');
-                if (marketingHubContainer) marketingHubContainer.classList.add('hidden');
-                isLoginMode = true;
-                updateAuthUI();
-            }
-        });
     }
 
     initializePage();
