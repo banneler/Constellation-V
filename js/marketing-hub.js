@@ -866,7 +866,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (error) {
-            showModal('Reset Password', `<p style="color: var(--error-color);">Error: ${error.message}</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
+            showModal('Reset Password', `<p style="color: var(--error-error);">Error: ${error.message}</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
             return false;
         } else {
             showModal('Reset Password', `<p style="color: var(--success-color);">Password reset link sent to ${resetEmail}. Check your inbox!</p>`, null, false, `<button id="modal-ok-btn" class="btn-primary">Close</button>`);
@@ -1125,3 +1125,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     initializePage();
+});
