@@ -542,7 +542,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     sequence_id: Number(sequenceId),
                     current_step_number: 1,
                     status: 'Active',
-                    next_step_due_date: addDays(new Date(), firstStep.delay_days).toISOString(),
+                 const today = new Date();
+const nextDueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + firstStep.delay_days);
+next_step_due_date: nextDueDate.toISOString(),
                     user_id: state.currentUser.id
                 });
                 if (error) {
@@ -616,3 +618,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
