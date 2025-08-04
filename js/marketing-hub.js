@@ -10,7 +10,12 @@ import {
     showModal,
     hideModal,
     setupUserMenuAndAuth,
-    loadSVGs
+    loadSVGs,
+    applyTheme,
+    setupTheme,
+    _rebindModalActionListeners,
+    getCurrentModalCallbacks,
+    setCurrentModalCallbacks
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -381,7 +386,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let stepsToRender = [];
 
         if (state.selectedSequenceId) {
-            stepsToRender = state.sequence_steps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
+            stepsToRender = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
         } else {
             return;
         }
@@ -1068,10 +1073,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        const savedThemeIndex = themes.indexOf(savedTheme);
-        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
-        applyTheme(themes[currentThemeIndex]);
+        // This is the manual theme logic that was causing the error. We need to remove it.
+        // const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+        // const savedThemeIndex = themes.indexOf(savedTheme);
+        // currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
+        // applyTheme(themes[currentThemeIndex]);
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
