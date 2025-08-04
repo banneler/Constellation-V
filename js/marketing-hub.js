@@ -985,7 +985,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     approved_copy: document.getElementById('post-copy').value.trim(),
                     is_dynamic_link: document.getElementById('is-dynamic-link').checked,
                     source_name: 'Marketing Team',
-                    status: 'new'
+                    status: 'new',
+                    user_id: state.currentUser.id // THE FIX: Add the current user's ID
                 };
 
                 try {
