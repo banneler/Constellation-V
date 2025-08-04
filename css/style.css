@@ -2998,3 +2998,16 @@ body.theme-corporate #account-activities-list li {
     box-shadow: none !important;
     border-left: 2px inset #808080 !important;
 }
+/* Add this to your css/style.css file */
+
+/* Hide the camera button by default on larger screens */
+.mobile-only {
+    display: none;
+}
+
+/* Show the camera button only on screens narrower than 768px */
+@media (max-width: 767px) {
+    .mobile-only {
+        display: block; /* Or flex, inline-block depending on your layout */
+    }
+}
