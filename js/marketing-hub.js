@@ -1096,7 +1096,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (session) {
                 state.currentUser = session.user;
                 if (authContainer) authContainer.classList.add('hidden');
-                if (marketingHubContainer) marketingHubHubContainer.classList.remove('hidden');
+                if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
                 await setupUserMenuAndAuth(supabase, state);
                 const hash = window.location.hash;
                 if (hash === '#sequences') {
