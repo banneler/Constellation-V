@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cancelEditSequenceBtn = document.getElementById("cancel-edit-sequence-btn");
     const sequenceDetailsPanel = document.getElementById("sequence-details-panel");
 
-  
+   
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
-        
+       
         try {
             const results = await Promise.allSettled(promises);
             results.forEach((result, index) => {
@@ -79,17 +79,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const item = document.createElement("div");
                 item.className = "list-item";
                 item.dataset.id = seq.id;
-    
+   
                 const isMarketingSource = seq.source === 'Marketing';
                 const indicatorHtml = isMarketingSource ? '<span class="marketing-indicator" title="Imported from Marketing"></span>' : '';
-                
+               
                 item.innerHTML = `
                     <div class="sequence-list-item-content">
                         ${indicatorHtml}
                         <span>${seq.name}</span>
                     </div>
                 `;
-    
+   
                 if (seq.id === state.selectedSequenceId) {
                     item.classList.add("selected");
                 }
@@ -140,11 +140,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <td>${step.subject || ''}</td>
                 <td>${step.message || ''}</td>
                 <td>${step.delay_days || 0}</td>
-                ${actionsHtml} 
+                ${actionsHtml}
             `;
         });
     };
-    
+   
     const renderSequenceDetails = (sequenceId) => {
         const sequence = state.sequences.find(s => s.id === sequenceId);
         state.selectedSequenceId = sequenceId;
@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequenceDescriptionTextarea.value = sequence.description || "";
         state.originalSequenceName = sequence.name || "";
         state.originalSequenceDescription = sequence.description || "";
-        
+       
         const isMarketingImport = sequence.source === 'Marketing';
         sequenceNameInput.disabled = isMarketingImport;
         sequenceDescriptionTextarea.disabled = isMarketingImport;
@@ -170,7 +170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // CHANGED: Also hide the "Add Step" button for marketing imports
         editSequenceDetailsBtn.classList.toggle('hidden', isMarketingImport);
         addStepBtn.classList.toggle('hidden', isMarketingImport);
-        
+       
         deleteSequenceBtn.classList.remove('hidden');
         saveSequenceDetailsBtn.classList.add('hidden');
         cancelEditSequenceBtn.classList.add('hidden');
@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
     }
-    
+   
     function handleSequenceListClick(e) {
         const item = e.target.closest(".list-item");
         if (item) {
@@ -279,7 +279,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             showNewSequenceModal();
         }
     }
-    
+   
     function showNewSequenceModal() {
         showModal("New Personal Sequence", `<label>Sequence Name</label><input type="text" id="modal-sequence-name" required>`, async () => {
             const name = document.getElementById("modal-sequence-name").value.trim();
@@ -331,7 +331,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             showModal("Info", "No changes to save.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
-        
+       
         state.isEditingSequenceDetails = false;
         sequenceNameInput.disabled = true;
         sequenceDescriptionTextarea.disabled = true;
@@ -355,19 +355,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         deleteSequenceBtn.classList.remove('hidden');
         addStepBtn.classList.remove('hidden');
     }
-    
+   
     function handleAddStep() {
         if (!state.selectedSequenceId) return showModal("Error", "Please select a sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         if (state.isEditingSequenceDetails || state.editingStepId) { showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
         const steps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
         const nextNum = steps.length > 0 ? Math.max(...steps.map(s => s.step_number)) + 1 : 1;
-        
+       
         // HTML for suggested type buttons with updated styling for better filling
         const suggestedTypesHtml = `
             <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; padding: 0 5px;">
-                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="email" style="flex-grow: 1; min-width: 80px;">Email</button>
-                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="call" style="flex-grow: 1; min-width: 80px;">Call</button>
-                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="linkedin" style="flex-grow: 1; min-width: 80px;">LinkedIn</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="Email" style="flex-grow: 1; min-width: 80px;">Email</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="Call" style="flex-grow: 1; min-width: 80px;">Call</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="LinkedIn" style="flex-grow: 1; min-width: 80px;">LinkedIn</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="Gift" style="flex-grow: 1; min-width: 80px;">Gift</button>
             </div>
         `;
 
@@ -382,8 +383,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const newStep = {
                 sequence_id: state.selectedSequenceId,
                 step_number: parseInt(document.getElementById("modal-step-number").value),
-                // Normalize the input type by trimming whitespace and converting to lowercase
-                type: document.getElementById("modal-step-type").value.trim().toLowerCase(),
+                // REMOVED: .toLowerCase() to preserve casing from input/CSV
+                type: document.getElementById("modal-step-type").value.trim(), 
                 subject: document.getElementById("modal-step-subject").value.trim(),
                 message: document.getElementById("modal-step-message").value.trim(),
                 delay_days: parseInt(document.getElementById("modal-step-delay").value),
@@ -406,15 +407,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const stepId = Number(row.dataset.id);
 
         if (state.isEditingSequenceDetails) { showModal("Error", "Please save or cancel sequence details edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
-        
+       
         if (target.classList.contains("edit-step-btn")) {
             if (state.editingStepId) { showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
             state.editingStepId = stepId;
             renderSequenceSteps();
         } else if (target.classList.contains("save-step-btn")) {
             const updatedStep = {
-                // Normalize the input type by trimming whitespace and converting to lowercase
-                type: row.querySelector(".edit-step-type").value.trim().toLowerCase(),
+                // REMOVED: .toLowerCase() to preserve casing from input/CSV
+                type: row.querySelector(".edit-step-type").value.trim(),
                 subject: row.querySelector(".edit-step-subject").value.trim(),
                 message: row.querySelector(".edit-step-message").value.trim(),
                 delay_days: parseInt(row.querySelector(".edit-step-delay").value || 0, 10),
@@ -456,17 +457,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
 
         const targetStep = allStepsInSequence[targetIndex];
-        
+       
         const tempStepNumber = currentStep.step_number;
         currentStep.step_number = targetStep.step_number;
         targetStep.step_number = tempStepNumber;
 
         await supabase.from("sequence_steps").update({ step_number: currentStep.step_number }).eq("id", currentStep.id);
         await supabase.from("sequence_steps").update({ step_number: targetStep.step_number }).eq("id", targetStep.id);
-        
+       
         await loadAllData();
     }
-    
+   
     function handleCsvImport(e) {
         if (!state.selectedSequenceId) return;
         const f = e.target.files[0];
@@ -487,15 +488,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return {
                     sequence_id: state.selectedSequenceId,
                     step_number: currentStepNumber,
-                    // Normalize the imported type as well
-                    type: c[1] ? c[1].trim().toLowerCase() : "",
+                    // REMOVED: .toLowerCase() to preserve casing from CSV
+                    type: c[1] ? c[1].trim() : "", 
                     subject: c[2] || "",
                     message: c[3] || "",
                     delay_days: delayDays,
                     user_id: state.currentUser.id
                 };
             }).filter(record => record !== null);
-            
+           
             if (newRecords.length > 0) {
                 const { error } = await supabase.from("sequence_steps").insert(newRecords);
                 if (error) { showModal("Error", "Error importing steps: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
@@ -507,68 +508,68 @@ document.addEventListener("DOMContentLoaded", async () => {
         r.readAsText(f);
         e.target.value = "";
     }
-    
+   
     async function showMarketingSequencesForImport() {
         try {
             const { data: marketingSequences, error } = await supabase.from('marketing_sequences').select('id, name');
             if (error) throw error;
-    
+   
             const personalSequenceNames = new Set(state.sequences.map(s => s.name));
             const availableSequences = marketingSequences.filter(ms => !personalSequenceNames.has(ms.name));
-    
+   
             if (availableSequences.length === 0) {
                 showModal("Import Marketing Sequence", "<p>All available marketing sequences have already been imported.</p>", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return;
             }
-    
+   
             const sequenceOptionsHtml = availableSequences.map(seq => `
                 <div class="list-item" data-id="${seq.id}" style="cursor: pointer; margin-bottom: 5px;">
                     <input type="radio" name="marketing_sequence" value="${seq.id}" id="seq-${seq.id}" style="margin-right: 10px;">
                     <label for="seq-${seq.id}" style="flex-grow: 1; cursor: pointer;">${seq.name}</label>
                 </div>
             `).join('');
-    
+   
             const modalBody = `<div class="import-modal-list">${sequenceOptionsHtml}</div>`;
             showModal("Import Marketing Sequence", modalBody, importMarketingSequence);
-    
+   
         } catch (error) {
             showModal("Error", "Error fetching marketing sequences: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
-    
+   
     async function importMarketingSequence() {
         const selectedRadio = document.querySelector('input[name="marketing_sequence"]:checked');
         if (!selectedRadio) {
             showModal("Error", "Please select a sequence to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return false;
         }
-    
+   
         const marketingSeqId = Number(selectedRadio.value);
-    
+   
         const { data: originalSequence, error: seqError } = await supabase.from('marketing_sequences').select('*').eq('id', marketingSeqId).single();
         if (seqError) { showModal("Error", "Error fetching original sequence: " + seqError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
-    
+   
         const { data: originalSteps, error: stepsError } = await supabase.from('marketing_sequence_steps').select('*').eq('marketing_sequence_id', marketingSeqId);
         if (stepsError) { showModal("Error", "Error fetching original steps: " + stepsError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
-    
+   
         const { data: newPersonalSequence, error: insertSeqError } = await supabase.from('sequences').insert({
             name: originalSequence.name,
             description: originalSequence.description,
             source: 'Marketing',
             user_id: state.currentUser.id
         }).select().single();
-    
+   
         if (insertSeqError) {
             showModal("Error", "Failed to create new sequence. You may already have a sequence with this name. Error: " + insertSeqError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return false;
         }
-    
+   
         if (originalSteps && originalSteps.length > 0) {
             const newSteps = originalSteps.map(step => ({
                 sequence_id: newPersonalSequence.id,
                 step_number: step.step_number,
-                // Normalize imported marketing sequence steps too
-                type: step.type ? step.type.trim().toLowerCase() : "",
+                // REMOVED: .toLowerCase() to preserve casing from marketing sequence
+                type: step.type ? step.type.trim() : "",
                 subject: step.subject,
                 message: step.message,
                 delay_days: step.delay_days,
@@ -581,13 +582,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return false;
             }
         }
-    
+   
         showModal("Success", `Sequence "${originalSequence.name}" imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         await loadAllData();
         state.selectedSequenceId = newPersonalSequence.id;
         renderSequenceList();
         renderSequenceDetails(newPersonalSequence.id);
-    
+   
         return true;
     }
 
