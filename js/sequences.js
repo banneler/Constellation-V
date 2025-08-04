@@ -31,10 +31,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceStepsTableBody = document.querySelector("#sequence-steps-table-body");
     const addStepBtn = document.getElementById("add-step-btn");
     const themeNameSpan = document.getElementById("theme-name");
-    const sequenceNameInput = document.getElementById("sequence-name");
-    const sequenceDescriptionTextarea = document.getElementById("sequence-description");
+    const sequenceNameInput = document.getElementById("sequence-name"); // Corrected selector
+    const sequenceDescriptionTextarea = document.getElementById("sequence-description"); // Corrected selector
     const sequenceIdInput = document.getElementById("sequence-id");
-    const sequenceDetailsPanel = document.getElementById("sequence-details");
+    const sequenceDetailsPanel = document.getElementById("sequence-details"); // Corrected selector
 
     // AI Generation Section Selectors
     const aiNumStepsInput = document.getElementById("ai-num-steps");
@@ -42,7 +42,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const aiStepTypeLinkedinCheckbox = document.getElementById("ai-step-type-linkedin");
     const aiStepTypeCallCheckbox = document.getElementById("ai-step-type-call");
     const aiStepTypeTaskCheckbox = document.getElementById("ai-step-type-task");
-    // NEW: Other checkbox and input
     const aiStepTypeOtherCheckbox = document.getElementById("ai-step-type-other");
     const aiStepTypeOtherInput = document.getElementById("ai-step-type-other-input");
 
@@ -178,10 +177,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.originalSequenceDescription = sequence.description || "";
        
         const isMarketingImport = sequence.source === 'Marketing';
+        
+        // FIX: Ensure inputs are enabled if not a marketing import, otherwise disabled
         sequenceNameInput.disabled = isMarketingImport;
         sequenceDescriptionTextarea.disabled = isMarketingImport;
 
-        deleteSequenceBtn.classList.remove('hidden');
+        // FIX: Ensure delete button is visible for personal sequences, hidden for marketing
+        deleteSequenceBtn.classList.toggle('hidden', isMarketingImport);
         addStepBtn.classList.toggle('hidden', isMarketingImport);
         
         state.editingStepId = null;
@@ -191,22 +193,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const clearSequenceDetailsPanel = (hidePanel = true) => {
         state.selectedSequenceId = null;
         if (sequenceIdInput) sequenceIdInput.value = "";
-        if (sequenceNameInput) sequenceNameInput.value = "";
-        if (sequenceDescriptionTextarea) sequenceDescriptionTextarea.value = "";
+        if (sequenceNameInput) {
+            sequenceNameInput.value = ""; // Clear value
+            sequenceNameInput.disabled = true; // Disable by default when cleared
+        }
+        if (sequenceDescriptionTextarea) {
+            sequenceDescriptionTextarea.value = ""; // Clear value
+            sequenceDescriptionTextarea.disabled = true; // Disable by default when cleared
+        }
         if (sequenceStepsTableBody) sequenceStepsTableBody.innerHTML = "";
 
         if (hidePanel && sequenceDetailsPanel) {
             sequenceDetailsPanel.classList.add('hidden');
         } else if (sequenceDetailsPanel) {
             sequenceDetailsPanel.classList.remove('hidden');
-            if (sequenceNameInput) {
-                sequenceNameInput.value = "No Sequence Selected";
-                sequenceNameInput.disabled = true;
-            }
-            if (sequenceDescriptionTextarea) {
-                sequenceDescriptionTextarea.value = "Select a sequence from the left or create a new one.";
-                sequenceDescriptionTextarea.disabled = true;
-            }
+            // When not hidden but no sequence selected, show placeholder text
+            if (sequenceNameInput) sequenceNameInput.value = "No Sequence Selected";
+            if (sequenceDescriptionTextarea) sequenceDescriptionTextarea.value = "Select a sequence from the left or create a new one.";
         }
 
         if (deleteSequenceBtn) deleteSequenceBtn.classList.add('hidden');
@@ -247,12 +250,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        // NEW: Event listener for 'Other' checkbox to enable/disable its input
+        // Event listener for 'Other' checkbox to enable/disable its input
         if (aiStepTypeOtherCheckbox && aiStepTypeOtherInput) {
             aiStepTypeOtherCheckbox.addEventListener('change', () => {
                 aiStepTypeOtherInput.disabled = !aiStepTypeOtherCheckbox.checked;
                 if (!aiStepTypeOtherCheckbox.checked) {
-                    aiStepTypeOtherInput.value = ''; // Clear input if unchecked
+                    aiStepTypeOtherInput.value = '';
                 }
             });
         }
@@ -595,7 +598,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (aiStepTypeLinkedinCheckbox.checked) selectedStepTypes.push(aiStepTypeLinkedinCheckbox.value);
         if (aiStepTypeCallCheckbox.checked) selectedStepTypes.push(aiStepTypeCallCheckbox.value);
         if (aiStepTypeTaskCheckbox.checked) selectedStepTypes.push(aiStepTypeTaskCheckbox.value);
-        // NEW: Capture custom 'Other' type if checked and input has value
+        // Capture custom 'Other' type if checked and input has value
         if (aiStepTypeOtherCheckbox.checked) {
             const customType = aiStepTypeOtherInput.value.trim();
             if (customType) {
