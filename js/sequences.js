@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         originalSequenceDescription: '',
         editingStepId: null,
         originalStepValues: {},
-        // NEW: State for AI generated steps preview
         aiGeneratedSteps: []
     };
 
@@ -26,26 +25,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceList = document.getElementById("sequence-list");
     const addSequenceBtn = document.getElementById("add-sequence-btn");
     const importMarketingSequenceBtn = document.getElementById("import-marketing-sequence-btn");
-    const importSequenceBtn = document.getElementById("import-sequence-btn");
-    const sequenceCsvInput = document.getElementById("sequence-csv-input");
+    const importSequenceBtn = document.getElementById("bulk-import-sequence-steps-btn"); // Corrected ID for bulk import
+    const sequenceCsvInput = document.getElementById("sequence-steps-csv-input"); // Corrected ID for CSV input
     const deleteSequenceBtn = document.getElementById("delete-sequence-btn");
     const sequenceStepsTableBody = document.querySelector("#sequence-steps-table-body");
     const addStepBtn = document.getElementById("add-step-btn");
     const themeNameSpan = document.getElementById("theme-name");
-    const sequenceNameInput = document.getElementById("sequence-name"); // Corrected selector
-    const sequenceDescriptionTextarea = document.getElementById("sequence-description"); // Corrected selector
+    const sequenceNameInput = document.getElementById("sequence-name");
+    const sequenceDescriptionTextarea = document.getElementById("sequence-description");
     const sequenceIdInput = document.getElementById("sequence-id");
-    const editSequenceDetailsBtn = document.getElementById("edit-sequence-details-btn"); // This button doesn't exist in HTML, will be ignored
-    const saveSequenceDetailsBtn = document.getElementById("save-sequence-details-btn"); // This button doesn't exist in HTML, will be ignored
-    const cancelEditSequenceBtn = document.getElementById("cancel-edit-sequence-btn"); // This button doesn't exist in HTML, will be ignored
-    const sequenceDetailsPanel = document.getElementById("sequence-details"); // Corrected selector
+    const sequenceDetailsPanel = document.getElementById("sequence-details");
 
-    // NEW: AI Generation Section Selectors
+    // AI Generation Section Selectors
     const aiNumStepsInput = document.getElementById("ai-num-steps");
     const aiStepTypeEmailCheckbox = document.getElementById("ai-step-type-email");
     const aiStepTypeLinkedinCheckbox = document.getElementById("ai-step-type-linkedin");
     const aiStepTypeCallCheckbox = document.getElementById("ai-step-type-call");
     const aiStepTypeTaskCheckbox = document.getElementById("ai-step-type-task");
+    // NEW: Other checkbox and input
+    const aiStepTypeOtherCheckbox = document.getElementById("ai-step-type-other");
+    const aiStepTypeOtherInput = document.getElementById("ai-step-type-other-input");
+
     const aiPersonaPromptTextarea = document.getElementById("ai-persona-prompt");
     const aiGenerateSequenceBtn = document.getElementById("ai-generate-sequence-btn");
     const aiGeneratedSequencePreview = document.getElementById("ai-generated-sequence-preview");
@@ -181,15 +181,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequenceNameInput.disabled = isMarketingImport;
         sequenceDescriptionTextarea.disabled = isMarketingImport;
 
-        // Ensure these buttons are correctly handled based on HTML structure
-        // The HTML doesn't have edit/save/cancel buttons for sequence details directly,
-        // so these lines might not have an effect unless you add them.
-        // editSequenceDetailsBtn.classList.toggle('hidden', isMarketingImport);
-        // saveSequenceDetailsBtn.classList.add('hidden');
-        // cancelEditSequenceBtn.classList.add('hidden');
-       
         deleteSequenceBtn.classList.remove('hidden');
-        addStepBtn.classList.toggle('hidden', isMarketingImport); // Hide Add Step for marketing imports
+        addStepBtn.classList.toggle('hidden', isMarketingImport);
         
         state.editingStepId = null;
         renderSequenceSteps();
@@ -216,18 +209,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
 
-        // Ensure these buttons are correctly handled based on HTML structure
-        // if (editSequenceDetailsBtn) editSequenceDetailsBtn.classList.add('hidden');
-        // if (saveSequenceDetailsBtn) saveSequenceDetailsBtn.classList.add('hidden');
-        // if (cancelEditSequenceBtn) cancelEditSequenceBtn.classList.add('hidden');
         if (deleteSequenceBtn) deleteSequenceBtn.classList.add('hidden');
         if (addStepBtn) addStepBtn.classList.add('hidden');
 
         document.querySelectorAll("#sequence-list .selected").forEach(item => item.classList.remove("selected"));
         state.editingStepId = null;
         state.originalStepValues = {};
-        state.aiGeneratedSteps = []; // Clear AI generated steps
-        aiGeneratedSequencePreview.classList.add('hidden'); // Hide AI preview
+        state.aiGeneratedSteps = [];
+        aiGeneratedSequencePreview.classList.add('hidden');
     };
 
     function setupPageEventListeners() {
@@ -243,9 +232,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         if(sequenceCsvInput) sequenceCsvInput.addEventListener("change", handleCsvImport);
         if (deleteSequenceBtn) deleteSequenceBtn.addEventListener("click", handleDeleteSequence);
-        // if (editSequenceDetailsBtn) editSequenceDetailsBtn.addEventListener("click", handleEditSequenceDetails); // No button in HTML
-        // if (saveSequenceDetailsBtn) saveSequenceDetailsBtn.addEventListener("click", handleSaveSequenceDetails); // No button in HTML
-        // if (cancelEditSequenceBtn) cancelEditSequenceBtn.addEventListener("click", handleCancelEditSequenceDetails); // No button in HTML
         if (addStepBtn) addStepBtn.addEventListener("click", handleAddStep);
         if (sequenceList) sequenceList.addEventListener("click", handleSequenceListClick);
         if (sequenceStepsTableBody) sequenceStepsTableBody.addEventListener("click", handleSequenceStepActions);
@@ -261,7 +247,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        // NEW: AI Sequence Generation Event Listeners
+        // NEW: Event listener for 'Other' checkbox to enable/disable its input
+        if (aiStepTypeOtherCheckbox && aiStepTypeOtherInput) {
+            aiStepTypeOtherCheckbox.addEventListener('change', () => {
+                aiStepTypeOtherInput.disabled = !aiStepTypeOtherCheckbox.checked;
+                if (!aiStepTypeOtherCheckbox.checked) {
+                    aiStepTypeOtherInput.value = ''; // Clear input if unchecked
+                }
+            });
+        }
+
+        // AI Sequence Generation Event Listeners
         if (aiGenerateSequenceBtn) aiGenerateSequenceBtn.addEventListener("click", handleAiGenerateSequence);
         if (saveAiSequenceBtn) saveAiSequenceBtn.addEventListener("click", handleSaveAiSequence);
         if (cancelAiSequenceBtn) cancelAiSequenceBtn.addEventListener("click", handleCancelAiSequence);
@@ -271,12 +267,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const item = e.target.closest(".list-item");
         if (item) {
             const sequenceId = Number(item.dataset.id);
-            if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) { // Check for AI preview state
+            if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
                 showModal("Unsaved Changes", "You have unsaved changes or an active AI generation preview. Do you want to discard them?", () => {
                     state.isEditingSequenceDetails = false;
                     state.editingStepId = null;
-                    state.aiGeneratedSteps = []; // Clear AI generated steps
-                    aiGeneratedSequencePreview.classList.add('hidden'); // Hide AI preview
+                    state.aiGeneratedSteps = [];
+                    aiGeneratedSequencePreview.classList.add('hidden');
                     renderSequenceDetails(sequenceId);
                     document.querySelectorAll("#sequence-list .selected").forEach(i => i.classList.remove("selected"));
                     item.classList.add("selected");
@@ -291,12 +287,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function handleNewSequenceClick() {
-        if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) { // Check for AI preview state
+        if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
             showModal("Unsaved Changes", "You have unsaved changes or an active AI generation preview. Do you want to discard them and add a new sequence?", () => {
                 state.isEditingSequenceDetails = false;
                 state.editingStepId = null;
-                state.aiGeneratedSteps = []; // Clear AI generated steps
-                aiGeneratedSequencePreview.classList.add('hidden'); // Hide AI preview
+                state.aiGeneratedSteps = [];
+                aiGeneratedSequencePreview.classList.add('hidden');
                 clearSequenceDetailsPanel(false);
                 hideModal();
                 showNewSequenceModal();
@@ -323,7 +319,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function handleDeleteSequence() {
         if (!state.selectedSequenceId) return showModal("Error", "Please select a sequence to delete.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) { // Check for AI preview state
+        if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
             showModal("Error", "Please save or cancel any active edits or AI generation preview before deleting.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
         showModal("Confirm Deletion", "Are you sure? This will delete the sequence and all its steps.", async () => {
             await supabase.from("sequence_steps").delete().eq("sequence_id", state.selectedSequenceId);
@@ -333,20 +329,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideModal();
         }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
-
-    // These functions are not used based on current HTML structure, but kept for reference
-    // function handleEditSequenceDetails() { /* ... */ }
-    // async function handleSaveSequenceDetails() { /* ... */ }
-    // function handleCancelEditSequenceDetails() { /* ... */ }
    
     function handleAddStep() {
         if (!state.selectedSequenceId) return showModal("Error", "Please select a sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) { // Check for AI preview state
+        if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
             showModal("Error", "Please save or cancel any active edits or AI generation preview first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
         const steps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
         const nextNum = steps.length > 0 ? Math.max(...steps.map(s => s.step_number)) + 1 : 1;
        
-        // HTML for suggested type buttons with updated styling for better filling
         const suggestedTypesHtml = `
             <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; padding: 0 5px;">
                 <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="Email" style="flex-grow: 1; min-width: 80px;">Email</button>
@@ -389,7 +379,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const stepId = Number(row.dataset.id);
 
-        if (state.isEditingSequenceDetails || state.aiGeneratedSteps.length > 0) { // Check for AI preview state
+        if (state.isEditingSequenceDetails || state.aiGeneratedSteps.length > 0) {
             showModal("Error", "Please save or cancel sequence details edits or AI generation preview first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
        
         if (target.classList.contains("edit-step-btn")) {
@@ -605,6 +595,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (aiStepTypeLinkedinCheckbox.checked) selectedStepTypes.push(aiStepTypeLinkedinCheckbox.value);
         if (aiStepTypeCallCheckbox.checked) selectedStepTypes.push(aiStepTypeCallCheckbox.value);
         if (aiStepTypeTaskCheckbox.checked) selectedStepTypes.push(aiStepTypeTaskCheckbox.value);
+        // NEW: Capture custom 'Other' type if checked and input has value
+        if (aiStepTypeOtherCheckbox.checked) {
+            const customType = aiStepTypeOtherInput.value.trim();
+            if (customType) {
+                selectedStepTypes.push(customType);
+            } else {
+                showModal("Error", "Please provide a name for the 'Other' step type.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
+        }
+
         const personaPrompt = aiPersonaPromptTextarea.value.trim();
 
         if (numSteps < 1) {
@@ -718,45 +719,38 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (stepIndex === -1) return;
 
             if (target.classList.contains("edit-ai-step-btn")) {
-                // Set isEditing to true for this step
                 state.aiGeneratedSteps[stepIndex].isEditing = true;
-                // Store original values for cancel
                 state.aiGeneratedSteps[stepIndex].originalValues = { ...state.aiGeneratedSteps[stepIndex] };
                 renderAiGeneratedStepsPreview();
             } else if (target.classList.contains("save-ai-step-btn")) {
-                // Update step data from inputs
                 state.aiGeneratedSteps[stepIndex].type = row.querySelector(".edit-step-type").value.trim().toLowerCase();
                 state.aiGeneratedSteps[stepIndex].delay_days = parseInt(row.querySelector(".edit-step-delay").value || 0, 10);
                 state.aiGeneratedSteps[stepIndex].subject = row.querySelector(".edit-step-subject").value.trim();
                 state.aiGeneratedSteps[stepIndex].message = row.querySelector(".edit-step-message").value.trim();
                 
-                // Validate required fields
                 if (!state.aiGeneratedSteps[stepIndex].type) {
                     showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
 
                 state.aiGeneratedSteps[stepIndex].isEditing = false;
-                delete state.aiGeneratedSteps[stepIndex].originalValues; // Clean up
+                delete state.aiGeneratedSteps[stepIndex].originalValues;
                 renderAiGeneratedStepsPreview();
             } else if (target.classList.contains("cancel-ai-step-btn")) {
-                // Revert to original values
                 Object.assign(state.aiGeneratedSteps[stepIndex], state.aiGeneratedSteps[stepIndex].originalValues);
                 state.aiGeneratedSteps[stepIndex].isEditing = false;
-                delete state.aiGeneratedSteps[stepIndex].originalValues; // Clean up
+                delete state.aiGeneratedSteps[stepIndex].originalValues;
                 renderAiGeneratedStepsPreview();
             }
         });
     }
 
     async function handleSaveAiSequence() {
-        // First, check if any steps are still in editing mode
         if (state.aiGeneratedSteps.some(step => step.isEditing)) {
             showModal("Error", "Please save or cancel all inline step edits before saving the sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return;
         }
 
-        // Prompt for new sequence name
         showModal("Save AI Generated Sequence", `
             <label>New Sequence Name:</label>
             <input type="text" id="modal-new-sequence-name" required placeholder="e.g., AI Generated Outreach Sequence">
@@ -767,7 +761,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return false;
             }
 
-            // Check for duplicate sequence name
             const existingSequence = state.sequences.find(s => s.name.toLowerCase() === newSequenceName.toLowerCase());
             if (existingSequence) {
                 showModal("Error", "A sequence with this name already exists. Please choose a different name.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -775,7 +768,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             try {
-                // Create the new sequence
                 const { data: newSeqArr, error: seqError } = await supabase.from("sequences").insert([
                     { name: newSequenceName, description: "AI Generated Sequence", source: "AI", user_id: state.currentUser.id }
                 ]).select();
@@ -783,7 +775,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (seqError) throw seqError;
                 const newSequenceId = newSeqArr[0].id;
 
-                // Prepare steps for insertion
                 const stepsToInsert = state.aiGeneratedSteps.map(step => ({
                     sequence_id: newSequenceId,
                     step_number: step.step_number,
@@ -799,10 +790,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     if (stepsError) throw stepsError;
                 }
 
-                state.aiGeneratedSteps = []; // Clear preview data
-                aiGeneratedSequencePreview.classList.add('hidden'); // Hide preview section
-                state.selectedSequenceId = newSequenceId; // Select the newly created sequence
-                await loadAllData(); // Reload all data to show new sequence
+                state.aiGeneratedSteps = [];
+                aiGeneratedSequencePreview.classList.add('hidden');
+                state.selectedSequenceId = newSequenceId;
+                await loadAllData();
 
                 hideModal();
                 showModal("Success", `AI-generated sequence "${newSequenceName}" saved successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -818,8 +809,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function handleCancelAiSequence() {
         showModal("Confirm Cancel", "Are you sure you want to discard the AI generated sequence?", () => {
-            state.aiGeneratedSteps = []; // Clear preview data
-            aiGeneratedSequencePreview.classList.add('hidden'); // Hide preview section
+            state.aiGeneratedSteps = [];
+            aiGeneratedSequencePreview.classList.add('hidden');
             hideModal();
         }, true, `<button id="modal-confirm-btn" class="btn-danger">Discard</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
