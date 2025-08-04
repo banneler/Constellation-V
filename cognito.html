@@ -58,6 +58,7 @@
                 <div class="deals-view-toggle">
                     <button id="view-dashboard-btn" class="btn-secondary active">New Alerts</button>
                     <button id="view-archive-btn" class="btn-secondary">Intelligence Archive</button>
+                    <button id="refresh-data-btn" class="btn-primary" style="margin-left: auto;">Refresh Data</button>
                 </div>
 
                 <div class="filter-bar">
@@ -80,7 +81,6 @@
                         <option value="">All Accounts</option>
                         </select>
                     <button id="clear-filters-btn" class="btn-secondary">Clear Filters</button>
-                    <button id="refresh-data-btn" class="btn-primary">Refresh Data</button>
                 </div>
                 <div id="alerts-container">
                     </div>
@@ -140,12 +140,11 @@
                         <label for="log-interaction-notes">Log an Interaction:</label>
                         <textarea id="log-interaction-notes" rows="4" placeholder="e.g., Emailed the new CIO..." ${relevantContacts.length === 0 ? 'disabled' : ''}></textarea>
                         <button class="btn-secondary" id="log-interaction-btn" style="width: 100%; margin-bottom: 15px;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Log to Constellation</button>
-
                         <label for="create-task-desc">Create a Task:</label>
                         <input type="text" id="create-task-desc" placeholder="e.g., Follow up with new CIO in 1 week" ${relevantContacts.length === 0 ? 'disabled' : ''}>
                         <label for="create-task-due-date">Due Date:</label>
                         <input type="date" id="create-task-due-date" ${relevantContacts.length === 0 ? 'disabled' : ''}>
-                        <button class="btn-primary" id="create-task-btn" style="width: 100%;">Create in Constellation</button>
+                        <button class="btn-primary" id="create-task-btn" style="width: 100%;" ${relevantContacts.length === 0 ? 'disabled' : ''}>Create in Constellation</button>
                         
                         <p class="placeholder-text" style="color: var(--warning-yellow); margin-top: 10px; ${relevantContacts.length === 0 ? '' : 'display: none;'}" id="no-contact-message">
                             Add a contact to this account in Constellation to enable logging and task creation.
