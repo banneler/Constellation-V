@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
    
     // --- Data Fetching ---
-    async function loadAllData() {
+async function loadAllData() {
         if (!state.currentUser) return;
 
         try {
@@ -120,8 +120,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
                 supabase.from("email_templates").select("*"),
-                supabase.from("marketing_sequences").select("*"),
-                supabase.from("marketing_sequence_steps").select("*"),
+                // MODIFIED: Fetch from the unified 'sequences' table
+                supabase.from("sequences").select("*"),
+                // MODIFIED: Fetch from the unified 'sequence_steps' table
+                supabase.from("sequence_steps").select("*"),
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
 
@@ -131,7 +133,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (userQuotasError) throw userQuotasError;
 
             state.emailTemplates = emailTemplates || [];
-            state.sequences = sequences || [];
+            // MODIFIED: Filter for sequences where source is 'Marketing'
+            state.sequences = sequences ? sequences.filter(s => s.source === 'Marketing') : [];
             state.sequence_steps = sequenceSteps || [];
             state.user_quotas = userQuotas || [];
 
