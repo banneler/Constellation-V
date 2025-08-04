@@ -28,6 +28,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const customPromptInput = document.getElementById('custom-prompt-input');
     const generateCustomBtn = document.getElementById('generate-custom-btn');
+    const refreshDataBtn = document.getElementById('refresh-data-btn');
+    const lastDataLoadSpan = document.getElementById('last-data-load');
 
     // --- DATA FETCHING ---
     async function loadSocialContent() {
@@ -44,6 +46,41 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderSocialContent();
         } catch (error) {
             console.error("Error fetching Social Hub content:", error);
+        }
+    }
+    
+    // Add new functions for timestamp and refresh button logic
+    async function loadLastDataLoadTime() {
+        if (!lastDataLoadSpan) return;
+        const { data, error } = await supabase
+            .from('system_status')
+            .select('value')
+            .eq('id', 'social_hub_last_run')
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error("Error fetching last data load time:", error);
+            lastDataLoadSpan.textContent = 'Last Data Load: Failed to load';
+        } else if (data && data.value) {
+            const lastRunDate = new Date(data.value);
+            lastDataLoadSpan.textContent = `Last Data Load: ${lastRunDate.toLocaleString()}`;
+        }
+    }
+
+    function updateRefreshButtonState() {
+        if (!refreshDataBtn) return;
+        const lastRunTime = localStorage.getItem('lastManualRefreshTime_social');
+        const now = new Date().getTime();
+        const fourHours = 4 * 60 * 60 * 1000;
+
+        if (lastRunTime && (now - lastRunTime < fourHours)) {
+            const timeRemaining = fourHours - (now - lastRunTime);
+            const minutes = Math.ceil(timeRemaining / (1000 * 60));
+            refreshDataBtn.disabled = true;
+            refreshDataBtn.textContent = `Refresh in ${minutes}m`;
+        } else {
+            refreshDataBtn.disabled = false;
+            refreshDataBtn.innerHTML = `<i class="fas fa-sync-alt"></i> Refresh Data`;
         }
     }
 
@@ -175,6 +212,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             generateCustomBtn.textContent = 'Regenerate';
             generateCustomBtn.disabled = false;
         });
+        
+        if (refreshDataBtn) {
+            refreshDataBtn.addEventListener('click', async () => {
+                const now = new Date().getTime();
+                localStorage.setItem('lastManualRefreshTime_social', now);
+                updateRefreshButtonState();
+                alert('Data refresh initiated. It may take a moment. Please check back soon.');
+                const { error } = await supabase.functions.invoke('run-social-script');
+                if (error) {
+                    console.error('Error invoking Social Hub refresh script:', error);
+                    alert('Failed to initiate refresh. Please check the logs.');
+                }
+            });
+        }
     }
 
     // --- INITIALIZATION ---
@@ -187,6 +238,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupPageEventListeners();
             await loadSocialContent();
+            loadLastDataLoadTime();
+            updateRefreshButtonState();
         } else {
             window.location.href = "index.html";
         }
