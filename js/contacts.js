@@ -1,17 +1,6 @@
 // js/contacts.js
-import {
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    formatDate,
-    parseCsvRow,
-    setupModalListeners,
-    showModal,
-    hideModal,
-    addDays,
-    updateActiveNavLink,
-    setupUserMenuAndAuth,
-    loadSVGs
-} from './shared_constants.js';
+
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -20,15 +9,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentUser: null,
         contacts: [],
         accounts: [],
-        sequences: [],
-        sequence_steps: [],
         activities: [],
-        activityTypes: [],
         contact_sequences: [],
-        selectedContactId: null,
         deals: [],
+        selectedContactId: null,
         tasks: [],
-        email_log: [],
         isFormDirty: false
     };
 
@@ -60,8 +45,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const emailViewDate = document.getElementById("email-view-date");
     const emailViewBodyContent = document.getElementById("email-view-body-content");
     const contactPendingTaskReminder = document.getElementById("contact-pending-task-reminder");
-    // NEW: Selector for the screenshot button
     const importContactScreenshotBtn = document.getElementById("import-contact-screenshot-btn");
+    // NEW: Selectors for the camera feature
+    const takePictureBtn = document.getElementById("take-picture-btn");
+    const cameraInput = document.getElementById("camera-input");
 
 
     // --- Dirty Check and Navigation ---
@@ -101,7 +88,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
-        const allTableNames = [...userSpecificTables, ...sharedTables];
 
         let activityTypesData = [];
         const { data: sharedActivityTypes, error: sharedError } = await supabase.from("activity_types").select("*");
@@ -178,7 +164,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
-    // NEW FUNCTION: Dedicated logic to populate the account dropdown
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
         if (!contactAccountNameSelect) return;
@@ -211,7 +196,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactPendingTaskReminder.classList.add('hidden');
         }
         
-        // REFACTORED: Call the new dedicated function
         populateAccountDropdown();
 
         if (contact) {
@@ -311,7 +295,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         contactForm.reset();
         contactForm.querySelector("#contact-id").value = "";
         contactForm.querySelector("#contact-last-saved").textContent = "Not yet saved.";
-        // Ensure dropdown is cleared to default "No Account"
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
         if (contactAccountNameSelect) contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
         contactActivitiesList.innerHTML = "";
@@ -331,7 +314,75 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    // NEW FUNCTION: Handles the paste event for importing a screenshot
+    // Unified function to process and send image data to the Edge Function
+    async function processAndImportImage(base64Image) {
+        // Show a loading state in the modal
+        const modalBody = document.getElementById('modal-body');
+        modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing image...</p>`;
+
+        try {
+            // Call the Supabase Edge Function
+            const { data, error } = await supabase.functions.invoke('extract-contact-info', {
+                body: { image: base64Image }
+            });
+
+            if (error) throw error;
+            
+            const contactData = data;
+
+            // Check for an existing contact by name
+            let contactId = null;
+            if (contactData.first_name || contactData.last_name) {
+                const existingContact = state.contacts.find(c =>
+                    c.first_name === contactData.first_name && c.last_name === contactData.last_name
+                );
+                if (existingContact) {
+                    contactId = existingContact.id;
+                }
+            }
+
+            // Create or update the contact
+            if (contactId) {
+                // Update existing contact
+                await supabase.from("contacts").update({
+                    email: contactData.email || '',
+                    phone: contactData.phone || '',
+                    title: contactData.title || '',
+                    // Assuming company can be updated if present in signature
+                    company: contactData.company || '' 
+                }).eq('id', contactId);
+            } else {
+                // Create a new contact
+                const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([
+                    {
+                        first_name: contactData.first_name || '',
+                        last_name: contactData.last_name || '',
+                        email: contactData.email || '',
+                        phone: contactData.phone || '',
+                        title: contactData.title || '',
+                        company: contactData.company || '', // Include company for new contacts
+                        user_id: state.currentUser.id
+                    }
+                ]).select();
+                if (insertError) throw insertError;
+                contactId = newContactArr?.[0]?.id;
+            }
+
+            await loadAllData(); // Reload all data
+            state.selectedContactId = contactId;
+            renderContactList(); // Re-render list to highlight
+            renderContactDetails(); // Display in form
+
+            hideModal();
+            showModal("Success", `Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
+        } catch (error) {
+            console.error("Error invoking Edge Function or saving data:", error);
+            showModal("Error", "Failed to process image. Please try again or enter the details manually.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    }
+
+    // Handles the paste event for importing a screenshot
     async function handlePasteEvent(event) {
         const items = (event.clipboardData || event.originalEvent.clipboardData).items;
         let blob = null;
@@ -347,72 +398,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64Image = e.target.result.split(',')[1];
-                
-                // Show a loading state in the modal
-                const modalBody = document.getElementById('modal-body');
-                modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing screenshot...</p>`;
-    
-                try {
-                    // Call the new Supabase Edge Function
-                    const { data, error } = await supabase.functions.invoke('extract-contact-info', {
-                        body: { image: base64Image }
-                    });
-    
-                    if (error) throw error;
-                    
-                    const contactData = data;
-    
-                    // Check for an existing contact by name
-                    let contactId = null;
-                    if (contactData.first_name || contactData.last_name) {
-                        const existingContact = state.contacts.find(c =>
-                            c.first_name === contactData.first_name && c.last_name === contactData.last_name
-                        );
-                        if (existingContact) {
-                            contactId = existingContact.id;
-                        }
-                    }
-
-                    // Create or update the contact
-                    if (contactId) {
-                        // Update existing contact
-                        await supabase.from("contacts").update({
-                            email: contactData.email || '',
-                            phone: contactData.phone || '',
-                            title: contactData.title || ''
-                        }).eq('id', contactId);
-                    } else {
-                        // Create a new contact
-                        const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([
-                            {
-                                first_name: contactData.first_name || '',
-                                last_name: contactData.last_name || '',
-                                email: contactData.email || '',
-                                phone: contactData.phone || '',
-                                title: contactData.title || '',
-                                user_id: state.currentUser.id
-                            }
-                        ]).select();
-                        if (insertError) throw insertError;
-                        contactId = newContactArr?.[0]?.id;
-                    }
-    
-                    await loadAllData(); // Reload all data
-                    state.selectedContactId = contactId;
-                    renderContactList(); // Re-render list to highlight
-                    renderContactDetails(); // Display in form
-    
-                    hideModal();
-                    showModal("Success", `Contact information for ${contactData.first_name} ${contactData.last_name} imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    
-                } catch (error) {
-                    console.error("Error invoking Edge Function or saving data:", error);
-                    showModal("Error", "Failed to process screenshot. Please try again or enter the details manually.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                }
+                await processAndImportImage(base64Image);
             };
             reader.readAsDataURL(blob);
         } else {
             showModal("Error", "No image found in clipboard. Please ensure you copied an image.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    }
+
+    // Handles the change event for camera input
+    async function handleCameraInputChange(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Image = e.target.result.split(',')[1];
+                await processAndImportImage(base64Image);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            showModal("Error", "No image captured from camera.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
 
@@ -459,7 +464,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         contactSearch.addEventListener("input", renderContactList);
 
-        // MODIFIED: Unify "Add New Contact" to use a modal like "Add New Account"
         addContactBtn.addEventListener("click", () => {
             const openNewContactModal = () => {
                 hideContactDetails(false, true); // Clear form and selection
@@ -559,7 +563,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
             } else {
-                // This block should ideally not be hit if modal creation is used, but kept as a fallback/safety
                 const { data: newContactData, error: insertError } = await supabase.from("contacts").insert([data]).select();
                 if (insertError) {
                     showModal("Error", "Error creating contact: " + insertError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -729,40 +732,42 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to add a task for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
             showModal('Add New Task', `
-                <label>Description:</label><input type="text" id="modal-task-description" required>
-                <label>Due Date:</label><input type="date" id="modal-task-due-date">
-            `, async () => {
-                const description = document.getElementById('modal-task-description').value.trim();
-                const dueDate = document.getElementById('modal-task-due-date').value;
-                if (!description) {
-                    showModal("Error", 'Description is required.', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return false;
-                }
-                const taskData = {
-                    description,
-                    due_date: dueDate || null,
-                    contact_id: state.selectedContactId,
-                    account_id: contact?.account_id,
-                    user_id: state.currentUser.id,
-                    status: 'Pending'
-                };
-                const { error } = await supabase.from('tasks').insert(taskData);
-                if (error) {
-                    showModal("Error", 'Error adding task: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                } else {
-                    await loadAllData();
-                    hideModal();
-                    showModal("Success", 'Task added successfully!', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                }
-                return true;
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                <label>Description:</label><input type="text" id="modal-task-description" required><br><label>Due Date:</label><input type="date" id="modal-task-due-date">`,
+                async () => {
+                    const description = document.getElementById('modal-task-description').value.trim();
+                    const dueDate = document.getElementById('modal-task-due-date').value;
+                    if (!description) {
+                        alert('Task description is required.');
+                        return false;
+                    }
+                    const newTask = {
+                        user_id: state.currentUser.id,
+                        description,
+                        due_date: dueDate || null,
+                        status: 'Pending',
+                        account_id: contact?.account_id
+                    };
+                    const { error } = await supabase.from('tasks').insert([newTask]);
+                    if (error) {
+                        showModal("Error", 'Error adding task: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    } else {
+                        await loadAllData();
+                        hideModal();
+                        showModal("Success", 'Task added successfully!', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    }
+                    return true;
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
-        // NEW: Event listener for the screenshot button
+        // MODIFIED: Event listener for the screenshot button to include camera option
         if (importContactScreenshotBtn) {
             importContactScreenshotBtn.addEventListener("click", () => {
-                showModal("Import Contact Screenshot",
-                    `<p>Please take a screenshot of the email signature and paste it into this window using CTRL+V (or CMD+V on Mac).</p>`,
+                showModal("Import Contact Information",
+                    `<p>To import contact information:</p>
+                    <ul>
+                        <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
+                        <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
+                    </ul>`,
                     null, false,
                     `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
@@ -770,6 +775,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // Listen for a paste event once to process the image
                 document.addEventListener('paste', handlePasteEvent, { once: true });
             });
+        }
+
+        // NEW: Event listener for the "Take Picture" button
+        if (takePictureBtn) {
+            takePictureBtn.addEventListener("click", () => {
+                // Trigger the hidden file input to open the camera
+                cameraInput.click();
+                // Show a brief modal to indicate camera is opening
+                showModal("Camera Ready", "Your device camera should be opening. Please take a picture of the email signature or business card.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            });
+        }
+
+        // NEW: Event listener for when a file is selected via the camera input
+        if (cameraInput) {
+            cameraInput.addEventListener('change', handleCameraInputChange);
         }
 
     }
