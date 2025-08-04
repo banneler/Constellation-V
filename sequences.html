@@ -16,7 +16,6 @@
     <div class="crm-container">
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
-            
             <a href="command-center.html" class="nav-button">Command Center</a>
             <a href="deals.html" class="nav-button">Deals</a>
             <a href="contacts.html" class="nav-button">Contacts</a>
@@ -24,7 +23,7 @@
             <a href="campaigns.html" class="nav-button">Campaigns</a>
             <a href="sequences.html" class="nav-button active">Sequences</a>
             <a href="social_hub.html" class="nav-button">Social Hub</a>
-<div class="nav-bottom-section">
+            <div class="nav-bottom-section">
                  <a href="cognito.html" class="nav-button cognito-nav-link">
                     <h1>
                         C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
@@ -41,16 +40,17 @@
                         </svg>gnito
                     </h1>
                 </a>
-            <div class="user-menu" style="margin-top: auto;">
-                <div class="user-menu-header">
-                    <div data-svg-loader="assets/user-icon.svg"></div>
-                    <span id="user-name-display">Loading...</span>
-                </div>
-                <div id="user-menu-popup" class="user-menu-popup">
-                    <button id="theme-toggle-btn" class="nav-button">
-                        Theme: <span id="theme-name">Dark</span>
-                    </button>
-                    <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
+                <div class="user-menu" style="margin-top: auto;">
+                    <div class="user-menu-header">
+                        <div data-svg-loader="assets/user-icon.svg"></div>
+                        <span id="user-name-display">Loading...</span>
+                    </div>
+                    <div id="user-menu-popup" class="user-menu-popup">
+                        <button id="theme-toggle-btn" class="nav-button">
+                            Theme: <span id="theme-name">Dark</span>
+                        </button>
+                        <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
+                    </div>
                 </div>
             </div>
         </nav>
@@ -60,68 +60,119 @@
                 <h2>Sequences</h2>
                 <div class="split-view">
                     <div class="item-list-container">
-    <button id="add-sequence-btn" class="btn-primary full-width">New Personal Sequence</button>
-    
-    <button id="import-marketing-sequence-btn" class="btn-secondary full-width">Import Marketing Sequence</button>
-    
-    <button id="import-sequence-btn" class="btn-secondary full-width">Import Steps from CSV</button>
-    <input type="file" id="sequence-csv-input" accept=".csv" class="hidden">
-    <button id="delete-sequence-btn" class="btn-danger full-width" style="margin-top: 10px;">Delete Selected Template</button>
-    <div id="sequence-list" class="item-list"></div>
-</div>
-                    <div id="sequence-details-panel" class="details-panel">
+                        <button id="add-sequence-btn" class="btn-primary full-width">Add New Sequence</button>
+                        <button id="bulk-import-sequence-steps-btn" class="btn-secondary full-width">Bulk Import Steps from CSV</button>
+                        <input type="file" id="sequence-steps-csv-input" accept=".csv" class="hidden">
+                        <input type="text" id="sequence-search" placeholder="Search Sequences...">
+                        <div id="sequence-list" class="item-list"></div>
+                    </div>
+                    <div id="sequence-details" class="details-panel">
                         <h3>Sequence Details</h3>
-                        <hr>
-                        <div class="form-grid">
-                            <div class="full-span-grid-item">
-                                <label for="sequence-name-input">Name:</label>
-                                <input type="text" id="sequence-name-input" class="form-control" disabled>
-                                <input type="hidden" id="sequence-id">
+                        <form id="sequence-form">
+                            <input type="hidden" id="sequence-id">
+                            <label for="sequence-name">Sequence Name</label>
+                            <input type="text" id="sequence-name" required>
+                            <label for="sequence-description">Description</label>
+                            <textarea id="sequence-description"></textarea>
+                            <small id="sequence-last-saved" class="last-saved-text"></small>
+                            <div class="form-buttons">
+                                <button type="submit" class="btn-primary">Save Changes</button>
+                                <button type="button" id="delete-sequence-btn" class="btn-danger">Delete Sequence</button>
                             </div>
-                            <div class="full-span-grid-item">
-                                <label for="sequence-description-textarea">Description:</label>
-                                <textarea id="sequence-description-textarea" class="form-control" disabled></textarea>
-                            </div>
-                        </div>
-                        <div class="form-buttons">
-                            <button id="edit-sequence-details-btn" class="btn-secondary">Edit Details</button>
-                            <button id="save-sequence-details-btn" class="btn-success hidden">Save Changes</button>
-                            <button id="cancel-edit-sequence-btn" class="btn-secondary hidden">Cancel</button>
-                        </div>
-
+                        </form>
                         <hr>
-
-                        <h3>Sequence Steps</h3>
-                        <div class="table-container">
-                            <table id="sequence-steps-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Type</th>
-                                        <th>Subject</th>
-                                        <th>Message</th>
-                                        <th>Delay (Days)</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sequence-steps-table-body"></tbody>
-                            </table>
-                        </div>
-                        <div class="action-buttons">
-                            <button id="add-step-btn" class="btn-secondary">Add Step</button>
+                        <div class="related-info">
+                            <h4>Sequence Steps</h4>
+                            <div class="table-container">
+                                <table id="sequence-steps-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Step #</th>
+                                            <th>Type</th>
+                                            <th>Delay (Days)</th>
+                                            <th>Subject / Description</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sequence-steps-table-body">
+                                        <!-- Steps will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button id="add-step-btn" class="btn-secondary">Add New Step</button>
                         </div>
                     </div>
                 </div>
+
+                <hr> <!-- Separator for AI Generation section -->
+
+                <!-- NEW: AI Sequence Generation Section -->
+                <div class="ai-generation-section">
+                    <h3>AI Generate New Sequence</h3>
+                    <div class="form-grid">
+                        <div>
+                            <label for="ai-num-steps">Number of Steps</label>
+                            <input type="number" id="ai-num-steps" min="1" value="5">
+                        </div>
+                        <div>
+                            <label>Step Types (Select All That Apply)</label>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="ai-step-type-email" value="Email" checked> <label for="ai-step-type-email">Email</label><br>
+                                <input type="checkbox" id="ai-step-type-linkedin" value="LinkedIn Message"> <label for="ai-step-type-linkedin">LinkedIn Message</label><br>
+                                <input type="checkbox" id="ai-step-type-call" value="Call"> <label for="ai-step-type-call">Call</label><br>
+                                <input type="checkbox" id="ai-step-type-task" value="Task"> <label for="ai-step-type-task">Task</label>
+                            </div>
+                        </div>
+                        <div class="full-span-grid-item">
+                            <label for="ai-persona-prompt">Persona & Voice Prompt (e.g., "Friendly, expert, B2B SaaS sales rep specializing in cloud infrastructure.")</label>
+                            <textarea id="ai-persona-prompt" rows="3" placeholder="Define the persona and tone for the AI-generated content."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-buttons">
+                        <button id="ai-generate-sequence-btn" class="btn-primary">Generate Sequence with AI</button>
+                    </div>
+
+                    <div id="ai-generated-sequence-preview" class="ai-generated-preview hidden">
+                        <h4>AI Generated Sequence Preview:</h4>
+                        <p class="placeholder-text">Review the generated steps below. You can edit them before saving.</p>
+                        <form id="ai-generated-sequence-form">
+                            <!-- AI generated steps will be dynamically inserted here -->
+                        </form>
+                        <div class="form-buttons">
+                            <button id="save-ai-sequence-btn" class="btn-primary">Save AI Generated Sequence</button>
+                            <button id="cancel-ai-sequence-btn" class="btn-secondary">Cancel AI Generation</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- END NEW: AI Sequence Generation Section -->
+
             </div>
         </main>
     </div>
 
-   <div id="modal-backdrop" class="modal-backdrop hidden">
+    <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 id="modal-title"></h3>
             <div id="modal-body"></div>
             <div id="modal-actions" class="modal-actions">
                 </div>
+        </div>
+    </div>
+
+    <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
+        <div class="email-view-modal">
+            <div class="email-view-header">
+                <h3 id="email-view-subject" class="email-view-subject"></h3>
+                <button id="email-view-close-btn" class="email-view-close">&times;</button>
+            </div>
+            <div class="email-view-meta">
+                <p><strong>From:</strong> <span id="email-view-from"></span></p>
+                <p><strong>To:</strong> <span id="email-view-to"></span></p>
+                <p><strong>Date:</strong> <span id="email-view-date"></span></p>
+            </div>
+            <div class="email-view-body">
+                <pre id="email-view-body-content"></pre>
+            </div>
         </div>
     </div>
     <script>
