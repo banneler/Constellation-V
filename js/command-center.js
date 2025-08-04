@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         today.setHours(0, 0, 0, 0);
         return today.toISOString();
     }
-
+    
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -104,11 +104,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         allTasksTable.innerHTML = "";
         recentActivitiesTable.innerHTML = "";
 
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        const localDateString = `${year}-${month}-${day}`;
+        // CORRECTED: Compare all dates against the start of the local day.
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
 
         // Render My Tasks
         const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
@@ -116,8 +114,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             pendingTasks.forEach(task => {
                 const row = myTasksTable.insertRow();
                 if (task.due_date) {
-                    const dueDateString = task.due_date.slice(0, 10);
-                    if (dueDateString < localDateString) {
+                    const taskDueDate = new Date(task.due_date);
+                    // Check if the task is past due by comparing the date values
+                    if (taskDueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
                         row.classList.add('past-due');
                     }
                 }
@@ -147,14 +146,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.contact_sequences
             .filter(cs => {
                 if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                const dueDateString = cs.next_step_due_date.slice(0, 10);
-                return dueDateString <= localDateString;
+                const dueDate = new Date(cs.next_step_due_date);
+                return dueDate.setHours(0,0,0,0) <= startOfToday.getTime();
             })
             .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
             .forEach(cs => {
                 const row = dashboardTable.insertRow();
-                const dueDateString = cs.next_step_due_date.slice(0, 10);
-                if (dueDateString < localDateString) {
+                const dueDate = new Date(cs.next_step_due_date);
+                if (dueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
                     row.classList.add('past-due');
                 }
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
@@ -179,8 +178,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.contact_sequences
             .filter(cs => {
                 if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                const dueDateString = cs.next_step_due_date.slice(0, 10);
-                return dueDateString > localDateString;
+                const dueDate = new Date(cs.next_step_due_date);
+                return dueDate.setHours(0,0,0,0) > startOfToday.getTime();
             })
             .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
             .forEach(cs => {
@@ -336,4 +335,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
