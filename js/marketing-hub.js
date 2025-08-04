@@ -5,14 +5,11 @@ import {
     formatDate,
     parseCsvRow,
     addDays,
-    themes,
     setupModalListeners,
     showModal,
     hideModal,
     setupUserMenuAndAuth,
-    loadSVGs,
-    updateActiveNavLink,
-    setupTheme // ADDED: Import the setupTheme function
+    loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1070,11 +1067,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        const savedThemeIndex = themes.indexOf(savedTheme);
-        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
-        applyTheme(themes[currentThemeIndex]);
-
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
