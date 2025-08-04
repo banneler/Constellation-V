@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", () => {
                 state.isFormDirty = false;
                 window.location.href = url;
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Leave</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else {
             window.location.href = url;
         }
@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 renderContactList();
                 renderContactDetails();
                 hideModal();
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else {
             state.selectedContactId = newContactId;
             renderContactList();
@@ -309,7 +309,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         contactForm.reset();
         contactForm.querySelector("#contact-id").value = "";
         contactForm.querySelector("#contact-last-saved").textContent = "Not yet saved.";
-        contactForm.querySelector("#contact-account-name").innerHTML = '<option value="">-- No Account --</option>';
+        // Ensure dropdown is cleared to default "No Account"
+        const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
+        if (contactAccountNameSelect) contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
         contactActivitiesList.innerHTML = "";
         if(sequenceStatusContent) sequenceStatusContent.classList.add('hidden');
         if(noSequenceText) {
@@ -348,7 +350,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     state.isFormDirty = false;
                     await supabase.auth.signOut();
                     window.location.href = logoutUrl;
-                });
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Log Out</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             } else {
                 (async () => {
                     await supabase.auth.signOut();
@@ -370,21 +372,49 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         contactSearch.addEventListener("input", renderContactList);
 
+        // MODIFIED: Unify "Add New Contact" to use a modal like "Add New Account"
         addContactBtn.addEventListener("click", () => {
-            const action = () => {
-                state.isFormDirty = false;
-                hideContactDetails(false, true);
-                // THE FIX: Call the new function here as well
-                populateAccountDropdown();
-                contactForm.querySelector("#contact-first-name").focus();
+            const openNewContactModal = () => {
+                hideContactDetails(false, true); // Clear form and selection
+                showModal("New Contact", `
+                    <label>First Name:</label><input type="text" id="modal-contact-first-name" required><br>
+                    <label>Last Name:</label><input type="text" id="modal-contact-last-name" required>
+                `, async () => {
+                    const firstName = document.getElementById("modal-contact-first-name")?.value.trim();
+                    const lastName = document.getElementById("modal-contact-last-name")?.value.trim();
+                    if (!firstName || !lastName) {
+                        showModal("Error", "First Name and Last Name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return false;
+                    }
+
+                    const { data: newContactArr, error } = await supabase.from("contacts").insert([{ 
+                        first_name: firstName, 
+                        last_name: lastName, 
+                        user_id: state.currentUser.id 
+                    }]).select();
+
+                    if (error) {
+                        showModal("Error", "Error creating contact: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return false;
+                    }
+                    
+                    state.isFormDirty = false; // Reset dirty state after successful creation
+                    await loadAllData(); // Reload all data to include the new contact
+                    state.selectedContactId = newContactArr?.[0]?.id; // Select the newly created contact
+                    renderContactList(); // Re-render list to highlight new contact
+                    renderContactDetails(); // Display new contact in the form
+                    hideModal(); // Close the modal
+                    return true;
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Contact</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             };
+
             if (state.isFormDirty) {
-                showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to discard them and add a new contact?", () => {
+                showModal("Unsaved Changes", "You have unsaved changes. Do you want to discard them and add a new contact?", () => {
                     hideModal();
-                    action();
-                });
+                    openNewContactModal();
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Add New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             } else {
-                action();
+                openNewContactModal();
             }
         });
 
@@ -429,27 +459,46 @@ document.addEventListener("DOMContentLoaded", async () => {
                 last_saved: new Date().toISOString(),
                 user_id: state.currentUser.id
             };
-            if (!data.first_name || !data.last_name) return alert("First and Last name are required.");
-            if (id) { await supabase.from("contacts").update(data).eq("id", id); }
-            else {
-                const { data: newContactData } = await supabase.from("contacts").insert([data]).select();
+            if (!data.first_name || !data.last_name) {
+                showModal("Error", "First and Last name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return; // Prevent form submission
+            }
+
+            // If ID exists, update; otherwise, insert
+            if (id) {
+                const { error } = await supabase.from("contacts").update(data).eq("id", id);
+                if (error) {
+                    showModal("Error", "Error saving contact: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+            } else {
+                // This block should ideally not be hit if modal creation is used, but kept as a fallback/safety
+                const { data: newContactData, error: insertError } = await supabase.from("contacts").insert([data]).select();
+                if (insertError) {
+                    showModal("Error", "Error creating contact: " + insertError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
                 if (newContactData?.length > 0) state.selectedContactId = newContactData[0].id;
             }
             state.isFormDirty = false;
             await loadAllData();
-            alert("Contact saved successfully!");
+            showModal("Success", "Contact saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         });
 
         deleteContactBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return;
             showModal("Confirm Deletion", "Are you sure you want to delete this contact?", async () => {
-                await supabase.from("contacts").delete().eq("id", state.selectedContactId);
+                const { error } = await supabase.from("contacts").delete().eq("id", state.selectedContactId);
+                if (error) {
+                    showModal("Error", "Error deleting contact: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
                 state.selectedContactId = null;
                 state.isFormDirty = false;
                 await loadAllData();
                 hideModal();
-                alert("Contact deleted successfully.");
-            });
+                showModal("Success", "Contact deleted successfully.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
         bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
@@ -473,13 +522,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (newRecords.length > 0) {
                     const { error } = await supabase.from("contacts").insert(newRecords);
                     if (error) {
-                        alert("Error importing contacts: " + error.message);
+                        showModal("Error", "Error importing contacts: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     } else {
-                        alert(`${newRecords.length} contacts imported.`);
+                        showModal("Success", `${newRecords.length} contacts imported.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         await loadAllData();
                     }
                 } else {
-                    alert("No valid records found to import.");
+                    showModal("Info", "No valid records found to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
             };
             r.readAsText(f);
@@ -487,7 +536,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         logActivityBtn.addEventListener("click", () => {
-            if (!state.selectedContactId) return alert("Please select a contact to log activity for.");
+            if (!state.selectedContactId) return showModal("Error", "Please select a contact to log activity for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
             const typeOptions = state.activityTypes.map(t => `<option value="${t.type_name}">${t.type_name}</option>`).join('');
             
@@ -497,7 +546,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             `, async () => {
                 const type = document.getElementById('modal-activity-type').value;
                 const description = document.getElementById('modal-activity-description').value.trim();
-                if (!type || !description) return alert("Activity type and description are required.");
+                if (!type || !description) {
+                    showModal("Error", "Activity type and description are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return false;
+                }
                 const { error } = await supabase.from('activities').insert({
                     contact_id: state.selectedContactId,
                     account_id: contact?.account_id,
@@ -507,20 +559,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                     date: new Date().toISOString()
                 });
                 if (error) {
-                    alert("Error logging activity: " + error.message);
+                    showModal("Error", "Error logging activity: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 } else {
                     await loadAllData();
                     hideModal();
-                    alert("Activity logged successfully!");
+                    showModal("Success", "Activity logged successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
+                return true; // Indicate success for modal to close
             });
         });
 
         assignSequenceBtn.addEventListener("click", () => {
-            if (!state.selectedContactId) return alert("Please select a contact to assign a sequence to.");
+            if (!state.selectedContactId) return showModal("Error", "Please select a contact to assign a sequence to.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const currentContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
             if (currentContactSequence) {
-                return alert(`Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}"". Remove them from current sequence first.`);
+                showModal("Error", `Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}"". Remove them from current sequence first.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
             }
 
             const availableSequences = state.sequences;
@@ -531,12 +585,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <select id="modal-sequence-select" required><option value="">-- Select --</option>${sequenceOptions}</select>
             `, async () => {
                 const sequenceId = document.getElementById('modal-sequence-select').value;
-                if (!sequenceId) return alert("Please select a sequence.");
+                if (!sequenceId) {
+                    showModal("Error", "Please select a sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return false;
+                }
                 const selectedSequence = state.sequences.find(s => s.id === Number(sequenceId));
-                if (!selectedSequence) return alert("Selected sequence not found.");
+                if (!selectedSequence) {
+                    showModal("Error", "Selected sequence not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return false;
+                }
 
                 const firstStep = state.sequence_steps.find(s => s.sequence_id === selectedSequence.id && s.step_number === 1);
-                if (!firstStep) return alert("Selected sequence has no steps defined. Add steps to the sequence first.");
+                if (!firstStep) {
+                    showModal("Error", "Selected sequence has no steps defined. Add steps to the sequence first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return false;
+                }
 
                 const { error } = await supabase.from('contact_sequences').insert({
                     contact_id: state.selectedContactId,
@@ -547,34 +610,36 @@ document.addEventListener("DOMContentLoaded", async () => {
                     user_id: state.currentUser.id
                 });
                 if (error) {
-                    alert("Error assigning sequence: " + error.message);
+                    showModal("Error", "Error assigning sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return false;
                 } else {
                     await loadAllData();
                     hideModal();
-                    alert("Sequence assigned successfully!");
+                    showModal("Success", "Sequence assigned successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return true;
                 }
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
         removeFromSequenceBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return;
             const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
-            if (!activeContactSequence) return alert("Contact is not in an active sequence.");
+            if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
             showModal("Confirm Removal", `Are you sure you want to remove this contact from "${state.sequences.find(s => s.id === activeContactSequence.sequence_id)?.name || 'Unknown'}" sequence?`, async () => {
                 const { error } = await supabase.from('contact_sequences').update({ status: 'Removed' }).eq('id', activeContactSequence.id);
                 if (error) {
-                    alert("Error removing from sequence: " + error.message);
+                    showModal("Error", "Error removing from sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 } else {
                     await loadAllData();
                     hideModal();
-                    alert("Contact removed from sequence.");
+                    showModal("Success", "Contact removed from sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-danger">Remove</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
         if (addTaskContactBtn) addTaskContactBtn.addEventListener("click", async () => {
-            if (!state.selectedContactId) return alert("Please select a contact to add a task for.");
+            if (!state.selectedContactId) return showModal("Error", "Please select a contact to add a task for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
             showModal('Add New Task', `
                 <label>Description:</label><input type="text" id="modal-task-description" required>
@@ -582,7 +647,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             `, async () => {
                 const description = document.getElementById('modal-task-description').value.trim();
                 const dueDate = document.getElementById('modal-task-due-date').value;
-                if (!description) { alert('Description is required.'); return; }
+                if (!description) {
+                    showModal("Error", 'Description is required.', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return false;
+                }
                 const taskData = {
                     description,
                     due_date: dueDate || null,
@@ -592,9 +660,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                     status: 'Pending'
                 };
                 const { error } = await supabase.from('tasks').insert(taskData);
-                if (error) { alert('Error adding task: ' + error.message); }
-                else { await loadAllData(); hideModal(); alert('Task added successfully!'); }
-            });
+                if (error) {
+                    showModal("Error", 'Error adding task: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                } else {
+                    await loadAllData();
+                    hideModal();
+                    showModal("Success", 'Task added successfully!', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
+                return true;
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
     }
 
