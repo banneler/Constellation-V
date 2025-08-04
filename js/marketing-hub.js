@@ -5,14 +5,12 @@ import {
     formatDate,
     parseCsvRow,
     addDays,
-    themes,
     setupModalListeners,
     showModal,
     hideModal,
     setupUserMenuAndAuth,
     loadSVGs,
-    updateActiveNavLink,
-    setupTheme // ADDED: Import the setupTheme function
+    updateActiveNavLink
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -452,6 +450,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderSequenceDetails = () => {
         state.selectedTemplateId = null;
+        state.isEditingSequenceDetails = false;
         state.editingStepId = null;
 
         const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
@@ -985,8 +984,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     approved_copy: document.getElementById('post-copy').value.trim(),
                     is_dynamic_link: document.getElementById('is-dynamic-link').checked,
                     source_name: 'Marketing Team',
-                    status: 'new',
-                    user_id: state.currentUser.id // THE FIX: Add the current user's ID
+                    status: 'new'
                 };
 
                 try {
@@ -1070,11 +1068,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        const savedThemeIndex = themes.indexOf(savedTheme);
-        currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
-        applyTheme(themes[currentThemeIndex]);
-
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
@@ -1103,7 +1096,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (session) {
                 state.currentUser = session.user;
                 if (authContainer) authContainer.classList.add('hidden');
-                if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
+                if (marketingHubContainer) marketingHubHubContainer.classList.remove('hidden');
                 await setupUserMenuAndAuth(supabase, state);
                 const hash = window.location.hash;
                 if (hash === '#sequences') {
