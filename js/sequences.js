@@ -230,6 +230,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (addStepBtn) addStepBtn.addEventListener("click", handleAddStep);
         if (sequenceList) sequenceList.addEventListener("click", handleSequenceListClick);
         if (sequenceStepsTableBody) sequenceStepsTableBody.addEventListener("click", handleSequenceStepActions);
+
+        // NEW: Event delegation for suggested type buttons within any modal
+        document.body.addEventListener("click", (e) => {
+            const target = e.target;
+            if (target.classList.contains("suggested-type-btn")) {
+                const stepTypeInput = document.getElementById("modal-step-type");
+                if (stepTypeInput) {
+                    stepTypeInput.value = target.dataset.type;
+                    // Dispatch an input event to ensure any listeners on the input field react
+                    stepTypeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        });
     }
     
     function handleSequenceListClick(e) {
@@ -349,12 +362,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const steps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
         const nextNum = steps.length > 0 ? Math.max(...steps.map(s => s.step_number)) + 1 : 1;
         
-        // HTML for suggested type buttons
+        // HTML for suggested type buttons with updated styling for better filling
         const suggestedTypesHtml = `
-            <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
-                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="email">Email</button>
-                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="call">Call</button>
-                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="linkedin">LinkedIn</button>
+            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; padding: 0 5px;">
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="email" style="flex-grow: 1; min-width: 80px;">Email</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="call" style="flex-grow: 1; min-width: 80px;">Call</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="linkedin" style="flex-grow: 1; min-width: 80px;">LinkedIn</button>
             </div>
         `;
 
@@ -381,15 +394,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await loadAllData();
             hideModal();
             return true;
-        }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Step</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, () => {
-            // Callback for when the modal is opened
-            const stepTypeInput = document.getElementById("modal-step-type");
-            document.querySelectorAll(".suggested-type-btn").forEach(button => {
-                button.addEventListener("click", () => {
-                    stepTypeInput.value = button.dataset.type;
-                });
-            });
-        });
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Step</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`); // Removed onOpenCallback here
     }
 
     async function handleSequenceStepActions(e) {
