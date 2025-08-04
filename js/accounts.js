@@ -71,7 +71,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
-        const dealStagesPromise = supabase.from("deal_stages").select("*").eq("user_id", state.currentUser.id).order('sort_order');
+        // MODIFIED: Removed .eq("user_id", state.currentUser.id) to fetch all deal stages
+        const dealStagesPromise = supabase.from("deal_stages").select("*").order('sort_order');
         promises.push(dealStagesPromise);
 
         try {
@@ -462,6 +463,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             addDealBtn.addEventListener("click", () => {
                 if (!state.selectedAccountId) return alert("Please select an account first.");
                 
+                // Check if dealStages are available
+                if (state.dealStages.length === 0) {
+                    showModal("No Deal Stages Defined", "It looks like there are no deal stages available. Please contact your administrator to define them.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return; // Stop execution if no stages
+                }
+
                 const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
 
                 showModal("Create New Deal", `
@@ -557,7 +564,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const accountIdFromUrl = urlParams.get('accountId');
             if (accountIdFromUrl) state.selectedAccountId = Number(accountIdFromUrl);
-            // THE FIX: Call loadAllData without 'await'
             await loadAllData();
         } else {
             window.location.href = "index.html";
