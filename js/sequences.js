@@ -218,8 +218,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (addSequenceBtn) addSequenceBtn.addEventListener("click", handleNewSequenceClick);
         if (importMarketingSequenceBtn) importMarketingSequenceBtn.addEventListener('click', showMarketingSequencesForImport);
         if (importSequenceBtn) importSequenceBtn.addEventListener("click", () => {
-            if (!state.selectedSequenceId) return alert("Please select a sequence to import steps into.");
-            if (state.isEditingSequenceDetails || state.editingStepId) { alert("Please save or cancel any active edits before importing steps."); return; }
+            if (!state.selectedSequenceId) return showModal("Error", "Please select a sequence to import steps into.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            if (state.isEditingSequenceDetails || state.editingStepId) { showModal("Error", "Please save or cancel any active edits before importing steps.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
             sequenceCsvInput.click();
         });
         if(sequenceCsvInput) sequenceCsvInput.addEventListener("change", handleCsvImport);
@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     document.querySelectorAll("#sequence-list .selected").forEach(i => i.classList.remove("selected"));
                     item.classList.add("selected");
                     hideModal();
-                });
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             } else {
                 renderSequenceDetails(sequenceId);
                 document.querySelectorAll("#sequence-list .selected").forEach(i => i.classList.remove("selected"));
@@ -261,7 +261,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 clearSequenceDetailsPanel(false);
                 hideModal();
                 showNewSequenceModal();
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else {
             showNewSequenceModal();
         }
@@ -272,30 +272,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             const name = document.getElementById("modal-sequence-name").value.trim();
             if (name) {
                 const { data: newSeq, error } = await supabase.from("sequences").insert([{ name, source: 'Personal', user_id: state.currentUser.id }]).select().single();
-                if (error) { alert("Error adding sequence: " + error.message); return false; }
+                if (error) { showModal("Error", "Error adding sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
                 state.selectedSequenceId = newSeq.id;
                 await loadAllData();
                 hideModal();
                 renderSequenceDetails(newSeq.id);
                 return true;
-            } else { alert("Sequence name is required."); return false; }
+            } else { showModal("Error", "Sequence name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
         });
     }
 
     function handleDeleteSequence() {
-        if (!state.selectedSequenceId) return alert("Please select a sequence to delete.");
-        if (state.isEditingSequenceDetails || state.editingStepId) { alert("Please save or cancel any active edits before deleting."); return; }
+        if (!state.selectedSequenceId) return showModal("Error", "Please select a sequence to delete.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        if (state.isEditingSequenceDetails || state.editingStepId) { showModal("Error", "Please save or cancel any active edits before deleting.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
         showModal("Confirm Deletion", "Are you sure? This will delete the sequence and all its steps.", async () => {
             await supabase.from("sequence_steps").delete().eq("sequence_id", state.selectedSequenceId);
             await supabase.from("sequences").delete().eq("id", state.selectedSequenceId);
             clearSequenceDetailsPanel(true);
             await loadAllData();
             hideModal();
-        });
+        }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
     function handleEditSequenceDetails() {
-        if (state.editingStepId) { alert("Please save or cancel the current step edit first."); return; }
+        if (state.editingStepId) { showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
         state.isEditingSequenceDetails = true;
         sequenceNameInput.disabled = false;
         sequenceDescriptionTextarea.disabled = false;
@@ -310,13 +310,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function handleSaveSequenceDetails() {
         const updatedName = sequenceNameInput.value.trim();
         const updatedDescription = sequenceDescriptionTextarea.value.trim();
-        if (!updatedName) { alert("Sequence name cannot be empty."); return; }
+        if (!updatedName) { showModal("Error", "Sequence name cannot be empty.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
 
         if (updatedName !== state.originalSequenceName || updatedDescription !== state.originalSequenceDescription) {
             await supabase.from("sequences").update({ name: updatedName, description: updatedDescription }).eq("id", state.selectedSequenceId);
-            alert("Sequence details saved successfully!");
+            showModal("Success", "Sequence details saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         } else {
-            alert("No changes to save.");
+            showModal("Info", "No changes to save.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
         
         state.isEditingSequenceDetails = false;
@@ -344,25 +344,51 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     function handleAddStep() {
-        if (!state.selectedSequenceId) return alert("Please select a sequence.");
-        if (state.isEditingSequenceDetails || state.editingStepId) { alert("Please save or cancel any active edits first."); return; }
+        if (!state.selectedSequenceId) return showModal("Error", "Please select a sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        if (state.isEditingSequenceDetails || state.editingStepId) { showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
         const steps = state.sequence_steps.filter(s => s.sequence_id === state.selectedSequenceId);
         const nextNum = steps.length > 0 ? Math.max(...steps.map(s => s.step_number)) + 1 : 1;
-        showModal("Add Sequence Step", `<label>Step Number</label><input type="number" id="modal-step-number" value="${nextNum}" required><label>Type</label><input type="text" id="modal-step-type" required placeholder="e.g., Email, Call, LinkedIn"><label>Subject (for Email)</label><input type="text" id="modal-step-subject" placeholder="Optional"><label>Message (for Email/Notes)</label><textarea id="modal-step-message" placeholder="Optional"></textarea><label>Delay (Days after previous step)</label><input type="number" id="modal-step-delay" value="0" required>`, async () => {
+        
+        // HTML for suggested type buttons
+        const suggestedTypesHtml = `
+            <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="email">Email</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="call">Call</button>
+                <button type="button" class="btn-sm btn-secondary suggested-type-btn" data-type="linkedin">LinkedIn</button>
+            </div>
+        `;
+
+        showModal("Add Sequence Step", `
+            <label>Step Number</label><input type="number" id="modal-step-number" value="${nextNum}" required>
+            <label>Type</label><input type="text" id="modal-step-type" required placeholder="e.g., Email, Call, LinkedIn">
+            ${suggestedTypesHtml}
+            <label>Subject (for Email)</label><input type="text" id="modal-step-subject" placeholder="Optional">
+            <label>Message (for Email/Notes)</label><textarea id="modal-step-message" placeholder="Optional"></textarea>
+            <label>Delay (Days after previous step)</label><input type="number" id="modal-step-delay" value="0" required>
+        `, async () => {
             const newStep = {
                 sequence_id: state.selectedSequenceId,
                 step_number: parseInt(document.getElementById("modal-step-number").value),
-                type: document.getElementById("modal-step-type").value.trim(),
+                // Normalize the input type by trimming whitespace and converting to lowercase
+                type: document.getElementById("modal-step-type").value.trim().toLowerCase(),
                 subject: document.getElementById("modal-step-subject").value.trim(),
                 message: document.getElementById("modal-step-message").value.trim(),
                 delay_days: parseInt(document.getElementById("modal-step-delay").value),
                 user_id: state.currentUser.id
             };
-            if (!newStep.type) { alert("Step Type is required."); return false; }
+            if (!newStep.type) { showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
             await supabase.from("sequence_steps").insert([newStep]);
             await loadAllData();
             hideModal();
             return true;
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Step</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, () => {
+            // Callback for when the modal is opened
+            const stepTypeInput = document.getElementById("modal-step-type");
+            document.querySelectorAll(".suggested-type-btn").forEach(button => {
+                button.addEventListener("click", () => {
+                    stepTypeInput.value = button.dataset.type;
+                });
+            });
         });
     }
 
@@ -374,20 +400,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const stepId = Number(row.dataset.id);
 
-        if (state.isEditingSequenceDetails) { alert("Please save or cancel sequence details edits first."); return; }
+        if (state.isEditingSequenceDetails) { showModal("Error", "Please save or cancel sequence details edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
         
         if (target.classList.contains("edit-step-btn")) {
-            if (state.editingStepId) { alert("Please save or cancel the current step edit first."); return; }
+            if (state.editingStepId) { showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
             state.editingStepId = stepId;
             renderSequenceSteps();
         } else if (target.classList.contains("save-step-btn")) {
             const updatedStep = {
-                type: row.querySelector(".edit-step-type").value.trim(),
+                // Normalize the input type by trimming whitespace and converting to lowercase
+                type: row.querySelector(".edit-step-type").value.trim().toLowerCase(),
                 subject: row.querySelector(".edit-step-subject").value.trim(),
                 message: row.querySelector(".edit-step-message").value.trim(),
                 delay_days: parseInt(row.querySelector(".edit-step-delay").value || 0, 10),
             };
-            if (!updatedStep.type) { alert("Step Type is required."); return; }
+            if (!updatedStep.type) { showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
             await supabase.from("sequence_steps").update(updatedStep).eq("id", stepId);
             state.editingStepId = null;
             await loadAllData();
@@ -395,17 +422,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.editingStepId = null;
             renderSequenceSteps();
         } else if (target.classList.contains("delete-step-btn")) {
-            if (state.editingStepId) { alert("Please save or cancel the current step edit first."); return; }
+            if (state.editingStepId) { showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
             showModal("Confirm Delete Step", "Are you sure you want to delete this step?", async () => {
                 await supabase.from("sequence_steps").delete().eq("id", stepId);
                 await loadAllData();
                 hideModal();
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else if (target.classList.contains("move-up-btn")) {
-            if (state.editingStepId) { alert("Please save or cancel any active edits first."); return; }
+            if (state.editingStepId) { showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
             await handleMoveStep(stepId, 'up');
         } else if (target.classList.contains("move-down-btn")) {
-            if (state.editingStepId) { alert("Please save or cancel any active edits first."); return; }
+            if (state.editingStepId) { showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
             await handleMoveStep(stepId, 'down');
         }
     }
@@ -455,7 +482,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return {
                     sequence_id: state.selectedSequenceId,
                     step_number: currentStepNumber,
-                    type: c[1] || "",
+                    // Normalize the imported type as well
+                    type: c[1] ? c[1].trim().toLowerCase() : "",
                     subject: c[2] || "",
                     message: c[3] || "",
                     delay_days: delayDays,
@@ -465,10 +493,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             if (newRecords.length > 0) {
                 const { error } = await supabase.from("sequence_steps").insert(newRecords);
-                if (error) { alert("Error importing steps: " + error.message); }
-                else { alert(`${newRecords.length} steps imported.`); await loadAllData(); }
+                if (error) { showModal("Error", "Error importing steps: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
+                else { showModal("Success", `${newRecords.length} steps imported.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); await loadAllData(); }
             } else {
-                alert("No valid records found to import.");
+                showModal("Info", "No valid records found to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             }
         };
         r.readAsText(f);
@@ -499,24 +527,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             showModal("Import Marketing Sequence", modalBody, importMarketingSequence);
     
         } catch (error) {
-            alert("Error fetching marketing sequences: " + error.message);
+            showModal("Error", "Error fetching marketing sequences: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
     
     async function importMarketingSequence() {
         const selectedRadio = document.querySelector('input[name="marketing_sequence"]:checked');
         if (!selectedRadio) {
-            alert("Please select a sequence to import.");
+            showModal("Error", "Please select a sequence to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return false;
         }
     
         const marketingSeqId = Number(selectedRadio.value);
     
         const { data: originalSequence, error: seqError } = await supabase.from('marketing_sequences').select('*').eq('id', marketingSeqId).single();
-        if (seqError) { alert("Error fetching original sequence: " + seqError.message); return false; }
+        if (seqError) { showModal("Error", "Error fetching original sequence: " + seqError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
     
         const { data: originalSteps, error: stepsError } = await supabase.from('marketing_sequence_steps').select('*').eq('marketing_sequence_id', marketingSeqId);
-        if (stepsError) { alert("Error fetching original steps: " + stepsError.message); return false; }
+        if (stepsError) { showModal("Error", "Error fetching original steps: " + stepsError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
     
         const { data: newPersonalSequence, error: insertSeqError } = await supabase.from('sequences').insert({
             name: originalSequence.name,
@@ -526,7 +554,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).select().single();
     
         if (insertSeqError) {
-            alert("Failed to create new sequence. You may already have a sequence with this name. Error: " + insertSeqError.message);
+            showModal("Error", "Failed to create new sequence. You may already have a sequence with this name. Error: " + insertSeqError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return false;
         }
     
@@ -534,7 +562,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const newSteps = originalSteps.map(step => ({
                 sequence_id: newPersonalSequence.id,
                 step_number: step.step_number,
-                type: step.type,
+                // Normalize imported marketing sequence steps too
+                type: step.type ? step.type.trim().toLowerCase() : "",
                 subject: step.subject,
                 message: step.message,
                 delay_days: step.delay_days,
@@ -543,12 +572,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { error: insertStepsError } = await supabase.from('sequence_steps').insert(newSteps);
             if (insertStepsError) {
                 await supabase.from('sequences').delete().eq('id', newPersonalSequence.id);
-                alert("Failed to copy sequence steps. Error: " + insertStepsError.message);
+                showModal("Error", "Failed to copy sequence steps. Error: " + insertStepsError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return false;
             }
         }
     
-        alert(`Sequence "${originalSequence.name}" imported successfully!`);
+        showModal("Success", `Sequence "${originalSequence.name}" imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         await loadAllData();
         state.selectedSequenceId = newPersonalSequence.id;
         renderSequenceList();
@@ -575,5 +604,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
-
