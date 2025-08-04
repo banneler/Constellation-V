@@ -558,7 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const accountIdFromUrl = urlParams.get('accountId');
             if (accountIdFromUrl) state.selectedAccountId = Number(accountIdFromUrl);
             // THE FIX: Call loadAllData without 'await'
-            loadAllData();
+            await loadAllData();
         } else {
             window.location.href = "index.html";
         }
