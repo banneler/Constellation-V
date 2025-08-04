@@ -42,24 +42,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        
-        // MODIFIED: Fetch all sequences belonging to the user and all marketing sequences
-        const { data: allSequences, error: sequencesError } = await supabase.from("sequences").select("*").or(`user_id.eq.${state.currentUser.id},source.eq.Marketing`);
-        const { data: contacts, error: contactsError } = await supabase.from("contacts").select("*").eq("user_id", state.currentUser.id);
-        const { data: contactSequences, error: contactSequencesError } = await supabase.from("contact_sequences").select("*").eq("user_id", state.currentUser.id);
-        const { data: sequenceSteps, error: sequenceStepsError } = await supabase.from("sequence_steps").select("*").eq("user_id", state.currentUser.id);
+        const userSpecificTables = ["sequences", "contacts", "contact_sequences", "sequence_steps"];
+        const promises = userSpecificTables.map((table) =>
+            supabase.from(table).select("*").eq("user_id", state.currentUser.id)
+        );
         
         try {
-             if (sequencesError) throw sequencesError;
-             if (contactsError) throw contactsError;
-             if (contactSequencesError) throw contactSequencesError;
-             if (sequenceStepsError) throw sequenceStepsError;
-            
-            state.sequences = allSequences || [];
-            state.contacts = contacts || [];
-            state.contact_sequences = contactSequences || [];
-            state.sequence_steps = sequenceSteps || [];
-
+            const results = await Promise.allSettled(promises);
+            results.forEach((result, index) => {
+                const tableName = userSpecificTables[index];
+                if (result.status === "fulfilled" && !result.value.error) {
+                    state[tableName] = result.value.data || [];
+                } else {
+                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error?.message : result.reason);
+                }
+            });
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {
@@ -76,13 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const renderSequenceList = () => {
         if (!sequenceList) return;
         sequenceList.innerHTML = "";
-        
-        const personalSequences = state.sequences.filter(s => s.source === 'Personal' && s.user_id === state.currentUser.id);
-        const marketingTemplates = state.sequences.filter(s => s.source === 'Marketing');
-
-        const sequencesToRender = [...personalSequences, ...marketingTemplates];
-
-        sequencesToRender
+        state.sequences
             .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
             .forEach((seq) => {
                 const item = document.createElement("div");
@@ -176,6 +167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequenceNameInput.disabled = isMarketingImport;
         sequenceDescriptionTextarea.disabled = isMarketingImport;
 
+        // CHANGED: Also hide the "Add Step" button for marketing imports
         editSequenceDetailsBtn.classList.toggle('hidden', isMarketingImport);
         addStepBtn.classList.toggle('hidden', isMarketingImport);
         
@@ -485,12 +477,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     async function showMarketingSequencesForImport() {
         try {
-            // MODIFIED: Fetch from the unified 'sequences' table, filtering by 'Marketing' source
-            const { data: marketingSequences, error } = await supabase.from('sequences').select('id, name, source').eq('source', 'Marketing');
+            const { data: marketingSequences, error } = await supabase.from('marketing_sequences').select('id, name');
             if (error) throw error;
     
-            // MODIFIED: Filter against the names of the user's personal sequences, not the marketing ones
-            const personalSequenceNames = new Set(state.sequences.filter(s => s.source === 'Personal' && s.user_id === state.currentUser.id).map(s => s.name));
+            const personalSequenceNames = new Set(state.sequences.map(s => s.name));
             const availableSequences = marketingSequences.filter(ms => !personalSequenceNames.has(ms.name));
     
             if (availableSequences.length === 0) {
@@ -522,16 +512,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     
         const marketingSeqId = Number(selectedRadio.value);
     
-        const { data: originalSequence, error: seqError } = await supabase.from('sequences').select('*').eq('id', marketingSeqId).single();
+        const { data: originalSequence, error: seqError } = await supabase.from('marketing_sequences').select('*').eq('id', marketingSeqId).single();
         if (seqError) { alert("Error fetching original sequence: " + seqError.message); return false; }
     
-        const { data: originalSteps, error: stepsError } = await supabase.from('sequence_steps').select('*').eq('sequence_id', marketingSeqId);
+        const { data: originalSteps, error: stepsError } = await supabase.from('marketing_sequence_steps').select('*').eq('marketing_sequence_id', marketingSeqId);
         if (stepsError) { alert("Error fetching original steps: " + stepsError.message); return false; }
     
         const { data: newPersonalSequence, error: insertSeqError } = await supabase.from('sequences').insert({
             name: originalSequence.name,
             description: originalSequence.description,
-            source: 'Personal', // This will be a new personal copy
+            source: 'Marketing',
             user_id: state.currentUser.id
         }).select().single();
     
@@ -585,3 +575,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
+
