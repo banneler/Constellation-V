@@ -344,21 +344,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function handleMergeFieldClick(e) {
         const field = e.target.dataset.field;
-        const activeTextarea = dynamicDetailsPanel.querySelector('#template-body') || document.getElementById('modal-template-body');
-
-        if (!activeTextarea || activeTextarea.readOnly) {
-            console.error("No editable textarea found for merge field insertion.");
-            return;
-        }
-
-        activeTextarea.focus();
-        try {
-            const startPos = activeTextarea.selectionStart;
-            const endPos = activeTextarea.selectionEnd;
-            activeTextarea.value = activeTextarea.value.substring(0, startPos) + field + activeTextarea.value.substring(endPos);
-            activeTextarea.setSelectionRange(startPos + field.length, startPos + field.length);
-        } catch (error) {
-            activeTextarea.value += field;
+        const textarea = dynamicDetailsPanel.querySelector('#template-body') || document.getElementById('modal-template-body');
+        if (textarea) {
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            textarea.value = textarea.value.substring(0, startPos) + field + textarea.value.substring(endPos);
+            textarea.setSelectionRange(startPos + field.length, startPos + field.length);
         }
     }
 
@@ -459,7 +450,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderSequenceDetails = () => {
         state.selectedTemplateId = null;
-        // BUG FIX: Do not reset state.isEditingSequenceDetails here.
         state.editingStepId = null;
 
         const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
