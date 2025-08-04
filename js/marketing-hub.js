@@ -553,7 +553,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (updatedName !== state.originalSequenceName || updatedDescription !== state.originalSequenceDescription) {
             try {
-                // MODIFIED: Update the unified 'sequences' table
                 await supabase
                     .from("sequences")
                     .update({ name: updatedName, description: updatedDescription })
@@ -581,7 +580,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             alert("Please save or cancel any active edits before adding a new step.");
             return;
         }
-        // MODIFIED: Filter from the unified 'sequence_steps' table
         const steps = state.sequence_steps.filter((s) => s.sequence_id === state.selectedSequenceId);
         const nextNum = steps.length > 0 ? Math.max(...steps.map((s) => s.step_number)) + 1 : 1;
         showModal(
@@ -589,7 +587,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             `<label>Step Number</label><input type="number" id="modal-step-number" value="${nextNum}" required><label>Type</label><input type="text" id="modal-step-type" required placeholder="e.g., Email, Call, LinkedIn"><label>Subject (for Email)</label><input type="text" id="modal-step-subject" placeholder="Optional"><label>Message (for Email/Notes)</label><textarea id="modal-step-message" placeholder="Optional"></textarea><label>Delay (Days after previous step)</label><input type="number" id="modal-step-delay" value="0" required>`,
             async () => {
                 const newStep = {
-                    // MODIFIED: Use the unified 'sequence_id'
                     sequence_id: state.selectedSequenceId,
                     step_number: parseInt(document.getElementById("modal-step-number").value),
                     type: document.getElementById("modal-step-type").value.trim(),
@@ -602,7 +599,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     alert("Step Type is required.");
                     return false;
                 }
-                // MODIFIED: Insert into the unified 'sequence_steps' table
                 await supabase.from("sequence_steps").insert([newStep]);
                 await loadAllData();
                 hideModal();
@@ -652,7 +648,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             try {
-                // MODIFIED: Update the unified 'sequence_steps' table
                 await supabase.from("sequence_steps")
                     .update({
                         type: updatedStep.type,
@@ -680,7 +675,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             showModal("Confirm Delete Step", "Are you sure you want to delete this step?", async () => {
-                // MODIFIED: Delete from the unified 'sequence_steps' table
                 await supabase.from("sequence_steps").delete().eq("id", stepId);
                 await loadAllData();
                 hideModal();
@@ -704,7 +698,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function handleNewSequenceCreation() {
         const name = document.getElementById("modal-sequence-name").value.trim();
         if (name) {
-            // MODIFIED: Check for existing names in the unified 'sequences' table
             const existingSequence = state.sequences.find(seq => seq.name.toLowerCase() === name.toLowerCase());
             if (existingSequence) {
                 alert(`A marketing sequence with the name "${name}" already exists. Please choose a different name.`);
@@ -713,7 +706,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const { data: newSeq, error } = await supabase
                 .from("sequences")
-                .insert([{ name: name, description: "", user_id: state.currentUser.id }])
+                .insert([{ name: name, description: "", source: 'Marketing', is_shared: true, user_id: state.currentUser.id }])
                 .select();
             if (error) {
                 alert("Error adding sequence: " + error.message);
@@ -734,7 +727,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!currentStep) return;
 
         const currentSequenceSteps = state.sequence_steps
-            // MODIFIED: Filter from the unified 'sequence_steps' table
             .filter(s => s.sequence_id === state.selectedSequenceId)
             .sort((a, b) => a.step_number - b.step_number);
 
@@ -753,7 +745,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 currentStep.step_number = targetStep.step_number;
                 targetStep.step_number = tempStepNumber;
 
-                // MODIFIED: Update the unified 'sequence_steps' table
                 await supabase.from("sequence_steps")
                     .update({ step_number: currentStep.step_number })
                     .eq("id", currentStep.id);
@@ -824,9 +815,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             showModal("Confirm Deletion", "Are you sure? This will delete the marketing sequence and all its steps. This cannot be undone.", async () => {
-                // MODIFIED: Delete from the unified 'sequence_steps' table
                 await supabase.from("sequence_steps").delete().eq("sequence_id", state.selectedSequenceId);
-                // MODIFIED: Delete from the unified 'sequences' table
                 await supabase.from("sequences").delete().eq("id", state.selectedSequenceId);
                 state.selectedSequenceId = null;
                 await loadAllData();
@@ -1089,7 +1078,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentUser = session.user;
             if (authContainer) authContainer.classList.add('hidden');
             if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
-            // MODIFIED: Use setupTheme() to correctly apply the theme
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
             const hash = window.location.hash;
