@@ -476,7 +476,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     async function showMarketingSequencesForImport() {
         try {
-            // MODIFIED: Fetch from the unified 'sequences' table, filtering by 'Marketing' source
             const { data: marketingSequences, error } = await supabase.from('sequences').select('id, name, source').eq('source', 'Marketing');
             if (error) throw error;
     
