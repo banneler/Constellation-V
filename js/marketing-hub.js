@@ -12,7 +12,10 @@ import {
     setupUserMenuAndAuth,
     loadSVGs,
     updateActiveNavLink,
-    setupTheme // ADDED: Import the setupTheme function
+    setupTheme,
+    _rebindModalActionListeners,
+    getCurrentModalCallbacks,
+    setCurrentModalCallbacks
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -117,9 +120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const [
                 { data: emailTemplates, error: templatesError },
-                // MODIFIED: Fetch from the unified 'sequences' table
                 { data: sequences, error: sequencesError },
-                // MODIFIED: Fetch from the unified 'sequence_steps' table
                 { data: sequenceSteps, error: sequenceStepsError },
                 { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
@@ -135,7 +136,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (userQuotasError) throw userQuotasError;
 
             state.emailTemplates = emailTemplates || [];
-            // MODIFIED: Filter for sequences where source is 'Marketing'
             state.sequences = sequences ? sequences.filter(s => s.source === 'Marketing') : [];
             state.sequence_steps = sequenceSteps || [];
             state.user_quotas = userQuotas || [];
@@ -1089,6 +1089,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentUser = session.user;
             if (authContainer) authContainer.classList.add('hidden');
             if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
+            // MODIFIED: Use setupTheme() to correctly apply the theme
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
             const hash = window.location.hash;
