@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectedAccountId: null,
         tasks: [],
         isFormDirty: false,
-        dealStages: []
+        dealStages: [] // Ensure dealStages is initialized for the deals modal
     };
 
     // --- DOM Element Selectors ---
@@ -35,6 +35,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
+    // NEW: AI Account Insight button selector
+    const aiAccountInsightBtn = document.getElementById("ai-account-insight-btn");
+
 
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -71,7 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
-        // MODIFIED: Removed .eq("user_id", state.currentUser.id) to fetch all deal stages
+        // Fetch all deal stages (not user-specific)
         const dealStagesPromise = supabase.from("deal_stages").select("*").order('sort_order');
         promises.push(dealStagesPromise);
 
@@ -187,21 +190,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                     accountContactsList.appendChild(li);
                 });
             
-            state.activities
-                .filter((act) => act.account_id === account.id)
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .forEach((act) => {
-                    const c = state.contacts.find((c) => c.id === act.contact_id);
-                    const li = document.createElement("li");
-                    li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
-                    let borderColor = "var(--primary-blue)";
-                    const activityTypeLower = act.type.toLowerCase();
-                    if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-                    else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-                    else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-                    li.style.borderLeftColor = borderColor;
-                    accountActivitiesList.appendChild(li);
-                });
+            // Combine activities related to the account itself and its contacts
+            const accountAndContactActivities = state.activities.filter(act => 
+                act.account_id === account.id || 
+                state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
+            ).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort descending for display
+
+            accountActivitiesList.innerHTML = "";
+            accountAndContactActivities.forEach((act) => {
+                const c = state.contacts.find((c) => c.id === act.contact_id);
+                const li = document.createElement("li");
+                li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
+                let borderColor = "var(--primary-blue)";
+                const activityTypeLower = act.type.toLowerCase();
+                if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
+                else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
+                else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
+                li.style.borderLeftColor = borderColor;
+                accountActivitiesList.appendChild(li);
+            });
         } else {
             hideAccountDetails(true, true);
         }
@@ -549,6 +556,73 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                     }
                 );
+            });
+        }
+
+        // NEW: Event listener for AI Account Insight button
+        if (aiAccountInsightBtn) {
+            aiAccountInsightBtn.addEventListener("click", async () => {
+                if (!state.selectedAccountId) {
+                    showModal("Error", "Please select an account to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+
+                const account = state.accounts.find(a => a.id === state.selectedAccountId);
+                if (!account) {
+                    showModal("Error", "Selected account not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+
+                // Collect all activities related to this account, including those from its contacts
+                const relevantActivities = state.activities
+                    .filter(act => 
+                        act.account_id === account.id || 
+                        state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
+                    )
+                    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort chronologically for better summary
+
+                if (relevantActivities.length === 0) {
+                    showModal("Info", "No activities found for this account or its contacts to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+
+                // Prepare activity data for the AI
+                const activityData = relevantActivities.map(act => {
+                    const contact = state.contacts.find(c => c.id === act.contact_id);
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Unknown Contact';
+                    return `[${formatDate(act.date)}] Type: ${act.type}, Contact: ${contactName}, Description: ${act.description}`;
+                }).join('\n');
+
+                // Show loading modal
+                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing account activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+                try {
+                    // Call the 'get-activity-insight' Edge Function
+                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
+                        body: {
+                            // Pass account name to the Edge Function
+                            accountName: account.name, 
+                            activityLog: activityData
+                        }
+                    });
+
+                    if (error) throw error;
+
+                    // Display the AI-generated insight
+                    const insight = data.insight || "No insight generated.";
+                    const nextSteps = data.next_steps || "No specific next steps suggested.";
+
+                    showModal("AI Account Insight", `
+                        <h4>Summary:</h4>
+                        <p>${insight}</p>
+                        <h4>Suggested Next Steps:</h4>
+                        <p>${nextSteps}</p>
+                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
+                } catch (error) {
+                    console.error("Error invoking AI insight Edge Function:", error);
+                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
             });
         }
     }
