@@ -88,6 +88,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
+        // FIX: Define allTableNames here
+        const allTableNames = [...userSpecificTables, ...sharedTables];
+
 
         let activityTypesData = [];
         const { data: sharedActivityTypes, error: sharedError } = await supabase.from("activity_types").select("*");
@@ -109,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const results = await Promise.allSettled(allPromises);
             results.forEach((result, index) => {
-                const tableName = allTableNames[index];
+                const tableName = allTableNames[index]; // Now allTableNames is defined
                 if (result.status === "fulfilled") {
                     if (result.value.error) {
                         console.error(`Supabase error fetching ${tableName}:`, result.value.error.message);
