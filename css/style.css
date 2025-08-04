@@ -63,33 +63,50 @@ body.theme-dark {
 }
 
 /* Light Theme */
+/* Add or modify these rules in your style.css file */
+
+/* Light Theme Specific Styles */
 body.theme-light {
-    --bg-dark: #f0f2f5;
-    --bg-medium: #ffffff;
-    --bg-light: #e9ecef;
-    --text-light: #212529;
-    --text-medium: #6c757d;
-    --primary-blue: #007bff;
-    --danger-red: #dc3545;
-    --secondary-gray: #6c757d;
-    --border-color: #dee2e6;
-    --completed-color: #28a745;
-    --warning-yellow: #ffc107;
-    --gradient-start: #f8f9fa;
-    --gradient-end: #e9ecef;
-    --shadow-light: rgba(0, 0, 0, 0.05);
-    --shadow-medium: rgba(0, 0, 0, 0.1);
-    --shadow-strong: rgba(0, 0, 0, 0.15);
-    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --logo-primary-color: var(--primary-blue);
-    --logo-secondary-color: var(--text-light);
-    --meeting-purple: #6A0DAD;
-    --warning-bg: #fff8e1;
-    --warning-text: #856404;
-    --warning-hover-bg: #fff3cd;
-    --success-color: #28a745;
-    --error-color: #dc3545;
+    /* Existing light theme variables and styles */
+    --bg-dark: #e0e0e0;
+    --bg-medium: #f0f0f0;
+    --bg-light: #ffffff;
+    --text-color: #333333;
+    --primary-blue: #3b82f6;
+    --secondary-gray: #6b7280;
+    --danger-red: #ef4444;
+    --warning-yellow: #f59e0b;
+    --completed-color: #22c55e;
+    --meeting-purple: #8b5cf6;
+    --border-color: #d1d5db;
+    --input-bg: #ffffff;
+    --input-border: #d1d5db;
+    --input-focus-border: #93c5fd;
+    --list-item-hover: #e5e7eb; /* Light grey for hover in light mode */
+    --selected-item-bg: #bfdbfe; /* Light blue for selected item in light mode */
+    --shadow-color: rgba(0, 0, 0, 0.1);
+
+    /* NEW: Button text color for light theme */
+    .btn-primary {
+        color: white; /* Ensures primary button text is white in light theme */
+    }
+
+    .btn-secondary {
+        color: white; /* Ensures secondary button text is white in light theme */
+    }
+    
+    .btn-primary:active {
+        color: white; /* Ensures primary button text is white when active in light theme */
+    }
+
+    /* You might want to add similar rules for other active/hover states if they use black text */
+    .btn-secondary:active {
+        color: white; /* Example for secondary active state */
+    }
 }
+
+
+
 
 /* Green Screen Theme */
 body.theme-green {
