@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", cs.id);
         }
-        await loadAllData();
+        loadAllData();
     }
 
     // --- Render Function ---
@@ -336,3 +336,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
