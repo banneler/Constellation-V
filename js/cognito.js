@@ -48,8 +48,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const filterRelevanceSelect = document.getElementById('filter-relevance');
     const filterAccountSelect = document.getElementById('filter-account');
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
-    const refreshDataBtn = document.getElementById('refresh-data-btn');
-    const lastDataLoadSpan = document.getElementById('last-data-load');
 
     // --- MODAL ELEMENTS (Dynamic) ---
     let initialAiSuggestionSection, refineSuggestionBtn, outreachSubjectInput, outreachBodyTextarea;
@@ -95,41 +93,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         if (state.filterAccountId) {
             filterAccountSelect.value = state.filterAccountId;
-        }
-    }
-    
-    // Add new functions for timestamp and refresh button logic
-    async function loadLastDataLoadTime() {
-        if (!lastDataLoadSpan) return;
-        const { data, error } = await supabase
-            .from('system_status')
-            .select('value')
-            .eq('id', 'cognito_last_run')
-            .single();
-
-        if (error && error.code !== 'PGRST116') {
-            console.error("Error fetching last data load time:", error);
-            lastDataLoadSpan.textContent = 'Last Data Load: Failed to load';
-        } else if (data && data.value) {
-            const lastRunDate = new Date(data.value);
-            lastDataLoadSpan.textContent = `Last Data Load: ${lastRunDate.toLocaleString()}`;
-        }
-    }
-
-    function updateRefreshButtonState() {
-        if (!refreshDataBtn) return;
-        const lastRunTime = localStorage.getItem('lastManualRefreshTime_cognito');
-        const now = new Date().getTime();
-        const fourHours = 4 * 60 * 60 * 1000;
-
-        if (lastRunTime && (now - lastRunTime < fourHours)) {
-            const timeRemaining = fourHours - (now - lastRunTime);
-            const minutes = Math.ceil(timeRemaining / (1000 * 60));
-            refreshDataBtn.disabled = true;
-            refreshDataBtn.textContent = `Refresh in ${minutes}m`;
-        } else {
-            refreshDataBtn.disabled = false;
-            refreshDataBtn.innerHTML = `<i class="fas fa-sync-alt"></i> Refresh Data`;
         }
     }
 
@@ -645,20 +608,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             filterAccountSelect.value = '';
             renderAlerts();
         });
-
-        if (refreshDataBtn) {
-            refreshDataBtn.addEventListener('click', async () => {
-                const now = new Date().getTime();
-                localStorage.setItem('lastManualRefreshTime_cognito', now);
-                updateRefreshButtonState();
-                alert('Data refresh initiated. It may take a moment. Please check back soon.');
-                const { error } = await supabase.functions.invoke('run-cognito-script');
-                if (error) {
-                    console.error('Error invoking Cognito refresh script:', error);
-                    alert('Failed to initiate refresh. Please check the logs.');
-                }
-            });
-        }
     }
 
     // --- INITIALIZATION ---
@@ -671,8 +620,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupPageEventListeners();
             await loadAllData();
-            loadLastDataLoadTime();
-            updateRefreshButtonState();
         } else {
             window.location.href = "index.html";
         }
