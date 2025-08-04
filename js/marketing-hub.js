@@ -119,8 +119,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 { data: sequenceSteps, error: sequenceStepsError },
                 { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
-                supabase.from("email_templates").select("*, user_quotas(full_name)"),
-                supabase.from("marketing_sequences").select("*, user_quotas(full_name)"),
+                supabase.from("email_templates").select("*"),
+                supabase.from("marketing_sequences").select("*"),
                 supabase.from("marketing_sequence_steps").select("*"),
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
@@ -460,8 +460,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const renderSequenceDetails = () => {
         state.selectedTemplateId = null;
         // BUG FIX: Do not reset state.isEditingSequenceDetails here.
-        // It should be handled by the click handlers.
-        // state.isEditingSequenceDetails = false;
         state.editingStepId = null;
 
         const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
