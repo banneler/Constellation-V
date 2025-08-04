@@ -46,7 +46,7 @@ test('User can create and then edit a new account', async ({ page }) => {
   await page.locator('#account-industry').fill('Technology');
   await page.locator('#account-is-customer').check();
   
-  // Listen for the "alert" dialog that we know will appear
+  // Listen for the "alert" dialog that we know will appear and accept it
   page.on('dialog', dialog => dialog.accept());
   
   await page.locator('button[type="submit"]:has-text("Save Changes")').click();
