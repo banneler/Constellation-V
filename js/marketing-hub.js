@@ -713,7 +713,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const { data: newSeq, error } = await supabase
                 .from("sequences")
-                .insert([{ name: name, description: "", source: 'Marketing', user_id: state.currentUser.id }])
+                .insert([{ name: name, description: "", user_id: state.currentUser.id }])
                 .select();
             if (error) {
                 alert("Error adding sequence: " + error.message);
@@ -1084,18 +1084,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         
-        // This is the manual theme logic that was causing the error. We need to remove it.
-        // const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        // const savedThemeIndex = themes.indexOf(savedTheme);
-        // currentThemeIndex = savedThemeIndex !== -1 ? savedThemeIndex : 0;
-        // applyTheme(themes[currentThemeIndex]);
-
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
             if (authContainer) authContainer.classList.add('hidden');
             if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
-            // MODIFIED: Call the setupTheme function here.
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
             const hash = window.location.hash;
