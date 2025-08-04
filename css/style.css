@@ -3030,6 +3030,8 @@ body.theme-corporate #account-activities-list li {
 }
 /* Add these new styles to your css/style.css file */
 
+/* Add these new styles to your css/style.css file */
+
 /* AI Generation Section Styling */
 .ai-generation-section {
     background-color: var(--bg-medium); /* Slightly darker background than main content */
@@ -3087,23 +3089,64 @@ body.theme-corporate #account-activities-list li {
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); /* Focus ring */
 }
 
-/* Checkbox Group Styling */
+/* Checkbox Group Styling - MODIFIED for horizontal layout */
 .ai-generation-section .checkbox-group {
-    display: flex;
-    flex-direction: column; /* Stack checkboxes vertically */
-    gap: 8px; /* Space between checkboxes */
+    display: flex; /* Use flexbox */
+    flex-wrap: wrap; /* Allow items to wrap to the next line */
+    gap: 15px; /* Space between checkbox items */
     padding: 5px 0;
+    align-items: center; /* Vertically align checkbox and label */
+}
+
+.ai-generation-section .checkbox-group div { /* Container for each checkbox-label pair */
+    display: flex;
+    align-items: center;
+    white-space: nowrap; /* Prevent wrapping for individual checkbox and label */
 }
 
 .ai-generation-section .checkbox-group input[type="checkbox"] {
-    margin-right: 8px;
-    width: auto; /* Override full-width for checkboxes */
+    /* Custom checkbox styling */
+    -webkit-appearance: none; /* Hide default checkbox */
+    -moz-appearance: none;
+    appearance: none;
+    width: 20px; /* Size of the custom checkbox */
+    height: 20px;
+    border: 2px solid var(--primary-blue); /* Border color */
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    cursor: pointer;
+    position: relative;
+    margin-right: 8px; /* Space between checkbox and label */
+    flex-shrink: 0; /* Prevent checkbox from shrinking */
 }
 
+.ai-generation-section .checkbox-group input[type="checkbox"]:checked {
+    background-color: var(--primary-blue); /* Fill color when checked */
+    border-color: var(--primary-blue);
+}
+
+.ai-generation-section .checkbox-group input[type="checkbox"]:checked::after {
+    /* Checkmark styling */
+    content: '\2713'; /* Unicode checkmark character */
+    font-size: 14px;
+    color: white; /* Checkmark color */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.ai-generation-section .checkbox-group input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4); /* Focus ring for accessibility */
+}
+
+
 .ai-generation-section .checkbox-group label {
-    display: inline-block; /* Keep label next to checkbox */
     font-weight: normal; /* Reset font-weight for checkbox labels */
-    margin-bottom: 0;
+    margin-bottom: 0; /* Remove bottom margin */
+    cursor: pointer;
+    color: var(--text-color);
 }
 
 /* Form Buttons within AI section */
