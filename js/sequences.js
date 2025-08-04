@@ -167,7 +167,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequenceNameInput.disabled = isMarketingImport;
         sequenceDescriptionTextarea.disabled = isMarketingImport;
 
-        // CHANGED: Also hide the "Add Step" button for marketing imports
         editSequenceDetailsBtn.classList.toggle('hidden', isMarketingImport);
         addStepBtn.classList.toggle('hidden', isMarketingImport);
         
@@ -477,10 +476,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     async function showMarketingSequencesForImport() {
         try {
-            const { data: marketingSequences, error } = await supabase.from('marketing_sequences').select('id, name');
+            // MODIFIED: Fetch from the unified 'sequences' table, filtering by 'Marketing' source
+            const { data: marketingSequences, error } = await supabase.from('sequences').select('id, name, source').eq('source', 'Marketing');
             if (error) throw error;
     
-            const personalSequenceNames = new Set(state.sequences.map(s => s.name));
+            const personalSequenceNames = new Set(state.sequences.filter(s => s.source === 'Personal').map(s => s.name));
             const availableSequences = marketingSequences.filter(ms => !personalSequenceNames.has(ms.name));
     
             if (availableSequences.length === 0) {
@@ -512,16 +512,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     
         const marketingSeqId = Number(selectedRadio.value);
     
-        const { data: originalSequence, error: seqError } = await supabase.from('marketing_sequences').select('*').eq('id', marketingSeqId).single();
+        const { data: originalSequence, error: seqError } = await supabase.from('sequences').select('*').eq('id', marketingSeqId).single();
         if (seqError) { alert("Error fetching original sequence: " + seqError.message); return false; }
     
-        const { data: originalSteps, error: stepsError } = await supabase.from('marketing_sequence_steps').select('*').eq('marketing_sequence_id', marketingSeqId);
+        const { data: originalSteps, error: stepsError } = await supabase.from('sequence_steps').select('*').eq('sequence_id', marketingSeqId);
         if (stepsError) { alert("Error fetching original steps: " + stepsError.message); return false; }
     
         const { data: newPersonalSequence, error: insertSeqError } = await supabase.from('sequences').insert({
             name: originalSequence.name,
             description: originalSequence.description,
-            source: 'Marketing',
+            source: 'Personal', // This will be a new personal copy
             user_id: state.currentUser.id
         }).select().single();
     
@@ -575,6 +575,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
-
-
