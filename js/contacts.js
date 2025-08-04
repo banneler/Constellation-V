@@ -48,6 +48,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const importContactScreenshotBtn = document.getElementById("import-contact-screenshot-btn");
     const takePictureBtn = document.getElementById("take-picture-btn");
     const cameraInput = document.getElementById("camera-input");
+    // NEW: AI Activity Insight button selector
+    const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
 
 
     // --- Dirty Check and Navigation ---
@@ -798,6 +800,67 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (cameraInput) {
             cameraInput.addEventListener('change', handleCameraInputChange);
+        }
+
+        // NEW: Event listener for AI Activity Insight button
+        if (aiActivityInsightBtn) {
+            aiActivityInsightBtn.addEventListener("click", async () => {
+                if (!state.selectedContactId) {
+                    showModal("Error", "Please select a contact to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+
+                const contact = state.contacts.find(c => c.id === state.selectedContactId);
+                if (!contact) {
+                    showModal("Error", "Selected contact not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+
+                // Filter activities relevant to the selected contact
+                const relevantActivities = state.activities
+                    .filter(act => act.contact_id === contact.id)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort chronologically for better summary
+
+                if (relevantActivities.length === 0) {
+                    showModal("Info", "No activities found for this contact to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+
+                // Prepare activity data for the AI
+                const activityData = relevantActivities.map(act => 
+                    `[${formatDate(act.date)}] Type: ${act.type}, Description: ${act.description}`
+                ).join('\n');
+
+                // Show loading modal
+                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+                try {
+                    // Call the new Supabase Edge Function for AI insight
+                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
+                        body: {
+                            contactName: `${contact.first_name || ''} ${contact.last_name || ''}`,
+                            activityLog: activityData
+                        }
+                    });
+
+                    if (error) throw error;
+
+                    // Display the AI-generated insight
+                    const insight = data.insight || "No insight generated.";
+                    const nextSteps = data.next_steps || "No specific next steps suggested.";
+
+                    showModal("AI Activity Insight", `
+                        <h4>Summary:</h4>
+                        <p>${insight}</p>
+                        <h4>Suggested Next Steps:</h4>
+                        <p>${nextSteps}</p>
+                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
+                } catch (error) {
+                    console.error("Error invoking AI insight Edge Function:", error);
+                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
+            });
         }
 
     }
