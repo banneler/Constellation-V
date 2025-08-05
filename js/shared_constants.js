@@ -76,7 +76,7 @@ export function formatDate(dateString) {
 export function formatMonthYear(dateString) {
     if (!dateString) return "N/A";
     const [year, month] = dateString.split('-');
-    const date = new Date(Date.UTC(year, month - 1, 2)); 
+    const date = new Date(Date.UTC(year, month - 1, 2));    
     return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 
@@ -166,7 +166,7 @@ export function _rebindModalActionListeners() {
     if (cancelBtn) {
         cancelBtn.onclick = () => {
              if (currentModalCallbacks.onCancel) {
-                currentModalCallbacks.onCancel();
+                 currentModalCallbacks.onCancel();
             }
             hideModal();
         };
@@ -213,7 +213,7 @@ export function setupModalListeners() {
     window.addEventListener("keydown", handleEscapeKey);
 }
 
-// --- USER MENU & AUTH LOGIC (CORRECTED) ---
+// --- USER MENU & AUTH LOGIC (CORRECTED & ENHANCED) ---
 export async function setupUserMenuAndAuth(supabase, state) {
     const userMenuHeader = document.querySelector('.user-menu-header');
     if (!userMenuHeader) return;
@@ -227,35 +227,47 @@ export async function setupUserMenuAndAuth(supabase, state) {
         return;
     }
 
+    // Fetch user data including full_name, monthly_quota, and company_name
     const { data: userData, error: userError } = await supabase
         .from('user_quotas')
-        .select('full_name, monthly_quota')
+        .select('full_name, monthly_quota, company_name') // Include company_name
         .eq('user_id', state.currentUser.id)
         .single();
 
-    if (userError && userError.code !== 'PGRST116') {
+    if (userError && userError.code !== 'PGRST116') { // PGRST116 means "no rows found"
         console.error('Error fetching user data:', userError);
         userNameDisplay.textContent = "Error";
+        // Set fallback values in state in case of error
+        state.currentUser.full_name = "User";
+        state.currentUser.company_name = "Your Company";
+        state.currentUser.monthly_quota = 0; // Default or handle as needed
+        attachUserMenuListeners(); // Attach listeners even on error to allow logout
         return;
     }
     
-    if (!userData || !userData.full_name) {
+    // If user data (full_name or company_name) is missing, show welcome modal
+    if (!userData || !userData.full_name || !userData.company_name) {
         const modalBodyHtml = `
             <p>Welcome to Constellation! Please enter your details to get started.</p>
             <div>
                 <label for="modal-full-name">Full Name</label>
-                <input type="text" id="modal-full-name" required>
+                <input type="text" id="modal-full-name" required value="${userData?.full_name || ''}">
+            </div>
+            <div>
+                <label for="modal-company-name">Company Name</label>
+                <input type="text" id="modal-company-name" required value="${userData?.company_name || 'Great Plains Communications'}">
             </div>
             <div>
                 <label for="modal-monthly-quota">Monthly Quota ($)</label>
-                <input type="number" id="modal-monthly-quota" required placeholder="e.g., 50000">
+                <input type="number" id="modal-monthly-quota" required placeholder="e.g., 50000" value="${userData?.monthly_quota || ''}">
             </div>
         `;
         showModal("Welcome!", modalBodyHtml, async () => {
             const fullName = document.getElementById('modal-full-name')?.value.trim();
+            const companyName = document.getElementById('modal-company-name')?.value.trim(); // Get company name
             const monthlyQuota = document.getElementById('modal-monthly-quota')?.value;
 
-            if (!fullName || !monthlyQuota) {
+            if (!fullName || !companyName || !monthlyQuota) { // Validate all fields
                 alert("Please fill out all fields.");
                 return false;
             }
@@ -265,6 +277,7 @@ export async function setupUserMenuAndAuth(supabase, state) {
                 .upsert({
                     user_id: state.currentUser.id,
                     full_name: fullName,
+                    company_name: companyName, // Save company name
                     monthly_quota: Number(monthlyQuota)
                 }, { onConflict: 'user_id' });
 
@@ -274,28 +287,38 @@ export async function setupUserMenuAndAuth(supabase, state) {
                 return false;
             }
 
-            const { error: updateUserError } = await supabase.auth.updateUser({
-                data: { full_name: fullName }
-            });
+            // Update state.currentUser with the newly saved data
+            state.currentUser.full_name = fullName;
+            state.currentUser.company_name = companyName;
+            state.currentUser.monthly_quota = Number(monthlyQuota);
 
+            // Optionally update auth.users metadata (though user_quotas is primary source now)
+            const { error: updateUserError } = await supabase.auth.updateUser({
+                data: { full_name: fullName } // Only full_name is typically stored here
+            });
             if (updateUserError) {
                 console.warn("Could not save full_name to user metadata:", updateUserError);
             }
 
             userNameDisplay.textContent = fullName;
-            await setupTheme(supabase, state.currentUser);
-            attachUserMenuListeners();
+            await setupTheme(supabase, state.currentUser); // Re-apply theme in case it was default
+            attachUserMenuListeners(); // Ensure listeners are attached after initial setup
             return true;
 
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
     
     } else {
+        // If data is found, update state.currentUser and UI immediately
+        state.currentUser.full_name = userData.full_name;
+        state.currentUser.company_name = userData.company_name;
+        state.currentUser.monthly_quota = userData.monthly_quota;
         userNameDisplay.textContent = userData.full_name || 'User';
         await setupTheme(supabase, state.currentUser);
         attachUserMenuListeners();
     }
 
     function attachUserMenuListeners() {
+        // Prevent attaching multiple listeners
         if (userMenuHeader.dataset.listenerAttached === 'true') return;
 
         userMenuHeader.addEventListener('click', (e) => {
@@ -303,8 +326,9 @@ export async function setupUserMenuAndAuth(supabase, state) {
             userMenuPopup.classList.toggle('show');
         });
 
-        window.addEventListener('click', () => {
-            if (userMenuPopup.classList.contains('show')) {
+        window.addEventListener('click', (e) => {
+            // Hide if click is outside the menu and menu is shown
+            if (userMenuPopup.classList.contains('show') && !userMenuPopup.contains(e.target) && !userMenuHeader.contains(e.target)) {
                 userMenuPopup.classList.remove('show');
             }
         });
@@ -314,42 +338,6 @@ export async function setupUserMenuAndAuth(supabase, state) {
             window.location.href = "index.html";
         });
         
-        userMenuHeader.dataset.listenerAttached = 'true';
+        userMenuHeader.dataset.listenerAttached = 'true'; // Mark listener as attached
     }
-}
-
-export async function loadSVGs() {
-  const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
-  
-  for (const placeholder of svgPlaceholders) {
-    const svgUrl = placeholder.dataset.svgLoader;
-    if (svgUrl) {
-      try {
-        const response = await fetch(svgUrl);
-        if (!response.ok) throw new Error(`Failed to load SVG: ${response.statusText}`);
-        
-        const svgText = await response.text();
-        const parser = new DOMParser();
-        const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
-        const svgElement = svgDoc.documentElement;
-
-        if (svgElement.querySelector('parsererror')) {
-          console.error(`Error parsing SVG from ${svgUrl}`);
-          continue;
-        }
-        
-        if (svgUrl.includes('logo.svg')) {
-            svgElement.classList.add('nav-logo');
-        } else if (svgUrl.includes('user-icon.svg')) {
-            svgElement.classList.add('user-icon');
-        }
-
-        placeholder.replaceWith(svgElement);
-
-      } catch (error) {
-        console.error(`Could not load SVG from ${svgUrl}`, error);
-        placeholder.innerHTML = '';
-      }
-    }
-  }
 }
