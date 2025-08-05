@@ -190,10 +190,15 @@ body.theme-blue {
 
 /* --- Corporate (Windows 95/XP) Theme --- */
 body.theme-corporate {
+    /* FIX: Ensure bliss.png background is applied here with !important */
     background: #008080 url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
     background-size: cover !important;
     font-family: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif !important;
     color: #000000 !important;
+
+    .crm-container {
+        background: transparent !important;
+    }
 
     /* Main rule for all containers */
     .nav-sidebar,
@@ -265,7 +270,7 @@ body.theme-corporate {
         border-width: 2px !important;
     }
 
-    /* --- Corporate Theme Specific Overrides for Section Boxes --- */
+    /* FIX: Specific styles for .section-box inside corporate theme */
     .section-box {
         background-color: #c0c0c0 !important; /* Use the main corporate background */
         border-color: #dfdfdf #808080 #808080 #dfdfdf !important; /* Match the outset border */
@@ -273,12 +278,15 @@ body.theme-corporate {
         border-width: 2px !important;
         box-shadow: none !important; /* Remove any shadows */
         color: #000000 !important; /* Ensure text is black */
+        padding: 20px !important; /* Ensure padding is maintained */
+        margin-bottom: 30px !important; /* Ensure margin is maintained */
     }
 
     .section-box h2,
     .section-box h4 {
         color: #000000 !important; /* Black text for headings */
         border-color: #808080 !important; /* Match border color */
+        border-bottom: 1px solid #808080 !important; /* Ensure border-bottom is visible */
     }
 
     .section-box p {
@@ -322,7 +330,7 @@ body.theme-corporate {
         box-shadow: none !important; /* Remove any focus shadow */
     }
 
-    /* NEW: Fix for ALL Activity Lists - these were duplicated and are now correctly placed */
+    /* FIX: For ALL Activity Lists inside corporate theme */
     #contact-activities-list li,
     #account-activities-list li {
         background-color: #dfdfdf !important; /* A slightly lighter grey for differentiation */
@@ -335,7 +343,7 @@ body.theme-corporate {
         border-left: 2px inset #808080 !important; /* Ensure the left border matches */
     }
 
-    /* NEW: Corporate theme checkbox styling inside section-box */
+    /* FIX: Corporate theme checkbox styling inside section-box */
     .ai-generation-section .checkbox-group input[type="checkbox"] {
         border: 2px inset #808080 !important; /* Outset border for unchecked */
         background-color: #ffffff !important;
@@ -2366,189 +2374,6 @@ body.theme-green .marketing-indicator {
 .template-creator {
     font-size: 0.8em;
     color: var(--text-color-light);
-    font-style: italic;
-}
-/* --- COGNITO PAGE STYLES --- */
-
-/* Cognito Logo in Nav Bar */
-.cognito-nav-link {
-    padding: 0.5rem 0 !important;
-    margin-top: auto; /* Pushes it to the bottom */
-    margin-bottom: 0.5rem !important;
-}
-
-.cognito-nav-link h1 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 1.5rem; /* Scaled down for the nav bar */
-    font-weight: 700;
-    color: var(--text-medium);
-    margin: 0;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s;
-}
-
-.cognito-logo-magnifying-glass {
-    height: 1.0em;    
-    width: auto;
-    margin: 0 0.05em -0.1em 0.05em;
-    transition: transform 0.3s ease-in-out;
-}
-
-.cognito-logo-magnifying-glass #glassGradient stop:nth-child(1) {
-    stop-color: var(--primary-blue);
-}
-.cognito-logo-magnifying-glass #glassGradient stop:nth-child(2) {
-    stop-color: var(--primary-blue);
-    stop-opacity: 0.7;
-}
-
-.cognito-nav-link:hover h1 {
-    color: var(--text-light);
-}
-
-.cognito-nav-link:hover .cognito-logo-magnifying-glass {
-    transform: rotate(-15deg);
-}
-
-.cognito-nav-link.active h1 {
-    color: var(--text-light);
-    text-shadow: 0 0 8px var(--primary-blue);
-}
-
-.cognito-nav-link.active .cognito-logo-magnifying-glass {
-    transform: scale(1.1);
-}
-
-.nav-bottom-section {
-    margin-top: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-
-/* Alert Card Styling */
-#alerts-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.25rem;
-    margin-top: 1.25rem;
-}
-
-.alert-card {
-    background-color: var(--bg-medium);
-    border-left: 5px solid var(--primary-blue);
-    padding: 1rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px var(--shadow-medium);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.alert-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.alert-trigger-type {
-    background-color: var(--bg-dark);
-    color: var(--primary-blue);
-    padding: 0.25rem 0.5rem;
-    border-radius: 10px;
-}
-
-.alert-status {
-    color: var(--text-medium);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.alert-account-name {
-    margin: 0.25rem 0 0 0;
-    font-size: 1.2rem;
-    color: var(--text-light);
-}
-
-.alert-headline {
-    margin: 0;
-    font-size: 1rem;
-    color: var(--text-medium);
-    font-weight: 400;
-}
-
-.alert-summary {
-    margin: 0.25rem 0;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    flex-grow: 1;
-}
-
-.alert-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.8rem;
-    color: var(--text-medium);
-    border-top: 1px solid var(--border-color);
-    padding-top: 0.75rem;
-    margin-top: 0.5rem;
-}
-
-.alert-footer a {
-    color: var(--primary-blue);
-    text-decoration: none;
-}
-.alert-footer a:hover {
-    text-decoration: underline;
-}
-
-.alert-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-.alert-actions .btn-primary, .alert-actions .btn-secondary {
-    flex-grow: 1;
-}
-
-/* --- ACTION CENTER MODAL (Single Column Layout) --- */
-.action-center-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem; /* Space between sections */
-}
-
-.action-center-section {
-    padding: 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--bg-dark);
-}
-
-.action-center-section h5 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    color: var(--text-light);
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.5rem;
-}
-
-.action-center-section .action-buttons {
-    margin-top: 1rem;
-}
-
-.placeholder-text {
-    color: var(--text-medium);
-    text-align: center;
-    margin-top: 2rem;
     font-style: italic;
 }
 /* --- COGNITO NAV LINK STYLES (v3 - Final) --- */
