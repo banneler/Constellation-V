@@ -63,34 +63,30 @@ body.theme-dark {
 }
 
 /* Light Theme */
-body.theme-light {
-    --bg-dark: #f0f2f5;
-    --bg-medium: #ffffff;
-    --bg-light: #e9ecef;
-    --text-light: #212529;
-    --text-medium: #6c757d;
-    --primary-blue: #007bff;
-    --danger-red: #dc3545;
-    --secondary-gray: #6c757d;
-    --border-color: #dee2e6;
-    --completed-color: #28a745;
-    --warning-yellow: #ffc107;
-    --gradient-start: #f8f9fa;
-    --gradient-end: #e9ecef;
-    --shadow-light: rgba(0, 0, 0, 0.05);
-    --shadow-medium: rgba(0, 0, 0, 0.1);
-    --shadow-strong: rgba(0, 0, 0, 0.15);
-    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --logo-primary-color: var(--primary-blue);
-    --logo-secondary-color: var(--text-light);
-    --meeting-purple: #6A0DAD;
-    --warning-bg: #fff8e1;
-    --warning-text: #856404;
-    --warning-hover-bg: #fff3cd;
-    --success-color: #28a745;
-    --error-color: #dc3545;
+/* Add or modify these rules in your style.css file */
 
-    /* Light Theme Specific Button Text Color */
+/* Light Theme Specific Styles */
+body.theme-light {
+    /* Existing light theme variables and styles */
+    --bg-dark: #e0e0e0;
+    --bg-medium: #f0f0f0;
+    --bg-light: #ffffff;
+    --text-color: #333333;
+    --primary-blue: #3b82f6;
+    --secondary-gray: #6b7280;
+    --danger-red: #ef4444;
+    --warning-yellow: #f59e0b;
+    --completed-color: #22c55e;
+    --meeting-purple: #8b5cf6;
+    --border-color: #d1d5db;
+    --input-bg: #ffffff;
+    --input-border: #d1d5db;
+    --input-focus-border: #93c5fd;
+    --list-item-hover: #e5e7eb; /* Light grey for hover in light mode */
+    --selected-item-bg: #bfdbfe; /* Light blue for selected item in light mode */
+    --shadow-color: rgba(0, 0, 0, 0.1);
+
+    /* NEW: Button text color for light theme */
     .btn-primary {
         color: white; /* Ensures primary button text is white in light theme */
     }
@@ -103,10 +99,14 @@ body.theme-light {
         color: white; /* Ensures primary button text is white when active in light theme */
     }
 
+    /* You might want to add similar rules for other active/hover states if they use black text */
     .btn-secondary:active {
         color: white; /* Example for secondary active state */
     }
 }
+
+
+
 
 /* Green Screen Theme */
 body.theme-green {
@@ -136,280 +136,6 @@ body.theme-green {
     --success-color: #00ff41;
     --error-color: #ff0000;
 }
-
-/* --- NEON / Blue Theme --- */
-body.theme-blue {
-    --bg-dark: #000000;
-    --bg-medium: #0d0d0d;
-    --bg-light: #1a1a1a;
-    --text-light: #00ffff;
-    --text-medium: #bbbbbb;
-    --primary-blue: #f92772;
-    --danger-red: #ff3333;
-    --secondary-gray: #2a2a2a;
-    --border-color: #00ffff;
-    --completed-color: #a6e22e;
-    --warning-yellow: #fd971f;
-    --gradient-start: #000000;
-    --gradient-end: #0d0d0d;
-    --shadow-light: rgba(249, 39, 114, 0.2);
-    --shadow-medium: rgba(249, 39, 114, 0.4);
-    --shadow-strong: rgba(249, 39, 114, 0.6);
-    --font-main: 'Orbitron', sans-serif;
-    --logo-primary-color: var(--primary-blue);
-    --logo-secondary-color: var(--text-light);
-    --meeting-purple: #ae81ff;
-    --warning-bg: rgba(253, 151, 31, 0.1);
-    --warning-text: #fd971f;
-    --warning-hover-bg: rgba(253, 151, 31, 0.2);
-}
-
-.theme-blue h1, .theme-blue h2, .theme-blue h3, .theme-blue h4,
-.theme-blue .metric-value, .theme-blue .nav-button.active,
-.theme-blue th {
-    text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
-}
-
-.theme-blue .btn-primary,
-.theme-blue .details-panel,
-.theme-blue .chart-container,
-.theme-blue .metric-card,
-.theme-blue .modal-content,
-.theme-blue .auth-box,
-.theme-blue .nav-button.active {
-    box-shadow: 0 0 5px var(--primary-blue), 0 0 10px var(--primary-blue), inset 0 0 3px var(--primary-blue);
-    border: 1px solid var(--primary-blue);
-}
-
-.theme-blue input:focus,
-.theme-blue select:focus,
-.theme-blue textarea:focus {
-    border-color: var(--primary-blue);
-    box-shadow: inset 1px 1px 3px var(--shadow-light), 0 0 8px var(--primary-blue);
-}
-
-/* --- Corporate (Windows 95/XP) Theme --- */
-body.theme-corporate {
-    /* FIX: Ensure bliss.png background is applied here with !important */
-    background: #008080 url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
-    background-size: cover !important;
-    font-family: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif !important;
-    color: #000000 !important;
-
-    .crm-container {
-        background: transparent !important;
-    }
-
-    /* Main rule for all containers */
-    .nav-sidebar,
-    .details-panel,
-    .modal-content,
-    .auth-box,
-    .chart-container,
-    .metric-card,
-    table,
-    th,
-    .user-menu,
-    .user-menu-header,
-    .item-list,
-    .list-item,
-    #contact-sequence-status,
-    .form-checkbox-group,
-    .template-list-item,
-    .downloads-section,
-    .alert-card { /* FIX: .alert-card is included here, but we'll override it below */
-        background-color: #c0c0c0 !important;
-        color: #000000 !important;
-        border-radius: 0 !important;
-        border-style: outset !important;
-        border-width: 2px !important;
-        border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
-        box-shadow: none !important;
-    }
-
-    /* Styles the active nav button */
-    .nav-button.active {
-        background: #008080 !important;
-        color: #FFFFFF !important;
-        border-style: inset !important;
-        text-shadow: none !important;
-    }
-
-    /* Styles all other buttons */
-    .btn-primary,
-    .btn-danger,
-    .btn-secondary,
-    .btn-tertiary,
-    .nav-button {
-        background-color: #c0c0c0 !important;
-        color: #000000 !important;
-        border-radius: 0 !important;
-        border-style: outset !important;
-        border-width: 2px !important;
-        border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
-        box-shadow: none !important;
-    }
-
-    .btn-primary:active,
-    .btn-danger:active,
-    .btn-secondary:active,
-    .btn-tertiary:active,
-    .nav-button:active {
-        border-style: inset !important;
-    }
-
-    /* Styles all input fields */
-    input,
-    select,
-    textarea {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border-radius: 0 !important;
-        border-style: inset !important;
-        border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
-        border-width: 2px !important;
-    }
-
-    /* FIX: Specific styles for .section-box inside corporate theme */
-    .section-box {
-        background-color: #c0c0c0 !important; /* Use the main corporate background */
-        border-color: #dfdfdf #808080 #808080 #dfdfdf !important; /* Match the outset border */
-        border-style: outset !important;
-        border-width: 2px !important;
-        box-shadow: none !important; /* Remove any shadows */
-        color: #000000 !important; /* Ensure text is black */
-        padding: 20px !important; /* Ensure padding is maintained */
-        margin-bottom: 30px !important; /* Ensure margin is maintained */
-    }
-
-    .section-box h2,
-    .section-box h4 {
-        color: #000000 !important; /* Black text for headings */
-        border-color: #808080 !important; /* Match border color */
-        border-bottom: 1px solid #808080 !important; /* Ensure border-bottom is visible */
-    }
-
-    .section-box p {
-        color: #000000 !important; /* Black text for paragraphs */
-    }
-
-    .section-box .table-container th {
-        background-color: #dfdfdf !important; /* Lighter header for tables */
-        color: #000000 !important; /* Black text for table headers */
-        border-color: #808080 #dfdfdf #dfdfdf #808080 !important; /* Match outset border */
-        border-style: outset !important;
-        border-width: 2px !important;
-    }
-
-    .section-box .table-container td {
-        color: #000000 !important; /* Black text for table cells */
-        border-color: #808080 #dfdfdf #dfdfdf #808080 !important; /* Match outset border */
-        border-style: inset !important; /* Inset for cells */
-        border-width: 2px !important;
-    }
-
-    /* Adjust input/textarea colors within section-box for corporate theme */
-    .section-box input[type="text"],
-    .section-box input[type="number"],
-    .section-box input[type="email"],
-    .section-box input[type="tel"],
-    .section-box textarea {
-        background-color: #ffffff !important;
-        border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
-        color: #000000 !important;
-        border-style: inset !important;
-        border-width: 2px !important;
-    }
-
-    .section-box input[type="text"]:focus,
-    .section-box input[type="number"]:focus,
-    .section-box input[type="email"]:focus,
-    .section-box input[type="tel"]:focus,
-    .section-box textarea:focus {
-        border-color: #808080 #dfdfdf #dfdfdf #808080 !important; /* Keep inset look */
-        box-shadow: none !important; /* Remove any focus shadow */
-    }
-
-    /* FIX: For ALL Activity Lists inside corporate theme */
-    #contact-activities-list li,
-    #account-activities-list li {
-        background-color: #dfdfdf !important; /* A slightly lighter grey for differentiation */
-        color: #000000 !important;
-        border-radius: 0 !important;
-        border-style: inset !important; /* Use an inset border to look like a sunken panel */
-        border-width: 2px !important;
-        border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
-        box-shadow: none !important;
-        border-left: 2px inset #808080 !important; /* Ensure the left border matches */
-    }
-
-    /* FIX: Corporate theme checkbox styling inside section-box */
-    .ai-generation-section .checkbox-group input[type="checkbox"] {
-        border: 2px inset #808080 !important; /* Outset border for unchecked */
-        background-color: #ffffff !important;
-    }
-
-    .ai-generation-section .checkbox-group input[type="checkbox"]:checked {
-        background-color: #008080 !important; /* Corporate green when checked */
-        border-color: #008080 !important;
-    }
-
-    .ai-generation-section .checkbox-group input[type="checkbox"]:checked::after {
-        color: #ffffff !important; /* White checkmark */
-    }
-
-    /* NEW FIX: Specific styles for .alert-card inside corporate theme */
-    .alert-card {
-        background-color: #c0c0c0 !important; /* Match other corporate boxes */
-        border-color: #dfdfdf #808080 #808080 #dfdfdf !important; /* Outset border */
-        border-style: outset !important;
-        border-width: 2px !important;
-        box-shadow: none !important;
-        color: #000000 !important; /* Ensure text is black */
-        border-left: 5px outset #008080 !important; /* Corporate green left border */
-    }
-
-    .alert-card .alert-header {
-        color: #000000 !important; /* Black text */
-    }
-
-    .alert-card .alert-trigger-type {
-        background-color: #dfdfdf !important; /* Lighter background for the tag */
-        color: #000000 !important; /* Black text for the tag */
-        border-radius: 0 !important; /* Square corners */
-        padding: 0.25rem 0.5rem !important;
-        font-weight: bold !important;
-        border-style: outset !important; /* Outset border for tag */
-        border-width: 1px !important;
-        border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
-    }
-
-    .alert-card .alert-account-name {
-        color: #000000 !important; /* Black text */
-    }
-
-    .alert-card .alert-headline {
-        color: #000000 !important; /* Black text */
-        font-weight: bold !important; /* Ensure bold as per previous fix */
-    }
-
-    .alert-card .alert-summary {
-        color: #000000 !important; /* Black text */
-    }
-
-    .alert-card .alert-status {
-        color: #000000 !important; /* Black text */
-    }
-
-    .alert-card .alert-footer {
-        border-color: #808080 !important; /* Match border color */
-    }
-
-    .alert-card .alert-footer a {
-        color: #008080 !important; /* Corporate green link color */
-    }
-}
-
 
 /* --- GLOBAL STYLES --- */
 body {
@@ -507,7 +233,7 @@ body.theme-green .auth-logo path[fill="#010101"] {
     overflow: visible;
 }
 
-body:not(.theme-green):not(.theme-corporate) .nav-sidebar {
+body:not(.theme-green) .nav-sidebar {
     border-radius: 0 10px 10px 0;
 }
 
@@ -526,7 +252,7 @@ body:not(.theme-green):not(.theme-corporate) .nav-sidebar {
     display: block;
 }
 
-body:not(.theme-green):not(.theme-corporate) .nav-button {
+body:not(.theme-green) .nav-button {
     border-radius: 5px;
 }
 
@@ -582,11 +308,20 @@ body.theme-green .btn-secondary.active {
     border: 1px solid var(--border-color);
     box-shadow: 0 6px 15px var(--shadow-medium);
     transition: background-color 0.3s, border-color 0.3s;
+    /* --- ADD THESE LINES --- */
     display: flex;
     flex-direction: column;
 }
 
-body:not(.theme-green):not(.theme-corporate) .chart-container {
+.analytics-metric-card {
+    display: flex; 
+    justify-content: center;
+    align-items: center; 
+    /* --- ADD THIS LINE --- */
+    flex-grow: 1; /* This makes the card fill the remaining space */
+}
+
+body:not(.theme-green) .chart-container {
     border-radius: 10px;
 }
 
@@ -650,7 +385,7 @@ body:not(.theme-green):not(.theme-corporate) .chart-container {
     transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 
-body:not(.theme-green):not(.theme-corporate) .metric-card {
+body:not(.theme-green) .metric-card {
     border-radius: 10px;
 }
 
@@ -688,7 +423,7 @@ body.theme-dark .metric-card {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-body:not(.theme-green):not(.theme-corporate) .downloads-section {
+body:not(.theme-green) .downloads-section {
     border-radius: 8px;
 }
 
@@ -732,7 +467,7 @@ body:not(.theme-green):not(.theme-corporate) .downloads-section {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-body:not(.theme-green):not(.theme-corporate) .item-list {
+body:not(.theme-green) .item-list {
     border-radius: 5px;
 }
 
@@ -797,7 +532,7 @@ body.theme-green .contact-list-indicator {
     font-weight: bold;
 }
 
-body:not(.theme-green):not(.theme-corporate) .list-item.selected {
+body:not(.theme-green) .list-item.selected {
     box-shadow: inset 3px 0 0 0 var(--primary-blue);
 }
 
@@ -814,7 +549,7 @@ body:not(.theme-green):not(.theme-corporate) .list-item.selected {
     transition: background-color 0.3s, box-shadow 0.3s;
 }
 
-body:not(.theme-green):not(.theme-corporate) .details-panel {
+body:not(.theme-green) .details-panel {
     border-radius: 8px;
 }
 
@@ -842,7 +577,7 @@ body:not(.theme-green):not(.theme-corporate) .details-panel {
     display: block;
 }
 
-body:not(.theme-green):not(.theme-corporate) #contact-sequence-status {
+body:not(.theme-green) #contact-sequence-status {
     border-radius: 5px;
 }
 
@@ -894,6 +629,7 @@ body:not(.theme-green):not(.theme-corporate) #contact-sequence-status {
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
+    gap: 0.3125rem;
     height: 100%;
 }
 
@@ -933,9 +669,9 @@ textarea {
     transition: background-color 0.3s, border-color 0.3s, color 0.3s;
 }
 
-body:not(.theme-green):not(.theme-corporate) input,
-body:not(.theme-green):not(.theme-corporate) select,
-body:not(.theme-green):not(.theme-corporate) textarea {
+body:not(.theme-green) input,
+body:not(.theme-green) select,
+body:not(.theme-green) textarea {
     border-radius: 4px;
 }
 
@@ -973,7 +709,7 @@ label {
 .btn-primary,
 .btn-danger,
 .btn-secondary,
-.btn-tertiary {
+.btn-tertiary { /* Added btn-tertiary here */
     padding: 0.625rem 0.9375rem;
     border: none;
     color: var(--text-light);
@@ -996,16 +732,16 @@ label {
 .btn-danger:has(span),
 .btn-secondary:has(span),
 .btn-primary:has(span),
-.btn-tertiary:has(span) {
+.btn-tertiary:has(span) { /* Added btn-tertiary here */
     padding: 8px 12px;
     min-width: unset;
     height: auto;
 }
 
-body:not(.theme-green):not(.theme-corporate) .btn-primary,
-body:not(.theme-green):not(.theme-corporate) .btn-danger,
-body:not(.theme-green):not(.theme-corporate) .btn-secondary,
-body:not(.theme-green):not(.theme-corporate) .btn-tertiary {
+body:not(.theme-green) .btn-primary,
+body:not(.theme-green) .btn-danger,
+body:not(.theme-green) .btn-secondary,
+body:not(.theme-green) .btn-tertiary { /* Added btn-tertiary here */
     border-radius: 5px;
 }
 
@@ -1061,6 +797,8 @@ body.theme-green .btn-tertiary:hover {
     color: var(--text-light);
     box-shadow: 0 0 10px rgba(0, 255, 65, 0.6);
 }
+/* End of btn-tertiary styles */
+
 
 body.theme-green .btn-primary {
     background-color: var(--secondary-gray);
@@ -1130,7 +868,7 @@ table {
     box-sizing: border-box;
 }
 
-body:not(.theme-green):not(.theme-corporate) table {
+body:not(.theme-green) table {
     border-radius: 8px;
     overflow: hidden;
 }
@@ -1342,7 +1080,7 @@ table input[type="checkbox"]:focus {
     max-height: 90vh;
 }
 
-body:not(.theme-green):not(.theme-corporate) .modal-content {
+body:not(.theme-green) .modal-content {
     border-radius: 10px;
 }
 
@@ -1389,8 +1127,8 @@ ul {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-body:not(.theme-green):not(.theme-corporate) #account-activities-list li,
-body:not(.theme-green):not(.theme-corporate) #contact-activities-list li {
+body:not(.theme-green) #account-activities-list li,
+body:not(.theme-green) #contact-activities-list li {
     border-radius: 4px;
 }
 
@@ -1484,7 +1222,7 @@ body.theme-green .sequence-status-icon {
     min-height: 280px;
 }
 
-body:not(.theme-green):not(.theme-corporate) .auth-box {
+body:not(.theme-green) .auth-box {
     border-radius: 10px;
 }
 
@@ -1618,7 +1356,7 @@ body.theme-green ::-webkit-scrollbar-track {
     margin-top: 0.625rem;
 }
 
-body:not(.theme-green):not(.theme-corporate) .table-container-scrollable {
+body:not(.theme-green) .table-container-scrollable {
     border-radius: 5px;
 }
 
@@ -1672,12 +1410,13 @@ body:not(.theme-green):not(.theme-corporate) .table-container-scrollable {
     max-height: 80vh;
     display: flex;
     flex-direction: column;
+    /* The following styles were duplicated from .modal-content, kept here to ensure no HTML changes are needed for now */
     background-color: var(--bg-medium);
     padding: 1.25rem;
     box-shadow: 0 8px 25px var(--shadow-strong);
 }
 
-body:not(.theme-green):not(.theme-corporate) .email-view-modal {
+body:not(.theme-green) .email-view-modal {
     border-radius: 10px;
 }
 
@@ -1741,7 +1480,7 @@ body.theme-dark .email-view-modal {
     line-height: 1.6;
 }
 
-body:not(.theme-green):not(.theme-corporate) .email-view-body {
+body:not(.theme-green) .email-view-body {
     border-radius: 5px;
 }
 
@@ -1916,7 +1655,7 @@ body.theme-light .user-icon path[fill="#F4F4F4"] {
     z-index: 100;
 }
 
-body:not(.theme-green):not(.theme-corporate) .user-menu-popup {
+body:not(.theme-green) .user-menu-popup {
     border-radius: 5px 5px 0 0;
 }
 
@@ -2298,7 +2037,7 @@ button,
 .btn-primary,
 .btn-danger,
 .btn-secondary,
-.btn-tertiary,
+.btn-tertiary, /* Added btn-tertiary here */
 table,
 th,
 td,
@@ -2427,6 +2166,189 @@ body.theme-green .marketing-indicator {
     color: var(--text-color-light);
     font-style: italic;
 }
+/* --- COGNITO PAGE STYLES --- */
+
+/* Cognito Logo in Nav Bar */
+.cognito-nav-link {
+    padding: 0.5rem 0 !important;
+    margin-top: auto; /* Pushes it to the bottom */
+    margin-bottom: 0.5rem !important;
+}
+
+.cognito-nav-link h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.5rem; /* Scaled down for the nav bar */
+    font-weight: 700;
+    color: var(--text-medium);
+    margin: 0;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.cognito-logo-magnifying-glass {
+    height: 1.0em;    
+    width: auto;
+    margin: 0 0.05em -0.1em 0.05em;
+    transition: transform 0.3s ease-in-out;
+}
+
+.cognito-logo-magnifying-glass #glassGradient stop:nth-child(1) {
+    stop-color: var(--primary-blue);
+}
+.cognito-logo-magnifying-glass #glassGradient stop:nth-child(2) {
+    stop-color: var(--primary-blue);
+    stop-opacity: 0.7;
+}
+
+.cognito-nav-link:hover h1 {
+    color: var(--text-light);
+}
+
+.cognito-nav-link:hover .cognito-logo-magnifying-glass {
+    transform: rotate(-15deg);
+}
+
+.cognito-nav-link.active h1 {
+    color: var(--text-light);
+    text-shadow: 0 0 8px var(--primary-blue);
+}
+
+.cognito-nav-link.active .cognito-logo-magnifying-glass {
+    transform: scale(1.1);
+}
+
+.nav-bottom-section {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* Alert Card Styling */
+#alerts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+}
+
+.alert-card {
+    background-color: var(--bg-medium);
+    border-left: 5px solid var(--primary-blue);
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px var(--shadow-medium);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.alert-trigger-type {
+    background-color: var(--bg-dark);
+    color: var(--primary-blue);
+    padding: 0.25rem 0.5rem;
+    border-radius: 10px;
+}
+
+.alert-status {
+    color: var(--text-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alert-account-name {
+    margin: 0.25rem 0 0 0;
+    font-size: 1.2rem;
+    color: var(--text-light);
+}
+
+.alert-headline {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-medium);
+    font-weight: 400;
+}
+
+.alert-summary {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    flex-grow: 1;
+}
+
+.alert-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-medium);
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.alert-footer a {
+    color: var(--primary-blue);
+    text-decoration: none;
+}
+.alert-footer a:hover {
+    text-decoration: underline;
+}
+
+.alert-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.alert-actions .btn-primary, .alert-actions .btn-secondary {
+    flex-grow: 1;
+}
+
+/* --- ACTION CENTER MODAL (Single Column Layout) --- */
+.action-center-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Space between sections */
+}
+
+.action-center-section {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-dark);
+}
+
+.action-center-section h5 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--text-light);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.action-center-section .action-buttons {
+    margin-top: 1rem;
+}
+
+.placeholder-text {
+    color: var(--text-medium);
+    text-align: center;
+    margin-top: 2rem;
+    font-style: italic;
+}
 /* --- COGNITO NAV LINK STYLES (v3 - Final) --- */
 
 /* This container groups the Cognito logo and the User Menu at the bottom */
@@ -2536,7 +2458,7 @@ body.theme-green .marketing-indicator {
 /* Loading Spinner Animation */
 .loader {
     border: 4px solid var(--bg-medium); /* Spinner track */
-    border-top: 4px solid var(--primary-blue); /* Spinner color */
+    border-top: 4px solid var(--primary-accent); /* Spinner color */
     border-radius: 50%;
     width: 40px;
     height: 40px;
@@ -2544,13 +2466,6 @@ body.theme-green .marketing-indicator {
     margin: 20px auto; /* Center the spinner */
 }
 
-/* Corrected spinner color for theme-blue */
-body.theme-blue .loader {
-    border-top-color: var(--primary-blue); /* Ensure it uses the theme's primary blue */
-}
-
-
-/* Corrected primary accent variable name */
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -2715,4 +2630,754 @@ body.theme-blue .loader {
 
 .settings-add-form button {
     margin: 0;
+}
+
+}
+/* --- NEW THEMES (REVISED & ENHANCED) --- */
+/* --- THEME DEFINITIONS --- */
+:root {
+    --bg-dark: #2e2e2e;
+    --bg-medium: #3c3c3c;
+    --bg-light: #4a4a4a;
+    --text-light: #ffffff;
+    --text-medium: #b0b0b0;
+    --primary-blue: #4a90e2;
+    --danger-red: #e74c3c;
+    --secondary-gray: #6d6d6d;
+    --border-color: #5a5a5a;
+    --completed-color: #98ff98;
+    --warning-yellow: #f1c40f;
+    --meeting-purple: #8A2BE2;
+    --gradient-start: #3a3a3a;
+    --gradient-end: #2a2a2a;
+    --shadow-light: rgba(0, 0, 0, 0.3);
+    --shadow-medium: rgba(0, 0, 0, 0.5);
+    --shadow-strong: rgba(0, 0, 0, 0.7);
+    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --logo-primary-color: var(--primary-blue);
+    --logo-secondary-color: var(--text-light);
+    --warning-bg: #4d441a;
+    --warning-text: #ffeb99;
+    --warning-hover-bg: #6b5f25;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+}
+
+/* Dark Theme */
+body.theme-dark {
+    --bg-dark: #2e2e2e;
+    --bg-medium: #3c3c3c;
+    --bg-light: #4a4a4a;
+    --text-light: #ffffff;
+    --text-medium: #b0b0b0;
+    --primary-blue: #4a90e2;
+    --danger-red: #e74c3c;
+    --secondary-gray: #6d6d6d;
+    --border-color: #5a5a5a;
+    --completed-color: #98ff98;
+    --warning-yellow: #f1c40f;
+    --gradient-start: #3a3a3a;
+    --gradient-end: #2a2a2a;
+    --shadow-light: rgba(0, 0, 0, 0.3);
+    --shadow-medium: rgba(0, 0, 0, 0.5);
+    --shadow-strong: rgba(0, 0, 0, 0.7);
+    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --logo-primary-color: var(--primary-blue);
+    --logo-secondary-color: var(--text-light);
+    --meeting-purple: #8A2BE2;
+    --warning-bg: #4d441a;
+    --warning-text: #ffeb99;
+    --warning-hover-bg: #6b5f25;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+}
+
+/* Light Theme */
+body.theme-light {
+    --bg-dark: #f0f2f5;
+    --bg-medium: #ffffff;
+    --bg-light: #e9ecef;
+    --text-light: #212529;
+    --text-medium: #6c757d;
+    --primary-blue: #007bff;
+    --danger-red: #dc3545;
+    --secondary-gray: #6c757d;
+    --border-color: #dee2e6;
+    --completed-color: #28a745;
+    --warning-yellow: #ffc107;
+    --gradient-start: #f8f9fa;
+    --gradient-end: #e9ecef;
+    --shadow-light: rgba(0, 0, 0, 0.05);
+    --shadow-medium: rgba(0, 0, 0, 0.1);
+    --shadow-strong: rgba(0, 0, 0, 0.15);
+    --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --logo-primary-color: var(--primary-blue);
+    --logo-secondary-color: var(--text-light);
+    --meeting-purple: #6A0DAD;
+    --warning-bg: #fff8e1;
+    --warning-text: #856404;
+    --warning-hover-bg: #fff3cd;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+}
+
+/* Green Screen Theme */
+body.theme-green {
+    --bg-dark: #020c02;
+    --bg-medium: #051405;
+    --bg-light: #0a200a;
+    --text-light: #00ff41;
+    --text-medium: #00b32d;
+    --primary-blue: #00ff41;
+    --danger-red: #00ff41;
+    --secondary-gray: #008b25;
+    --border-color: #005217;
+    --completed-color: #00ff41;
+    --warning-yellow: #00ff41;
+    --gradient-start: #000000;
+    --gradient-end: #020c02;
+    --shadow-light: rgba(0, 255, 65, 0.1);
+    --shadow-medium: rgba(0, 255, 65, 0.2);
+    --shadow-strong: rgba(0, 255, 65, 0.3);
+    --font-main: 'Courier New', Courier, monospace;
+    --logo-primary-color: var(--text-medium);
+    --logo-secondary-color: var(--bg-dark);
+    --meeting-purple: #9400D3;
+    --warning-bg: #1a331a;
+    --warning-text: #ffff00;
+    --warning-hover-bg: #2a522a;
+    --success-color: #00ff41;
+    --error-color: #ff0000;
+}
+
+/* --- NEON / Blue Theme --- */
+body.theme-blue {
+    --bg-dark: #000000;
+    --bg-medium: #0d0d0d;
+    --bg-light: #1a1a1a;
+    --text-light: #00ffff;
+    --text-medium: #bbbbbb;
+    --primary-blue: #f92772;
+    --danger-red: #ff3333;
+    --secondary-gray: #2a2a2a;
+    --border-color: #00ffff;
+    --completed-color: #a6e22e;
+    --warning-yellow: #fd971f;
+    --gradient-start: #000000;
+    --gradient-end: #0d0d0d;
+    --shadow-light: rgba(249, 39, 114, 0.2);
+    --shadow-medium: rgba(249, 39, 114, 0.4);
+    --shadow-strong: rgba(249, 39, 114, 0.6);
+    --font-main: 'Orbitron', sans-serif;
+    --logo-primary-color: var(--primary-blue);
+    --logo-secondary-color: var(--text-light);
+    --meeting-purple: #ae81ff;
+    --warning-bg: rgba(253, 151, 31, 0.1);
+    --warning-text: #fd971f;
+    --warning-hover-bg: rgba(253, 151, 31, 0.2);
+}
+
+.theme-blue h1, .theme-blue h2, .theme-blue h3, .theme-blue h4,
+.theme-blue .metric-value, .theme-blue .nav-button.active,
+.theme-blue th {
+    text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
+}
+
+.theme-blue .btn-primary,
+.theme-blue .details-panel,
+.theme-blue .chart-container,
+.theme-blue .metric-card,
+.theme-blue .modal-content,
+.theme-blue .auth-box,
+.theme-blue .nav-button.active {
+    box-shadow: 0 0 5px var(--primary-blue), 0 0 10px var(--primary-blue), inset 0 0 3px var(--primary-blue);
+    border: 1px solid var(--primary-blue);
+}
+
+.theme-blue input:focus,
+.theme-blue select:focus,
+.theme-blue textarea:focus {
+    border-color: var(--primary-blue);
+    box-shadow: inset 1px 1px 3px var(--shadow-light), 0 0 8px var(--primary-blue);
+}
+
+/* --- Corporate (Windows 95/XP) Theme --- */
+body.theme-corporate {
+    background: #008080 url('https://constellation-crm.com/assets/bliss.png') no-repeat center center fixed !important;
+    background-size: cover !important;
+    font-family: 'Tahoma', 'MS Sans Serif', 'Verdana', sans-serif !important;
+    color: #000000 !important;
+}
+
+body.theme-corporate .crm-container {
+    background: transparent !important;
+}
+
+/* Main rule for all containers */
+body.theme-corporate .nav-sidebar,
+body.theme-corporate .details-panel,
+body.theme-corporate .modal-content,
+body.theme-corporate .auth-box,
+body.theme-corporate .chart-container,
+body.theme-corporate .metric-card,
+body.theme-corporate table,
+body.theme-corporate th,
+body.theme-corporate .user-menu,
+body.theme-corporate .user-menu-header,
+body.theme-corporate .item-list,
+body.theme-corporate .list-item,
+body.theme-corporate #contact-sequence-status,
+body.theme-corporate .form-checkbox-group,
+body.theme-corporate .template-list-item,
+body.theme-corporate .downloads-section,
+body.theme-corporate .alert-card {
+    background-color: #c0c0c0 !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: outset !important;
+    border-width: 2px !important;
+    border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
+    box-shadow: none !important;
+}
+
+/* Styles the active nav button */
+body.theme-corporate .nav-button.active {
+    background: #008080 !important;
+    color: #FFFFFF !important;
+    border-style: inset !important;
+    text-shadow: none !important;
+}
+
+/* Styles all other buttons */
+body.theme-corporate .btn-primary,
+body.theme-corporate .btn-danger,
+body.theme-corporate .btn-secondary,
+body.theme-corporate .btn-tertiary,
+body.theme-corporate .nav-button {
+    background-color: #c0c0c0 !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: outset !important;
+    border-width: 2px !important;
+    border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
+    box-shadow: none !important;
+}
+
+body.theme-corporate .btn-primary:active,
+body.theme-corporate .btn-danger:active,
+body.theme-corporate .btn-secondary:active,
+body.theme-corporate .btn-tertiary:active,
+body.theme-corporate .nav-button:active {
+    border-style: inset !important;
+}
+
+/* Styles all input fields */
+body.theme-corporate input,
+body.theme-corporate select,
+body.theme-corporate textarea {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: inset !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    border-width: 2px !important;
+}
+/* Add these new styles to your css/style.css file */
+
+/* Styling for generic section boxes, used on Command Center */
+.section-box {
+    background-color: var(--bg-medium); /* Slightly darker background than main content */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px; /* Space between sections */
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.section-box h2,
+.section-box h4 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em; /* Consistent with other h2s */
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+/* Adjustments for the downloads section if it's also a section-box */
+.section-box.downloads-section h4 {
+    font-size: 1.2em; /* Keep h4 smaller than h2 */
+}
+
+.section-box p {
+    color: var(--text-color);
+    margin-bottom: 15px;
+}
+
+.section-box .table-container {
+    margin-top: 0; /* Override default table-container margin if needed */
+}
+
+/* Ensure buttons within section-box look good */
+.section-box .btn-primary,
+.section-box .btn-secondary {
+    margin-top: 10px; /* Add some space above buttons if needed */
+}
+
+/* Adjustments for the downloads links specifically */
+.section-box .downloads-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+/* --- Corporate Theme Specific Overrides for Section Boxes --- */
+body.theme-corporate {
+    /* Assuming corporate theme has its own background colors */
+    /* If you have specific corporate theme variables, use them here, e.g., var(--corporate-bg-dark) */
+    
+    .section-box {
+        background-color: #2c2c2c; /* A slightly lighter dark for the box background */
+        border-color: #555555; /* A subtle border */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4); /* Stronger shadow for contrast */
+    }
+
+    .section-box h2,
+    .section-box h4 {
+        color: #e0e0e0; /* Lighter text for headings */
+        border-color: #555555; /* Match border color */
+    }
+
+    .section-box p {
+        color: #cccccc; /* Lighter text for paragraphs */
+    }
+
+    .section-box .table-container th {
+        background-color: #3a3a3a; /* Darker header for tables */
+        color: #e0e0e0; /* Lighter text for table headers */
+    }
+
+    .section-box .table-container td {
+        color: #cccccc; /* Lighter text for table cells */
+    }
+
+    /* Adjust input/textarea colors within section-box for corporate theme if needed */
+    .section-box input[type="text"],
+    .section-box input[type="number"],
+    .section-box input[type="email"],
+    .section-box input[type="tel"],
+    .section-box textarea {
+        background-color: #3a3a3a; /* Darker input background */
+        border-color: #555555;
+        color: #e0e0e0; /* Lighter text in inputs */
+    }
+
+    .section-box input[type="text"]:focus,
+    .section-box input[type="number"]:focus,
+    .section-box input[type="email"]:focus,
+    .section-box input[type="tel"]:focus,
+    .section-box textarea:focus {
+        border-color: #888888; /* Slightly lighter focus border */
+        box-shadow: 0 0 0 2px rgba(136, 136, 136, 0.3);
+    }
+}
+
+/* --- SVG and Logo Styling --- */
+body.theme-corporate .auth-logo,
+body.theme-corporate .nav-logo {
+    filter: none !important;
+}
+body.theme-corporate .nav-logo path[fill="#FEFEFE"],
+body.theme-corporate .auth-logo path[fill="#FEFEFE"] {
+    fill: #008080 !important; 
+}
+/* ... (long list of user icon path selectors) ... */
+body.theme-corporate .user-icon path[fill="#020202"],
+body.theme-corporate .user-icon path[fill="#090909"],
+/* (all other path fills from previous code block) */
+body.theme-corporate .user-icon path[fill="#010101"] {
+    fill: #008080 !important;
+}
+/* ... (long list of user icon path selectors for white parts) ... */
+body.theme-corporate .user-icon path[fill="#FEFEFE"],
+/* (all other path fills from previous code block) */
+body.theme-corporate .user-icon path[fill="#F4F4F4"] {
+    fill: #c0c0c0 !important;
+}
+
+/* --- NEW: Action Card Text and Tag Fixes --- */
+
+/* Makes the headline text bold for better readability */
+body.theme-corporate .alert-headline {
+    font-weight: bold !important;
+}
+
+/* Flattens the "alert type" tag to look like plain text */
+body.theme-corporate .alert-trigger-type {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+}
+/* Removes the drop-shadow glow from the logo in the corporate theme */
+body.theme-corporate .auth-logo,
+body.theme-corporate .nav-logo {
+    filter: none !important;
+}
+/* --- FINAL GLOBAL ADJUSTMENT --- */
+
+/* * FIX 6: Update existing rules to exclude BOTH green and corporate themes from having rounded corners.
+*/
+body:not(.theme-green):not(.theme-corporate) .nav-sidebar { border-radius: 0 10px 10px 0; }
+body:not(.theme-green):not(.theme-corporate) .nav-button { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .chart-container { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .metric-card { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .downloads-section { border-radius: 8px; }
+body:not(.theme-green):not(.theme-corporate) .item-list { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .list-item.selected { box-shadow: inset 3px 0 0 0 var(--primary-blue); }
+body:not(.theme-green):not(.theme-corporate) .details-panel { border-radius: 8px; }
+body:not(.theme-green):not(.theme-corporate) #contact-sequence-status { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) input,
+body:not(.theme-green):not(.theme-corporate) select,
+body:not(.theme-green):not(.theme-corporate) textarea { border-radius: 4px; }
+body:not(.theme-green):not(.theme-corporate) .btn-primary,
+body:not(.theme-green):not(.theme-corporate) .btn-danger,
+body:not(.theme-green):not(.theme-corporate) .btn-secondary,
+body:not(.theme-green):not(.theme-corporate) .btn-tertiary { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) table { border-radius: 8px; overflow: hidden; }
+body:not(.theme-green):not(.theme-corporate) .modal-content { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) #account-activities-list li,
+body:not(.theme-green):not(.theme-corporate) #contact-activities-list li { border-radius: 4px; }
+body:not(.theme-green):not(.theme-corporate) .auth-box { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .table-container-scrollable { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .email-view-modal { border-radius: 10px; }
+body:not(.theme-green):not(.theme-corporate) .email-view-body { border-radius: 5px; }
+body:not(.theme-green):not(.theme-corporate) .user-menu-popup { border-radius: 5px 5px 0 0; }
+
+/* --- NEW: Fix for Contact Activities List --- */
+
+/* Styles the list items for contact activities */
+body.theme-corporate #contact-activities-list li {
+    background-color: #dfdfdf !important; /* A slightly lighter grey for differentiation */
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: inset !important; /* Use an inset border to look like a sunken panel */
+    border-width: 2px !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: none !important;
+    border-left: 2px inset #808080 !important; /* Ensure the left border matches */
+}
+
+/* --- NEW: Fix for ALL Activity Lists --- */
+
+/* Styles the list items for both contact and account activities */
+body.theme-corporate #contact-activities-list li,
+body.theme-corporate #account-activities-list li {
+    background-color: #dfdfdf !important; /* A slightly lighter grey for differentiation */
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: inset !important; /* Use an inset border to look like a sunken panel */
+    border-width: 2px !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: none !important;
+    border-left: 2px inset #808080 !important; /* Ensure the left border matches */
+}
+/* Before (in css/style.css)
+// missing the rules for these elements inside alert-card
+
+// After (add this block to the end of your style.css file)
+/* --- NEW: Action Card Text and Tag Fixes --- */
+
+/* Makes the headline text bold for better readability */
+body.theme-corporate .alert-headline {
+    font-weight: bold !important;
+}
+
+/* Flattens the "alert type" tag to look like plain text */
+body.theme-corporate .alert-trigger-type {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+}
+
+body.theme-corporate #contact-activities-list li,
+body.theme-corporate #account-activities-list li {
+    background-color: #dfdfdf !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+    border-style: inset !important;
+    border-width: 2px !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: none !important;
+    border-left: 2px inset #808080 !important;
+}
+/* Add this to your css/style.css file */
+
+/* Hide the camera button by default on larger screens */
+.mobile-only {
+    display: none;
+}
+
+/* Show the camera button only on screens narrower than 768px */
+@media (max-width: 767px) {
+    .mobile-only {
+        display: block; /* Or flex, inline-block depending on your layout */
+    }
+}
+/* Add these new styles to your css/style.css file */
+
+/* Add these new styles to your css/style.css file */
+
+/* AI Generation Section Styling */
+.ai-generation-section {
+    background-color: var(--bg-medium); /* Slightly darker background than main content */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 30px; /* Space it out from the main sequence details */
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.ai-generation-section h3 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.ai-generation-section .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two columns for inputs */
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.ai-generation-section .form-grid .full-span-grid-item {
+    grid-column: 1 / -1; /* Make the textarea span full width */
+}
+
+.ai-generation-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.ai-generation-section input[type="number"],
+.ai-generation-section textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--input-border);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 1em;
+    box-sizing: border-box; /* Include padding in element's total width and height */
+}
+
+.ai-generation-section input[type="number"]:focus,
+.ai-generation-section textarea:focus {
+    border-color: var(--input-focus-border);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); /* Focus ring */
+}
+
+/* Checkbox Group Styling - MODIFIED for horizontal layout */
+.ai-generation-section .checkbox-group {
+    display: flex; /* Use flexbox */
+    flex-wrap: wrap; /* Allow items to wrap to the next line */
+    gap: 15px; /* Space between checkbox items */
+    padding: 5px 0;
+    align-items: center; /* Vertically align checkbox and label */
+}
+
+.ai-generation-section .checkbox-group div { /* Container for each checkbox-label pair */
+    display: flex;
+    align-items: center;
+    white-space: nowrap; /* Prevent wrapping for individual checkbox and label */
+}
+
+.ai-generation-section .checkbox-group input[type="checkbox"] {
+    /* Custom checkbox styling */
+    -webkit-appearance: none; /* Hide default checkbox */
+    -moz-appearance: none;
+    appearance: none;
+    width: 20px; /* Size of the custom checkbox */
+    height: 20px;
+    border: 2px solid var(--primary-blue); /* Border color */
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    cursor: pointer;
+    position: relative;
+    margin-right: 8px; /* Space between checkbox and label */
+    flex-shrink: 0; /* Prevent checkbox from shrinking */
+}
+
+.ai-generation-section .checkbox-group input[type="checkbox"]:checked {
+    background-color: var(--primary-blue); /* Fill color when checked */
+    border-color: var(--primary-blue);
+}
+
+.ai-generation-section .checkbox-group input[type="checkbox"]:checked::after {
+    /* Checkmark styling */
+    content: '\2713'; /* Unicode checkmark character */
+    font-size: 14px;
+    color: white; /* Checkmark color */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.ai-generation-section .checkbox-group input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4); /* Focus ring for accessibility */
+}
+
+
+.ai-generation-section .checkbox-group label {
+    font-weight: normal; /* Reset font-weight for checkbox labels */
+    margin-bottom: 0; /* Remove bottom margin */
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+/* Form Buttons within AI section */
+.ai-generation-section .form-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end; /* Align buttons to the right */
+    margin-top: 20px;
+}
+
+/* AI Generated Preview Section */
+.ai-generated-preview {
+    background-color: var(--bg-light); /* Lighter background for preview */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 30px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05); /* Inner shadow for preview */
+}
+
+.ai-generated-preview h4 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.ai-generated-preview .placeholder-text {
+    color: var(--text-color);
+    font-style: italic;
+    margin-bottom: 20px;
+}
+
+/* Styling for the dynamically generated table within the preview */
+.ai-generated-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.ai-generated-preview th,
+.ai-generated-preview td {
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    text-align: left;
+    color: var(--text-color);
+}
+
+.ai-generated-preview th {
+    background-color: var(--bg-medium);
+    font-weight: bold;
+}
+
+/* Styles for inline editing inputs in the preview table */
+.ai-generated-preview .edit-step-type,
+.ai-generated-preview .edit-step-delay,
+.ai-generated-preview .edit-step-subject,
+.ai-generated-preview .edit-step-message {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid var(--input-border);
+    border-radius: 3px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+.ai-generated-preview .edit-step-message {
+    min-height: 80px; /* Ensure textarea has enough height */
+    resize: vertical;
+}
+
+/* Actions cell content for alignment */
+.ai-generated-preview .actions-cell-content {
+    display: grid;
+    grid-template-columns: 1fr; /* Stack buttons vertically for better touch targets */
+    gap: 5px;
+}
+
+/* Responsive adjustments for smaller screens if needed, though form-grid handles some */
+@media (max-width: 767px) {
+    .ai-generation-section .form-grid {
+        grid-template-columns: 1fr; /* Stack all inputs vertically on small screens */
+    }
+}
+/* Add these new styles to your css/style.css file */
+
+/* Styling for generic section boxes, used on Command Center */
+.section-box {
+    background-color: var(--bg-medium); /* Slightly darker background than main content */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px; /* Space between sections */
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.section-box h2,
+.section-box h4 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em; /* Consistent with other h2s */
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+/* Adjustments for the downloads section if it's also a section-box */
+.section-box.downloads-section h4 {
+    font-size: 1.2em; /* Keep h4 smaller than h2 */
+}
+
+.section-box p {
+    color: var(--text-color);
+    margin-bottom: 15px;
+}
+
+.section-box .table-container {
+    margin-top: 0; /* Override default table-container margin if needed */
+}
+
+/* Ensure buttons within section-box look good */
+.section-box .btn-primary,
+.section-box .btn-secondary {
+    margin-top: 10px; /* Add some space above buttons if needed */
+}
+
+/* Adjustments for the downloads links specifically */
+.section-box .downloads-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
 }
