@@ -2882,6 +2882,106 @@ body.theme-corporate textarea {
     border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
     border-width: 2px !important;
 }
+/* Add these new styles to your css/style.css file */
+
+/* Styling for generic section boxes, used on Command Center */
+.section-box {
+    background-color: var(--bg-medium); /* Slightly darker background than main content */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px; /* Space between sections */
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.section-box h2,
+.section-box h4 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em; /* Consistent with other h2s */
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+/* Adjustments for the downloads section if it's also a section-box */
+.section-box.downloads-section h4 {
+    font-size: 1.2em; /* Keep h4 smaller than h2 */
+}
+
+.section-box p {
+    color: var(--text-color);
+    margin-bottom: 15px;
+}
+
+.section-box .table-container {
+    margin-top: 0; /* Override default table-container margin if needed */
+}
+
+/* Ensure buttons within section-box look good */
+.section-box .btn-primary,
+.section-box .btn-secondary {
+    margin-top: 10px; /* Add some space above buttons if needed */
+}
+
+/* Adjustments for the downloads links specifically */
+.section-box .downloads-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+/* --- Corporate Theme Specific Overrides for Section Boxes --- */
+body.theme-corporate {
+    /* Assuming corporate theme has its own background colors */
+    /* If you have specific corporate theme variables, use them here, e.g., var(--corporate-bg-dark) */
+    
+    .section-box {
+        background-color: #2c2c2c; /* A slightly lighter dark for the box background */
+        border-color: #555555; /* A subtle border */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4); /* Stronger shadow for contrast */
+    }
+
+    .section-box h2,
+    .section-box h4 {
+        color: #e0e0e0; /* Lighter text for headings */
+        border-color: #555555; /* Match border color */
+    }
+
+    .section-box p {
+        color: #cccccc; /* Lighter text for paragraphs */
+    }
+
+    .section-box .table-container th {
+        background-color: #3a3a3a; /* Darker header for tables */
+        color: #e0e0e0; /* Lighter text for table headers */
+    }
+
+    .section-box .table-container td {
+        color: #cccccc; /* Lighter text for table cells */
+    }
+
+    /* Adjust input/textarea colors within section-box for corporate theme if needed */
+    .section-box input[type="text"],
+    .section-box input[type="number"],
+    .section-box input[type="email"],
+    .section-box input[type="tel"],
+    .section-box textarea {
+        background-color: #3a3a3a; /* Darker input background */
+        border-color: #555555;
+        color: #e0e0e0; /* Lighter text in inputs */
+    }
+
+    .section-box input[type="text"]:focus,
+    .section-box input[type="number"]:focus,
+    .section-box input[type="email"]:focus,
+    .section-box input[type="tel"]:focus,
+    .section-box textarea:focus {
+        border-color: #888888; /* Slightly lighter focus border */
+        box-shadow: 0 0 0 2px rgba(136, 136, 136, 0.3);
+    }
+}
 
 /* --- SVG and Logo Styling --- */
 body.theme-corporate .auth-logo,
