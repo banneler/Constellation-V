@@ -37,6 +37,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceDetailsPanel = document.getElementById("sequence-details"); // Corrected selector
 
     // AI Generation Section Selectors
+    // NEW: Sequence Goal and Duration Selectors
+    const aiSequenceGoalTextarea = document.getElementById("ai-sequence-goal");
+    const aiTotalDurationInput = document.getElementById("ai-total-duration");
+
     const aiNumStepsInput = document.getElementById("ai-num-steps");
     const aiStepTypeEmailCheckbox = document.getElementById("ai-step-type-email");
     const aiStepTypeLinkedinCheckbox = document.getElementById("ai-step-type-linkedin");
@@ -178,11 +182,9 @@ document.addEventListener("DOMContentLoaded", async () => {
        
         const isMarketingImport = sequence.source === 'Marketing';
         
-        // FIX: Ensure inputs are enabled if not a marketing import, otherwise disabled
         sequenceNameInput.disabled = isMarketingImport;
         sequenceDescriptionTextarea.disabled = isMarketingImport;
 
-        // FIX: Ensure delete button is visible for personal sequences, hidden for marketing
         deleteSequenceBtn.classList.toggle('hidden', isMarketingImport);
         addStepBtn.classList.toggle('hidden', isMarketingImport);
         
@@ -194,12 +196,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.selectedSequenceId = null;
         if (sequenceIdInput) sequenceIdInput.value = "";
         if (sequenceNameInput) {
-            sequenceNameInput.value = ""; // Clear value
-            sequenceNameInput.disabled = true; // Disable by default when cleared
+            sequenceNameInput.value = "";
+            sequenceNameInput.disabled = true;
         }
         if (sequenceDescriptionTextarea) {
-            sequenceDescriptionTextarea.value = ""; // Clear value
-            sequenceDescriptionTextarea.disabled = true; // Disable by default when cleared
+            sequenceDescriptionTextarea.value = "";
+            sequenceDescriptionTextarea.disabled = true;
         }
         if (sequenceStepsTableBody) sequenceStepsTableBody.innerHTML = "";
 
@@ -207,7 +209,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             sequenceDetailsPanel.classList.add('hidden');
         } else if (sequenceDetailsPanel) {
             sequenceDetailsPanel.classList.remove('hidden');
-            // When not hidden but no sequence selected, show placeholder text
             if (sequenceNameInput) sequenceNameInput.value = "No Sequence Selected";
             if (sequenceDescriptionTextarea) sequenceDescriptionTextarea.value = "Select a sequence from the left or create a new one.";
         }
@@ -592,13 +593,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        // NEW: Capture Sequence Goal and Total Duration
+        const sequenceGoal = aiSequenceGoalTextarea.value.trim();
+        const totalDuration = parseInt(aiTotalDurationInput.value, 10);
+
         const numSteps = parseInt(aiNumStepsInput.value, 10);
         const selectedStepTypes = [];
         if (aiStepTypeEmailCheckbox.checked) selectedStepTypes.push(aiStepTypeEmailCheckbox.value);
         if (aiStepTypeLinkedinCheckbox.checked) selectedStepTypes.push(aiStepTypeLinkedinCheckbox.value);
         if (aiStepTypeCallCheckbox.checked) selectedStepTypes.push(aiStepTypeCallCheckbox.value);
         if (aiStepTypeTaskCheckbox.checked) selectedStepTypes.push(aiStepTypeTaskCheckbox.value);
-        // Capture custom 'Other' type if checked and input has value
         if (aiStepTypeOtherCheckbox.checked) {
             const customType = aiStepTypeOtherInput.value.trim();
             if (customType) {
@@ -611,6 +615,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const personaPrompt = aiPersonaPromptTextarea.value.trim();
 
+        // NEW: Validation for Sequence Goal and Total Duration
+        if (!sequenceGoal) {
+            showModal("Error", "Please provide a goal/topic for the sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+        if (isNaN(totalDuration) || totalDuration < 1) {
+            showModal("Error", "Total Sequence Duration must be a positive number.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
         if (numSteps < 1) {
             showModal("Error", "Number of steps must be at least 1.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return;
@@ -629,7 +642,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const { data, error } = await supabase.functions.invoke('generate-sequence-steps', {
                 body: {
+                    sequenceGoal, // Pass new parameter
                     numSteps,
+                    totalDuration, // Pass new parameter
                     stepTypes: selectedStepTypes,
                     personaPrompt
                 }
