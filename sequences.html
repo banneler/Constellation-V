@@ -111,20 +111,29 @@
                 <div class="ai-generation-section">
                     <h3>AI Generate New Sequence</h3>
                     <div class="form-grid">
+                        <!-- NEW: Sequence Goal/Topic -->
+                        <div class="full-span-grid-item">
+                            <label for="ai-sequence-goal">Sequence Goal/Topic (e.g., "Cold outreach for cloud solutions", "Follow-up after webinar", "Customer onboarding")</label>
+                            <textarea id="ai-sequence-goal" rows="2" placeholder="What is the main purpose or topic of this sequence?"></textarea>
+                        </div>
                         <div>
                             <label for="ai-num-steps">Number of Steps</label>
                             <input type="number" id="ai-num-steps" min="1" value="5">
                         </div>
+                        <!-- NEW: Total Sequence Duration -->
                         <div>
+                            <label for="ai-total-duration">Total Sequence Duration (Days)</label>
+                            <input type="number" id="ai-total-duration" min="1" value="14">
+                        </div>
+                        <div class="full-span-grid-item">
                             <label>Step Types (Select All That Apply)</label>
                             <div class="checkbox-group">
                                 <div><input type="checkbox" id="ai-step-type-email" value="Email" checked> <label for="ai-step-type-email">Email</label></div>
                                 <div><input type="checkbox" id="ai-step-type-linkedin" value="LinkedIn Message"> <label for="ai-step-type-linkedin">LinkedIn Message</label></div>
                                 <div><input type="checkbox" id="ai-step-type-call" value="Call"> <label for="ai-step-type-call">Call</label></div>
                                 <div><input type="checkbox" id="ai-step-type-task" value="Task"> <label for="ai-step-type-task">Task</label></div>
-                                <!-- NEW: Other checkbox with input -->
                                 <div class="other-step-type-group">
-                                    <input type="checkbox" id="ai-step-type-other" value="Other"> <label for="ai-step-type-other"></label>
+                                    <input type="checkbox" id="ai-step-type-other" value="Other"> <label for="ai-step-type-other">Other:</label>
                                     <input type="text" id="ai-step-type-other-input" placeholder="e.g., Gift, Door Pull" disabled>
                                 </div>
                             </div>
@@ -192,4 +201,3 @@
 </body>
 
 </html>
-
