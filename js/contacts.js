@@ -267,7 +267,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3">Contact has no email address.</td></tr>';
             return;
         }
-        const loggedEmails = state.email_log.filter(email => email.sender === contactEmail || email.recipient === contactEmail).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase());
         if (loggedEmails.length === 0) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3">No logged emails for this contact.</td></tr>';
             return;
@@ -884,3 +884,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
