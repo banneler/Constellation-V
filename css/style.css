@@ -217,7 +217,7 @@ body.theme-corporate {
     .form-checkbox-group,
     .template-list-item,
     .downloads-section,
-    .alert-card {
+    .alert-card { /* FIX: .alert-card is included here, but we'll override it below */
         background-color: #c0c0c0 !important;
         color: #000000 !important;
         border-radius: 0 !important;
@@ -356,6 +356,57 @@ body.theme-corporate {
 
     .ai-generation-section .checkbox-group input[type="checkbox"]:checked::after {
         color: #ffffff !important; /* White checkmark */
+    }
+
+    /* NEW FIX: Specific styles for .alert-card inside corporate theme */
+    .alert-card {
+        background-color: #c0c0c0 !important; /* Match other corporate boxes */
+        border-color: #dfdfdf #808080 #808080 #dfdfdf !important; /* Outset border */
+        border-style: outset !important;
+        border-width: 2px !important;
+        box-shadow: none !important;
+        color: #000000 !important; /* Ensure text is black */
+        border-left: 5px outset #008080 !important; /* Corporate green left border */
+    }
+
+    .alert-card .alert-header {
+        color: #000000 !important; /* Black text */
+    }
+
+    .alert-card .alert-trigger-type {
+        background-color: #dfdfdf !important; /* Lighter background for the tag */
+        color: #000000 !important; /* Black text for the tag */
+        border-radius: 0 !important; /* Square corners */
+        padding: 0.25rem 0.5rem !important;
+        font-weight: bold !important;
+        border-style: outset !important; /* Outset border for tag */
+        border-width: 1px !important;
+        border-color: #dfdfdf #808080 #808080 #dfdfdf !important;
+    }
+
+    .alert-card .alert-account-name {
+        color: #000000 !important; /* Black text */
+    }
+
+    .alert-card .alert-headline {
+        color: #000000 !important; /* Black text */
+        font-weight: bold !important; /* Ensure bold as per previous fix */
+    }
+
+    .alert-card .alert-summary {
+        color: #000000 !important; /* Black text */
+    }
+
+    .alert-card .alert-status {
+        color: #000000 !important; /* Black text */
+    }
+
+    .alert-card .alert-footer {
+        border-color: #808080 !important; /* Match border color */
+    }
+
+    .alert-card .alert-footer a {
+        color: #008080 !important; /* Corporate green link color */
     }
 }
 
