@@ -3232,3 +3232,52 @@ body.theme-corporate #account-activities-list li {
         grid-template-columns: 1fr; /* Stack all inputs vertically on small screens */
     }
 }
+/* Add these new styles to your css/style.css file */
+
+/* Styling for generic section boxes, used on Command Center */
+.section-box {
+    background-color: var(--bg-medium); /* Slightly darker background than main content */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px; /* Space between sections */
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.section-box h2,
+.section-box h4 {
+    color: var(--text-color);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em; /* Consistent with other h2s */
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+/* Adjustments for the downloads section if it's also a section-box */
+.section-box.downloads-section h4 {
+    font-size: 1.2em; /* Keep h4 smaller than h2 */
+}
+
+.section-box p {
+    color: var(--text-color);
+    margin-bottom: 15px;
+}
+
+.section-box .table-container {
+    margin-top: 0; /* Override default table-container margin if needed */
+}
+
+/* Ensure buttons within section-box look good */
+.section-box .btn-primary,
+.section-box .btn-secondary {
+    margin-top: 10px; /* Add some space above buttons if needed */
+}
+
+/* Adjustments for the downloads links specifically */
+.section-box .downloads-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+}
