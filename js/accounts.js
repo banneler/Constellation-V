@@ -128,101 +128,122 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
     };
 
-    const renderAccountDetails = () => {
-        if (!accountForm) return;
-        const account = state.accounts.find((a) => a.id === state.selectedAccountId);
+const renderAccountDetails = () => {
+    if (!accountForm) return;
+    const account = state.accounts.find((a) => a.id === state.selectedAccountId);
 
-        if (accountPendingTaskReminder && account) {
-            const pendingAccountTasks = state.tasks.filter(task =>
-                task.status === 'Pending' && task.account_id === account.id
-            );
-            if (pendingAccountTasks.length > 0) {
-                const taskCount = pendingAccountTasks.length;
-                accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
-                accountPendingTaskReminder.classList.remove('hidden');
-            } else {
-                accountPendingTaskReminder.classList.add('hidden');
-            }
-        } else if (accountPendingTaskReminder) {
+    if (accountPendingTaskReminder && account) {
+        const pendingAccountTasks = state.tasks.filter(task =>
+            task.status === 'Pending' && task.account_id === account.id
+        );
+        if (pendingAccountTasks.length > 0) {
+            const taskCount = pendingAccountTasks.length;
+            accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
+            accountPendingTaskReminder.classList.remove('hidden');
+        } else {
             accountPendingTaskReminder.classList.add('hidden');
         }
+    } else if (accountPendingTaskReminder) {
+        accountPendingTaskReminder.classList.add('hidden');
+    }
 
-        if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
-        accountContactsList.innerHTML = "";
-        accountActivitiesList.innerHTML = "";
-        accountDealsTableBody.innerHTML = "";
+    if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
+    accountContactsList.innerHTML = "";
+    accountActivitiesList.innerHTML = "";
+    accountDealsTableBody.innerHTML = "";
 
-        if (account) {
-            accountForm.classList.remove('hidden');
-            accountForm.querySelector("#account-id").value = account.id;
-            accountForm.querySelector("#account-name").value = account.name || "";
-            
-            // NEW: Logic for the clickable website link
-            const websiteInput = accountForm.querySelector("#account-website");
-            const websiteLink = document.getElementById("account-website-link");
-            websiteInput.value = account.website || "";
+    if (account) {
+        accountForm.classList.remove('hidden');
+        accountForm.querySelector("#account-id").value = account.id;
+        accountForm.querySelector("#account-name").value = account.name || "";
+        
+        // MODIFIED: Smarter logic for the clickable website link
+        const websiteInput = accountForm.querySelector("#account-website");
+        const websiteLink = document.getElementById("account-website-link");
+        websiteInput.value = account.website || "";
 
-            const updateWebsiteLink = (url) => {
-                if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-                    websiteLink.href = url;
-                    websiteLink.classList.remove('hidden');
-                } else {
-                    websiteLink.classList.add('hidden');
-                }
-            };
+        // This helper function now automatically adds https://
+        const updateWebsiteLink = (url) => {
+            // First, exit if the url is empty or just whitespace
+            if (!url || !url.trim()) {
+                websiteLink.classList.add('hidden');
+                return;
+            }
 
-            updateWebsiteLink(account.website);
-            websiteInput.addEventListener('input', () => updateWebsiteLink(websiteInput.value));
-            
-            accountForm.querySelector("#account-industry").value = account.industry || "";
-            accountForm.querySelector("#account-phone").value = account.phone || "";
-            accountForm.querySelector("#account-address").value = account.address || "";
-            accountForm.querySelector("#account-notes").value = account.notes || "";
-            document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
-            accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
-            accountForm.querySelector("#account-employees").value = account.employee_count || "";
-            accountForm.querySelector("#account-is-customer").checked = account.is_customer;
-            
-            state.isFormDirty = false;
+            let fullUrl = url.trim();
 
-            state.deals
-                .filter((d) => d.account_id === account.id)
-                .forEach((deal) => {
-                    const row = accountDealsTableBody.insertRow();
-                    row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
-                });
+            // If it already has a protocol, leave it alone
+            if (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) {
+                // It's a valid link, do nothing to it
+            } 
+            // Otherwise, if it looks like a domain (e.g., has a dot), add the protocol
+            else if (fullUrl.includes('.')) {
+                fullUrl = 'https://' + fullUrl;
+            } 
+            // If it's not a valid-looking URL, hide the link
+            else {
+                websiteLink.classList.add('hidden');
+                return;
+            }
 
-            state.contacts
-                .filter((c) => c.account_id === account.id)
-                .forEach((c) => {
-                    const li = document.createElement("li");
-                    const inSeq = state.contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
-                    li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
-                    accountContactsList.appendChild(li);
-                });
-            
-            const accountAndContactActivities = state.activities.filter(act =>
-                act.account_id === account.id ||
-                state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
-            ).sort((a, b) => new Date(b.date) - new Date(a.date));
+            // If we have a good URL, show the link
+            websiteLink.href = fullUrl;
+            websiteLink.classList.remove('hidden');
+        };
 
-            accountActivitiesList.innerHTML = "";
-            accountAndContactActivities.forEach((act) => {
-                const c = state.contacts.find((c) => c.id === act.contact_id);
-                const li = document.createElement("li");
-                li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
-                let borderColor = "var(--primary-blue)";
-                const activityTypeLower = act.type.toLowerCase();
-                if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-                else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-                else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-                li.style.borderLeftColor = borderColor;
-                accountActivitiesList.appendChild(li);
+        updateWebsiteLink(account.website);
+        // This listener updates the icon in real-time as you type
+        websiteInput.addEventListener('input', () => updateWebsiteLink(websiteInput.value));
+        
+        accountForm.querySelector("#account-industry").value = account.industry || "";
+        accountForm.querySelector("#account-phone").value = account.phone || "";
+        accountForm.querySelector("#account-address").value = account.address || "";
+        accountForm.querySelector("#account-notes").value = account.notes || "";
+        document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
+        accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
+        accountForm.querySelector("#account-employees").value = account.employee_count || "";
+        accountForm.querySelector("#account-is-customer").checked = account.is_customer;
+        
+        state.isFormDirty = false;
+
+        state.deals
+            .filter((d) => d.account_id === account.id)
+            .forEach((deal) => {
+                const row = accountDealsTableBody.insertRow();
+                row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
             });
-        } else {
-            hideAccountDetails(true, true);
-        }
-    };
+
+        state.contacts
+            .filter((c) => c.account_id === account.id)
+            .forEach((c) => {
+                const li = document.createElement("li");
+                const inSeq = state.contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+                li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+                accountContactsList.appendChild(li);
+            });
+        
+        const accountAndContactActivities = state.activities.filter(act =>
+            act.account_id === account.id ||
+            state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
+        ).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        accountActivitiesList.innerHTML = "";
+        accountAndContactActivities.forEach((act) => {
+            const c = state.contacts.find((c) => c.id === act.contact_id);
+            const li = document.createElement("li");
+            li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
+            let borderColor = "var(--primary-blue)";
+            const activityTypeLower = act.type.toLowerCase();
+            if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
+            else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
+            else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
+            li.style.borderLeftColor = borderColor;
+            accountActivitiesList.appendChild(li);
+        });
+    } else {
+        hideAccountDetails(true, true);
+    }
+};
 
     const hideAccountDetails = (hideForm = true, clearSelection = false) => {
         if (accountForm && hideForm) accountForm.classList.add('hidden');
