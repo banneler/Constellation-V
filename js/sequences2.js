@@ -97,16 +97,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const indicatorHtml = isMarketingSource ? '<span class="marketing-indicator" title="Imported from Marketing"></span>' : '';
                 const removeBtnHtml = isMarketingSource ? `<button class="btn-icon btn-danger btn-remove-sequence" title="Remove Imported Sequence"><i class="fas fa-trash-can"></i></button>` : '';
 
-                // MODIFIED: Calculate stats for display
                 const activeContacts = state.contact_sequences.filter(cs => cs.sequence_id === seq.id && cs.status === 'Active').length;
                 const finishedSequences = state.contact_sequences.filter(cs => cs.sequence_id === seq.id && (cs.status === 'Completed' || cs.status === 'Removed'));
                 const completedCount = finishedSequences.filter(cs => cs.status === 'Completed').length;
                 const successRate = finishedSequences.length > 0 ? Math.round((completedCount / finishedSequences.length) * 100) : 0;
 
+                // MODIFIED: Using a new, unique class for the stats container
                 item.innerHTML = `
                     <div class="sequence-info">
                         <div class="sequence-name">${indicatorHtml} ${seq.name}</div>
-                        <div class="sequence-stats">
+                        <div class="sequence-list-stats"> 
                             <span>Active: ${activeContacts}</span>
                             <span class="success-rate">Success: ${successRate}%</span>
                         </div>
