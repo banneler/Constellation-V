@@ -3560,11 +3560,22 @@ body.theme-corporate #account-activities-list li {
     font-weight: bold;
     color: var(--completed-color);
 }
-
 /* --- Sequence Action Button Grid (Definitive Fix) --- */
-#sequence-status-content .sequence-action-buttons {
-    flex-grow: 1; /* Tells this container to take up all available horizontal space */
-    display: grid !important; /* Forces the container to use a grid layout */
-    grid-template-columns: 1fr 1fr;
+
+/* 1. Allow the main container to wrap items onto new lines */
+#sequence-status-content {
+    display: flex;
+    flex-wrap: wrap; /* This is the key change */
+    align-items: center;
+    gap: 1.25rem;
+    width: 100%;
+    margin-top: 0.625rem;
+}
+
+/* 2. Tell the button container to take up the full width, forcing it to a new line */
+.sequence-action-buttons {
+    flex-basis: 100%; /* This makes it take up the full width */
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* This creates the two columns */
     gap: 10px;
 }
