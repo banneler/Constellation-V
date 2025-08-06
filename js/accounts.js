@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountSearch = document.getElementById("account-search");
     const addAccountBtn = document.getElementById("add-account-btn");
     const bulkImportAccountsBtn = document.getElementById("bulk-import-accounts-btn");
-    const bulkExportAccountsBtn = document.getElementById("bulk-export-accounts-btn"); // NEW
+    const bulkExportAccountsBtn = document.getElementById("bulk-export-accounts-btn");
     const accountCsvInput = document.getElementById("account-csv-input");
     const accountForm = document.getElementById("account-form");
     const deleteAccountBtn = document.getElementById("delete-account-btn");
@@ -33,7 +33,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
     const aiAccountInsightBtn = document.getElementById("ai-account-insight-btn");
-
 
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -63,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-     // --- Data Fetching ---
+    // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
@@ -134,7 +133,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const account = state.accounts.find((a) => a.id === state.selectedAccountId);
 
         if (accountPendingTaskReminder && account) {
-            const pendingAccountTasks = state.tasks.filter(task => 
+            const pendingAccountTasks = state.tasks.filter(task =>
                 task.status === 'Pending' && task.account_id === account.id
             );
             if (pendingAccountTasks.length > 0) {
@@ -157,7 +156,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             accountForm.classList.remove('hidden');
             accountForm.querySelector("#account-id").value = account.id;
             accountForm.querySelector("#account-name").value = account.name || "";
-            accountForm.querySelector("#account-website").value = account.website || "";
+            
+            // NEW: Logic for the clickable website link
+            const websiteInput = accountForm.querySelector("#account-website");
+            const websiteLink = document.getElementById("account-website-link");
+            websiteInput.value = account.website || "";
+
+            const updateWebsiteLink = (url) => {
+                if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                    websiteLink.href = url;
+                    websiteLink.classList.remove('hidden');
+                } else {
+                    websiteLink.classList.add('hidden');
+                }
+            };
+
+            updateWebsiteLink(account.website);
+            websiteInput.addEventListener('input', () => updateWebsiteLink(websiteInput.value));
+            
             accountForm.querySelector("#account-industry").value = account.industry || "";
             accountForm.querySelector("#account-phone").value = account.phone || "";
             accountForm.querySelector("#account-address").value = account.address || "";
@@ -185,8 +201,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     accountContactsList.appendChild(li);
                 });
             
-            const accountAndContactActivities = state.activities.filter(act => 
-                act.account_id === account.id || 
+            const accountAndContactActivities = state.activities.filter(act =>
+                act.account_id === account.id ||
                 state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
             ).sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -260,8 +276,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 products: document.getElementById('modal-deal-products').value.trim(),
             };
             if (!updatedDealData.name) {
-                 showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                 return false;
+                showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return false;
             }
             const { error } = await supabase.from('deals').update(updatedDealData).eq('id', dealId);
             if (error) { showModal("Error", 'Error updating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
@@ -411,7 +427,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (bulkImportAccountsBtn) bulkImportAccountsBtn.addEventListener("click", () => accountCsvInput.click());
         
-        // NEW: Bulk export accounts to CSV
+        // UPGRADED: Bulk export accounts to CSV using Blob
         if (bulkExportAccountsBtn) {
             bulkExportAccountsBtn.addEventListener("click", () => {
                 const accountsToExport = state.accounts;
@@ -421,158 +437,165 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 const headers = ["name", "website", "industry", "phone", "address", "quantity_of_sites", "employee_count", "is_customer"];
-                let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\r\n";
+                let csvContent = headers.join(",") + "\n";
 
                 accountsToExport.forEach(account => {
                     const row = headers.map(header => {
-                        const value = account[header] === null || account[header] === undefined ? '' : account[header];
-                        return `"${String(value).replace(/"/g, '""')}"`;
+                        let value = account[header];
+                        if (value === null || value === undefined) return '';
+                        value = String(value).replace(/"/g, '""');
+                        return `"${value}"`;
                     });
-                    csvContent += row.join(",") + "\r\n";
+                    csvContent += row.join(",") + "\n";
                 });
 
-                const encodedUri = encodeURI(csvContent);
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
                 link.setAttribute("download", "accounts_export.csv");
+                link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             });
         }
 
-        // REVISED: Advanced bulk import with review/merge logic
+        // REPLACED: Advanced bulk import with review/merge logic using PapaParse
         if (accountCsvInput) {
-            accountCsvInput.addEventListener("change", async (e) => {
-                const f = e.target.files[0];
-                if (!f) return;
-                const r = new FileReader();
-                r.onload = async function (e) {
-                    const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
-                    if (rows.length <= 1) {
-                         showModal("Info", "The CSV file is empty or contains only a header row.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                         return;
-                    }
-                    
-                    const newRecords = rows.slice(1).map((row) => {
-                        const c = parseCsvRow(row);
-                        return {
-                            name: c[0] || "",
-                            website: c[1] || "",
-                            industry: c[2] || "",
-                            phone: c[3] || "",
-                            address: c[4] || "",
-                            quantity_of_sites: parseInt(c[5]) || null,
-                            employee_count: parseInt(c[6]) || null,
-                            is_customer: c[7]?.toLowerCase() === 'true',
-                            user_id: state.currentUser.id
-                        };
-                    });
+            accountCsvInput.addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-                    let recordsToUpdate = [];
-                    let recordsToInsert = [];
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: true, 
+                    complete: async (results) => {
+                        const csvRecords = results.data;
+                        const requiredHeaders = ["name"];
+                        const actualHeaders = results.meta.fields;
 
-                    for (const record of newRecords) {
-                        if (!record.name) continue; // Skip rows without a name
-                        const existingAccount = state.accounts.find(acc =>
-                            acc.name && record.name && acc.name.toLowerCase() === record.name.toLowerCase()
-                        );
-
-                        if (existingAccount) {
-                            let changes = {};
-                            if (existingAccount.website !== record.website) changes.website = { old: existingAccount.website, new: record.website };
-                            if (existingAccount.industry !== record.industry) changes.industry = { old: existingAccount.industry, new: record.industry };
-                            if (existingAccount.phone !== record.phone) changes.phone = { old: existingAccount.phone, new: record.phone };
-                            if (existingAccount.address !== record.address) changes.address = { old: existingAccount.address, new: record.address };
-                            if (existingAccount.quantity_of_sites !== record.quantity_of_sites) changes.quantity_of_sites = { old: existingAccount.quantity_of_sites, new: record.quantity_of_sites };
-                            if (existingAccount.employee_count !== record.employee_count) changes.employee_count = { old: existingAccount.employee_count, new: record.employee_count };
-                            if (existingAccount.is_customer !== record.is_customer) changes.is_customer = { old: existingAccount.is_customer, new: record.is_customer };
-                            
-                            if (Object.keys(changes).length > 0) {
-                                recordsToUpdate.push({ ...record, id: existingAccount.id, changes });
-                            }
-                        } else {
-                            recordsToInsert.push(record);
+                        if (!requiredHeaders.every(h => actualHeaders.includes(h))) {
+                            showModal("Import Error", `CSV must contain a 'name' column.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                            return;
                         }
-                    }
 
-                    if (recordsToInsert.length === 0 && recordsToUpdate.length === 0) {
-                        showModal("Info", "No new accounts to import and no changes found for existing accounts.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                        return;
-                    }
+                        const recordsToUpdate = [];
+                        const recordsToInsert = [];
+                        const existingAccountMap = new Map(state.accounts.map(acc => [String(acc.name).toLowerCase(), acc]));
 
-                    const modalBodyHtml = `
-                        <p>Review the following changes and select which rows to process.</p>
-                        <div class="table-container-scrollable" style="max-height: 400px;">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" id="select-all-checkbox" checked></th>
-                                        <th>Action</th><th>Name</th><th>Changes</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${recordsToInsert.map((r, index) => `
-                                        <tr class="import-row" data-action="insert" data-index="${index}">
-                                            <td><input type="checkbox" class="row-select-checkbox" checked></td>
-                                            <td style="color: var(--success-color);">Insert New</td><td>${r.name}</td><td>-</td>
-                                        </tr>`).join('')}
-                                    ${recordsToUpdate.map((r, index) => `
-                                        <tr class="import-row" data-action="update" data-index="${index}">
-                                            <td><input type="checkbox" class="row-select-checkbox" checked></td>
-                                            <td style="color: var(--warning-yellow);">Update Existing</td><td>${r.name}</td>
-                                            <td>${Object.keys(r.changes).map(key => `<p><small><strong>${key}:</strong> "${r.changes[key].old}" &rarr; "<strong>${r.changes[key].new}</strong>"</small></p>`).join('')}</td>
-                                        </tr>`).join('')}
-                                </tbody>
-                            </table>
-                        </div>`;
+                        csvRecords.forEach(record => {
+                            if (!record.name) return;
 
-                    showModal("Confirm CSV Import", modalBodyHtml, async () => {
-                        let successCount = 0, errorCount = 0;
-                        const selectedCheckboxes = document.querySelectorAll('#modal-body .import-row input[type="checkbox"]:checked');
-                        
-                        for (const checkbox of selectedCheckboxes) {
-                            const row = checkbox.closest('.import-row');
-                            const action = row.dataset.action;
-                            const index = parseInt(row.dataset.index);
+                            const recordName = String(record.name).trim().toLowerCase();
+                            const existingAccount = existingAccountMap.get(recordName);
+                            
+                            const processedRecord = {
+                                name: record.name,
+                                website: record.website || "",
+                                industry: record.industry || "",
+                                phone: record.phone || "",
+                                address: record.address || "",
+                                quantity_of_sites: (record.quantity_of_sites === 0) ? 0 : (parseInt(record.quantity_of_sites) || null),
+                                employee_count: (record.employee_count === 0) ? 0 : (parseInt(record.employee_count) || null),
+                                is_customer: record.is_customer === true,
+                                user_id: state.currentUser.id
+                            };
+                            
+                            if (existingAccount) {
+                                let changes = {};
+                                for (const key in processedRecord) {
+                                    if (key !== 'user_id' && key !== 'name' && processedRecord[key] !== existingAccount[key]) {
+                                        changes[key] = { old: existingAccount[key], new: processedRecord[key] };
+                                    }
+                                }
+                                if (Object.keys(changes).length > 0) {
+                                    recordsToUpdate.push({ ...processedRecord, id: existingAccount.id, changes });
+                                }
+                            } else {
+                                recordsToInsert.push(processedRecord);
+                            }
+                        });
 
-                            try {
+                        if (recordsToInsert.length === 0 && recordsToUpdate.length === 0) {
+                            showModal("Info", "No new accounts or changes found to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                            return;
+                        }
+
+                        const modalBodyHtml = `
+                            <p>Review the changes below and select the records you wish to import.</p>
+                            <div class="table-container-scrollable" style="max-height: 400px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th><input type="checkbox" id="select-all-checkbox" checked></th>
+                                            <th>Action</th><th>Name</th><th>Changes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${recordsToInsert.map((r, index) => `
+                                            <tr class="import-row" data-action="insert" data-index="${index}">
+                                                <td><input type="checkbox" class="row-select-checkbox" checked></td>
+                                                <td class="status-insert" style="color: var(--success-color);">New</td><td>${r.name}</td><td>New account will be created.</td>
+                                            </tr>`).join('')}
+                                        ${recordsToUpdate.map((r, index) => `
+                                            <tr class="import-row" data-action="update" data-index="${index}">
+                                                <td><input type="checkbox" class="row-select-checkbox" checked></td>
+                                                <td class="status-update" style="color: var(--warning-yellow);">Update</td><td>${r.name}</td>
+                                                <td>${Object.keys(r.changes).map(key => `<p><small><strong>${key}:</strong> <span style="color: #d9534f; text-decoration: line-through;">'${r.changes[key].old}'</span> &rarr; <strong style="color: #5cb85c;">'${r.changes[key].new}'</strong></small></p>`).join('')}</td>
+                                            </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>`;
+
+                        showModal("Confirm CSV Import", modalBodyHtml, async () => {
+                            const selectedCheckboxes = document.querySelectorAll('#modal-body .row-select-checkbox:checked');
+                            let successCount = 0, errorCount = 0;
+                            
+                            const updatePromises = [];
+                            const insertPromises = [];
+
+                            selectedCheckboxes.forEach(cb => {
+                                const row = cb.closest('.import-row');
+                                const action = row.dataset.action;
+                                const index = parseInt(row.dataset.index);
+                                
                                 if (action === 'insert') {
                                     const record = recordsToInsert[index];
-                                    const { error } = await supabase.from("accounts").insert([record]);
-                                    if (error) throw error;
+                                    insertPromises.push(supabase.from("accounts").insert(record));
                                 } else if (action === 'update') {
                                     const record = recordsToUpdate[index];
-                                    const updateData = Object.keys(record.changes).reduce((acc, key) => {
-                                        acc[key] = record[key];
-                                        return acc;
-                                    }, {});
-                                    const { error } = await supabase.from("accounts").update(updateData).eq('id', record.id);
-                                    if (error) throw error;
+                                    const updateData = Object.keys(record.changes).reduce((acc, key) => ({ ...acc, [key]: record[key] }), {});
+                                    updatePromises.push(supabase.from("accounts").update(updateData).eq('id', record.id));
                                 }
-                                successCount++;
-                            } catch (error) {
-                                console.error(`Error processing row ${index} (${action}):`, error);
-                                errorCount++;
-                            }
-                        }
+                            });
 
-                        let resultMessage = `Import finished with ${successCount} successes.`;
-                        if (errorCount > 0) resultMessage += ` and ${errorCount} errors. Check console for details.`;
-                        showModal("Import Complete", resultMessage, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                            const results = await Promise.allSettled([...insertPromises, ...updatePromises]);
+                            results.forEach(result => {
+                                if (result.status === 'fulfilled' && !result.value.error) successCount++;
+                                else errorCount++;
+                            });
+
+                            let resultMessage = `Import finished: ${successCount} successful operations.`;
+                            if (errorCount > 0) resultMessage += ` ${errorCount} failed. Check console for details.`;
+                            showModal("Import Complete", resultMessage, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
+                            await loadAllData();
+                            return true;
+                        }, true, `<button id="modal-confirm-btn" class="btn-primary">Process Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
                         
-                        await loadAllData();
-                        return true;
-                    }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-
-                    const selectAllCheckbox = document.getElementById('select-all-checkbox');
-                    if (selectAllCheckbox) {
-                        selectAllCheckbox.addEventListener('change', (e) => {
-                            document.querySelectorAll('#modal-body .row-select-checkbox').forEach(cb => cb.checked = e.target.checked);
-                        });
+                        const selectAllCheckbox = document.getElementById('select-all-checkbox');
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.addEventListener('change', (e) => {
+                                document.querySelectorAll('#modal-body .row-select-checkbox').forEach(cb => cb.checked = e.target.checked);
+                            });
+                        }
+                    },
+                    error: (err) => {
+                        showModal("Import Error", `Error parsing CSV file: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }
-                };
-                r.readAsText(f);
+                });
                 e.target.value = "";
             });
         }
@@ -615,8 +638,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     
                     const { error } = await supabase.from('deals').insert([newDeal]);
                     if (error) {
-                         showModal("Error", 'Error creating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                         return false;
+                        showModal("Error", 'Error creating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return false;
                     }
                     
                     await loadAllData();
