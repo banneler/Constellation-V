@@ -634,13 +634,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 let recordsToUpdate = [];
                 let recordsToInsert = [];
                 
-                // First, check for duplicates
+                // First, check for duplicates and changes
                 for (const record of newRecords) {
                     const existingContact = state.contacts.find(contact => 
                         contact.email && contact.email.toLowerCase() === (record.email || '').toLowerCase()
                     );
                     if (existingContact) {
-                        recordsToUpdate.push({ ...record, id: existingContact.id, old_data: existingContact });
+                        let changes = {};
+                        if (existingContact.first_name !== record.first_name) changes.first_name = { old: existingContact.first_name, new: record.first_name };
+                        if (existingContact.last_name !== record.last_name) changes.last_name = { old: existingContact.last_name, new: record.last_name };
+                        if (existingContact.phone !== record.phone) changes.phone = { old: existingContact.phone, new: record.phone };
+                        if (existingContact.title !== record.title) changes.title = { old: existingContact.title, new: record.title };
+                        
+                        recordsToUpdate.push({ ...record, id: existingContact.id, changes });
                     } else {
                         recordsToInsert.push(record);
                     }
@@ -648,66 +654,82 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 // Prepare the modal content with a summary of changes
                 const modalBodyHtml = `
-                    <p>The import process identified the following changes:</p>
-                    <div class="table-container-scrollable">
-                        <table>
+                    <p>The import process identified the following changes. Use the checkboxes to select which rows you want to process.</p>
+                    <div class="table-container-scrollable" style="max-height: 400px;">
+                        <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th><input type="checkbox" id="select-all-checkbox" checked></th>
                                     <th>Action</th>
                                     <th>Name</th>
                                     <th>Email</th>
+                                    <th>Changes</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${recordsToInsert.map(r => `
-                                    <tr style="color: var(--success-color);">
-                                        <td>Insert New</td>
+                                ${recordsToInsert.map((r, index) => `
+                                    <tr class="import-row" data-action="insert" data-index="${index}">
+                                        <td><input type="checkbox" class="row-select-checkbox" checked></td>
+                                        <td style="color: var(--success-color);">Insert New</td>
                                         <td>${r.first_name} ${r.last_name}</td>
                                         <td>${r.email}</td>
+                                        <td>-</td>
                                     </tr>
                                 `).join('')}
-                                ${recordsToUpdate.map(r => `
-                                    <tr style="color: var(--warning-yellow);">
-                                        <td>Update Existing</td>
+                                ${recordsToUpdate.map((r, index) => `
+                                    <tr class="import-row" data-action="update" data-index="${index}">
+                                        <td><input type="checkbox" class="row-select-checkbox" checked></td>
+                                        <td style="color: var(--warning-yellow);">Update Existing</td>
                                         <td>${r.first_name} ${r.last_name}</td>
                                         <td>${r.email}</td>
+                                        <td>
+                                            ${Object.keys(r.changes).map(key => `
+                                                <p><small><strong>${key}:</strong> "${r.changes[key].old}" &rarr; "<strong>${r.changes[key].new}</strong>"</small></p>
+                                            `).join('')}
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
                         </table>
                     </div>
-                    <p style="margin-top: 15px;">Do you want to proceed with these changes?</p>
                 `;
 
-                // Show the modal and wait for user confirmation
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
                     let successCount = 0;
                     let errorCount = 0;
+                    const selectedRows = document.querySelectorAll('#modal-body .import-row input[type="checkbox"]:checked');
+                    
+                    for (const checkbox of selectedRows) {
+                        const row = checkbox.closest('.import-row');
+                        const action = row.dataset.action;
+                        const index = row.dataset.index;
 
-                    // Execute updates
-                    for (const record of recordsToUpdate) {
-                        const { error } = await supabase.from("contacts").update({
-                            first_name: record.first_name,
-                            last_name: record.last_name,
-                            phone: record.phone,
-                            title: record.title
-                        }).eq('id', record.id);
-                        if (error) {
-                            console.error("Error updating contact:", error);
-                            errorCount++;
-                        } else {
-                            successCount++;
-                        }
-                    }
-
-                    // Execute inserts
-                    if (recordsToInsert.length > 0) {
-                        const { error } = await supabase.from("contacts").insert(recordsToInsert);
-                        if (error) {
-                            console.error("Error inserting new contacts:", error);
-                            errorCount += recordsToInsert.length;
-                        } else {
-                            successCount += recordsToInsert.length;
+                        if (action === 'insert') {
+                            const record = recordsToInsert[index];
+                            const { error } = await supabase.from("contacts").insert([record]);
+                            if (error) {
+                                console.error("Error inserting contact:", error);
+                                errorCount++;
+                            } else {
+                                successCount++;
+                            }
+                        } else if (action === 'update') {
+                            const record = recordsToUpdate[index];
+                            const updateData = {};
+                            for (const key in record.changes) {
+                                updateData[key] = record[key];
+                            }
+                            if (Object.keys(updateData).length > 0) {
+                                const { error } = await supabase.from("contacts").update(updateData).eq('id', record.id);
+                                if (error) {
+                                    console.error("Error updating contact:", error);
+                                    errorCount++;
+                                } else {
+                                    successCount++;
+                                }
+                            } else {
+                                successCount++; // No changes to update, but still count as a success
+                            }
                         }
                     }
 
@@ -715,12 +737,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                     if (errorCount > 0) {
                         showModal("Import Complete", `Import finished with ${successCount} successes and ${errorCount} errors.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     } else {
-                        showModal("Import Complete", `Successfully imported ${successCount} contacts.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        showModal("Import Complete", `Successfully imported/updated ${successCount} contacts.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }
 
                     await loadAllData();
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                
+                // Add event listener for the select-all checkbox
+                const selectAllCheckbox = document.getElementById('select-all-checkbox');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        document.querySelectorAll('#modal-body .row-select-checkbox').forEach(checkbox => {
+                            checkbox.checked = isChecked;
+                        });
+                    });
+                }
             };
             r.readAsText(f);
             e.target.value = "";
