@@ -122,17 +122,14 @@ const renderAccountList = () => {
         
         let matchesStatus = true;
         if (statusFilter === 'customer') {
-            // Check if the account is a customer
             matchesStatus = account.is_customer === true;
         } else if (statusFilter === 'prospect') {
-            // Check if the account is NOT a customer (i.e., prospect or null)
-            matchesStatus = !account.is_customer;
+            matchesStatus = account.is_customer !== true;
         }
 
         return matchesSearch && matchesStatus;
     });
 
-    // ... The rest of your function remains the same ...
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
