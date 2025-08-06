@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategic - CRM - Contacts</title>
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
@@ -66,6 +66,7 @@
                         <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
                         <button id="bulk-import-contacts-btn" class="btn-secondary full-width">Bulk Import from CSV</button>
                         <input type="file" id="contact-csv-input" accept=".csv" class="hidden">
+                        <button id="bulk-export-contacts-btn" class="btn-secondary full-width">Download Contacts CSV</button>
                         <input type="text" id="contact-search" placeholder="Search by name, email...">
                         <div id="contact-list" class="item-list"></div>
                     </div>
@@ -101,7 +102,6 @@
                             <button id="log-activity-btn" class="btn-secondary">Log Activity</button>
                             <button id="assign-sequence-btn" class="btn-primary">Assign Sequence</button>
                             <button id="add-task-contact-btn" class="btn-primary">Add Task</button>
-                            <!-- NEW: AI Activity Insight Button -->
                             <button id="ai-activity-insight-btn" class="btn-secondary">AI Activity Insight</button>
                         </div>
                         <div class="related-info">
@@ -176,7 +176,7 @@
         document.body.className = `theme-${savedTheme}`;
     })();
     </script>
-    <script type="module" src="js/contacts2.js"></script>
+    <script type="module" src="js/contacts.js"></script>
 </body>
 
 </html>
