@@ -581,14 +581,6 @@ body:not(.theme-green) #contact-sequence-status {
     border-radius: 5px;
 }
 
-#sequence-status-content {
-    display: flex;
-    flex-wrap: wrap; /* This is the key change */
-    align-items: center;
-    gap: 1.25rem;
-    width: 100%;
-    margin-top: 0.625rem;
-}
 
 .ring-chart-container {
     position: relative;
@@ -3562,10 +3554,16 @@ body.theme-corporate #account-activities-list li {
     color: var(--completed-color);
 }
 /* --- Sequence Action Button Grid (Definitive Fix) --- */
+#sequence-status-content {
+    display: flex;
+    flex-wrap: wrap; /* Allows items to wrap to a new line */
+    align-items: center;
+    gap: 1.25rem;
+}
 
 .sequence-action-buttons {
-    flex-basis: 100%; /* This makes the container take up the full width */
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    flex-basis: 100%; /* Forces this container to take up the full width, pushing it to a new line */
+    display: grid !important; /* Forces the container to be a grid */
+    grid-template-columns: 1fr 1fr !important; /* Forces two equal columns */
+    gap: 10px !important; /* Forces a gap between the buttons */
 }
