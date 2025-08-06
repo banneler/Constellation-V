@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const actionsHtml = isMarketingImport ? '<td>Read-Only</td>' : `
                 <td>
-                    <div class="actions-cell-content" style="grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));">
+                    <div class="actions-cell-content" 
                         ${isEditingThisStep ?
                             `
                             <button class="btn btn-sm btn-success save-step-btn" data-id="${step.id}">Save</button>
