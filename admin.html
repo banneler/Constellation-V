@@ -8,13 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-    // This script runs synchronously to apply the theme before the page renders
-    (function() {
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
-    })();
-    </script>
 </head>
 <body>
     <div class="crm-container">
@@ -171,7 +164,22 @@
         </main>
     </div>
 
-    <div id="modal-backdrop" class="modal-backdrop hidden"><div class="modal-content"><h3 id="modal-title"></h3><div id="modal-body"></div><div id="modal-actions" class="modal-actions"></div></div></div>
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
+        </div>
+    </div>
+    
+    <script>
+    // This script runs synchronously to apply the theme before the page renders
+    (function() {
+        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+        document.body.className = `theme-${savedTheme}`;
+    })();
+    </script>
+
     <script type="module" src="js/admin.js"></script>
 </body>
 </html>
