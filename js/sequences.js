@@ -463,7 +463,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function handleMoveStep(stepId, direction) {
+async function handleMoveStep(stepId, direction) {
     const allStepsInSequence = state.sequence_steps
         .filter(s => s.sequence_id === state.selectedSequenceId)
         .sort((a, b) => a.step_number - b.step_number);
@@ -478,26 +478,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
     allStepsInSequence.splice(targetIndex, 0, movedStep);
 
-    // Create a list of database updates
-    const updatePromises = allStepsInSequence.map((step, index) => {
-        const newStepNumber = index + 1;
-        // Only update if the step number has actually changed
-        if (step.step_number !== newStepNumber) {
-            return supabase
-                .from("sequence_steps")
-                .update({ step_number: newStepNumber })
-                .eq("id", step.id);
-        }
-        return null;
-    }).filter(Boolean); // Remove any nulls from the list
+    // Create a list of database updates with corrected step numbers
+    const updates = allStepsInSequence.map((step, index) => ({
+        id: step.id,
+        step_number: index + 1
+    }));
 
-    // Execute all updates at once
-    if (updatePromises.length > 0) {
-        const { error } = await Promise.all(updatePromises);
-        if (error) {
-            console.error("Error re-ordering steps:", error);
-            // Optionally, show a user-facing error message here
-        }
+    // Perform the bulk update
+    const { error } = await supabase.from("sequence_steps").upsert(updates);
+
+    if (error) {
+        console.error("Error re-ordering steps:", error);
+        showModal("Error", "Could not re-order the steps. Please check the console and try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 
     // Reload all data to ensure the UI is in sync with the database
