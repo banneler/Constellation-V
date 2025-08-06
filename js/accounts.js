@@ -65,48 +65,50 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Data Fetching ---
     async function loadAllData() {
-        if (!state.currentUser) return;
-        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
-        const promises = userSpecificTables.map((table) =>
-            supabase.from(table).select("*").eq("user_id", state.currentUser.id)
-        );
-        const dealStagesPromise = supabase.from("deal_stages").select("*").order('sort_order');
-        promises.push(dealStagesPromise);
+    if (!state.currentUser) return;
+    const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
+    const promises = userSpecificTables.map((table) =>
+        supabase.from(table).select("*").eq("user_id", state.currentUser.id)
+    );
+    const dealStagesPromise = supabase.from("deal_stages").select("*").order('sort_order');
+    promises.push(dealStagesPromise);
 
-        try {
-            const results = await Promise.allSettled(promises);
-            results.forEach((result, index) => {
-                const tableName = userSpecificTables[index];
-                if (result.status === "fulfilled" && !result.value.error) {
-                    state[tableName] = result.value.data || [];
-                } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error : result.reason);
-                    state[tableName] = [];
-                }
-            });
-            const dealStagesResult = results[userSpecificTables.length];
-            if (dealStagesResult.status === "fulfilled" && !dealStagesResult.value.error) {
-                state.dealStages = dealStagesResult.value.data || [];
+    try {
+        const results = await Promise.allSettled(promises);
+        results.forEach((result, index) => {
+            const tableName = userSpecificTables[index];
+            if (result.status === "fulfilled" && !result.value.error) {
+                state[tableName] = result.value.data || [];
             } else {
-                console.error(`Error fetching deal_stages:`, dealStagesResult.status === 'fulfilled' ? dealStagesResult.value.error : dealStagesResult.reason);
-                state.dealStages = [];
+                console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error : result.reason);
+                state[tableName] = [];
             }
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-        } finally {
-            renderAccountList();
-            if (state.selectedAccountId) {
-                const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
-                if (updatedAccount) {
-                    renderAccountDetails();
-                } else {
-                    hideAccountDetails(false, true);
-                }
+        });
+        const dealStagesResult = results[userSpecificTables.length];
+        if (dealStagesResult.status === "fulfilled" && !dealStagesResult.value.error) {
+            state.dealStages = dealStagesResult.value.data || [];
+        } else {
+            console.error(`Error fetching deal_stages:`, dealStagesResult.status === 'fulfilled' ? dealStagesResult.value.error : dealStagesResult.reason);
+            state.dealStages = [];
+        }
+
+        // CORRECTED: Call render functions after all data is loaded successfully
+        renderAccountList();
+        if (state.selectedAccountId) {
+            const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
+            if (updatedAccount) {
+                renderAccountDetails();
             } else {
                 hideAccountDetails(false, true);
             }
+        } else {
+            hideAccountDetails(false, true);
         }
-    }
+
+    } catch (error) {
+        console.error("Critical error in loadAllData:", error);
+    } 
+}
 
     // --- Render Functions ---
 const renderAccountList = () => {
