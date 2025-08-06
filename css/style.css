@@ -3498,7 +3498,13 @@ body.theme-corporate #account-activities-list li {
     color: #ffc700;
     transform: scale(1.2);
 }
-
+/* --- Organic Star in Contact List --- */
+.organic-star-list {
+    color: #ffc700; /* Gold color */
+    font-size: 1em; /* Adjust size as needed */
+    margin-right: 8px;
+    vertical-align: middle;
+}
 .organic-star:hover {
     transform: scale(1.2);
 }
