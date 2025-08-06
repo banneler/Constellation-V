@@ -95,17 +95,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Chart Colors & Helpers ---
-    const monochromeGreenPalette = ['#004d00', '#006600', '#008000', '#009900', '#00b300', '#00cc00', '#003300', '#00e600'];
     function createChartGradient(ctx, chartArea, index, totalDatasets) {
         if (!chartArea || !ctx) return 'rgba(0,0,0,0.5)';
-        const baseGreen = monochromeGreenPalette[(index * Math.floor(monochromeGreenPalette.length / totalDatasets)) % monochromeGreenPalette.length];
+
+        const bodyClass = document.body.className;
+        let palette;
+
+        if (bodyClass.includes('theme-blue')) {
+            palette = ['#f92772', '#ae81ff', '#66d9ef', '#a6e22e', '#fd971f'];
+        } else if (bodyClass.includes('theme-corporate')) {
+            palette = ['#000080', '#0000ff', '#008080', '#00ffff', '#808080'];
+        } else if (bodyClass.includes('theme-green')) {
+            palette = ['#004d00', '#006600', '#008000', '#009900', '#00b300', '#00cc00'];
+        } else { // Default for dark and light themes
+            palette = ['#007bff', '#00aeff', '#00c6ff', '#00dfff', '#00f2ff'];
+        }
+        
+        const baseColor = palette[index % palette.length];
+        
         const lightenColor = (color, percent) => {
             const f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF;
             return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
         }
+
         const gradient = ctx.createLinearGradient(chartArea.left, chartArea.top, chartArea.right, chartArea.bottom);
-        gradient.addColorStop(0, baseGreen);
-        gradient.addColorStop(1, lightenColor(baseGreen, 0.2));
+        gradient.addColorStop(0, baseColor);
+        gradient.addColorStop(1, lightenColor(baseColor, 0.3));
         return gradient;
     }
 
