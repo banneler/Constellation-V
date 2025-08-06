@@ -3534,3 +3534,8 @@ body.theme-corporate #account-activities-list li {
 .account-list-name {
     font-weight: 500; /* Makes the font slightly bolder to match */
 }
+/* --- Prevent Button Shrinking in Flex Container --- */
+.item-list-container > button,
+.item-list-container > input[type="text"] {
+    flex-shrink: 0;
+}
