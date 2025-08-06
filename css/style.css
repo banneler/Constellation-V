@@ -3506,3 +3506,31 @@ body.theme-corporate #account-activities-list li {
 .organic-star:hover {
     transform: scale(1.2);
 }
+
+/* --- Details Header & Organic Star --- */
+.details-header-line {
+    display: flex;
+    align-items: center; /* Vertically aligns the text and star */
+    margin-bottom: 1rem; /* Adds some space below the header */
+}
+
+.details-header-line h3 {
+    margin: 0; /* Removes default margin from the h3 */
+}
+
+.organic-star {
+    font-size: 1.75rem;
+    color: var(--secondary-text-color);
+    cursor: pointer;
+    margin-left: 12px; /* Space between title and star */
+    transition: color 0.2s ease-in-out, transform 0.2s ease;
+}
+
+.organic-star.is-organic {
+    color: #ffc700;
+    transform: scale(1.2);
+}
+
+.organic-star:hover {
+    transform: scale(1.2);
+}
