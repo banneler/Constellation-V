@@ -3539,3 +3539,24 @@ body.theme-corporate #account-activities-list li {
 .item-list-container > input[type="text"] {
     flex-shrink: 0;
 }
+/* --- Sequence List Item Styling --- */
+.sequence-info {
+    width: 100%;
+}
+
+.sequence-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.sequence-stats {
+    font-size: 0.8em;
+    color: var(--secondary-text-color);
+    display: flex;
+    justify-content: space-between;
+}
+
+.sequence-stats .success-rate {
+    font-weight: bold;
+    color: var(--completed-color);
+}
