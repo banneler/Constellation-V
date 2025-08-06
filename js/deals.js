@@ -36,7 +36,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dealsByTimeCanvas = document.getElementById('deals-by-time-chart');
     const timeChartEmptyMessage = document.getElementById('time-chart-empty-message');
     const dealsTableBody = document.querySelector("#deals-table tbody");
-    const themeNameSpan = document.getElementById("theme-name");
     const metricCurrentCommit = document.getElementById("metric-current-commit");
     const metricBestCase = document.getElementById("metric-best-case");
     const metricFunnel = document.getElementById("metric-funnel");
@@ -53,11 +52,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function loadAllData() {
         if (!state.currentUser) return;
 
-        // CORRECTED: Check user_metadata for manager status
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isTeamView = state.dealsViewMode === 'all' && isManager;
 
-        // Base queries
         const dealsQuery = supabase.from("deals").select("*");
         const accountsQuery = supabase.from("accounts").select("*");
         const dealStagesQuery = supabase.from("deal_stages").select("stage_name, sort_order").order('sort_order');
@@ -67,7 +64,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             accountsQuery.eq("user_id", state.currentUser.id);
         }
 
-        // Quota queries
         const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
         let allQuotasQuery = isManager ? supabase.from("user_quotas").select("monthly_quota") : Promise.resolve({ data: [], error: null });
 
@@ -117,7 +113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     function getFutureDeals() {
         const today = new Date();
         const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth() + 1; // JS months are 0-11
+        const currentMonth = today.getMonth() + 1;
 
         return state.deals.filter(deal => {
             if (!deal.close_month) return true;
@@ -141,13 +137,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         dealsByStageCanvas.classList.remove('hidden');
         stageChartEmptyMessage.classList.add('hidden');
-        const stageCounts = openDeals.reduce((acc, deal) => {
+        
+        const stageMrc = openDeals.reduce((acc, deal) => {
             const stage = deal.stage || 'Uncategorized';
-            acc[stage] = (acc[stage] || 0) + 1;
+            acc[stage] = (acc[stage] || 0) + (deal.mrc || 0);
             return acc;
         }, {});
-        const labels = Object.keys(stageCounts);
-        const data = Object.values(stageCounts);
+        
+        const labels = Object.keys(stageMrc);
+        const data = Object.values(stageMrc);
 
         if (state.dealsByStageChart) state.dealsByStageChart.destroy();
         state.dealsByStageChart = new Chart(dealsByStageCanvas, {
@@ -155,7 +153,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Deals by Stage', data: data,
+                    label: 'MRC by Stage', data: data,
                     backgroundColor: (context) => createChartGradient(context.chart.ctx, context.chart.chartArea, context.dataIndex, labels.length),
                     borderColor: 'var(--bg-medium)', borderWidth: 2, hoverOffset: 10
                 }]
@@ -164,7 +162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'right', labels: { color: 'var(--text-medium)', font: { size: 17, weight: 'normal' }, padding: 20 } },
-                    tooltip: { callbacks: { label: (c) => `${c.label || ''}: ${c.parsed} deals (${((c.parsed / c.dataset.data.reduce((s, cur) => s + cur, 0)) * 100).toFixed(1)}%)` } }
+                    tooltip: { callbacks: { label: (c) => `${c.label || ''}: ${formatCurrency(c.parsed)}` } }
                 },
             }
         });
