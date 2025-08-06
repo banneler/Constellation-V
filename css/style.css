@@ -3529,3 +3529,8 @@ body.theme-corporate #account-activities-list li {
     color: var(--completed-color); /* Green color for money */
     font-weight: bold;
 }
+/* --- Consistent List Item Naming --- */
+.contact-name,
+.account-list-name {
+    font-weight: 500; /* Makes the font slightly bolder to match */
+}
