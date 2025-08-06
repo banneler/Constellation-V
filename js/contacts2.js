@@ -238,9 +238,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const totalSteps = allSequenceSteps.length;
                     const currentStep = activeSequence.current_step_number;
                     const lastCompleted = currentStep - 1;
-                    const percentage = totalSteps > 0 ? Math.round((lastCompleted / totalSteps) * 100) : 0;
-                    ringChart.style.background = `conic-gradient(var(--completed-color) ${percentage}%, var(--bg-medium) ${percentage}% 100%)`;
-                    ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
+                    // --- THIS IS THE NEW, RESTORED CODE ---
+const percentage = totalSteps > 0 ? Math.round((lastCompleted / totalSteps) * 100) : 0;
+const ringProgress = document.getElementById('ring-chart-progress'); // Get the new progress element
+if (ringProgress) {
+    ringProgress.style.setProperty('--p', percentage);
+}
+ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                     contactSequenceInfoText.textContent = `Enrolled in "${sequence ? sequence.name : 'Unknown'}" (On Step ${currentStep} of ${totalSteps}).`;
                     sequenceStatusContent.classList.remove("hidden");
                     noSequenceText.classList.add("hidden");
