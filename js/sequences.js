@@ -186,7 +186,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequenceDescriptionTextarea.disabled = isMarketingImport;
 
         // Hide delete button for Personal/AI sequences, show for Marketing
-        deleteSequenceBtn.classList.toggle('hidden', !isMarketingImport);
+        deleteSequenceBtn.classList.toggle('hidden', isMarketingImport);
         
         // Always show Add Step button unless it's a marketing import
         addStepBtn.classList.toggle('hidden', isMarketingImport);
@@ -849,3 +849,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
