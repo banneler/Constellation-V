@@ -3568,3 +3568,11 @@ body.theme-corporate #account-activities-list li {
     gap: 10px; /* Adds space between the buttons */
     margin-top: 1rem; /* Adds some space above the buttons */
 }
+
+/* --- Sequence Action Button Grid Fix --- */
+.sequence-action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Creates two equal columns */
+    gap: 10px; /* Adds space between the buttons */
+    margin-top: 1rem; /* Adds some space above the buttons */
+}
