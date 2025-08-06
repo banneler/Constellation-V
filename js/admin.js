@@ -267,13 +267,17 @@ async function loadScriptLogs() {
 function renderScriptLogsTable() {
     const tableBody = document.querySelector("#script-logs-table tbody");
     if (!tableBody) return;
-    tableBody.innerHTML = state.scriptLogs.map(log => `
-        <tr>
-            <td>${log.script_name}</td>
-            <td>${formatDate(log.last_completed_at)}</td>
-            <td>${log.outcome}</td>
-            <td>${log.user_quotas?.full_name || 'N/A'}</td>
-        </tr>`).join('');
+    tableBody.innerHTML = state.scriptLogs.map(log => {
+        // Handle cases where a log might not have a user or user_quotas data
+        const userName = log.user_quotas ? log.user_quotas.full_name : 'Team Script';
+        return `
+            <tr>
+                <td>${log.script_name}</td>
+                <td>${formatDate(log.last_completed_at)}</td>
+                <td>${log.outcome}</td>
+                <td>${userName}</td>
+            </tr>`;
+    }).join('');
 }
 
 function renderUserTable() {
