@@ -92,7 +92,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.dealStages = [];
             }
 
-            // CORRECTED: Call render functions after all data is loaded successfully
             renderAccountList();
             if (state.selectedAccountId) {
                 const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
@@ -195,43 +194,23 @@ document.addEventListener("DOMContentLoaded", async () => {
             accountForm.querySelector("#account-id").value = account.id;
             accountForm.querySelector("#account-name").value = account.name || "";
             
-            // MODIFIED: Smarter logic for the clickable website link
             const websiteInput = accountForm.querySelector("#account-website");
             const websiteLink = document.getElementById("account-website-link");
             websiteInput.value = account.website || "";
 
-            // This helper function now automatically adds https://
             const updateWebsiteLink = (url) => {
-                // First, exit if the url is empty or just whitespace
                 if (!url || !url.trim()) {
                     websiteLink.classList.add('hidden');
                     return;
                 }
-
                 let fullUrl = url.trim();
-
-                // If it already has a protocol, leave it alone
-                if (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) {
-                    // It's a valid link, do nothing to it
-                }
-                // Otherwise, if it looks like a domain (e.g., has a dot), add the protocol
-                else if (fullUrl.includes('.')) {
+                if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
                     fullUrl = 'https://' + fullUrl;
                 }
-                // If it's not a valid-looking URL, hide the link
-                else {
-                    websiteLink.classList.add('hidden');
-                    return;
-                }
-
-                // If we have a good URL, show the link
                 websiteLink.href = fullUrl;
                 websiteLink.classList.remove('hidden');
             };
-
             updateWebsiteLink(account.website);
-            // This listener updates the icon in real-time as you type
-            websiteInput.addEventListener('input', () => updateWebsiteLink(websiteInput.value));
             
             accountForm.querySelector("#account-industry").value = account.industry || "";
             accountForm.querySelector("#account-phone").value = account.phone || "";
@@ -241,14 +220,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
             accountForm.querySelector("#account-employees").value = account.employee_count || "";
             
-            // The is_customer checkbox now has a listener to set the dirty state
-            const isCustomerCheckbox = accountForm.querySelector("#account-is-customer");
-            isCustomerCheckbox.checked = account.is_customer;
-            isCustomerCheckbox.addEventListener('change', () => {
-              state.isFormDirty = true;
-            });
+            // ✅ **FIX 1:** This line correctly sets the checkbox state from the database.
+            accountForm.querySelector("#account-is-customer").checked = account.is_customer;
 
-            state.isFormDirty = false;
+            // ✅ **FIX 2:** The dirty flag is no longer reset here, preserving the user's changes.
+            // state.isFormDirty = false; // This incorrect line has been removed.
 
             state.deals
                 .filter((d) => d.account_id === account.id)
@@ -292,6 +268,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const hideAccountDetails = (hideForm = true, clearSelection = false) => {
         if (accountForm && hideForm) accountForm.classList.add('hidden');
         else if (accountForm) accountForm.classList.remove('hidden');
+
+        if(accountForm) accountForm.reset();
 
         if (accountContactsList) accountContactsList.innerHTML = "";
         if (accountActivitiesList) accountActivitiesList.innerHTML = "";
@@ -353,6 +331,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     function setupPageEventListeners() {
         setupModalListeners();
         
+        // ✅ **FIX 3:** All form input listeners are now set up here, one time.
+        if (accountForm) {
+            accountForm.addEventListener('input', () => {
+                state.isFormDirty = true;
+            });
+        }
+        
         if (navSidebar) {
             navSidebar.addEventListener('click', (e) => {
                 const navButton = e.target.closest('a.nav-button');
@@ -363,7 +348,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
         
-        // Removed the form-wide input listener to prevent a bug
         window.addEventListener('beforeunload', (event) => {
             if (state.isFormDirty) {
                 event.preventDefault();
@@ -378,7 +362,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             addAccountBtn.addEventListener("click", () => {
                 const openNewAccountModal = () => {
                     hideAccountDetails(false, true);
-                    accountForm.reset(); // Reset form for a new, blank account
+                    accountForm.reset(); 
                     showModal("New Account", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
                         async () => {
                             const name = document.getElementById("modal-account-name")?.value.trim();
@@ -488,7 +472,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (bulkImportAccountsBtn) bulkImportAccountsBtn.addEventListener("click", () => accountCsvInput.click());
         
-        // UPGRADED: Bulk export accounts to CSV using Blob
         if (bulkExportAccountsBtn) {
             bulkExportAccountsBtn.addEventListener("click", () => {
                 const accountsToExport = state.accounts;
@@ -522,7 +505,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
-        // REPLACED: Advanced bulk import with review/merge logic using PapaParse
         if (accountCsvInput) {
             accountCsvInput.addEventListener("change", (e) => {
                 const file = e.target.files[0];
