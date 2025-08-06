@@ -1181,14 +1181,11 @@ body.theme-green .pending-task-reminder {
 }
 
 .sequence-status-icon {
-    display: inline-block;
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 2px;
-    background-color: var(--completed-color);
-    margin-left: 0.5rem;
+    color: var(--completed-color); /* This makes the paper-plane icon green */
+    margin-left: 8px;
     vertical-align: middle;
-    flex-shrink: 0;
+    font-size: 0.9em;
+    /* We removed background-color, width, height, and display properties */
 }
 
 body.theme-green .sequence-status-icon {
@@ -3509,10 +3506,4 @@ body.theme-corporate #account-activities-list li {
 /* --- Hot Contact Icon --- */
 .hot-contact-icon {
     margin-left: 8px;
-}
-.sequence-status-icon {
-    color: var(--completed-color); /* This makes the icon green */
-    margin-left: 8px;
-    vertical-align: middle;
-    font-size: 0.9em; /* Adjust size as needed */
 }
