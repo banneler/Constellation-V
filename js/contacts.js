@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactActivitiesList = document.getElementById("contact-activities-list");
     const contactSequenceInfoText = document.getElementById("contact-sequence-info-text");
     const removeFromSequenceBtn = document.getElementById("remove-from-sequence-btn");
+    const completeSequenceBtn = document.getElementById("complete-sequence-btn"); // NEW
     const noSequenceText = document.getElementById("no-sequence-text");
     const sequenceStatusContent = document.getElementById("sequence-status-content");
     const ringChartText = document.getElementById("ring-chart-text");
@@ -51,7 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const takePictureBtn = document.getElementById("take-picture-btn");
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
-    const organicStarIndicator = document.getElementById("organic-star-indicator"); // NEW: Star element selector
+    const organicStarIndicator = document.getElementById("organic-star-indicator");
 
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -80,7 +81,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactDetails();
         }
     };
-
 
     // --- Data Fetching ---
     async function loadAllData() {
@@ -134,40 +134,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Functions ---
-   const renderContactList = () => {
-    if (!contactList) return;
-    const searchTerm = contactSearch.value.toLowerCase();
-    const filteredContacts = state.contacts
-        .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
-        .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
+    const renderContactList = () => {
+        if (!contactList) return;
+        const searchTerm = contactSearch.value.toLowerCase();
+        const filteredContacts = state.contacts
+            .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
+            .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    contactList.innerHTML = "";
-    filteredContacts.forEach((contact) => {
-        const item = document.createElement("div");
-        item.className = "list-item";
-        const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
-        
-        const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
-        
-        // NEW: Add the organic star to the list view
-        const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
-        const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
-        const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+        contactList.innerHTML = "";
+        filteredContacts.forEach((contact) => {
+            const item = document.createElement("div");
+            item.className = "list-item";
+            const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
+            
+            const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
+            
+            const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
+            const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
+            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
 
-        item.innerHTML = `
-            <div class="contact-info">
-                <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
-                <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
-            </div>
-        `;
-        item.dataset.id = contact.id;
-        if (contact.id === state.selectedContactId) item.classList.add("selected");
-        contactList.appendChild(item);
-    });
-};
+            item.innerHTML = `
+                <div class="contact-info">
+                    <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
+                    <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
+                </div>
+            `;
+            item.dataset.id = contact.id;
+            if (contact.id === state.selectedContactId) item.classList.add("selected");
+            contactList.appendChild(item);
+        });
+    };
 
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
@@ -258,11 +257,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     sequenceStatusContent.classList.remove("hidden");
                     noSequenceText.classList.add("hidden");
                     removeFromSequenceBtn.classList.remove('hidden');
+                    completeSequenceBtn.classList.remove('hidden'); // NEW
                 } else {
                     sequenceStatusContent.classList.add("hidden");
                     noSequenceText.textContent = "Not in a sequence.";
                     noSequenceText.classList.remove("hidden");
                     removeFromSequenceBtn.classList.add('hidden');
+                    completeSequenceBtn.classList.add('hidden'); // NEW
                 }
             }
         } else {
@@ -319,6 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             noSequenceText.classList.remove("hidden");
         }
         if(removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
+        if(completeSequenceBtn) completeSequenceBtn.classList.add('hidden'); // NEW
         if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '';
         if(contactPendingTaskReminder) contactPendingTaskReminder.classList.add('hidden');
 
@@ -880,12 +882,32 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
+        // NEW: Event listener for Complete Sequence button
+        if (completeSequenceBtn) {
+            completeSequenceBtn.addEventListener("click", async () => {
+                if (!state.selectedContactId) return;
+                const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
+                if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
+                showModal("Confirm Completion", `Are you sure you want to mark this sequence as complete? This indicates a successful outcome.`, async () => {
+                    const { error } = await supabase.from('contact_sequences').update({ status: 'Completed' }).eq('id', activeContactSequence.id);
+                    if (error) {
+                        showModal("Error", "Error completing sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    } else {
+                        await loadAllData();
+                        hideModal();
+                        showModal("Success", "Sequence marked as complete!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    }
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Yes, Complete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            });
+        }
+
         removeFromSequenceBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return;
             const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
             if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
-            showModal("Confirm Removal", `Are you sure you want to remove this contact from "${state.sequences.find(s => s.id === activeContactSequence.sequence_id)?.name || 'Unknown'}" sequence?`, async () => {
+            showModal("Confirm Removal", `Are you sure you want to remove this contact from the sequence? This action should be used if the sequence was unsuccessful.`, async () => {
                 const { error } = await supabase.from('contact_sequences').update({ status: 'Removed' }).eq('id', activeContactSequence.id);
                 if (error) {
                     showModal("Error", "Error removing from sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
