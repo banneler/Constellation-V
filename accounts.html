@@ -60,15 +60,13 @@
                 <h2>Accounts</h2>
                 <div class="split-view">
                     <div class="item-list-container">
-    <button id="add-account-btn" class="btn-primary full-width">Add New Account</button>
-    <button id="bulk-import-accounts-btn" class="btn-secondary full-width">Bulk Import from CSV</button>
-    
-    <button id="bulk-export-accounts-btn" class="btn-secondary full-width">Download Accounts CSV</button>
-    
-    <input type="file" id="account-csv-input" accept=".csv" class="hidden">
-    <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
-    <div id="account-list" class="item-list"></div>
-</div>
+                        <button id="add-account-btn" class="btn-primary full-width">Add New Account</button>
+                        <button id="bulk-import-accounts-btn" class="btn-secondary full-width">Bulk Import from CSV</button>
+                        <button id="bulk-export-accounts-btn" class="btn-secondary full-width">Download Accounts CSV</button>
+                        <input type="file" id="account-csv-input" accept=".csv" class="hidden">
+                        <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
+                        <div id="account-list" class="item-list"></div>
+                    </div>
                     <div id="account-details" class="details-panel">
                         <div id="account-pending-task-reminder" class="pending-task-reminder hidden"></div>
                         <h3>Account Details</h3>
@@ -76,7 +74,15 @@
                             <input type="hidden" id="account-id">
                             <div class="form-grid">
                                 <div><label for="account-name">Account Name</label><input type="text" id="account-name" required></div>
-                                <div><label for="account-website">Website</label><input type="text" id="account-website"></div>
+                                
+                                <div class="input-with-link">
+                                    <label for="account-website">Website</label>
+                                    <input type="text" id="account-website">
+                                    <a href="#" id="account-website-link" target="_blank" rel="noopener noreferrer" class="hidden" title="Open website in new tab">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </a>
+                                </div>
+
                                 <div><label for="account-industry">Industry</label><input type="text" id="account-industry"></div>
                                 <div><label for="account-phone">Phone</label><input type="tel" id="account-phone"></div>
                                 <div><label for="account-sites">Quantity of Sites</label><input type="number" id="account-sites" min="0"></div>
@@ -103,14 +109,7 @@
                                 <table id="account-deals-table">
                                     <thead>
                                         <tr>
-                                            <th>Committed</th>
-                                            <th>Deal Name</th>
-                                            <th>Term</th>
-                                            <th>Stage</th>
-                                            <th>MRC</th>
-                                            <th>Close Month</th>
-                                            <th>Products</th>
-                                            <th>Actions</th>
+                                            <th>Committed</th><th>Deal Name</th><th>Term</th><th>Stage</th><th>MRC</th><th>Close Month</th><th>Products</th><th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -133,29 +132,21 @@
 
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content">
-            <h3 id="modal-title"></h3>
-            <div id="modal-body"></div>
-            <div id="modal-actions" class="modal-actions">
-            </div>
+            <h3 id="modal-title"></h3><div id="modal-body"></div><div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
-
     <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
         <div class="email-view-modal">
             <div class="email-view-header">
-                <h3 id="email-view-subject" class="email-view-subject"></h3>
-                <button id="email-view-close-btn" class="email-view-close">&times;</button>
+                <h3 id="email-view-subject" class="email-view-subject"></h3><button id="email-view-close-btn" class="email-view-close">&times;</button>
             </div>
             <div class="email-view-meta">
-                <p><strong>From:</strong> <span id="email-view-from"></span></p>
-                <p><strong>To:</strong> <span id="email-view-to"></span></p>
-                <p><strong>Date:</strong> <span id="email-view-date"></span></p>
+                <p><strong>From:</strong> <span id="email-view-from"></span></p><p><strong>To:</strong> <span id="email-view-to"></span></p><p><strong>Date:</strong> <span id="email-view-date"></span></p>
             </div>
-            <div class="email-view-body">
-                <pre id="email-view-body-content"></pre>
-            </div>
+            <div class="email-view-body"><pre id="email-view-body-content"></pre></div>
         </div>
     </div>
+
     <script>
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
@@ -164,5 +155,4 @@
     </script>
     <script type="module" src="js/accounts.js"></script>
 </body>
-
 </html>
