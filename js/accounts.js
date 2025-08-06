@@ -115,7 +115,6 @@ const renderAccountList = () => {
         (account.name || "").toLowerCase().includes(searchTerm)
     );
 
-    // Date for the "hot" activity check
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -127,14 +126,12 @@ const renderAccountList = () => {
             i.className = "list-item";
             i.dataset.id = account.id;
 
-            // Check for any open deals
             const hasOpenDeal = state.deals.some(deal =>
                 deal.account_id === account.id &&
                 deal.stage !== 'Closed Won' &&
                 deal.stage !== 'Closed Lost'
             );
 
-            // Check for recent activity on the account OR its contacts
             const contactIdsForAccount = state.contacts
                 .filter(c => c.account_id === account.id)
                 .map(c => c.id);
@@ -147,7 +144,8 @@ const renderAccountList = () => {
             const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
             const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
 
-            i.innerHTML = `${account.name} <div class="list-item-icons">${hotIcon}${dealIcon}</div>`;
+            // MODIFIED: Wrapped account.name in a div to allow for styling
+            i.innerHTML = `<div class="account-list-name">${account.name}</div> <div class="list-item-icons">${hotIcon}${dealIcon}</div>`;
 
             if (account.id === state.selectedAccountId) i.classList.add("selected");
             accountList.appendChild(i);
