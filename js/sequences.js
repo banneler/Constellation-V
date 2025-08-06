@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Functions ---
-    const renderSequenceList = () => {
+   const renderSequenceList = () => {
         if (!sequenceList) return;
         sequenceList.innerHTML = "";
         state.sequences
@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 item.dataset.id = seq.id;
 
                 const isMarketingSource = seq.source === 'Marketing';
-                const indicatorHtml = isMarketingSource ? '<span class="marketing-indicator" title="Imported from Marketing"></span>' : '';
+                const indicatorHtml = isMarketingSource ? '<i class="fa-solid fa-bullhorn marketing-indicator" title="Imported from Marketing"></i>' : '';
                 
                 const activeContacts = state.contact_sequences.filter(cs => cs.sequence_id === seq.id && cs.status === 'Active').length;
                 const finishedSequences = state.contact_sequences.filter(cs => cs.sequence_id === seq.id && (cs.status === 'Completed' || cs.status === 'Removed'));
@@ -116,7 +116,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sequenceList.appendChild(item);
             });
     };
-
     const renderSequenceSteps = () => {
         if (!sequenceStepsTableBody) return;
         sequenceStepsTableBody.innerHTML = "";
