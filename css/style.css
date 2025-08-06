@@ -3597,3 +3597,21 @@ body.theme-corporate #account-activities-list li {
     font-weight: bold;
     color: var(--completed-color);
 }
+/* --- Sequences Page Action Button Grid --- */
+.sequence-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Creates two equal-width columns */
+    gap: 0.625rem;                  /* Sets the space between the buttons */
+    margin-bottom: 0.9375rem;       /* Adds some space below the grid */
+}
+
+/* Ensures buttons fill the entire grid cell */
+.sequence-actions-grid > .btn-primary,
+.sequence-actions-grid > .btn-secondary {
+    width: 100%; /* Makes the button fill the column width */
+    height: 100%;
+    padding: 0.625rem 0.5rem; /* Adjust padding for smaller button area */
+    font-size: 0.8rem;      /* Slightly smaller font to fit text */
+    white-space: normal;  /* Allows text to wrap if needed */
+    line-height: 1.2;
+}
