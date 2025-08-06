@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const isMarketingSource = seq.source === 'Marketing';
                 const indicatorHtml = isMarketingSource ? '<span class="marketing-indicator" title="Imported from Marketing"></span>' : '';
                 
-                const removeBtnHtml = isMarketingSource ? '<button class="btn-icon btn-remove-sequence" title="Remove Imported Sequence">&times;</button>' : '';
+                const removeBtnHtml = isMarketingSource ? `<button class="btn-icon btn-danger btn-remove-sequence" title="Remove Imported Sequence"><i class="fas fa-trash-can"></i></button>` : '';
 
                 item.innerHTML = `
                     <div class="sequence-list-item-content">
@@ -849,4 +849,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
 
