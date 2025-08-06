@@ -135,8 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const isFirstStep = index === 0;
             const isLastStep = index === steps.length - 1;
             const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
-            // ✅ **FIX 3:** Imported marketing sequences are now editable.
-            const isReadOnly = sequence?.source === 'Marketing' && !state.sequences.find(s => s.id === state.selectedSequenceId)?.user_id === state.currentUser.id;
+            const isReadOnly = false; // All sequences on this page are the user's, so they are editable.
 
             const actionsHtml = isReadOnly ? '<td>Read-Only</td>' : `
                 <td>
@@ -185,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.originalSequenceName = sequence.name || "";
         state.originalSequenceDescription = sequence.description || "";
         
-        const isReadOnly = sequence.source === 'Marketing' && sequence.user_id !== state.currentUser.id;
+        const isReadOnly = false;
         
         sequenceNameInput.disabled = isReadOnly;
         sequenceDescriptionTextarea.disabled = isReadOnly;
@@ -416,11 +415,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Step</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-    // ✅ **FIX 1:** This function now correctly handles all button clicks within the table body.
     async function handleSequenceStepActions(e) {
         const targetButton = e.target.closest('button');
         if (!targetButton) return;
-
+    
         const row = targetButton.closest("tr[data-id]");
         if (!row) return;
 
@@ -480,35 +478,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function handleMoveStep(stepId, direction) {
-        const allStepsInSequence = state.sequence_steps
-            .filter(s => s.sequence_id === state.selectedSequenceId)
-            .sort((a, b) => a.step_number - b.step_number);
+async function handleMoveStep(stepId, direction) {
+    const allStepsInSequence = state.sequence_steps
+        .filter(s => s.sequence_id === state.selectedSequenceId)
+        .sort((a, b) => a.step_number - b.step_number);
+
+    const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
+    if (currentIndex === -1) return;
+
+    let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
+
+    const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
+    allStepsInSequence.splice(targetIndex, 0, movedStep);
+
+    const updates = allStepsInSequence.map((step, index) => ({
+        id: step.id,
+        step_number: index + 1
+    }));
     
-        const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
-        if (currentIndex === -1) return;
-    
-        let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
-        if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
-    
-        const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
-        allStepsInSequence.splice(targetIndex, 0, movedStep);
-    
-        const updates = allStepsInSequence.map((step, index) => ({
-            id: step.id,
-            step_number: index + 1
-        }));
-    
-        const { error } = await supabase.from("sequence_steps").upsert(updates);
-    
-        if (error) {
-            console.error("Error re-ordering steps:", error);
-            showModal("Error", "Could not re-order the steps. Please try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
-    
-        await loadAllData();
+    const updatePromises = updates.map(update => 
+        supabase
+            .from("sequence_steps")
+            .update({ step_number: update.step_number })
+            .eq('id', update.id)
+    );
+
+    const results = await Promise.all(updatePromises);
+    const firstError = results.find(res => res.error);
+
+    if (firstError) {
+        console.error("Error re-ordering steps:", firstError.error);
+        showModal("Error", "Could not re-order the steps. Please check the console and try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
+
+    await loadAllData();
+}
     
     function handleCsvImport(e) {
         if (!state.selectedSequenceId) return;
@@ -749,7 +755,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
         });
 
-        // ✅ **FIX 2:** This ensures the event listeners work for the AI preview table.
         tbody.addEventListener("click", (e) => {
             const target = e.target.closest("button");
             if (!target) return;
