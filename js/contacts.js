@@ -134,38 +134,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Functions ---
-    const renderContactList = () => {
-        if (!contactList) return;
-        const searchTerm = contactSearch.value.toLowerCase();
-        const filteredContacts = state.contacts
-            .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
-            .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
+   const renderContactList = () => {
+    if (!contactList) return;
+    const searchTerm = contactSearch.value.toLowerCase();
+    const filteredContacts = state.contacts
+        .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
+        .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
 
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        contactList.innerHTML = "";
-        filteredContacts.forEach((contact) => {
-            const item = document.createElement("div");
-            item.className = "list-item";
-            const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
-            
-            const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
-            // MODIFIED: Use Font Awesome paper plane icon instead of the span
-            const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
-            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+    contactList.innerHTML = "";
+    filteredContacts.forEach((contact) => {
+        const item = document.createElement("div");
+        item.className = "list-item";
+        const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
+        
+        const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
+        
+        // NEW: Add the organic star to the list view
+        const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
+        const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
+        const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
 
-            item.innerHTML = `
-                <div class="contact-info">
-                    <div class="contact-name">${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
-                    <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
-                </div>
-            `;
-            item.dataset.id = contact.id;
-            if (contact.id === state.selectedContactId) item.classList.add("selected");
-            contactList.appendChild(item);
-        });
-    };
+        item.innerHTML = `
+            <div class="contact-info">
+                <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
+                <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
+            </div>
+        `;
+        item.dataset.id = contact.id;
+        if (contact.id === state.selectedContactId) item.classList.add("selected");
+        contactList.appendChild(item);
+    });
+};
 
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
