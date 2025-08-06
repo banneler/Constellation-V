@@ -144,26 +144,52 @@ document.addEventListener("DOMContentLoaded", async () => {
             return acc;
         }, {});
         
-        const labels = Object.keys(stageMrc);
-        const data = Object.values(stageMrc);
+        const sortedStages = Object.entries(stageMrc).sort(([, a], [, b]) => a - b);
+        const labels = sortedStages.map(([stage]) => stage);
+        const data = sortedStages.map(([, mrc]) => mrc);
+
+        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        const isMyTeamView = state.dealsViewMode === 'all' && isManager;
+        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
 
         if (state.dealsByStageChart) state.dealsByStageChart.destroy();
         state.dealsByStageChart = new Chart(dealsByStageCanvas, {
-            type: 'doughnut',
+            type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'MRC by Stage', data: data,
+                    label: 'MRC by Stage',
+                    data: data,
                     backgroundColor: (context) => createChartGradient(context.chart.ctx, context.chart.chartArea, context.dataIndex, labels.length),
-                    borderColor: 'var(--bg-medium)', borderWidth: 2, hoverOffset: 10
+                    borderColor: 'var(--bg-light)',
+                    borderWidth: 1,
+                    borderRadius: 5
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'right', labels: { color: 'var(--text-medium)', font: { size: 17, weight: 'normal' }, padding: 20 } },
-                    tooltip: { callbacks: { label: (c) => `${c.label || ''}: ${formatCurrency(c.parsed)}` } }
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (c) => `MRC: ${formatCurrency(c.parsed.x)}` } },
+                    annotation: {
+                        annotations: {
+                            quotaLine: {
+                                type: 'line',
+                                scaleID: 'x',
+                                value: effectiveMonthlyQuota,
+                                borderColor: 'red',
+                                borderWidth: 2,
+                                borderDash: [6, 6]
+                            }
+                        }
+                    }
                 },
+                scales: {
+                    x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } },
+                    y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false } }
+                }
             }
         });
     }
@@ -230,20 +256,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 value: effectiveMonthlyQuota,
                                 borderColor: 'red',
                                 borderWidth: 2,
-                                borderDash: [6, 6],
-                                label: {
-                                    content: 'Quota',
-                                    enabled: false,
-                                    position: 'end',
-                                    backgroundColor: 'transparent',
-                                    color: 'red',
-                                    font: {
-                                        size: 14,
-                                        weight: 'bold'
-                                    },
-                                    xAdjust: 0,
-                                    yAdjust: -50,
-                                }
+                                borderDash: [6, 6]
                             }
                         }
                     }
