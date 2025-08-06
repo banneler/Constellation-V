@@ -282,23 +282,22 @@ const renderAccountDetails = () => {
     }
 };
 
-    const hideAccountDetails = (hideForm = true, clearSelection = false) => {
-        if (accountForm && hideForm) accountForm.classList.add('hidden');
-        else if (accountForm) accountForm.classList.remove('hidden');
-        if (accountForm) accountForm.reset();
+const hideAccountDetails = (hideForm = true, clearSelection = false) => {
+    if (accountForm && hideForm) accountForm.classList.add('hidden');
+    else if (accountForm) accountForm.classList.remove('hidden');
 
-        if (accountContactsList) accountContactsList.innerHTML = "";
-        if (accountActivitiesList) accountActivitiesList.innerHTML = "";
-        if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
+    if (accountContactsList) accountContactsList.innerHTML = "";
+    if (accountActivitiesList) accountActivitiesList.innerHTML = "";
+    if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
 
-        if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+    if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
 
-        if (clearSelection) {
-            state.selectedAccountId = null;
-            document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
-            state.isFormDirty = false;
-        }
-    };
+    if (clearSelection) {
+        state.selectedAccountId = null;
+        document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
+        state.isFormDirty = false;
+    }
+};
 
     // --- Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
