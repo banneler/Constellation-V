@@ -94,19 +94,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const allTableNames = [...userSpecificTables, ...sharedTables];
 
 
+        // FIX: Combine both queries into a single select
         let activityTypesData = [];
-        const { data: sharedActivityTypes, error: sharedError } = await supabase.from("activity_types").select("*");
-        if (sharedError) {
-            console.error("Error fetching shared activity types:", sharedError);
+        const { data: allActivityTypes, error: activityError } = await supabase.from("activity_types").select("*");
+        if (activityError) {
+            console.error("Error fetching activity types:", activityError);
         } else {
-            activityTypesData = sharedActivityTypes || [];
-        }
-
-        const { data: userActivityTypes, error: userError } = await supabase.from("activity_types").select("*");
-        if (userError) {
-            console.error("Error fetching user-specific activity types:", userError);
-        } else if (userActivityTypes && userActivityTypes.length > 0) {
-            activityTypesData = [...activityTypesData, ...userActivityTypes];
+            activityTypesData = allActivityTypes || [];
         }
 
         state.activityTypes = activityTypesData;
