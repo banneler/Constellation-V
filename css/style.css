@@ -3454,6 +3454,29 @@ body.theme-corporate #account-activities-list li {
     background-color: var(--bg-light); /* Matches the card background */
 }
 
-/* NOTE: We are NOT adding a new .ring-chart-text style.
-   Your existing one is perfect and will be used automatically.
-*/
+/* --- FORM ELEMENT ENHANCEMENTS --- */
+.input-with-link {
+    position: relative;
+    display: flex;
+    flex-direction: column; /* Stack label on top of input */
+}
+
+.input-with-link input {
+    width: 100%;
+    box-sizing: border-box; /* Ensures padding doesn't affect width */
+    padding-right: 35px; /* Make space for the icon inside the input */
+}
+
+.input-with-link a {
+    position: absolute;
+    right: 12px;
+    bottom: 1.3em; /* Vertically center icon with the input text */
+    color: var(--text-medium);
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: color 0.2s;
+}
+
+.input-with-link a:hover {
+    color: var(--primary-blue);
+}
