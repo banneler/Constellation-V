@@ -3512,3 +3512,10 @@ body.theme-corporate #account-activities-list li {
 .hot-contact-icon {
     margin-left: 8px;
 }
+/* --- Related Info Box Styling --- */
+.related-info {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1.5rem;
+}
