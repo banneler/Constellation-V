@@ -876,8 +876,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await loadAllData();
                     hideModal();
                     showModal("Success", "Sequence assigned successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return true;
                 }
-                return true;
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
