@@ -24,16 +24,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceList = document.getElementById("sequence-list");
     const addSequenceBtn = document.getElementById("add-sequence-btn");
     const importMarketingSequenceBtn = document.getElementById("import-marketing-sequence-btn");
-    const importSequenceBtn = document.getElementById("bulk-import-sequence-steps-btn"); // Corrected ID for bulk import
-    const sequenceCsvInput = document.getElementById("sequence-steps-csv-input"); // Corrected ID for CSV input
+    const importSequenceBtn = document.getElementById("bulk-import-sequence-steps-btn");
+    const sequenceCsvInput = document.getElementById("sequence-steps-csv-input");
     const deleteSequenceBtn = document.getElementById("delete-sequence-btn");
     const sequenceStepsTableBody = document.querySelector("#sequence-steps-table-body");
     const addStepBtn = document.getElementById("add-step-btn");
-    const themeNameSpan = document.getElementById("theme-name");
-    const sequenceNameInput = document.getElementById("sequence-name"); // Corrected selector
-    const sequenceDescriptionTextarea = document.getElementById("sequence-description"); // Corrected selector
+    const sequenceNameInput = document.getElementById("sequence-name");
+    const sequenceDescriptionTextarea = document.getElementById("sequence-description");
     const sequenceIdInput = document.getElementById("sequence-id");
-    const sequenceDetailsPanel = document.getElementById("sequence-details"); // Corrected selector
+    const sequenceDetailsPanel = document.getElementById("sequence-details");
 
     // AI Generation Section Selectors
     const aiSequenceGoalTextarea = document.getElementById("ai-sequence-goal");
@@ -102,7 +101,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const completedCount = finishedSequences.filter(cs => cs.status === 'Completed').length;
                 const successRate = finishedSequences.length > 0 ? Math.round((completedCount / finishedSequences.length) * 100) : 0;
 
-                // MODIFIED: Using a new, unique class for the stats container
                 item.innerHTML = `
                     <div class="sequence-info">
                         <div class="sequence-name">${indicatorHtml} ${seq.name}</div>
@@ -137,11 +135,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             const isFirstStep = index === 0;
             const isLastStep = index === steps.length - 1;
             const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
-            const isMarketingImport = sequence?.source === 'Marketing';
+            // ✅ **FIX 3:** Imported marketing sequences are now editable.
+            const isReadOnly = sequence?.source === 'Marketing' && !state.sequences.find(s => s.id === state.selectedSequenceId)?.user_id === state.currentUser.id;
 
-            const actionsHtml = isMarketingImport ? '<td>Read-Only</td>' : `
+            const actionsHtml = isReadOnly ? '<td>Read-Only</td>' : `
                 <td>
-                    <div class="actions-cell-content" 
+                    <div class="actions-cell-content">
                         ${isEditingThisStep ?
                             `
                             <button class="btn btn-sm btn-success save-step-btn" data-id="${step.id}">Save</button>
@@ -186,14 +185,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.originalSequenceName = sequence.name || "";
         state.originalSequenceDescription = sequence.description || "";
         
-        const isMarketingImport = sequence.source === 'Marketing';
+        const isReadOnly = sequence.source === 'Marketing' && sequence.user_id !== state.currentUser.id;
         
-        sequenceNameInput.disabled = isMarketingImport;
-        sequenceDescriptionTextarea.disabled = isMarketingImport;
+        sequenceNameInput.disabled = isReadOnly;
+        sequenceDescriptionTextarea.disabled = isReadOnly;
 
-        deleteSequenceBtn.classList.toggle('hidden', isMarketingImport);
-        
-        addStepBtn.classList.toggle('hidden', isMarketingImport);
+        deleteSequenceBtn.classList.toggle('hidden', isReadOnly);
+        addStepBtn.classList.toggle('hidden', isReadOnly);
         
         state.editingStepId = null;
         renderSequenceSteps();
@@ -404,7 +402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const newStep = {
                 sequence_id: state.selectedSequenceId,
                 step_number: parseInt(document.getElementById("modal-step-number").value),
-                type: document.getElementById("modal-step-type").value.trim().toLowerCase(), 
+                type: document.getElementById("modal-step-type").value.trim(),
                 subject: document.getElementById("modal-step-subject").value.trim(),
                 message: document.getElementById("modal-step-message").value.trim(),
                 delay_days: parseInt(document.getElementById("modal-step-delay").value),
@@ -418,87 +416,99 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Step</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
+    // ✅ **FIX 1:** This function now correctly handles all button clicks within the table body.
     async function handleSequenceStepActions(e) {
-        const target = e.target.closest("button");
-        if (!target) return;
-        const row = target.closest("tr[data-id]");
+        const targetButton = e.target.closest('button');
+        if (!targetButton) return;
+
+        const row = targetButton.closest("tr[data-id]");
         if (!row) return;
 
         const stepId = Number(row.dataset.id);
 
         if (state.isEditingSequenceDetails || state.aiGeneratedSteps.length > 0) {
-            showModal("Error", "Please save or cancel sequence details edits or AI generation preview first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
-        
-        if (target.classList.contains("edit-step-btn")) {
-            if (state.editingStepId) { showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
+            showModal("Error", "Please save or cancel other edits before modifying steps.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+
+        if (targetButton.matches(".edit-step-btn, .edit-step-btn *")) {
+            if (state.editingStepId) { 
+                showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
             state.editingStepId = stepId;
             renderSequenceSteps();
-        } else if (target.classList.contains("save-step-btn")) {
+        } else if (targetButton.matches(".save-step-btn, .save-step-btn *")) {
             const updatedStep = {
-                type: row.querySelector(".edit-step-type").value.trim().toLowerCase(),
+                type: row.querySelector(".edit-step-type").value.trim(),
                 subject: row.querySelector(".edit-step-subject").value.trim(),
                 message: row.querySelector(".edit-step-message").value.trim(),
                 delay_days: parseInt(row.querySelector(".edit-step-delay").value || 0, 10),
             };
-            if (!updatedStep.type) { showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
+            if (!updatedStep.type) { 
+                showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
             await supabase.from("sequence_steps").update(updatedStep).eq("id", stepId);
             state.editingStepId = null;
             await loadAllData();
-        } else if (target.classList.contains("cancel-step-btn")) {
+        } else if (targetButton.matches(".cancel-step-btn, .cancel-step-btn *")) {
             state.editingStepId = null;
             renderSequenceSteps();
-        } else if (target.classList.contains("delete-step-btn")) {
-            if (state.editingStepId) { showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
+        } else if (targetButton.matches(".delete-step-btn, .delete-step-btn *")) {
+            if (state.editingStepId) { 
+                showModal("Error", "Please save or cancel the current step edit first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
             showModal("Confirm Delete Step", "Are you sure you want to delete this step?", async () => {
                 await supabase.from("sequence_steps").delete().eq("id", stepId);
                 await loadAllData();
                 hideModal();
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-        } else if (target.classList.contains("move-up-btn")) {
-            if (state.editingStepId) { showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
+        } else if (targetButton.matches(".move-up-btn, .move-up-btn *")) {
+            if (state.editingStepId) {
+                showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
             await handleMoveStep(stepId, 'up');
-        } else if (target.classList.contains("move-down-btn")) {
-            if (state.editingStepId) { showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return; }
+        } else if (targetButton.matches(".move-down-btn, .move-down-btn *")) {
+            if (state.editingStepId) {
+                showModal("Error", "Please save or cancel any active edits first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
             await handleMoveStep(stepId, 'down');
         }
     }
 
-async function handleMoveStep(stepId, direction) {
-    const allStepsInSequence = state.sequence_steps
-        .filter(s => s.sequence_id === state.selectedSequenceId)
-        .sort((a, b) => a.step_number - b.step_number);
-
-    const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
-    if (currentIndex === -1) return; // Step not found
-
-    // Determine the new index for the step
-    let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-    // Prevent moving outside the array bounds
-    if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
-
-    // Reorder the array in memory by removing the step and inserting it at the new position
-    const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
-    allStepsInSequence.splice(targetIndex, 0, movedStep);
-
-    // Create a list of all steps that need their step_number updated in the database
-    const updates = allStepsInSequence.map((step, index) => ({
-        id: step.id, // The unique ID of the step
-        step_number: index + 1 // The new sequential step number
-    }));
-
-    // Use a single 'upsert' command to update all records at once.
-    // This is safer and more efficient than multiple individual updates.
-    const { error } = await supabase.from("sequence_steps").upsert(updates);
-
-    if (error) {
-        console.error("Error re-ordering steps:", error);
-        showModal("Error", "Could not re-order the steps. Please check the console and try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    async function handleMoveStep(stepId, direction) {
+        const allStepsInSequence = state.sequence_steps
+            .filter(s => s.sequence_id === state.selectedSequenceId)
+            .sort((a, b) => a.step_number - b.step_number);
+    
+        const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
+        if (currentIndex === -1) return;
+    
+        let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+        if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
+    
+        const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
+        allStepsInSequence.splice(targetIndex, 0, movedStep);
+    
+        const updates = allStepsInSequence.map((step, index) => ({
+            id: step.id,
+            step_number: index + 1
+        }));
+    
+        const { error } = await supabase.from("sequence_steps").upsert(updates);
+    
+        if (error) {
+            console.error("Error re-ordering steps:", error);
+            showModal("Error", "Could not re-order the steps. Please try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    
+        await loadAllData();
     }
-
-    // Finally, reload all data to ensure the UI perfectly matches the new order in the database.
-    await loadAllData();
-}
     
     function handleCsvImport(e) {
         if (!state.selectedSequenceId) return;
@@ -518,8 +528,8 @@ async function handleMoveStep(stepId, direction) {
 
                 return {
                     sequence_id: state.selectedSequenceId,
-                    step_number: currentStepNumber,
-                    type: c[1] ? c[1].trim().toLowerCase() : "", 
+                    step_number: nextAvailableStepNumber + index,
+                    type: c[1] || "",
                     subject: c[2] || "",
                     message: c[3] || "",
                     delay_days: delayDays,
@@ -603,7 +613,7 @@ async function handleMoveStep(stepId, direction) {
             const newSteps = originalSteps.map(step => ({
                 sequence_id: newPersonalSequence.id,
                 step_number: step.step_number,
-                type: step.type ? step.type.trim().toLowerCase() : "",
+                type: step.type,
                 subject: step.subject,
                 message: step.message,
                 delay_days: step.delay_days,
@@ -668,7 +678,7 @@ async function handleMoveStep(stepId, direction) {
             state.aiGeneratedSteps = data.steps.map((step, index) => ({
                 id: `ai-temp-${index}`,
                 step_number: index + 1,
-                type: step.type.toLowerCase(),
+                type: step.type,
                 subject: step.subject || '',
                 message: step.message || '',
                 delay_days: step.delay_days || 0,
@@ -739,6 +749,7 @@ async function handleMoveStep(stepId, direction) {
             `;
         });
 
+        // ✅ **FIX 2:** This ensures the event listeners work for the AI preview table.
         tbody.addEventListener("click", (e) => {
             const target = e.target.closest("button");
             if (!target) return;
@@ -748,12 +759,12 @@ async function handleMoveStep(stepId, direction) {
             const stepIndex = state.aiGeneratedSteps.findIndex(s => s.id === stepId);
             if (stepIndex === -1) return;
 
-            if (target.classList.contains("edit-ai-step-btn")) {
+            if (target.matches(".edit-ai-step-btn, .edit-ai-step-btn *")) {
                 state.aiGeneratedSteps[stepIndex].isEditing = true;
                 state.aiGeneratedSteps[stepIndex].originalValues = { ...state.aiGeneratedSteps[stepIndex] };
                 renderAiGeneratedStepsPreview();
-            } else if (target.classList.contains("save-ai-step-btn")) {
-                state.aiGeneratedSteps[stepIndex].type = row.querySelector(".edit-step-type").value.trim().toLowerCase();
+            } else if (target.matches(".save-ai-step-btn, .save-ai-step-btn *")) {
+                state.aiGeneratedSteps[stepIndex].type = row.querySelector(".edit-step-type").value.trim();
                 state.aiGeneratedSteps[stepIndex].delay_days = parseInt(row.querySelector(".edit-step-delay").value || 0, 10);
                 state.aiGeneratedSteps[stepIndex].subject = row.querySelector(".edit-step-subject").value.trim();
                 state.aiGeneratedSteps[stepIndex].message = row.querySelector(".edit-step-message").value.trim();
@@ -766,7 +777,7 @@ async function handleMoveStep(stepId, direction) {
                 state.aiGeneratedSteps[stepIndex].isEditing = false;
                 delete state.aiGeneratedSteps[stepIndex].originalValues;
                 renderAiGeneratedStepsPreview();
-            } else if (target.classList.contains("cancel-ai-step-btn")) {
+            } else if (target.matches(".cancel-ai-step-btn, .cancel-ai-step-btn *")) {
                 Object.assign(state.aiGeneratedSteps[stepIndex], state.aiGeneratedSteps[stepIndex].originalValues);
                 state.aiGeneratedSteps[stepIndex].isEditing = false;
                 delete state.aiGeneratedSteps[stepIndex].originalValues;
