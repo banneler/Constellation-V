@@ -469,22 +469,26 @@ async function handleMoveStep(stepId, direction) {
         .sort((a, b) => a.step_number - b.step_number);
 
     const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
-    if (currentIndex === -1) return;
+    if (currentIndex === -1) return; // Step not found
 
+    // Determine the new index for the step
     let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    // Prevent moving outside the array bounds
     if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
 
-    // Reorder the array in memory first
+    // Reorder the array in memory by removing the step and inserting it at the new position
     const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
     allStepsInSequence.splice(targetIndex, 0, movedStep);
 
-    // Create a list of database updates with corrected step numbers
+    // Create a list of all steps that need their step_number updated in the database
     const updates = allStepsInSequence.map((step, index) => ({
-        id: step.id,
-        step_number: index + 1
+        id: step.id, // The unique ID of the step
+        step_number: index + 1 // The new sequential step number
     }));
 
-    // Perform the bulk update
+    // Use a single 'upsert' command to update all records at once.
+    // This is safer and more efficient than multiple individual updates.
     const { error } = await supabase.from("sequence_steps").upsert(updates);
 
     if (error) {
@@ -492,7 +496,7 @@ async function handleMoveStep(stepId, direction) {
         showModal("Error", "Could not re-order the steps. Please check the console and try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 
-    // Reload all data to ensure the UI is in sync with the database
+    // Finally, reload all data to ensure the UI perfectly matches the new order in the database.
     await loadAllData();
 }
     
