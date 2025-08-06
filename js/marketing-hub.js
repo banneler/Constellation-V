@@ -970,25 +970,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.addEventListener('click', downloadCsvTemplate);
         
         if (createPostForm) {
-            createPostForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                submitPostBtn.disabled = true;
-                submitPostBtn.textContent = 'Submitting...';
-                formFeedback.style.display = 'none';
+         createPostForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submitPostBtn.disabled = true;
+    submitPostBtn.textContent = 'Submitting...';
+    formFeedback.style.display = 'none';
 
-                const newPost = {
-                    type: 'marketing_post',
-                    title: document.getElementById('post-title').value.trim(),
-                    link: document.getElementById('post-link').value.trim(),
-                    approved_copy: document.getElementById('post-copy').value.trim(),
-                    is_dynamic_link: document.getElementById('is-dynamic-link').checked,
-                    source_name: 'Marketing Team',
-                    status: 'new'
-                };
+    const newPost = {
+        type: 'marketing_post',
+        title: document.getElementById('post-title').value.trim(),
+        link: document.getElementById('post-link').value.trim(),
+        approved_copy: document.getElementById('post-copy').value.trim(),
+        is_dynamic_link: document.getElementById('is-dynamic-link').checked,
+        source_name: 'Marketing Team',
+        status: 'new',
+        user_id: state.currentUser.id // ✅ ADD THIS LINE
+    };
 
-                try {
-                    const { error } = await supabase.from('social_hub_posts').insert(newPost);
-                    if (error) throw error;
+    try {
+        const { error } = await supabase.from('social_hub_posts').insert(newPost);
+        if (error) throw error;
+
                     formFeedback.textContent = '✅ Success! The post has been added to the Social Hub.';
                     formFeedback.style.color = 'var(--success-color)';
                     formFeedback.style.display = 'block';
