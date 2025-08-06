@@ -250,10 +250,10 @@ async function loadAnalyticsData() {
 }
 
 async function loadScriptLogs() {
-    // Fetch script logs and join with the user_quotas table to get the user's name.
+    // Fetch script logs from our new, simplified view.
     const { data, error } = await supabase
-        .from('script_run_logs')
-        .select('*, user_quotas(full_name)')
+        .from('admin_script_logs_view')
+        .select('*')
         .order('last_completed_at', { ascending: false });
 
     if (error) {
@@ -268,8 +268,8 @@ function renderScriptLogsTable() {
     const tableBody = document.querySelector("#script-logs-table tbody");
     if (!tableBody) return;
     tableBody.innerHTML = state.scriptLogs.map(log => {
-        // Handle cases where a log might not have a user or user_quotas data
-        const userName = log.user_quotas ? log.user_quotas.full_name : 'Team Script';
+        // The user's name is now a top-level property.
+        const userName = log.full_name || 'Team Script';
         return `
             <tr>
                 <td>${log.script_name}</td>
