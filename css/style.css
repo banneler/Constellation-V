@@ -1071,7 +1071,7 @@ table input[type="checkbox"]:focus {
     background-color: var(--bg-medium);
     padding: 1.25rem;
     width: 90%;
-    max-width: 31.25rem;
+    max-width: 70rem; /* Changed this from 31.25rem to a wider value */
     box-shadow: 0 8px 25px var(--shadow-strong);
     position: relative;
     z-index: 10000;
