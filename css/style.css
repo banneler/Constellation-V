@@ -3615,3 +3615,28 @@ body.theme-corporate #account-activities-list li {
     white-space: normal;  /* Allows text to wrap if needed */
     line-height: 1.2;
 }
+/* Add this to the end of style.css */
+
+/* Positions the sequence name and indicator side-by-side */
+.sequence-list-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-grow: 1; /* Allows content to take up available space */
+}
+
+/* The indicator icon for marketing sequences */
+.marketing-indicator {
+    color: var(--meeting-purple); /* A distinct color */
+    margin-right: 0.5rem; /* Adds space to the right of the icon */
+    font-size: 0.9em; /* Adjust icon size slightly */
+    flex-shrink: 0; /* Prevents the icon from shrinking */
+}
+
+body.theme-light .marketing-indicator {
+    color: #6f42c1; /* A good purple for the light theme */
+}
+
+body.theme-green .marketing-indicator {
+    color: #00ff41; /* Use the theme's primary text color */
+}
