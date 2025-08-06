@@ -3480,3 +3480,33 @@ body.theme-corporate #account-activities-list li {
 .input-with-link a:hover {
     color: var(--primary-blue);
 }
+/* style.css */
+
+/* --- Organic Star Indicator Styles --- */
+.contact-details-header {
+    position: relative; /* Needed for positioning the star */
+}
+
+.organic-star {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 2rem; /* Larger star */
+    color: var(--secondary-text-color); /* Default 'off' color */
+    cursor: pointer;
+    transition: color 0.2s ease-in-out, transform 0.2s ease;
+}
+
+.organic-star.is-organic {
+    color: #ffc700; /* 'On' color (gold) */
+    transform: scale(1.2);
+}
+
+.organic-star:hover {
+    transform: scale(1.2);
+}
+
+/* --- Hot Contact Icon --- */
+.hot-contact-icon {
+    margin-left: 8px;
+}
