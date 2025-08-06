@@ -115,20 +115,22 @@ const renderAccountList = () => {
     const searchTerm = accountSearch.value.toLowerCase();
     const statusFilter = accountStatusFilter.value;
 
-    // Apply both filters
     const filteredAccounts = state.accounts.filter(account => {
         const matchesSearch = (account.name || "").toLowerCase().includes(searchTerm);
-
+        
         let matchesStatus = true;
         if (statusFilter === 'customer') {
+            // Check if the account is a customer
             matchesStatus = account.is_customer === true;
         } else if (statusFilter === 'prospect') {
-            matchesStatus = account.is_customer === false;
+            // Check if the account is NOT a customer (i.e., prospect or null)
+            matchesStatus = !account.is_customer;
         }
 
         return matchesSearch && matchesStatus;
     });
 
+    // ... The rest of your function remains the same ...
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -136,7 +138,6 @@ const renderAccountList = () => {
     filteredAccounts
         .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
         .forEach((account) => {
-            // ... rest of the forEach loop is unchanged ...
             const i = document.createElement("div");
             i.className = "list-item";
             i.dataset.id = account.id;
@@ -165,7 +166,6 @@ const renderAccountList = () => {
             accountList.appendChild(i);
         });
 };
-
 const renderAccountDetails = () => {
     if (!accountForm) return;
     const account = state.accounts.find((a) => a.id === state.selectedAccountId);
