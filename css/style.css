@@ -3555,11 +3555,9 @@ body.theme-corporate #account-activities-list li {
 }
 /* --- Sequence Status & Ring Chart (Grid Fix) --- */
 #sequence-status-content {
-    display: grid;
-    grid-template-columns: auto 1fr; /* Column 1 for chart, Column 2 for text */
-    grid-template-rows: auto auto;    /* Two rows */
+    display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.25rem;
     width: 100%;
     margin-top: 0.625rem;
 }
@@ -3575,10 +3573,27 @@ body.theme-corporate #account-activities-list li {
     margin: 0; /* Remove default margin */
 }
 
-.sequence-action-buttons {
-    grid-row: 2 / 3;
-    grid-column: 1 / -1; /* Span the full width of the grid */
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+/* --- Sequence List Item Styling (Isolated) --- */
+.sequence-info {
+    flex-grow: 1;
+    padding-right: 10px;
+}
+
+.sequence-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.sequence-list-stats { /* Using the new, unique class */
+    font-size: 0.8em;
+    color: var(--text-medium);
+    display: flex;
+    justify-content: space-between;
+}
+
+.sequence-list-stats .success-rate {
+    font-weight: bold;
+    color: var(--completed-color);
 }
