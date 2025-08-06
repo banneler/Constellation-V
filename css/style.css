@@ -2044,22 +2044,6 @@ h1, h2, h3, h4, h5, h6 {
     flex-grow: 1; /* Allows content to take up available space */
 }
 
-/* The indicator dot for marketing sequences */
-.marketing-indicator {
-    display: inline-block;
-    width: 0.6rem;
-    height: 0.6rem;
-    background-color: var(--meeting-purple); /* A distinct color */
-    border-radius: 50%;
-    flex-shrink: 0; /* Prevents the dot from shrinking */
-}
-
-body.theme-light .marketing-indicator {
-    background-color: #6f42c1; /* A good purple for the light theme */
-}
-
-body.theme-green .marketing-indicator {
-    background-color: #00ff41; /* Use the theme's primary text color */
 }
 /* --- Marketing Sequence Import Modal Styles --- */
 .import-modal-list {
