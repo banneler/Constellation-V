@@ -33,6 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
     const aiAccountInsightBtn = document.getElementById("ai-account-insight-btn");
+    const accountStatusFilter = document.getElementById("account-status-filter"); 
 
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -109,11 +110,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Render Functions ---
 const renderAccountList = () => {
-    if (!accountList || !accountSearch) return;
+    if (!accountList || !accountSearch || !accountStatusFilter) return;
+
     const searchTerm = accountSearch.value.toLowerCase();
-    const filteredAccounts = state.accounts.filter(account =>
-        (account.name || "").toLowerCase().includes(searchTerm)
-    );
+    const statusFilter = accountStatusFilter.value;
+
+    // Apply both filters
+    const filteredAccounts = state.accounts.filter(account => {
+        const matchesSearch = (account.name || "").toLowerCase().includes(searchTerm);
+
+        let matchesStatus = true;
+        if (statusFilter === 'customer') {
+            matchesStatus = account.is_customer === true;
+        } else if (statusFilter === 'prospect') {
+            matchesStatus = account.is_customer === false;
+        }
+
+        return matchesSearch && matchesStatus;
+    });
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -122,6 +136,7 @@ const renderAccountList = () => {
     filteredAccounts
         .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
         .forEach((account) => {
+            // ... rest of the forEach loop is unchanged ...
             const i = document.createElement("div");
             i.className = "list-item";
             i.dataset.id = account.id;
@@ -144,7 +159,6 @@ const renderAccountList = () => {
             const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
             const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
 
-            // MODIFIED: Wrapped account.name in a div to allow for styling
             i.innerHTML = `<div class="account-list-name">${account.name}</div> <div class="list-item-icons">${hotIcon}${dealIcon}</div>`;
 
             if (account.id === state.selectedAccountId) i.classList.add("selected");
@@ -359,6 +373,8 @@ const renderAccountDetails = () => {
 
         if (accountSearch) accountSearch.addEventListener("input", renderAccountList);
 
+        if (accountStatusFilter) accountStatusFilter.addEventListener("change", renderAccountList); 
+        
         if (addAccountBtn) {
             addAccountBtn.addEventListener("click", () => {
                 const openNewAccountModal = () => {
