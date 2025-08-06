@@ -141,7 +141,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
             .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
 
-        // NEW: Logic for "Hot Contact" fire emoji
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -151,10 +150,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             item.className = "list-item";
             const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
             
-            // NEW: Check for recent activity
             const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
-            const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"></span>' : '';
-            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : ''; // Add fire icon if hot
+            // MODIFIED: Use Font Awesome paper plane icon instead of the span
+            const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
+            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
 
             item.innerHTML = `
                 <div class="contact-info">
@@ -205,7 +204,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (contact) {
             contactForm.classList.remove('hidden');
 
-            // NEW: Render the organic star's state
             if (organicStarIndicator) {
                 organicStarIndicator.classList.toggle('is-organic', !!contact.is_organic);
             }
@@ -449,7 +447,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        // NEW: Event listener for the organic star
         if (organicStarIndicator) {
             organicStarIndicator.addEventListener('click', async () => {
                 if (!state.selectedContactId) return;
@@ -459,9 +456,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 const newOrganicState = !contact.is_organic;
                 organicStarIndicator.classList.toggle('is-organic', newOrganicState);
-                contact.is_organic = newOrganicState; // Update local state immediately
+                contact.is_organic = newOrganicState;
 
-                // Save to DB in background
                 const { error } = await supabase
                     .from('contacts')
                     .update({ is_organic: newOrganicState })
@@ -469,8 +465,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (error) {
                     console.error("Error updating organic status:", error);
-                    organicStarIndicator.classList.toggle('is-organic', !newOrganicState); // Revert UI
-                    contact.is_organic = !newOrganicState; // Revert state
+                    organicStarIndicator.classList.toggle('is-organic', !newOrganicState);
+                    contact.is_organic = !newOrganicState;
                     showModal("Error", "Could not save organic status.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
             });
