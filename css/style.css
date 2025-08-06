@@ -3561,10 +3561,10 @@ body.theme-corporate #account-activities-list li {
     color: var(--completed-color);
 }
 
-/* --- Sequence Action Button Grid Fix (Final) --- */
-.sequence-action-buttons {
-    flex-grow: 1; /* Allows it to take up available space in the flex container */
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Two equal columns */
+/* --- Sequence Action Button Grid (Definitive Fix) --- */
+#sequence-status-content .sequence-action-buttons {
+    flex-grow: 1; /* Tells this container to take up all available horizontal space */
+    display: grid !important; /* Forces the container to use a grid layout */
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
 }
