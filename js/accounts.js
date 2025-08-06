@@ -33,6 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
     const aiAccountInsightBtn = document.getElementById("ai-account-insight-btn");
+    const accountStatusFilter = document.getElementById("account-status-filter");
 
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -90,9 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 console.error(`Error fetching deal_stages:`, dealStagesResult.status === 'fulfilled' ? dealStagesResult.value.error : dealStagesResult.reason);
                 state.dealStages = [];
             }
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-        } finally {
+
             renderAccountList();
             if (state.selectedAccountId) {
                 const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
@@ -104,16 +103,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 hideAccountDetails(false, true);
             }
+
+        } catch (error) {
+            console.error("Critical error in loadAllData:", error);
         }
     }
 
     // --- Render Functions ---
     const renderAccountList = () => {
-        if (!accountList || !accountSearch) return;
+        if (!accountList || !accountSearch || !accountStatusFilter) return;
+
         const searchTerm = accountSearch.value.toLowerCase();
-        const filteredAccounts = state.accounts.filter(account =>
-            (account.name || "").toLowerCase().includes(searchTerm)
-        );
+        const statusFilter = accountStatusFilter.value;
+
+        const filteredAccounts = state.accounts.filter(account => {
+            const matchesSearch = (account.name || "").toLowerCase().includes(searchTerm);
+            
+            let matchesStatus = true;
+            if (statusFilter === 'customer') {
+                matchesStatus = account.is_customer === true;
+            } else if (statusFilter === 'prospect') {
+                matchesStatus = account.is_customer !== true;
+            }
+
+            return matchesSearch && matchesStatus;
+        });
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         accountList.innerHTML = "";
         filteredAccounts
@@ -121,134 +138,138 @@ document.addEventListener("DOMContentLoaded", async () => {
             .forEach((account) => {
                 const i = document.createElement("div");
                 i.className = "list-item";
-                i.textContent = account.name;
                 i.dataset.id = account.id;
+
+                const hasOpenDeal = state.deals.some(deal =>
+                    deal.account_id === account.id &&
+                    deal.stage !== 'Closed Won' &&
+                    deal.stage !== 'Closed Lost'
+                );
+
+                const contactIdsForAccount = state.contacts
+                    .filter(c => c.account_id === account.id)
+                    .map(c => c.id);
+
+                const hasRecentActivity = state.activities.some(act =>
+                    (act.account_id === account.id || contactIdsForAccount.includes(act.contact_id)) &&
+                    new Date(act.date) > thirtyDaysAgo
+                );
+
+                const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
+                const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+
+                i.innerHTML = `<div class="account-list-name">${account.name}</div> <div class="list-item-icons">${hotIcon}${dealIcon}</div>`;
+
                 if (account.id === state.selectedAccountId) i.classList.add("selected");
                 accountList.appendChild(i);
             });
     };
 
-const renderAccountDetails = () => {
-    if (!accountForm) return;
-    const account = state.accounts.find((a) => a.id === state.selectedAccountId);
+    const renderAccountDetails = () => {
+        if (!accountForm) return;
+        const account = state.accounts.find((a) => a.id === state.selectedAccountId);
 
-    if (accountPendingTaskReminder && account) {
-        const pendingAccountTasks = state.tasks.filter(task =>
-            task.status === 'Pending' && task.account_id === account.id
-        );
-        if (pendingAccountTasks.length > 0) {
-            const taskCount = pendingAccountTasks.length;
-            accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
-            accountPendingTaskReminder.classList.remove('hidden');
-        } else {
+        if (accountPendingTaskReminder && account) {
+            const pendingAccountTasks = state.tasks.filter(task =>
+                task.status === 'Pending' && task.account_id === account.id
+            );
+            if (pendingAccountTasks.length > 0) {
+                const taskCount = pendingAccountTasks.length;
+                accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
+                accountPendingTaskReminder.classList.remove('hidden');
+            } else {
+                accountPendingTaskReminder.classList.add('hidden');
+            }
+        } else if (accountPendingTaskReminder) {
             accountPendingTaskReminder.classList.add('hidden');
         }
-    } else if (accountPendingTaskReminder) {
-        accountPendingTaskReminder.classList.add('hidden');
-    }
 
-    if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
-    accountContactsList.innerHTML = "";
-    accountActivitiesList.innerHTML = "";
-    accountDealsTableBody.innerHTML = "";
-
-    if (account) {
-        accountForm.classList.remove('hidden');
-        accountForm.querySelector("#account-id").value = account.id;
-        accountForm.querySelector("#account-name").value = account.name || "";
-        
-        // MODIFIED: Smarter logic for the clickable website link
-        const websiteInput = accountForm.querySelector("#account-website");
-        const websiteLink = document.getElementById("account-website-link");
-        websiteInput.value = account.website || "";
-
-        // This helper function now automatically adds https://
-        const updateWebsiteLink = (url) => {
-            // First, exit if the url is empty or just whitespace
-            if (!url || !url.trim()) {
-                websiteLink.classList.add('hidden');
-                return;
-            }
-
-            let fullUrl = url.trim();
-
-            // If it already has a protocol, leave it alone
-            if (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) {
-                // It's a valid link, do nothing to it
-            } 
-            // Otherwise, if it looks like a domain (e.g., has a dot), add the protocol
-            else if (fullUrl.includes('.')) {
-                fullUrl = 'https://' + fullUrl;
-            } 
-            // If it's not a valid-looking URL, hide the link
-            else {
-                websiteLink.classList.add('hidden');
-                return;
-            }
-
-            // If we have a good URL, show the link
-            websiteLink.href = fullUrl;
-            websiteLink.classList.remove('hidden');
-        };
-
-        updateWebsiteLink(account.website);
-        // This listener updates the icon in real-time as you type
-        websiteInput.addEventListener('input', () => updateWebsiteLink(websiteInput.value));
-        
-        accountForm.querySelector("#account-industry").value = account.industry || "";
-        accountForm.querySelector("#account-phone").value = account.phone || "";
-        accountForm.querySelector("#account-address").value = account.address || "";
-        accountForm.querySelector("#account-notes").value = account.notes || "";
-        document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
-        accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
-        accountForm.querySelector("#account-employees").value = account.employee_count || "";
-        accountForm.querySelector("#account-is-customer").checked = account.is_customer;
-        
-        state.isFormDirty = false;
-
-        state.deals
-            .filter((d) => d.account_id === account.id)
-            .forEach((deal) => {
-                const row = accountDealsTableBody.insertRow();
-                row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
-            });
-
-        state.contacts
-            .filter((c) => c.account_id === account.id)
-            .forEach((c) => {
-                const li = document.createElement("li");
-                const inSeq = state.contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
-                li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
-                accountContactsList.appendChild(li);
-            });
-        
-        const accountAndContactActivities = state.activities.filter(act =>
-            act.account_id === account.id ||
-            state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
-        ).sort((a, b) => new Date(b.date) - new Date(a.date));
-
+        if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
+        accountContactsList.innerHTML = "";
         accountActivitiesList.innerHTML = "";
-        accountAndContactActivities.forEach((act) => {
-            const c = state.contacts.find((c) => c.id === act.contact_id);
-            const li = document.createElement("li");
-            li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
-            let borderColor = "var(--primary-blue)";
-            const activityTypeLower = act.type.toLowerCase();
-            if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-            else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-            else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-            li.style.borderLeftColor = borderColor;
-            accountActivitiesList.appendChild(li);
-        });
-    } else {
-        hideAccountDetails(true, true);
-    }
-};
+        accountDealsTableBody.innerHTML = "";
+
+        if (account) {
+            accountForm.classList.remove('hidden');
+            accountForm.querySelector("#account-id").value = account.id;
+            accountForm.querySelector("#account-name").value = account.name || "";
+            
+            const websiteInput = accountForm.querySelector("#account-website");
+            const websiteLink = document.getElementById("account-website-link");
+            websiteInput.value = account.website || "";
+
+            const updateWebsiteLink = (url) => {
+                if (!url || !url.trim()) {
+                    if(websiteLink) websiteLink.classList.add('hidden');
+                    return;
+                }
+                let fullUrl = url.trim();
+                if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+                    fullUrl = 'https://' + fullUrl;
+                }
+                if(websiteLink) {
+                    websiteLink.href = fullUrl;
+                    websiteLink.classList.remove('hidden');
+                }
+            };
+            updateWebsiteLink(account.website);
+            
+            accountForm.querySelector("#account-industry").value = account.industry || "";
+            accountForm.querySelector("#account-phone").value = account.phone || "";
+            accountForm.querySelector("#account-address").value = account.address || "";
+            accountForm.querySelector("#account-notes").value = account.notes || "";
+            document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
+            accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
+            accountForm.querySelector("#account-employees").value = account.employee_count || "";
+            accountForm.querySelector("#account-is-customer").checked = account.is_customer;
+            
+            state.isFormDirty = false;
+
+            state.deals
+                .filter((d) => d.account_id === account.id)
+                .forEach((deal) => {
+                    const row = accountDealsTableBody.insertRow();
+                    row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
+                });
+
+            state.contacts
+                .filter((c) => c.account_id === account.id)
+                .forEach((c) => {
+                    const li = document.createElement("li");
+                    const inSeq = state.contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+                    li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+                    accountContactsList.appendChild(li);
+                });
+            
+            const accountAndContactActivities = state.activities.filter(act =>
+                act.account_id === account.id ||
+                state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
+            ).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            accountActivitiesList.innerHTML = "";
+            accountAndContactActivities.forEach((act) => {
+                const c = state.contacts.find((c) => c.id === act.contact_id);
+                const li = document.createElement("li");
+                li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
+                let borderColor = "var(--primary-blue)";
+                const activityTypeLower = act.type.toLowerCase();
+                if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
+                else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
+                else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
+                li.style.borderLeftColor = borderColor;
+                accountActivitiesList.appendChild(li);
+            });
+        } else {
+            hideAccountDetails(true, true);
+        }
+    };
 
     const hideAccountDetails = (hideForm = true, clearSelection = false) => {
         if (accountForm && hideForm) accountForm.classList.add('hidden');
-        else if (accountForm) accountForm.classList.remove('hidden');
-        if (accountForm) accountForm.reset();
+        else if (accountForm) {
+            accountForm.classList.remove('hidden');
+            accountForm.reset();
+        }
 
         if (accountContactsList) accountContactsList.innerHTML = "";
         if (accountActivitiesList) accountActivitiesList.innerHTML = "";
@@ -310,6 +331,12 @@ const renderAccountDetails = () => {
     function setupPageEventListeners() {
         setupModalListeners();
         
+        if(accountForm) {
+            accountForm.addEventListener('input', () => {
+                state.isFormDirty = true;
+            });
+        }
+        
         if (navSidebar) {
             navSidebar.addEventListener('click', (e) => {
                 const navButton = e.target.closest('a.nav-button');
@@ -317,12 +344,6 @@ const renderAccountDetails = () => {
                     e.preventDefault();
                     handleNavigation(navButton.href);
                 }
-            });
-        }
-        
-        if (accountForm) {
-            accountForm.addEventListener('input', () => {
-                state.isFormDirty = true;
             });
         }
         
@@ -334,7 +355,8 @@ const renderAccountDetails = () => {
         });
 
         if (accountSearch) accountSearch.addEventListener("input", renderAccountList);
-
+        if (accountStatusFilter) accountStatusFilter.addEventListener("change", renderAccountList);
+        
         if (addAccountBtn) {
             addAccountBtn.addEventListener("click", () => {
                 const openNewAccountModal = () => {
@@ -392,7 +414,7 @@ const renderAccountDetails = () => {
                 if (commitCheck) handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
             });
         }
-
+        
         if (accountForm) {
             accountForm.addEventListener("submit", async (e) => {
                 e.preventDefault();
@@ -426,7 +448,7 @@ const renderAccountDetails = () => {
                 showModal("Success", "Account saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             });
         }
-
+        
         if (deleteAccountBtn) {
             deleteAccountBtn.addEventListener("click", async () => {
                 if (!state.selectedAccountId) return;
@@ -448,7 +470,6 @@ const renderAccountDetails = () => {
 
         if (bulkImportAccountsBtn) bulkImportAccountsBtn.addEventListener("click", () => accountCsvInput.click());
         
-        // UPGRADED: Bulk export accounts to CSV using Blob
         if (bulkExportAccountsBtn) {
             bulkExportAccountsBtn.addEventListener("click", () => {
                 const accountsToExport = state.accounts;
@@ -482,7 +503,6 @@ const renderAccountDetails = () => {
             });
         }
 
-        // REPLACED: Advanced bulk import with review/merge logic using PapaParse
         if (accountCsvInput) {
             accountCsvInput.addEventListener("change", (e) => {
                 const file = e.target.files[0];
@@ -491,7 +511,7 @@ const renderAccountDetails = () => {
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
-                    dynamicTyping: true, 
+                    dynamicTyping: true,
                     complete: async (results) => {
                         const csvRecords = results.data;
                         const requiredHeaders = ["name"];
@@ -731,8 +751,8 @@ const renderAccountDetails = () => {
                 }
 
                 const relevantActivities = state.activities
-                    .filter(act => 
-                        act.account_id === account.id || 
+                    .filter(act =>
+                        act.account_id === account.id ||
                         state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
                     )
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -753,7 +773,7 @@ const renderAccountDetails = () => {
                 try {
                     const { data, error } = await supabase.functions.invoke('get-activity-insight', {
                         body: {
-                            accountName: account.name, 
+                            accountName: account.name,
                             activityLog: activityData
                         }
                     });
