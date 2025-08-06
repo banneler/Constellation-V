@@ -101,12 +101,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const bodyClass = document.body.className;
         let palette;
 
-        if (bodyClass.includes('theme-blue')) {
+        if (bodyClass.includes('theme-green')) {
+            palette = ['#00ff41', '#33ff66', '#66ff99', '#99ffcc', '#ccffee'];
+        } else if (bodyClass.includes('theme-blue')) {
             palette = ['#f92772', '#ae81ff', '#66d9ef', '#a6e22e', '#fd971f'];
         } else if (bodyClass.includes('theme-corporate')) {
             palette = ['#000080', '#0000ff', '#008080', '#00ffff', '#808080'];
-        } else if (bodyClass.includes('theme-green')) {
-            palette = ['#004d00', '#006600', '#008000', '#009900', '#00b300', '#00cc00'];
         } else { // Default for dark and light themes
             palette = ['#007bff', '#00aeff', '#00c6ff', '#00dfff', '#00f2ff'];
         }
