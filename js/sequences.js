@@ -94,8 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 const isMarketingSource = seq.source === 'Marketing';
                 const indicatorHtml = isMarketingSource ? '<span class="marketing-indicator" title="Imported from Marketing"></span>' : '';
-                const removeBtnHtml = isMarketingSource ? `<button class="btn-icon btn-danger btn-remove-sequence" title="Remove Imported Sequence"><i class="fas fa-trash-can"></i></button>` : '';
-
+                
                 const activeContacts = state.contact_sequences.filter(cs => cs.sequence_id === seq.id && cs.status === 'Active').length;
                 const finishedSequences = state.contact_sequences.filter(cs => cs.sequence_id === seq.id && (cs.status === 'Completed' || cs.status === 'Removed'));
                 const completedCount = finishedSequences.filter(cs => cs.status === 'Completed').length;
@@ -109,7 +108,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <span class="success-rate">Success: ${successRate}%</span>
                         </div>
                     </div>
-                    ${removeBtnHtml}
                 `;
 
                 if (seq.id === state.selectedSequenceId) {
@@ -134,8 +132,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const isEditingThisStep = state.editingStepId === step.id;
             const isFirstStep = index === 0;
             const isLastStep = index === steps.length - 1;
-            const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
-            const isReadOnly = false; // All sequences on this page are the user's, so they are editable.
+            const isReadOnly = false; 
 
             const actionsHtml = isReadOnly ? '<td>Read-Only</td>' : `
                 <td>
@@ -189,7 +186,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequenceNameInput.disabled = isReadOnly;
         sequenceDescriptionTextarea.disabled = isReadOnly;
 
-        deleteSequenceBtn.classList.toggle('hidden', isReadOnly);
+        deleteSequenceBtn.classList.remove('hidden');
         addStepBtn.classList.toggle('hidden', isReadOnly);
         
         state.editingStepId = null;
@@ -270,30 +267,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     function handleSequenceListClick(e) {
-        const removeBtn = e.target.closest(".btn-remove-sequence");
         const item = e.target.closest(".list-item");
 
-        if (removeBtn && item) {
-            e.stopPropagation(); 
-            const sequenceId = Number(item.dataset.id);
-            const sequence = state.sequences.find(s => s.id === sequenceId);
-            
-            showModal(
-                "Confirm Removal",
-                `Are you sure you want to remove the imported sequence "${sequence.name}"? This will delete your personal copy but not the original marketing template.`,
-                async () => {
-                    await supabase.from("sequence_steps").delete().eq("sequence_id", sequenceId);
-                    await supabase.from("sequences").delete().eq("id", sequenceId);
-                    
-                    clearSequenceDetailsPanel(true);
-                    await loadAllData(); 
-                    hideModal();
-                }, 
-                true, 
-                `<button id="modal-confirm-btn" class="btn-danger">Remove</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-            );
-
-        } else if (item) {
+        if (item) {
             const sequenceId = Number(item.dataset.id);
             if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
                 showModal("Unsaved Changes", "You have unsaved changes. Do you want to discard them?", () => {
@@ -478,43 +454,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-async function handleMoveStep(stepId, direction) {
-    const allStepsInSequence = state.sequence_steps
-        .filter(s => s.sequence_id === state.selectedSequenceId)
-        .sort((a, b) => a.step_number - b.step_number);
-
-    const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
-    if (currentIndex === -1) return;
-
-    let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
-
-    const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
-    allStepsInSequence.splice(targetIndex, 0, movedStep);
-
-    const updates = allStepsInSequence.map((step, index) => ({
-        id: step.id,
-        step_number: index + 1
-    }));
+    async function handleMoveStep(stepId, direction) {
+        const allStepsInSequence = state.sequence_steps
+            .filter(s => s.sequence_id === state.selectedSequenceId)
+            .sort((a, b) => a.step_number - b.step_number);
     
-    const updatePromises = updates.map(update => 
-        supabase
-            .from("sequence_steps")
-            .update({ step_number: update.step_number })
-            .eq('id', update.id)
-    );
-
-    const results = await Promise.all(updatePromises);
-    const firstError = results.find(res => res.error);
-
-    if (firstError) {
-        console.error("Error re-ordering steps:", firstError.error);
-        showModal("Error", "Could not re-order the steps. Please check the console and try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
+        if (currentIndex === -1) return;
+    
+        let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+        if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
+    
+        const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
+        allStepsInSequence.splice(targetIndex, 0, movedStep);
+    
+        const updates = allStepsInSequence.map((step, index) => ({
+            id: step.id,
+            step_number: index + 1
+        }));
+        
+        const updatePromises = updates.map(update => 
+            supabase
+                .from("sequence_steps")
+                .update({ step_number: update.step_number })
+                .eq('id', update.id)
+        );
+    
+        const results = await Promise.all(updatePromises);
+        const firstError = results.find(res => res.error);
+    
+        if (firstError) {
+            console.error("Error re-ordering steps:", firstError.error);
+            showModal("Error", "Could not re-order the steps. Please try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    
+        await loadAllData();
     }
-
-    await loadAllData();
-}
     
     function handleCsvImport(e) {
         if (!state.selectedSequenceId) return;
