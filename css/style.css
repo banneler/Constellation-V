@@ -3479,50 +3479,18 @@ body.theme-corporate #account-activities-list li {
 }
 /* style.css */
 
-/* --- Details Header & Organic Star --- */
-.details-header-line {
-    display: flex;
-    align-items: center; /* Vertically aligns the text and star */
-    margin-bottom: 1rem; /* Adds some space below the header */
-}
-
-.details-header-line h3 {
-    margin: 0; /* Removes default margin from the h3 */
+/* --- Organic Star (Top Right Corner) --- */
+#contact-details {
+    position: relative; /* This is the anchor for the star */
 }
 
 .organic-star {
-    font-size: 1.75rem; /* A good size for the star */
-    color: var(--secondary-text-color); /* Default 'off' color */
-    cursor: pointer;
-    margin-left: 12px; /* Space between title and star */
-    transition: color 0.2s ease-in-out, transform 0.2s ease;
-}
-
-.organic-star.is-organic {
-    color: #ffc700; /* 'On' color (gold) */
-    transform: scale(1.2);
-}
-
-.organic-star:hover {
-    transform: scale(1.2);
-}
-
-/* --- Details Header & Organic Star --- */
-.details-header-line {
-    display: flex;
-    align-items: center; /* Vertically aligns the text and star */
-    margin-bottom: 1rem; /* Adds some space below the header */
-}
-
-.details-header-line h3 {
-    margin: 0; /* Removes default margin from the h3 */
-}
-
-.organic-star {
-    font-size: 1.75rem;
+    position: absolute;
+    top: 15px; /* Adjust as needed */
+    right: 20px; /* Adjust as needed */
+    font-size: 2.5rem; /* Much larger star */
     color: var(--secondary-text-color);
     cursor: pointer;
-    margin-left: 12px; /* Space between title and star */
     transition: color 0.2s ease-in-out, transform 0.2s ease;
 }
 
