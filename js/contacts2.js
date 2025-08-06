@@ -100,10 +100,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (activityError) {
             console.error("Error fetching activity types:", activityError);
         } else {
-            activityTypesData = allActivityTypes || [];
+            // FIX: Use a Set to ensure uniqueness when combining
+            const allTypes = [...(allActivityTypes || [])];
+            state.activityTypes = [...new Map(allTypes.map(item => [item.type_name, item])).values()];
         }
-
-        state.activityTypes = activityTypesData;
+        
 
         try {
             const results = await Promise.allSettled(allPromises);
