@@ -1,5 +1,3 @@
-// js/accounts.js
-
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -15,7 +13,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectedAccountId: null,
         tasks: [],
         isFormDirty: false,
-        dealStages: [] // Ensure dealStages is initialized for the deals modal
+        dealStages: []
     };
 
     // --- DOM Element Selectors ---
@@ -24,6 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountSearch = document.getElementById("account-search");
     const addAccountBtn = document.getElementById("add-account-btn");
     const bulkImportAccountsBtn = document.getElementById("bulk-import-accounts-btn");
+    const bulkExportAccountsBtn = document.getElementById("bulk-export-accounts-btn"); // NEW
     const accountCsvInput = document.getElementById("account-csv-input");
     const accountForm = document.getElementById("account-form");
     const deleteAccountBtn = document.getElementById("delete-account-btn");
@@ -32,10 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountContactsList = document.getElementById("account-contacts-list");
     const accountActivitiesList = document.getElementById("account-activities-list");
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    const themeNameSpan = document.getElementById("theme-name");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
-    // NEW: AI Account Insight button selector
     const aiAccountInsightBtn = document.getElementById("ai-account-insight-btn");
 
 
@@ -45,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", () => {
                 state.isFormDirty = false;
                 window.location.href = url;
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Leave</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else {
             window.location.href = url;
         }
@@ -59,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 renderAccountList();
                 renderAccountDetails();
                 hideModal();
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else {
             state.selectedAccountId = newAccountId;
             renderAccountList();
@@ -74,7 +70,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
-        // Fetch all deal stages (not user-specific)
         const dealStagesPromise = supabase.from("deal_stages").select("*").order('sort_order');
         promises.push(dealStagesPromise);
 
@@ -190,11 +185,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     accountContactsList.appendChild(li);
                 });
             
-            // Combine activities related to the account itself and its contacts
             const accountAndContactActivities = state.activities.filter(act => 
                 act.account_id === account.id || 
                 state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
-            ).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort descending for display
+            ).sort((a, b) => new Date(b.date) - new Date(a.date));
 
             accountActivitiesList.innerHTML = "";
             accountAndContactActivities.forEach((act) => {
@@ -217,18 +211,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const hideAccountDetails = (hideForm = true, clearSelection = false) => {
         if (accountForm && hideForm) accountForm.classList.add('hidden');
         else if (accountForm) accountForm.classList.remove('hidden');
-
-        accountForm.querySelector("#account-id").value = "";
-        accountForm.querySelector("#account-name").value = "";
-        accountForm.querySelector("#account-website").value = "";
-        accountForm.querySelector("#account-industry").value = "";
-        accountForm.querySelector("#account-phone").value = "";
-        accountForm.querySelector("#account-address").value = "";
-        accountForm.querySelector("#account-notes").value = "";
-        document.getElementById("account-last-saved").textContent = "";
-        accountForm.querySelector("#account-sites").value = "";
-        accountForm.querySelector("#account-employees").value = "";
-        accountForm.querySelector("#account-is-customer").checked = false;
+        if (accountForm) accountForm.reset();
 
         if (accountContactsList) accountContactsList.innerHTML = "";
         if (accountActivitiesList) accountActivitiesList.innerHTML = "";
@@ -247,7 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function handleCommitDeal(dealId, isCommitted) {
         const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
         if (error) {
-            alert('Error updating commit status: ' + error.message);
+            showModal("Error", 'Error updating commit status: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         } else {
             const deal = state.deals.find(d => d.id === dealId);
             if (deal) deal.is_committed = isCommitted;
@@ -256,7 +239,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function handleEditDeal(dealId) {
         const deal = state.deals.find(d => d.id === dealId);
-        if (!deal) return alert("Deal not found!");
+        if (!deal) return showModal("Error", "Deal not found!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         
         const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
 
@@ -276,17 +259,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 close_month: document.getElementById('modal-deal-close-month').value || null,
                 products: document.getElementById('modal-deal-products').value.trim(),
             };
-            if (!updatedDealData.name) return alert('Deal name is required.');
+            if (!updatedDealData.name) {
+                 showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                 return false;
+            }
             const { error } = await supabase.from('deals').update(updatedDealData).eq('id', dealId);
-            if (error) { alert('Error updating deal: ' + error.message); }
-            else { await loadAllData(); hideModal(); alert('Deal updated successfully!'); }
-        });
+            if (error) { showModal("Error", 'Error updating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
+            else { await loadAllData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
-        updateActiveNavLink();
         
         if (navSidebar) {
             navSidebar.addEventListener('click', (e) => {
@@ -297,15 +282,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
         }
-
-        const logoutBtn = document.getElementById("logout-btn");
-        if (logoutBtn) {
-            logoutBtn.addEventListener("click", (e) => {
-                e.preventDefault();
-                handleNavigation('index.html');
-            });
-        }
-
+        
         if (accountForm) {
             accountForm.addEventListener('input', () => {
                 state.isFormDirty = true;
@@ -322,42 +299,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (accountSearch) accountSearch.addEventListener("input", renderAccountList);
 
         if (addAccountBtn) {
-            addAccountBtn.addEventListener("click", async () => {
-                if (state.isFormDirty) {
-                     showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to proceed?", () => {
-                        hideAccountDetails(false, true);
-                        showModal("New Account Name", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
-                            async () => {
-                                const name = document.getElementById("modal-account-name")?.value.trim();
-                                if (name) {
-                                    const { data: newAccountArr, error} = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
-                                    if (error) return alert("Error creating account: " + error.message);
-                                    state.isFormDirty = false;
-                                    await loadAllData();
-                                    state.selectedAccountId = newAccountArr?.[0]?.id;
-                                    renderAccountList();
-                                    renderAccountDetails();
-                                    hideModal();
-                                } else { alert("Account name is required."); return false; }
-                            }
-                        );
-                    });
-                } else {
-                     hideAccountDetails(false, true);
-                     showModal("New Account Name", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
+            addAccountBtn.addEventListener("click", () => {
+                const openNewAccountModal = () => {
+                    hideAccountDetails(false, true);
+                    showModal("New Account", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
                         async () => {
                             const name = document.getElementById("modal-account-name")?.value.trim();
-                            if (name) {
-                                const { data: newAccountArr, error} = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
-                                if (error) return alert("Error creating account: " + error.message);
-                                await loadAllData();
-                                state.selectedAccountId = newAccountArr?.[0]?.id;
-                                renderAccountList();
-                                renderAccountDetails();
-                                hideModal();
-                            } else { alert("Account name is required."); return false; }
-                        }
-                    );
+                            if (!name) {
+                                showModal("Error", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                                return false;
+                            }
+                            const { data: newAccountArr, error} = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
+                            if (error) {
+                                showModal("Error", "Error creating account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                                return false;
+                            }
+                            state.isFormDirty = false;
+                            await loadAllData();
+                            state.selectedAccountId = newAccountArr?.[0]?.id;
+                            renderAccountList();
+                            renderAccountDetails();
+                            hideModal();
+                            return true;
+                        }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Account</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                };
+
+                if (state.isFormDirty) {
+                    showModal("Unsaved Changes", "You have unsaved changes. Discard and add a new account?", () => {
+                        hideModal();
+                        openNewAccountModal();
+                    }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Add New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                } else {
+                    openNewAccountModal();
                 }
             });
         }
@@ -396,18 +369,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                     address: accountForm.querySelector("#account-address")?.value.trim(),
                     notes: accountForm.querySelector("#account-notes")?.value,
                     last_saved: new Date().toISOString(),
-                    quantity_of_sites: parseInt(accountForm.querySelector("#account-sites")?.value) || 0,
-                    employee_count: parseInt(accountForm.querySelector("#account-employees")?.value) || 0,
+                    quantity_of_sites: parseInt(accountForm.querySelector("#account-sites")?.value) || null,
+                    employee_count: parseInt(accountForm.querySelector("#account-employees")?.value) || null,
                     is_customer: accountForm.querySelector("#account-is-customer")?.checked
                 };
-                if (!data.name) return alert("Account name is required.");
+                if (!data.name) {
+                    showModal("Error", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
 
                 const { error } = await supabase.from("accounts").update(data).eq("id", id);
-                if(error) return alert("Error saving account: " + error.message);
+                if(error) {
+                    showModal("Error", "Error saving account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
 
                 state.isFormDirty = false;
                 await loadAllData();
-                alert("Account saved!");
+                showModal("Success", "Account saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             });
         }
 
@@ -417,25 +396,64 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showModal("Confirm Deletion", "Are you sure you want to delete this account? This cannot be undone.",
                     async () => {
                         const { error } = await supabase.from("accounts").delete().eq("id", state.selectedAccountId);
-                        if (error) return alert("Error deleting account: " + error.message);
+                        if (error) {
+                            showModal("Error", "Error deleting account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                            return;
+                        }
                         state.selectedAccountId = null;
                         state.isFormDirty = false;
                         await loadAllData();
                         hideModal();
-                        alert("Account deleted successfully!");
-                    }
-                );
+                        showModal("Success", "Account deleted successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             });
         }
 
         if (bulkImportAccountsBtn) bulkImportAccountsBtn.addEventListener("click", () => accountCsvInput.click());
+        
+        // NEW: Bulk export accounts to CSV
+        if (bulkExportAccountsBtn) {
+            bulkExportAccountsBtn.addEventListener("click", () => {
+                const accountsToExport = state.accounts;
+                if (accountsToExport.length === 0) {
+                    showModal("Info", "No accounts to export.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
 
+                const headers = ["name", "website", "industry", "phone", "address", "quantity_of_sites", "employee_count", "is_customer"];
+                let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\r\n";
+
+                accountsToExport.forEach(account => {
+                    const row = headers.map(header => {
+                        const value = account[header] === null || account[header] === undefined ? '' : account[header];
+                        return `"${String(value).replace(/"/g, '""')}"`;
+                    });
+                    csvContent += row.join(",") + "\r\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "accounts_export.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+
+        // REVISED: Advanced bulk import with review/merge logic
         if (accountCsvInput) {
-            accountCsvInput.addEventListener("change", (e) => {
-                const f = e.target.files[0]; if (!f) return;
+            accountCsvInput.addEventListener("change", async (e) => {
+                const f = e.target.files[0];
+                if (!f) return;
                 const r = new FileReader();
                 r.onload = async function (e) {
                     const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
+                    if (rows.length <= 1) {
+                         showModal("Info", "The CSV file is empty or contains only a header row.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                         return;
+                    }
+                    
                     const newRecords = rows.slice(1).map((row) => {
                         const c = parseCsvRow(row);
                         return {
@@ -444,36 +462,128 @@ document.addEventListener("DOMContentLoaded", async () => {
                             industry: c[2] || "",
                             phone: c[3] || "",
                             address: c[4] || "",
-                            quantity_of_sites: parseInt(c[5]) || 0,
-                            employee_count: parseInt(c[6]) || 0,
+                            quantity_of_sites: parseInt(c[5]) || null,
+                            employee_count: parseInt(c[6]) || null,
                             is_customer: c[7]?.toLowerCase() === 'true',
                             user_id: state.currentUser.id
                         };
                     });
-                    if (newRecords.length > 0) {
-                        const { error } = await supabase.from("accounts").insert(newRecords);
-                        if (error) {
-                            alert("Error importing accounts: " + error.message);
+
+                    let recordsToUpdate = [];
+                    let recordsToInsert = [];
+
+                    for (const record of newRecords) {
+                        if (!record.name) continue; // Skip rows without a name
+                        const existingAccount = state.accounts.find(acc =>
+                            acc.name && record.name && acc.name.toLowerCase() === record.name.toLowerCase()
+                        );
+
+                        if (existingAccount) {
+                            let changes = {};
+                            if (existingAccount.website !== record.website) changes.website = { old: existingAccount.website, new: record.website };
+                            if (existingAccount.industry !== record.industry) changes.industry = { old: existingAccount.industry, new: record.industry };
+                            if (existingAccount.phone !== record.phone) changes.phone = { old: existingAccount.phone, new: record.phone };
+                            if (existingAccount.address !== record.address) changes.address = { old: existingAccount.address, new: record.address };
+                            if (existingAccount.quantity_of_sites !== record.quantity_of_sites) changes.quantity_of_sites = { old: existingAccount.quantity_of_sites, new: record.quantity_of_sites };
+                            if (existingAccount.employee_count !== record.employee_count) changes.employee_count = { old: existingAccount.employee_count, new: record.employee_count };
+                            if (existingAccount.is_customer !== record.is_customer) changes.is_customer = { old: existingAccount.is_customer, new: record.is_customer };
+                            
+                            if (Object.keys(changes).length > 0) {
+                                recordsToUpdate.push({ ...record, id: existingAccount.id, changes });
+                            }
                         } else {
-                            alert(`${newRecords.length} accounts imported.`);
-                            await loadAllData();
+                            recordsToInsert.push(record);
                         }
-                    } else {
-                        alert("No valid records found to import.");
+                    }
+
+                    if (recordsToInsert.length === 0 && recordsToUpdate.length === 0) {
+                        showModal("Info", "No new accounts to import and no changes found for existing accounts.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return;
+                    }
+
+                    const modalBodyHtml = `
+                        <p>Review the following changes and select which rows to process.</p>
+                        <div class="table-container-scrollable" style="max-height: 400px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" id="select-all-checkbox" checked></th>
+                                        <th>Action</th><th>Name</th><th>Changes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recordsToInsert.map((r, index) => `
+                                        <tr class="import-row" data-action="insert" data-index="${index}">
+                                            <td><input type="checkbox" class="row-select-checkbox" checked></td>
+                                            <td style="color: var(--success-color);">Insert New</td><td>${r.name}</td><td>-</td>
+                                        </tr>`).join('')}
+                                    ${recordsToUpdate.map((r, index) => `
+                                        <tr class="import-row" data-action="update" data-index="${index}">
+                                            <td><input type="checkbox" class="row-select-checkbox" checked></td>
+                                            <td style="color: var(--warning-yellow);">Update Existing</td><td>${r.name}</td>
+                                            <td>${Object.keys(r.changes).map(key => `<p><small><strong>${key}:</strong> "${r.changes[key].old}" &rarr; "<strong>${r.changes[key].new}</strong>"</small></p>`).join('')}</td>
+                                        </tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>`;
+
+                    showModal("Confirm CSV Import", modalBodyHtml, async () => {
+                        let successCount = 0, errorCount = 0;
+                        const selectedCheckboxes = document.querySelectorAll('#modal-body .import-row input[type="checkbox"]:checked');
+                        
+                        for (const checkbox of selectedCheckboxes) {
+                            const row = checkbox.closest('.import-row');
+                            const action = row.dataset.action;
+                            const index = parseInt(row.dataset.index);
+
+                            try {
+                                if (action === 'insert') {
+                                    const record = recordsToInsert[index];
+                                    const { error } = await supabase.from("accounts").insert([record]);
+                                    if (error) throw error;
+                                } else if (action === 'update') {
+                                    const record = recordsToUpdate[index];
+                                    const updateData = Object.keys(record.changes).reduce((acc, key) => {
+                                        acc[key] = record[key];
+                                        return acc;
+                                    }, {});
+                                    const { error } = await supabase.from("accounts").update(updateData).eq('id', record.id);
+                                    if (error) throw error;
+                                }
+                                successCount++;
+                            } catch (error) {
+                                console.error(`Error processing row ${index} (${action}):`, error);
+                                errorCount++;
+                            }
+                        }
+
+                        let resultMessage = `Import finished with ${successCount} successes.`;
+                        if (errorCount > 0) resultMessage += ` and ${errorCount} errors. Check console for details.`;
+                        showModal("Import Complete", resultMessage, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        
+                        await loadAllData();
+                        return true;
+                    }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+                    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.addEventListener('change', (e) => {
+                            document.querySelectorAll('#modal-body .row-select-checkbox').forEach(cb => cb.checked = e.target.checked);
+                        });
                     }
                 };
-                r.readAsText(f); e.target.value = "";
+                r.readAsText(f);
+                e.target.value = "";
             });
         }
 
         if (addDealBtn) {
             addDealBtn.addEventListener("click", () => {
-                if (!state.selectedAccountId) return alert("Please select an account first.");
+                if (!state.selectedAccountId) return showModal("Error", "Please select an account first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 
-                // Check if dealStages are available
                 if (state.dealStages.length === 0) {
-                    showModal("No Deal Stages Defined", "It looks like there are no deal stages available. Please contact your administrator to define them.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return; // Stop execution if no stages
+                    showModal("No Deal Stages Defined", "Please contact your administrator to define deal stages before creating a deal.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
                 }
 
                 const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
@@ -486,30 +596,34 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <label>Close Month:</label><input type="month" id="modal-deal-close-month">
                     <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated"></textarea>
                 `, async () => {
-                    const dealName = document.getElementById('modal-deal-name')?.value.trim();
-                    const term = document.getElementById('modal-deal-term')?.value.trim();
-                    const stage = document.getElementById('modal-deal-stage')?.value;
-                    const mrc = parseFloat(document.getElementById('modal-deal-mrc')?.value) || 0;
-                    const closeMonth = document.getElementById('modal-deal-close-month')?.value;
-                    const products = document.getElementById('modal-deal-products')?.value.trim();
-
-                    if (!dealName) { alert('Deal name is required.'); return false; }
-
                     const newDeal = {
                         user_id: state.currentUser.id,
                         account_id: state.selectedAccountId,
-                        name: dealName,
-                        term: term,
-                        stage: stage,
-                        mrc: mrc,
-                        close_month: closeMonth || null,
-                        products: products,
+                        name: document.getElementById('modal-deal-name')?.value.trim(),
+                        term: document.getElementById('modal-deal-term')?.value.trim(),
+                        stage: document.getElementById('modal-deal-stage')?.value,
+                        mrc: parseFloat(document.getElementById('modal-deal-mrc')?.value) || 0,
+                        close_month: document.getElementById('modal-deal-close-month')?.value || null,
+                        products: document.getElementById('modal-deal-products')?.value.trim(),
                         is_committed: false
                     };
+
+                    if (!newDeal.name) {
+                        showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return false;
+                    }
+                    
                     const { error } = await supabase.from('deals').insert([newDeal]);
-                    if (error) { alert('Error creating deal: ' + error.message); return false; }
-                    else { await loadAllData(); hideModal(); alert('Deal created successfully!'); return true; }
-                });
+                    if (error) {
+                         showModal("Error", 'Error creating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                         return false;
+                    }
+                    
+                    await loadAllData();
+                    hideModal();
+                    showModal("Success", 'Deal created successfully!', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return true;
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             });
         }
 
@@ -525,41 +639,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (addTaskAccountBtn) {
             addTaskAccountBtn.addEventListener("click", async () => {
-                if (!state.selectedAccountId) return alert("Please select an account to link the task.");
+                if (!state.selectedAccountId) return showModal("Error", "Please select an account to add a task for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                
                 const currentAccount = state.accounts.find(a => a.id === state.selectedAccountId);
-                if (!currentAccount) return alert("Selected account not found.");
+                if (!currentAccount) return showModal("Error", "Selected account not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
                 showModal(`Create Task for ${currentAccount.name}`,
                     `<label>Description:</label><input type="text" id="modal-task-description" required><br><label>Due Date:</label><input type="date" id="modal-task-due-date">`,
                     async () => {
                         const description = document.getElementById('modal-task-description')?.value.trim();
-                        const dueDate = document.getElementById('modal-task-due-date')?.value;
                         if (!description) {
-                            alert('Task description is required.');
+                            showModal("Error", "Task description is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                             return false;
                         }
                         const newTask = {
                             user_id: state.currentUser.id,
                             description,
-                            due_date: dueDate || null,
+                            due_date: document.getElementById('modal-task-due-date')?.value || null,
                             status: 'Pending',
-                            account_id: state.selectedAccountId
+                            account_id: state.selectedAccountId,
+                            contact_id: null
                         };
                         const { error } = await supabase.from('tasks').insert([newTask]);
                         if (error) {
-                            alert('Error: ' + error.message);
+                            showModal("Error", 'Error adding task: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                             return false;
-                        } else {
-                            await loadAllData();
-                            hideModal();
-                            alert('Task created successfully!');
-                            return true;
                         }
-                    }
-                );
+                        await loadAllData();
+                        hideModal();
+                        showModal("Success", "Task created successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return true;
+                    }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             });
         }
-
-        // NEW: Event listener for AI Account Insight button
+        
         if (aiAccountInsightBtn) {
             aiAccountInsightBtn.addEventListener("click", async () => {
                 if (!state.selectedAccountId) {
@@ -573,42 +686,35 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
 
-                // Collect all activities related to this account, including those from its contacts
                 const relevantActivities = state.activities
                     .filter(act => 
                         act.account_id === account.id || 
                         state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
                     )
-                    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort chronologically for better summary
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 if (relevantActivities.length === 0) {
                     showModal("Info", "No activities found for this account or its contacts to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
 
-                // Prepare activity data for the AI
                 const activityData = relevantActivities.map(act => {
                     const contact = state.contacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Unknown Contact';
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
                     return `[${formatDate(act.date)}] Type: ${act.type}, Contact: ${contactName}, Description: ${act.description}`;
                 }).join('\n');
 
-                // Show loading modal
                 showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing account activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
                 try {
-                    // Call the 'get-activity-insight' Edge Function
                     const { data, error } = await supabase.functions.invoke('get-activity-insight', {
                         body: {
-                            // Pass account name to the Edge Function
                             accountName: account.name, 
                             activityLog: activityData
                         }
                     });
-
                     if (error) throw error;
-
-                    // Display the AI-generated insight
+                    
                     const insight = data.insight || "No insight generated.";
                     const nextSteps = data.next_steps || "No specific next steps suggested.";
 
@@ -633,8 +739,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
-            setupPageEventListeners();
-            await setupUserMenuAndAuth(supabase, state);
+            await setupUserMenuAndAuth(supabase, state); // This handles user menu and logout
+            setupPageEventListeners(); // Setup other listeners
+            
             const urlParams = new URLSearchParams(window.location.search);
             const accountIdFromUrl = urlParams.get('accountId');
             if (accountIdFromUrl) state.selectedAccountId = Number(accountIdFromUrl);
