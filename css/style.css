@@ -583,7 +583,7 @@ body:not(.theme-green) #contact-sequence-status {
 
 #sequence-status-content {
     display: flex;
-    flex-wrap: wrap; /* This allows items to wrap to a new line */
+    flex-wrap: wrap; /* This is the key change */
     align-items: center;
     gap: 1.25rem;
     width: 100%;
@@ -3564,7 +3564,7 @@ body.theme-corporate #account-activities-list li {
 /* --- Sequence Action Button Grid (Definitive Fix) --- */
 
 .sequence-action-buttons {
-    flex-basis: 100%; /* This makes the container take up the full width, forcing it to a new line */
+    flex-basis: 100%; /* This makes the container take up the full width */
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
