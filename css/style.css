@@ -3512,3 +3512,20 @@ body.theme-corporate #account-activities-list li {
 .hot-contact-icon {
     margin-left: 8px;
 }
+/* --- Account List Item Icons --- */
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.list-item-icons {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Adds space between icons if both are present */
+}
+
+.deal-open-icon {
+    color: var(--completed-color); /* Green color for money */
+    font-weight: bold;
+}
