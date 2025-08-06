@@ -243,7 +243,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             // The is_customer checkbox now has a listener to set the dirty state
             const isCustomerCheckbox = accountForm.querySelector("#account-is-customer");
-            isCustomerCheckbox.checked = account.is_customer === true;
+            isCustomerCheckbox.checked = account.is_customer;
             isCustomerCheckbox.addEventListener('change', () => {
               state.isFormDirty = true;
             });
