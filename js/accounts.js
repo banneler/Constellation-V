@@ -108,25 +108,51 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Functions ---
-    const renderAccountList = () => {
-        if (!accountList || !accountSearch) return;
-        const searchTerm = accountSearch.value.toLowerCase();
-        const filteredAccounts = state.accounts.filter(account =>
-            (account.name || "").toLowerCase().includes(searchTerm)
-        );
+const renderAccountList = () => {
+    if (!accountList || !accountSearch) return;
+    const searchTerm = accountSearch.value.toLowerCase();
+    const filteredAccounts = state.accounts.filter(account =>
+        (account.name || "").toLowerCase().includes(searchTerm)
+    );
 
-        accountList.innerHTML = "";
-        filteredAccounts
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-            .forEach((account) => {
-                const i = document.createElement("div");
-                i.className = "list-item";
-                i.textContent = account.name;
-                i.dataset.id = account.id;
-                if (account.id === state.selectedAccountId) i.classList.add("selected");
-                accountList.appendChild(i);
-            });
-    };
+    // Date for the "hot" activity check
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    accountList.innerHTML = "";
+    filteredAccounts
+        .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+        .forEach((account) => {
+            const i = document.createElement("div");
+            i.className = "list-item";
+            i.dataset.id = account.id;
+
+            // Check for any open deals
+            const hasOpenDeal = state.deals.some(deal =>
+                deal.account_id === account.id &&
+                deal.stage !== 'Closed Won' &&
+                deal.stage !== 'Closed Lost'
+            );
+
+            // Check for recent activity on the account OR its contacts
+            const contactIdsForAccount = state.contacts
+                .filter(c => c.account_id === account.id)
+                .map(c => c.id);
+
+            const hasRecentActivity = state.activities.some(act =>
+                (act.account_id === account.id || contactIdsForAccount.includes(act.contact_id)) &&
+                new Date(act.date) > thirtyDaysAgo
+            );
+
+            const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
+            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+
+            i.innerHTML = `${account.name} <div class="list-item-icons">${hotIcon}${dealIcon}</div>`;
+
+            if (account.id === state.selectedAccountId) i.classList.add("selected");
+            accountList.appendChild(i);
+        });
+};
 
 const renderAccountDetails = () => {
     if (!accountForm) return;
