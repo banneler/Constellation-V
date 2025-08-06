@@ -3381,3 +3381,28 @@ body.theme-corporate #account-activities-list li {
     gap: 15px;
     margin-top: 15px;
 }
+/* Add to the end of the file */
+.table-container {
+    overflow-x: auto;
+}
+
+#script-logs-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#script-logs-table th, #script-logs-table td {
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+#script-logs-table th {
+    background-color: var(--bg-light);
+    font-weight: bold;
+    color: var(--text-light);
+}
+
+#script-logs-table tbody tr:hover {
+    background-color: var(--bg-medium);
+}
