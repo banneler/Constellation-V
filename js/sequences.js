@@ -464,29 +464,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleMoveStep(stepId, direction) {
-        const currentStep = state.sequence_steps.find(s => s.id === stepId);
-        if (!currentStep) return;
+    const allStepsInSequence = state.sequence_steps
+        .filter(s => s.sequence_id === state.selectedSequenceId)
+        .sort((a, b) => a.step_number - b.step_number);
 
-        const allStepsInSequence = state.sequence_steps
-            .filter(s => s.sequence_id === state.selectedSequenceId)
-            .sort((a, b) => a.step_number - b.step_number);
+    const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
+    if (currentIndex === -1) return;
 
-        const currentIndex = allStepsInSequence.findIndex(s => s.id === stepId);
-        let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
 
-        if (targetIndex < 0 || targetIndex >= allStepsInSequence.length) return;
+    // Reorder the array in memory first
+    const [movedStep] = allStepsInSequence.splice(currentIndex, 1);
+    allStepsInSequence.splice(targetIndex, 0, movedStep);
 
-        const targetStep = allStepsInSequence[targetIndex];
-        
-        const tempStepNumber = currentStep.step_number;
-        currentStep.step_number = targetStep.step_number;
-        targetStep.step_number = tempStepNumber;
+    // Create a list of database updates
+    const updatePromises = allStepsInSequence.map((step, index) => {
+        const newStepNumber = index + 1;
+        // Only update if the step number has actually changed
+        if (step.step_number !== newStepNumber) {
+            return supabase
+                .from("sequence_steps")
+                .update({ step_number: newStepNumber })
+                .eq("id", step.id);
+        }
+        return null;
+    }).filter(Boolean); // Remove any nulls from the list
 
-        await supabase.from("sequence_steps").update({ step_number: currentStep.step_number }).eq("id", currentStep.id);
-        await supabase.from("sequence_steps").update({ step_number: targetStep.step_number }).eq("id", targetStep.id);
-        
-        await loadAllData();
+    // Execute all updates at once
+    if (updatePromises.length > 0) {
+        const { error } = await Promise.all(updatePromises);
+        if (error) {
+            console.error("Error re-ordering steps:", error);
+            // Optionally, show a user-facing error message here
+        }
     }
+
+    // Reload all data to ensure the UI is in sync with the database
+    await loadAllData();
+}
     
     function handleCsvImport(e) {
         if (!state.selectedSequenceId) return;
