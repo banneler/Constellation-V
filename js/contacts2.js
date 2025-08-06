@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactForm = document.getElementById("contact-form");
     const contactSearch = document.getElementById("contact-search");
     const bulkImportContactsBtn = document.getElementById("bulk-import-contacts-btn");
+    const bulkExportContactsBtn = document.getElementById("bulk-export-contacts-btn"); // NEW
     const contactCsvInput = document.getElementById("contact-csv-input");
     const addContactBtn = document.getElementById("add-contact-btn");
     const deleteContactBtn = document.getElementById("delete-contact-btn");
@@ -759,6 +760,41 @@ document.addEventListener("DOMContentLoaded", async () => {
             e.target.value = "";
         });
 
+        // NEW: Bulk export contacts to CSV
+        if (bulkExportContactsBtn) {
+            bulkExportContactsBtn.addEventListener("click", () => {
+                const contactsToExport = state.contacts;
+                if (contactsToExport.length === 0) {
+                    showModal("Info", "No contacts to export.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+
+                let csvContent = "data:text/csv;charset=utf-8,";
+                const headers = ["first_name", "last_name", "email", "phone", "title"];
+                csvContent += headers.join(",") + "\r\n";
+
+                contactsToExport.forEach(contact => {
+                    const row = [
+                        `"${(contact.first_name || '').replace(/"/g, '""')}"`,
+                        `"${(contact.last_name || '').replace(/"/g, '""')}"`,
+                        `"${(contact.email || '').replace(/"/g, '""')}"`,
+                        `"${(contact.phone || '').replace(/"/g, '""')}"`,
+                        `"${(contact.title || '').replace(/"/g, '""')}"`
+                    ];
+                    csvContent += row.join(",") + "\r\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "contacts_export.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+
+
         logActivityBtn.addEventListener("click", () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to log activity for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
@@ -840,8 +876,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await loadAllData();
                     hideModal();
                     showModal("Success", "Sequence assigned successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return true;
                 }
+                return true;
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
