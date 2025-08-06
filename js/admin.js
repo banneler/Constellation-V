@@ -1,4 +1,3 @@
-// js/admin.js
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -23,6 +22,7 @@ let state = {
     dealStages: [],
     activityTypes: [],
     charts: {},
+    scriptLogs: [],
     currentView: 'user-management',
     contentView: 'templates',
     analyticsFilters: {
@@ -38,6 +38,7 @@ const loadAllDataForView = async () => {
         case 'user-management': await loadUserData(); break;
         case 'content-management': await loadContentData(); break;
         case 'analytics': await loadAnalyticsData(); break;
+        case 'script-logs': await loadScriptLogs(); break;
         case 'settings': await loadSettingsData(); break;
     }
     document.body.classList.remove('loading');
@@ -246,6 +247,33 @@ async function loadAnalyticsData() {
     populateAnalyticsFilters();
     renderAnalyticsDashboard();
     renderActivityLogTable();
+}
+
+async function loadScriptLogs() {
+    // Fetch script logs and join with the user_quotas table to get the user's name.
+    const { data, error } = await supabase
+        .from('script_run_logs')
+        .select('*, user_quotas(full_name)')
+        .order('last_completed_at', { ascending: false });
+
+    if (error) {
+        alert(`Could not load script logs: ${error.message}`);
+        return;
+    }
+    state.scriptLogs = data || [];
+    renderScriptLogsTable();
+}
+
+function renderScriptLogsTable() {
+    const tableBody = document.querySelector("#script-logs-table tbody");
+    if (!tableBody) return;
+    tableBody.innerHTML = state.scriptLogs.map(log => `
+        <tr>
+            <td>${log.script_name}</td>
+            <td>${formatDate(log.last_completed_at)}</td>
+            <td>${log.outcome}</td>
+            <td>${log.user_quotas?.full_name || 'N/A'}</td>
+        </tr>`).join('');
 }
 
 function renderUserTable() {
@@ -568,6 +596,7 @@ function setupPageEventListeners() {
     window.addEventListener('hashchange', handleNavigation);
     
     document.getElementById('user-management-table')?.addEventListener('click', e => {
+        e.preventDefault();
         if (e.target.matches('.save-user-btn')) handleSaveUser(e);
         if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
     });
@@ -575,12 +604,14 @@ function setupPageEventListeners() {
     document.getElementById('reassign-btn')?.addEventListener('click', handleReassignment);
 
     document.getElementById('content-management-table')?.addEventListener('change', e => {
+        e.preventDefault();
         if (e.target.matches('.share-toggle')) handleContentToggle(e);
     });
     document.getElementById('content-management-table')?.addEventListener('click', e => {
+        e.preventDefault();
         if (e.target.matches('.delete-content-btn')) handleDeleteContent(e);
     });
-    document.querySelectorAll('.content-view-btn').forEach(btn => btn.addEventListener('click', e => {
+    document.querySelectorAll('.content-view-btn').forEach(btn => btn.addEventListener('click', e => { e.preventDefault();
         document.querySelectorAll('.content-view-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         state.contentView = e.target.id === 'view-templates-btn' ? 'templates' : 'sequences';
@@ -588,11 +619,12 @@ function setupPageEventListeners() {
     }));
 
     document.getElementById('analytics-rep-filter')?.addEventListener('change', e => {
+        e.preventDefault();
         state.analyticsFilters.userId = e.target.value;
         document.getElementById('analytics-chart-view-toggle').style.display = e.target.value === 'all' ? 'flex' : 'none';
         renderAnalyticsDashboard();
     });
-    document.getElementById('analytics-date-filter')?.addEventListener('change', e => {
+    document.getElementById('analytics-date-filter')?.addEventListener('change', e => { e.preventDefault();
         state.analyticsFilters.dateRange = e.target.value;
         renderAnalyticsDashboard();
     });
@@ -605,6 +637,7 @@ function setupPageEventListeners() {
         }
     });
 
+    
     document.getElementById('analytics-charts-container').addEventListener('click', e => {
         const toggleBtn = e.target.closest('.chart-toggle-btn');
         if (toggleBtn) {
@@ -636,11 +669,11 @@ function setupPageEventListeners() {
         }
     });
     
-    document.getElementById('add-deal-stage-btn')?.addEventListener('click', () => handleAddSetting('deal_stage'));
-    document.getElementById('add-activity-type-btn')?.addEventListener('click', () => handleAddSetting('activity_type'));
+    document.getElementById('add-deal-stage-btn')?.addEventListener('click', (e) => { e.preventDefault(); handleAddSetting('deal_stage'); });
+    document.getElementById('add-activity-type-btn')?.addEventListener('click', (e) => { e.preventDefault(); handleAddSetting('activity_type'); });
     document.getElementById('settings-view')?.addEventListener('click', e => {
         if (e.target.matches('.delete-setting-btn')) {
-            handleDeleteSetting(e);
+            handleDeleteSetting(e); 
         }
     });
 }
