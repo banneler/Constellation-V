@@ -1,5 +1,3 @@
-// js/contacts.js
-
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -8,12 +6,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     let state = {
         currentUser: null,
         contacts: [],
-        accounts: [], // Ensure accounts are loaded in state for mapping
+        accounts: [],
         activities: [],
         contact_sequences: [],
+        sequences: [],
         deals: [],
-        selectedContactId: null,
         tasks: [],
+        sequence_steps: [],
+        email_log: [],
+        activityTypes: [],
+        selectedContactId: null,
         isFormDirty: false
     };
 
@@ -23,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactForm = document.getElementById("contact-form");
     const contactSearch = document.getElementById("contact-search");
     const bulkImportContactsBtn = document.getElementById("bulk-import-contacts-btn");
-    const bulkExportContactsBtn = document.getElementById("bulk-export-contacts-btn"); // NEW
+    const bulkExportContactsBtn = document.getElementById("bulk-export-contacts-btn");
     const contactCsvInput = document.getElementById("contact-csv-input");
     const addContactBtn = document.getElementById("add-contact-btn");
     const deleteContactBtn = document.getElementById("delete-contact-btn");
@@ -35,7 +37,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const removeFromSequenceBtn = document.getElementById("remove-from-sequence-btn");
     const noSequenceText = document.getElementById("no-sequence-text");
     const sequenceStatusContent = document.getElementById("sequence-status-content");
-    const ringChart = document.getElementById("ring-chart");
     const ringChartText = document.getElementById("ring-chart-text");
     const contactEmailsTableBody = document.getElementById("contact-emails-table-body");
     const emailViewModalBackdrop = document.getElementById("email-view-modal-backdrop");
@@ -49,9 +50,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const importContactScreenshotBtn = document.getElementById("import-contact-screenshot-btn");
     const takePictureBtn = document.getElementById("take-picture-btn");
     const cameraInput = document.getElementById("camera-input");
-    // NEW: AI Activity Insight button selector
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
-
+    const organicStarIndicator = document.getElementById("organic-star-indicator"); // NEW: Star element selector
 
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -85,7 +85,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        // Ensure 'accounts' is included in userSpecificTables to be loaded into state
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
         const sharedTables = ["sequence_steps", "email_log"];
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
@@ -93,19 +92,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
 
-
-        // FIX: Combine both queries into a single select
-        let activityTypesData = [];
         const { data: allActivityTypes, error: activityError } = await supabase.from("activity_types").select("*");
         if (activityError) {
             console.error("Error fetching activity types:", activityError);
         } else {
-            // FIX: Use a Set to ensure uniqueness when combining
             const allTypes = [...(allActivityTypes || [])];
             state.activityTypes = [...new Map(allTypes.map(item => [item.type_name, item])).values()];
         }
         
-
         try {
             const results = await Promise.allSettled(allPromises);
             results.forEach((result, index) => {
@@ -147,14 +141,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
             .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
 
+        // NEW: Logic for "Hot Contact" fire emoji
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
         contactList.innerHTML = "";
         filteredContacts.forEach((contact) => {
             const item = document.createElement("div");
             item.className = "list-item";
             const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
+            
+            // NEW: Check for recent activity
+            const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
+            const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"></span>' : '';
+            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : ''; // Add fire icon if hot
+
             item.innerHTML = `
                 <div class="contact-info">
-                    <div class="contact-name">${contact.first_name} ${contact.last_name}${inActiveSequence ? '<span class="sequence-status-icon"></span>' : ''}</div>
+                    <div class="contact-name">${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
                     <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
                 </div>
             `;
@@ -200,6 +204,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (contact) {
             contactForm.classList.remove('hidden');
+
+            // NEW: Render the organic star's state
+            if (organicStarIndicator) {
+                organicStarIndicator.classList.toggle('is-organic', !!contact.is_organic);
+            }
+
             contactForm.querySelector("#contact-id").value = contact.id;
             contactForm.querySelector("#contact-first-name").value = contact.first_name || "";
             contactForm.querySelector("#contact-last-name").value = contact.last_name || "";
@@ -231,20 +241,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactEmails(contact.email);
 
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
-            if (ringChart && ringChartText && sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
+            if (sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
                 if (activeSequence) {
                     const sequence = state.sequences.find((s) => s.id === activeSequence.sequence_id);
                     const allSequenceSteps = state.sequence_steps.filter((s) => s.sequence_id === activeSequence.sequence_id);
                     const totalSteps = allSequenceSteps.length;
                     const currentStep = activeSequence.current_step_number;
                     const lastCompleted = currentStep - 1;
-                    // --- THIS IS THE NEW, RESTORED CODE ---
-const percentage = totalSteps > 0 ? Math.round((lastCompleted / totalSteps) * 100) : 0;
-const ringProgress = document.getElementById('ring-chart-progress'); // Get the new progress element
-if (ringProgress) {
-    ringProgress.style.setProperty('--p', percentage);
-}
-ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
+                    const percentage = totalSteps > 0 ? Math.round((lastCompleted / totalSteps) * 100) : 0;
+                    const ringProgress = document.getElementById('ring-chart-progress');
+                    if (ringProgress) {
+                        ringProgress.style.setProperty('--p', percentage);
+                    }
+                    if(ringChartText) ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                     contactSequenceInfoText.textContent = `Enrolled in "${sequence ? sequence.name : 'Unknown'}" (On Step ${currentStep} of ${totalSteps}).`;
                     sequenceStatusContent.classList.remove("hidden");
                     noSequenceText.classList.add("hidden");
@@ -267,7 +276,7 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3">Contact has no email address.</td></tr>';
             return;
         }
-        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.date));
         if (loggedEmails.length === 0) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3">No logged emails for this contact.</td></tr>';
             return;
@@ -296,12 +305,14 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
 
     const hideContactDetails = (hideForm = true, clearSelection = false) => {
         if (contactForm && hideForm) contactForm.classList.add('hidden');
-        contactForm.reset();
-        contactForm.querySelector("#contact-id").value = "";
-        contactForm.querySelector("#contact-last-saved").textContent = "Not yet saved.";
-        const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
-        if (contactAccountNameSelect) contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
-        contactActivitiesList.innerHTML = "";
+        if (contactForm) {
+            contactForm.reset();
+            contactForm.querySelector("#contact-id").value = "";
+            contactForm.querySelector("#contact-last-saved").textContent = "Not yet saved.";
+            const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
+            if (contactAccountNameSelect) contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
+        }
+        if(contactActivitiesList) contactActivitiesList.innerHTML = "";
         if(sequenceStatusContent) sequenceStatusContent.classList.add('hidden');
         if(noSequenceText) {
             noSequenceText.textContent = "Select a contact to see details.";
@@ -318,14 +329,11 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
         }
     };
     
-    // Unified function to process and send image data to the Edge Function
     async function processAndImportImage(base64Image) {
-        // Show a loading state in the modal
         const modalBody = document.getElementById('modal-body');
         modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing image...</p>`;
 
         try {
-            // Call the Supabase Edge Function
             const { data, error } = await supabase.functions.invoke('extract-contact-info', {
                 body: { image: base64Image }
             });
@@ -334,10 +342,8 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
             
             const contactData = data;
 
-            // --- NEW LOGIC FOR ACCOUNT MAPPING ---
             let accountIdToLink = null;
             if (contactData.company) {
-                // Find a matching account by name (case-insensitive)
                 const matchingAccount = state.accounts.find(
                     acc => acc.name && contactData.company && acc.name.toLowerCase() === contactData.company.toLowerCase()
                 );
@@ -345,9 +351,7 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                     accountIdToLink = matchingAccount.id;
                 }
             }
-            // --- END NEW LOGIC ---
 
-            // Check for an existing contact by name
             let contactId = null;
             if (contactData.first_name || contactData.last_name) {
                 const existingContact = state.contacts.find(c =>
@@ -358,17 +362,14 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                 }
             }
 
-            // Create or update the contact
             if (contactId) {
-                // Update existing contact
                 await supabase.from("contacts").update({
                     email: contactData.email || '',
                     phone: contactData.phone || '',
                     title: contactData.title || '',
-                    account_id: accountIdToLink // Use the resolved account ID
+                    account_id: accountIdToLink
                 }).eq('id', contactId);
             } else {
-                // Create a new contact
                 const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([
                     {
                         first_name: contactData.first_name || '',
@@ -376,7 +377,7 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                         email: contactData.email || '',
                         phone: contactData.phone || '',
                         title: contactData.title || '',
-                        account_id: accountIdToLink, // Use the resolved account ID for new contacts
+                        account_id: accountIdToLink,
                         user_id: state.currentUser.id
                     }
                 ]).select();
@@ -384,10 +385,10 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                 contactId = newContactArr?.[0]?.id;
             }
 
-            await loadAllData(); // Reload all data
+            await loadAllData();
             state.selectedContactId = contactId;
-            renderContactList(); // Re-render list to highlight
-            renderContactDetails(); // Display in form
+            renderContactList();
+            renderContactDetails();
 
             hideModal();
             showModal("Success", `Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -398,7 +399,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
         }
     }
 
-    // Handles the paste event for importing a screenshot
     async function handlePasteEvent(event) {
         const items = (event.clipboardData || event.originalEvent.clipboardData).items;
         let blob = null;
@@ -422,7 +422,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
         }
     }
 
-    // Handles the change event for camera input
     async function handleCameraInputChange(event) {
         const file = event.target.files[0];
         if (file) {
@@ -450,22 +449,32 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
             }
         });
 
-        document.getElementById("logout-btn").addEventListener("click", (e) => {
-            e.preventDefault();
-            const logoutUrl = e.target.href || 'index.html';
-            if (state.isFormDirty) {
-                showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to log out?", async () => {
-                    state.isFormDirty = false;
-                    await supabase.auth.signOut();
-                    window.location.href = logoutUrl;
-                }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Log Out</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-            } else {
-                (async () => {
-                    await supabase.auth.signOut();
-                    window.location.href = logoutUrl;
-                })();
-            }
-        });
+        // NEW: Event listener for the organic star
+        if (organicStarIndicator) {
+            organicStarIndicator.addEventListener('click', async () => {
+                if (!state.selectedContactId) return;
+
+                const contact = state.contacts.find(c => c.id === state.selectedContactId);
+                if (!contact) return;
+
+                const newOrganicState = !contact.is_organic;
+                organicStarIndicator.classList.toggle('is-organic', newOrganicState);
+                contact.is_organic = newOrganicState; // Update local state immediately
+
+                // Save to DB in background
+                const { error } = await supabase
+                    .from('contacts')
+                    .update({ is_organic: newOrganicState })
+                    .eq('id', state.selectedContactId);
+
+                if (error) {
+                    console.error("Error updating organic status:", error);
+                    organicStarIndicator.classList.toggle('is-organic', !newOrganicState); // Revert UI
+                    contact.is_organic = !newOrganicState; // Revert state
+                    showModal("Error", "Could not save organic status.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
+            });
+        }
         
         contactForm.addEventListener('input', () => {
             state.isFormDirty = true;
@@ -482,7 +491,7 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
 
         addContactBtn.addEventListener("click", () => {
             const openNewContactModal = () => {
-                hideContactDetails(false, true); // Clear form and selection
+                hideContactDetails(false, true);
                 showModal("New Contact", `
                     <label>First Name:</label><input type="text" id="modal-contact-first-name" required><br>
                     <label>Last Name:</label><input type="text" id="modal-contact-last-name" required>
@@ -505,12 +514,12 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                         return false;
                     }
                     
-                    state.isFormDirty = false; // Reset dirty state after successful creation
-                    await loadAllData(); // Reload all data to include the new contact
-                    state.selectedContactId = newContactArr?.[0]?.id; // Select the newly created contact
-                    renderContactList(); // Re-render list to highlight new contact
-                    renderContactDetails(); // Display new contact in the form
-                    hideModal(); // Close the modal
+                    state.isFormDirty = false;
+                    await loadAllData();
+                    state.selectedContactId = newContactArr?.[0]?.id;
+                    renderContactList();
+                    renderContactDetails();
+                    hideModal();
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Contact</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             };
@@ -568,10 +577,9 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
             };
             if (!data.first_name || !data.last_name) {
                 showModal("Error", "First and Last name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                return; // Prevent form submission
+                return;
             }
 
-            // If ID exists, update; otherwise, insert
             if (id) {
                 const { error } = await supabase.from("contacts").update(data).eq("id", id);
                 if (error) {
@@ -634,7 +642,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                 let recordsToUpdate = [];
                 let recordsToInsert = [];
                 
-                // First, check for duplicates and changes
                 for (const record of newRecords) {
                     const existingContact = state.contacts.find(contact => 
                         contact.email && contact.email.toLowerCase() === (record.email || '').toLowerCase()
@@ -652,7 +659,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                     }
                 }
 
-                // Prepare the modal content with a summary of changes
                 const modalBodyHtml = `
                     <p>The import process identified the following changes. Use the checkboxes to select which rows you want to process.</p>
                     <div class="table-container-scrollable" style="max-height: 400px;">
@@ -728,12 +734,11 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                                     successCount++;
                                 }
                             } else {
-                                successCount++; // No changes to update, but still count as a success
+                                successCount++;
                             }
                         }
                     }
 
-                    // Show a final result modal
                     if (errorCount > 0) {
                         showModal("Import Complete", `Import finished with ${successCount} successes and ${errorCount} errors.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     } else {
@@ -744,7 +749,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
                 
-                // Add event listener for the select-all checkbox
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
                 if (selectAllCheckbox) {
                     selectAllCheckbox.addEventListener('change', (e) => {
@@ -759,7 +763,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
             e.target.value = "";
         });
 
-        // NEW: Bulk export contacts to CSV
         if (bulkExportContactsBtn) {
             bulkExportContactsBtn.addEventListener("click", () => {
                 const contactsToExport = state.contacts;
@@ -793,7 +796,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
             });
         }
 
-
         logActivityBtn.addEventListener("click", () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to log activity for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
@@ -824,7 +826,7 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                     hideModal();
                     showModal("Success", "Activity logged successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
-                return true; // Indicate success for modal to close
+                return true;
             });
         });
 
@@ -914,7 +916,8 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                         description,
                         due_date: dueDate || null,
                         status: 'Pending',
-                        account_id: contact?.account_id
+                        account_id: contact?.account_id,
+                        contact_id: state.selectedContactId
                     };
                     const { error } = await supabase.from('tasks').insert([newTask]);
                     if (error) {
@@ -955,7 +958,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
             cameraInput.addEventListener('change', handleCameraInputChange);
         }
 
-        // NEW: Event listener for AI Activity Insight button
         if (aiActivityInsightBtn) {
             aiActivityInsightBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) {
@@ -969,26 +971,22 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
                     return;
                 }
 
-                // Filter activities relevant to the selected contact
                 const relevantActivities = state.activities
                     .filter(act => act.contact_id === contact.id)
-                    .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort chronologically for better summary
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 if (relevantActivities.length === 0) {
                     showModal("Info", "No activities found for this contact to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
 
-                // Prepare activity data for the AI
                 const activityData = relevantActivities.map(act => 
                     `[${formatDate(act.date)}] Type: ${act.type}, Description: ${act.description}`
                 ).join('\n');
 
-                // Show loading modal
                 showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
                 try {
-                    // Call the new Supabase Edge Function for AI insight
                     const { data, error } = await supabase.functions.invoke('get-activity-insight', {
                         body: {
                             contactName: `${contact.first_name || ''} ${contact.last_name || ''}`,
@@ -998,7 +996,6 @@ ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
 
                     if (error) throw error;
 
-                    // Display the AI-generated insight
                     const insight = data.insight || "No insight generated.";
                     const nextSteps = data.next_steps || "No specific next steps suggested.";
 
