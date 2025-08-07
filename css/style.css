@@ -3687,3 +3687,50 @@ body.theme-green .marketing-indicator {
     margin-bottom: 10px;
     text-decoration: none;
 }
+/* In style.css */
+
+.item-list-container-modal {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    max-height: 40vh; /* Sets a max height for scrolling */
+    overflow-y: auto; /* Enables vertical scrolling if content overflows */
+    background-color: var(--background-color-light);
+}
+
+.item-list-container-modal .list-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color-dark);
+    transition: background-color 0.2s ease-in-out;
+}
+
+.item-list-container-modal .list-item:last-child {
+    border-bottom: none; /* Removes border from the last item */
+}
+
+.item-list-container-modal .list-item:hover {
+    background-color: var(--hover-color);
+}
+
+.item-list-container-modal .list-item label {
+    flex-grow: 1;
+    cursor: pointer;
+    display: flex; /* Use flexbox for alignment */
+    justify-content: space-between; /* Pushes items to opposite ends */
+    align-items: center;
+}
+
+.item-list-container-modal .list-item input[type="checkbox"] {
+    margin-right: 12px;
+    flex-shrink: 0; /* Prevents checkbox from shrinking */
+}
+
+.last-activity-date {
+    font-size: 0.8em;
+    color: var(--text-color-secondary);
+    font-style: italic;
+    white-space: nowrap; /* Prevents date from wrapping */
+    margin-left: 15px; /* Adds space between name and date */
+}
