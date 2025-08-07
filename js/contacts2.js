@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-    
+
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.location.href = url;
         }
     };
-    
+
     const confirmAndSwitchContact = (newContactId) => {
         if (state.isFormDirty) {
             showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch contacts?", () => {
@@ -81,26 +81,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactDetails();
         }
     };
-    
+
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
         const sharedTables = ["sequence_steps", "email_log"];
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-      const sharedPromises = sharedTables.map((table) => {
-    if (table === "email_log") {
-        // This is the key change: We explicitly ask for all columns from the email_log
-        // AND all columns (*) from the related attachments table.
-        return supabase.from(table).select("*, attachments(*)");
-    } else {
-        // For any other "shared" tables, we just get all their columns as before.
-        return supabase.from(table).select("*");
-    }
-});
+        
+        // This is the corrected data fetch. No more fancy select for email_log.
+        const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
+        
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
-    
+
         const { data: allActivityTypes, error: activityError } = await supabase.from("activity_types").select("*");
         if (activityError) {
             console.error("Error fetching activity types:", activityError);
@@ -141,7 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
     }
-    
+
     // --- Render Functions ---
     const renderContactList = () => {
         if (!contactList) return;
@@ -149,10 +143,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const filteredContacts = state.contacts
             .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
             .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
-    
+
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
         contactList.innerHTML = "";
         filteredContacts.forEach((contact) => {
             const item = document.createElement("div");
@@ -164,7 +158,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
             const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
             const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
-    
+
             item.innerHTML = `
                 <div class="contact-info">
                     <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
@@ -176,7 +170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactList.appendChild(item);
         });
     };
-    
+
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
         if (!contactAccountNameSelect) return;
@@ -191,11 +185,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contactAccountNameSelect.appendChild(o);
             });
     };
-    
+
     const renderContactDetails = () => {
         const contact = state.contacts.find((c) => c.id === state.selectedContactId);
         if (!contactForm) return;
-    
+
         if (contactPendingTaskReminder && contact) {
             const pendingContactTasks = state.tasks.filter(task => task.status === 'Pending' && task.contact_id === contact.id);
             if (pendingContactTasks.length > 0) {
@@ -210,14 +204,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         populateAccountDropdown();
-    
+
         if (contact) {
             contactForm.classList.remove('hidden');
-    
+
             if (organicStarIndicator) {
                 organicStarIndicator.classList.toggle('is-organic', !!contact.is_organic);
             }
-    
+
             contactForm.querySelector("#contact-id").value = contact.id;
             contactForm.querySelector("#contact-first-name").value = contact.first_name || "";
             contactForm.querySelector("#contact-last-name").value = contact.last_name || "";
@@ -227,9 +221,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
             contactForm.querySelector("#contact-account-name").value = contact.account_id || "";
-    
+
             state.isFormDirty = false;
-    
+
             contactActivitiesList.innerHTML = "";
             state.activities
                 .filter((act) => act.contact_id === contact.id)
@@ -247,7 +241,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             
             renderContactEmails(contact.email);
-    
+
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
             if (sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
                 if (activeSequence) {
@@ -282,7 +276,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
-        contactEmailsTableBody.innerHTML = ''; // Clear existing content
+        contactEmailsTableBody.innerHTML = ''; 
 
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Contact has no email address.</td></tr>';
@@ -312,66 +306,58 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-function openEmailViewModal(email) {
-    if (!email) return;
+    function openEmailViewModal(email) {
+        if (!email) return;
 
-    // --- Populate Email Details ---
-    emailViewSubject.textContent = email.subject || '(No Subject)';
-    emailViewFrom.textContent = email.sender || 'N/A';
-    emailViewTo.textContent = email.recipient || 'N/A';
-    emailViewDate.textContent = new Date(email.created_at).toLocaleString();
-    emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
+        emailViewSubject.textContent = email.subject || '(No Subject)';
+        emailViewFrom.textContent = email.sender || 'N/A';
+        emailViewTo.textContent = email.recipient || 'N/A';
+        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
 
-    // --- Handle Attachments ---
-    const attachmentsContainer = document.getElementById('email-view-attachments-container');
-    if (attachmentsContainer) {
-        attachmentsContainer.innerHTML = ''; // Clear previous attachments
-        if (email.attachments && email.attachments.length > 0) {
-            attachmentsContainer.classList.remove('hidden');
-            const attachmentsTitle = document.createElement('h5');
-            attachmentsTitle.textContent = 'Attachments';
-            attachmentsContainer.appendChild(attachmentsTitle);
+        const attachmentsContainer = document.getElementById('email-view-attachments-container');
+        if (attachmentsContainer) {
+            attachmentsContainer.innerHTML = ''; 
+            if (email.attachments && email.attachments.length > 0) {
+                attachmentsContainer.classList.remove('hidden');
+                const attachmentsTitle = document.createElement('h5');
+                attachmentsTitle.textContent = 'Attachments';
+                attachmentsContainer.appendChild(attachmentsTitle);
 
-            email.attachments.forEach(att => {
-                const link = document.createElement('a');
-                link.href = "#"; // Prevent page jump
+                email.attachments.forEach(att => {
+                    const link = document.createElement('a');
+                    link.href = "#";
 
-                let fileName;
-                let fileId;
+                    let fileName;
+                    let fileId;
 
-                // THIS IS THE NEW, SMARTER LOGIC
-                if (typeof att === 'string') {
-                    // Handles the case where 'att' is just a file path string
-                    fileId = att;
-                    // Extracts the filename from the path for display
-                    fileName = att.split('/').pop(); 
-                } else if (typeof att === 'object' && att !== null) {
-                    // Handles the case where 'att' is an object with properties
-                    fileId = att.path || att.file_id;
-                    fileName = att.name || att.filename || (fileId ? fileId.split('/').pop() : 'Unknown File');
-                }
+                    if (typeof att === 'string') {
+                        fileId = att;
+                        fileName = att.split('/').pop(); 
+                    } else if (typeof att === 'object' && att !== null) {
+                        fileId = att.path || att.file_id;
+                        fileName = att.name || att.filename || (fileId ? fileId.split('/').pop() : 'Unknown File');
+                    }
 
-                if (fileId) {
-                    link.textContent = fileName;
-                    link.className = "btn-secondary btn-sm attachment-link";
-                    link.dataset.filename = fileName;
-                    link.dataset.fileid = fileId; // This will now be correctly defined
-                    attachmentsContainer.appendChild(link);
-                }
-            });
-        } else {
-            attachmentsContainer.classList.add('hidden');
+                    if (fileId) {
+                        link.textContent = fileName;
+                        link.className = "btn-secondary btn-sm attachment-link";
+                        link.dataset.filename = fileName;
+                        link.dataset.fileid = fileId; 
+                        attachmentsContainer.appendChild(link);
+                    }
+                });
+            } else {
+                attachmentsContainer.classList.add('hidden');
+            }
         }
+
+        emailViewModalBackdrop.classList.remove('hidden');
+
+        document.querySelectorAll('.email-view-modal .attachment-link').forEach(link => {
+            link.addEventListener('click', handleAttachmentClick);
+        });
     }
-
-    // --- Show the Modal ---
-    emailViewModalBackdrop.classList.remove('hidden');
-
-    // --- Add Listeners for New Links ---
-    document.querySelectorAll('.email-view-modal .attachment-link').forEach(link => {
-        link.addEventListener('click', handleAttachmentClick);
-    });
-}
 
     async function handleAttachmentClick(event) {
         event.preventDefault();
@@ -379,7 +365,7 @@ function openEmailViewModal(email) {
         const fileName = event.target.dataset.filename || 'downloaded-file';
 
         if (!fileId) {
-            console.error('File ID not found for attachment. Attachment object:', event.target.dataset);
+            console.error('File ID not found for attachment.', event.target.dataset);
             alert('Failed to download attachment. File ID is missing.');
             return;
         }
@@ -550,8 +536,6 @@ function openEmailViewModal(email) {
         }
     }
 
-
-    // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
         
@@ -840,13 +824,12 @@ function openEmailViewModal(email) {
                 `;
 
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
-                    hideModal(); // Hide the initial confirmation modal
-                    showToast("Processing import...", 'info'); // Show a non-blocking toast
+                    hideModal();
+                    showToast("Processing import...", 'info');
                     
                     let successCount = 0;
                     let errorCount = 0;
                     
-                    // Get the data from the modal *before* it's hidden
                     const selectedRowsData = [];
                     document.querySelectorAll('.modal-content .import-row input[type="checkbox"]:checked').forEach(checkbox => {
                         const row = checkbox.closest('.import-row');
