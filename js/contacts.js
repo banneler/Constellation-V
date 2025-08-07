@@ -328,21 +328,7 @@ const renderContactEmails = (contactEmail) => {
         emailViewModalBackdrop.classList.remove('hidden');
     };
 
-    function openEmailViewModal(email) {
-        if (!email) return;
-        emailViewSubject.textContent = email.subject || '(No Subject)';
-        emailViewFrom.textContent = email.sender || 'N/A';
-        emailViewTo.textContent = email.recipient || 'N/A';
-        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
-        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
-        emailViewModalBackdrop.classList.remove('hidden');
-    }
-
-    function closeEmailViewModal() {
-        emailViewModalBackdrop.classList.add('hidden');
-    }
-
-    const hideContactDetails = (hideForm = true, clearSelection = false) => {
+        const hideContactDetails = (hideForm = true, clearSelection = false) => {
         if (contactForm && hideForm) contactForm.classList.add('hidden');
         if (contactForm) {
             contactForm.reset();
