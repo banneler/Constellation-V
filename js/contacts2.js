@@ -304,7 +304,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // ##### THIS FUNCTION IS NOW CORRECT #####
     function openEmailViewModal(email) {
         if (!email) return;
 
@@ -329,14 +328,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                         link.href = "#";
 
                         const fileName = att.fileName || 'Unknown File';
-
-                        // **THE FIX:** This correctly extracts the path *after* the bucket name.
+                        
                         let downloadPath = '';
                         try {
                             const urlObject = new URL(att.url);
-                            const bucketName = 'email-attachments';
+                            // The full path in storage is after the bucket name.
+                            // e.g., /object/public/email-attachments/mailgun-attachments/file.pdf
+                            // We need "mailgun-attachments/file.pdf"
                             const pathSegments = urlObject.pathname.split('/');
-                            const bucketIndex = pathSegments.indexOf(bucketName);
+                            const bucketIndex = pathSegments.indexOf('email-attachments');
                             if (bucketIndex > -1 && bucketIndex + 1 < pathSegments.length) {
                                 downloadPath = pathSegments.slice(bucketIndex + 1).join('/');
                             }
@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             link.textContent = fileName;
                             link.className = "btn-secondary btn-sm attachment-link";
                             link.dataset.filename = fileName;
-                            link.dataset.downloadpath = downloadPath; // Use the correct path
+                            link.dataset.downloadpath = downloadPath;
                             attachmentsContainer.appendChild(link);
                         }
                     }
@@ -365,7 +365,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // ##### THIS FUNCTION IS NOW CORRECT #####
     async function handleAttachmentClick(event) {
         event.preventDefault();
         const downloadPath = event.target.dataset.downloadpath; 
@@ -378,7 +377,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
-            // Use the correct bucket name from your data.
             const { data, error } = await supabase.storage.from('email-attachments').download(downloadPath);
 
             if (error) {
