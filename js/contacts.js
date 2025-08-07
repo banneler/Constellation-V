@@ -273,19 +273,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    // Corrected renderContactEmails
-    const renderContactEmails = (contactEmail) => {
+    function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3">Contact has no email address.</td></tr>';
             return;
         }
-        
-        // Corrected sorting: newest on top.
-        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        
+        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.date));
         if (loggedEmails.length === 0) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
+            contactEmailsTableBody.innerHTML = '<tr><td colspan="3">No logged emails for this contact.</td></tr>';
             return;
         }
         contactEmailsTableBody.innerHTML = '';
@@ -296,10 +292,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             tr.innerHTML = `<td>${formatDate(email.created_at)}</td><td>${email.subject || '(No Subject)'}${attachmentIndicator}</td><td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>`;
             contactEmailsTableBody.appendChild(tr);
         });
-    };
-    
-    // Corrected openEmailViewModal
-    const openEmailViewModal = (email) => {
+    }
+
+    function openEmailViewModal(email) {
         if (!email) return;
         emailViewSubject.textContent = email.subject || '(No Subject)';
         emailViewFrom.textContent = email.sender || 'N/A';
@@ -328,11 +323,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         emailViewModalBackdrop.classList.remove('hidden');
-    };
+    }
 
-    const closeEmailViewModal = () => {
+    function openEmailViewModal(email) {
+        if (!email) return;
+        emailViewSubject.textContent = email.subject || '(No Subject)';
+        emailViewFrom.textContent = email.sender || 'N/A';
+        emailViewTo.textContent = email.recipient || 'N/A';
+        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
+        emailViewModalBackdrop.classList.remove('hidden');
+    }
+
+    function closeEmailViewModal() {
         emailViewModalBackdrop.classList.add('hidden');
-    };
+    }
 
     const hideContactDetails = (hideForm = true, clearSelection = false) => {
         if (contactForm && hideForm) contactForm.classList.add('hidden');
