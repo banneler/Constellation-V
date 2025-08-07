@@ -304,16 +304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
         });
     }
-
-    function openEmailViewModal(email) {
-        if (!email) return;
-
-        emailViewSubject.textContent = email.subject || '(No Subject)';
-        emailViewFrom.textContent = email.sender || 'N/A';
-        emailViewTo.textContent = email.recipient || 'N/A';
-        emailViewDate.textContent = new Date(email.created_at).toLocaleDateString();
-        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\n/g, '<br>');
-        
+           
         const attachmentsContainer = document.getElementById('email-view-attachments-container');
         if (attachmentsContainer) {
             attachmentsContainer.innerHTML = '';
