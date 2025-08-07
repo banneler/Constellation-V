@@ -196,7 +196,6 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
 
     modalBackdrop.classList.remove("hidden");
 }
-
 export function hideModal() {
     if (modalBackdrop) modalBackdrop.classList.add("hidden");
 }
@@ -349,6 +348,7 @@ export async function loadSVGs() {
     }
   }
 }
+
 
 
 
