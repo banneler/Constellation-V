@@ -341,7 +341,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
 
                         if (downloadPath) {
-                            // ##### DEBUGGING LINE 1 #####
                             console.log("Created download link. Path stored in data attribute:", downloadPath);
 
                             link.textContent = fileName;
@@ -369,7 +368,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const downloadPath = decodeURIComponent(event.target.dataset.downloadpath); 
         const fileName = event.target.dataset.filename || 'downloaded-file';
 
-        // ##### DEBUGGING LINE 2 #####
         console.log("Attempting to download from bucket 'email-attachments' with path:", downloadPath);
 
         if (!downloadPath) {
@@ -830,11 +828,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         </table>
                     </div>
                 `;
-
+                
+                // --- THIS IS THE START OF THE FIX ---
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
-                    hideModal();
-                    showToast("Processing import...", 'info');
-                    
                     let successCount = 0;
                     let errorCount = 0;
                     
@@ -883,15 +879,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                     }
                     
+                    hideModal();
+
+                    let resultMessage = '';
                     if (errorCount > 0) {
-                        showToast(`Import finished with ${successCount} successes and ${errorCount} errors.`, 'error');
+                        resultMessage = `Import finished with ${successCount} successes and ${errorCount} errors.`;
                     } else {
-                        showToast(`Successfully imported/updated ${successCount} contacts.`, 'success');
+                        resultMessage = `Successfully imported/updated ${successCount} contacts.`;
                     }
-                    
-                    await loadAllData();
-                    return true;
+
+                    showModal(
+                        "Import Complete",
+                        resultMessage,
+                        async () => {
+                            hideModal();
+                            await loadAllData();
+                        },
+                        false,
+                        `<button id="modal-confirm-btn" class="btn-primary">OK</button>`
+                    );
+
+                    return false; // Prevent the original modal from auto-closing
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                // --- THIS IS THE END OF THE FIX ---
                 
                 document.querySelectorAll('.import-row').forEach(row => {
                     const action = row.dataset.action;
@@ -1107,14 +1117,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             importContactScreenshotBtn.addEventListener("click", () => {
                 showModal("Import Contact Information",
                     `<p>To import contact information:</p>
-                    <ul>
-                        <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
-                        <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
-                    </ul>`,
+                     <ul>
+                         <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
+                         <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
+                     </ul>`,
                     null, false,
                     `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-            
+                
                 document.addEventListener('paste', handlePasteEvent, { once: true });
             });
         }
