@@ -1,8 +1,6 @@
 // js/contacts.js
 
-// ... (existing imports)
-
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -401,11 +399,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactDetails();
 
             hideModal();
-            showModal("Success", `Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, () => hideModal(), false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            showToast(`Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, 'success');
 
         } catch (error) {
             console.error("Error invoking Edge Function or saving data:", error);
-            showModal("Error", `Failed to process image: ${error.message}. Please try again or enter the details manually.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            showToast(`Failed to process image: ${error.message}. Please try again or enter the details manually.`, 'error');
+            hideModal();
         }
     }
 
@@ -750,7 +749,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // Now, get fresh references to the modal elements
                     const modalTitle = document.getElementById('modal-title');
                     const modalBody = document.getElementById('modal-body');
-                    const modalFooter = document.getElementById('modal-footer');
+                    const modalFooter = document.getElementById('modal-actions'); // Corrected reference here
 
                     // Update the UI to show the processing state
                     if (modalTitle) modalTitle.textContent = "Processing Import";
@@ -795,18 +794,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                     }
                     
-                    const resultMessage = (errorCount > 0)
-                        ? `Import finished with ${successCount} successes and ${errorCount} errors.`
-                        : `Successfully imported/updated ${successCount} contacts.`;
-                    
-                    if (modalTitle) modalTitle.textContent = "Import Complete";
-                    if (modalBody) modalBody.innerHTML = `<p>${resultMessage}</p>`;
-                    if (modalFooter) modalFooter.innerHTML = `<button id="modal-ok-btn" class="btn-primary">OK</button>`;
-                    
-                    document.getElementById('modal-ok-btn').addEventListener('click', hideModal, { once: true });
-                    
+                    // Use toast notifications instead of a second modal
+                    if (errorCount > 0) {
+                        showToast(`Import finished with ${successCount} successes and ${errorCount} errors.`, 'error');
+                    } else {
+                        showToast(`Successfully imported/updated ${successCount} contacts.`, 'success');
+                    }
+
+                    // Close the modal after the toast notification appears
+                    hideModal();
                     await loadAllData();
-                    return false;
+                    return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
                 
                 document.querySelectorAll('.import-row').forEach(row => {
