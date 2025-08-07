@@ -88,8 +88,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
         const sharedTables = ["sequence_steps", "email_log"];
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-        
-        // This is the corrected data fetch. No more fancy select for email_log.
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         
         const allPromises = [...userPromises, ...sharedPromises];
@@ -325,26 +323,34 @@ document.addEventListener("DOMContentLoaded", async () => {
                 attachmentsContainer.appendChild(attachmentsTitle);
 
                 email.attachments.forEach(att => {
-                    const link = document.createElement('a');
-                    link.href = "#";
+                    // Check if 'att' is a valid object with a URL
+                    if (typeof att === 'object' && att !== null && att.url) {
+                        const link = document.createElement('a');
+                        link.href = "#";
 
-                    let fileName;
-                    let fileId;
+                        // Use the correct key from your data: 'fileName'
+                        const fileName = att.fileName || 'Unknown File';
 
-                    if (typeof att === 'string') {
-                        fileId = att;
-                        fileName = att.split('/').pop(); 
-                    } else if (typeof att === 'object' && att !== null) {
-                        fileId = att.path || att.file_id;
-                        fileName = att.name || att.filename || (fileId ? fileId.split('/').pop() : 'Unknown File');
-                    }
+                        // Extract the path from the full URL for the download function
+                        let filePath = '';
+                        try {
+                            const urlObject = new URL(att.url);
+                            // The path is everything after '/public/' or '/object/public/'
+                            const pathParts = urlObject.pathname.split('/public/');
+                            if (pathParts.length > 1) {
+                                filePath = pathParts[1];
+                            }
+                        } catch (e) {
+                            console.error("Could not parse attachment URL:", att.url, e);
+                        }
 
-                    if (fileId) {
-                        link.textContent = fileName;
-                        link.className = "btn-secondary btn-sm attachment-link";
-                        link.dataset.filename = fileName;
-                        link.dataset.fileid = fileId; 
-                        attachmentsContainer.appendChild(link);
+                        if (filePath) {
+                            link.textContent = fileName;
+                            link.className = "btn-secondary btn-sm attachment-link";
+                            link.dataset.filename = fileName;
+                            link.dataset.filepath = filePath; // Store the correct path
+                            attachmentsContainer.appendChild(link);
+                        }
                     }
                 });
             } else {
@@ -361,17 +367,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function handleAttachmentClick(event) {
         event.preventDefault();
-        const fileId = event.target.dataset.fileid;
+        // Use the correct data attribute: 'filepath'
+        const filePath = event.target.dataset.filepath; 
         const fileName = event.target.dataset.filename || 'downloaded-file';
 
-        if (!fileId) {
-            console.error('File ID not found for attachment.', event.target.dataset);
-            alert('Failed to download attachment. File ID is missing.');
+        if (!filePath) {
+            console.error('File path not found for attachment.', event.target.dataset);
+            alert('Failed to download attachment. File path is missing.');
             return;
         }
 
         try {
-            const { data, error } = await supabase.storage.from('attachments').download(fileId);
+            // The bucket name is 'email-attachments', based on your URL structure
+            const { data, error } = await supabase.storage.from('email-attachments').download(filePath);
 
             if (error) {
                 console.error('Error downloading attachment:', error);
@@ -1189,11 +1197,4 @@ document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const contactIdFromUrl = urlParams.get('contactId');
             if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
-            await loadAllData();
-        } else {
-            window.location.href = "index.html";
-        }
-    }
-
-    initializePage();
-});
+            await loadAllD
