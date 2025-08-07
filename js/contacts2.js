@@ -88,7 +88,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
         const sharedTables = ["sequence_steps", "email_log"];
         const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-        const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
+      const sharedPromises = sharedTables.map((table) => {
+    if (table === "email_log") {
+        // This is the key change: We explicitly ask for all columns from the email_log
+        // AND all columns (*) from the related attachments table.
+        return supabase.from(table).select("*, attachments(*)");
+    } else {
+        // For any other "shared" tables, we just get all their columns as before.
+        return supabase.from(table).select("*");
+    }
+});
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
     
