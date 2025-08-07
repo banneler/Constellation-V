@@ -1,3 +1,5 @@
+// js/contacts.js
+
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -237,7 +239,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     contactActivitiesList.appendChild(li);
                 });
             
-            renderContactEmails(contact.id);
+            renderContactEmails(contact.email);
 
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
             if (sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
@@ -271,27 +273,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    async function renderContactEmails(contactId) {
+    async function renderContactEmails(contactEmail) {
         const emailList = document.getElementById('email-list');
         emailList.innerHTML = '';
+
+        if (!contactEmail) {
+            emailList.innerHTML = '<p class="placeholder-text">No email address for this contact.</p>';
+            return;
+        }
 
         const {
             data: emails,
             error
         } = await supabase
-            .from('contacts_email')
+            .from('email_log')
             .select(`
             id,
-            timestamp,
-            sender_email,
+            timestamp: created_at,
+            sender_email: sender,
             subject,
-            body,
+            body: body_text,
             attachments
             `)
-            .eq('contact_id', contactId);
+            .eq('recipient', contactEmail);
 
         if (error) {
             console.error('Error fetching emails:', error);
+            emailList.innerHTML = `<p class="placeholder-text">Error loading emails: ${error.message}</p>`;
+            return;
+        }
+
+        if (emails.length === 0) {
+            emailList.innerHTML = '<p class="placeholder-text">No logged emails for this contact.</p>';
             return;
         }
 
@@ -303,11 +316,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             emailItem.className = 'email-item';
             emailItem.innerHTML = `
             <div class="email-header">
-                <div class="email-subject">${email.subject}</div>
+                <div class="email-subject">${email.subject || '(No Subject)'}</div>
                 <div class="email-date">${new Date(email.timestamp).toLocaleDateString()}</div>
             </div>
-            <div class="email-from">From: ${email.sender_email}</div>
-            <div class="email-body">${email.body}</div>
+            <div class="email-from">From: ${email.sender_email || 'N/A'}</div>
+            <div class="email-body">${email.body || '(Email body is empty)'}</div>
             ${email.attachments && email.attachments.length > 0 ? `
                 <div class="email-attachments">
                     <p>Attachments:</p>
