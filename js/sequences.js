@@ -280,27 +280,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const activeContactIds = new Set(state.contact_sequences.filter(cs => cs.status === 'Active').map(cs => cs.contact_id));
-    const availableContacts = state.contacts.filter(contact => !activeContactIds.has(contact.id));
+    
+    // --- FIX IS HERE: Added .sort() to order contacts by last name ---
+    const availableContacts = state.contacts
+        .filter(contact => !activeContactIds.has(contact.id))
+        .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
 
     if (availableContacts.length === 0) {
         showModal("No Available Contacts", "All of your contacts are already in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         return;
     }
 
-    // Build the list of contacts for the modal
     const contactListHtml = availableContacts.map(contact => {
         const account = state.accounts.find(a => a.id === contact.account_id);
-
         const contactActivities = state.activities
             .filter(act => act.contact_id === contact.id)
             .sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        const lastActivity = contactActivities.length > 0
-            ? `Last Activity: ${formatDate(contactActivities[0].date)}`
-            : "No activity";
+        const lastActivity = contactActivities.length > 0 ? `Last Activity: ${formatDate(contactActivities[0].date)}` : "No activity";
 
+        // --- FIX IS HERE: Added class="list-item contact-item-row" ---
         return `
-            <div class="list-item">
+            <div class="list-item contact-item-row"> 
                 <input type="checkbox" id="contact-${contact.id}" data-contact-id="${contact.id}" class="bulk-assign-checkbox">
                 <label for="contact-${contact.id}">
                     <span>${contact.first_name} ${contact.last_name} <small>(${account ? account.name : 'No Account'})</small></span>
@@ -310,14 +310,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
     }).join('');
 
-    // --- FIX IS HERE: Wrapped the "Select All" text in a <span> to match the structure below ---
+    // --- FIX IS HERE: Added class="list-item select-all-header" ---
     const modalBody = `
         <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
-        <div class="list-item" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
+        <div class="list-item select-all-header">
              <input type="checkbox" id="select-all-contacts">
-             <label for="select-all-contacts" style="cursor:pointer; font-weight:bold;">
-                <span>Select All / Deselect All</span>
-             </label>
+             <label for="select-all-contacts">Select All / Deselect All</label>
         </div>
         <div class="item-list-container-modal">
             ${contactListHtml}
