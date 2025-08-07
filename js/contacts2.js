@@ -275,8 +275,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
-        contactEmailsTableBody.innerHTML = ''; // Clear existing content
-
+        contactEmailsTableBody.innerHTML = '';
+    
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Contact has no email address.</td></tr>';
             return;
@@ -285,7 +285,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const loggedEmails = state.email_log
             .filter(email => (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase())
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
+    
         if (loggedEmails.length === 0) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
             return;
@@ -733,7 +733,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const exactMatch = state.accounts.find(acc => acc.name.toLowerCase().trim() === lowerCompanyName);
                     if (exactMatch) return exactMatch.id;
                     const partialMatch = state.accounts.find(acc => acc.name.toLowerCase().includes(lowerCompanyName) || lowerCompanyName.includes(acc.name.toLowerCase()));
-                    return partialMatch ? partial or Match.id : null;
+                    return partialMatch ? partialMatch.id : null;
                 };
 
                 for (const record of newRecords) {
