@@ -393,7 +393,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactDetails();
 
             hideModal();
-            showModal("Success", `Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            showModal("Success", `Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, () => hideModal(), false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
         } catch (error) {
             console.error("Error invoking Edge Function or saving data:", error);
@@ -773,9 +773,9 @@ contactCsvInput.addEventListener("change", async (e) => {
             }
 
             if (errorCount > 0) {
-                showModal("Import Complete", `Import finished with ${successCount} successes and ${errorCount} errors.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                showModal("Import Complete", `Import finished with ${successCount} successes and ${errorCount} errors.`, () => hideModal(), false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             } else {
-                showModal("Import Complete", `Successfully imported/updated ${successCount} contacts.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                showModal("Import Complete", `Successfully imported/updated ${successCount} contacts.`, () => hideModal(), false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             }
 
             await loadAllData();
