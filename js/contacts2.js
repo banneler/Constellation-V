@@ -304,6 +304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // ##### THIS FUNCTION IS NOW CORRECT #####
     function openEmailViewModal(email) {
         if (!email) return;
 
@@ -323,32 +324,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                 attachmentsContainer.appendChild(attachmentsTitle);
 
                 email.attachments.forEach(att => {
-                    // Check if 'att' is a valid object with a URL
                     if (typeof att === 'object' && att !== null && att.url) {
                         const link = document.createElement('a');
                         link.href = "#";
 
-                        // Use the correct key from your data: 'fileName'
                         const fileName = att.fileName || 'Unknown File';
 
-                        // Extract the path from the full URL for the download function
-                        let filePath = '';
+                        // **THE FIX:** This correctly extracts the path *after* the bucket name.
+                        let downloadPath = '';
                         try {
                             const urlObject = new URL(att.url);
-                            // The path is everything after '/public/' or '/object/public/'
-                            const pathParts = urlObject.pathname.split('/public/');
-                            if (pathParts.length > 1) {
-                                filePath = pathParts[1];
+                            const bucketName = 'email-attachments';
+                            const pathSegments = urlObject.pathname.split('/');
+                            const bucketIndex = pathSegments.indexOf(bucketName);
+                            if (bucketIndex > -1 && bucketIndex + 1 < pathSegments.length) {
+                                downloadPath = pathSegments.slice(bucketIndex + 1).join('/');
                             }
                         } catch (e) {
                             console.error("Could not parse attachment URL:", att.url, e);
                         }
 
-                        if (filePath) {
+                        if (downloadPath) {
                             link.textContent = fileName;
                             link.className = "btn-secondary btn-sm attachment-link";
                             link.dataset.filename = fileName;
-                            link.dataset.filepath = filePath; // Store the correct path
+                            link.dataset.downloadpath = downloadPath; // Use the correct path
                             attachmentsContainer.appendChild(link);
                         }
                     }
@@ -365,21 +365,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // ##### THIS FUNCTION IS NOW CORRECT #####
     async function handleAttachmentClick(event) {
         event.preventDefault();
-        // Use the correct data attribute: 'filepath'
-        const filePath = event.target.dataset.filepath; 
+        const downloadPath = event.target.dataset.downloadpath; 
         const fileName = event.target.dataset.filename || 'downloaded-file';
 
-        if (!filePath) {
-            console.error('File path not found for attachment.', event.target.dataset);
-            alert('Failed to download attachment. File path is missing.');
+        if (!downloadPath) {
+            console.error('File download path not found.', event.target.dataset);
+            alert('Failed to download attachment. Path is missing.');
             return;
         }
 
         try {
-            // The bucket name is 'email-attachments', based on your URL structure
-            const { data, error } = await supabase.storage.from('email-attachments').download(filePath);
+            // Use the correct bucket name from your data.
+            const { data, error } = await supabase.storage.from('email-attachments').download(downloadPath);
 
             if (error) {
                 console.error('Error downloading attachment:', error);
