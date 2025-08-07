@@ -3629,8 +3629,8 @@ body.theme-green .marketing-indicator {
 /* Toast container positioning */
 .toast-container {
     position: fixed;
-    top: 90px; /* Adjust as needed to position below the navigation bar */
-    right: 200px;
+    top: 400px; /* Adjust as needed to position below the navigation bar */
+    right: 100px;
     z-index: 1000;
     display: flex;
     flex-direction: column;
