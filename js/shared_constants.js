@@ -218,11 +218,12 @@ export function showToast(message, type = 'success') {
     toast.innerHTML = `<span>${message}</span>`;
     toastContainer.appendChild(toast);
 
-    // Automatically remove the toast after 5 seconds
+    // Keep the toast visible for a few seconds before starting the fade-out.
+    // The previous version was hiding it immediately.
     setTimeout(() => {
         toast.classList.add('hide');
         toast.addEventListener('transitionend', () => toast.remove());
-    }, 5000);
+    }, 4000); // Wait 4 seconds before starting the fade-out.
 }
 
 
@@ -366,3 +367,4 @@ export async function loadSVGs() {
         }
     }
 }
+
