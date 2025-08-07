@@ -727,13 +727,14 @@ contactCsvInput.addEventListener("change", async (e) => {
             </div>
         `;
 
-        showModal("Confirm CSV Import", modalBodyHtml, async (modalContent) => {
-            const modalTitle = document.getElementById('modal-title');
-            const modalBody = document.getElementById('modal-body');
-            const modalFooter = document.getElementById('modal-footer');
+        showModal("Confirm CSV Import", modalBodyHtml, async (modalContainer) => {
+            // Get references to modal elements by searching within the modalContainer
+            const modalTitle = modalContainer.querySelector('#modal-title');
+            const modalBody = modalContainer.querySelector('#modal-body');
+            const modalFooter = modalContainer.querySelector('#modal-footer');
 
             const selectedRowsData = [];
-            modalContent.querySelectorAll('.import-row input[type="checkbox"]:checked').forEach(checkbox => {
+            modalBody.querySelectorAll('.import-row input[type="checkbox"]:checked').forEach(checkbox => {
                 const row = checkbox.closest('.import-row');
                 const action = row.dataset.action;
                 const index = parseInt(row.dataset.index);
@@ -798,6 +799,7 @@ contactCsvInput.addEventListener("change", async (e) => {
             return false;
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         
+        // This part needs to be outside the callback
         document.querySelectorAll('.import-row').forEach(row => {
             const action = row.dataset.action;
             const index = parseInt(row.dataset.index);
