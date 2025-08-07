@@ -326,10 +326,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const link = document.createElement('a');
                     link.href = "#";
                     // Corrected data fields for filename and file ID
-                    link.textContent = att.name || 'Unknown File';
+                    const fileName = att.name || att.filename || 'Unknown File';
+                    const fileId = att.path || att.file_id;
+                    link.textContent = fileName;
                     link.className = "btn-secondary btn-sm attachment-link";
-                    link.dataset.filename = att.name;
-                    link.dataset.fileid = att.path;
+                    link.dataset.filename = fileName;
+                    link.dataset.fileid = fileId;
                     attachmentsContainer.appendChild(link);
                 });
             }
@@ -686,13 +688,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { error } = await supabase.from("contacts").delete().eq("id", state.selectedContactId);
                 if (error) {
                     showModal("Error", "Error deleting contact: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
+                } else {
+                    state.selectedContactId = null;
+                    state.isFormDirty = false;
+                    await loadAllData();
+                    hideModal();
+                    showModal("Success", "Contact deleted successfully.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
-                state.selectedContactId = null;
-                state.isFormDirty = false;
-                await loadAllData();
-                hideModal();
-                showModal("Success", "Contact deleted successfully.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
