@@ -273,6 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
+    // Corrected renderContactEmails
     const renderContactEmails = (contactEmail) => {
         if (!contactEmailsTableBody) return;
         if (!contactEmail) {
@@ -296,7 +297,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactEmailsTableBody.appendChild(tr);
         });
     };
-
+    
+    // Corrected openEmailViewModal
     const openEmailViewModal = (email) => {
         if (!email) return;
         emailViewSubject.textContent = email.subject || '(No Subject)';
@@ -326,6 +328,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         emailViewModalBackdrop.classList.remove('hidden');
+    };
+
+    const closeEmailViewModal = () => {
+        emailViewModalBackdrop.classList.add('hidden');
     };
 
     const hideContactDetails = (hideForm = true, clearSelection = false) => {
