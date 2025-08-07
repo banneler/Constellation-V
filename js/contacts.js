@@ -273,15 +273,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    function renderContactEmails(contactEmail) {
+const renderContactEmails = (contactEmail) => {
         if (!contactEmailsTableBody) return;
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3">Contact has no email address.</td></tr>';
             return;
         }
-        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.date));
+        
+        // Corrected sorting: newest on top.
+        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
         if (loggedEmails.length === 0) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3">No logged emails for this contact.</td></tr>';
+            contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
             return;
         }
         contactEmailsTableBody.innerHTML = '';
@@ -292,9 +295,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             tr.innerHTML = `<td>${formatDate(email.created_at)}</td><td>${email.subject || '(No Subject)'}${attachmentIndicator}</td><td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>`;
             contactEmailsTableBody.appendChild(tr);
         });
-    }
+    };
 
-    function openEmailViewModal(email) {
+    const openEmailViewModal = (email) => {
         if (!email) return;
         emailViewSubject.textContent = email.subject || '(No Subject)';
         emailViewFrom.textContent = email.sender || 'N/A';
@@ -323,7 +326,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         emailViewModalBackdrop.classList.remove('hidden');
-    }
+    };
 
     function openEmailViewModal(email) {
         if (!email) return;
