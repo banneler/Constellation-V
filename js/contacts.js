@@ -273,26 +273,66 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    function renderContactEmails(contactEmail) {
-        if (!contactEmailsTableBody) return;
-        if (!contactEmail) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3">Contact has no email address.</td></tr>';
-            return;
-        }
-        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.date));
-        if (loggedEmails.length === 0) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3">No logged emails for this contact.</td></tr>';
-            return;
-        }
-        contactEmailsTableBody.innerHTML = '';
-        loggedEmails.forEach(email => {
-            const tr = document.createElement('tr');
-            const hasAttachment = email.attachments && email.attachments.length > 0;
-            const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paperclip" title="${email.attachments.length} attachment(s)"></i>` : '';
-            tr.innerHTML = `<td>${formatDate(email.created_at)}</td><td>${email.subject || '(No Subject)'}${attachmentIndicator}</td><td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>`;
-            contactEmailsTableBody.appendChild(tr);
-        });
+async function renderContactEmails(contactId) {
+    const emailList = document.getElementById('email-list');
+    emailList.innerHTML = '';
+
+    const {
+        data: emails,
+        error
+    } = await supabase
+        .from('contacts_email')
+        .select(`
+      id,
+      timestamp,
+      sender_email,
+      subject,
+      body,
+      attachments
+    `)
+        .eq('contact_id', contactId);
+
+    if (error) {
+        console.error('Error fetching emails:', error);
+        return;
     }
+
+    // Sort emails by timestamp in descending order (newest first)
+    emails.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    emails.forEach(email => {
+        const emailItem = document.createElement('div');
+        emailItem.className = 'email-item';
+        emailItem.innerHTML = `
+      <div class="email-header">
+        <div class="email-subject">${email.subject}</div>
+        <div class="email-date">${new Date(email.timestamp).toLocaleDateString()}</div>
+      </div>
+      <div class="email-from">From: ${email.sender_email}</div>
+      <div class="email-body">${email.body}</div>
+      ${email.attachments && email.attachments.length > 0 ? `
+        <div class="email-attachments">
+          <p>Attachments:</p>
+          <ul>
+            ${email.attachments.map(attachment => `
+              <li>
+                <a href="#" class="attachment-link" data-filename="${attachment.filename}" data-fileid="${attachment.file_id}">
+                  ${attachment.filename}
+                </a>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+      ` : ''}
+    `;
+        emailList.appendChild(emailItem);
+    });
+
+    // Add event listeners for attachments after they are rendered
+    document.querySelectorAll('.attachment-link').forEach(link => {
+        link.addEventListener('click', handleAttachmentClick);
+    });
+}
 
 function openEmailViewModal(email) {
     if (!email) return;
