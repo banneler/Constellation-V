@@ -3630,7 +3630,7 @@ body.theme-green .marketing-indicator {
 .toast-container {
     position: fixed;
     top: 90px; /* Adjust as needed to position below the navigation bar */
-    right: 100px;
+    right: 200px;
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -3641,7 +3641,7 @@ body.theme-green .marketing-indicator {
 /* Base toast style (no background box) */
 .toast {
     color: #fff; /* Default text color, will be overridden by type */
-    padding: 0.5rem 1rem;
+    padding: 0.5rem .5rem;
     font-weight: bold;
     opacity: 1;
     transform: translateY(0);
