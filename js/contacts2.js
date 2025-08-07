@@ -366,7 +366,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function handleAttachmentClick(event) {
         event.preventDefault();
-        const downloadPath = event.target.dataset.downloadpath; 
+        const downloadPath = decodeURIComponent(event.target.dataset.downloadpath); 
         const fileName = event.target.dataset.filename || 'downloaded-file';
 
         // ##### DEBUGGING LINE 2 #####
