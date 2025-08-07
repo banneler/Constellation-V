@@ -1,3 +1,5 @@
+// js/contacts.js
+
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -237,6 +239,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     contactActivitiesList.appendChild(li);
                 });
             
+            // Pass the contact's email to the render function
             renderContactEmails(contact.email);
 
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
@@ -271,9 +274,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    // MODIFIED: This function now populates the HTML table
+    // This function now correctly populates the HTML table
     async function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
+        contactEmailsTableBody.innerHTML = ''; // Clear existing content
+
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Contact has no email address.</td></tr>';
             return;
@@ -307,8 +312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Sort emails by timestamp in descending order (newest first)
         emails.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        contactEmailsTableBody.innerHTML = '';
-
+        
         emails.forEach(email => {
             const row = contactEmailsTableBody.insertRow();
             const hasAttachment = email.attachments && email.attachments.length > 0;
@@ -322,13 +326,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // MODIFIED: This function now handles the modal view for emails and attachments
     function openEmailViewModal(email) {
         if (!email) return;
 
         emailViewSubject.textContent = email.subject || '(No Subject)';
         emailViewFrom.textContent = email.sender_email || 'N/A';
-        emailViewTo.textContent = 'N/A'; // Assuming `recipient` field is not in this object
+        emailViewTo.textContent = email.recipient || 'N/A';
         emailViewDate.textContent = new Date(email.timestamp).toLocaleDateString();
         emailViewBodyContent.innerHTML = (email.body || '(Email body is empty)').replace(/\n/g, '<br>');
         
@@ -342,7 +345,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 email.attachments.forEach(att => {
                     const link = document.createElement('a');
-                    link.href = "#"; // Use # since the download logic is in JS now
+                    link.href = "#";
                     link.textContent = att.filename;
                     link.className = "btn-secondary btn-sm attachment-link";
                     link.dataset.filename = att.filename;
@@ -359,7 +362,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             link.addEventListener('click', handleAttachmentClick);
         });
     }
-
+    
     async function handleAttachmentClick(event) {
         event.preventDefault();
         const fileId = event.target.dataset.fileid;
@@ -415,6 +418,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if(removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
         if(completeSequenceBtn) completeSequenceBtn.classList.add('hidden');
+        // Correctly reset the email log table body
         if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Select a contact to see logged emails.</td></tr>';
         if(contactPendingTaskReminder) contactPendingTaskReminder.classList.add('hidden');
 
@@ -687,12 +691,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
             } else {
-                const { data: newContactData, error: insertError } = await supabase.from("contacts").insert([data]).select();
+                const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([data]).select();
                 if (insertError) {
                     showModal("Error", "Error creating contact: " + insertError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-                if (newContactData?.length > 0) state.selectedContactId = newContactData[0].id;
+                if (newContactArr?.length > 0) state.selectedContactId = newContactArr[0].id;
             }
             state.isFormDirty = false;
             await loadAllData();
