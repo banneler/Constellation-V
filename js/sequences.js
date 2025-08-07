@@ -321,7 +321,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     
    }
     
-    async function processBulkAssignment() {
+async function processBulkAssignment() {
     const selectedContactIds = Array.from(document.querySelectorAll('.bulk-assign-checkbox:checked')).map(cb => Number(cb.dataset.contactId));
 
     if (selectedContactIds.length === 0) {
@@ -375,21 +375,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     //    This is the key to stopping the race condition.
     return false;
 }
-    
-    // 2. Then, show a new success modal. The data reload only happens AFTER the user clicks "OK".
-    showModal(
-        "Success", 
-        `${selectedContactIds.length} contact(s) have been successfully added to the sequence.`, 
-        async () => { 
-            hideModal(); // Close the success modal
-            await loadAllData(); // THEN reload the data
-        }, 
-        false, // Don't show a cancel button
-        `<button id="modal-confirm-btn" class="btn-primary">OK</button>`
-    );
-    
-    return true; // This is for the original modal's logic, which we've now manually handled.
-}}
                     
     // --- All other existing functions ---
 
