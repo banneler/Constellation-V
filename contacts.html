@@ -24,13 +24,13 @@
             <a href="sequences.html" class="nav-button">Sequences</a>
             <a href="social_hub.html" class="nav-button">Social Hub</a>
             <div class="nav-bottom-section">
-                <a href="cognito.html" class="nav-button cognito-nav-link">
+                 <a href="cognito.html" class="nav-button cognito-nav-link">
                     <h1>
                         C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
                             <defs>
                                 <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#60a5fa;" />
-                                    <stop offset="100%" style="stop-color:#3b82f6;" />
+                                    <stop offset="0%" style="stop-color:#60a5fa;"/>
+                                    <stop offset="100%" style="stop-color:#3b82f6;"/>
                                 </linearGradient>
                             </defs>
                             <g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round">
@@ -72,6 +72,7 @@
                         <div id="contact-list" class="item-list"></div>
                     </div>
                     <div id="contact-details" class="details-panel">
+                        <!-- MODIFIED: Star is now a direct child of the panel for positioning -->
                         <span id="organic-star-indicator" class="organic-star" title="Mark as organic contact">★</span>
                         
                         <div id="contact-pending-task-reminder" class="pending-task-reminder hidden"></div>
@@ -126,8 +127,19 @@
                         </div>
                         <div class="related-info">
                             <h4>Logged Emails</h4>
-                            <div id="email-list" class="email-list">
-                                <p class="placeholder-text">No logged emails for this contact.</p>
+                            <div class="table-container">
+                                <table id="contact-emails-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Subject</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="contact-emails-table-body">
+                                        <tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         <div class="related-info">
