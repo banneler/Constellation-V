@@ -3687,52 +3687,58 @@ body.theme-green .marketing-indicator {
     margin-bottom: 10px;
     text-decoration: none;
 }
-/* In style.css */
+/* In style.css (add this to the end) */
 
+/* Container for the scrolling list inside the modal */
 .item-list-container-modal {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 8px;
-    max-height: 40vh; /* Sets a max height for scrolling */
-    overflow-y: auto; /* Enables vertical scrolling if content overflows */
-    background-color: var(--background-color-light);
+    max-height: 40vh;
+    overflow-y: auto;
+    background-color: var(--bg-dark); /* Use a darker background for contrast */
 }
 
-.item-list-container-modal .list-item label {
-    flex-grow: 1;
-    cursor: pointer;
+/* This is the bully fix. We are overriding the global .list-item style. */
+.item-list-container-modal .list-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    /* Add this new line */
-    width: calc(100% - 32px); /* Prevents label from expanding under the checkbox */
-}
-
-.item-list-container-modal .list-item:last-child {
-    border-bottom: none; /* Removes border from the last item */
+    align-items: center; /* Vertically align items */
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
 }
 
 .item-list-container-modal .list-item:hover {
-    background-color: var(--hover-color);
+    background-color: var(--bg-light);
 }
 
+.item-list-container-modal .list-item:last-child {
+    border-bottom: none;
+}
+
+/* Style the checkbox to have a fixed size and not stretch */
+.item-list-container-modal .list-item input[type="checkbox"] {
+    flex-shrink: 0; /* Prevents the checkbox from shrinking */
+    margin-right: 15px; /* Adds space between checkbox and label */
+    width: 18px;
+    height: 18px;
+}
+
+/* The label now correctly takes up the remaining space */
 .item-list-container-modal .list-item label {
-    flex-grow: 1;
+    flex-grow: 1; /* Allows the label to fill the available width */
     cursor: pointer;
-    display: flex; /* Use flexbox for alignment */
-    justify-content: space-between; /* Pushes items to opposite ends */
+    display: flex; /* This is crucial for aligning the name and date */
+    justify-content: space-between; /* Pushes the name and date apart */
     align-items: center;
 }
 
-.item-list-container-modal .list-item input[type="checkbox"] {
-    margin-right: 12px;
-    flex-shrink: 0; /* Prevents checkbox from shrinking */
-}
-
+/* Styling for the new Last Activity Date text */
 .last-activity-date {
     font-size: 0.8em;
-    color: var(--text-color-secondary);
+    color: var(--text-medium);
     font-style: italic;
-    white-space: nowrap; /* Prevents date from wrapping */
-    margin-left: 15px; /* Adds space between name and date */
+    white-space: nowrap; /* Prevents the date from wrapping */
+    margin-left: 15px; /* Ensures space from the contact name */
+    flex-shrink: 0; /* Prevents the date from shrinking */
 }
