@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-const renderContactEmails = (contactEmail) => {
+    const renderContactEmails = (contactEmail) => {
         if (!contactEmailsTableBody) return;
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3">Contact has no email address.</td></tr>';
@@ -328,7 +328,7 @@ const renderContactEmails = (contactEmail) => {
         emailViewModalBackdrop.classList.remove('hidden');
     };
 
-        const hideContactDetails = (hideForm = true, clearSelection = false) => {
+    const hideContactDetails = (hideForm = true, clearSelection = false) => {
         if (contactForm && hideForm) contactForm.classList.add('hidden');
         if (contactForm) {
             contactForm.reset();
