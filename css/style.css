@@ -3630,11 +3630,11 @@ body.theme-green .marketing-indicator {
 .toast-container {
     position: fixed;
     top: 375px; /* Adjust as needed to position below the navigation bar */
-    right: 70px;
+    left: 70px;
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    align-items: flex-end; /* Aligns toasts to the right side */
+    align-items: flex-start; /* Aligns toasts to the right side */
     gap: 0.5rem;
 }
 
