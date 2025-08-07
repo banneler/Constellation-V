@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-
+    
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.location.href = url;
         }
     };
-
+    
     const confirmAndSwitchContact = (newContactId) => {
         if (state.isFormDirty) {
             showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch contacts?", () => {
@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactDetails();
         }
     };
-
+    
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
-
+    
         const { data: allActivityTypes, error: activityError } = await supabase.from("activity_types").select("*");
         if (activityError) {
             console.error("Error fetching activity types:", activityError);
@@ -134,7 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
     }
-
+    
     // --- Render Functions ---
     const renderContactList = () => {
         if (!contactList) return;
@@ -142,10 +142,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const filteredContacts = state.contacts
             .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
             .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
-
+    
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+    
         contactList.innerHTML = "";
         filteredContacts.forEach((contact) => {
             const item = document.createElement("div");
@@ -157,7 +157,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
             const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
             const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
-
+    
             item.innerHTML = `
                 <div class="contact-info">
                     <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
@@ -169,7 +169,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactList.appendChild(item);
         });
     };
-
+    
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
         if (!contactAccountNameSelect) return;
@@ -184,11 +184,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contactAccountNameSelect.appendChild(o);
             });
     };
-
+    
     const renderContactDetails = () => {
         const contact = state.contacts.find((c) => c.id === state.selectedContactId);
         if (!contactForm) return;
-
+    
         if (contactPendingTaskReminder && contact) {
             const pendingContactTasks = state.tasks.filter(task => task.status === 'Pending' && task.contact_id === contact.id);
             if (pendingContactTasks.length > 0) {
@@ -203,14 +203,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         populateAccountDropdown();
-
+    
         if (contact) {
             contactForm.classList.remove('hidden');
-
+    
             if (organicStarIndicator) {
                 organicStarIndicator.classList.toggle('is-organic', !!contact.is_organic);
             }
-
+    
             contactForm.querySelector("#contact-id").value = contact.id;
             contactForm.querySelector("#contact-first-name").value = contact.first_name || "";
             contactForm.querySelector("#contact-last-name").value = contact.last_name || "";
@@ -220,9 +220,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
             contactForm.querySelector("#contact-account-name").value = contact.account_id || "";
-
+    
             state.isFormDirty = false;
-
+    
             contactActivitiesList.innerHTML = "";
             state.activities
                 .filter((act) => act.contact_id === contact.id)
@@ -240,7 +240,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             
             renderContactEmails(contact.email);
-
+    
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
             if (sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
                 if (activeSequence) {
@@ -272,7 +272,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideContactDetails(true, true);
         }
     };
-
+    
     function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
         contactEmailsTableBody.innerHTML = ''; // Clear existing content
@@ -325,10 +325,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 email.attachments.forEach(att => {
                     const link = document.createElement('a');
                     link.href = "#";
-                    link.textContent = att.filename || 'Unknown File';
+                    // Corrected data fields for filename and file ID
+                    link.textContent = att.name || 'Unknown File';
                     link.className = "btn-secondary btn-sm attachment-link";
-                    link.dataset.filename = att.filename;
-                    link.dataset.fileid = att.file_id;
+                    link.dataset.filename = att.name;
+                    link.dataset.fileid = att.path;
                     attachmentsContainer.appendChild(link);
                 });
             }
