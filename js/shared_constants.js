@@ -76,7 +76,7 @@ export function formatDate(dateString) {
 export function formatMonthYear(dateString) {
     if (!dateString) return "N/A";
     const [year, month] = dateString.split('-');
-    const date = new Date(Date.UTC(year, month - 1, 2)); 
+    const date = new Date(Date.UTC(year, month - 1, 2));  
     return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 
@@ -137,19 +137,21 @@ export function updateActiveNavLink() {
 }
 
 // --- MODAL FUNCTIONS ---
-export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
-    const modalBackdrop = document.getElementById("modal-backdrop");
-    const modalTitle = document.getElementById("modal-title");
-    const modalBody = document.getElementById("modal-body");
-    const modalActions = document.getElementById("modal-actions");
+const modalBackdrop = document.getElementById("modal-backdrop");
+const modalTitle = document.getElementById("modal-title");
+const modalBody = document.getElementById("modal-body");
+const modalActions = document.getElementById("modal-actions");
+let currentModalCallbacks = { onConfirm: null, onCancel: null };
 
+export function getCurrentModalCallbacks() { return { ...currentModalCallbacks }; }
+export function setCurrentModalCallbacks(callbacks) { currentModalCallbacks = { ...callbacks }; }
+
+export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
     if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) {
         console.error("Modal elements are missing from the DOM.");
         return;
     }
     
-    // Clear previous event listeners and content
-    modalActions.innerHTML = '';
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
     
@@ -162,16 +164,14 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
         `;
     }
 
-    // Now, get the fresh buttons from the newly rendered HTML
     const confirmBtn = document.getElementById('modal-confirm-btn');
     const cancelBtn = document.getElementById('modal-cancel-btn');
     const okBtn = document.getElementById('modal-ok-btn');
     
-    // Bind event listeners to the newly created buttons
     if (confirmBtn) {
         confirmBtn.onclick = async () => {
             if (onConfirm) {
-                const result = await Promise.resolve(onConfirm(modalBody));
+                const result = await Promise.resolve(onConfirm(modalBody)); // Pass modalBody reference
                 if (result !== false) hideModal();
             } else {
                 hideModal();
@@ -193,7 +193,7 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
     }
 
     modalBackdrop.classList.remove("hidden");
-    return modalBody; // Return the modal body for external use
+    return modalBody; // Return the modal body for use in contacts.js
 }
 
 export function hideModal() {
@@ -348,11 +348,3 @@ export async function loadSVGs() {
     }
   }
 }
-
-
-
-
-
-
-
-
