@@ -146,6 +146,39 @@ let currentModalCallbacks = { onConfirm: null, onCancel: null };
 export function getCurrentModalCallbacks() { return { ...currentModalCallbacks }; }
 export function setCurrentModalCallbacks(callbacks) { currentModalCallbacks = { ...callbacks }; }
 
+export function _rebindModalActionListeners() {
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    const okBtn = document.getElementById('modal-ok-btn');
+
+    if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+            if (currentModalCallbacks.onConfirm) {
+                const result = await Promise.resolve(currentModalCallbacks.onConfirm());
+                if (result !== false) hideModal();
+            } else {
+                hideModal();
+            }
+        };
+    }
+    if (cancelBtn) {
+        cancelBtn.onclick = () => {
+             if (currentModalCallbacks.onCancel) {
+                currentModalCallbacks.onCancel();
+            }
+            hideModal();
+        };
+    }
+     if (okBtn) {
+        okBtn.onclick = () => {
+            if (currentModalCallbacks.onConfirm) {
+                 currentModalCallbacks.onConfirm();
+            }
+             hideModal();
+        };
+    }
+}
+
 export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
     if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) {
         console.error("Modal elements are missing from the DOM.");
@@ -367,4 +400,5 @@ export async function loadSVGs() {
         }
     }
 }
+
 
