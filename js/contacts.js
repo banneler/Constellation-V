@@ -730,11 +730,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `;
 
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
-                    // Save a reference to the footer and title before clearing the modal's content
-                    const modalTitle = document.getElementById('modal-title');
-                    const modalFooter = document.getElementById('modal-footer');
-
-                    // First, save the selected rows and their data
+                    // First, save the selected rows and their data from the current DOM
                     const selectedRowsData = [];
                     document.querySelectorAll('.modal-content .import-row input[type="checkbox"]:checked').forEach(checkbox => {
                         const row = checkbox.closest('.import-row');
@@ -744,11 +740,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                         selectedRowsData.push({ action, index, accountId });
                     });
                     
-                    // Then, update modal to a processing state
+                    // Now, get references to the modal elements before updating the content
+                    const modalTitle = document.getElementById('modal-title');
                     const modalBody = document.getElementById('modal-body');
+                    const modalFooter = document.getElementById('modal-footer');
+                    
+                    // Update modal to a processing state
                     modalTitle.textContent = "Processing Import";
                     modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Processing import...</p>`;
-                    // Clear the footer buttons now that we have a reference to the element
                     modalFooter.innerHTML = ''; 
 
                     let successCount = 0;
@@ -797,7 +796,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     
                     modalTitle.textContent = "Import Complete";
                     modalBody.innerHTML = `<p>${resultMessage}</p>`;
-                    // Now use the saved reference to update the footer
                     modalFooter.innerHTML = `<button id="modal-ok-btn" class="btn-primary">OK</button>`;
                     
                     document.getElementById('modal-ok-btn').addEventListener('click', hideModal, { once: true });
@@ -893,9 +891,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     showModal("Success", "Activity logged successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
                 return true;
-            });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Activity</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
-
+        
         assignSequenceBtn.addEventListener("click", () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to assign a sequence to.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const currentContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
