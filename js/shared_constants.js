@@ -156,9 +156,12 @@ export function _rebindModalActionListeners() {
     if (confirmBtn) {
         confirmBtn.onclick = async () => {
             if (currentModalCallbacks.onConfirm) {
+                // Call the provided callback and await the result
                 const result = await Promise.resolve(currentModalCallbacks.onConfirm());
+                // If the callback does not return explicitly 'false', hide the modal
                 if (result !== false) hideModal();
             } else {
+                // If there is no callback, just hide the modal immediately
                 hideModal();
             }
         };
@@ -174,6 +177,7 @@ export function _rebindModalActionListeners() {
      if (okBtn) {
         okBtn.onclick = () => {
             if (currentModalCallbacks.onConfirm) {
+                 // The 'ok' button is often used for simple acknowledgments
                  currentModalCallbacks.onConfirm();
             }
              hideModal();
@@ -353,3 +357,4 @@ export async function loadSVGs() {
     }
   }
 }
+
