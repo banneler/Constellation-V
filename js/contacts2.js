@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-
+    
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactDetails();
         }
     };
-
+    
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
-
+    
         const { data: allActivityTypes, error: activityError } = await supabase.from("activity_types").select("*");
         if (activityError) {
             console.error("Error fetching activity types:", activityError);
@@ -134,7 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
     }
-
+    
     // --- Render Functions ---
     const renderContactList = () => {
         if (!contactList) return;
@@ -142,10 +142,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const filteredContacts = state.contacts
             .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
             .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
-
+    
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+    
         contactList.innerHTML = "";
         filteredContacts.forEach((contact) => {
             const item = document.createElement("div");
@@ -157,7 +157,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
             const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
             const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
-
+    
             item.innerHTML = `
                 <div class="contact-info">
                     <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
@@ -169,7 +169,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactList.appendChild(item);
         });
     };
-
+    
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
         if (!contactAccountNameSelect) return;
@@ -184,11 +184,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contactAccountNameSelect.appendChild(o);
             });
     };
-
+    
     const renderContactDetails = () => {
         const contact = state.contacts.find((c) => c.id === state.selectedContactId);
         if (!contactForm) return;
-
+    
         if (contactPendingTaskReminder && contact) {
             const pendingContactTasks = state.tasks.filter(task => task.status === 'Pending' && task.contact_id === contact.id);
             if (pendingContactTasks.length > 0) {
@@ -203,14 +203,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         populateAccountDropdown();
-
+    
         if (contact) {
             contactForm.classList.remove('hidden');
-
+    
             if (organicStarIndicator) {
                 organicStarIndicator.classList.toggle('is-organic', !!contact.is_organic);
             }
-
+    
             contactForm.querySelector("#contact-id").value = contact.id;
             contactForm.querySelector("#contact-first-name").value = contact.first_name || "";
             contactForm.querySelector("#contact-last-name").value = contact.last_name || "";
@@ -220,9 +220,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
             contactForm.querySelector("#contact-account-name").value = contact.account_id || "";
-
+    
             state.isFormDirty = false;
-
+    
             contactActivitiesList.innerHTML = "";
             state.activities
                 .filter((act) => act.contact_id === contact.id)
@@ -240,7 +240,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             
             renderContactEmails(contact.email);
-
+    
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
             if (sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
                 if (activeSequence) {
@@ -671,12 +671,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
             } else {
-                const { data: newContactData, error: insertError } = await supabase.from("contacts").insert([data]).select();
+                const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([data]).select();
                 if (insertError) {
                     showModal("Error", "Error creating contact: " + insertError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-                if (newContactData?.length > 0) state.selectedContactId = newContactData[0].id;
+                if (newContactArr?.length > 0) state.selectedContactId = newContactArr[0].id;
             }
             state.isFormDirty = false;
             await loadAllData();
@@ -733,7 +733,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const exactMatch = state.accounts.find(acc => acc.name.toLowerCase().trim() === lowerCompanyName);
                     if (exactMatch) return exactMatch.id;
                     const partialMatch = state.accounts.find(acc => acc.name.toLowerCase().includes(lowerCompanyName) || lowerCompanyName.includes(acc.name.toLowerCase()));
-                    return partialMatch ? partialMatch.id : null;
+                    return partialMatch ? partial or Match.id : null;
                 };
 
                 for (const record of newRecords) {
@@ -1007,7 +1007,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
                 if (error) {
                     showModal("Error", "Error assigning sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return false;
                 } else {
                     await loadAllData();
                     hideModal();
