@@ -304,66 +304,70 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    function openEmailViewModal(email) {
-        if (!email) return;
+   function openEmailViewModal(email) {
+    if (!email) return;
 
-        emailViewSubject.textContent = email.subject || '(No Subject)';
-        emailViewFrom.textContent = email.sender || 'N/A';
-        emailViewTo.textContent = email.recipient || 'N/A';
-        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
-        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
+    emailViewSubject.textContent = email.subject || '(No Subject)';
+    emailViewFrom.textContent = email.sender || 'N/A';
+    emailViewTo.textContent = email.recipient || 'N/A';
+    emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+    emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
 
-        const attachmentsContainer = document.getElementById('email-view-attachments-container');
-        if (attachmentsContainer) {
-            attachmentsContainer.innerHTML = ''; 
-            if (email.attachments && email.attachments.length > 0) {
-                attachmentsContainer.classList.remove('hidden');
-                const attachmentsTitle = document.createElement('h5');
-                attachmentsTitle.textContent = 'Attachments';
-                attachmentsContainer.appendChild(attachmentsTitle);
+    const attachmentsContainer = document.getElementById('email-view-attachments-container');
+    if (attachmentsContainer) {
+        attachmentsContainer.innerHTML = '';
+        if (email.attachments && email.attachments.length > 0) {
+            attachmentsContainer.classList.remove('hidden');
+            const attachmentsTitle = document.createElement('h5');
+            attachmentsTitle.textContent = 'Attachments';
+            attachmentsContainer.appendChild(attachmentsTitle);
 
-                email.attachments.forEach(att => {
-                    if (typeof att === 'object' && att !== null && att.url) {
-                        const link = document.createElement('a');
-                        link.href = "#";
+            email.attachments.forEach(att => {
+                if (typeof att === 'object' && att !== null && att.url) {
+                    const link = document.createElement('a');
+                    link.href = "#";
 
-                        const fileName = att.fileName || 'Unknown File';
+                    const fileName = att.fileName || 'Unknown File';
+
+                    // ##### THIS IS THE FINAL, CORRECTED LOGIC #####
+                    let downloadPath = '';
+                    try {
+                        const urlObject = new URL(att.url);
+                        const bucketName = 'attachments'; // Your correct bucket name
+                        const pathSegments = urlObject.pathname.split('/');
                         
-                        let downloadPath = '';
-                        try {
-                            const urlObject = new URL(att.url);
-                            const relevantPath = urlObject.pathname.split('/public/email-attachments/')[1];
-                            if (relevantPath) {
-                                downloadPath = relevantPath;
-                            }
-                        } catch (e) {
-                            console.error("Could not parse attachment URL:", att.url, e);
+                        // Find the bucket name in the URL's path
+                        const bucketIndex = pathSegments.indexOf(bucketName);
+                        
+                        // The real path is everything AFTER the bucket name
+                        if (bucketIndex > -1 && bucketIndex + 1 < pathSegments.length) {
+                            downloadPath = pathSegments.slice(bucketIndex + 1).join('/');
                         }
-
-                        if (downloadPath) {
-                            // ##### DEBUGGING LINE 1 #####
-                            console.log("Created download link. Path stored in data attribute:", downloadPath);
-
-                            link.textContent = fileName;
-                            link.className = "btn-secondary btn-sm attachment-link";
-                            link.dataset.filename = fileName;
-                            link.dataset.downloadpath = downloadPath;
-                            attachmentsContainer.appendChild(link);
-                        }
+                    } catch (e) {
+                        console.error("Could not parse attachment URL:", att.url, e);
                     }
-                });
-            } else {
-                attachmentsContainer.classList.add('hidden');
-            }
+
+                    if (downloadPath) {
+                        console.log("Created download link. Path stored:", downloadPath);
+                        link.textContent = fileName;
+                        link.className = "btn-secondary btn-sm attachment-link";
+                        link.dataset.filename = fileName;
+                        link.dataset.downloadpath = downloadPath; // Use the correct path
+                        attachmentsContainer.appendChild(link);
+                    }
+                }
+            });
+        } else {
+            attachmentsContainer.classList.add('hidden');
         }
-
-        emailViewModalBackdrop.classList.remove('hidden');
-
-        document.querySelectorAll('.email-view-modal .attachment-link').forEach(link => {
-            link.addEventListener('click', handleAttachmentClick);
-        });
     }
 
+    emailViewModalBackdrop.classList.remove('hidden');
+
+    document.querySelectorAll('.email-view-modal .attachment-link').forEach(link => {
+        link.addEventListener('click', handleAttachmentClick);
+    });
+}
     async function handleAttachmentClick(event) {
         event.preventDefault();
         const downloadPath = event.target.dataset.downloadpath; 
