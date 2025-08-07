@@ -275,8 +275,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
-        contactEmailsTableBody.innerHTML = '';
-    
+        contactEmailsTableBody.innerHTML = ''; // Clear existing content
+
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Contact has no email address.</td></tr>';
             return;
@@ -350,6 +350,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!fileId) {
             console.error('File ID not found for attachment.');
+            alert('Failed to download attachment. File ID is missing.');
             return;
         }
 
@@ -358,7 +359,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (error) {
                 console.error('Error downloading attachment:', error);
-                alert('Failed to download attachment. Please try again.');
+                alert(`Failed to download attachment: ${error.message}. Please try again.`);
                 return;
             }
 
