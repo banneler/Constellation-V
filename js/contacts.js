@@ -616,7 +616,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
- contactCsvInput.addEventListener("change", async (e) => {
+bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
+contactCsvInput.addEventListener("change", async (e) => {
     const f = e.target.files[0];
     if (!f) return;
     const r = new FileReader();
@@ -727,9 +728,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
         `;
 
-        showModal("Confirm CSV Import", modalBodyHtml, async () => {
+        showModal("Confirm CSV Import", modalBodyHtml, async (modalContent) => {
+            // Get references to modal elements from the callback's argument
+            const modalTitle = modalContent.querySelector('#modal-title');
+            const modalBody = modalContent.querySelector('#modal-body');
+            const modalFooter = modalContent.querySelector('#modal-footer');
+
             const selectedRowsData = [];
-            document.querySelectorAll('.modal-content .import-row input[type="checkbox"]:checked').forEach(checkbox => {
+            modalBody.querySelectorAll('.import-row input[type="checkbox"]:checked').forEach(checkbox => {
                 const row = checkbox.closest('.import-row');
                 const action = row.dataset.action;
                 const index = parseInt(row.dataset.index);
@@ -738,12 +744,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 selectedRowsData.push({ action, index, accountId });
             });
             
-            // Get references to modal elements BEFORE clearing their content
-            const modalTitle = document.getElementById('modal-title');
-            const modalBody = document.getElementById('modal-body');
-            const modalFooter = document.getElementById('modal-footer');
-            
-            // Now update the UI to show processing state
             modalTitle.textContent = "Processing Import";
             modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Processing import...</p>`;
             modalFooter.innerHTML = ''; 
@@ -790,7 +790,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ? `Import finished with ${successCount} successes and ${errorCount} errors.`
                 : `Successfully imported/updated ${successCount} contacts.`;
             
-            // Re-use the cached references to the modal elements
             modalTitle.textContent = "Import Complete";
             modalBody.innerHTML = `<p>${resultMessage}</p>`;
             modalFooter.innerHTML = `<button id="modal-ok-btn" class="btn-primary">OK</button>`;
