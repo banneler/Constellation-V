@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequence_steps: [],
         selectedSequenceId: null,
         contacts: [],
+        accounts: [], // Added accounts to state for the modal
         contact_sequences: [],
         isEditingSequenceDetails: false,
         originalSequenceName: '',
@@ -27,6 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const importSequenceBtn = document.getElementById("bulk-import-sequence-steps-btn");
     const sequenceCsvInput = document.getElementById("sequence-steps-csv-input");
     const deleteSequenceBtn = document.getElementById("delete-sequence-btn");
+    const bulkAssignBtn = document.getElementById("bulk-assign-btn"); // The new button
     const sequenceStepsTableBody = document.querySelector("#sequence-steps-table-body");
     const addStepBtn = document.getElementById("add-step-btn");
     const sequenceNameInput = document.getElementById("sequence-name");
@@ -54,7 +56,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        const userSpecificTables = ["sequences", "contacts", "contact_sequences", "sequence_steps"];
+        // Add "accounts" to the tables being fetched
+        const userSpecificTables = ["sequences", "contacts", "accounts", "contact_sequences", "sequence_steps"];
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
         );
@@ -82,7 +85,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Functions ---
-   const renderSequenceList = () => {
+    const renderSequenceList = () => {
         if (!sequenceList) return;
         sequenceList.innerHTML = "";
         state.sequences
@@ -185,8 +188,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequenceNameInput.disabled = isReadOnly;
         sequenceDescriptionTextarea.disabled = isReadOnly;
 
-        deleteSequenceBtn.classList.remove('hidden');
-        addStepBtn.classList.toggle('hidden', isReadOnly);
+        deleteSequenceBtn.style.display = 'inline-block';
+        addStepBtn.style.display = 'inline-block';
+        bulkAssignBtn.style.display = 'inline-block'; // Show the bulk assign button
         
         state.editingStepId = null;
         renderSequenceSteps();
@@ -213,8 +217,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (sequenceDescriptionTextarea) sequenceDescriptionTextarea.value = "Select a sequence from the left or create a new one.";
         }
 
-        if (deleteSequenceBtn) deleteSequenceBtn.classList.add('hidden');
-        if (addStepBtn) addStepBtn.classList.add('hidden');
+        if (deleteSequenceBtn) deleteSequenceBtn.style.display = 'none';
+        if (addStepBtn) addStepBtn.style.display = 'none';
+        if (bulkAssignBtn) bulkAssignBtn.style.display = 'none'; // Hide the bulk assign button
 
         document.querySelectorAll("#sequence-list .selected").forEach(item => item.classList.remove("selected"));
         state.editingStepId = null;
@@ -237,6 +242,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(sequenceCsvInput) sequenceCsvInput.addEventListener("change", handleCsvImport);
         if (deleteSequenceBtn) deleteSequenceBtn.addEventListener("click", handleDeleteSequence);
         if (addStepBtn) addStepBtn.addEventListener("click", handleAddStep);
+        if (bulkAssignBtn) bulkAssignBtn.addEventListener("click", handleBulkAssignClick); // Event listener for new button
         if (sequenceList) sequenceList.addEventListener("click", handleSequenceListClick);
         if (sequenceStepsTableBody) sequenceStepsTableBody.addEventListener("click", handleSequenceStepActions);
 
@@ -265,6 +271,92 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (cancelAiSequenceBtn) cancelAiSequenceBtn.addEventListener("click", handleCancelAiSequence);
     }
     
+    // --- Bulk Assign Functions ---
+    async function handleBulkAssignClick() {
+        if (!state.selectedSequenceId) {
+            showModal("Error", "Please select a sequence first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+    
+        const activeContactIds = new Set(state.contact_sequences.filter(cs => cs.status === 'Active').map(cs => cs.contact_id));
+        const availableContacts = state.contacts.filter(contact => !activeContactIds.has(contact.id));
+    
+        if (availableContacts.length === 0) {
+            showModal("No Available Contacts", "All of your contacts are already in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+    
+        const contactListHtml = availableContacts.map(contact => {
+            const account = state.accounts.find(a => a.id === contact.account_id);
+            return `
+                <div class="list-item">
+                    <input type="checkbox" id="contact-${contact.id}" data-contact-id="${contact.id}" class="bulk-assign-checkbox">
+                    <label for="contact-${contact.id}" style="cursor:pointer; flex-grow:1;">${contact.first_name} ${contact.last_name} <small>(${account ? account.name : 'No Account'})</small></label>
+                </div>
+            `;
+        }).join('');
+    
+        const modalBody = `
+            <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
+            <div class="list-item" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
+                 <input type="checkbox" id="select-all-contacts">
+                 <label for="select-all-contacts" style="cursor:pointer; font-weight:bold;">Select All / Deselect All</label>
+            </div>
+            <div class="item-list" style="max-height: 40vh; overflow-y: auto;">
+                ${contactListHtml}
+            </div>
+        `;
+    
+        showModal("Bulk Assign Contacts", modalBody, processBulkAssignment, true, `<button id="modal-confirm-btn" class="btn-primary">Assign Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        
+        document.getElementById('select-all-contacts').addEventListener('change', (e) => {
+            document.querySelectorAll('.bulk-assign-checkbox').forEach(checkbox => {
+                checkbox.checked = e.target.checked;
+            });
+        });
+    }
+    
+    async function processBulkAssignment() {
+        const selectedContactIds = Array.from(document.querySelectorAll('.bulk-assign-checkbox:checked')).map(cb => Number(cb.dataset.contactId));
+    
+        if (selectedContactIds.length === 0) {
+            showModal("No Selection", "No contacts were selected.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return false;
+        }
+    
+        const firstStep = state.sequence_steps
+            .filter(s => s.sequence_id === state.selectedSequenceId)
+            .sort((a, b) => a.step_number - b.step_number)[0];
+    
+        if (!firstStep) {
+            showModal("Error", "This sequence has no steps. Please add steps before assigning contacts.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return false;
+        }
+    
+        const newContactSequences = selectedContactIds.map(contactId => ({
+            contact_id: contactId,
+            sequence_id: state.selectedSequenceId,
+            current_step_number: 1,
+            status: 'Active',
+            next_step_due_date: addDays(new Date(), firstStep.delay_days).toISOString(),
+            user_id: state.currentUser.id
+        }));
+    
+        const { error } = await supabase.from('contact_sequences').insert(newContactSequences);
+    
+        if (error) {
+            showModal("Error", "Error assigning contacts: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return false;
+        }
+        
+        hideModal();
+        showModal("Success", `${selectedContactIds.length} contact(s) have been successfully added to the sequence.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        await loadAllData();
+        return true;
+    }
+
+    // --- All other existing functions ---
+
     function handleSequenceListClick(e) {
         const item = e.target.closest(".list-item");
 
@@ -317,7 +409,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 renderSequenceDetails(newSeq.id);
                 return true;
             } else { showModal("Error", "Sequence name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
-        });
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Create</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
     function handleDeleteSequence() {
@@ -556,7 +648,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             `).join('');
     
             const modalBody = `<div class="import-modal-list">${sequenceOptionsHtml}</div>`;
-            showModal("Import Marketing Sequence", modalBody, importMarketingSequence);
+            showModal("Import Marketing Sequence", modalBody, importMarketingSequence, true, `<button id="modal-confirm-btn" class="btn-primary">Import Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     
         } catch (error) {
             showModal("Error", "Error fetching marketing sequences: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -608,6 +700,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
     
+        hideModal();
         showModal("Success", `Sequence "${originalSequence.name}" imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         await loadAllData();
         state.selectedSequenceId = newPersonalSequence.id;
