@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const activeContactIds = new Set(state.contact_sequences.filter(cs => cs.status === 'Active').map(cs => cs.contact_id));
     
-    // --- FIX IS HERE: Added .sort() to order contacts by last name ---
+    // Sort contacts by last name
     const availableContacts = state.contacts
         .filter(contact => !activeContactIds.has(contact.id))
         .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
@@ -298,9 +298,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             .sort((a, b) => new Date(b.date) - new Date(a.date));
         const lastActivity = contactActivities.length > 0 ? `Last Activity: ${formatDate(contactActivities[0].date)}` : "No activity";
 
-        // --- FIX IS HERE: Added class="list-item contact-item-row" ---
         return `
-            <div class="list-item contact-item-row"> 
+            <div class="list-item">
                 <input type="checkbox" id="contact-${contact.id}" data-contact-id="${contact.id}" class="bulk-assign-checkbox">
                 <label for="contact-${contact.id}">
                     <span>${contact.first_name} ${contact.last_name} <small>(${account ? account.name : 'No Account'})</small></span>
@@ -310,12 +309,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
     }).join('');
 
-    // --- FIX IS HERE: Added class="list-item select-all-header" ---
+    // --- THIS IS THE FIX ---
+    // The "Select All" label now has the exact same <span> structure as the contact rows.
+    // The second span is a placeholder that makes the flexbox align correctly.
     const modalBody = `
         <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
-        <div class="list-item select-all-header">
+        <div class="list-item" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
              <input type="checkbox" id="select-all-contacts">
-             <label for="select-all-contacts">Select All / Deselect All</label>
+             <label for="select-all-contacts" style="cursor:pointer; font-weight:bold;">
+                <span>Select All / Deselect All</span>
+                <span class="last-activity-date">&nbsp;</span>
+             </label>
         </div>
         <div class="item-list-container-modal">
             ${contactListHtml}
