@@ -138,22 +138,25 @@ export function updateActiveNavLink() {
 
 // --- MODAL FUNCTIONS ---
 
+// --- MODAL FUNCTIONS (CORRECTED) ---
+
+// Export the modal DOM elements for external use, but the functions below are the main interface
 export const modalBackdrop = document.getElementById("modal-backdrop");
-export const modalTitle = document.getElementById("modal-title");
-export const modalBody = document.getElementById("modal-body");
-export const modalActions = document.getElementById("modal-actions");
-
-let currentModalCallbacks = { onConfirm: null, onCancel: null };
-
-export function getCurrentModalCallbacks() { return { ...currentModalCallbacks }; }
-export function setCurrentModalCallbacks(callbacks) { currentModalCallbacks = { ...callbacks }; }
+const modalTitle = document.getElementById("modal-title");
+const modalBody = document.getElementById("modal-body");
+const modalActions = document.getElementById("modal-actions");
 
 export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
-    if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) return;
-
+    if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) {
+        console.error("Modal elements are missing from the DOM.");
+        return;
+    }
+    
+    // Clear previous event listeners and content
+    modalActions.innerHTML = '';
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
-
+    
     if (customActionsHtml) {
         modalActions.innerHTML = customActionsHtml;
     } else {
@@ -163,16 +166,17 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
         `;
     }
 
-    // Find the buttons *after* they have been inserted into the DOM
+    // Now, get the fresh buttons from the newly rendered HTML
     const confirmBtn = document.getElementById('modal-confirm-btn');
     const cancelBtn = document.getElementById('modal-cancel-btn');
     const okBtn = document.getElementById('modal-ok-btn');
-
-    // Bind event listeners to the newly created buttons
+    
+    // Pass the modalBody element to the onConfirm callback, giving it a stable reference
     if (confirmBtn) {
         confirmBtn.onclick = async () => {
             if (onConfirm) {
-                const result = await Promise.resolve(onConfirm());
+                // The key change: Pass the modalBody reference to the callback
+                const result = await Promise.resolve(onConfirm(modalBody));
                 if (result !== false) hideModal();
             } else {
                 hideModal();
@@ -181,21 +185,22 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
     }
     if (cancelBtn) {
         cancelBtn.onclick = () => {
-             if (onCancel) {
+            if (onCancel) {
                 onCancel();
             }
             hideModal();
         };
     }
-     if (okBtn) {
+    if (okBtn) {
         okBtn.onclick = () => {
-            // This is the simplest "OK" button action, just hide the modal
-             hideModal();
+            hideModal();
         };
     }
 
     modalBackdrop.classList.remove("hidden");
+    return modalBody; // Return the modal body for external use
 }
+
 export function hideModal() {
     if (modalBackdrop) modalBackdrop.classList.add("hidden");
 }
@@ -348,6 +353,7 @@ export async function loadSVGs() {
     }
   }
 }
+
 
 
 
