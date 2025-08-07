@@ -5,6 +5,7 @@ import {
     SUPABASE_ANON_KEY,
     formatDate,
     setupModalListeners,
+    _rebindModalActionListeners,
     getCurrentModalCallbacks,
     setCurrentModalCallbacks,
     showModal,
@@ -1377,6 +1378,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     modalActionsElement.innerHTML = originalModalContent.actions;
                     setCurrentModalCallbacks(originalModalContent.callbacks);
                     setupCampaignModalListeners();
+                    _rebindModalActionListeners();
                     restoreFormState();
                 }
             }
