@@ -1378,7 +1378,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     modalActionsElement.innerHTML = originalModalContent.actions;
                     setCurrentModalCallbacks(originalModalContent.callbacks);
                     setupCampaignModalListeners();
-                    _rebindModalActionListeners();
                     restoreFormState();
                 }
             }
