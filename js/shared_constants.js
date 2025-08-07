@@ -208,6 +208,24 @@ export function setupModalListeners() {
     window.addEventListener("keydown", handleEscapeKey);
 }
 
+// --- TOAST NOTIFICATIONS ---
+export function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span>${message}</span>`;
+    toastContainer.appendChild(toast);
+
+    // Automatically remove the toast after 5 seconds
+    setTimeout(() => {
+        toast.classList.add('hide');
+        toast.addEventListener('transitionend', () => toast.remove());
+    }, 5000);
+}
+
+
 // --- USER MENU & AUTH LOGIC (CORRECTED) ---
 export async function setupUserMenuAndAuth(supabase, state) {
     const userMenuHeader = document.querySelector('.user-menu-header');
