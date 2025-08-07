@@ -334,13 +334,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
     
     async function processAndImportImage(base64Image) {
-        const modalBody = document.getElementById('modal-body');
-        if (!modalBody) {
-             console.error("Modal body element not found.");
-             return;
-        }
-        modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing image...</p>`;
-
+        // Show processing toast immediately
+        showToast("Analyzing image data...", 'info');
+        
         try {
             const { data, error } = await supabase.functions.invoke('extract-contact-info', {
                 body: { image: base64Image }
@@ -398,12 +394,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactList();
             renderContactDetails();
 
-            hideModal();
             showToast(`Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, 'success');
 
         } catch (error) {
             console.error("Error invoking Edge Function or saving data:", error);
-            showToast(`Failed to process image: ${error.message}. Please try again or enter the details manually.`, 'error');
+            showToast(`Failed to process image: ${error.message}. Please try again.`, 'error');
+        } finally {
             hideModal();
         }
     }
@@ -420,6 +416,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     
         if (blob) {
+            // Show initial modal with a spinner while we process the image
+            const modalBody = showModal("Importing Contact", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Processing image from clipboard...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64Image = e.target.result.split(',')[1];
@@ -434,6 +433,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function handleCameraInputChange(event) {
         const file = event.target.files[0];
         if (file) {
+            const modalBody = showModal("Importing Contact", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Processing image from camera...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const base64Image = e.target.result.split(',')[1];
@@ -735,7 +736,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `;
 
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
-                    // Get the data from the modal *before* clearing the content
+                    hideModal(); // Hide the initial confirmation modal
+                    showToast("Processing import...", 'info'); // Show a non-blocking toast
+                    
+                    let successCount = 0;
+                    let errorCount = 0;
+                    
+                    // Get the data from the modal *before* it's hidden
                     const selectedRowsData = [];
                     document.querySelectorAll('.modal-content .import-row input[type="checkbox"]:checked').forEach(checkbox => {
                         const row = checkbox.closest('.import-row');
@@ -745,19 +752,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const accountId = accountSelect ? accountSelect.value : null;
                         selectedRowsData.push({ action, index, accountId });
                     });
-                    
-                    // Now, get fresh references to the modal elements
-                    const modalTitle = document.getElementById('modal-title');
-                    const modalBody = document.getElementById('modal-body');
-                    const modalFooter = document.getElementById('modal-actions'); // Corrected reference here
-
-                    // Update the UI to show the processing state
-                    if (modalTitle) modalTitle.textContent = "Processing Import";
-                    if (modalBody) modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Processing import...</p>`;
-                    if (modalFooter) modalFooter.innerHTML = ''; 
-
-                    let successCount = 0;
-                    let errorCount = 0;
                     
                     for (const rowData of selectedRowsData) {
                         const { action, index, accountId } = rowData;
@@ -794,15 +788,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                     }
                     
-                    // Use toast notifications instead of a second modal
                     if (errorCount > 0) {
                         showToast(`Import finished with ${successCount} successes and ${errorCount} errors.`, 'error');
                     } else {
                         showToast(`Successfully imported/updated ${successCount} contacts.`, 'success');
                     }
-
-                    // Close the modal after the toast notification appears
-                    hideModal();
+                    
                     await loadAllData();
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
