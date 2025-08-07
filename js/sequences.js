@@ -291,10 +291,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactListHtml = availableContacts.map(contact => {
         const account = state.accounts.find(a => a.id === contact.account_id);
 
-        // Find and format the last activity date for the contact
         const contactActivities = state.activities
             .filter(act => act.contact_id === contact.id)
-            .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort descending
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
         
         const lastActivity = contactActivities.length > 0
             ? `Last Activity: ${formatDate(contactActivities[0].date)}`
@@ -311,11 +310,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
     }).join('');
 
+    // --- FIX IS HERE: Wrapped the "Select All" text in a <span> to match the structure below ---
     const modalBody = `
         <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
         <div class="list-item" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
              <input type="checkbox" id="select-all-contacts">
-             <label for="select-all-contacts" style="cursor:pointer; font-weight:bold;">Select All / Deselect All</label>
+             <label for="select-all-contacts" style="cursor:pointer; font-weight:bold;">
+                <span>Select All / Deselect All</span>
+             </label>
         </div>
         <div class="item-list-container-modal">
             ${contactListHtml}
