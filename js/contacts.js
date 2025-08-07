@@ -287,9 +287,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         contactEmailsTableBody.innerHTML = '';
         loggedEmails.forEach(email => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${formatDate(email.created_at)}</td><td>${email.subject || '(No Subject)'}</td><td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>`;
+            const hasAttachment = email.attachments && email.attachments.length > 0;
+            const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paperclip" title="${email.attachments.length} attachment(s)"></i>` : '';
+            tr.innerHTML = `<td>${formatDate(email.created_at)}</td><td>${email.subject || '(No Subject)'}${attachmentIndicator}</td><td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>`;
             contactEmailsTableBody.appendChild(tr);
         });
+    }
+
+    function openEmailViewModal(email) {
+        if (!email) return;
+        emailViewSubject.textContent = email.subject || '(No Subject)';
+        emailViewFrom.textContent = email.sender || 'N/A';
+        emailViewTo.textContent = email.recipient || 'N/A';
+        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\n/g, '<br>');
+        
+        // NEW: Handle attachments
+        const attachmentsContainer = document.getElementById('email-view-attachments-container');
+        if (attachmentsContainer) {
+            attachmentsContainer.innerHTML = '';
+            if (email.attachments && email.attachments.length > 0) {
+                const attachmentsTitle = document.createElement('h5');
+                attachmentsTitle.textContent = 'Attachments';
+                attachmentsContainer.appendChild(attachmentsTitle);
+                
+                email.attachments.forEach(att => {
+                    const link = document.createElement('a');
+                    link.href = att.url;
+                    link.textContent = att.fileName;
+                    link.target = "_blank";
+                    link.className = "btn-secondary btn-sm";
+                    attachmentsContainer.appendChild(link);
+                });
+            }
+        }
+        
+        emailViewModalBackdrop.classList.remove('hidden');
     }
 
     function openEmailViewModal(email) {
