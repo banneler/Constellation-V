@@ -330,27 +330,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const fileName = att.fileName || 'Unknown File';
                         
                         let downloadPath = '';
-                        try {
-                            const urlObject = new URL(att.url);
-                            // The full path in storage is after the bucket name.
-                            // e.g., /object/public/email-attachments/mailgun-attachments/file.pdf
-                            // We need "mailgun-attachments/file.pdf"
-                            const pathSegments = urlObject.pathname.split('/');
-                            const bucketIndex = pathSegments.indexOf('email-attachments');
-                            if (bucketIndex > -1 && bucketIndex + 1 < pathSegments.length) {
-                                downloadPath = pathSegments.slice(bucketIndex + 1).join('/');
-                            }
-                        } catch (e) {
-                            console.error("Could not parse attachment URL:", att.url, e);
-                        }
+try {
+    const urlObject = new URL(att.url);
+    // The path Supabase needs is everything after '/public/email-attachments/'
+    const relevantPath = urlObject.pathname.split('/public/email-attachments/')[1];
+    if (relevantPath) {
+        downloadPath = relevantPath;
+    }
+} catch (e) {
+    console.error("Could not parse attachment URL:", att.url, e);
+}
 
-                        if (downloadPath) {
-                            link.textContent = fileName;
-                            link.className = "btn-secondary btn-sm attachment-link";
-                            link.dataset.filename = fileName;
-                            link.dataset.downloadpath = downloadPath;
-                            attachmentsContainer.appendChild(link);
-                        }
+if (downloadPath) {
+    link.textContent = fileName;
+    link.className = "btn-secondary btn-sm attachment-link";
+    link.dataset.filename = fileName;
+    link.dataset.downloadpath = downloadPath; // This will now be correct
+    attachmentsContainer.appendChild(link);
+}
                     }
                 });
             } else {
