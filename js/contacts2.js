@@ -379,7 +379,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
-            const { data, error } = await supabase.storage.from('attachments').download(downloadPath);
+            const { data, error } = await supabase.storage.from('email-attachments').download(downloadPath);
 
             if (error) {
                 console.error('Error downloading attachment:', error);
