@@ -1089,22 +1089,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     }
 
-    // --- App Initialization ---
-    async function initializePage() {
-        await loadSVGs();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            setupPageEventListeners();
-            await setupUserMenuAndAuth(supabase, state);
-            const urlParams = new URLSearchParams(window.location.search);
-            const contactIdFromUrl = urlParams.get('contactId');
-            if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
-            await loadAllData();
-        } else {
-            window.location.href = "index.html";
-        }
+      // --- App Initialization ---
+async function initializePage() {
+    await loadSVGs();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        // FIX: Create a mutable copy of the user object
+        state.currentUser = { ...session.user }; 
+        setupPageEventListeners();
+        await setupUserMenuAndAuth(supabase, state);
+        const urlParams = new URLSearchParams(window.location.search);
+        const contactIdFromUrl = urlParams.get('contactId');
+        if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
+        await loadAllData();
+    } else {
+        window.location.href = "index.html";
     }
+}
 
     initializePage();
 });
