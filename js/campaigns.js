@@ -5,7 +5,7 @@ import {
     SUPABASE_ANON_KEY,
     formatDate,
     setupModalListeners,
-    _rebindModalActionListeners,
+    // _rebindModalActionListeners, // This is no longer needed
     getCurrentModalCallbacks,
     setCurrentModalCallbacks,
     showModal,
@@ -27,7 +27,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         user_quotas: [],
         campaignMembers: [],
         selectedCampaignId: null
-        // REMOVED: state.currentIndex - This was the source of the bug.
     };
 
     let originalModalContent = {
@@ -579,33 +578,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
 
-    const captureFormState = () => {
-        tempCampaignFormState = {
-            campaignName: document.getElementById('campaign-name')?.value || '',
-            campaignType: document.getElementById('campaign-type')?.value || 'Call',
-            emailSourceType: document.getElementById('email-source-type')?.value || 'write',
-            templateSelector: document.getElementById('template-selector')?.value || '',
-            campaignEmailSubject: document.getElementById('campaign-email-subject')?.value || '',
-            campaignEmailBody: document.getElementById('campaign-email-body')?.value || '',
-            filterIndustry: document.getElementById('filter-industry')?.value || '',
-            filterStatus: document.getElementById('filter-status')?.value || ''
-        };
-    };
-
-    const restoreFormState = () => {
-        if (document.getElementById('campaign-name')) document.getElementById('campaign-name').value = tempCampaignFormState.campaignName;
-        if (document.getElementById('campaign-type')) document.getElementById('campaign-type').value = tempCampaignFormState.campaignType;
-        if (document.getElementById('email-source-type')) document.getElementById('email-source-type').value = tempCampaignFormState.emailSourceType;
-        if (document.getElementById('template-selector')) document.getElementById('template-selector').value = tempCampaignFormState.templateSelector;
-        if (document.getElementById('campaign-email-subject')) document.getElementById('campaign-email-subject').value = tempCampaignFormState.campaignEmailSubject;
-        if (document.getElementById('campaign-email-body')) document.getElementById('campaign-email-body').value = tempCampaignFormState.campaignEmailBody;
-        if (document.getElementById('filter-industry')) document.getElementById('filter-industry').value = tempCampaignFormState.filterIndustry;
-        if (document.getElementById('filter-status')) document.getElementById('filter-status').value = tempCampaignFormState.filterStatus;
-
-        ['campaign-type', 'email-source-type', 'template-selector', 'filter-industry', 'filter-status'].forEach(id => {
-            document.getElementById(id)?.dispatchEvent(new Event('change'));
-        });
-    };
+    // REMOVED: captureFormState and restoreFormState functions are no longer needed
+    // REMOVED: handleShowAllContactsClick function is no longer needed
 
     async function handleNewCampaignClick() {
         const visibleTemplates = state.emailTemplates.filter(template =>
@@ -794,7 +768,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         showModal("Create New Campaign", modalBody, createCampaignAndMembers);
 
-        restoreFormState();
+        // REMOVED: restoreFormState is no longer needed
         setupCampaignModalListeners();
     }
 
@@ -830,21 +804,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             const previewContainer = document.getElementById('contact-preview-container');
             if (previewContainer) {
                 let previewHtml = `<p><strong>${matchingContacts.length}</strong> contacts match your filters.</p>`;
+                
+                const listContent = matchingContacts.map(c => {
+                    const accountName = state.accounts.find(a => a.id === c.account_id)?.name || 'No Account';
+                    return `<li><strong>${c.first_name || ''} ${c.last_name || ''}</strong> <span class="text-medium">(${accountName})</span></li>`;
+                }).join('');
+
                 if (matchingContacts.length > 0) {
-                    previewHtml += `<ul class="summary-contact-list">` + matchingContacts.slice(0, 5).map(c => {
-                        const accountName = state.accounts.find(a => a.id === c.account_id)?.name || 'No Account';
-                        return `<li><strong>${c.first_name || ''} ${c.last_name || ''}</strong> <span class="text-medium">(${accountName})</span></li>`;
-                    }).join('') + `</ul>`;
-                    if (matchingContacts.length > 5) {
-                        previewHtml += `<button type="button" class="btn-secondary" id="show-all-contacts-btn">Show All ${matchingContacts.length}...</button>`;
-                    }
+                    previewHtml += `<div class="table-container-scrollable" style="max-height: 150px;">
+                                    <ul class="summary-contact-list">${listContent}</ul>
+                                </div>`;
                 }
+
                 previewContainer.innerHTML = previewHtml;
 
-                const currentShowAllBtn = document.getElementById('show-all-contacts-btn');
-                if (currentShowAllBtn) {
-                    currentShowAllBtn.addEventListener('click', handleShowAllContactsClick);
-                }
+                // REMOVED: No longer need to handle 'show all' button clicks.
             }
         };
 
@@ -919,43 +893,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (emailSourceSelect) handleEmailSourceChange();
 
         updateContactPreview();
-    }
-
-    function handleShowAllContactsClick() {
-        const modalBodyElement = document.getElementById('modal-body');
-        const modalActionsElement = document.getElementById('modal-actions');
-        const modalTitleElement = document.getElementById('modal-title');
-
-        if (!modalBodyElement || !modalActionsElement || !modalTitleElement) {
-            console.error("Modal elements for show all contacts not found.");
-            return;
-        }
-
-        captureFormState();
-
-        originalModalContent.title = modalTitleElement.textContent;
-        originalModalContent.body = modalBodyElement.innerHTML;
-        originalModalContent.actions = modalActionsElement.innerHTML;
-        originalModalContent.callbacks = getCurrentModalCallbacks();
-
-        const industry = document.getElementById('filter-industry')?.value;
-        const status = document.getElementById('filter-status')?.value;
-        const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
-        const matchingContacts = state.contacts.filter(contact => {
-            const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-            if (!account) return false;
-
-            const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
-            const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
-            return industryMatch && statusMatch;
-        });
-
-        const fullListHtml = `<div class="table-container-scrollable" style="max-height: 60vh;"><table><tbody>` + matchingContacts.map(c => {
-            const accountName = state.accounts.find(a => a.id === c.account_id)?.name || 'No Account';
-            return `<tr><td><strong>${c.first_name || ''} ${c.last_name || ''}</strong></td><td class="text-medium">${accountName}</td></tr>`;
-        }).join('') + `</tbody></table></div>`;
-
-        showModal("All Matching Contacts", fullListHtml, null, false, `<button class="btn-secondary" id="modal-return-btn">Return to Campaign Setup</button>`);
     }
 
     function handleMergeFieldClick(e) {
@@ -1366,22 +1303,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     renderCampaignDetails();
                 }
             }
-
-            if (e.target.id === 'modal-return-btn') {
-                const modalBodyElement = document.getElementById('modal-body');
-                const modalActionsElement = document.getElementById('modal-actions');
-                const modalTitleElement = document.getElementById('modal-title');
-
-                if (modalBodyElement && modalActionsElement && modalTitleElement) {
-                    modalTitleElement.textContent = originalModalContent.title;
-                    modalBodyElement.innerHTML = originalModalContent.body;
-                    modalActionsElement.innerHTML = originalModalContent.actions;
-                    setCurrentModalCallbacks(originalModalContent.callbacks);
-                    setupCampaignModalListeners();
-                    _rebindModalActionListeners();
-                    restoreFormState();
-                }
-            }
+            // REMOVED: No longer need to listen for 'modal-return-btn' clicks.
             if (e.target.id === 'modal-ok-btn') {
                 hideModal();
             }
