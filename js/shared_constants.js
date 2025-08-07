@@ -310,7 +310,7 @@ export async function setupUserMenuAndAuth(supabase, state) {
     }
 
     function attachUserMenuListeners() {
-        if (userMenuHeader.dataset.listenerAttached !== 'true') return;
+       if (userMenuHeader.dataset.listenerAttached === 'true') return;
 
         userMenuHeader.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -367,3 +367,4 @@ export async function loadSVGs() {
         }
     }
 }
+
