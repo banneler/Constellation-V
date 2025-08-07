@@ -137,14 +137,12 @@ export function updateActiveNavLink() {
 }
 
 // --- MODAL FUNCTIONS ---
-
-// --- MODAL FUNCTIONS (CORRECTED FINAL VERSION) ---
-export const modalBackdrop = document.getElementById("modal-backdrop");
-const modalTitle = document.getElementById("modal-title");
-const modalBody = document.getElementById("modal-body");
-const modalActions = document.getElementById("modal-actions");
-
 export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
+    const modalBackdrop = document.getElementById("modal-backdrop");
+    const modalTitle = document.getElementById("modal-title");
+    const modalBody = document.getElementById("modal-body");
+    const modalActions = document.getElementById("modal-actions");
+
     if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) {
         console.error("Modal elements are missing from the DOM.");
         return;
@@ -169,12 +167,11 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
     const cancelBtn = document.getElementById('modal-cancel-btn');
     const okBtn = document.getElementById('modal-ok-btn');
     
-    // Pass the modalBackdrop element to the onConfirm callback, giving it a stable root element
+    // Bind event listeners to the newly created buttons
     if (confirmBtn) {
         confirmBtn.onclick = async () => {
             if (onConfirm) {
-                // Pass the stable root element to the callback
-                const result = await Promise.resolve(onConfirm(modalBackdrop));
+                const result = await Promise.resolve(onConfirm(modalBody));
                 if (result !== false) hideModal();
             } else {
                 hideModal();
@@ -196,7 +193,7 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
     }
 
     modalBackdrop.classList.remove("hidden");
-    return modalBackdrop; // Return the entire modal backdrop for external use
+    return modalBody; // Return the modal body for external use
 }
 
 export function hideModal() {
@@ -351,6 +348,7 @@ export async function loadSVGs() {
     }
   }
 }
+
 
 
 
