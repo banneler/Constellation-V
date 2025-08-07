@@ -1,5 +1,3 @@
-// js/contacts.js
-
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -304,19 +302,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
         });
     }
-           
+
+    function openEmailViewModal(email) {
+        if (!email) return;
+
+        // --- Populate Email Details ---
+        emailViewSubject.textContent = email.subject || '(No Subject)';
+        emailViewFrom.textContent = email.sender || 'N/A';
+        emailViewTo.textContent = email.recipient || 'N/A';
+        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
+
+        // --- Handle Attachments ---
         const attachmentsContainer = document.getElementById('email-view-attachments-container');
         if (attachmentsContainer) {
-            attachmentsContainer.innerHTML = '';
+            attachmentsContainer.innerHTML = ''; // Clear previous attachments
             if (email.attachments && email.attachments.length > 0) {
+                attachmentsContainer.classList.remove('hidden');
                 const attachmentsTitle = document.createElement('h5');
                 attachmentsTitle.textContent = 'Attachments';
                 attachmentsContainer.appendChild(attachmentsTitle);
 
                 email.attachments.forEach(att => {
                     const link = document.createElement('a');
-                    link.href = "#";
-                    // Corrected data fields for filename and file ID
+                    link.href = "#"; // Prevent page jump
                     const fileName = att.name || att.filename || 'Unknown File';
                     const fileId = att.path || att.file_id;
                     link.textContent = fileName;
@@ -325,11 +334,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                     link.dataset.fileid = fileId;
                     attachmentsContainer.appendChild(link);
                 });
+            } else {
+                 attachmentsContainer.classList.add('hidden');
             }
         }
-        
+
+        // --- Show the Modal ---
         emailViewModalBackdrop.classList.remove('hidden');
 
+        // --- Add Listeners for New Links ---
         document.querySelectorAll('.email-view-modal .attachment-link').forEach(link => {
             link.addEventListener('click', handleAttachmentClick);
         });
