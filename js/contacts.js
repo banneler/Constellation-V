@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactEmailsTableBody = document.getElementById("contact-emails-table-body");
     const emailViewModalBackdrop = document.getElementById("email-view-modal-backdrop");
     const emailViewCloseBtn = document.getElementById("email-view-close-btn");
-    const emailViewSubject = document = document.getElementById("email-view-subject");
+    const emailViewSubject = document.getElementById("email-view-subject");
     const emailViewFrom = document.getElementById("email-view-from");
     const emailViewTo = document.getElementById("email-view-to");
     const emailViewDate = document.getElementById("email-view-date");
