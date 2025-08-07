@@ -239,7 +239,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     contactActivitiesList.appendChild(li);
                 });
             
-            // Pass the contact's email to the render function
             renderContactEmails(contact.email);
 
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
@@ -274,67 +273,36 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    // This function now correctly populates the HTML table
-    async function renderContactEmails(contactEmail) {
+    function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
-        contactEmailsTableBody.innerHTML = ''; // Clear existing content
-
         if (!contactEmail) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Contact has no email address.</td></tr>';
+            contactEmailsTableBody.innerHTML = '<tr><td colspan="3">Contact has no email address.</td></tr>';
             return;
         }
-
-        const {
-            data: emails,
-            error
-        } = await supabase
-            .from('email_log')
-            .select(`
-            id,
-            timestamp: created_at,
-            sender_email: sender,
-            subject,
-            body: body_text,
-            attachments
-            `)
-            .eq('recipient', contactEmail);
-
-        if (error) {
-            console.error('Error fetching emails:', error);
-            contactEmailsTableBody.innerHTML = `<tr><td colspan="3" class="placeholder-text">Error loading emails: ${error.message}</td></tr>`;
+        const loggedEmails = state.email_log.filter(email => (email.sender || '').toLowerCase() === (contactEmail || '').toLowerCase() || (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase()).sort((a, b) => new Date(b.created_at) - new Date(a.date));
+        if (loggedEmails.length === 0) {
+            contactEmailsTableBody.innerHTML = '<tr><td colspan="3">No logged emails for this contact.</td></tr>';
             return;
         }
-
-        if (emails.length === 0) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
-            return;
-        }
-
-        // Sort emails by timestamp in descending order (newest first)
-        emails.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        emails.forEach(email => {
-            const row = contactEmailsTableBody.insertRow();
+        contactEmailsTableBody.innerHTML = '';
+        loggedEmails.forEach(email => {
+            const tr = document.createElement('tr');
             const hasAttachment = email.attachments && email.attachments.length > 0;
             const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paperclip" title="${email.attachments.length} attachment(s)"></i>` : '';
-            
-            row.innerHTML = `
-                <td>${new Date(email.timestamp).toLocaleDateString()}</td>
-                <td>${email.subject || '(No Subject)'}${attachmentIndicator}</td>
-                <td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>
-            `;
+            tr.innerHTML = `<td>${formatDate(email.created_at)}</td><td>${email.subject || '(No Subject)'}${attachmentIndicator}</td><td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>`;
+            contactEmailsTableBody.appendChild(tr);
         });
     }
 
     function openEmailViewModal(email) {
         if (!email) return;
-
         emailViewSubject.textContent = email.subject || '(No Subject)';
-        emailViewFrom.textContent = email.sender_email || 'N/A';
+        emailViewFrom.textContent = email.sender || 'N/A';
         emailViewTo.textContent = email.recipient || 'N/A';
-        emailViewDate.textContent = new Date(email.timestamp).toLocaleDateString();
-        emailViewBodyContent.innerHTML = (email.body || '(Email body is empty)').replace(/\n/g, '<br>');
+        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\n/g, '<br>');
         
+        // NEW: Handle attachments
         const attachmentsContainer = document.getElementById('email-view-attachments-container');
         if (attachmentsContainer) {
             attachmentsContainer.innerHTML = '';
@@ -342,59 +310,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const attachmentsTitle = document.createElement('h5');
                 attachmentsTitle.textContent = 'Attachments';
                 attachmentsContainer.appendChild(attachmentsTitle);
-
+                
                 email.attachments.forEach(att => {
                     const link = document.createElement('a');
-                    link.href = "#";
-                    link.textContent = att.filename;
-                    link.className = "btn-secondary btn-sm attachment-link";
-                    link.dataset.filename = att.filename;
-                    link.dataset.fileid = att.file_id;
+                    link.href = att.url;
+                    link.textContent = att.fileName;
+                    link.target = "_blank";
+                    link.className = "btn-secondary btn-sm";
                     attachmentsContainer.appendChild(link);
                 });
             }
         }
         
         emailViewModalBackdrop.classList.remove('hidden');
-
-        // Add event listeners for new attachment links in the modal
-        document.querySelectorAll('.email-view-modal .attachment-link').forEach(link => {
-            link.addEventListener('click', handleAttachmentClick);
-        });
     }
-    
-    async function handleAttachmentClick(event) {
-        event.preventDefault();
-        const fileId = event.target.dataset.fileid;
-        const fileName = event.target.dataset.filename;
 
-        if (!fileId) {
-            console.error('File ID not found for attachment.');
-            return;
-        }
-
-        try {
-            const { data, error } = await supabase.storage.from('attachments').download(fileId);
-
-            if (error) {
-                console.error('Error downloading attachment:', error);
-                alert('Failed to download attachment. Please try again.');
-                return;
-            }
-
-            const blob = new Blob([data], { type: data.type });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            console.error('Error handling attachment download:', e);
-            alert('An unexpected error occurred.');
-        }
+    function openEmailViewModal(email) {
+        if (!email) return;
+        emailViewSubject.textContent = email.subject || '(No Subject)';
+        emailViewFrom.textContent = email.sender || 'N/A';
+        emailViewTo.textContent = email.recipient || 'N/A';
+        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\\n/g, '<br>');
+        emailViewModalBackdrop.classList.remove('hidden');
     }
 
     function closeEmailViewModal() {
@@ -418,8 +356,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if(removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
         if(completeSequenceBtn) completeSequenceBtn.classList.add('hidden');
-        // Correctly reset the email log table body
-        if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Select a contact to see logged emails.</td></tr>';
+        if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '';
         if(contactPendingTaskReminder) contactPendingTaskReminder.classList.add('hidden');
 
         if (clearSelection) {
@@ -691,12 +628,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
             } else {
-                const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([data]).select();
+                const { data: newContactData, error: insertError } = await supabase.from("contacts").insert([data]).select();
                 if (insertError) {
                     showModal("Error", "Error creating contact: " + insertError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-                if (newContactArr?.length > 0) state.selectedContactId = newContactArr[0].id;
+                if (newContactData?.length > 0) state.selectedContactId = newContactData[0].id;
             }
             state.isFormDirty = false;
             await loadAllData();
