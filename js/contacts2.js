@@ -1,3 +1,5 @@
+// js/contacts.js
+
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -53,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-    
+
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
@@ -81,7 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderContactDetails();
         }
     };
-    
+
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -91,7 +93,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...sharedPromises];
         const allTableNames = [...userSpecificTables, ...sharedTables];
-    
+
         const { data: allActivityTypes, error: activityError } = await supabase.from("activity_types").select("*");
         if (activityError) {
             console.error("Error fetching activity types:", activityError);
@@ -132,7 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
     }
-    
+
     // --- Render Functions ---
     const renderContactList = () => {
         if (!contactList) return;
@@ -140,10 +142,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const filteredContacts = state.contacts
             .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
             .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
-    
+
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
         contactList.innerHTML = "";
         filteredContacts.forEach((contact) => {
             const item = document.createElement("div");
@@ -155,7 +157,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
             const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
             const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
-    
+
             item.innerHTML = `
                 <div class="contact-info">
                     <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
@@ -167,7 +169,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactList.appendChild(item);
         });
     };
-    
+
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
         if (!contactAccountNameSelect) return;
@@ -182,11 +184,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contactAccountNameSelect.appendChild(o);
             });
     };
-    
+
     const renderContactDetails = () => {
         const contact = state.contacts.find((c) => c.id === state.selectedContactId);
         if (!contactForm) return;
-    
+
         if (contactPendingTaskReminder && contact) {
             const pendingContactTasks = state.tasks.filter(task => task.status === 'Pending' && task.contact_id === contact.id);
             if (pendingContactTasks.length > 0) {
@@ -201,14 +203,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         populateAccountDropdown();
-    
+
         if (contact) {
             contactForm.classList.remove('hidden');
-    
+
             if (organicStarIndicator) {
                 organicStarIndicator.classList.toggle('is-organic', !!contact.is_organic);
             }
-    
+
             contactForm.querySelector("#contact-id").value = contact.id;
             contactForm.querySelector("#contact-first-name").value = contact.first_name || "";
             contactForm.querySelector("#contact-last-name").value = contact.last_name || "";
@@ -218,9 +220,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
             contactForm.querySelector("#contact-account-name").value = contact.account_id || "";
-    
+
             state.isFormDirty = false;
-    
+
             contactActivitiesList.innerHTML = "";
             state.activities
                 .filter((act) => act.contact_id === contact.id)
@@ -238,7 +240,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             
             renderContactEmails(contact.email);
-    
+
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
             if (sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
                 if (activeSequence) {
@@ -271,66 +273,47 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
     
-    // MODIFIED: This function now populates the HTML table
-    async function renderContactEmails(contactEmail) {
+    function renderContactEmails(contactEmail) {
         if (!contactEmailsTableBody) return;
-        contactEmailsTableBody.innerHTML = '';
-    
+        contactEmailsTableBody.innerHTML = ''; // Clear existing content
+
         if (!contactEmail) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Contact has no email address.</td></tr>';
             return;
         }
-    
-        const {
-            data: emails,
-            error
-        } = await supabase
-            .from('email_log')
-            .select(`
-            id,
-            timestamp: created_at,
-            sender_email: sender,
-            subject,
-            body: body_text,
-            attachments
-            `)
-            .eq('recipient', contactEmail);
-    
-        if (error) {
-            console.error('Error fetching emails:', error);
-            contactEmailsTableBody.innerHTML = `<tr><td colspan="3" class="placeholder-text">Error loading emails: ${error.message}</td></tr>`;
-            return;
-        }
-    
-        if (emails.length === 0) {
+
+        const loggedEmails = state.email_log
+            .filter(email => (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase())
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        if (loggedEmails.length === 0) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
             return;
         }
-    
-        // Sort emails by timestamp in descending order (newest first)
-        emails.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        emails.forEach(email => {
+        loggedEmails.forEach(email => {
             const row = contactEmailsTableBody.insertRow();
+            row.dataset.emailId = email.id;
             const hasAttachment = email.attachments && email.attachments.length > 0;
             const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paperclip" title="${email.attachments.length} attachment(s)"></i>` : '';
             
             row.innerHTML = `
-                <td>${new Date(email.timestamp).toLocaleDateString()}</td>
+                <td>${formatDate(email.created_at)}</td>
                 <td>${email.subject || '(No Subject)'}${attachmentIndicator}</td>
                 <td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>
             `;
         });
     }
-    
+
+    // MODIFIED: This function now handles the modal view for emails and attachments
     function openEmailViewModal(email) {
         if (!email) return;
-    
+
         emailViewSubject.textContent = email.subject || '(No Subject)';
-        emailViewFrom.textContent = email.sender_email || 'N/A';
+        emailViewFrom.textContent = email.sender || 'N/A';
         emailViewTo.textContent = email.recipient || 'N/A';
-        emailViewDate.textContent = new Date(email.timestamp).toLocaleDateString();
-        emailViewBodyContent.innerHTML = (email.body || '(Email body is empty)').replace(/\n/g, '<br>');
+        emailViewDate.textContent = new Date(email.created_at).toLocaleDateString();
+        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\n/g, '<br>');
         
         const attachmentsContainer = document.getElementById('email-view-attachments-container');
         if (attachmentsContainer) {
@@ -339,10 +322,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const attachmentsTitle = document.createElement('h5');
                 attachmentsTitle.textContent = 'Attachments';
                 attachmentsContainer.appendChild(attachmentsTitle);
-    
+
                 email.attachments.forEach(att => {
                     const link = document.createElement('a');
-                    link.href = "#";
+                    link.href = "#"; // Use # since the download logic is in JS now
                     link.textContent = att.filename;
                     link.className = "btn-secondary btn-sm attachment-link";
                     link.dataset.filename = att.filename;
@@ -353,32 +336,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         emailViewModalBackdrop.classList.remove('hidden');
-    
+
         // Add event listeners for new attachment links in the modal
         document.querySelectorAll('.email-view-modal .attachment-link').forEach(link => {
             link.addEventListener('click', handleAttachmentClick);
         });
     }
-    
+
     async function handleAttachmentClick(event) {
         event.preventDefault();
         const fileId = event.target.dataset.fileid;
         const fileName = event.target.dataset.filename;
-    
+
         if (!fileId) {
             console.error('File ID not found for attachment.');
             return;
         }
-    
+
         try {
             const { data, error } = await supabase.storage.from('attachments').download(fileId);
-    
+
             if (error) {
                 console.error('Error downloading attachment:', error);
                 alert('Failed to download attachment. Please try again.');
                 return;
             }
-    
+
             const blob = new Blob([data], { type: data.type });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -393,11 +376,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             alert('An unexpected error occurred.');
         }
     }
-    
+
     function closeEmailViewModal() {
         emailViewModalBackdrop.classList.add('hidden');
     }
-    
+
     const hideContactDetails = (hideForm = true, clearSelection = false) => {
         if (contactForm && hideForm) contactForm.classList.add('hidden');
         if (contactForm) {
@@ -418,7 +401,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Correctly reset the email log table body
         if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Select a contact to see logged emails.</td></tr>';
         if(contactPendingTaskReminder) contactPendingTaskReminder.classList.add('hidden');
-    
+
         if (clearSelection) {
             state.selectedContactId = null;
             document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
@@ -434,11 +417,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { data, error } = await supabase.functions.invoke('extract-contact-info', {
                 body: { image: base64Image }
             });
-    
+
             if (error) throw error;
             
             const contactData = data;
-    
+
             let accountIdToLink = null;
             if (contactData.company) {
                 const matchingAccount = state.accounts.find(
@@ -448,7 +431,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     accountIdToLink = matchingAccount.id;
                 }
             }
-    
+
             let contactId = null;
             if (contactData.first_name || contactData.last_name) {
                 const existingContact = state.contacts.find(c =>
@@ -458,7 +441,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     contactId = existingContact.id;
                 }
             }
-    
+
             if (contactId) {
                 await supabase.from("contacts").update({
                     email: contactData.email || '',
@@ -481,14 +464,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (insertError) throw insertError;
                 contactId = newContactArr?.[0]?.id;
             }
-    
+
             await loadAllData();
             state.selectedContactId = contactId;
             renderContactList();
             renderContactDetails();
-    
+
             showToast(`Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, 'success');
-    
+
         } catch (error) {
             console.error("Error invoking Edge Function or saving data:", error);
             showToast(`Failed to process image: ${error.message}. Please try again.`, 'error');
@@ -496,7 +479,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideModal();
         }
     }
-    
+
     async function handlePasteEvent(event) {
         const items = (event.clipboardData || event.originalEvent.clipboardData).items;
         let blob = null;
@@ -522,7 +505,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             showModal("Error", "No image found in clipboard. Please ensure you copied an image.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
-    
+
     async function handleCameraInputChange(event) {
         const file = event.target.files[0];
         if (file) {
@@ -538,8 +521,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             showModal("Error", "No image captured from camera.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
-    
-    
+
+
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
@@ -551,23 +534,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                 handleNavigation(navButton.href);
             }
         });
-    
+
         if (organicStarIndicator) {
             organicStarIndicator.addEventListener('click', async () => {
                 if (!state.selectedContactId) return;
-    
+
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) return;
-    
+
                 const newOrganicState = !contact.is_organic;
                 organicStarIndicator.classList.toggle('is-organic', newOrganicState);
                 contact.is_organic = newOrganicState;
-    
+
                 const { error } = await supabase
                     .from('contacts')
                     .update({ is_organic: newOrganicState })
                     .eq('id', state.selectedContactId);
-    
+
                 if (error) {
                     console.error("Error updating organic status:", error);
                     organicStarIndicator.classList.toggle('is-organic', !newOrganicState);
@@ -580,7 +563,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         contactForm.addEventListener('input', () => {
             state.isFormDirty = true;
         });
-    
+
         window.addEventListener('beforeunload', (event) => {
             if (state.isFormDirty) {
                 event.preventDefault();
@@ -589,7 +572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         
         contactSearch.addEventListener("input", renderContactList);
-    
+
         addContactBtn.addEventListener("click", () => {
             const openNewContactModal = () => {
                 hideContactDetails(false, true);
@@ -603,13 +586,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                         showModal("Error", "First Name and Last Name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         return false;
                     }
-    
+
                     const { data: newContactArr, error } = await supabase.from("contacts").insert([{ 
                         first_name: firstName, 
                         last_name: lastName, 
                         user_id: state.currentUser.id 
                     }]).select();
-    
+
                     if (error) {
                         showModal("Error", "Error creating contact: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         return false;
@@ -624,17 +607,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Contact</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             };
-    
+
             if (state.isFormDirty) {
                 showModal("Unsaved Changes", "You have unsaved changes. Do you want to discard them and add a new contact?", () => {
                     hideModal();
                     openNewContactModal();
-                }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Add New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             } else {
                 openNewContactModal();
             }
         });
-    
+
         contactList.addEventListener("click", (e) => {
             const item = e.target.closest(".list-item");
             if (item) {
@@ -644,7 +627,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
         });
-    
+
         const contactDetailsPanel = document.getElementById('contact-details');
         if (contactDetailsPanel) {
             contactDetailsPanel.addEventListener('click', (e) => {
@@ -661,7 +644,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(emailViewModalBackdrop) emailViewModalBackdrop.addEventListener('click', (e) => {
             if (e.target === emailViewModalBackdrop) closeEmailViewModal();
         });
-    
+
         contactForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const id = contactForm.querySelector("#contact-id").value ? Number(contactForm.querySelector("#contact-id").value) : null;
@@ -680,7 +663,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showModal("Error", "First and Last name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return;
             }
-    
+
             if (id) {
                 const { error } = await supabase.from("contacts").update(data).eq("id", id);
                 if (error) {
@@ -688,18 +671,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
             } else {
-                const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([data]).select();
+                const { data: newContactData, error: insertError } = await supabase.from("contacts").insert([data]).select();
                 if (insertError) {
                     showModal("Error", "Error creating contact: " + insertError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-                if (newContactArr?.length > 0) state.selectedContactId = newContactArr[0].id;
+                if (newContactData?.length > 0) state.selectedContactId = newContactData[0].id;
             }
             state.isFormDirty = false;
             await loadAllData();
             showModal("Success", "Contact saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         });
-    
+
         deleteContactBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return;
             showModal("Confirm Deletion", "Are you sure you want to delete this contact?", async () => {
@@ -715,7 +698,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showModal("Success", "Contact deleted successfully.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
-    
+
         bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
         contactCsvInput.addEventListener("change", async (e) => {
             const f = e.target.files[0];
@@ -735,12 +718,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                         user_id: state.currentUser.id
                     };
                 });
-    
+
                 if (newRecords.length === 0) {
                     showModal("Info", "No valid records found to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-    
+
                 let recordsToUpdate = [];
                 let recordsToInsert = [];
                 
@@ -752,7 +735,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const partialMatch = state.accounts.find(acc => acc.name.toLowerCase().includes(lowerCompanyName) || lowerCompanyName.includes(acc.name.toLowerCase()));
                     return partialMatch ? partialMatch.id : null;
                 };
-    
+
                 for (const record of newRecords) {
                     record.suggested_account_id = findBestAccountMatch(record.company);
                     
@@ -768,7 +751,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             contact.last_name.toLowerCase() === record.last_name.toLowerCase()
                         );
                     }
-    
+
                     if (existingContact) {
                         let changes = {};
                         if (existingContact.first_name !== record.first_name) changes.first_name = { old: existingContact.first_name, new: record.first_name };
@@ -781,9 +764,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         recordsToInsert.push(record);
                     }
                 }
-    
+
                 const accountOptions = state.accounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
-    
+
                 const modalBodyHtml = `
                     <p>The import process identified the following changes. Use the checkboxes to select which rows you want to process.</p>
                     <div class="table-container-scrollable" style="max-height: 400px;">
@@ -827,7 +810,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         </table>
                     </div>
                 `;
-    
+
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
                     hideModal(); // Hide the initial confirmation modal
                     showToast("Processing import...", 'info'); // Show a non-blocking toast
@@ -914,7 +897,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             r.readAsText(f);
             e.target.value = "";
         });
-    
+
         if (bulkExportContactsBtn) {
             bulkExportContactsBtn.addEventListener("click", () => {
                 const contactsToExport = state.contacts;
@@ -922,11 +905,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     showModal("Info", "No contacts to export.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-    
+
                 let csvContent = "data:text/csv;charset=utf-8,";
                 const headers = ["first_name", "last_name", "email", "phone", "title"];
                 csvContent += headers.join(",") + "\r\n";
-    
+
                 contactsToExport.forEach(contact => {
                     const row = [
                         `"${(contact.first_name || '').replace(/"/g, '""')}"`,
@@ -937,7 +920,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ];
                     csvContent += row.join(",") + "\r\n";
                 });
-    
+
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
@@ -947,7 +930,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 document.body.removeChild(link);
             });
         }
-    
+
         logActivityBtn.addEventListener("click", () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to log activity for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
@@ -989,10 +972,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showModal("Error", `Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}"". Remove them from current sequence first.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return;
             }
-    
+
             const availableSequences = state.sequences;
             const sequenceOptions = availableSequences.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-    
+
             showModal("Assign Sequence", `
                 <label>Select Sequence:</label>
                 <select id="modal-sequence-select" required><option value="">-- Select --</option>${sequenceOptions}</select>
@@ -1007,13 +990,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     showModal("Error", "Selected sequence not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return false;
                 }
-    
+
                 const firstStep = state.sequence_steps.find(s => s.sequence_id === selectedSequence.id && s.step_number === 1);
                 if (!firstStep) {
                     showModal("Error", "Selected sequence has no steps defined. Add steps to the sequence first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return false;
                 }
-    
+
                 const { error } = await supabase.from('contact_sequences').insert({
                     contact_id: state.selectedContactId,
                     sequence_id: Number(sequenceId),
@@ -1033,13 +1016,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return true;
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
-    
+
         if (completeSequenceBtn) {
             completeSequenceBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) return;
                 const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
                 if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    
+
                 showModal("Confirm Completion", `Are you sure you want to mark this sequence as complete? This indicates a successful outcome.`, async () => {
                     const { error } = await supabase.from('contact_sequences').update({ status: 'Completed' }).eq('id', activeContactSequence.id);
                     if (error) {
@@ -1052,12 +1035,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Yes, Complete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             });
         }
-    
+
         removeFromSequenceBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return;
             const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
             if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    
+
             showModal("Confirm Removal", `Are you sure you want to remove this contact from the sequence? This action should be used if the sequence was unsuccessful.`, async () => {
                 const { error } = await supabase.from('contact_sequences').update({ status: 'Removed' }).eq('id', activeContactSequence.id);
                 if (error) {
@@ -1069,7 +1052,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Remove</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
-    
+
         if (addTaskContactBtn) addTaskContactBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to add a task for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const contact = state.contacts.find(c => c.id === state.selectedContactId);
@@ -1101,7 +1084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
-    
+
         if (importContactScreenshotBtn) {
             importContactScreenshotBtn.addEventListener("click", () => {
                 showModal("Import Contact Information",
@@ -1117,46 +1100,46 @@ document.addEventListener("DOMContentLoaded", async () => {
                 document.addEventListener('paste', handlePasteEvent, { once: true });
             });
         }
-    
+
         if (takePictureBtn) {
             takePictureBtn.addEventListener("click", () => {
                 cameraInput.click();
                 showModal("Camera Ready", "Your device camera should be opening. Please take a picture of the email signature or business card.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             });
         }
-    
+
         if (cameraInput) {
             cameraInput.addEventListener('change', handleCameraInputChange);
         }
-    
+
         if (aiActivityInsightBtn) {
             aiActivityInsightBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) {
                     showModal("Error", "Please select a contact to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-    
+
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) {
                     showModal("Error", "Selected contact not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-    
+
                 const relevantActivities = state.activities
                     .filter(act => act.contact_id === contact.id)
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
                 if (relevantActivities.length === 0) {
                     showModal("Info", "No activities found for this contact to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-    
+
                 const activityData = relevantActivities.map(act => 
                     `[${formatDate(act.date)}] Type: ${act.type}, Description: ${act.description}`
                 ).join('\n');
-    
+
                 showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-    
+
                 try {
                     const { data, error } = await supabase.functions.invoke('get-activity-insight', {
                         body: {
@@ -1164,19 +1147,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                             activityLog: activityData
                         }
                     });
-    
+
                     if (error) throw error;
-    
+
                     const insight = data.insight || "No insight generated.";
                     const nextSteps = data.next_steps || "No specific next steps suggested.";
-    
+
                     showModal("AI Activity Insight", `
                         <h4>Summary:</h4>
                         <p>${insight}</p>
                         <h4>Suggested Next Steps:</h4>
                         <p>${nextSteps}</p>
                     `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    
+
                 } catch (error) {
                     console.error("Error invoking AI insight Edge Function:", error);
                     showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -1184,7 +1167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
     }
-    
+
     // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
@@ -1201,6 +1184,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.location.href = "index.html";
         }
     }
-    
+
     initializePage();
 });
