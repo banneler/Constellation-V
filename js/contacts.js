@@ -730,7 +730,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (action === 'insert') {
                             const record = recordsToInsert[index];
                             record.account_id = accountId ? parseInt(accountId) : null;
-                            delete record.company; // ✅ **FIX:** Remove the temporary 'company' field
+                            delete record.company;
+                            delete record.suggested_account_id;
                             const { error } = await supabase.from("contacts").insert([record]);
                             if (error) {
                                 console.error("Error inserting contact:", error);
