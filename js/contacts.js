@@ -294,8 +294,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-  // js/contacts.js
-
 function openEmailViewModal(email) {
     if (!email) return;
     emailViewSubject.textContent = email.subject || '(No Subject)';
@@ -303,7 +301,7 @@ function openEmailViewModal(email) {
     emailViewTo.textContent = email.recipient || 'N/A';
     emailViewDate.textContent = new Date(email.created_at).toLocaleString();
     emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\n/g, '<br>');
-    
+
     // NEW: Handle attachments
     const attachmentsContainer = document.getElementById('email-view-attachments-container');
     if (attachmentsContainer) {
@@ -312,7 +310,7 @@ function openEmailViewModal(email) {
             const attachmentsTitle = document.createElement('h5');
             attachmentsTitle.textContent = 'Attachments';
             attachmentsContainer.appendChild(attachmentsTitle);
-            
+
             email.attachments.forEach(att => {
                 const link = document.createElement('a');
                 link.href = att.url;
@@ -323,7 +321,7 @@ function openEmailViewModal(email) {
             });
         }
     }
-    
+
     emailViewModalBackdrop.classList.remove('hidden');
 }
 
