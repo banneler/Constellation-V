@@ -294,36 +294,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    function openEmailViewModal(email) {
-        if (!email) return;
-        emailViewSubject.textContent = email.subject || '(No Subject)';
-        emailViewFrom.textContent = email.sender || 'N/A';
-        emailViewTo.textContent = email.recipient || 'N/A';
-        emailViewDate.textContent = new Date(email.created_at).toLocaleString();
-        emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\n/g, '<br>');
-        
-        // NEW: Handle attachments
-        const attachmentsContainer = document.getElementById('email-view-attachments-container');
-        if (attachmentsContainer) {
-            attachmentsContainer.innerHTML = '';
-            if (email.attachments && email.attachments.length > 0) {
-                const attachmentsTitle = document.createElement('h5');
-                attachmentsTitle.textContent = 'Attachments';
-                attachmentsContainer.appendChild(attachmentsTitle);
-                
-                email.attachments.forEach(att => {
-                    const link = document.createElement('a');
-                    link.href = att.url;
-                    link.textContent = att.fileName;
-                    link.target = "_blank";
-                    link.className = "btn-secondary btn-sm";
-                    attachmentsContainer.appendChild(link);
-                });
-            }
+  // js/contacts.js
+
+function openEmailViewModal(email) {
+    if (!email) return;
+    emailViewSubject.textContent = email.subject || '(No Subject)';
+    emailViewFrom.textContent = email.sender || 'N/A';
+    emailViewTo.textContent = email.recipient || 'N/A';
+    emailViewDate.textContent = new Date(email.created_at).toLocaleString();
+    emailViewBodyContent.innerHTML = (email.body_text || '(Email body is empty)').replace(/\n/g, '<br>');
+    
+    // NEW: Handle attachments
+    const attachmentsContainer = document.getElementById('email-view-attachments-container');
+    if (attachmentsContainer) {
+        attachmentsContainer.innerHTML = '';
+        if (email.attachments && email.attachments.length > 0) {
+            const attachmentsTitle = document.createElement('h5');
+            attachmentsTitle.textContent = 'Attachments';
+            attachmentsContainer.appendChild(attachmentsTitle);
+            
+            email.attachments.forEach(att => {
+                const link = document.createElement('a');
+                link.href = att.url;
+                link.textContent = att.fileName;
+                link.target = "_blank";
+                link.className = "btn-secondary btn-sm";
+                attachmentsContainer.appendChild(link);
+            });
         }
-        
-        emailViewModalBackdrop.classList.remove('hidden');
     }
+    
+    emailViewModalBackdrop.classList.remove('hidden');
+}
 
     function openEmailViewModal(email) {
         if (!email) return;
