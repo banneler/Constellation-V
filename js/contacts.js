@@ -727,14 +727,10 @@ contactCsvInput.addEventListener("change", async (e) => {
             </div>
         `;
 
-        showModal("Confirm CSV Import", modalBodyHtml, async (modalContainer) => {
-            // Get references to modal elements by searching within the modalContainer
-            const modalTitle = modalContainer.querySelector('#modal-title');
-            const modalBody = modalContainer.querySelector('#modal-body');
-            const modalFooter = modalContainer.querySelector('#modal-footer');
-
+        showModal("Confirm CSV Import", modalBodyHtml, async () => {
+            // Get the data from the modal *before* clearing the content
             const selectedRowsData = [];
-            modalBody.querySelectorAll('.import-row input[type="checkbox"]:checked').forEach(checkbox => {
+            document.querySelectorAll('.modal-content .import-row input[type="checkbox"]:checked').forEach(checkbox => {
                 const row = checkbox.closest('.import-row');
                 const action = row.dataset.action;
                 const index = parseInt(row.dataset.index);
@@ -743,6 +739,12 @@ contactCsvInput.addEventListener("change", async (e) => {
                 selectedRowsData.push({ action, index, accountId });
             });
             
+            // Now, get fresh references to the modal elements
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const modalFooter = document.getElementById('modal-footer');
+
+            // Update the UI to show the processing state
             modalTitle.textContent = "Processing Import";
             modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Processing import...</p>`;
             modalFooter.innerHTML = ''; 
@@ -799,7 +801,6 @@ contactCsvInput.addEventListener("change", async (e) => {
             return false;
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         
-        // This part needs to be outside the callback
         document.querySelectorAll('.import-row').forEach(row => {
             const action = row.dataset.action;
             const index = parseInt(row.dataset.index);
