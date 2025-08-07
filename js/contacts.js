@@ -730,22 +730,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `;
 
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
-                    // First, save the selected rows and their data from the current DOM
                     const selectedRowsData = [];
                     document.querySelectorAll('.modal-content .import-row input[type="checkbox"]:checked').forEach(checkbox => {
                         const row = checkbox.closest('.import-row');
                         const action = row.dataset.action;
                         const index = parseInt(row.dataset.index);
-                        const accountId = row.querySelector('.account-select').value;
+                        const accountSelect = row.querySelector('.account-select');
+                        const accountId = accountSelect ? accountSelect.value : null;
                         selectedRowsData.push({ action, index, accountId });
                     });
                     
-                    // Now, get references to the modal elements before updating the content
                     const modalTitle = document.getElementById('modal-title');
                     const modalBody = document.getElementById('modal-body');
                     const modalFooter = document.getElementById('modal-footer');
                     
-                    // Update modal to a processing state
                     modalTitle.textContent = "Processing Import";
                     modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Processing import...</p>`;
                     modalFooter.innerHTML = ''; 
@@ -753,7 +751,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     let successCount = 0;
                     let errorCount = 0;
                     
-                    // Iterate over the saved data, not the old DOM elements
                     for (const rowData of selectedRowsData) {
                         const { action, index, accountId } = rowData;
                         
@@ -789,7 +786,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                     }
                     
-                    // Update the modal with the final result
                     const resultMessage = (errorCount > 0)
                         ? `Import finished with ${successCount} successes and ${errorCount} errors.`
                         : `Successfully imported/updated ${successCount} contacts.`;
@@ -801,7 +797,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     document.getElementById('modal-ok-btn').addEventListener('click', hideModal, { once: true });
                     
                     await loadAllData();
-                    return false; // Prevent the modal from trying to auto-close
+                    return false;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
                 
                 document.querySelectorAll('.import-row').forEach(row => {
