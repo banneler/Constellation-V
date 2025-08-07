@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     // --- Bulk Assign Functions ---
-    async function handleBulkAssignClick() {
+   async function handleBulkAssignClick() {
     if (!state.selectedSequenceId) {
         showModal("Error", "Please select a sequence first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         return;
@@ -299,7 +299,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const lastActivity = contactActivities.length > 0 ? `Last Activity: ${formatDate(contactActivities[0].date)}` : "No activity";
 
         return `
-            <div class="list-item">
+            <div class="list-item contact-item-row"> 
                 <input type="checkbox" id="contact-${contact.id}" data-contact-id="${contact.id}" class="bulk-assign-checkbox">
                 <label for="contact-${contact.id}">
                     <span>${contact.first_name} ${contact.last_name} <small>(${account ? account.name : 'No Account'})</small></span>
@@ -309,18 +309,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
     }).join('');
 
-    // --- THIS IS THE FIX ---
-    // The "Select All" label now has the exact same <span> structure as the contact rows.
-    // The second span is a placeholder that makes the flexbox align correctly.
+    // --- FIX IS HERE: The "Select All" div has been completely removed. ---
     const modalBody = `
         <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
-        <div class="list-item" style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-             <input type="checkbox" id="select-all-contacts">
-             <label for="select-all-contacts" style="cursor:pointer; font-weight:bold;">
-                <span>Select All / Deselect All</span>
-                <span class="last-activity-date">&nbsp;</span>
-             </label>
-        </div>
         <div class="item-list-container-modal">
             ${contactListHtml}
         </div>
@@ -328,12 +319,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     showModal("Bulk Assign Contacts", modalBody, processBulkAssignment, true, `<button id="modal-confirm-btn" class="btn-primary">Assign Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     
-    document.getElementById('select-all-contacts').addEventListener('change', (e) => {
-        document.querySelectorAll('.bulk-assign-checkbox').forEach(checkbox => {
-            checkbox.checked = e.target.checked;
-        });
-    });
-}
+   }
     
     async function processBulkAssignment() {
         const selectedContactIds = Array.from(document.querySelectorAll('.bulk-assign-checkbox:checked')).map(cb => Number(cb.dataset.contactId));
