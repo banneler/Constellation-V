@@ -257,13 +257,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     sequenceStatusContent.classList.remove("hidden");
                     noSequenceText.classList.add("hidden");
                     removeFromSequenceBtn.classList.remove('hidden');
-                    completeSequenceBtn.classList.remove('hidden'); // NEW
+                    completeSequenceBtn.classList.remove('hidden');
                 } else {
                     sequenceStatusContent.classList.add("hidden");
                     noSequenceText.textContent = "Not in a sequence.";
                     noSequenceText.classList.remove("hidden");
                     removeFromSequenceBtn.classList.add('hidden');
-                    completeSequenceBtn.classList.add('hidden'); // NEW
+                    completeSequenceBtn.classList.add('hidden');
                 }
             }
         } else {
@@ -630,7 +630,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         email: c[2] || "",
                         phone: c[3] || "",
                         title: c[4] || "",
-                        company: c[5] || "", // NEW: Company column
+                        company: c[5] || "",
                         user_id: state.currentUser.id
                     };
                 });
@@ -730,6 +730,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (action === 'insert') {
                             const record = recordsToInsert[index];
                             record.account_id = accountId ? parseInt(accountId) : null;
+                            delete record.company; // ✅ **FIX:** Remove the temporary 'company' field
                             const { error } = await supabase.from("contacts").insert([record]);
                             if (error) {
                                 console.error("Error inserting contact:", error);
@@ -767,7 +768,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
                 
-                // Set the suggested account in each dropdown
                 document.querySelectorAll('.import-row').forEach(row => {
                     const action = row.dataset.action;
                     const index = parseInt(row.dataset.index);
