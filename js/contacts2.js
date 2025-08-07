@@ -1197,4 +1197,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const contactIdFromUrl = urlParams.get('contactId');
             if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
-            await loadAllD
+            await loadAllData();
+        } else {
+            window.location.href = "index.html";
+        }
+    }
+
+    initializePage();
+});
