@@ -196,8 +196,42 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
         `;
     }
 
+    // Set the callbacks
     currentModalCallbacks = { onConfirm, onCancel };
-    _rebindModalActionListeners();
+
+    // Find the buttons *after* they have been inserted into the DOM
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    const okBtn = document.getElementById('modal-ok-btn');
+
+    // Bind event listeners to the newly created buttons
+    if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+            if (currentModalCallbacks.onConfirm) {
+                const result = await Promise.resolve(currentModalCallbacks.onConfirm());
+                if (result !== false) hideModal();
+            } else {
+                hideModal();
+            }
+        };
+    }
+    if (cancelBtn) {
+        cancelBtn.onclick = () => {
+             if (currentModalCallbacks.onCancel) {
+                currentModalCallbacks.onCancel();
+            }
+            hideModal();
+        };
+    }
+     if (okBtn) {
+        okBtn.onclick = () => {
+            if (currentModalCallbacks.onConfirm) {
+                 currentModalCallbacks.onConfirm();
+            }
+             hideModal();
+        };
+    }
+
     modalBackdrop.classList.remove("hidden");
 }
 
@@ -353,5 +387,6 @@ export async function loadSVGs() {
     }
   }
 }
+
 
 
