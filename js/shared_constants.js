@@ -138,9 +138,7 @@ export function updateActiveNavLink() {
 
 // --- MODAL FUNCTIONS ---
 
-// --- MODAL FUNCTIONS (CORRECTED) ---
-
-// Export the modal DOM elements for external use, but the functions below are the main interface
+// --- MODAL FUNCTIONS (CORRECTED FINAL VERSION) ---
 export const modalBackdrop = document.getElementById("modal-backdrop");
 const modalTitle = document.getElementById("modal-title");
 const modalBody = document.getElementById("modal-body");
@@ -171,12 +169,12 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
     const cancelBtn = document.getElementById('modal-cancel-btn');
     const okBtn = document.getElementById('modal-ok-btn');
     
-    // Pass the modalBody element to the onConfirm callback, giving it a stable reference
+    // Pass the modalBackdrop element to the onConfirm callback, giving it a stable root element
     if (confirmBtn) {
         confirmBtn.onclick = async () => {
             if (onConfirm) {
-                // The key change: Pass the modalBody reference to the callback
-                const result = await Promise.resolve(onConfirm(modalBody));
+                // Pass the stable root element to the callback
+                const result = await Promise.resolve(onConfirm(modalBackdrop));
                 if (result !== false) hideModal();
             } else {
                 hideModal();
@@ -198,7 +196,7 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
     }
 
     modalBackdrop.classList.remove("hidden");
-    return modalBody; // Return the modal body for external use
+    return modalBackdrop; // Return the entire modal backdrop for external use
 }
 
 export function hideModal() {
@@ -353,6 +351,7 @@ export async function loadSVGs() {
     }
   }
 }
+
 
 
 
