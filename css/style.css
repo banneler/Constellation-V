@@ -3698,12 +3698,14 @@ body.theme-green .marketing-indicator {
     background-color: var(--background-color-light);
 }
 
-.item-list-container-modal .list-item {
+.item-list-container-modal .list-item label {
+    flex-grow: 1;
+    cursor: pointer;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    padding: 10px;
-    border-bottom: 1px solid var(--border-color-dark);
-    transition: background-color 0.2s ease-in-out;
+    /* Add this new line */
+    width: calc(100% - 32px); /* Prevents label from expanding under the checkbox */
 }
 
 .item-list-container-modal .list-item:last-child {
