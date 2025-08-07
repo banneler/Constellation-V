@@ -5,7 +5,6 @@ import {
     SUPABASE_ANON_KEY,
     formatDate,
     setupModalListeners,
-    _rebindModalActionListeners,
     getCurrentModalCallbacks,
     setCurrentModalCallbacks,
     showModal,
