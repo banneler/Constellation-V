@@ -389,7 +389,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     
     return true; // This is for the original modal's logic, which we've now manually handled.
-}
+}}
+                    
     // --- All other existing functions ---
 
     function handleSequenceListClick(e) {
