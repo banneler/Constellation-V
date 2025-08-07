@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactActivitiesList = document.getElementById("contact-activities-list");
     const contactSequenceInfoText = document.getElementById("contact-sequence-info-text");
     const removeFromSequenceBtn = document.getElementById("remove-from-sequence-btn");
-    const completeSequenceBtn = document.getElementById("complete-sequence-btn"); // NEW
+    const completeSequenceBtn = document.getElementById("complete-sequence-btn");
     const noSequenceText = document.getElementById("no-sequence-text");
     const sequenceStatusContent = document.getElementById("sequence-status-content");
     const ringChartText = document.getElementById("ring-chart-text");
@@ -320,7 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             noSequenceText.classList.remove("hidden");
         }
         if(removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
-        if(completeSequenceBtn) completeSequenceBtn.classList.add('hidden'); // NEW
+        if(completeSequenceBtn) completeSequenceBtn.classList.add('hidden');
         if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '';
         if(contactPendingTaskReminder) contactPendingTaskReminder.classList.add('hidden');
 
@@ -630,6 +630,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         email: c[2] || "",
                         phone: c[3] || "",
                         title: c[4] || "",
+                        company: c[5] || "", // NEW: Company column
                         user_id: state.currentUser.id
                     };
                 });
@@ -642,7 +643,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 let recordsToUpdate = [];
                 let recordsToInsert = [];
                 
+                const findBestAccountMatch = (companyName) => {
+                    if (!companyName) return null;
+                    const lowerCompanyName = companyName.toLowerCase().trim();
+                    const exactMatch = state.accounts.find(acc => acc.name.toLowerCase().trim() === lowerCompanyName);
+                    if (exactMatch) return exactMatch.id;
+                    const partialMatch = state.accounts.find(acc => acc.name.toLowerCase().includes(lowerCompanyName) || lowerCompanyName.includes(acc.name.toLowerCase()));
+                    return partialMatch ? partialMatch.id : null;
+                };
+
                 for (const record of newRecords) {
+                    record.suggested_account_id = findBestAccountMatch(record.company);
                     const existingContact = state.contacts.find(contact => 
                         contact.email && contact.email.toLowerCase() === (record.email || '').toLowerCase()
                     );
@@ -659,6 +670,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     }
                 }
 
+                const accountOptions = state.accounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
+
                 const modalBodyHtml = `
                     <p>The import process identified the following changes. Use the checkboxes to select which rows you want to process.</p>
                     <div class="table-container-scrollable" style="max-height: 400px;">
@@ -670,6 +683,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Changes</th>
+                                    <th>Suggested Account</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -680,6 +694,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                         <td>${r.first_name} ${r.last_name}</td>
                                         <td>${r.email}</td>
                                         <td>-</td>
+                                        <td><select class="account-select"><option value="">-- No Account --</option>${accountOptions}</select></td>
                                     </tr>
                                 `).join('')}
                                 ${recordsToUpdate.map((r, index) => `
@@ -693,6 +708,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                                 <p><small><strong>${key}:</strong> "${r.changes[key].old}" &rarr; "<strong>${r.changes[key].new}</strong>"</small></p>
                                             `).join('')}
                                         </td>
+                                        <td><select class="account-select"><option value="">-- No Account --</option>${accountOptions}</select></td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -709,9 +725,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const row = checkbox.closest('.import-row');
                         const action = row.dataset.action;
                         const index = row.dataset.index;
+                        const accountId = row.querySelector('.account-select').value;
 
                         if (action === 'insert') {
                             const record = recordsToInsert[index];
+                            record.account_id = accountId ? parseInt(accountId) : null;
                             const { error } = await supabase.from("contacts").insert([record]);
                             if (error) {
                                 console.error("Error inserting contact:", error);
@@ -721,18 +739,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                             }
                         } else if (action === 'update') {
                             const record = recordsToUpdate[index];
-                            const updateData = {};
-                            for (const key in record.changes) {
-                                updateData[key] = record[key];
-                            }
-                            if (Object.keys(updateData).length > 0) {
-                                const { error } = await supabase.from("contacts").update(updateData).eq('id', record.id);
-                                if (error) {
-                                    console.error("Error updating contact:", error);
-                                    errorCount++;
-                                } else {
-                                    successCount++;
-                                }
+                            const updateData = {
+                                first_name: record.first_name,
+                                last_name: record.last_name,
+                                email: record.email,
+                                phone: record.phone,
+                                title: record.title,
+                                account_id: accountId ? parseInt(accountId) : null
+                            };
+                            const { error } = await supabase.from("contacts").update(updateData).eq('id', record.id);
+                            if (error) {
+                                console.error("Error updating contact:", error);
+                                errorCount++;
                             } else {
                                 successCount++;
                             }
@@ -748,6 +766,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await loadAllData();
                     return true;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                
+                // Set the suggested account in each dropdown
+                document.querySelectorAll('.import-row').forEach(row => {
+                    const action = row.dataset.action;
+                    const index = parseInt(row.dataset.index);
+                    const record = action === 'insert' ? recordsToInsert[index] : recordsToUpdate[index];
+                    if (record.suggested_account_id) {
+                        row.querySelector('.account-select').value = record.suggested_account_id;
+                    }
+                });
                 
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
                 if (selectAllCheckbox) {
@@ -882,7 +910,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
-        // NEW: Event listener for Complete Sequence button
         if (completeSequenceBtn) {
             completeSequenceBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) return;
