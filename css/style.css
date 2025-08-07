@@ -3624,3 +3624,40 @@ body.theme-light .marketing-indicator {
 body.theme-green .marketing-indicator {
     color: #00ff41; /* Use the theme's primary text color */
 }
+/* Add this CSS to your main stylesheet, for example, style.css */
+
+.toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.toast {
+    background-color: var(--toast-background, #333);
+    color: var(--toast-text, #fff);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+}
+
+.toast-success {
+    background-color: var(--success-color);
+}
+
+.toast-error {
+    background-color: var(--danger-color);
+}
+
+.toast.hide {
+    opacity: 0;
+    transform: translateY(-1rem);
+}
