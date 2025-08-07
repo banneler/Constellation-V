@@ -314,37 +314,37 @@ export async function setupUserMenuAndAuth(supabase, state) {
 }
 
 export async function loadSVGs() {
-  const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
-  
-  for (const placeholder of svgPlaceholders) {
-    const svgUrl = placeholder.dataset.svgLoader;
-    if (svgUrl) {
-      try {
-        const response = await fetch(svgUrl);
-        if (!response.ok) throw new Error(`Failed to load SVG: ${response.statusText}`);
-        
-        const svgText = await response.text();
-        const parser = new DOMParser();
-        const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
-        const svgElement = svgDoc.documentElement;
+    const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
+    
+    for (const placeholder of svgPlaceholders) {
+        const svgUrl = placeholder.dataset.svgLoader;
+        if (svgUrl) {
+            try {
+                const response = await fetch(svgUrl);
+                if (!response.ok) throw new Error(`Failed to load SVG: ${response.statusText}`);
+                
+                const svgText = await response.text();
+                const parser = new DOMParser();
+                const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
+                const svgElement = svgDoc.documentElement;
 
-        if (svgElement.querySelector('parsererror')) {
-          console.error(`Error parsing SVG from ${svgUrl}`);
-          continue;
+                if (svgElement.querySelector('parsererror')) {
+                    console.error(`Error parsing SVG from ${svgUrl}`);
+                    continue;
+                }
+                
+                if (svgUrl.includes('logo.svg')) {
+                    svgElement.classList.add('nav-logo');
+                } else if (svgUrl.includes('user-icon.svg')) {
+                    svgElement.classList.add('user-icon');
+                }
+
+                placeholder.replaceWith(svgElement);
+
+            } catch (error) {
+                console.error(`Could not load SVG from ${svgUrl}`, error);
+                placeholder.innerHTML = '';
+            }
         }
-        
-        if (svgUrl.includes('logo.svg')) {
-            svgElement.classList.add('nav-logo');
-        } else if (svgUrl.includes('user-icon.svg')) {
-            svgElement.classList.add('user-icon');
-        }
-
-        placeholder.replaceWith(svgElement);
-
-      } catch (error) {
-        console.error(`Could not load SVG from ${svgUrl}`, error);
-        placeholder.innerHTML = '';
-      }
     }
-  }
 }
