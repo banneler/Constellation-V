@@ -728,7 +728,7 @@ contactCsvInput.addEventListener("change", async (e) => {
             </div>
         `;
 
-        showModal("Confirm CSV Import", modalBodyHtml, async (modalContent) => {
+        showModal("Confirm CSV Import", modalBodyHtml, async (modalBody) => {
             // Get references to modal elements from the callback's argument
             const modalTitle = modalContent.querySelector('#modal-title');
             const modalBody = modalContent.querySelector('#modal-body');
