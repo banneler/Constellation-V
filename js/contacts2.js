@@ -330,24 +330,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const fileName = att.fileName || 'Unknown File';
                         
                         let downloadPath = '';
-try {
-    const urlObject = new URL(att.url);
-    // The path Supabase needs is everything after '/public/email-attachments/'
-    const relevantPath = urlObject.pathname.split('/public/email-attachments/')[1];
-    if (relevantPath) {
-        downloadPath = relevantPath;
-    }
-} catch (e) {
-    console.error("Could not parse attachment URL:", att.url, e);
-}
+                        try {
+                            const urlObject = new URL(att.url);
+                            const relevantPath = urlObject.pathname.split('/public/email-attachments/')[1];
+                            if (relevantPath) {
+                                downloadPath = relevantPath;
+                            }
+                        } catch (e) {
+                            console.error("Could not parse attachment URL:", att.url, e);
+                        }
 
-if (downloadPath) {
-    link.textContent = fileName;
-    link.className = "btn-secondary btn-sm attachment-link";
-    link.dataset.filename = fileName;
-    link.dataset.downloadpath = downloadPath; // This will now be correct
-    attachmentsContainer.appendChild(link);
-}
+                        if (downloadPath) {
+                            // ##### DEBUGGING LINE 1 #####
+                            console.log("Created download link. Path stored in data attribute:", downloadPath);
+
+                            link.textContent = fileName;
+                            link.className = "btn-secondary btn-sm attachment-link";
+                            link.dataset.filename = fileName;
+                            link.dataset.downloadpath = downloadPath;
+                            attachmentsContainer.appendChild(link);
+                        }
                     }
                 });
             } else {
@@ -366,6 +368,9 @@ if (downloadPath) {
         event.preventDefault();
         const downloadPath = event.target.dataset.downloadpath; 
         const fileName = event.target.dataset.filename || 'downloaded-file';
+
+        // ##### DEBUGGING LINE 2 #####
+        console.log("Attempting to download from bucket 'email-attachments' with path:", downloadPath);
 
         if (!downloadPath) {
             console.error('File download path not found.', event.target.dataset);
