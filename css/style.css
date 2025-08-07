@@ -3742,3 +3742,8 @@ body.theme-green .marketing-indicator {
     margin-left: 15px; /* Ensures space from the contact name */
     flex-shrink: 0; /* Prevents the date from shrinking */
 }
+/* In style.css, add this inside the modal styles block */
+
+.item-list-container-modal .list-item label > span:first-child {
+    flex-grow: 1; /* Allows the name/account part to take up space */
+}
