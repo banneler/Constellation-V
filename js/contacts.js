@@ -562,122 +562,122 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             hideModal(); // Close the prompt modal
-            await Email(userPrompt);
+            await generateAndDisplayEmail(userPrompt);
             return true;
 
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
     async function generateAndDisplayEmail(userPrompt) {
-    const contact = state.contacts.find(c => c.id === state.selectedContactId);
-    const account = state.accounts.find(a => a.id === contact.account_id);
+        const contact = state.contacts.find(c => c.id === state.selectedContactId);
+        const account = state.accounts.find(a => a.id === contact.account_id);
 
-    // Show loading modal
-    showModal(
-        "Generating Email...",
-        `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`,
-        null,
-        false
-    );
-
-    try {
-        const { data: emailContent, error } = await supabase.functions.invoke('generate-prospect-email', {
-            body: {
-                contactName: `${contact.first_name} ${contact.last_name}`,
-                accountName: account ? account.name : '',
-                userPrompt: userPrompt
-            }
-        });
-
-        console.log("📩 Raw emailContent from Edge Function:", emailContent);
-        console.log("⚠️ Error object from supabase.functions.invoke:", error);
-
-        hideModal(); // Hide the loading modal
-
-        // Handle errors from Supabase invoke or from our Edge Function
-        if (error || !emailContent || emailContent.error) {
-            const errMsg = error?.message || emailContent?.error || "Unknown error generating email.";
-            showModal(
-                "Error",
-                `Failed to generate email: ${errMsg}`,
-                null,
-                false,
-                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-            );
-            return;
-        }
-
-        // Validate that we got subject and body
-        if (!emailContent.subject || !emailContent.body) {
-            showModal(
-                "Error",
-                "Email content was missing subject or body.",
-                null,
-                false,
-                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-            );
-            return;
-        }
-
-        // Show generated email in modal
-        const modalBody = `
-            <label>Subject:</label>
-            <input type="text" id="ai-email-subject" value="${emailContent.subject}" readonly style="background-color: var(--bg-dark);">
-            <label>Body:</label>
-            <textarea id="ai-email-body" rows="10" readonly style="background-color: var(--bg-dark);">${emailContent.body}</textarea>
-        `;
-
+        // Show loading modal
         showModal(
-            "AI Generated Email",
-            modalBody,
+            "Generating Email...",
+            `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`,
             null,
-            false,
-            `
-            <button id="modal-open-client-btn" class="btn-primary">Open in Email Client</button>
-            <button id="modal-log-email-btn" class="btn-secondary">Log Email as Activity</button>
-            <button id="modal-cancel-btn" class="btn-secondary">Close</button>
-            `
+            false
         );
 
-        // Button: Open in Email Client
-        document.getElementById('modal-open-client-btn').addEventListener('click', () => {
-            const subject = encodeURIComponent(emailContent.subject);
-            const body = encodeURIComponent(emailContent.body);
-            window.location.href = `mailto:${contact.email}?subject=${subject}&body=${body}`;
-        });
-
-        // Button: Log Email as Activity
-        document.getElementById('modal-log-email-btn').addEventListener('click', async () => {
-            const { error: logError } = await supabase.from('activities').insert({
-                contact_id: state.selectedContactId,
-                account_id: contact.account_id,
-                type: 'Email',
-                description: `Sent AI-generated email with subject: "${emailContent.subject}"`,
-                user_id: state.currentUser.id,
-                date: new Date().toISOString()
+        try {
+            const { data: emailContent, error } = await supabase.functions.invoke('generate-prospect-email', {
+                body: {
+                    contactName: `${contact.first_name} ${contact.last_name}`,
+                    accountName: account ? account.name : '',
+                    userPrompt: userPrompt
+                }
             });
 
-            if (logError) {
-                showToast("Error logging email: " + logError.message, 'error');
-            } else {
-                showToast("Email logged as activity!", 'success');
-                hideModal();
-                await loadAllData();
-            }
-        });
+            console.log("📩 Raw emailContent from Edge Function:", emailContent);
+            console.log("⚠️ Error object from supabase.functions.invoke:", error);
 
-    } catch (err) {
-        console.error("Error generating AI email:", err);
-        hideModal();
-        showModal(
-            "Error",
-            `Failed to generate email: ${err.message}`,
-            null,
-            false,
-            `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-        );
+            hideModal(); // Hide the loading modal
+
+            // Handle errors from Supabase invoke or from our Edge Function
+            if (error || !emailContent || emailContent.error) {
+                const errMsg = error?.message || emailContent?.error || "Unknown error generating email.";
+                showModal(
+                    "Error",
+                    `Failed to generate email: ${errMsg}`,
+                    null,
+                    false,
+                    `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+                );
+                return;
+            }
+
+            // Validate that we got subject and body
+            if (!emailContent.subject || !emailContent.body) {
+                showModal(
+                    "Error",
+                    "Email content was missing subject or body.",
+                    null,
+                    false,
+                    `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+                );
+                return;
+            }
+
+            // Show generated email in modal
+            const modalBody = `
+                <label>Subject:</label>
+                <input type="text" id="ai-email-subject" value="${emailContent.subject}" readonly style="background-color: var(--bg-dark);">
+                <label>Body:</label>
+                <textarea id="ai-email-body" rows="10" readonly style="background-color: var(--bg-dark);">${emailContent.body}</textarea>
+            `;
+
+            showModal(
+                "AI Generated Email",
+                modalBody,
+                null,
+                false,
+                `
+                <button id="modal-open-client-btn" class="btn-primary">Open in Email Client</button>
+                <button id="modal-log-email-btn" class="btn-secondary">Log Email as Activity</button>
+                <button id="modal-cancel-btn" class="btn-secondary">Close</button>
+                `
+            );
+
+            // Button: Open in Email Client
+            document.getElementById('modal-open-client-btn').addEventListener('click', () => {
+                const subject = encodeURIComponent(emailContent.subject);
+                const body = encodeURIComponent(emailContent.body);
+                window.location.href = `mailto:${contact.email}?subject=${subject}&body=${body}`;
+            });
+
+            // Button: Log Email as Activity
+            document.getElementById('modal-log-email-btn').addEventListener('click', async () => {
+                const { error: logError } = await supabase.from('activities').insert({
+                    contact_id: state.selectedContactId,
+                    account_id: contact.account_id,
+                    type: 'Email',
+                    description: `Sent AI-generated email with subject: "${emailContent.subject}"`,
+                    user_id: state.currentUser.id,
+                    date: new Date().toISOString()
+                });
+
+                if (logError) {
+                    showToast("Error logging email: " + logError.message, 'error');
+                } else {
+                    showToast("Email logged as activity!", 'success');
+                    hideModal();
+                    await loadAllData();
+                }
+            });
+
+        } catch (err) {
+            console.error("Error generating AI email:", err);
+            hideModal();
+            showModal(
+                "Error",
+                `Failed to generate email: ${err.message}`,
+                null,
+                false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
+        }
     }
-}
 
     function setupPageEventListeners() {
         setupModalListeners();
@@ -841,7 +841,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         deleteContactBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return;
             showModal("Confirm Deletion", "Are you sure you want to delete this contact?", async () => {
-                const { error } = await supabase.from("contacts").delete().eq("id", state.selectedContactId);
+                const { error } = await supabase.from("contacts").delete().eq('id', state.selectedContactId);
                 if (error) {
                     showModal("Error", "Error deleting contact: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 } else {
@@ -965,7 +965,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         </table>
                     </div>
                 `;
-                
+
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
                     let successCount = 0;
                     let errorCount = 0;
@@ -979,7 +979,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const accountId = accountSelect ? accountSelect.value : null;
                         selectedRowsData.push({ action, index, accountId });
                     });
-                    
+
                     for (const rowData of selectedRowsData) {
                         const { action, index, accountId } = rowData;
                         
@@ -1014,7 +1014,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             }
                         }
                     }
-                    
+
                     hideModal();
 
                     let resultMessage = '';
@@ -1076,11 +1076,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 contactsToExport.forEach(contact => {
                     const row = [
-                        `"${(contact.first_name || '').replace(/"/g, '""')}"`,
-                        `"${(contact.last_name || '').replace(/"/g, '""')}"`,
-                        `"${(contact.email || '').replace(/"/g, '""')}"`,
-                        `"${(contact.phone || '').replace(/"/g, '""')}"`,
-                        `"${(contact.title || '').replace(/"/g, '""')}"`
+                        `"${(contact.first_name || '').replace(/"/g, '""')}",
+                        `"${(contact.last_name || '').replace(/"/g, '""')}",
+                        `"${(contact.email || '').replace(/"/g, '""')}",
+                        `"${(contact.phone || '').replace(/"/g, '""')}",
+                        `"${(contact.title || '').replace(/"/g, '""')}`
                     ];
                     csvContent += row.join(",") + "\r\n";
                 });
@@ -1128,12 +1128,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return true;
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Activity</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
-        
+
         assignSequenceBtn.addEventListener("click", () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to assign a sequence to.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             const currentContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
             if (currentContactSequence) {
-                showModal("Error", `Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}"". Remove them from current sequence first.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                showModal("Error", `Contact is already in an active sequence: "${state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown'}"". Remove them from current sequence first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return;
             }
 
@@ -1171,7 +1171,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
                 if (error) {
                     showModal("Error", "Error assigning sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                } else {
+                    } else {
                     await loadAllData();
                     hideModal();
                     showModal("Success", "Sequence assigned successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
