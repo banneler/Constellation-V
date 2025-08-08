@@ -53,8 +53,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-
-    // --- NEW: AI Email Generation Element Selector ---
     const writeEmailAIButton = document.getElementById("write-email-ai-btn");
     
     // --- Dirty Check and Navigation ---
@@ -286,7 +284,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const loggedEmails = state.email_log
             .filter(email => (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase())
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created.at));
     
         if (loggedEmails.length === 0) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
@@ -375,7 +373,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!downloadPath) {
             console.error('File download path not found.', event.target.dataset);
-            alert('Failed to download attachment. Path is missing.');
+            showModal('Error', 'Failed to download attachment. Path is missing.', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return;
         }
 
@@ -384,7 +382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (error) {
                 console.error('Error downloading attachment:', error);
-                alert(`Failed to download attachment: ${error.message}. Please try again.`);
+                showModal('Error', `Failed to download attachment: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return;
             }
 
@@ -399,7 +397,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error('Error handling attachment download:', e);
-            alert('An unexpected error occurred.');
+            showModal('Error', 'An unexpected error occurred.', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
 
@@ -564,8 +562,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             <textarea id="ai-email-prompt" rows="4" placeholder="e.g., 'Write a follow-up email after our meeting about the new project.'"></textarea>
             <div class="email-response-container hidden">
                 <hr>
+                <label>AI-Generated Subject:</label>
+                <input type="text" id="ai-email-subject" readonly/>
                 <label>AI-Generated Draft:</label>
-                <textarea id="ai-email-response" rows="10"></textarea>
+                <textarea id="ai-email-body" rows="10"></textarea>
                 <div class="flex-end-buttons">
                     <button id="open-email-client-btn" class="btn-primary">Open Email Client</button>
                 </div>
@@ -584,52 +584,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function generateEmailWithAI(contact) {
-        const prompt = document.getElementById('ai-email-prompt').value;
+        const userPrompt = document.getElementById('ai-email-prompt').value;
         const responseContainer = document.querySelector('.email-response-container');
-        const aiEmailResponse = document.getElementById('ai-email-response');
+        const aiEmailSubject = document.getElementById('ai-email-subject');
+        const aiEmailBody = document.getElementById('ai-email-body');
         const generateButton = document.getElementById('ai-generate-email-btn');
 
-        if (!prompt) {
+        if (!userPrompt) {
             showToast("Please enter a prompt.", "error");
             return;
         }
 
-        // Show loading state
         const originalButtonText = generateButton.textContent;
         generateButton.disabled = true;
         generateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating...`;
 
-        const contactData = {
-            fullName: `${contact.first_name} ${contact.last_name}`,
-            email: contact.email,
-            title: contact.title || '',
-            company: state.accounts.find(acc => acc.id === contact.account_id)?.name || ''
-        };
-        const pastActivities = state.activities
-            .filter(act => act.contact_id === contact.id)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .map(act => `${formatDate(act.date)} - ${act.type}: ${act.description}`)
-            .join('\n');
+        const contactName = `${contact.first_name} ${contact.last_name}`;
+        const accountName = state.accounts.find(acc => acc.id === contact.account_id)?.name || '';
 
         try {
-            const { data, error } = await supabase.functions.invoke('generate-email-with-ai', {
+            // Updated payload to match the Edge Function's expectations
+            const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
                 body: {
-                    prompt: prompt,
-                    contact: contactData,
-                    activities: pastActivities
+                    userPrompt: userPrompt,
+                    contactName: contactName,
+                    accountName: accountName
                 }
             });
 
             if (error) throw error;
             
-            const generatedEmail = data.emailBody || "Failed to generate email content.";
-            aiEmailResponse.value = generatedEmail;
+            // Updated to handle the returned 'subject' and 'body'
+            const generatedSubject = data.subject || "No Subject";
+            const generatedBody = data.body || "Failed to generate email content.";
+            
+            aiEmailSubject.value = generatedSubject;
+            aiEmailBody.value = generatedBody;
             responseContainer.classList.remove('hidden');
             showToast("Email generated successfully!", "success");
 
         } catch (e) {
             console.error("Error generating email:", e);
-            aiEmailResponse.value = "An error occurred while generating the email. Please try again.";
+            aiEmailSubject.value = "Error";
+            aiEmailBody.value = "An error occurred while generating the email. Please try again.";
             responseContainer.classList.remove('hidden');
             showToast("Failed to generate email.", "error");
         } finally {
@@ -639,11 +636,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function openEmailClient(contact) {
-        const emailBody = document.getElementById('ai-email-response').value;
-        const emailSubject = `Email to ${contact.first_name} ${contact.last_name}`; // You could make this more dynamic from the AI response
+        const emailSubject = document.getElementById('ai-email-subject').value;
+        const emailBody = document.getElementById('ai-email-body').value;
 
-        // Construct a mailto link
-        const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+        // Replace any line breaks in the body with %0D%0A for the mailto link
+        const encodedBody = encodeURIComponent(emailBody.replace(/\n/g, '%0D%0A'));
+        const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodedBody}`;
         window.open(mailtoLink, '_blank');
 
         // Log the activity to Supabase
@@ -959,7 +957,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                 `;
                 
-                // --- THIS IS THE START OF THE FIX ---
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
                     let successCount = 0;
                     let errorCount = 0;
@@ -1029,9 +1026,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         `<button id="modal-confirm-btn" class="btn-primary">OK</button>`
                     );
 
-                    return false; // Prevent the original modal from auto-closing
+                    return false;
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-                // --- THIS IS THE END OF THE FIX ---
                 
                 document.querySelectorAll('.import-row').forEach(row => {
                     const action = row.dataset.action;
@@ -1220,7 +1216,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const description = document.getElementById('modal-task-description').value.trim();
                     const dueDate = document.getElementById('modal-task-due-date').value;
                     if (!description) {
-                        alert('Task description is required.');
+                        showModal("Error", 'Task description is required.', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         return false;
                     }
                     const newTask = {
@@ -1325,7 +1321,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
         
-        // --- NEW: AI Email Generation Event Listener ---
         if (writeEmailAIButton) {
             writeEmailAIButton.addEventListener("click", showAIEmailModal);
         }
@@ -1350,3 +1345,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
