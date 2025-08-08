@@ -586,12 +586,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (error) throw error;
         
-        // --- FINAL FIX ---
         // Add a defensive check to ensure the response is a valid object before using it.
         if (!emailContent || !emailContent.subject || !emailContent.body) {
             throw new Error("Invalid response from the AI email generator.");
         }
-        // --- END OF FIX ---
         
         // Hide the loading modal after a successful API call.
         hideModal();
@@ -647,6 +645,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         hideModal();
         showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
+}
+async function handleAiWriteEmailClick() {
+    if (!state.selectedContactId) {
+        showModal("Error", "Please select a contact first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
+    }
+
+    const modalBody = `
+        <label for="ai-email-prompt">What is the purpose of this email?</label>
+        <textarea id="ai-email-prompt" rows="4" placeholder="e.g., Follow up on our call last Tuesday about cloud solutions..."></textarea>
+    `;
+
+    showModal("Write Email with AI", modalBody, async () => {
+        const userPrompt = document.getElementById('ai-email-prompt').value.trim();
+        if (!userPrompt) {
+            alert("Please enter a prompt for the email.");
+            return false;
+        }
+        
+        hideModal(); // Close the prompt modal
+        await generateAndDisplayEmail(userPrompt); // <-- Corrected function name
+        return true;
+
+    }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 }
     function setupPageEventListeners() {
         setupModalListeners();
