@@ -355,22 +355,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- App Initialization ---
-    async function initializePage() {
-        await loadSVGs();
-        updateActiveNavLink();
+async function initializePage() {
+    await loadSVGs();
+    updateActiveNavLink();
+    setupPageEventListeners(); // Note: This is moved to run regardless of auth state.
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
+    // Use the Supabase auth state change listener to handle session logic.
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+            // A user is signed in. Set the state and load data.
             state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            setupPageEventListeners();
-            // CORRECTED: Call loadAllData without 'await' to allow the UI to render instantly.
-            // The data will populate asynchronously.
+            setupUserMenuAndAuth(supabase, state);
             loadAllData();
-        } else {
+        } else if (event === 'SIGNED_OUT') {
+            // No user is signed in. Redirect to the login page.
+            state.currentUser = null;
             window.location.href = "index.html";
         }
-    }
+    });
 
-    initializePage();
-});
+    // You can remove the await supabase.auth.getSession() call completely now.
+}
+
