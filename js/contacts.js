@@ -562,15 +562,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             hideModal(); // Close the prompt modal
-            await Email(userPrompt);
+            await generateAndDisplayEmail(userPrompt);
             return true;
 
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-    // ... (rest of the contacts.js code) ...
-
-async function generateAndDisplayEmail(userPrompt) {
+    async function generateAndDisplayEmail(userPrompt) {
+    // Defensive Check to ensure a contact is selected and exists
     const contact = state.contacts.find(c => c.id === state.selectedContactId);
     if (!contact) {
         console.error("AI Email: Could not find the selected contact in the state.", state.selectedContactId);
@@ -641,39 +640,14 @@ async function generateAndDisplayEmail(userPrompt) {
                 await loadAllData();
             }
         });
-    catch (err) {
+
+    } catch (err) {
         console.error("Error generating AI email:", err);
         hideModal();
         showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 }
-       
-        // Add listeners for the new buttons inside the final modal
-        document.getElementById('modal-open-client-btn').addEventListener('click', () => {
-            const subject = encodeURIComponent(emailContent.subject);
-            const body = encodeURIComponent(emailContent.body);
-            window.location.href = `mailto:${contact.email}?subject=${subject}&body=${body}`;
-        });
-
-        document.getElementById('modal-log-email-btn').addEventListener('click', async () => {
-            const { error } = await supabase.from('activities').insert({
-                contact_id: state.selectedContactId,
-                account_id: contact.account_id,
-                type: 'Email',
-                description: `Sent AI-generated email with subject: "${emailContent.subject}"`,
-                user_id: state.currentUser.id,
-                date: new Date().toISOString()
-            });
-
-            if (error) {
-                showToast("Error logging email: " + error.message, 'error');
-            } else {
-                showToast("Email logged as activity!", 'success');
-                hideModal();
-                await loadAllData();
-            }
-        });
-        
+            
             // Add listeners for the new buttons inside the final modal
             document.getElementById('modal-open-client-btn').addEventListener('click', () => {
                 const subject = encodeURIComponent(emailContent.subject);
@@ -700,11 +674,11 @@ async function generateAndDisplayEmail(userPrompt) {
                 }
             });
 
-    } catch (err) {
-        console.error("Error generating AI email:", err);
-        hideModal();
-        showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    }
+        } catch (err) {
+            console.error("Error generating AI email:", err);
+            hideModal();
+            showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
     }
 
     function setupPageEventListeners() {
@@ -1280,10 +1254,10 @@ async function generateAndDisplayEmail(userPrompt) {
             importContactScreenshotBtn.addEventListener("click", () => {
                 showModal("Import Contact Information",
                     `<p>To import contact information:</p>
-                    <ul>
-                        <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
-                        <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
-                    </ul>`,
+                     <ul>
+                         <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
+                         <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
+                     </ul>`,
                     null, false,
                     `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
