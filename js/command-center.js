@@ -166,7 +166,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (step.type.toLowerCase() === "linkedin") {
                     btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
                 } else if (step.type.toLowerCase() === "email" && contact.email) {
-                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}" data-contact-id="${contact.id}" data-subject="${encodeURIComponent(step.subject)}" data-message="${encodeURIComponent(step.message)}">Send Email</button>`;
+                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
                 }
@@ -225,12 +225,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const description = document.getElementById('modal-task-description').value.trim();
                 const dueDate = document.getElementById('modal-task-due-date').value;
                 const linkedEntityValue = document.getElementById('modal-task-linked-entity').value;
-                if (!description) { alert('Description is required.'); return; }
+                if (!description) { showModal('Error', 'Description is required.'); return; }
                 const taskData = { description, due_date: dueDate || null, user_id: state.currentUser.id, status: 'Pending' };
                 if (linkedEntityValue.startsWith('c-')) { taskData.contact_id = Number(linkedEntityValue.substring(2)); }
                 else if (linkedEntityValue.startsWith('a-')) { taskData.account_id = Number(linkedEntityValue.substring(2)); }
                 const { error } = await supabase.from('tasks').insert(taskData);
-                if (error) { alert('Error adding task: ' + error.message); }
+                if (error) { showModal('Error', 'Error adding task: ' + error.message); }
                 else { await loadAllData(); hideModal(); }
             });
         });
@@ -254,7 +254,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else if (button.matches('.edit-task-btn')) {
                 const taskId = button.dataset.taskId;
                 const task = state.tasks.find(t => t.id == taskId);
-                if (!task) { alert('Task not found.'); return; }
+                if (!task) { showModal('Error', 'Task not found.'); return; }
                 const contactsOptions = state.contacts.map(c => `<option value="c-${c.id}" ${c.id === task.contact_id ? 'selected' : ''}>${c.first_name} ${c.last_name} (Contact)</option>`).join('');
                 const accountsOptions = state.accounts.map(a => `<option value="a-${a.id}" ${a.id === task.account_id ? 'selected' : ''}>${a.name} (Account)</option>`).join('');
                 showModal('Edit Task', `
@@ -270,7 +270,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const newDescription = document.getElementById('modal-task-description').value.trim();
                     const newDueDate = document.getElementById('modal-task-due-date').value;
                     const linkedEntityValue = document.getElementById('modal-task-linked-entity').value;
-                    if (!newDescription) { alert('Task description is required.'); return; }
+                    if (!newDescription) { showModal('Error', 'Task description is required.'); return; }
                     const updateData = { description: newDescription, due_date: newDueDate || null, contact_id: null, account_id: null };
                     if (linkedEntityValue.startsWith('c-')) { updateData.contact_id = Number(linkedEntityValue.substring(2)); }
                     else if (linkedEntityValue.startsWith('a-')) { updateData.account_id = Number(linkedEntityValue.substring(2)); }
@@ -279,19 +279,40 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             } else if (button.matches('.send-email-btn')) {
                 const csId = Number(button.dataset.csId);
-                const contactId = Number(button.dataset.contactId);
-                const subject = decodeURIComponent(button.dataset.subject);
-                let message = decodeURIComponent(button.dataset.message);
-                const contact = state.contacts.find(c => c.id === contactId);
-                if (!contact) return alert("Contact not found.");
+                const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
+                if (!contactSequence) { showModal('Error', 'Contact sequence not found.'); return; }
                 
-                // --- FIX: Populate the message before opening the mailto link ---
-                message = message.replace(/{{firstName}}/g, contact.first_name);
+                const contact = state.contacts.find(c => c.id === contactSequence.contact_id);
+                if (!contact) { showModal('Error', 'Contact not found.'); return; }
 
+                const step = state.sequence_steps.find(s => s.sequence_id === contactSequence.sequence_id && s.step_number === contactSequence.current_step_number);
+                if (!step) { showModal('Error', 'Sequence step not found.'); return; }
+
+                let subject = step.subject || '';
+                let message = step.message || '';
+                
+                // Populate all known placeholders before opening the email client
+                if (contact.first_name) {
+                    message = message.replace(/{{firstName}}/g, contact.first_name);
+                }
+                if (contact.last_name) {
+                    message = message.replace(/{{lastName}}/g, contact.last_name);
+                }
+                if (contact.email) {
+                    message = message.replace(/{{email}}/g, contact.email);
+                }
+                if (contact.phone) {
+                    message = message.replace(/{{phone}}/g, contact.phone);
+                }
+                if (contact.title) {
+                    message = message.replace(/{{title}}/g, contact.title);
+                }
+
+                // Construct the mailto link with the populated content
                 const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
                 window.open(mailtoLink, "_blank");
-
-                // --- FIX: Call completeStep AFTER the mailto link has been opened ---
+                
+                // Now, complete the step after the email client is opened.
                 completeStep(csId);
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
@@ -299,7 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (linkedinUrl) {
                     window.open(linkedinUrl, "_blank");
                 } else {
-                    alert("LinkedIn URL is missing from button data attribute.");
+                    showModal('Error', "LinkedIn URL is missing from button data attribute.");
                 }
                 completeStep(csId);
             } else if (button.matches('.complete-step-btn')) {
