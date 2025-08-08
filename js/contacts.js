@@ -52,7 +52,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const takePictureBtn = document.getElementById("take-picture-btn");
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
-    const aiWriteEmailBtn = document.getElementById("ai-write-email-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
 
     // --- Dirty Check and Navigation ---
@@ -543,170 +542,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function handleAiWriteEmailClick() {
-        if (!state.selectedContactId) {
-            showModal("Error", "Please select a contact first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-
-        const modalBody = `
-            <label for="ai-email-prompt">What is the purpose of this email?</label>
-            <textarea id="ai-email-prompt" rows="4" placeholder="e.g., Follow up on our call last Tuesday about cloud solutions..."></textarea>
-        `;
-
-        showModal("Write Email with AI", modalBody, async () => {
-            const userPrompt = document.getElementById('ai-email-prompt').value.trim();
-            if (!userPrompt) {
-                alert("Please enter a prompt for the email.");
-                return false;
-            }
-            
-            hideModal(); // Close the prompt modal
-            await Email(userPrompt);
-            return true;
-
-        }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-    }
-
-  async function generateAndDisplayEmail(userPrompt) {
-    const contact = state.contacts.find(c => c.id === state.selectedContactId);
-    const account = state.accounts.find(a => a.id === contact.account_id);
-
-    // Show the loading modal
-    showModal("Generating Email...", `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`, null, false);
-
-    try {
-        const { data: rawData, error } = await supabase.functions.invoke('generate-prospect-email', {
-            body: {
-                contactName: `${contact.first_name} ${contact.last_name}`,
-                accountName: account ? account.name : '',
-                userPrompt: userPrompt
-            }
-        });
-
-        if (error) throw error;
-        
-        let emailContent = rawData;
-        
-        // A single, robust check to handle if the data is a string or an object.
-        // This makes the client-side code resilient to variations in the Edge Function's response.
-        if (typeof rawData === 'string') {
-             try {
-                emailContent = JSON.parse(rawData);
-             } catch (e) {
-                console.error("Failed to parse AI response string:", e);
-                throw new Error("Invalid response from the AI email generator: Received text could not be parsed as JSON.");
-             }
-        }
-        
-        // Now, we can perform the defensive check on the parsed data.
-        if (!emailContent || !emailContent.subject || !emailContent.body) {
-            throw new Error("Invalid response from the AI email generator: Missing 'subject' or 'body'.");
-        }
-        
-        // Hide the loading modal after a successful API call.
-        hideModal();
-
-        const modalBody = `
-            <label>Subject:</label>
-            <input type="text" id="ai-email-subject" value="${emailContent.subject}" readonly style="background-color: var(--bg-dark);">
-            <label>Body:</label>
-            <textarea id="ai-email-body" rows="10" readonly style="background-color: var(--bg-dark);">${emailContent.body}</textarea>
-        `;
-
-        showModal(
-            "AI Generated Email",
-            modalBody,
-            null,
-            false,
-            `
-            <button id="modal-open-client-btn" class="btn-primary">Open in Email Client</button>
-            <button id="modal-log-email-btn" class="btn-secondary">Log Email as Activity</button>
-            <button id="modal-cancel-btn" class="btn-secondary">Close</button>
-            `
-        );
-        
-        // Add listeners for the new buttons inside the final modal
-        document.getElementById('modal-open-client-btn').addEventListener('click', () => {
-            const subject = encodeURIComponent(emailContent.subject);
-            const body = encodeURIComponent(emailContent.body);
-            window.location.href = `mailto:${contact.email}?subject=${subject}&body=${body}`;
-        });
-
-        document.getElementById('modal-log-email-btn').addEventListener('click', async () => {
-            const { error: insertError } = await supabase.from('activities').insert({
-                contact_id: state.selectedContactId,
-                account_id: contact.account_id,
-                type: 'Email',
-                description: `Sent AI-generated email with subject: "${emailContent.subject}"`,
-                user_id: state.currentUser.id,
-                date: new Date().toISOString()
-            });
-
-            if (insertError) {
-                showToast("Error logging email: " + insertError.message, 'error');
-            } else {
-                showToast("Email logged as activity!", 'success');
-                hideModal();
-                await loadAllData();
-            }
-        });
-
-    } catch (err) {
-        console.error("Error generating AI email:", err);
-        // Ensure the loading modal is hidden on error as well
-        hideModal();
-        showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    }
-}
-async function handleAiWriteEmailClick() {
-    if (!state.selectedContactId) {
-        showModal("Error", "Please select a contact first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        return;
-    }
-
-    const modalBody = `
-        <label for="ai-email-prompt">What is the purpose of this email?</label>
-        <textarea id="ai-email-prompt" rows="4" placeholder="e.g., Follow up on our call last Tuesday about cloud solutions..."></textarea>
-    `;
-
-    showModal("Write Email with AI", modalBody, async () => {
-        const userPrompt = document.getElementById('ai-email-prompt').value.trim();
-        if (!userPrompt) {
-            alert("Please enter a prompt for the email.");
-            return false;
-        }
-        
-        hideModal(); // Close the prompt modal
-        await generateAndDisplayEmail(userPrompt); // <-- Corrected function name
-        return true;
-
-    }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-}
-async function handleAiWriteEmailClick() {
-    if (!state.selectedContactId) {
-        showModal("Error", "Please select a contact first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        return;
-    }
-
-    const modalBody = `
-        <label for="ai-email-prompt">What is the purpose of this email?</label>
-        <textarea id="ai-email-prompt" rows="4" placeholder="e.g., Follow up on our call last Tuesday about cloud solutions..."></textarea>
-    `;
-
-    showModal("Write Email with AI", modalBody, async () => {
-        const userPrompt = document.getElementById('ai-email-prompt').value.trim();
-        if (!userPrompt) {
-            alert("Please enter a prompt for the email.");
-            return false;
-        }
-        
-        hideModal(); // Close the prompt modal
-        await generateAndDisplayEmail(userPrompt); // <-- Corrected function name
-        return true;
-
-    }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-}
     function setupPageEventListeners() {
         setupModalListeners();
         
@@ -994,6 +829,7 @@ async function handleAiWriteEmailClick() {
                     </div>
                 `;
                 
+                // --- THIS IS THE START OF THE FIX ---
                 showModal("Confirm CSV Import", modalBodyHtml, async () => {
                     let successCount = 0;
                     let errorCount = 0;
@@ -1063,8 +899,9 @@ async function handleAiWriteEmailClick() {
                         `<button id="modal-confirm-btn" class="btn-primary">OK</button>`
                     );
 
-                    return false;
+                    return false; // Prevent the original modal from auto-closing
                 }, true, `<button id="modal-confirm-btn" class="btn-primary">Confirm & Import</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                // --- THIS IS THE END OF THE FIX ---
                 
                 document.querySelectorAll('.import-row').forEach(row => {
                     const action = row.dataset.action;
@@ -1356,11 +1193,6 @@ async function handleAiWriteEmailClick() {
                     showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
             });
-        }
-        
-        // --- THIS IS THE CORRECT PLACEMENT FOR THE NEW EVENT LISTENER ---
-        if (aiWriteEmailBtn) {
-            aiWriteEmailBtn.addEventListener("click", handleAiWriteEmailClick);
         }
     }
 
