@@ -562,7 +562,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             hideModal(); // Close the prompt modal
-            await generateAndDisplayEmail(userPrompt);
+            await Email(userPrompt);
             return true;
 
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -576,7 +576,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     showModal("Generating Email...", `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`, null, false);
 
     try {
-        // The Edge Function now returns a pre-parsed JSON object, so we don't need to parse it again.
         const { data: emailContent, error } = await supabase.functions.invoke('generate-prospect-email', {
             body: {
                 contactName: `${contact.first_name} ${contact.last_name}`,
@@ -586,6 +585,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (error) throw error;
+        
+        // --- FINAL FIX ---
+        // Add a defensive check to ensure the response is a valid object before using it.
+        if (!emailContent || !emailContent.subject || !emailContent.body) {
+            throw new Error("Invalid response from the AI email generator.");
+        }
+        // --- END OF FIX ---
         
         // Hide the loading modal after a successful API call.
         hideModal();
