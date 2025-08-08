@@ -641,7 +641,7 @@ async function generateAndDisplayEmail(userPrompt) {
                 await loadAllData();
             }
         });
-    } catch (err) {
+    catch (err) {
         console.error("Error generating AI email:", err);
         hideModal();
         showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
