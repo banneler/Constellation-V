@@ -568,7 +568,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-    async function generateAndDisplayEmail(userPrompt) {
+   // In contacts.js
+
+async function generateAndDisplayEmail(userPrompt) {
     const contact = state.contacts.find(c => c.id === state.selectedContactId);
     const account = state.accounts.find(a => a.id === contact.account_id);
 
@@ -586,22 +588,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (error) throw error;
         
-        // --- FIX START ---
         let emailContent = rawData;
         
-        // The raw data from the Edge Function is a string that needs to be parsed.
-        // We also need to un-escape the newlines for display.
+        // This is the crucial step. Parse the raw string data into a JSON object.
         if (typeof rawData === 'string') {
             try {
                 emailContent = JSON.parse(rawData);
             } catch (e) {
                 console.error("Failed to parse AI response string:", e);
+                // Throw an error to be caught by the outer catch block
                 throw new Error("Invalid AI response format.");
             }
         }
-        // --- FIX END ---
         
-        // Now we can hide the loading modal.
+        // Now hide the loading modal, as we have the data
         hideModal();
 
         const modalBody = `
