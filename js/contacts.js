@@ -576,7 +576,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     showModal("Generating Email...", `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`, null, false);
 
     try {
-        const { data: emailContent, error } = await supabase.functions.invoke('generate-prospect-email', {
+        const { data: rawData, error } = await supabase.functions.invoke('generate-prospect-email', {
             body: {
                 contactName: `${contact.first_name} ${contact.last_name}`,
                 accountName: account ? account.name : '',
@@ -586,8 +586,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (error) throw error;
         
-        // NOW we can hide the loading modal.
-        hideModal(); 
+        // --- FIX START ---
+        let emailContent = rawData;
+        
+        // The raw data from the Edge Function is a string that needs to be parsed.
+        // We also need to un-escape the newlines for display.
+        if (typeof rawData === 'string') {
+            try {
+                emailContent = JSON.parse(rawData);
+            } catch (e) {
+                console.error("Failed to parse AI response string:", e);
+                throw new Error("Invalid AI response format.");
+            }
+        }
+        // --- FIX END ---
+        
+        // Now we can hide the loading modal.
+        hideModal();
 
         const modalBody = `
             <label>Subject:</label>
@@ -637,7 +652,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
         console.error("Error generating AI email:", err);
         // Ensure the loading modal is hidden on error as well
-        hideModal(); 
+        hideModal();
         showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 }
