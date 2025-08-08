@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         today.setHours(0, 0, 0, 0);
         return today.toISOString();
     }
-
+    
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -93,6 +93,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", cs.id);
         }
         loadAllData();
+    }
+    
+    // --- Utility function to replace all placeholders in a given string ---
+    function replacePlaceholders(text, contact, account) {
+        if (!text) return '';
+        let newText = text;
+        
+        // Define all possible placeholders and their corresponding values.
+        const placeholders = {
+            'firstName': contact?.first_name || '',
+            'lastName': contact?.last_name || '',
+            'contactName': `${contact?.first_name || ''} ${contact?.last_name || ''}`.trim(),
+            'email': contact?.email || '',
+            'phone': contact?.phone || '',
+            'title': contact?.title || '',
+            'accountName': account?.name || ''
+        };
+
+        // Loop through each placeholder and replace it.
+        for (const [key, value] of Object.entries(placeholders)) {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            newText = newText.replace(regex, value);
+        }
+        return newText;
     }
 
     // --- Render Function ---
@@ -166,8 +190,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (step.type.toLowerCase() === "linkedin") {
                     btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
                 } else if (step.type.toLowerCase() === "email" && contact.email) {
-                    // This button no longer needs to store the subject and message.
-                    // The JS handler will look it up from the state.
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
@@ -287,38 +309,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contact = state.contacts.find(c => c.id === contactSequence.contact_id);
                 if (!contact) { showModal('Error', 'Contact not found.'); return; }
 
+                const account = state.accounts.find(a => a.id === contact.account_id);
+                
                 const step = state.sequence_steps.find(s => s.sequence_id === contactSequence.sequence_id && s.step_number === contactSequence.current_step_number);
                 if (!step) { showModal('Error', 'Sequence step not found.'); return; }
 
                 let subject = step.subject || '';
                 let message = step.message || '';
-
-                // Populate placeholders in both the subject and message using data from the state.
-                if (contact.first_name) {
-                    subject = subject.replace(/{{firstName}}/g, contact.first_name);
-                    message = message.replace(/{{firstName}}/g, contact.first_name);
-                }
-                if (contact.last_name) {
-                    subject = subject.replace(/{{lastName}}/g, contact.last_name);
-                    message = message.replace(/{{lastName}}/g, contact.last_name);
-                }
-                if (contact.email) {
-                    subject = subject.replace(/{{email}}/g, contact.email);
-                    message = message.replace(/{{email}}/g, contact.email);
-                }
-                if (contact.phone) {
-                    subject = subject.replace(/{{phone}}/g, contact.phone);
-                    message = message.replace(/{{phone}}/g, contact.phone);
-                }
-                if (contact.title) {
-                    subject = subject.replace(/{{title}}/g, contact.title);
-                    message = message.replace(/{{title}}/g, contact.title);
-                }
+                
+                // Use the new, more robust replacement function
+                subject = replacePlaceholders(subject, contact, account);
+                message = replacePlaceholders(message, contact, account);
 
                 // Construct the mailto link with the populated and encoded content.
                 const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
                 window.open(mailtoLink, "_blank");
-
+                
                 // Now, complete the step after the email client is opened.
                 completeStep(csId);
             } else if (button.matches('.complete-linkedin-step-btn')) {
