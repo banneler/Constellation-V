@@ -598,9 +598,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             hideModal(); // Hide the loading modal
             
-            // --- FIX: Escape HTML characters for safe rendering ---
+            // --- FIX: First replace line breaks, THEN escape HTML characters ---
+            const emailBodyWithBreaks = emailContent.body.replace(/\\n/g, '<br>');
             const sanitizedSubject = escapeHtml(emailContent.subject);
-            const sanitizedBody = escapeHtml(emailContent.body).replace(/\\n/g, '<br>');
+            const sanitizedBody = escapeHtml(emailBodyWithBreaks);
 
             const modalBody = `
                 <label>Subject:</label>
