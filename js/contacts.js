@@ -53,7 +53,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-    const writeEmailAIButton = document.getElementById("write-email-ai-btn");
+    // Corrected the ID to match your HTML
+    const writeEmailAIButton = document.getElementById("ai-write-email-btn");
     
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
