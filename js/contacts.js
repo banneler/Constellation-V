@@ -562,7 +562,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             hideModal(); // Close the prompt modal
-            await Email(userPrompt);
+            await generateAndDisplayEmail(userPrompt);
             return true;
 
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
