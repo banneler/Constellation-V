@@ -568,9 +568,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Generate Email</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-   // In contacts.js
-
-async function generateAndDisplayEmail(userPrompt) {
+  async function generateAndDisplayEmail(userPrompt) {
     const contact = state.contacts.find(c => c.id === state.selectedContactId);
     const account = state.accounts.find(a => a.id === contact.account_id);
 
@@ -578,7 +576,8 @@ async function generateAndDisplayEmail(userPrompt) {
     showModal("Generating Email...", `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`, null, false);
 
     try {
-        const { data: rawData, error } = await supabase.functions.invoke('generate-prospect-email', {
+        // The Edge Function now returns a pre-parsed JSON object, so we don't need to parse it again.
+        const { data: emailContent, error } = await supabase.functions.invoke('generate-prospect-email', {
             body: {
                 contactName: `${contact.first_name} ${contact.last_name}`,
                 accountName: account ? account.name : '',
@@ -588,20 +587,7 @@ async function generateAndDisplayEmail(userPrompt) {
 
         if (error) throw error;
         
-        let emailContent = rawData;
-        
-        // This is the crucial step. Parse the raw string data into a JSON object.
-        if (typeof rawData === 'string') {
-            try {
-                emailContent = JSON.parse(rawData);
-            } catch (e) {
-                console.error("Failed to parse AI response string:", e);
-                // Throw an error to be caught by the outer catch block
-                throw new Error("Invalid AI response format.");
-            }
-        }
-        
-        // Now hide the loading modal, as we have the data
+        // Hide the loading modal after a successful API call.
         hideModal();
 
         const modalBody = `
