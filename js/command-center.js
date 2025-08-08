@@ -1,4 +1,5 @@
-Import {
+// js/command-center.js
+import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     formatDate,
@@ -94,31 +95,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         loadAllData();
     }
-    
-    // --- Utility function to replace all placeholders in a given string ---
-    function replacePlaceholders(text, contact, account) {
-        // Ensure text is a string before proceeding.
-        if (typeof text !== 'string' || !text) return '';
-        let newText = text;
-        
-        // Define all possible placeholders and their corresponding values.
-        const placeholders = {
-            'firstName': contact?.first_name || '',
-            'lastName': contact?.last_name || '',
-            'contactName': `${contact?.first_name || ''} ${contact?.last_name || ''}`.trim(),
-            'email': contact?.email || '',
-            'phone': contact?.phone || '',
-            'title': contact?.title || '',
-            'accountName': account?.name || ''
-        };
-
-        // Loop through each placeholder and replace it.
-        for (const [key, value] of Object.entries(placeholders)) {
-            const regex = new RegExp(`{{${key}}}`, 'g');
-            newText = newText.replace(regex, value);
-        }
-        return newText;
-    }
 
     // --- Render Function ---
     function renderDashboard() {
@@ -191,7 +167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (step.type.toLowerCase() === "linkedin") {
                     btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
                 } else if (step.type.toLowerCase() === "email" && contact.email) {
-                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
+                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}" data-contact-id="${contact.id}" data-subject="${encodeURIComponent(step.subject)}" data-message="${encodeURIComponent(step.message)}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
                 }
@@ -250,12 +226,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const description = document.getElementById('modal-task-description').value.trim();
                 const dueDate = document.getElementById('modal-task-due-date').value;
                 const linkedEntityValue = document.getElementById('modal-task-linked-entity').value;
-                if (!description) { showModal('Error', 'Description is required.'); return; }
+                if (!description) { alert('Description is required.'); return; }
                 const taskData = { description, due_date: dueDate || null, user_id: state.currentUser.id, status: 'Pending' };
                 if (linkedEntityValue.startsWith('c-')) { taskData.contact_id = Number(linkedEntityValue.substring(2)); }
                 else if (linkedEntityValue.startsWith('a-')) { taskData.account_id = Number(linkedEntityValue.substring(2)); }
                 const { error } = await supabase.from('tasks').insert(taskData);
-                if (error) { showModal('Error', 'Error adding task: ' + error.message); }
+                if (error) { alert('Error adding task: ' + error.message); }
                 else { await loadAllData(); hideModal(); }
             });
         });
@@ -279,7 +255,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else if (button.matches('.edit-task-btn')) {
                 const taskId = button.dataset.taskId;
                 const task = state.tasks.find(t => t.id == taskId);
-                if (!task) { showModal('Error', 'Task not found.'); return; }
+                if (!task) { alert('Task not found.'); return; }
                 const contactsOptions = state.contacts.map(c => `<option value="c-${c.id}" ${c.id === task.contact_id ? 'selected' : ''}>${c.first_name} ${c.last_name} (Contact)</option>`).join('');
                 const accountsOptions = state.accounts.map(a => `<option value="a-${a.id}" ${a.id === task.account_id ? 'selected' : ''}>${a.name} (Account)</option>`).join('');
                 showModal('Edit Task', `
@@ -295,7 +271,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const newDescription = document.getElementById('modal-task-description').value.trim();
                     const newDueDate = document.getElementById('modal-task-due-date').value;
                     const linkedEntityValue = document.getElementById('modal-task-linked-entity').value;
-                    if (!newDescription) { showModal('Error', 'Task description is required.'); return; }
+                    if (!newDescription) { alert('Task description is required.'); return; }
                     const updateData = { description: newDescription, due_date: newDueDate || null, contact_id: null, account_id: null };
                     if (linkedEntityValue.startsWith('c-')) { updateData.contact_id = Number(linkedEntityValue.substring(2)); }
                     else if (linkedEntityValue.startsWith('a-')) { updateData.account_id = Number(linkedEntityValue.substring(2)); }
@@ -304,29 +280,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             } else if (button.matches('.send-email-btn')) {
                 const csId = Number(button.dataset.csId);
-                const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
-                if (!contactSequence) { showModal('Error', 'Contact sequence not found.'); return; }
-
-                const contact = state.contacts.find(c => c.id === contactSequence.contact_id);
-                if (!contact) { showModal('Error', 'Contact not found.'); return; }
-
-                const account = state.accounts.find(a => a.id === contact.account_id);
-                
-                const step = state.sequence_steps.find(s => s.sequence_id === contactSequence.sequence_id && s.step_number === contactSequence.current_step_number);
-                if (!step) { showModal('Error', 'Sequence step not found.'); return; }
-
-                let subject = step.subject || '';
-                let message = step.message || '';
-                
-                // Use the new, more robust replacement function
-                subject = replacePlaceholders(subject, contact, account);
-                message = replacePlaceholders(message, contact, account);
-
-                // Construct the mailto link with the populated and encoded content.
+                const contactId = Number(button.dataset.contactId);
+                const subject = decodeURIComponent(button.dataset.subject);
+                let message = decodeURIComponent(button.dataset.message);
+                const contact = state.contacts.find(c => c.id === contactId);
+                if (!contact) return alert("Contact not found.");
+                message = message.replace(/{{firstName}}/g, contact.first_name);
                 const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
                 window.open(mailtoLink, "_blank");
-                
-                // Now, complete the step after the email client is opened.
                 completeStep(csId);
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
@@ -334,7 +295,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (linkedinUrl) {
                     window.open(linkedinUrl, "_blank");
                 } else {
-                    showModal('Error', "LinkedIn URL is missing from button data attribute.");
+                    alert("LinkedIn URL is missing from button data attribute.");
                 }
                 completeStep(csId);
             } else if (button.matches('.complete-step-btn')) {
@@ -355,25 +316,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- App Initialization ---
-async function initializePage() {
-    await loadSVGs();
-    updateActiveNavLink();
-    setupPageEventListeners(); // Note: This is moved to run regardless of auth state.
+    async function initializePage() {
+        await loadSVGs();
+        updateActiveNavLink();
 
-    // Use the Supabase auth state change listener to handle session logic.
-    supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-            // A user is signed in. Set the state and load data.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
             state.currentUser = session.user;
-            setupUserMenuAndAuth(supabase, state);
+            await setupUserMenuAndAuth(supabase, state);
+            setupPageEventListeners();
+            // CORRECTED: Call loadAllData without 'await' to allow the UI to render instantly.
+            // The data will populate asynchronously.
             loadAllData();
-        } else if (event === 'SIGNED_OUT') {
-            // No user is signed in. Redirect to the login page.
-            state.currentUser = null;
+        } else {
             window.location.href = "index.html";
         }
-    });
+    }
 
-    // You can remove the await supabase.auth.getSession() call completely now.
-}
-
+    initializePage();
+});
