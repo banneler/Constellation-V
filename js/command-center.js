@@ -1,4 +1,3 @@
-// js/command-center.js
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -45,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         today.setHours(0, 0, 0, 0);
         return today.toISOString();
     }
-    
+
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -285,9 +284,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 let message = decodeURIComponent(button.dataset.message);
                 const contact = state.contacts.find(c => c.id === contactId);
                 if (!contact) return alert("Contact not found.");
+                
+                // --- FIX: Populate the message before opening the mailto link ---
                 message = message.replace(/{{firstName}}/g, contact.first_name);
+
                 const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
                 window.open(mailtoLink, "_blank");
+
+                // --- FIX: Call completeStep AFTER the mailto link has been opened ---
                 completeStep(csId);
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
