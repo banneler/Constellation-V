@@ -53,7 +53,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-    // Corrected the ID to match your HTML
     const writeEmailAIButton = document.getElementById("ai-write-email-btn");
     
     // --- Dirty Check and Navigation ---
@@ -557,14 +556,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        // Updated modal body to include a container for the prompt and make the subject editable
         const initialModalBody = `
             <p><strong>To:</strong> ${contact.first_name} ${contact.last_name} &lt;${contact.email}&gt;</p>
-            <label>Prompt:</label>
-            <textarea id="ai-email-prompt" rows="4" placeholder="e.g., 'Write a follow-up email after our meeting about the new project.'"></textarea>
+            <div id="ai-prompt-container">
+                <label>Prompt:</label>
+                <textarea id="ai-email-prompt" rows="4" placeholder="e.g., 'Write a follow-up email after our meeting about the new project.'"></textarea>
+            </div>
             <div class="email-response-container hidden">
                 <hr>
                 <label>AI-Generated Subject:</label>
-                <input type="text" id="ai-email-subject" readonly/>
+                <input type="text" id="ai-email-subject" />
                 <label>AI-Generated Draft:</label>
                 <textarea id="ai-email-body" rows="10"></textarea>
                 <div class="flex-end-buttons">
@@ -586,6 +588,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function generateEmailWithAI(contact) {
         const userPrompt = document.getElementById('ai-email-prompt').value;
+        const promptContainer = document.getElementById('ai-prompt-container');
         const responseContainer = document.querySelector('.email-response-container');
         const aiEmailSubject = document.getElementById('ai-email-subject');
         const aiEmailBody = document.getElementById('ai-email-body');
@@ -604,7 +607,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const accountName = state.accounts.find(acc => acc.id === contact.account_id)?.name || '';
 
         try {
-            // Updated payload to match the Edge Function's expectations
             const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
                 body: {
                     userPrompt: userPrompt,
@@ -615,20 +617,27 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (error) throw error;
             
-            // Updated to handle the returned 'subject' and 'body'
             const generatedSubject = data.subject || "No Subject";
             const generatedBody = data.body || "Failed to generate email content.";
             
             aiEmailSubject.value = generatedSubject;
             aiEmailBody.value = generatedBody;
+            
+            // Hide the prompt container and show the response container after generation
+            promptContainer.classList.add('hidden');
             responseContainer.classList.remove('hidden');
+            
             showToast("Email generated successfully!", "success");
 
         } catch (e) {
             console.error("Error generating email:", e);
             aiEmailSubject.value = "Error";
             aiEmailBody.value = "An error occurred while generating the email. Please try again.";
+            
+            // Still hide the prompt and show the response container with the error
+            promptContainer.classList.add('hidden');
             responseContainer.classList.remove('hidden');
+            
             showToast("Failed to generate email.", "error");
         } finally {
             generateButton.disabled = false;
@@ -640,12 +649,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const emailSubject = document.getElementById('ai-email-subject').value;
         const emailBody = document.getElementById('ai-email-body').value;
 
-        // Replace any line breaks in the body with %0D%0A for the mailto link
         const encodedBody = encodeURIComponent(emailBody.replace(/\n/g, '%0D%0A'));
         const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodedBody}`;
         window.open(mailtoLink, '_blank');
 
-        // Log the activity to Supabase
         try {
             const { error } = await supabase.from('activities').insert({
                 contact_id: state.selectedContactId,
@@ -663,7 +670,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showToast("Email activity successfully logged!", "success");
             }
 
-            // Reload data to show new activity
             await loadAllData();
             hideModal();
         } catch (e) {
@@ -815,20 +821,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { error } = await supabase.from("contacts").update(data).eq("id", id);
                 if (error) {
                     showModal("Error", "Error saving contact: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
+                } else {
+                    state.isFormDirty = false;
+                    await loadAllData();
+                    showModal("Success", "Contact saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
             } else {
                 const { data: newContactArr, error: insertError } = await supabase.from("contacts").insert([data]).select();
                 if (insertError) {
                     showModal("Error", "Error creating contact: " + insertError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
+                } else {
+                    state.selectedContactId = newContactArr?.[0]?.id;
+                    state.isFormDirty = false;
+                    await loadAllData();
+                    showModal("Success", "Contact created successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
-                if (newContactArr?.length > 0) state.selectedContactId = newContactArr[0].id;
             }
-            state.isFormDirty = false;
-            await loadAllData();
-            showModal("Success", "Contact saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         });
+
 
         deleteContactBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return;
