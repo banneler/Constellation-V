@@ -572,6 +572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contact = state.contacts.find(c => c.id === state.selectedContactId);
     const account = state.accounts.find(a => a.id === contact.account_id);
 
+    // Show loading modal
     showModal(
         "Generating Email...",
         `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`,
@@ -591,10 +592,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("📩 Raw emailContent from Edge Function:", emailContent);
         console.log("⚠️ Error object from supabase.functions.invoke:", error);
 
-        hideModal(); // Hide the "loading" modal
+        hideModal(); // Hide the loading modal
 
+        // Handle errors from Supabase invoke or from our Edge Function
         if (error || !emailContent || emailContent.error) {
-            // Error from Supabase invoke OR from our Edge Function
             const errMsg = error?.message || emailContent?.error || "Unknown error generating email.";
             showModal(
                 "Error",
@@ -606,6 +607,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        // Validate that we got subject and body
         if (!emailContent.subject || !emailContent.body) {
             showModal(
                 "Error",
@@ -617,6 +619,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        // Show generated email in modal
         const modalBody = `
             <label>Subject:</label>
             <input type="text" id="ai-email-subject" value="${emailContent.subject}" readonly style="background-color: var(--bg-dark);">
