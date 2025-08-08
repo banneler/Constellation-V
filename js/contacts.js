@@ -647,39 +647,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 }
-        
-        // Add listeners for the new buttons inside the final modal
-        document.getElementById('modal-open-client-btn').addEventListener('click', () => {
-            const subject = encodeURIComponent(emailContent.subject);
-            const body = encodeURIComponent(emailContent.body);
-            window.location.href = `mailto:${contact.email}?subject=${subject}&body=${body}`;
-        });
-
-        document.getElementById('modal-log-email-btn').addEventListener('click', async () => {
-            const { error } = await supabase.from('activities').insert({
-                contact_id: state.selectedContactId,
-                account_id: contact.account_id,
-                type: 'Email',
-                description: `Sent AI-generated email with subject: "${emailContent.subject}"`,
-                user_id: state.currentUser.id,
-                date: new Date().toISOString()
-            });
-
-            if (error) {
-                showToast("Error logging email: " + error.message, 'error');
-            } else {
-                showToast("Email logged as activity!", 'success');
-                hideModal();
-                await loadAllData();
-            }
-        });
-
-    } catch (err) {
-        console.error("Error generating AI email:", err);
-        hideModal();
-        showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    }
-}
             
             // Add listeners for the new buttons inside the final modal
             document.getElementById('modal-open-client-btn').addEventListener('click', () => {
