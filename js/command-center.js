@@ -1,4 +1,4 @@
-import {
+Import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     formatDate,
@@ -97,7 +97,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     // --- Utility function to replace all placeholders in a given string ---
     function replacePlaceholders(text, contact, account) {
-        if (!text) return '';
+        // Ensure text is a string before proceeding.
+        if (typeof text !== 'string' || !text) return '';
         let newText = text;
         
         // Define all possible placeholders and their corresponding values.
