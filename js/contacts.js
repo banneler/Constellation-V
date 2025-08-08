@@ -667,11 +667,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
-        } catch (err) {
-            console.error("Error generating AI email:", err);
-            hideModal();
-            showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
+    } catch (err) {
+        console.error("Error generating AI email:", err);
+        hideModal();
+        showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    }
     }
 
     function setupPageEventListeners() {
@@ -1247,10 +1247,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             importContactScreenshotBtn.addEventListener("click", () => {
                 showModal("Import Contact Information",
                     `<p>To import contact information:</p>
-                     <ul>
-                         <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
-                         <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
-                     </ul>`,
+                    <ul>
+                        <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
+                        <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
+                    </ul>`,
                     null, false,
                     `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
