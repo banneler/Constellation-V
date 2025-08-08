@@ -640,14 +640,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 await loadAllData();
             }
         });
-
-    } catch (err) {
-        console.error("Error generating AI email:", err);
-        hideModal();
-        showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    }
-}
-            
+        
             // Add listeners for the new buttons inside the final modal
             document.getElementById('modal-open-client-btn').addEventListener('click', () => {
                 const subject = encodeURIComponent(emailContent.subject);
