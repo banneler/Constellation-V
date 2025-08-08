@@ -569,42 +569,83 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function generateAndDisplayEmail(userPrompt) {
-        const contact = state.contacts.find(c => c.id === state.selectedContactId);
-        const account = state.accounts.find(a => a.id === contact.account_id);
+    // --- Defensive Check Added Here ---
+    const contact = state.contacts.find(c => c.id === state.selectedContactId);
+    if (!contact) {
+        console.error("AI Email: Could not find the selected contact in the state.", state.selectedContactId);
+        showModal("Error", "Could not find the selected contact. Please re-select the contact and try again.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return; 
+    }
+    // --- End of Fix ---
 
-        showModal("Generating Email...", `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`, null, false);
+    const account = state.accounts.find(a => a.id === contact.account_id);
 
-        try {
-            const { data: emailContent, error } = await supabase.functions.invoke('generate-prospect-email', {
-                body: {
-                    contactName: `${contact.first_name} ${contact.last_name}`,
-                    accountName: account ? account.name : '',
-                    userPrompt: userPrompt
-                }
+    showModal("Generating Email...", `<div class="loader"></div><p class="placeholder-text">Please wait while AI drafts your email...</p>`, null, false);
+
+    try {
+        const { data: emailContent, error } = await supabase.functions.invoke('generate-prospect-email', {
+            body: {
+                contactName: `${contact.first_name} ${contact.last_name}`,
+                accountName: account ? account.name : '',
+                userPrompt: userPrompt
+            }
+        });
+
+        if (error) throw error;
+        
+        hideModal(); // Hide the loading modal
+
+        const modalBody = `
+            <label>Subject:</label>
+            <input type="text" id="ai-email-subject" value="${emailContent.subject}" readonly style="background-color: var(--bg-dark);">
+            <label>Body:</label>
+            <textarea id="ai-email-body" rows="10" readonly style="background-color: var(--bg-dark);">${emailContent.body}</textarea>
+        `;
+
+        showModal(
+            "AI Generated Email",
+            modalBody,
+            null, // No primary action on the modal itself
+            false,
+            `
+            <button id="modal-open-client-btn" class="btn-primary">Open in Email Client</button>
+            <button id="modal-log-email-btn" class="btn-secondary">Log Email as Activity</button>
+            <button id="modal-cancel-btn" class="btn-secondary">Close</button>
+            `
+        );
+        
+        // Add listeners for the new buttons inside the final modal
+        document.getElementById('modal-open-client-btn').addEventListener('click', () => {
+            const subject = encodeURIComponent(emailContent.subject);
+            const body = encodeURIComponent(emailContent.body);
+            window.location.href = `mailto:${contact.email}?subject=${subject}&body=${body}`;
+        });
+
+        document.getElementById('modal-log-email-btn').addEventListener('click', async () => {
+            const { error } = await supabase.from('activities').insert({
+                contact_id: state.selectedContactId,
+                account_id: contact.account_id,
+                type: 'Email',
+                description: `Sent AI-generated email with subject: "${emailContent.subject}"`,
+                user_id: state.currentUser.id,
+                date: new Date().toISOString()
             });
 
-            if (error) throw error;
-            
-            hideModal(); // Hide the loading modal
+            if (error) {
+                showToast("Error logging email: " + error.message, 'error');
+            } else {
+                showToast("Email logged as activity!", 'success');
+                hideModal();
+                await loadAllData();
+            }
+        });
 
-            const modalBody = `
-                <label>Subject:</label>
-                <input type="text" id="ai-email-subject" value="${emailContent.subject}" readonly style="background-color: var(--bg-dark);">
-                <label>Body:</label>
-                <textarea id="ai-email-body" rows="10" readonly style="background-color: var(--bg-dark);">${emailContent.body}</textarea>
-            `;
-
-            showModal(
-                "AI Generated Email",
-                modalBody,
-                null, // No primary action on the modal itself
-                false,
-                `
-                <button id="modal-open-client-btn" class="btn-primary">Open in Email Client</button>
-                <button id="modal-log-email-btn" class="btn-secondary">Log Email as Activity</button>
-                <button id="modal-cancel-btn" class="btn-secondary">Close</button>
-                `
-            );
+    } catch (err) {
+        console.error("Error generating AI email:", err);
+        hideModal();
+        showModal("Error", `Failed to generate email: ${err.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    }
+}
             
             // Add listeners for the new buttons inside the final modal
             document.getElementById('modal-open-client-btn').addEventListener('click', () => {
