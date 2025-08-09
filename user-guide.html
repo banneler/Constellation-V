@@ -23,15 +23,17 @@
                 <img src="assets/logo.svg" alt="Constellation Logo" class="h-8 w-auto">
                 <span class="text-xl font-bold ml-2">Constellation</span>
             </div>
-            <!-- Navigation will be populated by user-guide.js -->
-            <nav></nav>
+            <!-- Navigation will be populated later -->
+            <nav>
+                <!-- Nav links removed as per instruction -->
+            </nav>
         </aside>
 
         <!-- Main Content -->
         <div class="flex-1 flex flex-col">
             <!-- Header -->
             <header id="header" class="bg-white shadow-md p-4 flex justify-between items-center z-10">
-                 <!-- Header content will be populated by the main script.js -->
+                 <!-- Header content will be populated by script.js -->
             </header>
 
             <!-- Page Content -->
@@ -42,10 +44,7 @@
     </div>
 
     <!-- Scripts -->
-    <!-- Add Supabase library first -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- Load scripts as modules to allow import/export -->
     <script type="module" src="js/shared_constants.js"></script>
     <script type="module" src="js/script.js"></script>
     <script type="module" src="js/user-guide.js"></script>
