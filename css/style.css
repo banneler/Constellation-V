@@ -3849,16 +3849,8 @@ body.theme-green .marketing-indicator {
     margin-top: 1rem;
 }
 
-/* --- User Menu Popup Style --- */
-/* Ensures the new User Guide link looks like the others */
-#user-guide-link {
-    display: block;
-    padding: 0.75rem 1rem;
-    color: var(--text-primary);
-    text-decoration: none;
-    transition: background-color 0.2s ease-in-out;
-}
+/* REMOVED the #user-guide-link style block. 
+  The general .user-menu-popup a rule in the main
+  stylesheet will now correctly style the new link.
+*/
 
-#user-guide-link:hover {
-    background-color: var(--background-hover);
-}
