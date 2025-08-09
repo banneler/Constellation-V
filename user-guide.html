@@ -8,38 +8,16 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
 <body class="theme-dark">
-    <div class="container">
-        <!-- Sidebar Navigation -->
-        <aside class="nav-sidebar">
-            <div data-svg-loader="assets/logo.svg"></div>
-            <nav>
-                <a href="command-center.html" class="nav-button">Command Center</a>
-                <a href="deals.html" class="nav-button">Deals</a>
-                <a href="contacts.html" class="nav-button">Contacts</a>
-                <a href="accounts.html" class="nav-button">Accounts</a>
-                <a href="sequences.html" class="nav-button">Sequences</a>
-                <a href="cognito.html" class="nav-button">Cognito</a>
-                <a href="social_hub.html" class="nav-button">Social Hub</a>
-            </nav>
-        </aside>
-
+    <div class="container no-sidebar"> <!-- Changed class to remove sidebar space -->
         <!-- Main Content -->
         <main class="main-content">
             <!-- Header -->
             <header class="main-header">
-                <h1>User Guide</h1>
-                <div class="header-actions">
-                    <div class="user-menu">
-                        <div class="user-menu-header">
-                            <span id="user-name-display">User</span>
-                            <div data-svg-loader="assets/user-icon.svg"></div>
-                        </div>
-                        <div class="user-menu-popup" id="user-menu-popup">
-                            <a href="#" id="theme-toggle-btn">Theme: <span id="theme-name">Dark</span></a>
-                            <a href="#" id="logout-btn">Logout</a>
-                        </div>
-                    </div>
+                <div class="header-logo-container">
+                    <div data-svg-loader="assets/logo.svg"></div>
+                    <h1>User Guide</h1>
                 </div>
+                <!-- The user menu is intentionally left out here as this page is a standalone guide -->
             </header>
 
             <!-- User Guide Content -->
