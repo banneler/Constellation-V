@@ -46,10 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return today.toISOString();
     }
 
-    /*******************************************************
-     * * CORRECTED HELPER FUNCTION
-     * * Now uses square brackets [] and is case-insensitive
-     * *******************************************************/
+    // Corrected helper function to use square brackets [] and be case-insensitive
     function replacePlaceholders(template, contact, account) {
         if (!template) return '';
         let result = template;
@@ -313,7 +310,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
                 if (!step) return alert("Sequence step not found.");
 
-                // This now uses the corrected helper function
                 const subject = replacePlaceholders(step.subject, contact, account);
                 const message = replacePlaceholders(step.message, contact, account);
                 
@@ -326,7 +322,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <label for="modal-email-body">Message:</label>
                         <textarea id="modal-email-body" class="form-control" rows="10">${message}</textarea>
                     </div>
-                `, async ().=> {
+                `, async () => {
                     const finalSubject = document.getElementById('modal-email-subject').value;
                     const finalMessage = document.getElementById('modal-email-body').value;
                     
@@ -334,7 +330,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     window.open(mailtoLink, "_blank");
                     
                     await completeStep(csId);
-
                     hideModal();
                 });
             } else if (button.matches('.complete-linkedin-step-btn')) {
