@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return today.toISOString();
     }
 
-    // Corrected helper function to use square brackets [] and be case-insensitive
+    // Helper function to replace placeholders in templates
     function replacePlaceholders(template, contact, account) {
         if (!template) return '';
         let result = template;
@@ -254,7 +254,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     else if (linkedEntityValue.startsWith('a-')) { taskData.account_id = Number(linkedEntityValue.substring(2)); }
                     const { error } = await supabase.from('tasks').insert(taskData);
                     if (error) { alert('Error adding task: ' + error.message); }
-                    else { await loadAllData(); hideModal(); }
+                    else { await loadAllData(); }
                 });
             });
         }
@@ -267,13 +267,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const taskId = button.dataset.taskId;
                 showModal('Confirm Completion', 'Mark this task as completed?', async () => {
                     await supabase.from('tasks').update({ status: 'Completed' }).eq('id', taskId);
-                    await loadAllData(); hideModal();
+                    await loadAllData();
                 });
             } else if (button.matches('.delete-task-btn')) {
                 const taskId = button.dataset.taskId;
                 showModal('Confirm Deletion', 'Are you sure you want to delete this task?', async () => {
                     await supabase.from('tasks').delete().eq('id', taskId);
-                    await loadAllData(); hideModal();
+                    await loadAllData();
                 });
             } else if (button.matches('.edit-task-btn')) {
                 const taskId = button.dataset.taskId;
@@ -299,7 +299,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     if (linkedEntityValue.startsWith('c-')) { updateData.contact_id = Number(linkedEntityValue.substring(2)); }
                     else if (linkedEntityValue.startsWith('a-')) { updateData.account_id = Number(linkedEntityValue.substring(2)); }
                     await supabase.from('tasks').update(updateData).eq('id', taskId);
-                    await loadAllData(); hideModal();
+                    await loadAllData();
                 });
             } else if (button.matches('.send-email-btn')) {
                 const csId = Number(button.dataset.csId);
@@ -333,8 +333,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     window.open(mailtoLink, "_blank");
                     
                     await completeStep(csId, finalSubject);
-                    hideModal();
-                }, 'Send with Email Client');
+                }, 
+                true, // This is the 'showCancel' parameter
+                `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
+                 <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+                );
 
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
@@ -342,9 +345,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (linkedinUrl) { window.open(linkedinUrl, "_blank"); }
                 else { alert("LinkedIn URL is missing from button data attribute."); }
                 completeStep(csId);
+
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.id);
                 completeStep(csId);
+
             } else if (button.matches('.revisit-step-btn')) {
                  const csId = Number(button.dataset.csId);
                 const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
@@ -353,7 +358,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showModal('Revisit Step', `Are you sure you want to go back to step ${newStepNumber}?`, async () => {
                     await supabase.from('contact_sequences').update({ current_step_number: newStepNumber, next_step_due_date: getStartOfLocalDayISO(), status: 'Active' }).eq('id', csId);
                     await loadAllData();
-                    hideModal();
                 });
             }
         });
