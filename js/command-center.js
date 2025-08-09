@@ -167,7 +167,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (step.type.toLowerCase() === "linkedin") {
                     btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
                 } else if (step.type.toLowerCase() === "email" && contact.email) {
-                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}" data-contact-id="${contact.id}" data-subject="${encodeURIComponent(step.subject)}" data-message="${encodeURIComponent(step.message)}">Send Email</button>`;
+                    // Pass all necessary data to the button, but we will now get it from state directly
+                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
                 }
@@ -279,16 +280,63 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await loadAllData(); hideModal();
                 });
             } else if (button.matches('.send-email-btn')) {
+                /*******************************************************
+                 * * START OF CHANGES
+                 * *******************************************************/
                 const csId = Number(button.dataset.csId);
-                const contactId = Number(button.dataset.contactId);
-                const subject = decodeURIComponent(button.dataset.subject);
-                let message = decodeURIComponent(button.dataset.message);
-                const contact = state.contacts.find(c => c.id === contactId);
+                const cs = state.contact_sequences.find(c => c.id === csId);
+                if (!cs) return alert("Contact sequence not found.");
+                
+                const contact = state.contacts.find(c => c.id === cs.contact_id);
                 if (!contact) return alert("Contact not found.");
-                message = message.replace(/{{firstName}}/g, contact.first_name);
-                const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
-                window.open(mailtoLink, "_blank");
-                completeStep(csId);
+                
+                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+                if (!step) return alert("Sequence step not found.");
+
+                // Helper function to replace all known placeholders
+                const replacePlaceholders = (template) => {
+                    let result = template;
+                    result = result.replace(/{{firstName}}/g, contact.first_name || '');
+                    result = result.replace(/{{lastName}}/g, contact.last_name || '');
+                    if (account) {
+                        result = result.replace(/{{accountName}}/g, account.name || '');
+                    }
+                    // Add other placeholders like {{yourName}} if needed
+                    return result;
+                };
+                
+                const subject = replacePlaceholders(step.subject || '');
+                const message = replacePlaceholders(step.message || '');
+                
+                // Use showModal to let the user review and edit the email
+                showModal('Compose Email', `
+                    <div class="form-group">
+                        <label for="modal-email-subject">Subject:</label>
+                        <input type="text" id="modal-email-subject" class="form-control" value="${subject.replace(/"/g, '&quot;')}">
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-email-body">Message:</label>
+                        <textarea id="modal-email-body" class="form-control" rows="10">${message}</textarea>
+                    </div>
+                `, async () => {
+                    // This is the modal's onConfirm callback
+                    const finalSubject = document.getElementById('modal-email-subject').value;
+                    const finalMessage = document.getElementById('modal-email-body').value;
+                    
+                    const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
+                    
+                    // Open the user's default email client
+                    window.open(mailtoLink, "_blank");
+                    
+                    // Now, complete the step and hide the modal
+                    await completeStep(csId);
+                    hideModal();
+                });
+
+                /*******************************************************
+                 * * END OF CHANGES
+                 * *******************************************************/
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
                 const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl);
