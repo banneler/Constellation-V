@@ -3748,29 +3748,55 @@ body.theme-green .marketing-indicator {
 .item-list-container-modal .list-item label > span:first-child {
     flex-grow: 1; /* Allows the name/account part to take up space */
 }
+/* --- General Layout Adjustments --- */
+
+/* This new rule removes the sidebar grid layout ONLY on the user guide page */
+.container.no-sidebar {
+    display: block;
+}
+
+.container.no-sidebar .main-content {
+    margin-left: 0;
+}
+
+.header-logo-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-logo-container .nav-logo {
+    height: 40px; /* Or whatever height you prefer */
+    width: auto;
+}
+
+
 /* --- User Guide Page Styles --- */
 
 .guide-container {
     display: flex;
-    gap: 2rem;
-    padding-top: 1rem;
+    gap: 2.5rem; /* Increased gap for better spacing */
+    padding-top: 1.5rem;
 }
 
 .guide-nav {
-    flex: 0 0 220px; /* Do not grow, do not shrink, base width of 220px */
+    flex: 0 0 240px; /* A bit wider for better readability */
     position: sticky;
-    top: 2rem; /* Stick to the top after scrolling 2rem */
-    align-self: flex-start; /* Align to the top of the flex container */
-    height: calc(100vh - 4rem); /* Full height minus some padding */
-    overflow-y: auto; /* Add scroll if content is too long */
+    top: 2rem;
+    align-self: flex-start;
+    height: calc(100vh - 5rem); /* Adjust height based on header */
+    overflow-y: auto;
+    padding-right: 1rem;
+    border-right: 1px solid var(--border-color);
 }
 
 .guide-nav h3 {
     margin-top: 0;
-    font-size: 1.2rem;
+    font-size: 1.1rem; /* Slightly smaller to be less imposing */
+    font-weight: 600;
     color: var(--text-primary);
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .guide-nav ul {
@@ -3780,18 +3806,21 @@ body.theme-green .marketing-indicator {
 }
 
 .guide-nav ul ul {
-    padding-left: 1rem;
-    margin-top: 0.5rem;
+    padding-left: 1.25rem; /* Indent sub-items */
+    margin-top: 0.75rem;
+    border-left: 1px solid var(--border-color-light);
 }
 
 .guide-nav li {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .guide-nav a {
     text-decoration: none;
     color: var(--text-secondary);
+    font-size: 0.95rem;
     transition: color 0.2s ease-in-out;
+    display: block;
 }
 
 .guide-nav a:hover {
@@ -3799,13 +3828,14 @@ body.theme-green .marketing-indicator {
 }
 
 .guide-content {
-    flex-grow: 1; /* Take up the remaining space */
+    flex-grow: 1;
+    max-width: 800px; /* Set a max-width for better readability on wide screens */
 }
 
 .guide-content section {
-    margin-bottom: 2.5rem;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1.5rem;
 }
 
 .guide-content section:last-child {
@@ -3813,20 +3843,26 @@ body.theme-green .marketing-indicator {
 }
 
 .guide-content h2 {
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: var(--text-primary);
     margin-top: 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
 }
 
 .guide-content h4 {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
+    font-weight: 600;
     color: var(--text-primary);
     margin-top: 2rem;
+    margin-bottom: 1rem;
 }
 
 .guide-content p, .guide-content li {
-    line-height: 1.6;
+    line-height: 1.7;
     color: var(--text-secondary);
+    font-size: 1rem;
 }
 
 .guide-content strong {
@@ -3841,16 +3877,20 @@ body.theme-green .marketing-indicator {
     font-size: 85%;
     border-radius: 3px;
     font-family: monospace;
+    color: var(--text-code);
+}
+
+.guide-content ol {
+    padding-left: 1.5rem;
+}
+
+.guide-content ol li {
+    margin-bottom: 0.5rem;
 }
 
 .template-links {
     display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
     margin-top: 1rem;
 }
-
-/* REMOVED the #user-guide-link style block. 
-  The general .user-menu-popup a rule in the main
-  stylesheet will now correctly style the new link.
-*/
-
