@@ -3,51 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constellation CRM - User Guide</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title>User Guide | constellation-v</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-gray-100 font-sans">
+<body>
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
-        <div class="loader"></div>
-    </div>
+    <div class="main-container">
+        <nav class="nav-sidebar">
+            <h1 class="logo">constellation-v</h1>
+            <ul class="nav-links" id="guide-nav">
+                <li><a href="#" class="nav-link active" data-section="introduction">Introduction</a></li>
+                <li><a href="#" class="nav-link" data-section="part1-overview">Part 1: Overview</a></li>
+                <li><a href="#" class="nav-link" data-section="part2-how-to-guides">Part 2: How-To Guides</a></li>
+            </ul>
+        </nav>
 
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="w-64 bg-gray-900 text-white p-4 flex-shrink-0">
-             <!-- Logo -->
-             <div class="flex items-center mb-6">
-                <img src="assets/logo.svg" alt="Constellation Logo" class="h-8 w-auto">
-                <span class="text-xl font-bold ml-2">Constellation</span>
-            </div>
-            <!-- Navigation will be populated later -->
-            <nav>
-                <!-- Nav links removed as per instruction -->
-            </nav>
-        </aside>
-
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col">
-            <!-- Header -->
-            <header id="header" class="bg-white shadow-md p-4 flex justify-between items-center z-10">
-                 <!-- Header content will be populated by script.js -->
-            </header>
-
-            <!-- Page Content -->
-            <main id="main-content" class="flex-1 p-6 lg:p-8 overflow-y-auto">
-                <!-- Content will be dynamically injected by user-guide.js -->
+        <main class="content-pane" id="guide-content-pane">
             </main>
-        </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="js/shared_constants.js"></script>
-    <script type="module" src="js/script.js"></script>
-    <script type="module" src="js/user-guide.js"></script>
-
+    <script src="js/user-guide.js"></script>
 </body>
 </html>
