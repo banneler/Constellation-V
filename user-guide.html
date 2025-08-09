@@ -3,40 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Guide - Constellation V</title>
+    <title>Constellation CRM - User Guide</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <div class="page-container">
-        <!-- Main Application Layout -->
-        <aside class="nav-sidebar">
-            <div class="nav-sidebar-header">
-                <a href="index.html" class="logo-link">
-                    <img src="assets/logo.svg" alt="Constellation V Logo" class="logo-img">
-                </a>
-                <span class="product-name">Constellation V</span>
-            </div>
-            
-            <nav class="nav-menu">
-                <ul id="user-guide-nav" class="nav-list">
-                    <li><a href="#" class="nav-button active" data-section="link1">Link 1</a></li>
-                    <li><a href="#" class="nav-button" data-section="link2">Link 2</a></li>
-                    <li><a href="#" class="nav-button" data-section="link3">Link 3</a></li>
-                </ul>
-            </nav>
-        </aside>
-
-        <main class="content-area">
-            <header class="app-header">
-                <div class="user-profile">
-                    <img src="assets/user-icon.svg" alt="User Icon" class="user-icon">
-                    <span class="user-name">John Doe</span>
+    <!-- Authentication Container (Hidden by default) -->
+    <div id="auth-container" class="auth-container hidden">
+        <div class="auth-box">
+            <div data-svg-loader="assets/logo.svg"></div>
+            <h3 id="auth-title">User Guide Login</h3>
+            <p id="auth-error" class="auth-error"></p>
+            <form id="auth-form">
+                <input type="email" id="auth-email" placeholder="Email" required>
+                <input type="password" id="auth-password" placeholder="Password" required>
+                <div id="signup-fields" class="hidden">
+                    <input type="password" id="auth-confirm-password" placeholder="Confirm Password">
                 </div>
-            </header>
+                <button type="submit" id="auth-submit-btn" class="btn-primary full-width">Login</button>
+            </form>
+            <a href="#" id="auth-toggle-link">Need an account? Sign Up</a>
+            <a href="#" id="forgot-password-link">Forgot Password?</a>
+        </div>
+    </div>
+
+    <!-- Main User Guide Container (Hidden by default) -->
+    <div id="user-guide-container" class="crm-container hidden">
+        <nav class="nav-sidebar">
+            <div data-svg-loader="assets/logo.svg"></div>
+            <h2 class="text-xl font-bold text-center mb-4">USER GUIDE</h2>
             
+            <a href="#" id="nav-link1" class="nav-button active" data-section="link1">Link 1</a>
+            <a href="#" id="nav-link2" class="nav-button" data-section="link2">Link 2</a>
+            <a href="#" id="nav-link3" class="nav-button" data-section="link3">Link 3</a>
+            
+            <div class="user-menu" style="margin-top: auto;">
+                <div class="user-menu-header">
+                    <div data-svg-loader="assets/user-icon.svg"></div>
+                    <span id="user-name-display">Loading...</span>
+                </div>
+                <div id="user-menu-popup" class="user-menu-popup">
+                    <button id="theme-toggle-btn" class="nav-button">
+                        Theme: <span id="theme-name">Dark</span>
+                    </button>
+                    <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
+                </div>
+            </div>
+        </nav>
+        <main class="content-area">
             <div id="user-guide-content" class="content-view active-view">
                 <!-- Content will be loaded here dynamically by JavaScript -->
                 <div class="initial-message p-8 text-center text-gray-500">
@@ -47,6 +64,20 @@
         </main>
     </div>
 
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
+        </div>
+    </div>
+    <script>
+    // This script runs synchronously to apply the theme before the page renders
+    (function() {
+        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+        document.body.className = `theme-${savedTheme}`;
+    })();
+    </script>
     <script type="module" src="js/shared_constants.js"></script>
     <script type="module" src="js/script.js"></script>
     <script type="module" src="js/user-guide.js"></script>
