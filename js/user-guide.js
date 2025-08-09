@@ -2,42 +2,22 @@
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
-    setupUserMenuAndAuth,
     loadSVGs,
-    updateActiveNavLink
+    setupTheme // We only need setupTheme, not the full user menu
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- SMOOTH SCROLL FOR GUIDE NAVIGATION ---
-    function setupGuideNav() {
-        const navLinks = document.querySelectorAll('.guide-nav a');
-        navLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const targetId = this.getAttribute('href');
-                const targetElement = document.querySelector(targetId);
-                if (targetElement) {
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
-        });
-    }
-
     // --- APP INITIALIZATION ---
     async function initializePage() {
-        await loadSVGs();
-        updateActiveNavLink(); // This won't highlight anything, which is correct for a guide page
+        await loadSVGs(); // This will now correctly find the logo placeholder
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-            const state = { currentUser: session.user };
-            await setupUserMenuAndAuth(supabase, state);
-            setupGuideNav();
+            // Since there's no user menu on this page, we just need to load the theme.
+            // We pass a mock user object to setupTheme.
+            await setupTheme(supabase, session.user);
         } else {
             // If no session, redirect to login
             window.location.href = "index.html";
