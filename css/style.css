@@ -3748,3 +3748,117 @@ body.theme-green .marketing-indicator {
 .item-list-container-modal .list-item label > span:first-child {
     flex-grow: 1; /* Allows the name/account part to take up space */
 }
+/* --- User Guide Page Styles --- */
+
+.guide-container {
+    display: flex;
+    gap: 2rem;
+    padding-top: 1rem;
+}
+
+.guide-nav {
+    flex: 0 0 220px; /* Do not grow, do not shrink, base width of 220px */
+    position: sticky;
+    top: 2rem; /* Stick to the top after scrolling 2rem */
+    align-self: flex-start; /* Align to the top of the flex container */
+    height: calc(100vh - 4rem); /* Full height minus some padding */
+    overflow-y: auto; /* Add scroll if content is too long */
+}
+
+.guide-nav h3 {
+    margin-top: 0;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.guide-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.guide-nav ul ul {
+    padding-left: 1rem;
+    margin-top: 0.5rem;
+}
+
+.guide-nav li {
+    margin-bottom: 0.5rem;
+}
+
+.guide-nav a {
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: color 0.2s ease-in-out;
+}
+
+.guide-nav a:hover {
+    color: var(--primary-color);
+}
+
+.guide-content {
+    flex-grow: 1; /* Take up the remaining space */
+}
+
+.guide-content section {
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1.5rem;
+}
+
+.guide-content section:last-child {
+    border-bottom: none;
+}
+
+.guide-content h2 {
+    font-size: 2rem;
+    color: var(--text-primary);
+    margin-top: 0;
+}
+
+.guide-content h4 {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-top: 2rem;
+}
+
+.guide-content p, .guide-content li {
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.guide-content strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.guide-content code {
+    background-color: var(--background-secondary);
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.template-links {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* --- User Menu Popup Style --- */
+/* Ensures the new User Guide link looks like the others */
+#user-guide-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: background-color 0.2s ease-in-out;
+}
+
+#user-guide-link:hover {
+    background-color: var(--background-hover);
+}
