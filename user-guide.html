@@ -7,120 +7,108 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
-<body class="theme-dark guide-page"> <!-- Added 'guide-page' class -->
+<body class="theme-dark">
     <div class="container">
-        <!-- Main application sidebar is intentionally removed -->
+        <!-- Sidebar Navigation -->
+        <aside class="nav-sidebar">
+            <div data-svg-loader="assets/logo.svg"></div>
+            <nav class="guide-nav">
+                <h3>Contents</h3>
+                <ul>
+                    <li><a href="#introduction">Introduction</a></li>
+                    <li><a href="#overview">Part 1: Overview</a>
+                        <ul>
+                            <li><a href="#command-center">Command Center</a></li>
+                            <li><a href="#deals">Deals</a></li>
+                            <li><a href="#contacts-accounts">Contacts & Accounts</a></li>
+                            <li><a href="#sequences">Sequences</a></li>
+                            <li><a href="#cognito">Cognito</a></li>
+                            <li><a href="#social-hub">Social Hub</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#how-to">Part 2: How-To Guides</a>
+                        <ul>
+                            <li><a href="#how-to-email">Email Steps</a></li>
+                            <li><a href="#how-to-cognito">Cognito Alerts</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#templates">Download Templates</a></li>
+                </ul>
+            </nav>
+        </aside>
 
         <!-- Main Content -->
         <main class="main-content">
             <!-- Header -->
             <header class="main-header">
-                <div class="header-logo-container">
-                    <div data-svg-loader="assets/logo.svg"></div>
-                    <h1>User Guide</h1>
-                </div>
+                <h1>User Guide</h1>
                 <!-- User menu is not needed on this standalone page -->
             </header>
 
             <!-- User Guide Content -->
-            <div class="page-content"> <!-- Using standard wrapper for consistent padding -->
-                <div class="guide-container">
-                    <nav class="guide-nav">
-                        <h3>Contents</h3>
-                        <ul>
-                            <li><a href="#introduction">Introduction</a></li>
-                            <li><a href="#overview">Part 1: Overview</a>
-                                <ul>
-                                    <li><a href="#command-center">Command Center</a></li>
-                                    <li><a href="#deals">Deals</a></li>
-                                    <li><a href="#contacts-accounts">Contacts & Accounts</a></li>
-                                    <li><a href="#sequences">Sequences</a></li>
-                                    <li><a href="#cognito">Cognito</a></li>
-                                    <li><a href="#social-hub">Social Hub</a></li>
-                                </ul>
-                            </li>
-                            <li><a href="#how-to">Part 2: How-To Guides</a>
-                                <ul>
-                                    <li><a href="#how-to-email">Email Steps</a></li>
-                                    <li><a href="#how-to-cognito">Cognito Alerts</a></li>
-                                </ul>
-                            </li>
-                            <li><a href="#templates">Download Templates</a></li>
-                        </ul>
-                    </nav>
+            <div class="page-content">
+                <article class="guide-content">
+                    <section id="introduction">
+                        <h2>Introduction</h2>
+                        <p>Welcome to Constellation, your all-in-one platform for intelligent sales and customer relationship management. This guide will walk you through the core features of the application to help you streamline your workflow and close more deals.</p>
+                    </section>
 
-                    <article class="guide-content">
-                        <section id="introduction">
-                            <h2>Introduction</h2>
-                            <p>Welcome to Constellation, your all-in-one platform for intelligent sales and customer relationship management. This guide will walk you through the core features of the application to help you streamline your workflow and close more deals.</p>
-                        </section>
+                    <section id="overview">
+                        <h2>Part 1: Overview</h2>
+                        
+                        <h4 id="command-center">1. The Command Center: Your Daily Hub</h4>
+                        <p>The Command Center is your home base. It's the first page you see after logging in and is designed to show you exactly what you need to focus on for the day, from manual tasks to automated sequence steps.</p>
+                        
+                        <h4 id="deals">2. Deals: Managing Your Pipeline</h4>
+                        <p>The Deals page provides a visual, Kanban-style board to manage your sales pipeline. You can drag and drop deals from one stage to the next, helping you track progress and identify bottlenecks.</p>
+                        
+                        <h4 id="contacts-accounts">3. Contacts & Accounts: Your Core Database</h4>
+                        <p>These sections are the heart of your CRM, allowing you to manage all the people and companies you do business with.</p>
+                        
+                        <h4 id="sequences">4. Sequences: Automating Your Outreach</h4>
+                        <p>Sequences allow you to build automated outreach campaigns with multiple steps, ensuring consistent and timely follow-up with prospects.</p>
+                        
+                        <h4 id="cognito">5. Cognito: AI-Powered Intelligence</h4>
+                        <p>Cognito is your built-in AI assistant, designed to scan for market intelligence and help you craft the perfect outreach message.</p>
+                        
+                        <h4 id="social-hub">6. Social Hub: Amplify Your Voice</h4>
+                        <p>The Social Hub is your content center for building your professional brand and engaging with your network.</p>
+                    </section>
 
-                        <section id="overview">
-                            <h2>Part 1: Overview</h2>
-                            
-                            <h4 id="command-center">1. The Command Center: Your Daily Hub</h4>
-                            <p>The Command Center is your home base. It's the first page you see after logging in and is designed to show you exactly what you need to focus on for the day, from manual tasks to automated sequence steps.</p>
-                            <p><strong>Key Features:</strong></p>
-                            <ul>
-                                <li><strong>My Tasks:</strong> This table lists all tasks you've manually created. Tasks that are past their due date are highlighted in red so you can prioritize them.</li>
-                                <li><strong>Add New Task Button:</strong> Quickly create new tasks and link them to contacts or accounts.</li>
-                                <li><strong>Sequence Steps Due:</strong> Your automated to-do list, showing sequence steps that are due today or are overdue.</li>
-                                <li><strong>Actionable Steps:</strong> Dedicated buttons for streamlining sequence steps. For email steps, clicking <strong>"Send Email"</strong> now opens a modal where you can review and edit the message before it's sent to your default email client. All lookups like <code>[FirstName]</code> and <code>[AccountName]</code> are automatically populated.</li>
-                                <li><strong>Upcoming Sequence Steps:</strong> A forward-looking view of automated outreach, helping you prepare for future engagements.</li>
-                                <li><strong>Recent Activities:</strong> A live feed of your latest logged activities across all contacts and accounts.</li>
-                            </ul>
+                    <section id="how-to">
+                        <h2>Part 2: How-To Guides</h2>
+                        
+                        <h4 id="how-to-email">How-To: Execute a Sequence Email Step</h4>
+                        <ol>
+                            <li>Navigate to the <strong>Command Center</strong>.</li>
+                            <li>In the "Sequence Steps Due" table, locate an email task and click the <strong>"Send Email"</strong> button.</li>
+                            <li>A modal window will appear with the subject and body of the email. All lookups (e.g., <code>[FirstName]</code>) will be automatically filled in.</li>
+                            <li>Review the email and make any desired edits directly in the modal.</li>
+                            <li>Click <strong>"Send with Email Client"</strong>. This will open your computer's default email application with the message ready to send.</li>
+                            <li>After you send the email from your client, the activity will be automatically logged in Constellation, and the contact will advance to the next step in the sequence.</li>
+                        </ol>
 
-                            <h4 id="deals">2. Deals: Managing Your Pipeline</h4>
-                            <p>The Deals page provides a visual, Kanban-style board to manage your sales pipeline. You can drag and drop deals from one stage to the next, helping you track progress and identify bottlenecks.</p>
-                            
-                            <h4 id="contacts-accounts">3. Contacts & Accounts: Your Core Database</h4>
-                            <p>These sections are the heart of your CRM, allowing you to manage all the people and companies you do business with.</p>
-                            
-                            <h4 id="sequences">4. Sequences: Automating Your Outreach</h4>
-                            <p>Sequences allow you to build automated outreach campaigns with multiple steps, ensuring consistent and timely follow-up with prospects.</p>
-                            
-                            <h4 id="cognito">5. Cognito: AI-Powered Intelligence</h4>
-                            <p>Cognito is your built-in AI assistant, designed to scan for market intelligence and help you craft the perfect outreach message.</p>
-                            
-                            <h4 id="social-hub">6. Social Hub: Amplify Your Voice</h4>
-                            <p>The Social Hub is your content center for building your professional brand and engaging with your network.</p>
-                        </section>
+                        <h4 id="how-to-cognito">How-To: Use Cognito Intelligence Alerts</h4>
+                        <ol>
+                            <li>Navigate to the <strong>Cognito</strong> page.</li>
+                            <li>Review the Alert Cards, which provide summaries of important buying signals.</li>
+                            <li>On a relevant alert, click the <strong>"Action"</strong> button.</li>
+                            <li>The Action Center modal will open, where Cognito's AI will have drafted a personalized email.</li>
+                            <li>Review the draft. Use the <strong>"Refine with Custom Prompt"</strong> input to ask the AI to make changes (e.g., "Make it shorter and more casual").</li>
+                            <li>Once satisfied, copy the text and send it via your email client. You can also create follow-up tasks directly from the modal.</li>
+                        </ol>
+                    </section>
 
-                        <section id="how-to">
-                            <h2>Part 2: How-To Guides</h2>
-                            
-                            <h4 id="how-to-email">How-To: Execute a Sequence Email Step</h4>
-                            <ol>
-                                <li>Navigate to the <strong>Command Center</strong>.</li>
-                                <li>In the "Sequence Steps Due" table, locate an email task and click the <strong>"Send Email"</strong> button.</li>
-                                <li>A modal window will appear with the subject and body of the email. All lookups (e.g., <code>[FirstName]</code>) will be automatically filled in.</li>
-                                <li>Review the email and make any desired edits directly in the modal.</li>
-                                <li>Click <strong>"Send with Email Client"</strong>. This will open your computer's default email application with the message ready to send.</li>
-                                <li>After you send the email from your client, the activity will be automatically logged in Constellation, and the contact will advance to the next step in the sequence.</li>
-                            </ol>
-
-                            <h4 id="how-to-cognito">How-To: Use Cognito Intelligence Alerts</h4>
-                            <ol>
-                                <li>Navigate to the <strong>Cognito</strong> page.</li>
-                                <li>Review the Alert Cards, which provide summaries of important buying signals.</li>
-                                <li>On a relevant alert, click the <strong>"Action"</strong> button.</li>
-                                <li>The Action Center modal will open, where Cognito's AI will have drafted a personalized email.</li>
-                                <li>Review the draft. Use the <strong>"Refine with Custom Prompt"</strong> input to ask the AI to make changes (e.g., "Make it shorter and more casual").</li>
-                                <li>Once satisfied, copy the text and send it via your email client. You can also create follow-up tasks directly from the modal.</li>
-                            </ol>
-                        </section>
-
-                        <section id="templates">
-                            <h2>Download CSV Templates</h2>
-                            <p>Use these templates to ensure your data is formatted correctly for bulk imports.</p>
-                            <div class="template-links">
-                                <a href="contacts_template.csv" download class="btn-secondary">Download Contacts Template</a>
-                                <a href="accounts_template.csv" download class="btn-secondary">Download Accounts Template</a>
-                                <a href="sequence_steps_template.csv" download class="btn-secondary">Download Sequence Steps Template</a>
-                            </div>
-                        </section>
-                    </article>
-                </div>
+                    <section id="templates">
+                        <h2>Download CSV Templates</h2>
+                        <p>Use these templates to ensure your data is formatted correctly for bulk imports.</p>
+                        <div class="template-links">
+                            <a href="contacts_template.csv" download class="btn-secondary">Download Contacts Template</a>
+                            <a href="accounts_template.csv" download class="btn-secondary">Download Accounts Template</a>
+                            <a href="sequence_steps_template.csv" download class="btn-secondary">Download Sequence Steps Template</a>
+                        </div>
+                    </section>
+                </article>
             </div>
         </main>
     </div>
