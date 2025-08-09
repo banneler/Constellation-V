@@ -45,11 +45,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         today.setHours(0, 0, 0, 0);
         return today.toISOString();
     }
+
+    // New, more robust helper function to handle all placeholder variations
+    function replacePlaceholders(template, contact, account) {
+        if (!template) return '';
+        let result = template;
+
+        // Contact-related placeholders
+        if (contact) {
+            const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
+            result = result.replace(/{{firstName}}/g, contact.first_name || '');
+            result = result.replace(/{{lastName}}/g, contact.last_name || '');
+            result = result.replace(/{{fullName}}/g, fullName);
+            result = result.replace(/{{name}}/g, fullName); // Catches the common generic 'name'
+        }
+
+        // Account-related placeholders
+        if (account) {
+            result = result.replace(/{{accountName}}/g, account.name || '');
+            result = result.replace(/{{account}}/g, account.name || ''); // Catches the common generic 'account'
+        }
+        
+        return result;
+    }
     
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        // Show loading state in tables
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
 
         const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks"];
@@ -73,7 +95,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {
-            // Once all data is loaded, render the dashboard content.
             renderDashboard();
         }
     }
@@ -104,7 +125,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         allTasksTable.innerHTML = "";
         recentActivitiesTable.innerHTML = "";
 
-        // CORRECTED: Compare all dates against the start of the local day.
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
@@ -115,7 +135,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const row = myTasksTable.insertRow();
                 if (task.due_date) {
                     const taskDueDate = new Date(task.due_date);
-                    // Check if the task is past due by comparing the date values
                     if (taskDueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
                         row.classList.add('past-due');
                     }
@@ -140,7 +159,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             myTasksTable.innerHTML = '<tr><td colspan="4">No pending tasks. Great job!</td></tr>';
         }
-
 
         // Render Sequence Steps Due
         state.contact_sequences
@@ -167,7 +185,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (step.type.toLowerCase() === "linkedin") {
                     btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
                 } else if (step.type.toLowerCase() === "email" && contact.email) {
-                    // Pass all necessary data to the button, but we will now get it from state directly
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
@@ -280,9 +297,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await loadAllData(); hideModal();
                 });
             } else if (button.matches('.send-email-btn')) {
-                /*******************************************************
-                 * * START OF CHANGES
-                 * *******************************************************/
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
                 if (!cs) return alert("Contact sequence not found.");
@@ -294,22 +308,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
                 if (!step) return alert("Sequence step not found.");
 
-                // Helper function to replace all known placeholders
-                const replacePlaceholders = (template) => {
-                    let result = template;
-                    result = result.replace(/{{firstName}}/g, contact.first_name || '');
-                    result = result.replace(/{{lastName}}/g, contact.last_name || '');
-                    if (account) {
-                        result = result.replace(/{{accountName}}/g, account.name || '');
-                    }
-                    // Add other placeholders like {{yourName}} if needed
-                    return result;
-                };
+                // Logic now uses the robust helper function
+                const subject = replacePlaceholders(step.subject, contact, account);
+                const message = replacePlaceholders(step.message, contact, account);
                 
-                const subject = replacePlaceholders(step.subject || '');
-                const message = replacePlaceholders(step.message || '');
-                
-                // Use showModal to let the user review and edit the email
                 showModal('Compose Email', `
                     <div class="form-group">
                         <label for="modal-email-subject">Subject:</label>
@@ -320,31 +322,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <textarea id="modal-email-body" class="form-control" rows="10">${message}</textarea>
                     </div>
                 `, async () => {
-                    // This is the modal's onConfirm callback
                     const finalSubject = document.getElementById('modal-email-subject').value;
                     const finalMessage = document.getElementById('modal-email-body').value;
                     
                     const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
-                    
-                    // Open the user's default email client
                     window.open(mailtoLink, "_blank");
                     
-                    // Now, complete the step and hide the modal
                     await completeStep(csId);
                     hideModal();
                 });
-
-                /*******************************************************
-                 * * END OF CHANGES
-                 * *******************************************************/
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
                 const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl);
-                if (linkedinUrl) {
-                    window.open(linkedinUrl, "_blank");
-                } else {
-                    alert("LinkedIn URL is missing from button data attribute.");
-                }
+                if (linkedinUrl) { window.open(linkedinUrl, "_blank"); }
+                else { alert("LinkedIn URL is missing from button data attribute."); }
                 completeStep(csId);
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.id);
@@ -373,8 +364,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
-            // CORRECTED: Call loadAllData without 'await' to allow the UI to render instantly.
-            // The data will populate asynchronously.
             loadAllData();
         } else {
             window.location.href = "index.html";
