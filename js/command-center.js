@@ -296,63 +296,75 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await supabase.from('tasks').update(updateData).eq('id', taskId);
                     await loadAllData(); hideModal();
                 });
-            } else if (button.matches('.send-email-btn')) {
-                const csId = Number(button.dataset.csId);
-                const cs = state.contact_sequences.find(c => c.id === csId);
-                if (!cs) return alert("Contact sequence not found.");
-                
-                const contact = state.contacts.find(c => c.id === cs.contact_id);
-                if (!contact) return alert("Contact not found.");
-                
-                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
-                if (!step) return alert("Sequence step not found.");
+   } else if (button.matches('.send-email-btn')) {
+    // --- START OF DEBUGGING BLOCK ---
+    console.clear(); // Clears the console for a fresh look
+    console.log("--- Debugging Email Step ---");
 
-                // Logic now uses the robust helper function
-                const subject = replacePlaceholders(step.subject, contact, account);
-                const message = replacePlaceholders(step.message, contact, account);
-                
-                showModal('Compose Email', `
-                    <div class="form-group">
-                        <label for="modal-email-subject">Subject:</label>
-                        <input type="text" id="modal-email-subject" class="form-control" value="${subject.replace(/"/g, '&quot;')}">
-                    </div>
-                    <div class="form-group">
-                        <label for="modal-email-body">Message:</label>
-                        <textarea id="modal-email-body" class="form-control" rows="10">${message}</textarea>
-                    </div>
-                `, async () => {
-                    const finalSubject = document.getElementById('modal-email-subject').value;
-                    const finalMessage = document.getElementById('modal-email-body').value;
-                    
-                    const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
-                    window.open(mailtoLink, "_blank");
-                    
-                    await completeStep(csId);
-                    hideModal();
-                });
-            } else if (button.matches('.complete-linkedin-step-btn')) {
-                const csId = Number(button.dataset.id);
-                const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl);
-                if (linkedinUrl) { window.open(linkedinUrl, "_blank"); }
-                else { alert("LinkedIn URL is missing from button data attribute."); }
-                completeStep(csId);
-            } else if (button.matches('.complete-step-btn')) {
-                const csId = Number(button.dataset.id);
-                completeStep(csId);
-            } else if (button.matches('.revisit-step-btn')) {
-                const csId = Number(button.dataset.csId);
-                const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
-                if (!contactSequence) return;
-                const newStepNumber = Math.max(1, contactSequence.current_step_number - 1);
-                showModal('Revisit Step', `Are you sure you want to go back to step ${newStepNumber}?`, async () => {
-                    await supabase.from('contact_sequences').update({ current_step_number: newStepNumber, next_step_due_date: getStartOfLocalDayISO(), status: 'Active' }).eq('id', csId);
-                    await loadAllData();
-                    hideModal();
-                });
-            }
-        });
+    const csId = Number(button.dataset.csId);
+    const cs = state.contact_sequences.find(c => c.id === csId);
+    if (!cs) {
+        console.error("Could not find 'contact_sequence' with ID:", csId);
+        return alert("Error: Contact sequence not found.");
     }
+    console.log("Found contact_sequence:", cs);
+
+    const contact = state.contacts.find(c => c.id === cs.contact_id);
+    if (!contact) {
+        console.error("Could not find 'contact' with ID:", cs.contact_id);
+        return alert("Error: Contact not found for this step.");
+    }
+    console.log("Found contact:", contact);
+
+    const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+    if (contact.account_id) {
+        console.log("Looking for account with ID:", contact.account_id);
+        if (account) {
+            console.log("Found account:", account);
+        } else {
+            console.warn("Account specified but not found in state.");
+        }
+    }
+
+    const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+    if (!step) {
+        console.error("Could not find 'sequence_step' for sequence ID:", cs.sequence_id, "and step number:", cs.current_step_number);
+        return alert("Error: Sequence step details not found.");
+    }
+    console.log("Found sequence_step with template subject/message:", step);
+
+
+    // Logic now uses the robust helper function
+    const subject = replacePlaceholders(step.subject, contact, account);
+    const message = replacePlaceholders(step.message, contact, account);
+
+    console.log("Original Subject Template:", step.subject);
+    console.log("Processed Subject:", subject);
+    console.log("Original Message Template:", step.message);
+    console.log("Processed Message:", message);
+    console.log("--- End of Debugging ---");
+    // --- END OF DEBUGGING BLOCK ---
+
+    showModal('Compose Email', `
+        <div class="form-group">
+            <label for="modal-email-subject">Subject:</label>
+            <input type="text" id="modal-email-subject" class="form-control" value="${subject.replace(/"/g, '&quot;')}">
+        </div>
+        <div class="form-group">
+            <label for="modal-email-body">Message:</label>
+            <textarea id="modal-email-body" class="form-control" rows="10">${message}</textarea>
+        </div>
+    `, async () => {
+        const finalSubject = document.getElementById('modal-email-subject').value;
+        const finalMessage = document.getElementById('modal-email-body').value;
+
+        const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
+        window.open(mailtoLink, "_blank");
+
+        await completeStep(csId);
+        hideModal();
+    });
+}
 
     // --- App Initialization ---
     async function initializePage() {
