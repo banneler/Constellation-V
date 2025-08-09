@@ -3,25 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Guide | constellation-v</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>User Guide - Constellation V</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <div class="page-container">
+        <!-- Main Application Layout -->
+        <aside class="nav-sidebar">
+            <div class="nav-sidebar-header">
+                <a href="index.html" class="logo-link">
+                    <img src="assets/logo.svg" alt="Constellation V Logo" class="logo-img">
+                </a>
+                <span class="product-name">Constellation V</span>
+            </div>
+            
+            <nav class="nav-menu">
+                <ul id="user-guide-nav" class="nav-list">
+                    <li><a href="#" class="nav-button active" data-section="link1">Link 1</a></li>
+                    <li><a href="#" class="nav-button" data-section="link2">Link 2</a></li>
+                    <li><a href="#" class="nav-button" data-section="link3">Link 3</a></li>
+                </ul>
+            </nav>
+        </aside>
 
-    <div class="main-container">
-        <nav class="nav-sidebar">
-            <h1 class="logo">constellation-v</h1>
-            <ul class="nav-links" id="guide-nav">
-                <li><a href="#" class="nav-link active" data-section="introduction">Introduction</a></li>
-                <li><a href="#" class="nav-link" data-section="part1-overview">Part 1: Overview</a></li>
-                <li><a href="#" class="nav-link" data-section="part2-how-to-guides">Part 2: How-To Guides</a></li>
-            </ul>
-        </nav>
-
-        <main class="content-pane" id="guide-content-pane">
-            </main>
+        <main class="content-area">
+            <header class="app-header">
+                <div class="user-profile">
+                    <img src="assets/user-icon.svg" alt="User Icon" class="user-icon">
+                    <span class="user-name">John Doe</span>
+                </div>
+            </header>
+            
+            <div id="user-guide-content" class="content-view active-view">
+                <!-- Content will be loaded here dynamically by JavaScript -->
+                <div class="initial-message p-8 text-center text-gray-500">
+                    <h2 class="text-3xl font-bold mb-4">Welcome to the User Guide</h2>
+                    <p>Please select a section from the navigation menu to get started.</p>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <script src="js/user-guide.js"></script>
+    <script type="module" src="js/shared_constants.js"></script>
+    <script type="module" src="js/script.js"></script>
+    <script type="module" src="js/user-guide.js"></script>
 </body>
 </html>
