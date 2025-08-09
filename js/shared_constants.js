@@ -243,6 +243,7 @@ export async function setupUserMenuAndAuth(supabase, state) {
     // Inject the User Guide link into the popup menu dynamically
     if (!document.getElementById('user-guide-link')) {
         const userGuideLink = document.createElement('a');
+        userGuideLink.target = "_blank"; // Add this line
         userGuideLink.id = 'user-guide-link';
         userGuideLink.href = 'user-guide.html';
         userGuideLink.textContent = 'User Guide';
@@ -386,3 +387,4 @@ export async function loadSVGs() {
         }
     }
 }
+
