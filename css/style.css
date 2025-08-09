@@ -3770,45 +3770,12 @@ body.theme-green .marketing-indicator {
 }
 
 
-/* --- User Guide Page Specific Layout --- */
+//* --- User Guide Page Styles --- */
 
-/*
- * This is the key change. On the guide page, we override the main grid 
- * to be a single column, which removes the space for the main sidebar.
- * This makes the .main-content area span the full width automatically.
-*/
-.guide-page .container {
-    grid-template-columns: 1fr;
-}
-
-.header-logo-container {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.header-logo-container .nav-logo {
-    height: 40px;
-    width: auto;
-}
-
-
-/* --- Styles for the Guide's Internal Layout --- */
-
-.guide-container {
-    display: flex;
-    gap: 2.5rem;
-}
-
+/* This styles the new navigation block inside the standard sidebar */
 .guide-nav {
-    flex: 0 0 240px; /* Set a fixed width for the guide navigation */
-    position: sticky;
-    top: 2rem; /* Sticks to the top as you scroll */
-    align-self: flex-start;
-    height: calc(100vh - 5rem);
-    overflow-y: auto;
-    padding-right: 1.5rem;
-    border-right: 1px solid var(--border-color);
+    margin-top: 2rem; /* Add some space below the logo */
+    padding-right: 1rem; /* Prevent text from touching the edge */
 }
 
 .guide-nav h3 {
@@ -3818,6 +3785,7 @@ body.theme-green .marketing-indicator {
     color: var(--text-primary);
     padding-bottom: 0.75rem;
     margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .guide-nav ul {
@@ -3840,9 +3808,9 @@ body.theme-green .marketing-indicator {
     text-decoration: none;
     color: var(--text-secondary);
     font-size: 0.9rem;
-    transition: color 0.2s ease-in-out;
+    transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
     display: block;
-    padding: 2px 4px;
+    padding: 4px 8px;
     border-radius: 4px;
 }
 
@@ -3851,9 +3819,9 @@ body.theme-green .marketing-indicator {
     background-color: var(--background-hover);
 }
 
+/* Styles for the main content area of the guide */
 .guide-content {
-    flex-grow: 1;
-    max-width: 800px; /* Set a max-width for readability */
+    max-width: 800px;
 }
 
 .guide-content section {
