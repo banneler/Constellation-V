@@ -42,9 +42,13 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/shared_constants.js"></script>
-    <script src="js/script.js"></script>
-    <script src="js/user-guide.js"></script>
+    <!-- Add Supabase library first -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Load scripts as modules to allow import/export -->
+    <script type="module" src="js/shared_constants.js"></script>
+    <script type="module" src="js/script.js"></script>
+    <script type="module" src="js/user-guide.js"></script>
 
 </body>
 </html>
