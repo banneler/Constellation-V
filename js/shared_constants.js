@@ -218,16 +218,14 @@ export function showToast(message, type = 'success') {
     toast.innerHTML = `<span>${message}</span>`;
     toastContainer.appendChild(toast);
 
-    // Keep the toast visible for a few seconds before starting the fade-out.
-    // The previous version was hiding it immediately.
     setTimeout(() => {
         toast.classList.add('hide');
         toast.addEventListener('transitionend', () => toast.remove());
-    }, 4000); // Wait 4 seconds before starting the fade-out.
+    }, 4000);
 }
 
 
-// --- USER MENU & AUTH LOGIC (CORRECTED) ---
+// --- USER MENU & AUTH LOGIC ---
 export async function setupUserMenuAndAuth(supabase, state) {
     const userMenuHeader = document.querySelector('.user-menu-header');
     if (!userMenuHeader) return;
@@ -236,10 +234,29 @@ export async function setupUserMenuAndAuth(supabase, state) {
     const userMenuPopup = document.getElementById('user-menu-popup');
     const logoutBtn = document.getElementById("logout-btn");
 
-    if (!userMenuPopup || !userNameDisplay || !logoutBtn) {
+    if (!userMenuPopup || !userNameDisplay) {
         console.error("One or more user menu elements are missing.");
         return;
     }
+
+    // *** THE ONLY CHANGE IS HERE ***
+    // Inject the User Guide link into the popup menu dynamically
+    if (!document.getElementById('user-guide-link')) {
+        const userGuideLink = document.createElement('a');
+        userGuideLink.id = 'user-guide-link';
+        userGuideLink.href = 'user-guide.html';
+        userGuideLink.textContent = 'User Guide';
+        // Insert it before the theme toggle button if it exists
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        if (themeToggleBtn) {
+            userMenuPopup.insertBefore(userGuideLink, themeToggleBtn);
+        } else if (logoutBtn) {
+            userMenuPopup.insertBefore(userGuideLink, logoutBtn);
+        } else {
+            userMenuPopup.appendChild(userGuideLink);
+        }
+    }
+
 
     const { data: userData, error: userError } = await supabase
         .from('user_quotas')
@@ -323,10 +340,12 @@ export async function setupUserMenuAndAuth(supabase, state) {
             }
         });
 
-        logoutBtn.addEventListener("click", async () => {
-            await supabase.auth.signOut();
-            window.location.href = "index.html";
-        });
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", async () => {
+                await supabase.auth.signOut();
+                window.location.href = "index.html";
+            });
+        }
         
         userMenuHeader.dataset.listenerAttached = 'true';
     }
@@ -367,4 +386,3 @@ export async function loadSVGs() {
         }
     }
 }
-
