@@ -296,8 +296,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await supabase.from('tasks').update(updateData).eq('id', taskId);
                     await loadAllData(); hideModal();
                 });
-    
-            else if (button.matches('.send-email-btn')) {
+          } else if (button.matches('.send-email-btn')) {
     // --- START OF DEBUGGING BLOCK ---
     console.clear(); // Clears the console for a fresh look
     console.log("--- Debugging Email Step ---");
@@ -366,6 +365,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         hideModal();
     });
 }
+        });
+    }
 
     // --- App Initialization ---
     async function initializePage() {
