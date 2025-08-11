@@ -63,10 +63,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             result = result.replace(/\[AccountName\]/gi, account.name || '');
             result = result.replace(/\[Account\]/gi, account.name || '');
         }
-
+        
         return result;
     }
-
+    
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
@@ -104,14 +104,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contact = state.contacts.find((c) => c.id === cs.contact_id);
         const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
         if (contact && step) {
-            const descriptionForLog = processedDescription || step.subject || step.message || "Completed step";
-            await supabase.from("activities").insert([{
-                contact_id: contact.id,
-                account_id: contact.account_id,
-                date: new Date().toISOString(),
-                type: `Sequence: ${step.type}`,
-                description: descriptionForLog,
-                user_id: state.currentUser.id
+            // ** FIX STARTS HERE **
+            const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+            const rawDescription = step.subject || step.message || "Completed step";
+            const finalDescription = replacePlaceholders(rawDescription, contact, account);
+            const descriptionForLog = processedDescription || finalDescription;
+            // ** FIX ENDS HERE **
+            await supabase.from("activities").insert([{ 
+                contact_id: contact.id, 
+                account_id: contact.account_id, 
+                date: new Date().toISOString(), 
+                type: `Sequence: ${step.type}`, 
+                description: descriptionForLog, 
+                user_id: state.currentUser.id 
             }]);
         }
         const nextStep = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number + 1);
@@ -183,11 +188,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!contact || !sequence) return;
                 const step = state.sequence_steps.find(s => s.sequence_id === sequence.id && s.step_number === cs.current_step_number);
                 if (!step) return;
-                
-                // ** FIX STARTS HERE **
                 const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
                 const desc = replacePlaceholders(step.subject || step.message || "", contact, account);
-                // ** FIX ENDS HERE **
 
                 let btnHtml;
                 if (step.type.toLowerCase() === "linkedin") {
@@ -309,17 +311,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
                 if (!cs) return alert("Contact sequence not found.");
-
+                
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 if (!contact) return alert("Contact not found.");
-
+                
                 const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
                 const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
                 if (!step) return alert("Sequence step not found.");
 
                 const subject = replacePlaceholders(step.subject, contact, account);
                 const message = replacePlaceholders(step.message, contact, account);
-
+                
                 showModal('Compose Email', `
                     <div class="form-group">
                         <label for="modal-email-subject">Subject:</label>
@@ -332,12 +334,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `, async () => {
                     const finalSubject = document.getElementById('modal-email-subject').value;
                     const finalMessage = document.getElementById('modal-email-body').value;
-
+                    
                     const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
                     window.open(mailtoLink, "_blank");
-
+                    
                     await completeStep(csId, finalSubject);
-                },
+                }, 
                 true, // This is the 'showCancel' parameter
                 `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
