@@ -501,12 +501,15 @@ function renderTableForChart(containerId, data, isCurrency = false) {
 
 // admin.js
 
+// admin.js
+
 async function handleSaveUser(e) {
+    // This is the key: 'row' now refers to the specific table row being edited.
     const row = e.target.closest('tr');
     const userId = row.dataset.userId;
     
     // --- FIX IS HERE ---
-    // Ensure the checkbox values are treated as booleans
+    // We now use row.querySelector to find the checkboxes *inside this specific row*.
     const isManagerStatus = row.querySelector('.is-manager-checkbox').checked;
     const excludeReportingStatus = row.querySelector('.exclude-reporting-checkbox').checked;
     // --- END FIX ---
