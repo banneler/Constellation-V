@@ -499,11 +499,18 @@ function renderTableForChart(containerId, data, isCurrency = false) {
 }
 
 
+// admin.js
+
 async function handleSaveUser(e) {
     const row = e.target.closest('tr');
     const userId = row.dataset.userId;
+    
+    // --- FIX IS HERE ---
+    // Ensure the checkbox values are treated as booleans
     const isManagerStatus = row.querySelector('.is-manager-checkbox').checked;
     const excludeReportingStatus = row.querySelector('.exclude-reporting-checkbox').checked;
+    // --- END FIX ---
+
     const fullName = row.querySelector('.user-name-input').value.trim();
     const monthlyQuota = parseInt(row.querySelector('.user-quota-input').value, 10) || 0;
 
@@ -534,7 +541,6 @@ async function handleSaveUser(e) {
         loadUserData(); // Refresh the user list
     }
 }
-
 function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
 
 async function handleContentToggle(e) {
