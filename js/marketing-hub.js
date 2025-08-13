@@ -312,7 +312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { error: updateError } = await supabase.from('email_templates').update(templateData).eq('id', id);
             error = updateError;
         } else {
-            const { data: newTemplate, error: insertError } = await supabase.from('email_templates').insert([templateData]).select();
+            const { data: newTemplate, error: insertError } = await supabase.from('email_templates').insert(templateData).select();
             error = insertError;
             if (!error && newTemplate && newTemplate.length > 0) {
                 state.selectedTemplateId = newTemplate[0].id;
