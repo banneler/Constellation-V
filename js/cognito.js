@@ -188,7 +188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.initialSuggestionSubject = initialOutreachCopy.subject;
         state.initialSuggestionBody = initialOutreachCopy.body;
     
-        const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id);
+        const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id && c.email);
         const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
     
         let suggestedContactId = null;
