@@ -71,17 +71,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const dynamicLinkIndicator = item.is_dynamic_link ? `<span class="dynamic-link-indicator" title="This link will generate a rich preview on LinkedIn">✨</span>` : '';
 
         const card = document.createElement('div');
-        // FIX 1: Change the main class name to be unique
-        card.className = 'social-post-card';
+        card.className = 'alert-card';
         card.id = `post-card-${item.id}`;
 
-        // FIX 2: Change all internal class names from alert-* to social-post-*
         card.innerHTML = `
-            <div class="social-post-header"><span class="social-post-trigger-type">${triggerType}</span></div>
-            <h5 class="social-post-headline">${headline} ${dynamicLinkIndicator}</h5>
-            <p class="social-post-summary">${summary}</p>
-            <div class="social-post-footer"><span class="social-post-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span></div>
-            <div class="social-post-actions">
+            <div class="alert-header"><span class="alert-trigger-type">${triggerType}</span></div>
+            <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
+            <p class="alert-summary">${summary}</p>
+            <div class="alert-footer"><span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span></div>
+            <div class="alert-actions">
                 <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}">Dismiss</button>
                 <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
             </div>
