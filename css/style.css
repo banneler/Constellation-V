@@ -3768,13 +3768,16 @@ body.theme-green .marketing-indicator {
     height: 40px; /* Or whatever height you prefer */
     width: auto;
 }
-/* --- Social Hub Page Layout --- */
+/* --- Social Hub Page Layout & Styling --- */
+
+/* 1. This creates the two-column grid layout */
 #posts-container {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* Creates two equal columns */
-    gap: 1.5rem;                           /* The space between cards */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem; /* This is the margin between cards */
 }
 
+/* 2. This styles the new 'social-post-card' class */
 .social-post-card {
     background-color: var(--bg-medium);
     border: 1px solid var(--border-color);
@@ -3783,5 +3786,35 @@ body.theme-green .marketing-indicator {
     box-shadow: 0 4px 15px var(--shadow-medium);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+}
+
+.social-post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-medium);
+    font-size: 0.9rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.social-post-header .fa-brands {
+    font-size: 1.5rem;
+    color: var(--primary-blue);
+}
+
+.social-post-body {
+    flex-grow: 1; /* Allows the body to take up available space */
+    padding: 0.75rem 0;
+    line-height: 1.6;
+    white-space: pre-wrap; /* Respects line breaks in the text */
+    word-wrap: break-word;
+}
+
+.social-post-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
 }
