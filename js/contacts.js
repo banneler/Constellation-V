@@ -794,7 +794,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         if(emailViewCloseBtn) emailViewCloseBtn.addEventListener('click', closeEmailViewModal);
-               });
+               };
 
         contactForm.addEventListener("submit", async (e) => {
             e.preventDefault();
