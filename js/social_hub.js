@@ -74,16 +74,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         card.className = 'alert-card';
         card.id = `post-card-${item.id}`;
 
+        // Create the card structure but leave the summary paragraph empty for now
         card.innerHTML = `
             <div class="alert-header"><span class="alert-trigger-type">${triggerType}</span></div>
             <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
-            <p class="alert-summary">${summary}</p>
+            <p class="alert-summary"></p> 
             <div class="alert-footer"><span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span></div>
             <div class="alert-actions">
                 <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}">Dismiss</button>
                 <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
             </div>
         `;
+
+        // --- THIS IS THE FIX ---
+        // Find the empty summary paragraph and set its innerHTML.
+        // This tells the browser to render any HTML tags (like <b>, <i>, etc.)
+        const summaryP = card.querySelector('.alert-summary');
+        summaryP.innerHTML = summary;
+
+        // Re-attach event listeners
         card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
         card.querySelector('.dismiss-post-btn').addEventListener('click', () => handleDismissPost(item.id));
         return card;
