@@ -2206,7 +2206,7 @@ h1, h2, h3, h4, h5, h6 {
 #alerts-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.25rem;
+    gap: 2rem;
     margin-top: 1.25rem;
 }
 
