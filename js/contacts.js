@@ -794,10 +794,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         if(emailViewCloseBtn) emailViewCloseBtn.addEventListener('click', closeEmailViewModal);
-        if(emailViewModalBackdrop) emailViewModalBackdrop.addEventListener('click', (e) => {
-            if (e.target === emailViewModalBackdrop) closeEmailViewModal();
-        });
-
+   
         contactForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const id = contactForm.querySelector("#contact-id").value ? Number(contactForm.querySelector("#contact-id").value) : null;
