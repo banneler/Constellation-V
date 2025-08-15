@@ -87,10 +87,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
 
         // --- THIS IS THE FIX ---
-        // Find the empty summary paragraph and set its innerHTML.
-        // This tells the browser to render any HTML tags (like <b>, <i>, etc.)
+        // Find the empty summary paragraph.
         const summaryP = card.querySelector('.alert-summary');
-        summaryP.innerHTML = summary;
+        // Replace newline characters (\n) with HTML line break tags (<br>)
+        const formattedSummary = summary.replace(/\n/g, '<br>');
+        // Set the innerHTML with the formatted text.
+        summaryP.innerHTML = formattedSummary;
 
         // Re-attach event listeners
         card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
