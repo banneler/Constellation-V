@@ -3768,3 +3768,9 @@ body.theme-green .marketing-indicator {
     height: 40px; /* Or whatever height you prefer */
     width: auto;
 }
+/* --- Social Hub Post Grid --- */
+#posts-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* This creates the two columns */
+    gap: 1.5rem; /* You can adjust this value for the margin */
+}
