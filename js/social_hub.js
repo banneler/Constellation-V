@@ -145,9 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         modalCloseBtn.addEventListener('click', hideModal);
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target === modalBackdrop) hideModal();
-        });
+              });
 
         copyTextBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(postTextArea.value).then(() => {
