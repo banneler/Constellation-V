@@ -794,7 +794,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         if(emailViewCloseBtn) emailViewCloseBtn.addEventListener('click', closeEmailViewModal);
-               };
+        if(emailViewModalBackdrop) emailViewModalBackdrop.addEventListener('click', (e) => {
+            if (e.target === emailViewModalBackdrop) closeEmailViewModal();
+        });
 
         contactForm.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -1354,4 +1356,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
-
