@@ -204,7 +204,6 @@ function handleBackdropClick(e) { if (e.target === modalBackdrop) hideModal(); }
 function handleEscapeKey(e) { if (e.key === "Escape") hideModal(); }
 
 export function setupModalListeners() {
-    if (modalBackdrop) modalBackdrop.addEventListener("click", handleBackdropClick);
     window.addEventListener("keydown", handleEscapeKey);
 }
 
@@ -367,3 +366,4 @@ export async function loadSVGs() {
         }
     }
 }
+
