@@ -63,31 +63,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function createSocialCard(item) {
-        const headline = item.title;
-        const link = item.link;
-        const summary = item.summary || item.approved_copy;
-        const sourceName = item.source_name || 'Marketing Team';
-        const triggerType = item.type === 'marketing_post' ? 'Campaign Asset' : 'News Article';
-        const dynamicLinkIndicator = item.is_dynamic_link ? `<span class="dynamic-link-indicator" title="This link will generate a rich preview on LinkedIn">✨</span>` : '';
+    // This is the main card container
+    const card = document.createElement('div');
+    // --- THIS IS THE FIX ---
+    // We are changing 'alert-card' to a new, unique class: 'social-post-card'
+    card.className = 'social-post-card'; 
+    card.dataset.postId = item.id;
 
-        const card = document.createElement('div');
-        card.className = 'alert-card';
-        card.id = `post-card-${item.id}`;
+    // Header for the card
+    const header = document.createElement('div');
+    header.className = 'social-post-header';
 
-        card.innerHTML = `
-            <div class="alert-header"><span class="alert-trigger-type">${triggerType}</span></div>
-            <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
-            <p class="alert-summary">${summary}</p>
-            <div class="alert-footer"><span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span></div>
-            <div class="alert-actions">
-                <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}">Dismiss</button>
-                <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
-            </div>
-        `;
-        card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
-        card.querySelector('.dismiss-post-btn').addEventListener('click', () => handleDismissPost(item.id));
-        return card;
-    }
+    const platformIcon = document.createElement('i');
+    platformIcon.className = `fa-brands fa-${item.platform.toLowerCase()}`;
+    header.appendChild(platformIcon);
+
+    const postDate = document.createElement('span');
+    postDate.className = 'social-post-date';
+    postDate.textContent = new Date(item.created_at).toLocaleDateString();
+    header.appendChild(postDate);
+
+    card.appendChild(header);
+
+    // Body of the card
+    const body = document.createElement('div');
+    body.className = 'social-post-body';
+    body.textContent = item.content;
+    card.appendChild(body);
+
+    // Footer with action buttons
+    const footer = document.createElement('div');
+    footer.className = 'social-post-footer';
+
+    const editButton = document.createElement('button');
+    editButton.className = 'btn-secondary';
+    editButton.innerHTML = '<i class="fa-solid fa-pencil"></i>';
+    editButton.onclick = () => openEditModal(item);
+    footer.appendChild(editButton);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'btn-danger';
+    deleteButton.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+    deleteButton.onclick = () => deletePost(item.id);
+    footer.appendChild(deleteButton);
+
+    card.appendChild(footer);
+
+    return card;
+}
 
     // --- MODAL & ACTION LOGIC ---
     async function openPostModal(item) {
