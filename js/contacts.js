@@ -937,7 +937,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 };
 
                 for (const record of newRecords) {
-                    record.suggested_account_id = findBestAccountMatch(record.company);
+                    const suggested_account_id = findBestAccountMatch(record.company);
                     
                     let existingContact = null;
                     if (record.email && record.email.trim()) {
@@ -959,16 +959,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (existingContact.phone !== record.phone) changes.phone = { old: existingContact.phone, new: record.phone };
                         if (existingContact.title !== record.title) changes.title = { old: existingContact.title, new: record.title };
                         
-                        // FIX: Add a key for the suggested account
-                        if (record.suggested_account_id !== existingContact.account_id) {
-                            changes.account = { old: state.accounts.find(a => a.id === existingContact.account_id)?.name || 'None', new: record.company };
-                        }
-                        
-                        if (Object.keys(changes).length > 0) {
-                            recordsToUpdate.push({ ...record, id: existingContact.id, changes, suggested_account_id: record.suggested_account_id });
-                        }
+                        recordsToUpdate.push({ ...record, id: existingContact.id, changes, suggested_account_id: suggested_account_id });
                     } else {
-                        recordsToInsert.push({ ...record, suggested_account_id: record.suggested_account_id });
+                        recordsToInsert.push({ ...record, suggested_account_id: suggested_account_id });
                     }
                 }
 
@@ -1113,7 +1106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             r.readAsText(f);
             e.target.value = "";
         });
-
+        
         if (bulkExportContactsBtn) {
             bulkExportContactsBtn.addEventListener("click", () => {
                 const contactsToExport = state.contacts;
