@@ -11,7 +11,8 @@ import {
     hideModal,
     updateActiveNavLink,
     setupUserMenuAndAuth,
-    loadSVGs
+    loadSVGs,
+    setupGlobalSearch
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -379,6 +380,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
+            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
             loadAllData();
         } else {
             window.location.href = "index.html";
