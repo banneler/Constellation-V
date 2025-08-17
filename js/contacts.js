@@ -899,7 +899,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
-        bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
+      bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
         contactCsvInput.addEventListener("change", async (e) => {
             const f = e.target.files[0];
             if (!f) return;
@@ -959,9 +959,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (existingContact.phone !== record.phone) changes.phone = { old: existingContact.phone, new: record.phone };
                         if (existingContact.title !== record.title) changes.title = { old: existingContact.title, new: record.title };
                         
-                        recordsToUpdate.push({ ...record, id: existingContact.id, changes });
+                        // FIX: Add a key for the suggested account
+                        if (record.suggested_account_id !== existingContact.account_id) {
+                            changes.account = { old: state.accounts.find(a => a.id === existingContact.account_id)?.name || 'None', new: record.company };
+                        }
+                        
+                        if (Object.keys(changes).length > 0) {
+                            recordsToUpdate.push({ ...record, id: existingContact.id, changes, suggested_account_id: record.suggested_account_id });
+                        }
                     } else {
-                        recordsToInsert.push(record);
+                        recordsToInsert.push({ ...record, suggested_account_id: record.suggested_account_id });
                     }
                 }
 
