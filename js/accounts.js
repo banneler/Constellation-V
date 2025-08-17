@@ -3,18 +3,28 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvR
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let state = {
-        currentUser: null,
+  let state = {
+    currentUser: null,
+    isFormDirty: false,
+
+    // Master lists for the main account list view
+    accounts: [],
+    contacts: [],
+    activities: [],
+    deals: [],
+    dealStages: [],
+
+    // A dedicated object to hold data for ONLY the selected account
+    selectedAccountId: null,
+    selectedAccountDetails: {
+        account: null,
         contacts: [],
-        accounts: [],
         activities: [],
-        contact_sequences: [],
         deals: [],
-        selectedAccountId: null,
         tasks: [],
-        isFormDirty: false,
-        dealStages: []
-    };
+        contact_sequences: []
+    }
+};
 
     // --- DOM Element Selectors ---
     const navSidebar = document.querySelector(".nav-sidebar");
@@ -98,43 +108,66 @@ async function loadInitialData() {
 }
 
 // 2. Fetches detailed data for ONE account after it has been selected.
+// Fetches detailed data and puts it into the new state.selectedAccountDetails object
 async function loadDetailsForSelectedAccount() {
-    if (!state.selectedAccountId) {
-        hideAccountDetails(true, false);
-        return;
-    }
-    // Set a loading state in the UI
-    accountContactsList.innerHTML = '<li>Loading details...</li>';
-    accountActivitiesList.innerHTML = '<li>Loading details...</li>';
-    accountDealsTableBody.innerHTML = '';
+    if (!state.selectedAccountId) return;
+
+    // Show a loading state in the UI immediately
+    accountContactsList.innerHTML = '<li>Loading...</li>';
+    accountActivitiesList.innerHTML = '<li>Loading...</li>';
+    accountDealsTableBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     
     const account = state.accounts.find(a => a.id === state.selectedAccountId);
+    state.selectedAccountDetails.account = account;
 
+    // Fetch all related data for only the selected account
     const [contactsRes, dealsRes, activitiesRes, tasksRes, sequencesRes] = await Promise.all([
         supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
         supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("activities").select("*").eq("account_id", state.selectedAccountId), // This is a simplified query; a full version would also get activities by contact_id
+        supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
         supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("contact_sequences").select("*") // This might need a more specific filter
+        supabase.from("contact_sequences").select("*") // This may need a more specific filter later
     ]);
-    
+
     if (contactsRes.error) throw contactsRes.error;
     if (dealsRes.error) throw dealsRes.error;
     if (activitiesRes.error) throw activitiesRes.error;
     if (tasksRes.error) throw tasksRes.error;
     if (sequencesRes.error) throw sequencesRes.error;
 
-    // IMPORTANT: Overwrite the general state with the specific details for this account
-    state.contacts = contactsRes.data || [];
-    state.deals = dealsRes.data || [];
-    state.activities = activitiesRes.data || [];
-    state.tasks = tasksRes.data || [];
-    state.contact_sequences = sequencesRes.data || [];
+    // Populate the dedicated details object, leaving the master lists untouched
+    state.selectedAccountDetails.contacts = contactsRes.data || [];
+    state.selectedAccountDetails.deals = dealsRes.data || [];
+    state.selectedAccountDetails.activities = activitiesRes.data || [];
+    state.selectedAccountDetails.tasks = tasksRes.data || [];
+    state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
 
-    // Now, render the details panel with the fresh, specific data
     renderAccountDetails();
 }
 
+// This function now handles creating the "empty shell" view
+const hideAccountDetails = (clearSelection = false) => {
+    if (accountForm) {
+        accountForm.classList.remove('hidden'); // Ensure form is visible
+        accountForm.reset(); // Clear all fields
+        accountForm.querySelector("#account-id").value = '';
+        document.getElementById("account-last-saved").textContent = "";
+    }
+    
+    // Clear out all related data lists
+    if (accountContactsList) accountContactsList.innerHTML = "";
+    if (accountActivitiesList) accountActivitiesList.innerHTML = "";
+    if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
+    if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+    
+    // Reset the state for the selected account
+    if (clearSelection) {
+        state.selectedAccountId = null;
+        state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [] };
+        document.querySelectorAll(".list-item.selected").forEach(item => item.classList.remove("selected"));
+        state.isFormDirty = false;
+    }
+};
     // --- Render Functions ---
     const renderAccountList = () => {
         if (!accountList || !accountSearch || !accountStatusFilter) {
@@ -219,103 +252,81 @@ async function loadDetailsForSelectedAccount() {
     };
 
     const renderAccountDetails = () => {
-        if (!accountForm) return;
-        const account = state.accounts.find((a) => a.id === state.selectedAccountId);
+    // Read from the new, dedicated details object
+    const { account, contacts, activities, deals, tasks, contact_sequences } = state.selectedAccountDetails;
 
-        if (accountPendingTaskReminder && account) {
-            const pendingAccountTasks = state.tasks.filter(task =>
-                task.status === 'Pending' && task.account_id === account.id
-            );
-            if (pendingAccountTasks.length > 0) {
-                const taskCount = pendingAccountTasks.length;
-                accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
-                accountPendingTaskReminder.classList.remove('hidden');
-            } else {
-                accountPendingTaskReminder.classList.add('hidden');
-            }
-        } else if (accountPendingTaskReminder) {
+    if (!account) {
+        hideAccountDetails(true);
+        return;
+    }
+
+    if (accountPendingTaskReminder) {
+        const pendingAccountTasks = tasks.filter(task => task.status === 'Pending');
+        if (pendingAccountTasks.length > 0) {
+            const taskCount = pendingAccountTasks.length;
+            accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
+            accountPendingTaskReminder.classList.remove('hidden');
+        } else {
             accountPendingTaskReminder.classList.add('hidden');
         }
+    }
 
-        if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
-        accountContactsList.innerHTML = "";
-        accountActivitiesList.innerHTML = "";
-        accountDealsTableBody.innerHTML = "";
-
-        if (account) {
-            accountForm.classList.remove('hidden');
-            accountForm.querySelector("#account-id").value = account.id;
-            accountForm.querySelector("#account-name").value = account.name || "";
-
-            const websiteInput = accountForm.querySelector("#account-website");
-            const websiteLink = document.getElementById("account-website-link");
-            websiteInput.value = account.website || "";
-
-            const updateWebsiteLink = (url) => {
-                if (!url || !url.trim()) {
-                    if (websiteLink) websiteLink.classList.add('hidden');
-                    return;
-                }
-                let fullUrl = url.trim();
-                if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
-                    fullUrl = 'https://' + fullUrl;
-                }
-                if (websiteLink) {
-                    websiteLink.href = fullUrl;
-                    websiteLink.classList.remove('hidden');
-                }
-            };
-            updateWebsiteLink(account.website);
-
-            accountForm.querySelector("#account-industry").value = account.industry || "";
-            accountForm.querySelector("#account-phone").value = account.phone || "";
-            accountForm.querySelector("#account-address").value = account.address || "";
-            accountForm.querySelector("#account-notes").value = account.notes || "";
-            document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
-            accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
-            accountForm.querySelector("#account-employees").value = account.employee_count || "";
-            accountForm.querySelector("#account-is-customer").checked = account.is_customer;
-
-            state.isFormDirty = false;
-
-            state.deals
-                .filter((d) => d.account_id === account.id)
-                .forEach((deal) => {
-                    const row = accountDealsTableBody.insertRow();
-                    row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
-                });
-
-            state.contacts
-                .filter((c) => c.account_id === account.id)
-                .forEach((c) => {
-                    const li = document.createElement("li");
-                    const inSeq = state.contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
-                    li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
-                    accountContactsList.appendChild(li);
-                });
-
-            const accountAndContactActivities = state.activities.filter(act =>
-                act.account_id === account.id ||
-                state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
-            ).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            accountActivitiesList.innerHTML = "";
-            accountAndContactActivities.forEach((act) => {
-                const c = state.contacts.find((c) => c.id === act.contact_id);
-                const li = document.createElement("li");
-                li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
-                let borderColor = "var(--primary-blue)";
-                const activityTypeLower = act.type.toLowerCase();
-                if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-                else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-                else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-                li.style.borderLeftColor = borderColor;
-                accountActivitiesList.appendChild(li);
-            });
-        } else {
-            hideAccountDetails(true, true);
-        }
+    // Populate form fields from the account object
+    accountForm.classList.remove('hidden');
+    accountForm.querySelector("#account-id").value = account.id;
+    accountForm.querySelector("#account-name").value = account.name || "";
+    // ... (rest of the form fields populate as before)
+    const websiteInput = accountForm.querySelector("#account-website");
+    const websiteLink = document.getElementById("account-website-link");
+    websiteInput.value = account.website || "";
+    // This internal function doesn't need to change
+    const updateWebsiteLink = (url) => {
+        if (!url || !url.trim()) { if (websiteLink) websiteLink.classList.add('hidden'); return; }
+        let fullUrl = url.trim();
+        if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) { fullUrl = 'https://' + fullUrl; }
+        if (websiteLink) { websiteLink.href = fullUrl; websiteLink.classList.remove('hidden'); }
     };
+    updateWebsiteLink(account.website);
+    accountForm.querySelector("#account-industry").value = account.industry || "";
+    accountForm.querySelector("#account-phone").value = account.phone || "";
+    accountForm.querySelector("#account-address").value = account.address || "";
+    accountForm.querySelector("#account-notes").value = account.notes || "";
+    document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
+    accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
+    accountForm.querySelector("#account-employees").value = account.employee_count || "";
+    accountForm.querySelector("#account-is-customer").checked = account.is_customer;
+
+    // Render related lists using data from the details object
+    accountDealsTableBody.innerHTML = "";
+    deals.forEach((deal) => {
+        const row = accountDealsTableBody.insertRow();
+        row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
+    });
+
+    accountContactsList.innerHTML = "";
+    contacts.forEach((c) => {
+        const li = document.createElement("li");
+        const inSeq = contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+        li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+        accountContactsList.appendChild(li);
+    });
+
+    accountActivitiesList.innerHTML = "";
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
+        const c = contacts.find((c) => c.id === act.contact_id);
+        const li = document.createElement("li");
+        li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
+        let borderColor = "var(--primary-blue)";
+        const activityTypeLower = act.type.toLowerCase();
+        if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
+        else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
+        else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
+        li.style.borderLeftColor = borderColor;
+        accountActivitiesList.appendChild(li);
+    });
+
+    state.isFormDirty = false;
+};
 
     const hideAccountDetails = (hideForm = true, clearSelection = false) => {
         if (accountForm && hideForm) accountForm.classList.add('hidden');
