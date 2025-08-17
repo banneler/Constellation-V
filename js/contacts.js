@@ -965,7 +965,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     }
                 }
                 
-                // This is the core change: build a reusable option string that checks for selected value
                 const getAccountOptions = (suggestedId) => {
                     let options = `<option value="">-- No Account --</option>`;
                     options += state.accounts.map(acc => `<option value="${acc.id}" ${acc.id === suggestedId ? 'selected' : ''}>${acc.name}</option>`).join('');
