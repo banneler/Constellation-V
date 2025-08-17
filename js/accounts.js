@@ -51,13 +51,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", () => {
                 state.isFormDirty = false;
                 window.location.href = url;
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Leave</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            }, true, `<button id="modal--btn" class="btn-primary">Discard & Leave</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else {
             window.location.href = url;
         }
     };
 
-    const confirmAndSwitchAccount = async (newAccountId) => { // Make the function async
+const confirmAndSwitchAccount = async (newAccountId) => { // Make the function async
     const switchAccount = async () => {
         state.selectedAccountId = newAccountId;
         renderAccountList(); // Re-render list to highlight the new selection
