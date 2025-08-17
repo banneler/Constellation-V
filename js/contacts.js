@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         activityTypes: [],
         selectedContactId: null,
         isFormDirty: false
+        nameDisplayFormat: 'lastFirst', // default to Last, First
     };
 
     // --- DOM Element Selectors ---
@@ -54,6 +55,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
     const writeEmailAIButton = document.getElementById("ai-write-email-btn");
+    const sortFirstLastBtn = document.getElementById("sort-first-last-btn");
+    const sortLastFirstBtn = document.getElementById("sort-last-first-btn");
     
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -135,40 +138,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    function updateSortToggleUI() {
+    if (state.nameDisplayFormat === 'firstLast') {
+        sortFirstLastBtn.classList.add('active');
+        sortLastFirstBtn.classList.remove('active');
+    } else {
+        sortFirstLastBtn.classList.remove('active');
+        sortLastFirstBtn.classList.add('active');
+    }
+}
+    
     // --- Render Functions ---
     const renderContactList = () => {
-        if (!contactList) return;
-        const searchTerm = contactSearch.value.toLowerCase();
-        const filteredContacts = state.contacts
-            .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
-            .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
-
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        contactList.innerHTML = "";
-        filteredContacts.forEach((contact) => {
-            const item = document.createElement("div");
-            item.className = "list-item";
-            const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
-            
-            const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
-            
-            const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
-            const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
-            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
-
-            item.innerHTML = `
-                <div class="contact-info">
-                    <div class="contact-name">${organicIcon}${contact.first_name} ${contact.last_name}${sequenceIcon}${hotIcon}</div>
-                    <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
-                </div>
-            `;
-            item.dataset.id = contact.id;
-            if (contact.id === state.selectedContactId) item.classList.add("selected");
-            contactList.appendChild(item);
+    if (!contactList) return;
+    const searchTerm = contactSearch.value.toLowerCase();
+    
+    const filteredContacts = state.contacts
+        .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
+        .sort((a, b) => {
+            if (state.nameDisplayFormat === 'firstLast') {
+                return (a.first_name || "").localeCompare(b.first_name || "");
+            } else { // lastFirst
+                return (a.last_name || "").localeCompare(b.last_name || "");
+            }
         });
-    };
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    contactList.innerHTML = "";
+    filteredContacts.forEach((contact) => {
+        const item = document.createElement("div");
+        item.className = "list-item";
+        const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
+        const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
+        
+        const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
+        const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
+        const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+
+        const displayName = state.nameDisplayFormat === 'firstLast'
+            ? `${contact.first_name} ${contact.last_name}`
+            : `${contact.last_name}, ${contact.first_name}`;
+
+        item.innerHTML = `
+            <div class="contact-info">
+                <div class="contact-name">${organicIcon}${displayName}${sequenceIcon}${hotIcon}</div>
+                <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
+            </div>
+        `;
+        item.dataset.id = contact.id;
+        if (contact.id === state.selectedContactId) item.classList.add("selected");
+        contactList.appendChild(item);
+    });
+};
 
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
@@ -688,6 +711,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
+        if (sortFirstLastBtn) {
+    sortFirstLastBtn.addEventListener('click', () => {
+        if (state.nameDisplayFormat !== 'firstLast') {
+            state.nameDisplayFormat = 'firstLast';
+            localStorage.setItem('contactNameDisplayFormat', 'firstLast');
+            updateSortToggleUI();
+            renderContactList();
+        }
+    });
+}
+
+if (sortLastFirstBtn) {
+    sortLastFirstBtn.addEventListener('click', () => {
+        if (state.nameDisplayFormat !== 'lastFirst') {
+            state.nameDisplayFormat = 'lastFirst';
+            localStorage.setItem('contactNameDisplayFormat', 'lastFirst');
+            updateSortToggleUI();
+            renderContactList();
+        }
+    });
+}
+        
         if (organicStarIndicator) {
             organicStarIndicator.addEventListener('click', async () => {
                 if (!state.selectedContactId) return;
@@ -1340,6 +1385,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = { ...session.user };
+            state.nameDisplayFormat = localStorage.getItem('contactNameDisplayFormat') || 'lastFirst';
+updateSortToggleUI();
             setupPageEventListeners();
             await setupUserMenuAndAuth(supabase, state);
             const urlParams = new URLSearchParams(window.location.search);
