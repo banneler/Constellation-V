@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast, setupGlobalSearch } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast, setupGlobalSearch } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -318,7 +318,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const row = contactEmailsTableBody.insertRow();
             row.dataset.emailId = email.id;
             const hasAttachment = email.attachments && email.attachments.length > 0;
-            const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paperclip" title="${email.attachments.length} attachment(s)"></i>` : '';
+            const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paper-clip" title="${email.attachments.length} attachment(s)"></i>` : '';
             
             row.innerHTML = `
                 <td>${formatDate(email.created_at)}</td>
@@ -930,9 +930,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const findBestAccountMatch = (companyName) => {
                     if (!companyName) return null;
                     const lowerCompanyName = companyName.toLowerCase().trim();
-                    const exactMatch = state.accounts.find(acc => acc.name.toLowerCase().trim() === lowerCompanyName);
+                    const exactMatch = state.accounts.find(acc => acc.name && companyName && acc.name.toLowerCase() === lowerCompanyName);
                     if (exactMatch) return exactMatch.id;
-                    const partialMatch = state.accounts.find(acc => acc.name.toLowerCase().includes(lowerCompanyName) || lowerCompanyName.includes(acc.name.toLowerCase()));
+                    const partialMatch = state.accounts.find(acc => acc.name && lowerCompanyName && (acc.name.toLowerCase().includes(lowerCompanyName) || lowerCompanyName.includes(acc.name.toLowerCase())));
                     return partialMatch ? partialMatch.id : null;
                 };
 
@@ -947,8 +947,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     }
                     if (!existingContact) {
                         existingContact = state.contacts.find(contact =>
-                            contact.first_name.toLowerCase() === record.first_name.toLowerCase() &&
-                            contact.last_name.toLowerCase() === record.last_name.toLowerCase()
+                            contact.first_name && contact.first_name.toLowerCase() === record.first_name.toLowerCase() &&
+                            contact.last_name && contact.last_name.toLowerCase() === record.last_name.toLowerCase()
                         );
                     }
 
