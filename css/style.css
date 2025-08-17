@@ -3900,3 +3900,69 @@ body.theme-green .marketing-indicator {
     font-weight: 500;
     text-align: right;
 }
+/* --- Website Input with Icon --- */
+/* This wrapper is the key to positioning the icon inside the input field */
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Add padding to the input to make space for the icon */
+.input-with-icon input {
+    padding-right: 35px; /* Adjust as needed */
+}
+
+/* Style and position the icon link */
+.external-link-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-secondary);
+    font-size: 0.9em;
+    opacity: 0.7;
+    transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.external-link-icon:hover {
+    opacity: 1;
+    color: var(--primary-blue);
+}
+
+
+/* --- Associated Contacts List --- */
+/* Main container for the list */
+ul#account-contacts-list {
+    list-style-type: none; /* Remove default bullet points */
+    padding-left: 0;
+    margin-top: 10px;
+}
+
+/* Individual contact items */
+ul#account-contacts-list li {
+    background-color: var(--background-color-secondary);
+    border-left: 3px solid var(--primary-blue);
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+ul#account-contacts-list li:hover {
+    background-color: var(--background-color-tertiary);
+}
+
+/* The link inside each list item */
+ul#account-contacts-list li a {
+    color: var(--text-color-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+ul#account-contacts-list li a:hover {
+    text-decoration: underline;
+}
