@@ -153,14 +153,6 @@ async function refreshData() {
     }
 }
 
-// This function now handles creating the "empty shell" view
-const hideAccountDetails = (clearSelection = false) => {
-    if (accountForm) {
-        accountForm.classList.remove('hidden'); // Ensure form is visible
-        accountForm.reset(); // Clear all fields
-        accountForm.querySelector("#account-id").value = '';
-        document.getElementById("account-last-saved").textContent = "";
-    }
     
     // Clear out all related data lists
     if (accountContactsList) accountContactsList.innerHTML = "";
