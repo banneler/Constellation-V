@@ -366,7 +366,7 @@ export async function loadSVGs() {
 }
 
 // --- GLOBAL SEARCH FUNCTION ---
-export async function setupGlobalSearch(supabase, currentUser) {
+export async function setupGlobalSearch(supabase) {
     const searchInput = document.getElementById('global-search-input');
     const searchResultsContainer = document.getElementById('global-search-results');
     let searchTimeout;
@@ -375,7 +375,8 @@ export async function setupGlobalSearch(supabase, currentUser) {
         console.warn("Global search elements not found on this page.");
         return;
     }
-
+    
+    // Debounce search input to prevent firing a function on every keystroke
     searchInput.addEventListener('keyup', (e) => {
         clearTimeout(searchTimeout);
         const searchTerm = e.target.value.trim();
@@ -385,9 +386,9 @@ export async function setupGlobalSearch(supabase, currentUser) {
             return;
         }
 
-        searchTimeout = setTimeout(async () => {
-            await performSearch(searchTerm);
-        }, 300); // Debounce to avoid searching on every keystroke
+        searchTimeout = setTimeout(() => {
+            performSearch(searchTerm);
+        }, 300); 
     });
 
     async function performSearch(term) {
@@ -395,25 +396,20 @@ export async function setupGlobalSearch(supabase, currentUser) {
         searchResultsContainer.classList.remove('hidden');
 
         try {
-            const [contactsRes, accountsRes, dealsRes] = await Promise.all([
-                supabase.from('contacts').select('id, first_name, last_name').or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`).eq('user_id', currentUser.id).limit(5),
-                supabase.from('accounts').select('id, name').ilike('name', `%${term}%`).eq('user_id', currentUser.id).limit(5),
-                supabase.from('deals').select('id, name').ilike('name', `%${term}%`).eq('user_id', currentUser.id).limit(5)
-            ]);
+            // **MAIN CHANGE HERE**
+            // Instead of multiple client-side queries, we now invoke a single Edge Function.
+            const { data: results, error } = await supabase.functions.invoke('global-search', {
+                body: { searchTerm: term }
+            });
 
-            const results = [];
-
-            if (contactsRes.data) {
-                contactsRes.data.forEach(c => results.push({ type: 'Contact', name: `${c.first_name} ${c.last_name}`, url: `contacts.html?contactId=${c.id}` }));
-            }
-            if (accountsRes.data) {
-                accountsRes.data.forEach(a => results.push({ type: 'Account', name: a.name, url: `accounts.html?accountId=${a.id}` }));
-            }
-            if (dealsRes.data) {
-                dealsRes.data.forEach(d => results.push({ type: 'Deal', name: d.name, url: `deals.html?dealId=${d.id}` }));
+            if (error) {
+                // If the edge function itself throws an error, catch it.
+                throw error;
             }
 
-            renderResults(results);
+            // The 'renderResults' function works as-is because our Edge Function
+            // will be designed to return data in the same format.
+            renderResults(results || []);
 
         } catch (error) {
             console.error("Error during global search:", error);
@@ -435,7 +431,7 @@ export async function setupGlobalSearch(supabase, currentUser) {
         `).join('');
     }
 
-    // Hide results when clicking outside
+    // Hide results when clicking anywhere else on the page
     document.addEventListener('click', (e) => {
         if (!searchResultsContainer.contains(e.target) && e.target !== searchInput) {
             searchResultsContainer.classList.add('hidden');
