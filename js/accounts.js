@@ -847,6 +847,7 @@ const hideAccountDetails = (clearSelection = false) => {
                 }
             });
         }
+    }
 
 async function initializePage() {
     await loadSVGs();
