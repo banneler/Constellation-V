@@ -16,8 +16,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         email_log: [],
         activityTypes: [],
         selectedContactId: null,
-        isFormDirty: false
-        nameDisplayFormat: 'lastFirst', // default to Last, First
+        isFormDirty: false,
+        nameDisplayFormat: 'lastFirst' // default to Last, First
     };
 
     // --- DOM Element Selectors ---
