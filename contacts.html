@@ -16,6 +16,13 @@
     <div class="crm-container">
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
+            
+            <!-- NEW: Global Search Bar -->
+            <div class="global-search-container">
+                <input type="text" id="global-search-input" placeholder="Global Search...">
+                <div id="global-search-results" class="global-search-results hidden"></div>
+            </div>
+
             <a href="command-center.html" class="nav-button">Command Center</a>
             <a href="deals.html" class="nav-button">Deals</a>
             <a href="contacts.html" class="nav-button active">Contacts</a>
@@ -69,6 +76,13 @@
                         <input type="file" id="contact-csv-input" accept=".csv" class="hidden">
                         <button id="bulk-export-contacts-btn" class="btn-secondary full-width">Download Contacts CSV</button>
                         <input type="text" id="contact-search" placeholder="Search by name, email...">
+                        
+                        <!-- NEW: Contact Display Toggle -->
+                        <div class="display-toggle-container">
+                            <button id="sort-first-last-btn" class="btn-secondary">First Last</button>
+                            <button id="sort-last-first-btn" class="btn-secondary">Last, First</button>
+                        </div>
+
                         <div id="contact-list" class="item-list"></div>
                     </div>
                     <div id="contact-details" class="details-panel">
@@ -105,13 +119,13 @@
                             </div>
                         </form>
                         <hr>
-                    <div class="action-buttons">
-                        <button id="log-activity-btn" class="btn-secondary">Log Activity</button>
-                        <button id="assign-sequence-btn" class="btn-secondary">Assign Sequence</button>
-                        <button id="add-task-contact-btn" class="btn-secondary">Add Task</button>
-                        <button id="ai-activity-insight-btn" class="btn-primary">AI Activity Insight</button>
-                        <button id="ai-write-email-btn" class="btn-primary">Write Email with AI</button>
-                    </div>
+                        <div class="action-buttons">
+                            <button id="log-activity-btn" class="btn-secondary">Log Activity</button>
+                            <button id="assign-sequence-btn" class="btn-secondary">Assign Sequence</button>
+                            <button id="add-task-contact-btn" class="btn-secondary">Add Task</button>
+                            <button id="ai-activity-insight-btn" class="btn-primary">AI Activity Insight</button>
+                            <button id="ai-write-email-btn" class="btn-primary">Write Email with AI</button>
+                        </div>
                         <div class="related-info">
                             <h4>Sequence Status</h4>
                             <div id="sequence-status-content" class="sequence-status-display hidden">
