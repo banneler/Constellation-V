@@ -842,5 +842,4 @@ async function initializePage() {
         );
     }
 }
-
     initializePage();
