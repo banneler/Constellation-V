@@ -119,15 +119,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         // Pre-calculate which accounts are "hot" and which have open deals for efficiency
-        const contactIdsByAccount = state.accounts.reduce((acc, account) => {
-            acc[account.id] = state.contacts.filter(c => c.account_id === account.id).map(c => c.id);
-            return acc;
-        }, {});
-
         const hotAccountIds = new Set(
             state.activities
                 .filter(act => new Date(act.date) > thirtyDaysAgo)
-                .map(act => act.account_id || state.contacts.find(c => c.id === act.contact_id)?.account_id)
+                .map(act => {
+                    if (act.account_id) return act.account_id;
+                    const contact = state.contacts.find(c => c.id === act.contact_id);
+                    return contact ? contact.account_id : null;
+                })
                 .filter(id => id)
         );
 
@@ -815,8 +814,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state); // This handles user menu and logout
-            setupPageEventListeners(); // Setup other listeners
+            await setupUserMenuAndAuth(supabase, state); 
+            await setupGlobalSearch(supabase, state.currentUser);
+            setupPageEventListeners(); 
             
             const urlParams = new URLSearchParams(window.location.search);
             const accountIdFromUrl = urlParams.get('accountId');
