@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, addDays, loadSVGs } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, addDays, loadSVGs, setupGlobalSearch } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("sequences.js script started parsing.");
@@ -960,6 +960,7 @@ async function processBulkAssignment() {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
+            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
             await loadAllData();
         } else {
             window.location.href = "index.html";
