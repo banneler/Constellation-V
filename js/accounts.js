@@ -110,14 +110,6 @@ async function loadInitialData() {
 // 2. Fetches detailed data for ONE account after it has been selected.
 // Fetches detailed data and puts it into the new state.selectedAccountDetails object
 async function loadDetailsForSelectedAccount() {
-    // Add this new function
-async function refreshData() {
-    await loadInitialData();
-    // Re-load details only if an account is currently selected
-    if (state.selectedAccountId) {
-        await loadDetailsForSelectedAccount();
-    }
-}
     if (!state.selectedAccountId) return;
 
     // Show a loading state in the UI immediately
@@ -151,6 +143,14 @@ async function refreshData() {
     state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
 
     renderAccountDetails();
+}
+        // Add this new function
+async function refreshData() {
+    await loadInitialData();
+    // Re-load details only if an account is currently selected
+    if (state.selectedAccountId) {
+        await loadDetailsForSelectedAccount();
+    }
 }
 
 // This function now handles creating the "empty shell" view
