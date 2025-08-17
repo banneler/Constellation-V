@@ -793,64 +793,60 @@ const hideAccountDetails = (clearSelection = false) => {
         }
 
         if (aiAccountInsightBtn) {
-            aiAccountInsightBtn.addEventListener("click", async () => {
-                if (!state.selectedAccountId) {
-                    showModal("Error", "Please select an account to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
+            aiAccountInsightBtn.addEventListener("click", async () => {
+                if (!state.selectedAccountId) {
+                    showModal("Error", "Please select an account to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
 
-                const account = state.accounts.find(a => a.id === state.selectedAccountId);
-                if (!account) {
-                    showModal("Error", "Selected account not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
+                const account = state.selectedAccountDetails.account;
+                if (!account) {
+                    showModal("Error", "Selected account details not loaded. Please try refreshing the page.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+                const relevantActivities = state.selectedAccountDetails.activities;
+                const relevantContacts = state.selectedAccountDetails.contacts;
+                
+                relevantActivities.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-                const relevantActivities = state.activities
-                    .filter(act =>
-                        act.account_id === account.id ||
-                        state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
-                    )
-                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+                if (relevantActivities.length === 0) {
+                    showModal("Info", "No activities found for this account to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
 
-                if (relevantActivities.length === 0) {
-                    showModal("Info", "No activities found for this account or its contacts to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
+                const activityData = relevantActivities.map(act => {
+                    const contact = relevantContacts.find(c => c.id === act.contact_id);
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                    return `[${formatDate(act.date)}] Type: ${act.type}, Contact: ${contactName}, Description: ${act.description}`;
+                }).join('\n');
 
-                const activityData = relevantActivities.map(act => {
-                    const contact = state.contacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] Type: ${act.type}, Contact: ${contactName}, Description: ${act.description}`;
-                }).join('\n');
+                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing account activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
-                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing account activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                try {
+                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
+                        body: {
+                            accountName: account.name,
+                            activityLog: activityData
+                        }
+                    });
+                    if (error) throw error;
 
-                try {
-                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
-                        body: {
-                            accountName: account.name,
-                            activityLog: activityData
-                        }
-                    });
-                    if (error) throw error;
+                    const insight = data.insight || "No insight generated.";
+                    const nextSteps = data.next_steps || "No specific next steps suggested.";
 
-                    const insight = data.insight || "No insight generated.";
-                    const nextSteps = data.next_steps || "No specific next steps suggested.";
+                    showModal("AI Account Insight", `
+                        <h4>Summary:</h4>
+                        <p>${insight}</p>
+                        <h4>Suggested Next Steps:</h4>
+                        <p>${nextSteps}</p>
+                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
-                    showModal("AI Account Insight", `
-                        <h4>Summary:</h4>
-                        <p>${insight}</p>
-                        <h4>Suggested Next Steps:</h4>
-                        <p>${nextSteps}</p>
-                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-
-                } catch (error) {
-                    console.error("Error invoking AI insight Edge Function:", error);
-                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                }
-            });
-        }
-    }
+                } catch (error) {
+                    console.error("Error invoking AI insight Edge Function:", error);
+                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
+            });
+        }
 
 async function initializePage() {
     await loadSVGs();
