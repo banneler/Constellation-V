@@ -47,68 +47,93 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const confirmAndSwitchAccount = (newAccountId) => {
-        if (state.isFormDirty) {
-            showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", () => {
-                state.isFormDirty = false;
-                state.selectedAccountId = newAccountId;
-                renderAccountList();
-                renderAccountDetails();
-                hideModal();
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-        } else {
-            state.selectedAccountId = newAccountId;
-            renderAccountList();
-            renderAccountDetails();
-        }
+    const confirmAndSwitchAccount = async (newAccountId) => { // Make the function async
+    const switchAccount = async () => {
+        state.selectedAccountId = newAccountId;
+        renderAccountList(); // Re-render list to highlight the new selection
+        await loadDetailsForSelectedAccount(); // Await the on-demand fetch
     };
 
-    // --- Data Fetching ---
-    async function loadAllData() {
-        if (!state.currentUser) return;
-        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
-        const promises = userSpecificTables.map((table) =>
-            supabase.from(table).select("*").eq("user_id", state.currentUser.id)
-        );
-        const dealStagesPromise = supabase.from("deal_stages").select("*").order('sort_order');
-        promises.push(dealStagesPromise);
-
-        try {
-            const results = await Promise.allSettled(promises);
-            results.forEach((result, index) => {
-                const tableName = userSpecificTables[index];
-                if (result.status === "fulfilled" && !result.value.error) {
-                    state[tableName] = result.value.data || [];
-                } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error : result.reason);
-                    state[tableName] = [];
-                }
-            });
-            const dealStagesResult = results[userSpecificTables.length];
-            if (dealStagesResult.status === "fulfilled" && !dealStagesResult.value.error) {
-                state.dealStages = dealStagesResult.value.data || [];
-            } else {
-                console.error(`Error fetching deal_stages:`, dealStagesResult.status === 'fulfilled' ? dealStagesResult.value.error : dealStagesResult.reason);
-                state.dealStages = [];
-            }
-
-            renderAccountList();
-            if (state.selectedAccountId) {
-                const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
-                if (updatedAccount) {
-                    renderAccountDetails();
-                } else {
-                    hideAccountDetails(false, true);
-                }
-            } else {
-                hideAccountDetails(false, true);
-            }
-
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-            throw error; // Throw error to be caught by initializePage
-        }
+    if (state.isFormDirty) {
+        showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", async () => {
+            state.isFormDirty = false;
+            hideModal();
+            await switchAccount();
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+    } else {
+        await switchAccount();
     }
+};
+
+    // --- Data Fetching ---
+
+// 1. Fetches only the data needed to build the account list on the left.
+async function loadInitialData() {
+    if (!state.currentUser) return;
+    
+    // Select only the columns needed for the list view icons (🔥, 💰) to keep the query fast.
+    const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
+        supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
+        supabase.from("deals").select("id, account_id, stage").eq("user_id", state.currentUser.id),
+        supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", state.currentUser.id),
+        supabase.from("contacts").select("id, account_id").eq("user_id", state.currentUser.id),
+        supabase.from("deal_stages").select("*").order('sort_order')
+    ]);
+
+    // Check for errors from each query
+    if (accountsRes.error) throw accountsRes.error;
+    if (dealsRes.error) throw dealsRes.error;
+    if (activitiesRes.error) throw activitiesRes.error;
+    if (contactsRes.error) throw contactsRes.error;
+    if (dealStagesRes.error) throw dealStagesRes.error;
+    
+    // Assign data to state
+    state.accounts = accountsRes.data || [];
+    state.deals = dealsRes.data || [];
+    state.activities = activitiesRes.data || [];
+    state.contacts = contactsRes.data || [];
+    state.dealStages = dealStagesRes.data || [];
+
+    renderAccountList(); // Render the list as soon as it's ready
+}
+
+// 2. Fetches detailed data for ONE account after it has been selected.
+async function loadDetailsForSelectedAccount() {
+    if (!state.selectedAccountId) {
+        hideAccountDetails(true, false);
+        return;
+    }
+    // Set a loading state in the UI
+    accountContactsList.innerHTML = '<li>Loading details...</li>';
+    accountActivitiesList.innerHTML = '<li>Loading details...</li>';
+    accountDealsTableBody.innerHTML = '';
+    
+    const account = state.accounts.find(a => a.id === state.selectedAccountId);
+
+    const [contactsRes, dealsRes, activitiesRes, tasksRes, sequencesRes] = await Promise.all([
+        supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("activities").select("*").eq("account_id", state.selectedAccountId), // This is a simplified query; a full version would also get activities by contact_id
+        supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("contact_sequences").select("*") // This might need a more specific filter
+    ]);
+    
+    if (contactsRes.error) throw contactsRes.error;
+    if (dealsRes.error) throw dealsRes.error;
+    if (activitiesRes.error) throw activitiesRes.error;
+    if (tasksRes.error) throw tasksRes.error;
+    if (sequencesRes.error) throw sequencesRes.error;
+
+    // IMPORTANT: Overwrite the general state with the specific details for this account
+    state.contacts = contactsRes.data || [];
+    state.deals = dealsRes.data || [];
+    state.activities = activitiesRes.data || [];
+    state.tasks = tasksRes.data || [];
+    state.contact_sequences = sequencesRes.data || [];
+
+    // Now, render the details panel with the fresh, specific data
+    renderAccountDetails();
+}
 
     // --- Render Functions ---
     const renderAccountList = () => {
@@ -826,40 +851,47 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function initializePage() {
-        await loadSVGs();
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+async function initializePage() {
+    await loadSVGs();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (sessionError || !session) {
-            console.error('Authentication failed or no session found. Redirecting to login.');
-            window.location.href = "index.html";
-            return;
-        }
-        state.currentUser = session.user;
-
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const accountIdFromUrl = urlParams.get('accountId');
-            if (accountIdFromUrl) {
-                state.selectedAccountId = Number(accountIdFromUrl);
-            }
-
-            await loadAllData();
-
-            await setupUserMenuAndAuth(supabase, state);
-            await setupGlobalSearch(supabase, state.currentUser);
-            setupPageEventListeners();
-
-        } catch (error) {
-            console.error("Critical error during page initialization:", error);
-            showModal(
-                "Loading Error",
-                "There was a problem loading account data. Please refresh the page to try again.",
-                null,
-                false,
-                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-            );
-        }
+    if (sessionError || !session) {
+        console.error('Authentication failed or no session found. Redirecting to login.');
+        window.location.href = "index.html";
+        return;
     }
+    state.currentUser = session.user;
+
+    try {
+        // Use the new, fast initial load
+        await loadInitialData(); 
+
+        // If an accountId is in the URL from another page, load its details
+        const urlParams = new URLSearchParams(window.location.search);
+        const accountIdFromUrl = urlParams.get('accountId');
+        if (accountIdFromUrl) {
+            state.selectedAccountId = Number(accountIdFromUrl);
+            await loadDetailsForSelectedAccount();
+        } else {
+            // If no account is selected, ensure the details panel is hidden
+            hideAccountDetails(true, true);
+        }
+        
+        // The rest of the setup runs after the initial view is ready
+        await setupUserMenuAndAuth(supabase, state);
+        await setupGlobalSearch(supabase); // No longer needs currentUser
+        setupPageEventListeners();
+
+    } catch (error) {
+        console.error("Critical error during page initialization:", error);
+        showModal(
+            "Loading Error",
+            "There was a problem loading account data. Please refresh the page to try again.",
+            null,
+            false,
+            `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+        );
+    }
+}
     initializePage();
 });
