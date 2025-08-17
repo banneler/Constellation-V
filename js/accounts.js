@@ -337,25 +337,6 @@ const hideAccountDetails = (clearSelection = false) => {
     state.isFormDirty = false;
 };
 
-    const hideAccountDetails = (hideForm = true, clearSelection = false) => {
-        if (accountForm && hideForm) accountForm.classList.add('hidden');
-        else if (accountForm) {
-            accountForm.classList.remove('hidden');
-            accountForm.reset();
-        }
-
-        if (accountContactsList) accountContactsList.innerHTML = "";
-        if (accountActivitiesList) accountActivitiesList.innerHTML = "";
-        if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
-
-        if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
-
-        if (clearSelection) {
-            state.selectedAccountId = null;
-            document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
-            state.isFormDirty = false;
-        }
-    };
 
     // --- Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
