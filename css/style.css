@@ -3931,33 +3931,35 @@ body.theme-green .marketing-indicator {
 }
 
 
-/* --- Associated Contacts List (Revised) --- */
+/* --- Associated Contacts List (2-Column Grid) --- */
 /* Main container for the list */
 ul#account-contacts-list {
-    list-style-type: none; /* Remove default bullet points */
+    list-style-type: none;
     padding-left: 0;
     margin-top: 10px;
+
+    /* --- NEW GRID STYLES --- */
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* This creates two equal-width columns */
+    gap: 10px; /* This adds a nice space between all items */
 }
 
 /* Individual contact items */
 ul#account-contacts-list li {
-    /* Kept flexbox but removed justify-content to keep items together */
     display: flex;
     align-items: center;
-    gap: 0.5em; /* Adds a little space between the name and title */
-
-    /* Added a border to make the item pop, as background-color can be theme-dependent */
+    gap: 0.5em; 
     background-color: var(--background-color-secondary);
     border: 1px solid var(--border-color); 
     padding: 12px 15px;
-    margin-bottom: 8px;
     border-radius: 4px;
     transition: all 0.2s ease;
+    margin-bottom: 0; /* Removed margin now that we have a grid gap */
 }
 
 ul#account-contacts-list li:hover {
     border-color: var(--primary-blue);
-    box-shadow: 0 0 8px var(--primary-blue-transparent); /* Adds a nice glow on hover */
+    box-shadow: 0 0 8px var(--primary-blue-transparent);
 }
 
 /* The link inside each list item */
@@ -3973,13 +3975,18 @@ ul#account-contacts-list li a:hover {
 
 /* Style the "in sequence" icon */
 .sequence-status-icon {
-    /* This is the magic part that pushes the icon to the far right */
-    margin-left: auto; 
-    
+    margin-left: auto;
     background-color: var(--primary-blue);
     height: 10px;
     width: 10px;
     border-radius: 50%;
-    /* Add a little left padding so it's not glued to the edge */
-    margin-right: 5px; 
+    margin-right: 5px;
+}
+
+/* --- NEW RESPONSIVE STYLE --- */
+/* On smaller screens, stack back to a single column */
+@media (max-width: 900px) {
+    ul#account-contacts-list {
+        grid-template-columns: 1fr;
+    }
 }
