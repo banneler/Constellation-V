@@ -376,7 +376,6 @@ export async function setupGlobalSearch(supabase) {
         return;
     }
     
-    // Debounce search input to prevent firing a function on every keystroke
     searchInput.addEventListener('keyup', (e) => {
         clearTimeout(searchTimeout);
         const searchTerm = e.target.value.trim();
@@ -396,19 +395,20 @@ export async function setupGlobalSearch(supabase) {
         searchResultsContainer.classList.remove('hidden');
 
         try {
-            // **MAIN CHANGE HERE**
-            // Instead of multiple client-side queries, we now invoke a single Edge Function.
+            // **FIX APPLIED HERE**
             const { data: results, error } = await supabase.functions.invoke('global-search', {
-                body: { searchTerm: term }
+                // 1. Manually stringify the body to ensure it's a valid JSON string.
+                body: JSON.stringify({ searchTerm: term }),
+                // 2. Explicitly set the content-type header.
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
 
             if (error) {
-                // If the edge function itself throws an error, catch it.
                 throw error;
             }
-
-            // The 'renderResults' function works as-is because our Edge Function
-            // will be designed to return data in the same format.
+            
             renderResults(results || []);
 
         } catch (error) {
@@ -431,7 +431,6 @@ export async function setupGlobalSearch(supabase) {
         `).join('');
     }
 
-    // Hide results when clicking anywhere else on the page
     document.addEventListener('click', (e) => {
         if (!searchResultsContainer.contains(e.target) && e.target !== searchInput) {
             searchResultsContainer.classList.add('hidden');
