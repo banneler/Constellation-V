@@ -1393,6 +1393,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const contactIdFromUrl = urlParams.get('contactId');
             if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
+            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
             await loadAllData();
         } else {
             window.location.href = "index.html";
