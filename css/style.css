@@ -3782,3 +3782,26 @@ body.theme-green .marketing-indicator {
     gap: 1.25rem;
     margin-top: 1.25rem;
 }
+/* --- Contact Display Toggle --- */
+.display-toggle-container {
+    display: flex;
+    margin-bottom: 0.625rem;
+}
+
+.display-toggle-container button {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    border-radius: 0;
+    /* We use the existing .btn-secondary.active class to show the selected state */
+}
+
+.display-toggle-container button:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.display-toggle-container button:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
