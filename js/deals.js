@@ -10,7 +10,8 @@ import {
     hideModal,
     updateActiveNavLink,
     setupUserMenuAndAuth,
-    loadSVGs
+    loadSVGs,
+    setupGlobalSearch
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -470,6 +471,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
             setupPageEventListeners();
+            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
             await loadAllData();
         } else {
             window.location.href = "index.html";
@@ -478,3 +480,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     initializePage();
 });
+
