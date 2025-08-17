@@ -118,7 +118,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // Pre-calculate which accounts are "hot" and which have open deals for efficiency
         const hotAccountIds = new Set(
             state.activities
                 .filter(act => new Date(act.date) > thirtyDaysAgo)
