@@ -110,6 +110,14 @@ async function loadInitialData() {
 // 2. Fetches detailed data for ONE account after it has been selected.
 // Fetches detailed data and puts it into the new state.selectedAccountDetails object
 async function loadDetailsForSelectedAccount() {
+    // Add this new function
+async function refreshData() {
+    await loadInitialData();
+    // Re-load details only if an account is currently selected
+    if (state.selectedAccountId) {
+        await loadDetailsForSelectedAccount();
+    }
+}
     if (!state.selectedAccountId) return;
 
     // Show a loading state in the UI immediately
@@ -387,7 +395,7 @@ const hideAccountDetails = (clearSelection = false) => {
             }
             const { error } = await supabase.from('deals').update(updatedDealData).eq('id', dealId);
             if (error) { showModal("Error", 'Error updating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
-            else { await loadAllData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
+            else { wait refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
@@ -438,7 +446,7 @@ const hideAccountDetails = (clearSelection = false) => {
                                 return false;
                             }
                             state.isFormDirty = false;
-                            await loadAllData();
+                            wait refreshData();
                             state.selectedAccountId = newAccountArr?.[0]?.id;
                             renderAccountList();
                             renderAccountDetails();
@@ -508,7 +516,7 @@ const hideAccountDetails = (clearSelection = false) => {
                 }
 
                 state.isFormDirty = false;
-                await loadAllData();
+                wait refreshData();
                 showModal("Success", "Account saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             });
         }
@@ -525,7 +533,7 @@ const hideAccountDetails = (clearSelection = false) => {
                         }
                         state.selectedAccountId = null;
                         state.isFormDirty = false;
-                        await loadAllData();
+                        wait refreshData();
                         hideModal();
                         showModal("Success", "Account deleted successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -687,7 +695,7 @@ const hideAccountDetails = (clearSelection = false) => {
                             if (errorCount > 0) resultMessage += ` ${errorCount} failed. Check console for details.`;
                             showModal("Import Complete", resultMessage, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
-                            await loadAllData();
+                            wait refreshData();
                             return true;
                         }, true, `<button id="modal-confirm-btn" class="btn-primary">Process Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
@@ -748,7 +756,7 @@ const hideAccountDetails = (clearSelection = false) => {
                         return false;
                     }
 
-                    await loadAllData();
+                    wait refreshData();
                     hideModal();
                     showModal("Success", 'Deal created successfully!', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return true;
@@ -794,7 +802,7 @@ const hideAccountDetails = (clearSelection = false) => {
                             showModal("Error", 'Error adding task: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                             return false;
                         }
-                        await loadAllData();
+                        wait refreshData();
                         hideModal();
                         showModal("Success", "Task created successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         return true;
@@ -885,7 +893,7 @@ async function initializePage() {
             await loadDetailsForSelectedAccount();
         } else {
             // If no account is selected, ensure the details panel is hidden
-            hideAccountDetails(true, true);
+            hideAccountDetails(false, true);
         }
         
         // The rest of the setup runs after the initial view is ready
