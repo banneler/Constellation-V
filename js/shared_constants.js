@@ -217,12 +217,10 @@ export function showToast(message, type = 'success') {
     toast.innerHTML = `<span>${message}</span>`;
     toastContainer.appendChild(toast);
 
-    // Keep the toast visible for a few seconds before starting the fade-out.
-    // The previous version was hiding it immediately.
     setTimeout(() => {
         toast.classList.add('hide');
         toast.addEventListener('transitionend', () => toast.remove());
-    }, 4000); // Wait 4 seconds before starting the fade-out.
+    }, 4000); 
 }
 
 
@@ -365,4 +363,82 @@ export async function loadSVGs() {
             }
         }
     }
+}
+
+// --- GLOBAL SEARCH FUNCTION ---
+export async function setupGlobalSearch(supabase, currentUser) {
+    const searchInput = document.getElementById('global-search-input');
+    const searchResultsContainer = document.getElementById('global-search-results');
+    let searchTimeout;
+
+    if (!searchInput || !searchResultsContainer) {
+        console.warn("Global search elements not found on this page.");
+        return;
+    }
+
+    searchInput.addEventListener('keyup', (e) => {
+        clearTimeout(searchTimeout);
+        const searchTerm = e.target.value.trim();
+
+        if (searchTerm.length < 2) {
+            searchResultsContainer.classList.add('hidden');
+            return;
+        }
+
+        searchTimeout = setTimeout(async () => {
+            await performSearch(searchTerm);
+        }, 300); // Debounce to avoid searching on every keystroke
+    });
+
+    async function performSearch(term) {
+        searchResultsContainer.innerHTML = '<div class="search-result-item">Searching...</div>';
+        searchResultsContainer.classList.remove('hidden');
+
+        try {
+            const [contactsRes, accountsRes, dealsRes] = await Promise.all([
+                supabase.from('contacts').select('id, first_name, last_name').or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`).eq('user_id', currentUser.id).limit(5),
+                supabase.from('accounts').select('id, name').ilike('name', `%${term}%`).eq('user_id', currentUser.id).limit(5),
+                supabase.from('deals').select('id, name').ilike('name', `%${term}%`).eq('user_id', currentUser.id).limit(5)
+            ]);
+
+            const results = [];
+
+            if (contactsRes.data) {
+                contactsRes.data.forEach(c => results.push({ type: 'Contact', name: `${c.first_name} ${c.last_name}`, url: `contacts.html?contactId=${c.id}` }));
+            }
+            if (accountsRes.data) {
+                accountsRes.data.forEach(a => results.push({ type: 'Account', name: a.name, url: `accounts.html?accountId=${a.id}` }));
+            }
+            if (dealsRes.data) {
+                dealsRes.data.forEach(d => results.push({ type: 'Deal', name: d.name, url: `deals.html?dealId=${d.id}` }));
+            }
+
+            renderResults(results);
+
+        } catch (error) {
+            console.error("Error during global search:", error);
+            searchResultsContainer.innerHTML = '<div class="search-result-item">Error searching.</div>';
+        }
+    }
+
+    function renderResults(results) {
+        if (results.length === 0) {
+            searchResultsContainer.innerHTML = '<div class="search-result-item">No results found.</div>';
+            return;
+        }
+
+        searchResultsContainer.innerHTML = results.map(result => `
+            <a href="${result.url}" class="search-result-item">
+                <span class="result-type">${result.type}</span>
+                <span class="result-name">${result.name}</span>
+            </a>
+        `).join('');
+    }
+
+    // Hide results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchResultsContainer.contains(e.target) && e.target !== searchInput) {
+            searchResultsContainer.classList.add('hidden');
+        }
+    });
 }
