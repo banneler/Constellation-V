@@ -17,7 +17,6 @@
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
 
-            <!-- NEW: Global Search Bar -->
             <div class="global-search-container">
                 <input type="text" id="global-search-input" placeholder="Global Search...">
                 <div id="global-search-results" class="global-search-results hidden"></div>
@@ -36,8 +35,8 @@
                         C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
                             <defs>
                                 <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#60a5fa;"/>
-                                    <stop offset="100%" style="stop-color:#3b82f6;"/>
+                                    <stop offset="0%" style="stop-color:#60a5fa;" />
+                                    <stop offset="100%" style="stop-color:#3b82f6;" />
                                 </linearGradient>
                             </defs>
                             <g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round">
@@ -69,17 +68,18 @@
                     <div class="item-list-container">
                         <button id="add-account-btn" class="btn-primary full-width">Add New Account</button>
                         <button id="bulk-import-accounts-btn" class="btn-secondary full-width">Bulk Import from CSV</button>
+                        <button id="bulk-export-accounts-btn" class="btn-secondary full-width">Bulk Export to CSV</button>
                         <input type="file" id="account-csv-input" accept=".csv" class="hidden">
-                        
+
                         <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
                         <div class="filter-bar">
                             <select id="account-status-filter">
-    <option value="all">All Accounts</option>
-    <option value="hot">🔥 Hot Accounts</option>
-    <option value="with_deals">💰 With Open Deals</option>
-    <option value="customer">Customers</option>
-    <option value="prospect">Prospects</option>
-</select>
+                                <option value="all">All Accounts</option>
+                                <option value="hot">🔥 Hot Accounts</option>
+                                <option value="with_deals">💰 With Open Deals</option>
+                                <option value="customer">Customers</option>
+                                <option value="prospect">Prospects</option>
+                            </select>
                         </div>
                         <div id="account-list" class="item-list"></div>
                     </div>
@@ -90,14 +90,22 @@
                             <input type="hidden" id="account-id">
                             <div class="form-grid">
                                 <div><label for="account-name">Account Name</label><input type="text" id="account-name" required></div>
-                                <div><label for="account-website">Website</label><input type="text" id="account-website"></div>
+                                <div>
+                                    <label for="account-website">Website</label>
+                                    <div class="input-with-icon">
+                                        <input type="text" id="account-website">
+                                        <a href="#" id="account-website-link" target="_blank" class="external-link-icon hidden" title="Open website in new tab">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </a>
+                                    </div>
+                                </div>
                                 <div><label for="account-industry">Industry</label><input type="text" id="account-industry"></div>
                                 <div><label for="account-phone">Phone</label><input type="tel" id="account-phone"></div>
                                 <div><label for="account-sites">Quantity of Sites</label><input type="number" id="account-sites" min="0"></div>
                                 <div><label for="account-employees">Employee Count</label><input type="number" id="account-employees" min="0"></div>
                                 <div class="full-span-grid-item"><label for="account-address">Address</label><textarea id="account-address"></textarea></div>
                             </div>
-                            
+
                             <div class="form-checkbox-group">
                                 <label for="account-is-customer">Is this a Customer?</label>
                                 <input type="checkbox" id="account-is-customer">
@@ -171,11 +179,10 @@
         </div>
     </div>
     <script>
-    // This script runs synchronously to apply the theme before the page renders
-    (function() {
-        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
-    })();
+        (function() {
+            const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+            document.body.className = `theme-${savedTheme}`;
+        })();
     </script>
     <script type="module" src="js/accounts.js"></script>
 </body>
