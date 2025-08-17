@@ -964,8 +964,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                         recordsToInsert.push({ ...record, suggested_account_id: suggested_account_id });
                     }
                 }
-
-                const accountOptions = state.accounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
+                
+                // This is the core change: build a reusable option string that checks for selected value
+                const getAccountOptions = (suggestedId) => {
+                    let options = `<option value="">-- No Account --</option>`;
+                    options += state.accounts.map(acc => `<option value="${acc.id}" ${acc.id === suggestedId ? 'selected' : ''}>${acc.name}</option>`).join('');
+                    return options;
+                };
 
                 const modalBodyHtml = `
                     <p>The import process identified the following changes. Use the checkboxes to select which rows you want to process.</p>
@@ -989,7 +994,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                                         <td>${r.first_name} ${r.last_name}</td>
                                         <td>${r.email}</td>
                                         <td>-</td>
-                                        <td><select class="account-select"><option value="">-- No Account --</option>${accountOptions}</select></td>
+                                        <td>
+                                            <select class="account-select">${getAccountOptions(r.suggested_account_id)}</select>
+                                        </td>
                                     </tr>
                                 `).join('')}
                                 ${recordsToUpdate.map((r, index) => `
@@ -1003,7 +1010,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                                                 <p><small><strong>${key}:</strong> "${r.changes[key].old}" &rarr; "<strong>${r.changes[key].new}</strong>"</small></p>
                                             `).join('')}
                                         </td>
-                                        <td><select class="account-select"><option value="">-- No Account --</option>${accountOptions}</select></td>
+                                        <td>
+                                            <select class="account-select">${getAccountOptions(r.suggested_account_id)}</select>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
