@@ -792,7 +792,7 @@ const hideAccountDetails = (clearSelection = false) => {
             });
         }
 
-        if (aiAccountInsightBtn) {
+if (aiAccountInsightBtn) {
     aiAccountInsightBtn.addEventListener("click", async () => {
         if (!state.selectedAccountId) {
             showModal("Error", "Please select an account to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -807,9 +807,8 @@ const hideAccountDetails = (clearSelection = false) => {
             return;
         }
 
-        // Filter the activities from the dedicated details object, which already has the full data
-        const relevantActivities = activities
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
+        // Filter and sort the activities from the dedicated details object
+        const relevantActivities = activities.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         if (relevantActivities.length === 0) {
             showModal("Info", "No activities found for this account to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
