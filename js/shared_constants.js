@@ -412,9 +412,10 @@ export async function setupGlobalSearch(supabase) {
             renderResults(results || []);
 
         } catch (error) {
-            console.error("Error during global search:", error);
-            searchResultsContainer.innerHTML = '<div class="search-result-item">Error searching.</div>';
-        }
+    // MODIFIED LINES:
+    console.error("Error invoking global-search function:", error);
+    searchResultsContainer.innerHTML = `<div class="search-result-item">Error: ${error.message}</div>`;
+}
     }
 
     function renderResults(results) {
@@ -437,3 +438,4 @@ export async function setupGlobalSearch(supabase) {
         }
     });
 }
+
