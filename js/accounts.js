@@ -847,8 +847,8 @@ const hideAccountDetails = (clearSelection = false) => {
             showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     });
-)
-            )
+}
+
 async function initializePage() {
     await loadSVGs();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
