@@ -3805,3 +3805,98 @@ body.theme-green .marketing-indicator {
     border-top-right-radius: 5px;
     border-bottom-right-radius: 5px;
 }
+
+/* --- Contact Display Toggle --- */
+.display-toggle-container {
+    display: flex;
+    margin-bottom: 0.625rem;
+}
+
+.display-toggle-container button {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    border-radius: 0;
+    /* We use the existing .btn-secondary.active class to show the selected state */
+}
+
+.display-toggle-container button:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.display-toggle-container button:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+/* --- Global Search --- */
+.global-search-container {
+    position: relative;
+    margin-bottom: 1rem;
+    padding: 0 0.625rem;
+}
+
+#global-search-input {
+    width: 100%;
+    padding: 0.5rem;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 0.9rem;
+}
+
+#global-search-input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 5px var(--primary-blue);
+}
+
+.global-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0.625rem;
+    right: 0.625rem;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 8px 15px var(--shadow-medium);
+}
+
+.search-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    color: var(--text-light);
+    text-decoration: none;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background-color: var(--bg-medium);
+}
+
+.search-result-item .result-type {
+    font-size: 0.8rem;
+    color: var(--text-medium);
+    background-color: var(--bg-dark);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+}
+
+.search-result-item .result-name {
+    font-weight: 500;
+    text-align: right;
+}
