@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, setupGlobalSearch } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -115,22 +115,46 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const searchTerm = accountSearch.value.toLowerCase();
         const statusFilter = accountStatusFilter.value;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Pre-calculate which accounts are "hot" and which have open deals for efficiency
+        const contactIdsByAccount = state.accounts.reduce((acc, account) => {
+            acc[account.id] = state.contacts.filter(c => c.account_id === account.id).map(c => c.id);
+            return acc;
+        }, {});
+
+        const hotAccountIds = new Set(
+            state.activities
+                .filter(act => new Date(act.date) > thirtyDaysAgo)
+                .map(act => act.account_id || state.contacts.find(c => c.id === act.contact_id)?.account_id)
+                .filter(id => id)
+        );
+
+        const accountsWithOpenDealsIds = new Set(
+            state.deals
+                .filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost')
+                .map(deal => deal.account_id)
+        );
 
         const filteredAccounts = state.accounts.filter(account => {
             const matchesSearch = (account.name || "").toLowerCase().includes(searchTerm);
-            
-            let matchesStatus = true;
-            if (statusFilter === 'customer') {
-                matchesStatus = account.is_customer === true;
-            } else if (statusFilter === 'prospect') {
-                matchesStatus = account.is_customer !== true;
+            if (!matchesSearch) return false;
+
+            switch (statusFilter) {
+                case 'hot':
+                    return hotAccountIds.has(account.id);
+                case 'with_deals':
+                    return accountsWithOpenDealsIds.has(account.id);
+                case 'customer':
+                    return account.is_customer === true;
+                case 'prospect':
+                    return account.is_customer !== true;
+                case 'all':
+                default:
+                    return true;
             }
-
-            return matchesSearch && matchesStatus;
         });
-
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         accountList.innerHTML = "";
         filteredAccounts
@@ -140,23 +164,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 i.className = "list-item";
                 i.dataset.id = account.id;
 
-                const hasOpenDeal = state.deals.some(deal =>
-                    deal.account_id === account.id &&
-                    deal.stage !== 'Closed Won' &&
-                    deal.stage !== 'Closed Lost'
-                );
-
-                const contactIdsForAccount = state.contacts
-                    .filter(c => c.account_id === account.id)
-                    .map(c => c.id);
-
-                const hasRecentActivity = state.activities.some(act =>
-                    (act.account_id === account.id || contactIdsForAccount.includes(act.contact_id)) &&
-                    new Date(act.date) > thirtyDaysAgo
-                );
+                const hasOpenDeal = accountsWithOpenDealsIds.has(account.id);
+                const isHot = hotAccountIds.has(account.id);
 
                 const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
-                const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+                const hotIcon = isHot ? '<span class="hot-contact-icon">🔥</span>' : '';
 
                 i.innerHTML = `<div class="account-list-name">${account.name}</div> <div class="list-item-icons">${hotIcon}${dealIcon}</div>`;
 
@@ -816,4 +828,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     initializePage();
-});
