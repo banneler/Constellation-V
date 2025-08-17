@@ -375,7 +375,7 @@ export async function setupGlobalSearch(supabase) {
         console.warn("Global search elements not found on this page.");
         return;
     }
-    
+
     searchInput.addEventListener('keyup', (e) => {
         clearTimeout(searchTimeout);
         const searchTerm = e.target.value.trim();
@@ -387,7 +387,7 @@ export async function setupGlobalSearch(supabase) {
 
         searchTimeout = setTimeout(() => {
             performSearch(searchTerm);
-        }, 300); 
+        }, 300);
     });
 
     async function performSearch(term) {
@@ -395,27 +395,22 @@ export async function setupGlobalSearch(supabase) {
         searchResultsContainer.classList.remove('hidden');
 
         try {
-            // **FIX APPLIED HERE**
+            // **FINAL FIX:** Reverted to the simple, standard invoke call.
+            // We pass a plain JavaScript object and let Supabase handle the rest.
             const { data: results, error } = await supabase.functions.invoke('global-search', {
-                // 1. Manually stringify the body to ensure it's a valid JSON string.
-                body: JSON.stringify({ searchTerm: term }),
-                // 2. Explicitly set the content-type header.
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                body: { searchTerm: term }
             });
 
             if (error) {
                 throw error;
             }
-            
+
             renderResults(results || []);
 
         } catch (error) {
-    // MODIFIED LINES:
-    console.error("Error invoking global-search function:", error);
-    searchResultsContainer.innerHTML = `<div class="search-result-item">Error: ${error.message}</div>`;
-}
+            console.error("Error invoking global-search function:", error);
+            searchResultsContainer.innerHTML = `<div class="search-result-item">Error: ${error.message}</div>`;
+        }
     }
 
     function renderResults(results) {
@@ -438,4 +433,3 @@ export async function setupGlobalSearch(supabase) {
         }
     });
 }
-
