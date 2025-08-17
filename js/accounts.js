@@ -807,27 +807,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-   // --- App Initialization ---
 async function initializePage() {
     await loadSVGs();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        state.currentUser = session.user;
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        // 1. Load all data from the database first.
-        // This also handles selecting an account if an ID is in the URL.
+    if (sessionError || !session) {
+        console.error('Authentication failed or no session found. Redirecting to login.');
+        window.location.href = "index.html";
+        return;
+    }
+    state.currentUser = session.user;
+
+    try {
         const urlParams = new URLSearchParams(window.location.search);
         const accountIdFromUrl = urlParams.get('accountId');
-        if (accountIdFromUrl) state.selectedAccountId = Number(accountIdFromUrl);
-        await loadAllData(); // This function will also do the initial render.
+        if (accountIdFromUrl) {
+            state.selectedAccountId = Number(accountIdFromUrl);
+        }
 
-        // 2. Now that data is loaded and the list is rendered, set up the rest of the UI and listeners.
-        await setupUserMenuAndAuth(supabase, state); 
+        await loadAllData();
+
+        await setupUserMenuAndAuth(supabase, state);
         await setupGlobalSearch(supabase, state.currentUser);
-        setupPageEventListeners(); 
-        
-    } else {
-        window.location.href = "index.html";
+        setupPageEventListeners();
+
+    } catch (error) {
+        console.error("Critical error during page initialization:", error);
+        showModal(
+            "Loading Error",
+            "There was a problem loading account data. Please refresh the page to try again.",
+            null,
+            false,
+            `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+        );
     }
 }
 
