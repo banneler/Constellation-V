@@ -16,8 +16,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         email_log: [],
         activityTypes: [],
         selectedContactId: null,
-        isFormDirty: false,
-        nameDisplayFormat: 'lastFirst' // default to Last, First
+        isFormDirty: false, // Comma was missing here
+        nameDisplayFormat: 'lastFirst'
     };
 
     // --- DOM Element Selectors ---
@@ -139,59 +139,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function updateSortToggleUI() {
-    if (state.nameDisplayFormat === 'firstLast') {
-        sortFirstLastBtn.classList.add('active');
-        sortLastFirstBtn.classList.remove('active');
-    } else {
-        sortFirstLastBtn.classList.remove('active');
-        sortLastFirstBtn.classList.add('active');
+        if (state.nameDisplayFormat === 'firstLast') {
+            sortFirstLastBtn.classList.add('active');
+            sortLastFirstBtn.classList.remove('active');
+        } else {
+            sortFirstLastBtn.classList.remove('active');
+            sortLastFirstBtn.classList.add('active');
+        }
     }
-}
     
     // --- Render Functions ---
     const renderContactList = () => {
-    if (!contactList) return;
-    const searchTerm = contactSearch.value.toLowerCase();
-    
-    const filteredContacts = state.contacts
-        .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
-        .sort((a, b) => {
-            if (state.nameDisplayFormat === 'firstLast') {
-                return (a.first_name || "").localeCompare(b.first_name || "");
-            } else { // lastFirst
-                return (a.last_name || "").localeCompare(b.last_name || "");
-            }
-        });
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    contactList.innerHTML = "";
-    filteredContacts.forEach((contact) => {
-        const item = document.createElement("div");
-        item.className = "list-item";
-        const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
-        const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
+        if (!contactList) return;
+        const searchTerm = contactSearch.value.toLowerCase();
         
-        const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
-        const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
-        const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+        const filteredContacts = state.contacts
+            .filter(c => (c.first_name || "").toLowerCase().includes(searchTerm) || (c.last_name || "").toLowerCase().includes(searchTerm) || (c.email || "").toLowerCase().includes(searchTerm))
+            .sort((a, b) => {
+                if (state.nameDisplayFormat === 'firstLast') {
+                    return (a.first_name || "").localeCompare(b.first_name || "");
+                } else { // lastFirst
+                    return (a.last_name || "").localeCompare(b.last_name || "");
+                }
+            });
 
-        const displayName = state.nameDisplayFormat === 'firstLast'
-            ? `${contact.first_name} ${contact.last_name}`
-            : `${contact.last_name}, ${contact.first_name}`;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        item.innerHTML = `
-            <div class="contact-info">
-                <div class="contact-name">${organicIcon}${displayName}${sequenceIcon}${hotIcon}</div>
-                <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
-            </div>
-        `;
-        item.dataset.id = contact.id;
-        if (contact.id === state.selectedContactId) item.classList.add("selected");
-        contactList.appendChild(item);
-    });
-};
+        contactList.innerHTML = "";
+        filteredContacts.forEach((contact) => {
+            const item = document.createElement("div");
+            item.className = "list-item";
+            const inActiveSequence = state.contact_sequences.some(cs => cs.contact_id === contact.id && cs.status === "Active");
+            const hasRecentActivity = state.activities.some(act => act.contact_id === contact.id && new Date(act.date) > thirtyDaysAgo);
+            
+            const organicIcon = contact.is_organic ? '<span class="organic-star-list">★</span>' : '';
+            const sequenceIcon = inActiveSequence ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
+            const hotIcon = hasRecentActivity ? '<span class="hot-contact-icon">🔥</span>' : '';
+
+            const displayName = state.nameDisplayFormat === 'firstLast'
+                ? `${contact.first_name} ${contact.last_name}`
+                : `${contact.last_name}, ${contact.first_name}`;
+
+            item.innerHTML = `
+                <div class="contact-info">
+                    <div class="contact-name">${organicIcon}${displayName}${sequenceIcon}${hotIcon}</div>
+                    <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
+                </div>
+            `;
+            item.dataset.id = contact.id;
+            if (contact.id === state.selectedContactId) item.classList.add("selected");
+            contactList.appendChild(item);
+        });
+    };
 
     const populateAccountDropdown = () => {
         const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
@@ -307,7 +307,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const loggedEmails = state.email_log
             .filter(email => (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase())
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created.at));
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
         if (loggedEmails.length === 0) {
             contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
@@ -711,27 +711,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
+        // Step 5: Add event listeners for the toggle
         if (sortFirstLastBtn) {
-    sortFirstLastBtn.addEventListener('click', () => {
-        if (state.nameDisplayFormat !== 'firstLast') {
-            state.nameDisplayFormat = 'firstLast';
-            localStorage.setItem('contactNameDisplayFormat', 'firstLast');
-            updateSortToggleUI();
-            renderContactList();
+            sortFirstLastBtn.addEventListener('click', () => {
+                if (state.nameDisplayFormat !== 'firstLast') {
+                    state.nameDisplayFormat = 'firstLast';
+                    localStorage.setItem('contactNameDisplayFormat', 'firstLast');
+                    updateSortToggleUI();
+                    renderContactList();
+                }
+            });
         }
-    });
-}
 
-if (sortLastFirstBtn) {
-    sortLastFirstBtn.addEventListener('click', () => {
-        if (state.nameDisplayFormat !== 'lastFirst') {
-            state.nameDisplayFormat = 'lastFirst';
-            localStorage.setItem('contactNameDisplayFormat', 'lastFirst');
-            updateSortToggleUI();
-            renderContactList();
+        if (sortLastFirstBtn) {
+            sortLastFirstBtn.addEventListener('click', () => {
+                if (state.nameDisplayFormat !== 'lastFirst') {
+                    state.nameDisplayFormat = 'lastFirst';
+                    localStorage.setItem('contactNameDisplayFormat', 'lastFirst');
+                    updateSortToggleUI();
+                    renderContactList();
+                }
+            });
         }
-    });
-}
         
         if (organicStarIndicator) {
             organicStarIndicator.addEventListener('click', async () => {
@@ -1296,10 +1297,10 @@ if (sortLastFirstBtn) {
             importContactScreenshotBtn.addEventListener("click", () => {
                 showModal("Import Contact Information",
                     `<p>To import contact information:</p>
-                     <ul>
-                         <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
-                         <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
-                     </ul>`,
+                        <ul>
+                            <li><strong>Paste a screenshot:</strong> Use CTRL+V (or CMD+V on Mac) after taking a screenshot of an email signature.</li>
+                            <li><strong>Take a picture:</strong> (Mobile only) Click the "Take Picture of Signature" button to use your device's camera.</li>
+                        </ul>`,
                     null, false,
                     `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
@@ -1386,7 +1387,7 @@ if (sortLastFirstBtn) {
         if (session) {
             state.currentUser = { ...session.user };
             state.nameDisplayFormat = localStorage.getItem('contactNameDisplayFormat') || 'lastFirst';
-updateSortToggleUI();
+            updateSortToggleUI();
             setupPageEventListeners();
             await setupUserMenuAndAuth(supabase, state);
             const urlParams = new URLSearchParams(window.location.search);
