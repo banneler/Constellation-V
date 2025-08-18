@@ -370,7 +370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- App Initialization ---
+ // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
@@ -381,6 +381,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await checkAndSetNotifications(supabase); // <-- AND ADD THIS LINE
             loadAllData();
         } else {
             window.location.href = "index.html";
