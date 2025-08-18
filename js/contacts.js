@@ -899,7 +899,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
 
-        bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
+      bulkImportContactsBtn.addEventListener("click", () => contactCsvInput.click());
         contactCsvInput.addEventListener("change", async (e) => {
             const f = e.target.files[0];
             if (!f) return;
@@ -937,7 +937,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 };
 
                 for (const record of newRecords) {
-                    record.suggested_account_id = findBestAccountMatch(record.company);
+                    const suggested_account_id = findBestAccountMatch(record.company);
                     
                     let existingContact = null;
                     if (record.email && record.email.trim()) {
@@ -959,13 +959,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (existingContact.phone !== record.phone) changes.phone = { old: existingContact.phone, new: record.phone };
                         if (existingContact.title !== record.title) changes.title = { old: existingContact.title, new: record.title };
                         
-                        recordsToUpdate.push({ ...record, id: existingContact.id, changes });
+                        recordsToUpdate.push({ ...record, id: existingContact.id, changes, suggested_account_id: suggested_account_id });
                     } else {
-                        recordsToInsert.push(record);
+                        recordsToInsert.push({ ...record, suggested_account_id: suggested_account_id });
                     }
                 }
-
-                const accountOptions = state.accounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
+                
+                // This is the core change: build a reusable option string that checks for selected value
+                const getAccountOptions = (suggestedId) => {
+                    let options = `<option value="">-- No Account --</option>`;
+                    options += state.accounts.map(acc => `<option value="${acc.id}" ${acc.id === suggestedId ? 'selected' : ''}>${acc.name}</option>`).join('');
+                    return options;
+                };
 
                 const modalBodyHtml = `
                     <p>The import process identified the following changes. Use the checkboxes to select which rows you want to process.</p>
@@ -989,7 +994,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                                         <td>${r.first_name} ${r.last_name}</td>
                                         <td>${r.email}</td>
                                         <td>-</td>
-                                        <td><select class="account-select"><option value="">-- No Account --</option>${accountOptions}</select></td>
+                                        <td>
+                                            <select class="account-select">${getAccountOptions(r.suggested_account_id)}</select>
+                                        </td>
                                     </tr>
                                 `).join('')}
                                 ${recordsToUpdate.map((r, index) => `
@@ -1003,7 +1010,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                                                 <p><small><strong>${key}:</strong> "${r.changes[key].old}" &rarr; "<strong>${r.changes[key].new}</strong>"</small></p>
                                             `).join('')}
                                         </td>
-                                        <td><select class="account-select"><option value="">-- No Account --</option>${accountOptions}</select></td>
+                                        <td>
+                                            <select class="account-select">${getAccountOptions(r.suggested_account_id)}</select>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1106,7 +1115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             r.readAsText(f);
             e.target.value = "";
         });
-
+        
         if (bulkExportContactsBtn) {
             bulkExportContactsBtn.addEventListener("click", () => {
                 const contactsToExport = state.contacts;

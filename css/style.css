@@ -3900,3 +3900,84 @@ body.theme-green .marketing-indicator {
     font-weight: 500;
     text-align: right;
 }
+/* --- Website Input with Icon --- */
+/* This wrapper is the key to positioning the icon inside the input field */
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Add padding to the input to make space for the icon */
+.input-with-icon input {
+    padding-right: 35px; /* Adjust as needed */
+}
+
+/* Style and position the icon link */
+.external-link-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-secondary);
+    font-size: 0.9em;
+    opacity: 0.7;
+    transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.external-link-icon:hover {
+    opacity: 1;
+    color: var(--primary-blue);
+}
+
+
+/* --- Associated Contacts List (2-Column Grid) --- */
+/* Main container for the list */
+ul#account-contacts-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin-top: 10px;
+
+    /* --- NEW GRID STYLES --- */
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* This creates two equal-width columns */
+    gap: 10px; /* This adds a nice space between all items */
+}
+
+/* Individual contact items */
+ul#account-contacts-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5em; 
+    background-color: var(--background-color-secondary);
+    border: 1px solid var(--border-color); 
+    padding: 12px 15px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    margin-bottom: 0; /* Removed margin now that we have a grid gap */
+}
+
+ul#account-contacts-list li:hover {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 8px var(--primary-blue-transparent);
+}
+
+/* The link inside each list item */
+ul#account-contacts-list li a {
+    color: var(--text-color-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+ul#account-contacts-list li a:hover {
+    text-decoration: underline;
+}
+
+
+/* --- NEW RESPONSIVE STYLE --- */
+/* On smaller screens, stack back to a single column */
+@media (max-width: 900px) {
+    ul#account-contacts-list {
+        grid-template-columns: 1fr;
+    }
+}

@@ -3,18 +3,28 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvR
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let state = {
-        currentUser: null,
+  let state = {
+    currentUser: null,
+    isFormDirty: false,
+
+    // Master lists for the main account list view
+    accounts: [],
+    contacts: [],
+    activities: [],
+    deals: [],
+    dealStages: [],
+
+    // A dedicated object to hold data for ONLY the selected account
+    selectedAccountId: null,
+    selectedAccountDetails: {
+        account: null,
         contacts: [],
-        accounts: [],
         activities: [],
-        contact_sequences: [],
         deals: [],
-        selectedAccountId: null,
         tasks: [],
-        isFormDirty: false,
-        dealStages: []
-    };
+        contact_sequences: []
+    }
+};
 
     // --- DOM Element Selectors ---
     const navSidebar = document.querySelector(".nav-sidebar");
@@ -47,69 +57,126 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const confirmAndSwitchAccount = (newAccountId) => {
-        if (state.isFormDirty) {
-            showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", () => {
-                state.isFormDirty = false;
-                state.selectedAccountId = newAccountId;
-                renderAccountList();
-                renderAccountDetails();
-                hideModal();
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-        } else {
-            state.selectedAccountId = newAccountId;
-            renderAccountList();
-            renderAccountDetails();
-        }
+    const confirmAndSwitchAccount = async (newAccountId) => { // Make the function async
+    const switchAccount = async () => {
+        state.selectedAccountId = newAccountId;
+        renderAccountList(); // Re-render list to highlight the new selection
+        await loadDetailsForSelectedAccount(); // Await the on-demand fetch
     };
 
-    // --- Data Fetching ---
-    async function loadAllData() {
-        if (!state.currentUser) return;
-        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "deals", "tasks"];
-        const promises = userSpecificTables.map((table) =>
-            supabase.from(table).select("*").eq("user_id", state.currentUser.id)
-        );
-        const dealStagesPromise = supabase.from("deal_stages").select("*").order('sort_order');
-        promises.push(dealStagesPromise);
-
-        try {
-            const results = await Promise.allSettled(promises);
-            results.forEach((result, index) => {
-                const tableName = userSpecificTables[index];
-                if (result.status === "fulfilled" && !result.value.error) {
-                    state[tableName] = result.value.data || [];
-                } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error : result.reason);
-                    state[tableName] = [];
-                }
-            });
-            const dealStagesResult = results[userSpecificTables.length];
-            if (dealStagesResult.status === "fulfilled" && !dealStagesResult.value.error) {
-                state.dealStages = dealStagesResult.value.data || [];
-            } else {
-                console.error(`Error fetching deal_stages:`, dealStagesResult.status === 'fulfilled' ? dealStagesResult.value.error : dealStagesResult.reason);
-                state.dealStages = [];
-            }
-
-            renderAccountList();
-            if (state.selectedAccountId) {
-                const updatedAccount = state.accounts.find(a => a.id === state.selectedAccountId);
-                if (updatedAccount) {
-                    renderAccountDetails();
-                } else {
-                    hideAccountDetails(false, true);
-                }
-            } else {
-                hideAccountDetails(false, true);
-            }
-
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-            throw error; // Throw error to be caught by initializePage
-        }
+    if (state.isFormDirty) {
+        showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", async () => {
+            state.isFormDirty = false;
+            hideModal();
+            await switchAccount();
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+    } else {
+        await switchAccount();
     }
+};
 
+    // --- Data Fetching ---
+
+// 1. Fetches only the data needed to build the account list on the left.
+async function loadInitialData() {
+    if (!state.currentUser) return;
+    
+    // Select only the columns needed for the list view icons (🔥, 💰) to keep the query fast.
+    const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
+        supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
+        supabase.from("deals").select("id, account_id, stage").eq("user_id", state.currentUser.id),
+        supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", state.currentUser.id),
+        supabase.from("contacts").select("id, account_id").eq("user_id", state.currentUser.id),
+        supabase.from("deal_stages").select("*").order('sort_order')
+    ]);
+
+    // Check for errors from each query
+    if (accountsRes.error) throw accountsRes.error;
+    if (dealsRes.error) throw dealsRes.error;
+    if (activitiesRes.error) throw activitiesRes.error;
+    if (contactsRes.error) throw contactsRes.error;
+    if (dealStagesRes.error) throw dealStagesRes.error;
+    
+    // Assign data to state
+    state.accounts = accountsRes.data || [];
+    state.deals = dealsRes.data || [];
+    state.activities = activitiesRes.data || [];
+    state.contacts = contactsRes.data || [];
+    state.dealStages = dealStagesRes.data || [];
+
+    renderAccountList(); // Render the list as soon as it's ready
+}
+
+// 2. Fetches detailed data for ONE account after it has been selected.
+// Fetches detailed data and puts it into the new state.selectedAccountDetails object
+async function loadDetailsForSelectedAccount() {
+    if (!state.selectedAccountId) return;
+
+    // Show a loading state in the UI immediately
+    accountContactsList.innerHTML = '<li>Loading...</li>';
+    accountActivitiesList.innerHTML = '<li>Loading...</li>';
+    accountDealsTableBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    
+    const account = state.accounts.find(a => a.id === state.selectedAccountId);
+    state.selectedAccountDetails.account = account;
+
+    // Fetch all related data for only the selected account
+    const [contactsRes, dealsRes, activitiesRes, tasksRes, sequencesRes] = await Promise.all([
+        supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("contact_sequences").select("*") // This may need a more specific filter later
+    ]);
+
+    if (contactsRes.error) throw contactsRes.error;
+    if (dealsRes.error) throw dealsRes.error;
+    if (activitiesRes.error) throw activitiesRes.error;
+    if (tasksRes.error) throw tasksRes.error;
+    if (sequencesRes.error) throw sequencesRes.error;
+
+    // Populate the dedicated details object, leaving the master lists untouched
+    state.selectedAccountDetails.contacts = contactsRes.data || [];
+    state.selectedAccountDetails.deals = dealsRes.data || [];
+    state.selectedAccountDetails.activities = activitiesRes.data || [];
+    state.selectedAccountDetails.tasks = tasksRes.data || [];
+    state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
+
+    renderAccountDetails();
+}
+        // Add this new function
+async function refreshData() {
+    await loadInitialData();
+    // Re-load details only if an account is currently selected
+    if (state.selectedAccountId) {
+        await loadDetailsForSelectedAccount();
+    }
+}
+
+    
+// This function now handles creating the "empty shell" view
+const hideAccountDetails = (clearSelection = false) => {
+    if (accountForm) {
+        accountForm.classList.remove('hidden'); // Ensure form is visible
+        accountForm.reset(); // Clear all fields
+        accountForm.querySelector("#account-id").value = '';
+        document.getElementById("account-last-saved").textContent = "";
+    }
+    
+    // Clear out all related data lists
+    if (accountContactsList) accountContactsList.innerHTML = "";
+    if (accountActivitiesList) accountActivitiesList.innerHTML = "";
+    if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
+    if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+    
+    // Reset the state for the selected account
+    if (clearSelection) {
+        state.selectedAccountId = null;
+        state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [] };
+        document.querySelectorAll(".list-item.selected").forEach(item => item.classList.remove("selected"));
+        state.isFormDirty = false;
+    }
+};
     // --- Render Functions ---
     const renderAccountList = () => {
         if (!accountList || !accountSearch || !accountStatusFilter) {
@@ -194,123 +261,82 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const renderAccountDetails = () => {
-        if (!accountForm) return;
-        const account = state.accounts.find((a) => a.id === state.selectedAccountId);
+    // Read from the new, dedicated details object
+    const { account, contacts, activities, deals, tasks, contact_sequences } = state.selectedAccountDetails;
 
-        if (accountPendingTaskReminder && account) {
-            const pendingAccountTasks = state.tasks.filter(task =>
-                task.status === 'Pending' && task.account_id === account.id
-            );
-            if (pendingAccountTasks.length > 0) {
-                const taskCount = pendingAccountTasks.length;
-                accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
-                accountPendingTaskReminder.classList.remove('hidden');
-            } else {
-                accountPendingTaskReminder.classList.add('hidden');
-            }
-        } else if (accountPendingTaskReminder) {
+    if (!account) {
+        hideAccountDetails(true);
+        return;
+    }
+
+    if (accountPendingTaskReminder) {
+        const pendingAccountTasks = tasks.filter(task => task.status === 'Pending');
+        if (pendingAccountTasks.length > 0) {
+            const taskCount = pendingAccountTasks.length;
+            accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
+            accountPendingTaskReminder.classList.remove('hidden');
+        } else {
             accountPendingTaskReminder.classList.add('hidden');
         }
+    }
 
-        if (!accountContactsList || !accountActivitiesList || !accountDealsTableBody) return;
-        accountContactsList.innerHTML = "";
-        accountActivitiesList.innerHTML = "";
-        accountDealsTableBody.innerHTML = "";
-
-        if (account) {
-            accountForm.classList.remove('hidden');
-            accountForm.querySelector("#account-id").value = account.id;
-            accountForm.querySelector("#account-name").value = account.name || "";
-
-            const websiteInput = accountForm.querySelector("#account-website");
-            const websiteLink = document.getElementById("account-website-link");
-            websiteInput.value = account.website || "";
-
-            const updateWebsiteLink = (url) => {
-                if (!url || !url.trim()) {
-                    if (websiteLink) websiteLink.classList.add('hidden');
-                    return;
-                }
-                let fullUrl = url.trim();
-                if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
-                    fullUrl = 'https://' + fullUrl;
-                }
-                if (websiteLink) {
-                    websiteLink.href = fullUrl;
-                    websiteLink.classList.remove('hidden');
-                }
-            };
-            updateWebsiteLink(account.website);
-
-            accountForm.querySelector("#account-industry").value = account.industry || "";
-            accountForm.querySelector("#account-phone").value = account.phone || "";
-            accountForm.querySelector("#account-address").value = account.address || "";
-            accountForm.querySelector("#account-notes").value = account.notes || "";
-            document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
-            accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
-            accountForm.querySelector("#account-employees").value = account.employee_count || "";
-            accountForm.querySelector("#account-is-customer").checked = account.is_customer;
-
-            state.isFormDirty = false;
-
-            state.deals
-                .filter((d) => d.account_id === account.id)
-                .forEach((deal) => {
-                    const row = accountDealsTableBody.insertRow();
-                    row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
-                });
-
-            state.contacts
-                .filter((c) => c.account_id === account.id)
-                .forEach((c) => {
-                    const li = document.createElement("li");
-                    const inSeq = state.contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
-                    li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
-                    accountContactsList.appendChild(li);
-                });
-
-            const accountAndContactActivities = state.activities.filter(act =>
-                act.account_id === account.id ||
-                state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
-            ).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            accountActivitiesList.innerHTML = "";
-            accountAndContactActivities.forEach((act) => {
-                const c = state.contacts.find((c) => c.id === act.contact_id);
-                const li = document.createElement("li");
-                li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
-                let borderColor = "var(--primary-blue)";
-                const activityTypeLower = act.type.toLowerCase();
-                if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-                else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-                else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-                li.style.borderLeftColor = borderColor;
-                accountActivitiesList.appendChild(li);
-            });
-        } else {
-            hideAccountDetails(true, true);
-        }
+    // Populate form fields from the account object
+    accountForm.classList.remove('hidden');
+    accountForm.querySelector("#account-id").value = account.id;
+    accountForm.querySelector("#account-name").value = account.name || "";
+    // ... (rest of the form fields populate as before)
+    const websiteInput = accountForm.querySelector("#account-website");
+    const websiteLink = document.getElementById("account-website-link");
+    websiteInput.value = account.website || "";
+    // This internal function doesn't need to change
+    const updateWebsiteLink = (url) => {
+        if (!url || !url.trim()) { if (websiteLink) websiteLink.classList.add('hidden'); return; }
+        let fullUrl = url.trim();
+        if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) { fullUrl = 'https://' + fullUrl; }
+        if (websiteLink) { websiteLink.href = fullUrl; websiteLink.classList.remove('hidden'); }
     };
+    updateWebsiteLink(account.website);
+    accountForm.querySelector("#account-industry").value = account.industry || "";
+    accountForm.querySelector("#account-phone").value = account.phone || "";
+    accountForm.querySelector("#account-address").value = account.address || "";
+    accountForm.querySelector("#account-notes").value = account.notes || "";
+    document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
+    accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
+    accountForm.querySelector("#account-employees").value = account.employee_count || "";
+    accountForm.querySelector("#account-is-customer").checked = account.is_customer;
 
-    const hideAccountDetails = (hideForm = true, clearSelection = false) => {
-        if (accountForm && hideForm) accountForm.classList.add('hidden');
-        else if (accountForm) {
-            accountForm.classList.remove('hidden');
-            accountForm.reset();
-        }
+    // Render related lists using data from the details object
+    accountDealsTableBody.innerHTML = "";
+    deals.forEach((deal) => {
+        const row = accountDealsTableBody.insertRow();
+        row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
+    });
 
-        if (accountContactsList) accountContactsList.innerHTML = "";
-        if (accountActivitiesList) accountActivitiesList.innerHTML = "";
-        if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
+    accountContactsList.innerHTML = "";
+    contacts.forEach((c) => {
+        const li = document.createElement("li");
+        const inSeq = contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+        li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+        accountContactsList.appendChild(li);
+    });
 
-        if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+    accountActivitiesList.innerHTML = "";
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
+        const c = contacts.find((c) => c.id === act.contact_id);
+        const li = document.createElement("li");
+        li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
+        let borderColor = "var(--primary-blue)";
+        const activityTypeLower = act.type.toLowerCase();
+        if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
+        else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
+        else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
+        li.style.borderLeftColor = borderColor;
+        accountActivitiesList.appendChild(li);
+    });
 
-        if (clearSelection) {
-            state.selectedAccountId = null;
-            document.querySelectorAll(".list-item").forEach(item => item.classList.remove("selected"));
-            state.isFormDirty = false;
-        }
-    };
+    state.isFormDirty = false;
+};
+
 
     // --- Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
@@ -351,7 +377,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             const { error } = await supabase.from('deals').update(updatedDealData).eq('id', dealId);
             if (error) { showModal("Error", 'Error updating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
-            else { await loadAllData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
+            else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
@@ -402,7 +428,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 return false;
                             }
                             state.isFormDirty = false;
-                            await loadAllData();
+                            await refreshData();
                             state.selectedAccountId = newAccountArr?.[0]?.id;
                             renderAccountList();
                             renderAccountDetails();
@@ -472,7 +498,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 state.isFormDirty = false;
-                await loadAllData();
+                await refreshData();
                 showModal("Success", "Account saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             });
         }
@@ -489,7 +515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                         state.selectedAccountId = null;
                         state.isFormDirty = false;
-                        await loadAllData();
+                        await refreshData();
                         hideModal();
                         showModal("Success", "Account deleted successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -651,7 +677,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             if (errorCount > 0) resultMessage += ` ${errorCount} failed. Check console for details.`;
                             showModal("Import Complete", resultMessage, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
-                            await loadAllData();
+                            await refreshData();
                             return true;
                         }, true, `<button id="modal-confirm-btn" class="btn-primary">Process Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
@@ -712,7 +738,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         return false;
                     }
 
-                    await loadAllData();
+                    await refreshData();
                     hideModal();
                     showModal("Success", 'Deal created successfully!', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return true;
@@ -758,7 +784,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             showModal("Error", 'Error adding task: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                             return false;
                         }
-                        await loadAllData();
+                        await refreshData();
                         hideModal();
                         showModal("Success", "Task created successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         return true;
@@ -767,99 +793,103 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (aiAccountInsightBtn) {
-            aiAccountInsightBtn.addEventListener("click", async () => {
-                if (!state.selectedAccountId) {
-                    showModal("Error", "Please select an account to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
+            aiAccountInsightBtn.addEventListener("click", async () => {
+                if (!state.selectedAccountId) {
+                    showModal("Error", "Please select an account to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
 
-                const account = state.accounts.find(a => a.id === state.selectedAccountId);
-                if (!account) {
-                    showModal("Error", "Selected account not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
+                const account = state.selectedAccountDetails.account;
+                if (!account) {
+                    showModal("Error", "Selected account details not loaded. Please try refreshing the page.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+                const relevantActivities = state.selectedAccountDetails.activities;
+                const relevantContacts = state.selectedAccountDetails.contacts;
+                
+                relevantActivities.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-                const relevantActivities = state.activities
-                    .filter(act =>
-                        act.account_id === account.id ||
-                        state.contacts.some(c => c.id === act.contact_id && c.account_id === account.id)
-                    )
-                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+                if (relevantActivities.length === 0) {
+                    showModal("Info", "No activities found for this account to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
 
-                if (relevantActivities.length === 0) {
-                    showModal("Info", "No activities found for this account or its contacts to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
+                const activityData = relevantActivities.map(act => {
+                    const contact = relevantContacts.find(c => c.id === act.contact_id);
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                    return `[${formatDate(act.date)}] Type: ${act.type}, Contact: ${contactName}, Description: ${act.description}`;
+                }).join('\n');
 
-                const activityData = relevantActivities.map(act => {
-                    const contact = state.contacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] Type: ${act.type}, Contact: ${contactName}, Description: ${act.description}`;
-                }).join('\n');
+                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing account activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
-                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing account activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                try {
+                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
+                        body: {
+                            accountName: account.name,
+                            activityLog: activityData
+                        }
+                    });
+                    if (error) throw error;
 
-                try {
-                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
-                        body: {
-                            accountName: account.name,
-                            activityLog: activityData
-                        }
-                    });
-                    if (error) throw error;
+                    const insight = data.insight || "No insight generated.";
+                    const nextSteps = data.next_steps || "No specific next steps suggested.";
 
-                    const insight = data.insight || "No insight generated.";
-                    const nextSteps = data.next_steps || "No specific next steps suggested.";
+                    showModal("AI Account Insight", `
+                        <h4>Summary:</h4>
+                        <p>${insight}</p>
+                        <h4>Suggested Next Steps:</h4>
+                        <p>${nextSteps}</p>
+                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
-                    showModal("AI Account Insight", `
-                        <h4>Summary:</h4>
-                        <p>${insight}</p>
-                        <h4>Suggested Next Steps:</h4>
-                        <p>${nextSteps}</p>
-                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-
-                } catch (error) {
-                    console.error("Error invoking AI insight Edge Function:", error);
-                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                }
-            });
-        }
+                } catch (error) {
+                    console.error("Error invoking AI insight Edge Function:", error);
+                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                }
+            });
+        }
     }
 
-    async function initializePage() {
-        await loadSVGs();
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+async function initializePage() {
+    await loadSVGs();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        if (sessionError || !session) {
-            console.error('Authentication failed or no session found. Redirecting to login.');
-            window.location.href = "index.html";
-            return;
-        }
-        state.currentUser = session.user;
-
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const accountIdFromUrl = urlParams.get('accountId');
-            if (accountIdFromUrl) {
-                state.selectedAccountId = Number(accountIdFromUrl);
-            }
-
-            await loadAllData();
-
-            await setupUserMenuAndAuth(supabase, state);
-            await setupGlobalSearch(supabase, state.currentUser);
-            setupPageEventListeners();
-
-        } catch (error) {
-            console.error("Critical error during page initialization:", error);
-            showModal(
-                "Loading Error",
-                "There was a problem loading account data. Please refresh the page to try again.",
-                null,
-                false,
-                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-            );
-        }
+    if (sessionError || !session) {
+        console.error('Authentication failed or no session found. Redirecting to login.');
+        window.location.href = "index.html";
+        return;
     }
+    state.currentUser = session.user;
+
+    try {
+        // Use the new, fast initial load
+        await loadInitialData(); 
+
+        // If an accountId is in the URL from another page, load its details
+        const urlParams = new URLSearchParams(window.location.search);
+        const accountIdFromUrl = urlParams.get('accountId');
+        if (accountIdFromUrl) {
+            state.selectedAccountId = Number(accountIdFromUrl);
+            await loadDetailsForSelectedAccount();
+        } else {
+            // If no account is selected, ensure the details panel is hidden
+            hideAccountDetails(false, true);
+        }
+        
+        // The rest of the setup runs after the initial view is ready
+        await setupUserMenuAndAuth(supabase, state);
+        await setupGlobalSearch(supabase); // No longer needs currentUser
+        setupPageEventListeners();
+
+    } catch (error) {
+        console.error("Critical error during page initialization:", error);
+        showModal(
+            "Loading Error",
+            "There was a problem loading account data. Please refresh the page to try again.",
+            null,
+            false,
+            `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+        );
+    }
+}
     initializePage();
 });
