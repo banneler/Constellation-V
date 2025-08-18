@@ -613,8 +613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-     // --- INITIALIZATION ---
-  // --- INITIALIZATION ---
+    // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
@@ -624,9 +623,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
-            await updateLastVisited(supabase, 'cognito'); 
-            await checkAndSetNotifications(supabase, 'cognito'); // <-- Pass in 'cognito'
-            await loadAllData();
+            await updateLastVisited(supabase, 'social_hub');
+            await checkAndSetNotifications(supabase, 'social_hub'); // <-- Pass in 'social_hub'
+            await loadSocialContent();
         } else {
             window.location.href = "index.html";
         }
