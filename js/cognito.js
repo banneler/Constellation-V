@@ -627,7 +627,7 @@ async function initializePage() {
         await loadAllData(); 
 
         // Run both functions. The timeout in checkAndSetNotifications will handle the timing.
-        updateLastVisited(supabase, 'cognito'); s
+        updateLastVisited(supabase, 'cognito');
         checkAndSetNotifications(supabase);
     } else {
         window.location.href = "index.html";
