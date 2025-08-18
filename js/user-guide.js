@@ -9,6 +9,9 @@ import {
     loadSVGs
 } from './shared_constants.js';
 
+// FIX: Initialize Supabase client at the top level for module-wide scope
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // === USER GUIDE CONTENT ===
 // This object holds the content for each section. 
 // Simply replace the placeholder text with your content from the PDF.
@@ -88,7 +91,7 @@ function setupPageEventListeners() {
             event.preventDefault();
             const navButton = event.target.closest('.nav-button');
             if (navButton) {
-                document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('#user-guide-nav .nav-button').forEach(btn => btn.classList.remove('active'));
                 navButton.classList.add('active');
                 const sectionId = navButton.dataset.section;
                 loadContent(sectionId);
@@ -99,7 +102,7 @@ function setupPageEventListeners() {
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
         logoutBtn.addEventListener("click", async () => {
-            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            // FIX: Now uses the correctly scoped supabase client
             await supabase.auth.signOut();
             window.location.href = 'index.html';
         });
@@ -111,7 +114,7 @@ function setupPageEventListeners() {
  */
 async function initializePage() {
     await loadSVGs();
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // FIX: Supabase client is already initialized, no need to do it here
     
     const { data: { session } } = await supabase.auth.getSession();
     
