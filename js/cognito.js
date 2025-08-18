@@ -614,7 +614,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- INITIALIZATION ---
-    async function initializePage() {
+   async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -623,8 +623,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
-            await updateLastVisited(supabase, 'cognito'); 
-            await checkAndSetNotifications(supabase, 'cognito'); // <-- Pass in 'cognito'
+            
+            // This now runs instantly and updates the DB in the background
+            updateLastVisited(supabase, 'cognito'); 
+            await checkAndSetNotifications(supabase);
+            
             await loadAllData();
         } else {
             window.location.href = "index.html";
