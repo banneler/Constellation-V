@@ -522,3 +522,4 @@ export async function updateLastVisited(supabase, pageName) {
         console.error(`Error updating last visit for ${pageName}:`, error);
     }
 }
+
