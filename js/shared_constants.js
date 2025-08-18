@@ -437,11 +437,31 @@ export async function setupGlobalSearch(supabase) {
 // --- NEW: SIMPLIFIED NOTIFICATION FUNCTIONS ---
 
 /**
- * Checks for new content on all pages and updates the bells.
- * @param {SupabaseClient} supabase The Supabase client.
- * @param {string|null} currentPage - The name of the current page, which will have its timestamp updated.
+ * Updates the visit timestamp for a page in the background.
+ * This is now an async function so we can wait for it to complete.
  */
-export async function checkAndSetNotifications(supabase, currentPage = null) {
+export async function updateLastVisited(supabase, pageName) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+        .from('user_page_visits')
+        .upsert({
+            user_id: user.id,
+            page_name: pageName,
+            last_visited_at: new Date().toISOString()
+        }, { onConflict: 'user_id, page_name' });
+
+    if (error) {
+        console.error(`Error updating last visit for ${pageName}:`, error);
+    }
+}
+
+/**
+ * Checks for new content on all pages and updates the bells.
+ * This function ONLY reads data; it does not update any timestamps.
+ */
+export async function checkAndSetNotifications(supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -449,11 +469,6 @@ export async function checkAndSetNotifications(supabase, currentPage = null) {
         { name: 'social_hub', table: 'social_hub_posts' },
         { name: 'cognito', table: 'cognito_alerts' }
     ];
-
-    // First, if we are on a specific page, update its last visited time now.
-    if (currentPage) {
-        updateLastVisited(supabase, currentPage);
-    }
 
     const { data: visits } = await supabase
         .from('user_page_visits')
@@ -463,40 +478,29 @@ export async function checkAndSetNotifications(supabase, currentPage = null) {
     const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
 
     for (const page of pagesToCheck) {
-        const { data: latestItem } = await supabase
+        const { data: latestItem, error: queryError } = await supabase
             .from(page.table)
             .select('created_at')
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
         
+        // PGRST116 means no rows were found, which is not a fatal error here.
+        if (queryError && queryError.code !== 'PGRST116') {
+            console.error(`Error fetching latest item for ${page.name}:`, queryError);
+            continue; // Skip to the next page if there's an actual error
+        }
+        
         const notificationDot = document.getElementById(`${page.name}-notification`);
         if (notificationDot && latestItem) {
             const lastVisitTime = lastVisits.get(page.name) || 0;
             const lastContentTime = new Date(latestItem.created_at).getTime();
             
-            // The bell should be hidden only if the last content update is older than or equal to the last visit.
-            const hasNoNewContent = lastContentTime <= lastVisitTime;
-            notificationDot.classList.toggle('hidden', hasNoNewContent);
+            const hasNewContent = lastContentTime > lastVisitTime;
+            notificationDot.classList.toggle('hidden', !hasNewContent);
+        } else if (notificationDot) {
+            // If there's no latest item, there's no new content.
+            notificationDot.classList.add('hidden');
         }
     }
 }
-
-/**
- * Updates the visit timestamp for a page in the background.
- */
-export function updateLastVisited(supabase, pageName) {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        if (!user) return;
-        supabase.from('user_page_visits')
-            .upsert({
-                user_id: user.id,
-                page_name: pageName,
-                last_visited_at: new Date().toISOString()
-            }, { onConflict: 'user_id, page_name' })
-            .then(({ error }) => {
-                if (error) console.error(`Error updating visit for ${pageName}:`, error);
-            });
-    });
-}
-
