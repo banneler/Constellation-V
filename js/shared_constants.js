@@ -500,3 +500,25 @@ export async function checkAndSetNotifications(supabase, currentPage = null) {
         }
     }
 }
+
+/**
+ * Updates the timestamp for the user's last visit to a specific page.
+ * @param {SupabaseClient} supabase The Supabase client instance.
+ * @param {string} pageName The name of the page being visited.
+ */
+export async function updateLastVisited(supabase, pageName) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+        .from('user_page_visits')
+        .upsert({
+            user_id: user.id,
+            page_name: pageName,
+            last_visited_at: new Date().toISOString()
+        }, { onConflict: 'user_id, page_name' });
+
+    if (error) {
+        console.error(`Error updating last visit for ${pageName}:`, error);
+    }
+}
