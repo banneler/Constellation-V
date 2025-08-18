@@ -202,8 +202,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
-            await updateLastVisited(supabase, 'social_hub');
-            await checkAndSetNotifications(supabase, 'social_hub'); // <-- Pass in 'social_hub'
+
+            // This now runs instantly and updates the DB in the background
+            updateLastVisited(supabase, 'social_hub');
+            await checkAndSetNotifications(supabase);
+            
             await loadSocialContent();
         } else {
             window.location.href = "index.html";
