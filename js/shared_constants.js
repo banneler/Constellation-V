@@ -438,11 +438,14 @@ export async function setupGlobalSearch(supabase) {
 
 /**
  * Updates the visit timestamp for a page in the background.
- * This is now an async function so we can wait for it to complete.
  */
 export async function updateLastVisited(supabase, pageName) {
+    console.log(`%c[Notification LOG] 1. Starting updateLastVisited for: ${pageName}`, 'color: #f0ad4e;');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+        console.log('%c[Notification LOG] 1a. User not found, aborting update.', 'color: #f0ad4e;');
+        return;
+    }
 
     const { error } = await supabase
         .from('user_page_visits')
@@ -453,17 +456,22 @@ export async function updateLastVisited(supabase, pageName) {
         }, { onConflict: 'user_id, page_name' });
 
     if (error) {
-        console.error(`Error updating last visit for ${pageName}:`, error);
+        console.error(`%c[Notification LOG] 1b. Error updating visit for ${pageName}:`, 'color: #d9534f;', error);
+    } else {
+        console.log(`%c[Notification LOG] 1c. Successfully updated last visit for ${pageName}.`, 'color: #5cb85c;');
     }
 }
 
 /**
  * Checks for new content on all pages and updates the bells.
- * This function ONLY reads data; it does not update any timestamps.
  */
 export async function checkAndSetNotifications(supabase) {
+    console.log('%c[Notification LOG] 2. Starting checkAndSetNotifications.', 'color: #5bc0de;');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+         console.log('%c[Notification LOG] 2a. User not found, aborting check.', 'color: #5bc0de;');
+        return;
+    }
 
     const pagesToCheck = [
         { name: 'social_hub', table: 'social_hub_posts' },
@@ -476,6 +484,8 @@ export async function checkAndSetNotifications(supabase) {
         .eq('user_id', user.id);
 
     const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
+     console.log('%c[Notification LOG] 2b. Fetched Last Visits:', 'color: #5bc0de;', lastVisits);
+
 
     for (const page of pagesToCheck) {
         const { data: latestItem, error: queryError } = await supabase
@@ -485,10 +495,9 @@ export async function checkAndSetNotifications(supabase) {
             .limit(1)
             .single();
         
-        // PGRST116 means no rows were found, which is not a fatal error here.
         if (queryError && queryError.code !== 'PGRST116') {
-            console.error(`Error fetching latest item for ${page.name}:`, queryError);
-            continue; // Skip to the next page if there's an actual error
+            console.error(`%c[Notification LOG] Error fetching latest item for ${page.name}:`, 'color: #d9534f;', queryError);
+            continue; 
         }
         
         const notificationDot = document.getElementById(`${page.name}-notification`);
@@ -497,10 +506,17 @@ export async function checkAndSetNotifications(supabase) {
             const lastContentTime = new Date(latestItem.created_at).getTime();
             
             const hasNewContent = lastContentTime > lastVisitTime;
+            
+            console.log(`%c[Notification LOG] 3. Checking ${page.name}:`, 'font-weight: bold; color: #5bc0de;');
+            console.log(`   - Last Visit: ${new Date(lastVisitTime).toISOString()} (${lastVisitTime})`);
+            console.log(`   - Newest Content: ${new Date(lastContentTime).toISOString()} (${lastContentTime})`);
+            console.log(`   - Has New Content? ${hasNewContent}`);
+
             notificationDot.classList.toggle('hidden', !hasNewContent);
         } else if (notificationDot) {
-            // If there's no latest item, there's no new content.
+            console.log(`%c[Notification LOG] 3a. No content found for ${page.name}, hiding bell.`, 'color: #5bc0de;');
             notificationDot.classList.add('hidden');
         }
     }
+     console.log('%c[Notification LOG] 4. Finished checkAndSetNotifications.', 'color: #5bc0de;');
 }
