@@ -192,9 +192,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-  // --- INITIALIZATION ---
+ // --- INITIALIZATION ---
     async function initializePage() {
-        console.log("%c[Social Hub Page] Initializing...", "color: green; font-weight: bold;");
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -204,8 +203,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
 
-            await updateLastVisited(supabase, 'social_hub');
+            // --- THE FIX ---
+            // 1. Check for notifications FIRST, based on the old timestamps.
             await checkAndSetNotifications(supabase);
+            // 2. THEN, update the timestamp for this page in the background.
+            updateLastVisited(supabase, 'social_hub');
             
             await loadSocialContent();
         } else {
