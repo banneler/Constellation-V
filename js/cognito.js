@@ -634,3 +634,4 @@ async function initializePage() {
     }
 }
 initializePage();
+});
