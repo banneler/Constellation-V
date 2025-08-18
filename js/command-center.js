@@ -12,7 +12,8 @@ import {
     updateActiveNavLink,
     setupUserMenuAndAuth,
     loadSVGs,
-    setupGlobalSearch
+    setupGlobalSearch,
+    checkAndSetNotifications
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
