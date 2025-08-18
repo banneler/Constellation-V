@@ -192,7 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-     // --- INITIALIZATION ---
+ // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
@@ -203,8 +203,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
 
-            // Pass the current page name to the notification checker
-            await checkAndSetNotifications(supabase, 'social_hub');
+            // First, mark this page as visited
+            await updateLastVisited(supabase, 'social_hub');
+            // Then, check all notifications based on the new state
+            await checkAndSetNotifications(supabase);
             
             await loadSocialContent();
         } else {
