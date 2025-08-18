@@ -10,6 +10,7 @@ import {
     setupUserMenuAndAuth,
     loadSVGs,
     setupGlobalSearch,
+    updateLastVisited,
     checkAndSetNotifications
 } from './shared_constants.js';
 
