@@ -615,6 +615,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // --- INITIALIZATION ---
    async function initializePage() {
+        console.log("%c[Cognito Page] Initializing...", "color: green; font-weight: bold;");
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -624,9 +625,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
             
-            // First, mark this page as visited
             await updateLastVisited(supabase, 'cognito'); 
-            // Then, check all notifications based on the new state
             await checkAndSetNotifications(supabase);
             
             await loadAllData();
