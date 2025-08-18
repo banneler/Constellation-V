@@ -504,15 +504,27 @@ export async function checkAndSetNotifications(supabase) {
         if (notificationDot && latestItem) {
             const lastVisitTime = lastVisits.get(page.name) || 0;
             const lastContentTime = new Date(latestItem.created_at).getTime();
-            
             const hasNewContent = lastContentTime > lastVisitTime;
             
             console.log(`%c[Notification LOG] 3. Checking ${page.name}:`, 'font-weight: bold; color: #5bc0de;');
             console.log(`   - Last Visit: ${new Date(lastVisitTime).toISOString()} (${lastVisitTime})`);
             console.log(`   - Newest Content: ${new Date(lastContentTime).toISOString()} (${lastContentTime})`);
             console.log(`   - Has New Content? ${hasNewContent}`);
+            
+            // --- NEW DEBUGGING CODE ---
+            // We are being more forceful with the style changes to see what happens.
+            if (hasNewContent) {
+                console.log(`%c[Notification DEBUG] Forcing bell ON for ${page.name}`, 'color: #5cb85c; font-weight: bold;');
+                notificationDot.classList.remove('hidden');
+                notificationDot.style.display = 'inline-block'; // Force visibility
+                notificationDot.style.color = 'lime'; // Make the change obvious
+            } else {
+                console.log(`%c[Notification DEBUG] Forcing bell OFF for ${page.name}`, 'color: #d9534f; font-weight: bold;');
+                notificationDot.classList.add('hidden');
+                notificationDot.style.display = 'none'; // Force it to be hidden
+            }
+            // --- END DEBUGGING CODE ---
 
-            notificationDot.classList.toggle('hidden', !hasNewContent);
         } else if (notificationDot) {
             console.log(`%c[Notification LOG] 3a. No content found for ${page.name}, hiding bell.`, 'color: #5bc0de;');
             notificationDot.classList.add('hidden');
