@@ -438,8 +438,10 @@ export async function setupGlobalSearch(supabase) {
 
 /**
  * Checks for new content on all pages and updates the bells.
+ * @param {SupabaseClient} supabase The Supabase client.
+ * @param {string|null} currentPage - The name of the current page, which will have its timestamp updated.
  */
-export async function checkAndSetNotifications(supabase) {
+export async function checkAndSetNotifications(supabase, currentPage = null) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -447,6 +449,11 @@ export async function checkAndSetNotifications(supabase) {
         { name: 'social_hub', table: 'social_hub_posts' },
         { name: 'cognito', table: 'cognito_alerts' }
     ];
+
+    // First, if we are on a specific page, update its last visited time now.
+    if (currentPage) {
+        updateLastVisited(supabase, currentPage);
+    }
 
     const { data: visits } = await supabase
         .from('user_page_visits')
@@ -467,7 +474,10 @@ export async function checkAndSetNotifications(supabase) {
         if (notificationDot && latestItem) {
             const lastVisitTime = lastVisits.get(page.name) || 0;
             const lastContentTime = new Date(latestItem.created_at).getTime();
-            notificationDot.classList.toggle('hidden', lastContentTime <= lastVisitTime);
+            
+            // The bell should be hidden only if the last content update is older than or equal to the last visit.
+            const hasNoNewContent = lastContentTime <= lastVisitTime;
+            notificationDot.classList.toggle('hidden', hasNoNewContent);
         }
     }
 }
@@ -489,3 +499,4 @@ export function updateLastVisited(supabase, pageName) {
             });
     });
 }
+
