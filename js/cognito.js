@@ -613,7 +613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION ---
+   // --- INITIALIZATION ---
    async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
@@ -624,14 +624,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
             
-            // This now runs instantly and updates the DB in the background
-            updateLastVisited(supabase, 'cognito'); 
-            await checkAndSetNotifications(supabase);
+            // Pass the current page name to the notification checker
+            await checkAndSetNotifications(supabase, 'cognito'); 
             
             await loadAllData();
         } else {
             window.location.href = "index.html";
         }
     }
-initializePage(); // <-- This line is missing and needs to be added.
+initializePage();
 });
