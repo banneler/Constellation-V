@@ -614,6 +614,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
      // --- INITIALIZATION ---
+  // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
@@ -630,6 +631,5 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.location.href = "index.html";
         }
     }
-
     initializePage();
 });
