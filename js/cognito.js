@@ -10,7 +10,8 @@ import {
     setupUserMenuAndAuth,
     loadSVGs,
     setupGlobalSearch,
-   handleNotifications
+    updateLastVisited,
+    checkAndSetNotifications
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -613,22 +614,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
  // --- INITIALIZATION ---
-async function initializePage() {
-    await loadSVGs();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        state.currentUser = session.user;
-        await setupUserMenuAndAuth(supabase, state);
-        updateActiveNavLink();
-        setupPageEventListeners();
-        await setupGlobalSearch(supabase, state.currentUser);
-        await loadAllData(); // Or loadSocialContent() for social_hub.js
+   async function initializePage() {
+        await loadSVGs();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            state.currentUser = session.user;
+            await setupUserMenuAndAuth(supabase, state);
+            updateActiveNavLink();
+            setupPageEventListeners();
+            await setupGlobalSearch(supabase, state.currentUser);
+            
+            // Load the main content for this page first.
+            await loadAllData();
 
-        // Call the new delayed wrapper function with the current page name
-        handleNotifications(supabase, 'cognito'); // Use 'social_hub' in social_hub.js
-    } else {
-        window.location.href = "index.html";
+            // --- THE FIX ---
+            // Now that the page is fully loaded, handle the notifications last.
+            await checkAndSetNotifications(supabase); 
+            updateLastVisited(supabase, 'cognito'); 
+            
+        } else {
+            window.location.href = "index.html";
+        }
     }
-}
 initializePage();
 });
