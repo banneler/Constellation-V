@@ -614,27 +614,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
  // --- INITIALIZATION ---
-   async function initializePage() {
-        await loadSVGs();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            updateActiveNavLink();
-            setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser);
-            
-            // Load the main content for this page first.
-            await loadAllData();
+  // The updated initializePage function
+async function initializePage() {
+    await loadSVGs();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        state.currentUser = session.user;
+        await setupUserMenuAndAuth(supabase, state);
+        updateActiveNavLink();
+        setupPageEventListeners();
+        await setupGlobalSearch(supabase, state.currentUser);
+        await loadAllData(); 
 
-            // --- THE FIX ---
-            // Now that the page is fully loaded, handle the notifications last.
-            await checkAndSetNotifications(supabase); 
-            updateLastVisited(supabase, 'cognito'); 
-            
-        } else {
-            window.location.href = "index.html";
-        }
+        // Run both functions. The timeout in checkAndSetNotifications will handle the timing.
+        updateLastVisited(supabase, 'cognito'); s
+        checkAndSetNotifications(supabase);
+    } else {
+        window.location.href = "index.html";
     }
+}
 initializePage();
-});
