@@ -193,7 +193,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
      // --- INITIALIZATION ---
-  // The updated initializePage function
 async function initializePage() {
     await loadSVGs();
     const { data: { session } } = await supabase.auth.getSession();
@@ -205,12 +204,11 @@ async function initializePage() {
         await setupGlobalSearch(supabase, state.currentUser);
         await loadSocialContent(); 
 
-        // Run both functions. The timeout in checkAndSetNotifications will handle the timing.
+        // THE FIX: Check for notifications first, THEN update the visit time.
+        checkAndSetNotifications(supabase); 
         updateLastVisited(supabase, 'social_hub'); 
-        checkAndSetNotifications(supabase);
     } else {
         window.location.href = "index.html";
     }
 }
-initializePage();
 });
