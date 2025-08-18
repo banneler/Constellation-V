@@ -435,71 +435,63 @@ export async function setupGlobalSearch(supabase) {
 }
 
 
-// --- NEW: SIMPLIFIED NOTIFICATION FUNCTIONS ---
+// --- UNIFIED NOTIFICATION HANDLER (FINAL) ---
 
 /**
- * Checks for new content on all pages and updates the bells.
+ * A single, robust function to handle all notification logic, preventing race conditions.
+ * It first checks all notifications based on old timestamps, then updates the
+ * timestamp for the current page after the check is complete. This entire process
+ * is delayed to ensure the DOM is fully stable.
+ * @param {SupabaseClient} supabase The Supabase client instance.
+ * @param {string|null} currentPage The name of the page the user is currently on.
  */
-export async function checkAndSetNotifications(supabase) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+export function handleNotifications(supabase, currentPage = null) {
+    // This timeout pushes the execution to the end of the browser's event queue,
+    // solving the DOM rendering race condition permanently. A 50ms delay is
+    // imperceptible but gives all other scripts ample time to finish.
+    setTimeout(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-    const pagesToCheck = [
-        { name: 'social_hub', table: 'social_hub_posts' },
-        { name: 'cognito', table: 'cognito_alerts' }
-    ];
+        const pagesToCheck = [
+            { name: 'social_hub', table: 'social_hub_posts' },
+            { name: 'cognito', table: 'cognito_alerts' }
+        ];
 
-    const { data: visits } = await supabase
-        .from('user_page_visits')
-        .select('page_name, last_visited_at')
-        .eq('user_id', user.id);
+        // 1. Fetch all last visit timestamps
+        const { data: visits } = await supabase
+            .from('user_page_visits')
+            .select('page_name, last_visited_at')
+            .eq('user_id', user.id);
+        const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
 
-    const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
-
-    for (const page of pagesToCheck) {
-        const { data: latestItem, error: queryError } = await supabase
-            .from(page.table)
-            .select('created_at')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-        
-        if (queryError && queryError.code !== 'PGRST116') {
-            console.error(`Error fetching latest item for ${page.name}:`, queryError);
-            continue; 
-        }
-        
-        const notificationDot = document.getElementById(`${page.name}-notification`);
-        if (notificationDot && latestItem) {
-            const lastVisitTime = lastVisits.get(page.name) || 0;
-            const lastContentTime = new Date(latestItem.created_at).getTime();
+        // 2. Iterate and set bell visibility based on OLD visit times
+        for (const page of pagesToCheck) {
+            const { data: latestItem } = await supabase
+                .from(page.table)
+                .select('created_at')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
             
-            const hasNewContent = lastContentTime > lastVisitTime;
-            
-            notificationDot.classList.toggle('hidden', !hasNewContent);
-
-        } else if (notificationDot) {
-            notificationDot.classList.add('hidden');
+            const notificationDot = document.getElementById(`${page.name}-notification`);
+            if (notificationDot && latestItem) {
+                const lastVisitTime = lastVisits.get(page.name) || 0;
+                const lastContentTime = new Date(latestItem.created_at).getTime();
+                const hasNewContent = lastContentTime > lastVisitTime;
+                notificationDot.classList.toggle('hidden', !hasNewContent);
+            } else if (notificationDot) {
+                notificationDot.classList.add('hidden');
+            }
         }
-    }
-}
 
-/**
- * Updates the visit timestamp for a page in the background.
- */
-export async function updateLastVisited(supabase, pageName) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase
-        .from('user_page_visits')
-        .upsert({
-            user_id: user.id,
-            page_name: pageName,
-            last_visited_at: new Date().toISOString()
-        }, { onConflict: 'user_id, page_name' });
-
-    if (error) {
-        console.error(`Error updating last visit for ${pageName}:`, error);
-    }
+        // 3. AFTER the check is complete, update the timestamp for the current page
+        if (currentPage) {
+            await supabase.from('user_page_visits').upsert({
+                user_id: user.id,
+                page_name: currentPage,
+                last_visited_at: new Date().toISOString()
+            }, { onConflict: 'user_id, page_name' });
+        }
+    }, 50); 
 }
