@@ -194,16 +194,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- INITIALIZATION ---
     async function initializePage() {
-        await loadSVGs(); // Call this first to load icons
+        await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             updateActiveNavLink();
             setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await updateLastVisited(supabase, 'social_hub'); // <-- AND ADD THIS LINE
-            await checkAndSetNotifications(supabase); // <-- AND ADD THIS LINE
+            await setupGlobalSearch(supabase, state.currentUser);
+            await updateLastVisited(supabase, 'social_hub');
+            await checkAndSetNotifications(supabase, 'social_hub'); // <-- Pass in 'social_hub'
             await loadSocialContent();
         } else {
             window.location.href = "index.html";
