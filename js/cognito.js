@@ -630,4 +630,5 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.location.href = "index.html";
         }
     }
+initializePage(); // <-- This line is missing and needs to be added.
 });
