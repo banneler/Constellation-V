@@ -622,9 +622,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             await setupUserMenuAndAuth(supabase, state);
             updateActiveNavLink();
             setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await updateLastVisited(supabase, 'cognito'); // <-- AND ADD THIS LINE
-            await checkAndSetNotifications(supabase); // <-- AND ADD THIS LINE
+            await setupGlobalSearch(supabase, state.currentUser);
+            await updateLastVisited(supabase, 'cognito'); 
+            await checkAndSetNotifications(supabase, 'cognito'); // <-- Pass in 'cognito'
             await loadAllData();
         } else {
             window.location.href = "index.html";
