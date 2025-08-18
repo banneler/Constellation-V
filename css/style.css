@@ -4017,3 +4017,12 @@ body.theme-dark .metric-card-won {
     transform: translateY(-50%);
     margin-left: 0;
 }
+/* css/style.css */
+
+/* --- FIX for Cognito Bell Position --- */
+.cognito-nav-link .nav-notification-dot {
+    position: absolute;
+    top: 50%;
+    right: 15px; 
+    transform: translateY(-50%);
+}
