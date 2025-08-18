@@ -200,6 +200,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await updateLastVisited(supabase, 'social_hub'); // <-- AND ADD THIS LINE
+            await checkAndSetNotifications(supabase); // <-- AND ADD THIS LINE
             await loadSocialContent();
         } else {
             window.location.href = "index.html";
