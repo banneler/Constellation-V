@@ -614,7 +614,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
  // --- INITIALIZATION ---
-  // The updated initializePage function
 async function initializePage() {
     await loadSVGs();
     const { data: { session } } = await supabase.auth.getSession();
@@ -626,9 +625,9 @@ async function initializePage() {
         await setupGlobalSearch(supabase, state.currentUser);
         await loadAllData(); 
 
-        // Run both functions. The timeout in checkAndSetNotifications will handle the timing.
-        updateLastVisited(supabase, 'cognito');
+        // THE FIX: Check for notifications first, THEN update the visit time.
         checkAndSetNotifications(supabase);
+        updateLastVisited(supabase, 'cognito');
     } else {
         window.location.href = "index.html";
     }
