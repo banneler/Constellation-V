@@ -192,7 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION ---
+     // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
@@ -203,9 +203,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
 
-            // This now runs instantly and updates the DB in the background
-            updateLastVisited(supabase, 'social_hub');
-            await checkAndSetNotifications(supabase);
+            // Pass the current page name to the notification checker
+            await checkAndSetNotifications(supabase, 'social_hub');
             
             await loadSocialContent();
         } else {
