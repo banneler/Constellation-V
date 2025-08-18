@@ -3981,3 +3981,17 @@ ul#account-contacts-list li a:hover {
         grid-template-columns: 1fr;
     }
 }
+/* --- NEW: Closed Won Metric Card Style --- */
+.metric-card-won {
+    background-color: var(--completed-color) !important; /* Green for money! */
+    border-color: #2a9d8f !important; /* A slightly darker green for the border */
+}
+
+.metric-card-won .metric-title {
+    color: #000000 !important; /* Black text for the title for readability */
+    font-weight: bold;
+}
+
+.metric-card-won .metric-value {
+    color: #ffffff !important; /* White text for the value */
+}
