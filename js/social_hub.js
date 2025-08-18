@@ -7,8 +7,7 @@ import {
     setupUserMenuAndAuth,
     loadSVGs,
     setupGlobalSearch,
-    updateLastVisited,
-    checkAndSetNotifications
+    handleNotifications
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
