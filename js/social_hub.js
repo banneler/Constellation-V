@@ -1,7 +1,8 @@
-// js/social_hub.js
+// banneler/constellation-v/Constellation-V-8d825689cc599d5206d1e49b4f0dafe9c5ecc390/js/social_hub.js
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
+    formatDate, // Import formatDate
     updateActiveNavLink,
     setupUserMenuAndAuth,
     loadSVGs,
@@ -56,10 +57,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const aiArticles = visiblePosts.filter(p => p.type === 'ai_article');
         const marketingPosts = visiblePosts.filter(p => p.type === 'marketing_post');
         
-        if (aiArticles.length === 0) { aiContainer.innerHTML = `<p class="placeholder-text">No new articles found.</p>`; } 
+        if (aiArticles.length === 0) { aiContainer.innerHTML = `<p class="placeholder-text">Cognito is searching for relevant articles. Check back soon!</p>`; } 
         else { aiArticles.forEach(item => aiContainer.appendChild(createSocialCard(item))); }
 
-        if (marketingPosts.length === 0) { marketingContainer.innerHTML = `<p class="placeholder-text">No new posts from the marketing team.</p>`; }
+        if (marketingPosts.length === 0) { marketingContainer.innerHTML = `<p class="placeholder-text">The marketing team is busy creating content. Stay tuned for new posts!</p>`; }
         else { marketingPosts.forEach(item => marketingContainer.appendChild(createSocialCard(item))); }
     }
 
@@ -80,7 +81,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="alert-header"><span class="alert-trigger-type">${triggerType}</span></div>
             <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
             <p class="alert-summary"></p> 
-            <div class="alert-footer"><span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span></div>
+            <div class="alert-footer">
+                <span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span>
+                <span class="alert-date">${formatDate(item.created_at)}</span>
+            </div>
             <div class="alert-actions">
                 <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}">Dismiss</button>
                 <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
