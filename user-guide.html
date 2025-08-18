@@ -11,34 +11,23 @@
 </head>
 <body>
 
-    <!-- Authentication Container (Hidden by default) -->
-    <div id="auth-container" class="auth-container hidden">
-        <div class="auth-box">
-            <div data-svg-loader="assets/logo.svg"></div>
-            <h3 id="auth-title">User Guide Login</h3>
-            <p id="auth-error" class="auth-error"></p>
-            <form id="auth-form">
-                <input type="email" id="auth-email" placeholder="Email" required>
-                <input type="password" id="auth-password" placeholder="Password" required>
-                <div id="signup-fields" class="hidden">
-                    <input type="password" id="auth-confirm-password" placeholder="Confirm Password">
-                </div>
-                <button type="submit" id="auth-submit-btn" class="btn-primary full-width">Login</button>
-            </form>
-            <a href="#" id="auth-toggle-link">Need an account? Sign Up</a>
-            <a href="#" id="forgot-password-link">Forgot Password?</a>
-        </div>
-    </div>
-
-    <!-- Main User Guide Container (Hidden by default) -->
     <div id="user-guide-container" class="crm-container hidden">
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
-            <h2 class="text-xl font-bold text-center mb-4">USER GUIDE</h2>
+            <h2 class="text-xl font-bold text-center mb-4" style="color: var(--text-light);">USER GUIDE</h2>
             
-            <a href="#" id="nav-link1" class="nav-button active" data-section="link1">Link 1</a>
-            <a href="#" id="nav-link2" class="nav-button" data-section="link2">Link 2</a>
-            <a href="#" id="nav-link3" class="nav-button" data-section="link3">Link 3</a>
+            <div id="user-guide-nav">
+                <a href="#" class="nav-button active" data-section="introduction">Introduction</a>
+                <a href="#" class="nav-button" data-section="getting-started">Getting Started</a>
+                <a href="#" class="nav-button" data-section="contacts-accounts">Contacts & Accounts</a>
+                <a href="#" class="nav-button" data-section="deals-funnel">Deals & Funnel</a>
+                <a href="#" class="nav-button" data-section="sequences-campaigns">Sequences & Campaigns</a>
+                <a href="#" class="nav-button" data-section="cognito-social">Cognito & Social Hub</a>
+            </div>
+
+            <div class="nav-bottom-section">
+                 <a href="command-center.html" class="nav-button" style="text-align: center; font-size: 0.8rem;">Exit User Guide</a>
+            </div>
             
             <div class="user-menu" style="margin-top: auto;">
                 <div class="user-menu-header">
@@ -55,7 +44,6 @@
         </nav>
         <main class="content-area">
             <div id="user-guide-content" class="content-view active-view">
-                <!-- Content will be loaded here dynamically by JavaScript -->
                 <div class="initial-message p-8 text-center text-gray-500">
                     <h2 class="text-3xl font-bold mb-4">Welcome to the User Guide</h2>
                     <p>Please select a section from the navigation menu to get started.</p>
@@ -71,15 +59,14 @@
             <div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
+    
     <script>
-    // This script runs synchronously to apply the theme before the page renders
+    // Synchronous theme application to prevent flash of unstyled content
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
         document.body.className = `theme-${savedTheme}`;
     })();
     </script>
-    <script type="module" src="js/shared_constants.js"></script>
-    <script type="module" src="js/script.js"></script>
     <script type="module" src="js/user-guide.js"></script>
 </body>
 </html>
