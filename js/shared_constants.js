@@ -434,89 +434,70 @@ export async function setupGlobalSearch(supabase) {
     });
 }
 
-// --- NEW: SIMPLIFIED NOTIFICATION FUNCTIONS ---
+// --- NEW: UNIFIED NOTIFICATION FUNCTION ---
 
 /**
- * Updates the visit timestamp for a page in the background.
+ * A single, robust function to handle all notification logic, preventing race conditions.
+ * It first checks all notifications based on old timestamps, then updates the
+ * timestamp for the current page after the check is complete.
+ * @param {SupabaseClient} supabase The Supabase client instance.
+ * @param {string|null} currentPage The name of the page the user is currently on.
  */
-export async function updateLastVisited(supabase, pageName) {
-    console.log(`%c[Notification LOG] 1. Starting updateLastVisited for: ${pageName}`, 'color: #f0ad4e;');
+export async function handleNotifications(supabase, currentPage = null) {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        console.log('%c[Notification LOG] 1a. User not found, aborting update.', 'color: #f0ad4e;');
-        return;
-    }
-
-    const { error } = await supabase
-        .from('user_page_visits')
-        .upsert({
-            user_id: user.id,
-            page_name: pageName,
-            last_visited_at: new Date().toISOString()
-        }, { onConflict: 'user_id, page_name' });
-
-    if (error) {
-        console.error(`%c[Notification LOG] 1b. Error updating visit for ${pageName}:`, 'color: #d9534f;', error);
-    } else {
-        console.log(`%c[Notification LOG] 1c. Successfully updated last visit for ${pageName}.`, 'color: #5cb85c;');
-    }
-}
-
-/**
- * Checks for new content on all pages and updates the bells.
- */
-export async function checkAndSetNotifications(supabase) {
-    console.log('%c[Notification LOG] 2. Starting checkAndSetNotifications.', 'color: #5bc0de;');
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-         console.log('%c[Notification LOG] 2a. User not found, aborting check.', 'color: #5bc0de;');
-        return;
-    }
+    if (!user) return;
 
     const pagesToCheck = [
         { name: 'social_hub', table: 'social_hub_posts' },
         { name: 'cognito', table: 'cognito_alerts' }
     ];
 
-    const { data: visits } = await supabase
-        .from('user_page_visits')
-        .select('page_name, last_visited_at')
-        .eq('user_id', user.id);
-
-    const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
-     console.log('%c[Notification LOG] 2b. Fetched Last Visits:', 'color: #5bc0de;', lastVisits);
-
-
+    // 1. Fetch latest content timestamps for all pages first
+    const latestContentTimes = new Map();
     for (const page of pagesToCheck) {
-        const { data: latestItem, error: queryError } = await supabase
+        const { data: latestItem } = await supabase
             .from(page.table)
             .select('created_at')
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
-        
-        if (queryError && queryError.code !== 'PGRST116') {
-            console.error(`%c[Notification LOG] Error fetching latest item for ${page.name}:`, 'color: #d9534f;', queryError);
-            continue; 
-        }
-        
-        const notificationDot = document.getElementById(`${page.name}-notification`);
-        if (notificationDot && latestItem) {
-            const lastVisitTime = lastVisits.get(page.name) || 0;
-            const lastContentTime = new Date(latestItem.created_at).getTime();
-            
-            const hasNewContent = lastContentTime > lastVisitTime;
-            
-            console.log(`%c[Notification LOG] 3. Checking ${page.name}:`, 'font-weight: bold; color: #5bc0de;');
-            console.log(`   - Last Visit: ${new Date(lastVisitTime).toISOString()} (${lastVisitTime})`);
-            console.log(`   - Newest Content: ${new Date(lastContentTime).toISOString()} (${lastContentTime})`);
-            console.log(`   - Has New Content? ${hasNewContent}`);
-
-            notificationDot.classList.toggle('hidden', !hasNewContent);
-        } else if (notificationDot) {
-            console.log(`%c[Notification LOG] 3a. No content found for ${page.name}, hiding bell.`, 'color: #5bc0de;');
-            notificationDot.classList.add('hidden');
+        if (latestItem) {
+            latestContentTimes.set(page.name, new Date(latestItem.created_at).getTime());
         }
     }
-     console.log('%c[Notification LOG] 4. Finished checkAndSetNotifications.', 'color: #5bc0de;');
+
+    // 2. Fetch all last visit timestamps
+    const { data: visits } = await supabase
+        .from('user_page_visits')
+        .select('page_name, last_visited_at')
+        .eq('user_id', user.id);
+    const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
+
+    // 3. Iterate and set bell visibility based on OLD visit times
+    for (const page of pagesToCheck) {
+        const notificationDot = document.getElementById(`${page.name}-notification`);
+        if (notificationDot) {
+            const lastVisitTime = lastVisits.get(page.name) || 0;
+            const lastContentTime = latestContentTimes.get(page.name) || 0;
+            const hasNewContent = lastContentTime > lastVisitTime;
+            
+            // This is the core logic: toggle visibility based on the comparison
+            notificationDot.classList.toggle('hidden', !hasNewContent);
+        }
+    }
+
+    // 4. AFTER the check is complete, update the timestamp for the current page
+    if (currentPage) {
+        const { error } = await supabase
+            .from('user_page_visits')
+            .upsert({
+                user_id: user.id,
+                page_name: currentPage,
+                last_visited_at: new Date().toISOString()
+            }, { onConflict: 'user_id, page_name' });
+        
+        if (error) {
+            console.error(`Error updating visit for ${currentPage}:`, error);
+        }
+    }
 }
