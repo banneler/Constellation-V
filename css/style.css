@@ -4017,3 +4017,38 @@ body.theme-dark .metric-card-won {
     transform: translateY(-50%);
     margin-left: 0;
 }
+/* --- User Guide Styles --- */
+.guide-card {
+    background-color: var(--background-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.guide-card h2, .guide-card h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: var(--primary-accent);
+}
+
+.guide-card h4 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: var(--text-light);
+}
+
+.guide-card p, .guide-card li {
+    line-height: 1.6;
+}
+
+.guide-card ol, .guide-card ul {
+    padding-left: 20px;
+}
+
+.guide-card hr.guide-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 24px 0;
+}
