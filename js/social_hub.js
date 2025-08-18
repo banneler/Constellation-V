@@ -192,7 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
- // --- INITIALIZATION ---
+     // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
@@ -203,13 +203,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
 
+            // Load the main content for this page first.
+            await loadSocialContent();
+            
             // --- THE FIX ---
-            // 1. Check for notifications FIRST, based on the old timestamps.
+            // Now that the page is fully loaded, handle the notifications last.
             await checkAndSetNotifications(supabase);
-            // 2. THEN, update the timestamp for this page in the background.
             updateLastVisited(supabase, 'social_hub');
             
-            await loadSocialContent();
         } else {
             window.location.href = "index.html";
         }
