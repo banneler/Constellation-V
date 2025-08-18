@@ -3,18 +3,12 @@ import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     setupModalListeners,
-    showModal,
-    hideModal,
     setupUserMenuAndAuth,
     loadSVGs
 } from './shared_constants.js';
 
-// FIX: Initialize Supabase client at the top level for module-wide scope
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// === USER GUIDE CONTENT ===
-// This object holds the content for each section. 
-// Simply replace the placeholder text with your content from the PDF.
 const userGuideContent = {
     "introduction": `
         <div>
@@ -54,35 +48,21 @@ const userGuideContent = {
     `
 };
 
-// === State Management ===
 const state = {
     currentUser: null
 };
 
-// --- DOM Element Selectors ---
+const authContainer = document.getElementById("auth-container");
 const mainAppContainer = document.getElementById("user-guide-container");
 const navList = document.getElementById('user-guide-nav');
 const contentPane = document.getElementById('user-guide-content');
 
-// --- Functions ---
-
-/**
- * Loads the content for a given section ID into the main content pane.
- * @param {string} sectionId The ID of the section to load, e.g., "introduction".
- */
 const loadContent = (sectionId) => {
     if (!contentPane) return;
-    const content = userGuideContent[sectionId];
-    if (content) {
-        contentPane.innerHTML = content;
-    } else {
-        contentPane.innerHTML = `<h2>Content Not Found</h2><p>The content for this section has not been defined yet.</p>`;
-    }
+    const content = userGuideContent[sectionId] || `<h2>Content Not Found</h2>`;
+    contentPane.innerHTML = content;
 };
 
-/**
- * Sets up all page-specific event listeners.
- */
 function setupPageEventListeners() {
     setupModalListeners();
 
@@ -102,37 +82,39 @@ function setupPageEventListeners() {
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
         logoutBtn.addEventListener("click", async () => {
-            // FIX: Now uses the correctly scoped supabase client
             await supabase.auth.signOut();
-            window.location.href = 'index.html';
         });
     }
 }
 
-/**
- * Initializes the page.
- */
 async function initializePage() {
     await loadSVGs();
-    // FIX: Supabase client is already initialized, no need to do it here
     
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session) {
-        state.currentUser = session.user;
-        if (mainAppContainer) mainAppContainer.classList.remove('hidden');
-        await setupUserMenuAndAuth(supabase, state);
-        setupPageEventListeners();
-        
-        const initialSection = navList?.querySelector('.nav-button.active');
-        if (initialSection) {
-            loadContent(initialSection.dataset.section);
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+            state.currentUser = session.user;
+            if (authContainer) authContainer.classList.add('hidden');
+            if (mainAppContainer) mainAppContainer.classList.remove('hidden');
+            await setupUserMenuAndAuth(supabase, state);
+            
+            const initialSection = navList?.querySelector('.nav-button.active');
+            if (initialSection) {
+                loadContent(initialSection.dataset.section);
+            }
+        } else {
+            state.currentUser = null;
+            if (authContainer) authContainer.classList.remove('hidden');
+            if (mainAppContainer) mainAppContainer.classList.add('hidden');
         }
-    } else {
-        // If no session, redirect to the login page.
-        window.location.href = 'index.html';
+    });
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        if (authContainer) authContainer.classList.remove('hidden');
+        if (mainAppContainer) mainAppContainer.classList.add('hidden');
     }
+    
+    setupPageEventListeners();
 }
 
-// === App Initialization ===
 document.addEventListener("DOMContentLoaded", initializePage);
