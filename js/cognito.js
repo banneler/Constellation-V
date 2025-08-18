@@ -10,7 +10,8 @@ import {
     setupUserMenuAndAuth,
     loadSVGs,
     setupGlobalSearch,
-    handleNotifications
+    updateLastVisited,
+    checkAndSetNotifications
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -613,7 +614,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
 // --- INITIALIZATION ---
-  async function initializePage() {
+   async function initializePage() {
+        console.log("%c[Cognito Page] Initializing...", "color: green; font-weight: bold;");
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -623,8 +625,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
             
-            // Use the new unified function, passing the current page name
-            await handleNotifications(supabase, 'cognito'); 
+            await updateLastVisited(supabase, 'cognito'); 
+            await checkAndSetNotifications(supabase);
             
             await loadAllData();
         } else {
