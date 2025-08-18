@@ -434,92 +434,58 @@ export async function setupGlobalSearch(supabase) {
     });
 }
 
-// --- NEW: NOTIFICATION FUNCTIONS ---
+// --- NEW: SIMPLIFIED NOTIFICATION FUNCTIONS ---
 
 /**
- * Checks for new content on specified pages and shows a notification icon if found.
- * @param {SupabaseClient} supabase The Supabase client instance.
- * @param {string|null} currentPage The name of the page currently being viewed (optional).
+ * Checks for new content on all pages and updates the bells.
  */
-export async function checkAndSetNotifications(supabase, currentPage = null) {
-    // If we are on a page with a notification, hide it immediately.
-    // We know the user is visiting it right now.
-    if (currentPage) {
-        const currentDot = document.getElementById(`${currentPage}-notification`);
-        if (currentDot) {
-            currentDot.classList.add('hidden');
-        }
-    }
-
+export async function checkAndSetNotifications(supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const pagesToCheck = [
-        { name: 'social_hub', table: 'social_hub_posts', date_column: 'created_at' },
-        { name: 'cognito', table: 'cognito_alerts', date_column: 'created_at' }
+        { name: 'social_hub', table: 'social_hub_posts' },
+        { name: 'cognito', table: 'cognito_alerts' }
     ];
 
-    const { data: visits, error: visitsError } = await supabase
+    const { data: visits } = await supabase
         .from('user_page_visits')
         .select('page_name, last_visited_at')
         .eq('user_id', user.id);
 
-    if (visitsError) {
-        console.error("Error fetching page visits:", visitsError);
-        return;
-    }
-    const lastVisits = new Map(visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]));
+    const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
 
     for (const page of pagesToCheck) {
-        // Skip re-checking the page we are currently on.
-        if (page.name === currentPage) {
-            continue;
-        }
-
-        const { data: latestItem, error } = await supabase
+        const { data: latestItem } = await supabase
             .from(page.table)
-            .select(page.date_column)
-            .order(page.date_column, { ascending: false })
+            .select('created_at')
+            .order('created_at', { ascending: false })
             .limit(1)
             .single();
-
-        if (error || !latestItem) {
-            continue;
-        }
-
-        const lastVisitTime = lastVisits.get(page.name) || 0;
-        const lastContentTime = new Date(latestItem[page.date_column]).getTime();
+        
         const notificationDot = document.getElementById(`${page.name}-notification`);
-
-        if (notificationDot) {
-            if (lastContentTime > lastVisitTime) {
-                notificationDot.classList.remove('hidden');
-            } else {
-                notificationDot.classList.add('hidden');
-            }
+        if (notificationDot && latestItem) {
+            const lastVisitTime = lastVisits.get(page.name) || 0;
+            const lastContentTime = new Date(latestItem.created_at).getTime();
+            notificationDot.classList.toggle('hidden', lastContentTime <= lastVisitTime);
         }
     }
 }
 
 /**
- * Updates the timestamp for the user's last visit to a specific page.
- * @param {SupabaseClient} supabase The Supabase client instance.
- * @param {string} pageName The name of the page being visited.
+ * Updates the visit timestamp for a page in the background.
  */
-export async function updateLastVisited(supabase, pageName) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase
-        .from('user_page_visits')
-        .upsert({
-            user_id: user.id,
-            page_name: pageName,
-            last_visited_at: new Date().toISOString()
-        }, { onConflict: 'user_id, page_name' });
-
-    if (error) {
-        console.error(`Error updating last visit for ${pageName}:`, error);
-    }
+export function updateLastVisited(supabase, pageName) {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        supabase.from('user_page_visits')
+            .upsert({
+                user_id: user.id,
+                page_name: pageName,
+                last_visited_at: new Date().toISOString()
+            }, { onConflict: 'user_id, page_name' })
+            .then(({ error }) => {
+                if (error) console.error(`Error updating visit for ${pageName}:`, error);
+            });
+    });
 }
-
