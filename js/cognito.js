@@ -625,8 +625,8 @@ async function initializePage() {
         await setupGlobalSearch(supabase, state.currentUser);
         await loadAllData(); 
 
-        // THE FIX: Check for notifications first, THEN update the visit time.
-        checkAndSetNotifications(supabase);
+        // NUKE-LEVEL FIX: Await the check, THEN update the visit time.
+        await checkAndSetNotifications(supabase);
         updateLastVisited(supabase, 'cognito');
     } else {
         window.location.href = "index.html";
