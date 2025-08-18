@@ -4000,3 +4000,20 @@ body.theme-dark .metric-card-won {
 .metric-card-won .metric-value {
     color: #ffffff !important; /* White text for the value */
 }
+/* banneler/constellation-v/Constellation-V-8d825689cc599d5206d1e49b4f0dafe9c5ecc390/css/style.css */
+/* --- NEW: Navigation Notification Bell --- */
+.nav-notification-dot {
+    color: var(--primary-blue);
+    margin-left: 8px;
+    text-shadow: 0 0 10px var(--primary-blue);
+    vertical-align: middle; /* Aligns icon with text */
+}
+
+/* Specific positioning for the Cognito link since it's different */
+.cognito-nav-link + .nav-notification-dot {
+    position: absolute;
+    top: 50%;
+    right: 15px; /* Adjust as needed */
+    transform: translateY(-50%);
+    margin-left: 0;
+}
