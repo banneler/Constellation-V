@@ -192,8 +192,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
- // --- INITIALIZATION ---
+  // --- INITIALIZATION ---
     async function initializePage() {
+        console.log("%c[Social Hub Page] Initializing...", "color: green; font-weight: bold;");
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -203,9 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser);
 
-            // First, mark this page as visited
             await updateLastVisited(supabase, 'social_hub');
-            // Then, check all notifications based on the new state
             await checkAndSetNotifications(supabase);
             
             await loadSocialContent();
