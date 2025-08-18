@@ -611,7 +611,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION ---
+     // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
@@ -621,6 +621,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await updateLastVisited(supabase, 'cognito'); // <-- AND ADD THIS LINE
+            await checkAndSetNotifications(supabase); // <-- AND ADD THIS LINE
             await loadAllData();
         } else {
             window.location.href = "index.html";
