@@ -433,3 +433,79 @@ export async function setupGlobalSearch(supabase) {
         }
     });
 }
+
+// --- NEW: NOTIFICATION FUNCTIONS ---
+
+/**
+ * Checks for new content on specified pages and shows a notification icon if found.
+ * @param {SupabaseClient} supabase The Supabase client instance.
+ */
+export async function checkAndSetNotifications(supabase) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Define pages to check and their corresponding content tables
+    const pagesToCheck = [
+        { name: 'social_hub', table: 'social_hub_posts', date_column: 'created_at' },
+        { name: 'cognito', table: 'cognito_alerts', date_column: 'created_at' }
+    ];
+
+    // Fetch the last visit times for all pages at once
+    const { data: visits, error: visitsError } = await supabase
+        .from('user_page_visits')
+        .select('page_name, last_visited_at')
+        .eq('user_id', user.id);
+
+    if (visitsError) {
+        console.error("Error fetching page visits:", visitsError);
+        return;
+    }
+    const lastVisits = new Map(visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]));
+
+    for (const page of pagesToCheck) {
+        const { data: latestItem, error } = await supabase
+            .from(page.table)
+            .select(page.date_column)
+            .order(page.date_column, { ascending: false })
+            .limit(1)
+            .single();
+
+        if (error || !latestItem) {
+            continue; // Skip if no items or an error occurs
+        }
+
+        const lastVisitTime = lastVisits.get(page.name) || 0;
+        const lastContentTime = new Date(latestItem[page.date_column]).getTime();
+        const notificationDot = document.getElementById(`${page.name}-notification`);
+
+        if (notificationDot) {
+            if (lastContentTime > lastVisitTime) {
+                notificationDot.classList.remove('hidden');
+            } else {
+                notificationDot.classList.add('hidden');
+            }
+        }
+    }
+}
+
+/**
+ * Updates the timestamp for the user's last visit to a specific page.
+ * @param {SupabaseClient} supabase The Supabase client instance.
+ * @param {string} pageName The name of the page being visited.
+ */
+export async function updateLastVisited(supabase, pageName) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+        .from('user_page_visits')
+        .upsert({
+            user_id: user.id,
+            page_name: pageName,
+            last_visited_at: new Date().toISOString()
+        }, { onConflict: 'user_id, page_name' });
+
+    if (error) {
+        console.error(`Error updating last visit for ${pageName}:`, error);
+    }
+}
