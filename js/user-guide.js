@@ -52,6 +52,7 @@ const userGuideContent = {
                     <li><strong>Actionable Steps</strong>: Dedicated buttons for streamlining sequence steps (e.g., "Go to LinkedIn," "Send Email").</li>
                     <li><strong>Upcoming Sequence Steps</strong>: A forward-looking view of automated outreach, helping you prepare for future engagements.</li>
                     <li><strong>Recent Activities</strong>: A live feed of your latest logged activities.</li>
+                    <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the `Contacts`, `Accounts`, and `Sequences` pages.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -86,8 +87,8 @@ const userGuideContent = {
                 <p>The Deals page is where you track your sales pipeline from start to finish. It provides both a detailed table of your deals and high-level visual insights to help you forecast accurately.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Metric Cards</strong>: Real-time snapshots of key sales figures. Managers can toggle between "My Deals" and "My Team's Deals."</li>
-                    <li><strong>Deals Table</strong>: A comprehensive, sortable list of all your deals.</li>
+                    <li><strong>Metric Cards</strong>: Real-time snapshots of key sales figures: your current commit, best case, total funnel, and month-to-date closed-won revenue. Managers can toggle between "My Deals" and "My Team's Deals."</li>
+                    <li><strong>Deals Table</strong>: A comprehensive, sortable list of all your deals. Click any column header to sort the table.</li>
                     <li><strong>"Committed" Checkbox</strong>: A key feature for forecasting.</li>
                     <li><strong>Deal Insights Charts</strong>: Visual breakdowns of your pipeline by Stage and a 30/60/90 Day Funnel.</li>
                     <li><strong>Deal Integrity</strong>: Deals cannot be deleted; move lost deals to the "Closed Lost" stage to maintain accurate history.</li>
@@ -124,7 +125,9 @@ const userGuideContent = {
                 <p>The Contacts page uses a powerful split-screen layout. On the left is a searchable list of contacts, and on the right is a detailed panel to view and edit their information.</p>
                 <h4>Key Features:</h4>
                 <ul>
+                    <li><strong>Contact List Icons</strong>: See key information at a glance: a `★` indicates an organic contact, a `🔥` means recent activity, and a `✈️` means they are in an active sequence.</li>
                     <li><strong>Action Buttons</strong>: Quickly <button class="btn-secondary" ${btnStyle}>Log Activity</button>, <button class="btn-secondary" ${btnStyle}>Assign Sequence</button>, or <button class="btn-secondary" ${btnStyle}>Add Task</button>.</li>
+                    <li><strong>Contact Sorting</strong>: Easily sort the contact list by `First Name` or `Last Name` using the toggle buttons above the list.</li>
                     <li><strong>Sequence Status</strong>: See if a contact is in an automated sequence and manage their enrollment.</li>
                     <li><strong>Logging Emails from Your Inbox</strong>: Automatically log emails by BCCing bcc@constellation-crm.com.</li>
                     <li><strong>AI Tools</strong>: Use <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> for data entry and <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> for summaries.</li>
@@ -149,6 +152,12 @@ const userGuideContent = {
                             <li>Click <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> and paste an image of a signature or use your camera for a business card.</li>
                             <li>Select a contact and click <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> for an instant summary and next-step suggestions.</li>
                         </ol>
+                        <h4>Viewing Logged Emails:</h4>
+                        <ol>
+                            <li>Select a contact to view a list of logged emails in the 'Logged Emails' section.</li>
+                            <li>Click the <button class="btn-secondary" ${btnStyle}>View</button> button to open a modal with the full email content.</li>
+                            <li>If attachments were logged, you can click the attachment links in the modal to download them.</li>
+                        </ol>
                     </div>
                     <div ${imageContainerStyle}>
                         <img src="assets/user-guide/contacts.PNG" alt="Contacts Page Screenshot" ${imgStyle}>
@@ -164,9 +173,11 @@ const userGuideContent = {
                 <p>The Accounts page is your central repository for all company-level information, using the same powerful split-screen layout as the Contacts page.</p>
                 <h4>Key Features:</h4>
                 <ul>
+                    <li><strong>Account List Icons</strong>: See key information at a glance: a `$` indicates an open deal, and a `🔥` means recent activity.</li>
+                    <li><strong>Account Filtering</strong>: Use the dropdown menu above the account list to filter by `Hot Accounts`, `Accounts with Open Deals`, `Customers`, or `Prospects`.</li>
                     <li><strong>Action Buttons</strong>: <button class="btn-secondary" ${btnStyle}>New Deal</button> or <button class="btn-primary" ${btnStyle}>Add Task</button> directly from an account's page.</li>
                     <li><strong>Related Information</strong>: View all associated contacts, activities, and deals for a complete picture.</li>
-                    <li><strong>AI Activity Insight</strong>: Get instant summaries of interaction history for the entire account.</li>
+                    <li><strong>AI Account Insight</strong>: Get instant summaries of interaction history for the entire account.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -200,7 +211,7 @@ const userGuideContent = {
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Campaign Types</strong>: Create Call Blitz, Email Merge, or Guided Email campaigns.</li>
-                    <li><strong>Dynamic Contact Filtering</strong>: Precisely target contacts based on account industry or customer/prospect status.</li>
+                    <li><strong>Dynamic Contact Filtering</strong>: Precisely target contacts based on account industry or customer/prospect status when creating a new campaign.</li>
                     <li><strong>Campaign Execution</strong>: A dedicated workflow UI guides you through each step.</li>
                     <li><strong>Email Template Management</strong>: Create, edit, and delete reusable email templates.</li>
                 </ul>
@@ -244,7 +255,7 @@ const userGuideContent = {
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Personal vs. Marketing Sequences</strong>: Create your own or import pre-built templates.</li>
-                    <li><strong>Multi-Step Builder</strong>: Add steps like emails, calls, or LinkedIn interactions.</li>
+                    <li><strong>Multi-Step Builder</strong>: Add steps like emails, calls, or LinkedIn interactions. The step table allows you to edit, delete, or reorder steps.</li>
                     <li><strong>Pacing Delays</strong>: Define delays in days between each step.</li>
                     <li><strong>AI Generation</strong>: Effortlessly create entire sequences by defining your goals and letting AI draft the content.</li>
                 </ul>
@@ -256,7 +267,12 @@ const userGuideContent = {
                         <h4>Creating a Sequence Manually:</h4>
                         <ol>
                             <li>Click <button class="btn-primary" ${btnStyle}>Add New Sequence</button>, give it a name, and click "Create".</li>
-                            <li>With the sequence selected, click <button class="btn-secondary" ${btnStyle}>Add New Step</button> to build it out.</li>
+                            <li>With the sequence selected, click <button class="btn-secondary" ${btnStyle}>Add New Step</button> to build it out. You can also reorder steps using the arrows in the action column.</li>
+                        </ol>
+                        <h4>Importing a Marketing Sequence:</h4>
+                        <ol>
+                            <li>Click <button class="btn-secondary" ${btnStyle}>Import Marketing Sequence</button> to see a list of pre-built templates created by your marketing team.</li>
+                            <li>Select a template and click 'Import' to create a personal copy.</li>
                         </ol>
                         <h4>Using AI to Generate a Sequence:</h4>
                         <ol>
@@ -280,7 +296,8 @@ const userGuideContent = {
                 <p>Cognito is your integrated tool for modern, intelligent selling, monitoring the web for timely buying signals.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Intelligence Alerts</strong>: An AI agent monitors news for buying signals related to your accounts.</li>
+                    <li><strong>Intelligence Alerts</strong>: An AI agent monitors news for buying signals related to your accounts. The `Cognito` nav button will display a bell icon (`🔔`) if there are new, unread alerts.</li>
+                    <li><strong>Filters</strong>: The `New Alerts` section can be filtered by `Trigger Type`, `Relevance`, and `Account` to help you find the most important alerts.</li>
                     <li><strong>The Action Center</strong>: Clicking "Action" on an alert opens a modal where Cognito's AI drafts a personalized outreach email based on the news.</li>
                 </ul>
             </div>
@@ -311,7 +328,7 @@ const userGuideContent = {
                 <p>The Social Hub makes it effortless to build your professional brand by providing a steady stream of high-quality, relevant content to share.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset".</li>
+                    <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset". The `Social Hub` nav button will display a bell icon (`🔔`) if there is new content to view.</li>
                     <li><strong>AI-Assisted Posting</strong>: When you prepare a post, the AI will generate suggested text which you can refine before sharing.</li>
                 </ul>
             </div>
