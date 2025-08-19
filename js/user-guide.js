@@ -14,7 +14,7 @@ const btnStyle = `style="display: inline-block; pointer-events: none; margin: 0 
 // New styles for the flex layout
 const howToContainerStyle = `style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;"`;
 const textContentStyle = `style="flex: 1; min-width: 300px;"`;
-const imageContainerStyle = `style="flex: 1; min-width: 300px; max-width: 500px;"`;
+const imageContainerStyle = `style="flex: 1; min-width: 300px; max-width: 800px;"`;
 const imgStyle = `style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);"`;
 
 
