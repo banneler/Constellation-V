@@ -15,7 +15,7 @@ const userGuideContent = {
             <div class="guide-card">
                 <h2>Introduction to Constellation</h2>
                 <p>Welcome to Constellation, your all-in-one platform for intelligent sales and customer relationship management. This guide is your comprehensive resource for understanding and mastering the powerful features designed to streamline your workflow, automate outreach, and help you close more deals, faster.</p>
-                <p><strong>Our Core Philosophy:</strong> Spend less time on data entry and more time building relationships. Every feature, from the AI-powered Cognito engine to the automated Sequences, is built to make you more efficient, effective, and intelligent in your sales approach.</p>
+                <p><strong>Our Core Philosophy:</strong> To have you spend less time on data entry and more time building relationships and winning business. Every feature is built to make you more efficient, effective, and intelligent in your sales approach. Use the navigation on the left to explore each module.</p>
             </div>
         </div>
     `,
@@ -48,9 +48,9 @@ const userGuideContent = {
                     <li><strong>Review the Step:</strong> Each row shows you the Contact, the Sequence they are in, and the specific step that is due (e.g., "Email", "LinkedIn").</li>
                     <li><strong>Use Action Buttons:</strong>
                         <ul>
-                            <li><button class="btn-secondary" disabled>Send Email</button>: Opens your default email client with the contact's email address and the sequence template pre-filled.</li>
-                            <li><button class="btn-secondary" disabled>Go to LinkedIn</button>: Opens a new tab directly to the generic LinkedIn feed, as a prompt to complete your outreach.</li>
-                            <li><button class="btn-primary" disabled>Complete</button>: Once you've performed the action, click this. This logs the activity and advances the contact to the next step in the sequence.</li>
+                            <li><button class="btn-secondary" disabled>Send Email</button>: Opens a modal with the pre-written email from your sequence template. You can edit it for personalization before opening it in your default email client.</li>
+                            <li><button class="btn-secondary" disabled>Go to LinkedIn</button>: Opens a new tab directly to the generic LinkedIn feed as a prompt to complete your outreach.</li>
+                            <li><button class="btn-primary" disabled>Complete</button>: Once you've performed the action, click this. This logs the activity and advances the contact to the next step in the sequence automatically.</li>
                         </ul>
                     </li>
                 </ol>
@@ -61,7 +61,7 @@ const userGuideContent = {
         <div>
             <div class="guide-card">
                 <h2>Accounts: Your 360-Degree Company View</h2>
-                <p><strong>Value Proposition:</strong> The Accounts page is your central repository for all company-level information. It provides a complete picture of your relationship with each company, including all associated contacts, deals, and activities.</p>
+                <p><strong>Value Proposition:</strong> The Accounts page is your central repository for all company-level information. It's designed for quick access and provides a complete picture of your relationship with each company, including all associated contacts, deals, and activities.</p>
                 <h4>Key Features</h4>
                 <ul>
                     <li><strong>Smart Filters:</strong> Use the dropdown to instantly filter your list to show only "Hot Accounts" (those with recent activity), accounts with open deals, customers, or prospects.</li>
@@ -71,18 +71,18 @@ const userGuideContent = {
                             <li><i class="fas fa-dollar-sign" style="color: #5cb85c;"></i>: Shows that there is at least one open deal associated with this account.</li>
                         </ul>
                     </li>
-                    <li><strong>Unsaved Changes Warning:</strong> The system protects your work. If you make edits in the details panel and try to navigate away without saving, a warning will appear, preventing you from losing your changes.</li>
+                    <li><strong>Unsaved Changes Warning:</strong> The system protects your work. If you make edits in the details panel and try to navigate away or click another account without saving, a warning will appear, preventing you from losing your changes.</li>
                 </ul>
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Accounts</h3>
                 <h4>Creating and Editing an Account</h4>
                 <ol>
-                    <li>Click <button class="btn-primary" disabled>Add New Account</button> to create a new record.</li>
-                    <li>In the details panel, you can update any field, such as Website, Industry, Phone, Address, or toggle the "Is this a Customer?" switch.</li>
-                    <li>Click <button class="btn-primary" disabled>Save Changes</button>.</li>
+                    <li>Click the <button class="btn-primary" disabled>Add New Account</button> button at the top of the list.</li>
+                    <li>In the details panel on the right, you can update any field, such as Website, Industry, Phone, Address, or toggle the "Is this a Customer?" switch.</li>
+                    <li>After making your changes, click the <button class="btn-primary" disabled>Save Changes</button> button.</li>
                 </ol>
-                 <h4>Action Hub</h4>
+                <h4>Action Hub</h4>
                 <p>From a saved Account record, you can:</p>
                 <ul>
                     <li><button class="btn-secondary" disabled>New Deal</button>: Create a new sales opportunity linked to this account.</li>
@@ -122,24 +122,24 @@ const userGuideContent = {
         <div>
             <div class="guide-card">
                 <h2>Deals: Your Sales Pipeline Command Center</h2>
-                <p><strong>Value Proposition:</strong> The Deals page provides a clear, real-time view of your entire sales pipeline, helping you forecast accurately and focus on the deals that matter most. Deals are managed here, but they are created from the Account page to ensure proper association.</p>
+                <p><strong>Value Proposition:</strong> The Deals page provides a clear, real-time view of your entire sales pipeline, helping you forecast accurately and focus on the deals that matter most. Deals are managed here, but they are created from the Account page to ensure every deal is properly associated with a company.</p>
                 <h4>Key Features</h4>
                 <ul>
                     <li><strong>Metric Cards:</strong> At-a-glance snapshots of your most important sales figures, including your <strong>Committed Forecast</strong> and <strong>Total Pipeline Value</strong>.</li>
                     <li><strong>Manager's View:</strong> For users with managerial roles, a toggle appears allowing you to switch between "My Deals" and "My Team's Deals", providing a comprehensive overview of your team's performance.</li>
-                     <li><strong>Interactive Charts:</strong> The "Deals by Stage" and "30/60/90 Day Funnel" charts give you a visual understanding of your pipeline's health and where your future revenue is concentrated.</li>
+                    <li><strong>Interactive Charts:</strong> The "Deals by Stage" and "30/60/90 Day Funnel" charts give you a visual understanding of your pipeline's health and where your future revenue is concentrated.</li>
                 </ul>
             </div>
         </div>
     `,
     "sequences": `
-         <div>
+       <div>
             <div class="guide-card">
                 <h2>Sequences: Your Automated Outreach Engine</h2>
-                <p><strong>Value Proposition:</strong> Sequences are your primary tool for automating outreach and ensuring consistent follow-up. A sequence is a series of steps (emails, calls, LinkedIn actions, etc.) that are automatically scheduled and presented to you for action on your Command Center.</p>
+                <p><strong>Value Proposition:</strong> Sequences are your primary tool for automating outreach and ensuring consistent, timely follow-up with every prospect without letting anyone fall through the cracks.</p>
                 <h4>Key Features</h4>
                 <ul>
-                    <li><strong>Personal vs. Marketing Sequences:</strong> You can build your own <strong>Personal Sequences</strong> from scratch, or import brand-approved <strong>Marketing Sequences</strong> created by your marketing team.</li>
+                    <li><strong>Personal vs. Marketing Sequences:</strong> You can create your own <strong>Personal Sequences</strong> from scratch, or save time and ensure brand consistency by importing <strong>Marketing Sequences</strong> that have been pre-built and shared by your marketing team.</li>
                     <li><strong>Bulk Assign Contacts:</strong> From a saved sequence, use the <button class="btn-primary" disabled>Bulk Assign Contacts</button> feature to enroll multiple contacts into the sequence at once.</li>
                 </ul>
             </div>
@@ -148,10 +148,10 @@ const userGuideContent = {
                 <p><strong>Value Proposition:</strong> Go from a sales goal to a complete, multi-step outreach plan in minutes. Let our AI act as your sales copywriter and strategist.</p>
                 <ol>
                     <li>Navigate to the Sequences page and scroll down to the "AI Generate New Sequence" section.</li>
-                    <li>Fill in the details: a clear <strong>Sequence Goal</strong>, the desired <strong>Number of Steps</strong>, the <strong>Total Duration</strong> in days, the <strong>Step Types</strong> to include, and a <strong>Persona & Voice Prompt</strong> to define the tone.</li>
-                    <li>Click <button class="btn-primary" disabled>Generate Sequence with AI</button>.</li>
+                    <li>Fill in the details: a clear <strong>Sequence Goal/Topic</strong>, the desired <strong>Number of Steps</strong>, the <strong>Total Sequence Duration</strong> in days, the <strong>Step Types</strong> to include, and a <strong>Persona & Voice Prompt</strong> to define the tone.</li>
+                    <li>Click the <button class="btn-primary" disabled>Generate Sequence with AI</button> button.</li>
                     <li>A preview of the AI-generated steps will appear. You can review and edit any part of any step before saving.</li>
-                    <li>Click <button class="btn-primary" disabled>Save AI Generated Sequence</button>, give it a unique name, and it will be instantly added to your personal sequences list.</li>
+                    <li>Click <button class="btn-primary" disabled>Save AI Generated Sequence</button>, give it a unique name, and it will be instantly added to your personal sequences list, ready to be assigned to contacts.</li>
                 </ol>
             </div>
         </div>
@@ -160,7 +160,7 @@ const userGuideContent = {
         <div>
             <div class="guide-card">
                 <h2>Campaigns: Targeted Outreach at Scale</h2>
-                <p><strong>Value Proposition:</strong> Campaigns are for executing short-term, targeted outreach to a specific list of contacts at once. This is perfect for product announcements, event invitations, or special promotions.</p>
+                <p><strong>Value Proposition:</strong> Campaigns allow you to create and execute highly targeted, one-time outreach efforts to a specific list of your contacts. This is perfect for product announcements, event invitations, or special promotions.</p>
                  <h4>Campaign Types</h4>
                 <ul>
                     <li><strong>Call Blitz:</strong> Creates a focused list of contacts to call. The UI presents you with one contact at a time, allowing you to log notes and efficiently work through your list.</li>
@@ -174,7 +174,7 @@ const userGuideContent = {
         <div>
             <div class="guide-card">
                 <h2>Cognito: Your AI-Powered Intelligence Agent</h2>
-                <p><strong>Value Proposition:</strong> Cognito gives you an unfair advantage by transforming public information into private intelligence. It acts as your personal research assistant, automatically scanning the web for news and events related to your accounts and alerting you to timely, actionable buying signals.</p>
+                <p><strong>Value Proposition:</strong> Cognito gives you an unfair advantage by transforming public information into private intelligence. It acts as your personal research assistant, automatically scanning the web daily for news and events related to your accounts and alerting you to timely, actionable buying signals.</p>
             </div>
             <div class="guide-card">
                 <h3>How-To: Act on Cognito Alerts</h3>
@@ -182,7 +182,7 @@ const userGuideContent = {
                 <ol>
                     <li><strong>Review Alerts:</strong> On the Cognito page, review your new alerts. Each card shows the Account, the news headline, a summary, and a relevance score.</li>
                     <li><strong>Open the Action Center:</strong> Click the <button class="btn-primary" disabled>Action</button> button on any alert.</li>
-                    <li><strong>Use the AI-Drafted Email:</strong> The Action Center opens with a personalized outreach email already written for you by the AI.</li>
+                    <li><strong>Use the AI-Drafted Email:</strong> The Action Center opens with a personalized outreach email already written for you by the AI, referencing the specific news event.</li>
                      <li><strong>Refine (Optional):</strong> Click <button class="btn-tertiary" disabled>Refine with Custom Prompt</button> to have the AI rewrite the email based on your specific instructions.</li>
                     <li><strong>Log Your Action & Create Follow-ups:</strong> After you send the email, use the "Log Actions" section to record your activity and create a follow-up task in Constellation, all without leaving the modal.</li>
                 </ol>
@@ -193,7 +193,7 @@ const userGuideContent = {
         <div>
             <div class="guide-card">
                 <h2>The Social Hub: Build Your Brand</h2>
-                <p><strong>Value Proposition:</strong> The Social Hub makes it effortless to build your professional brand. It provides a steady stream of high-quality, relevant content for you to share, positioning you as a knowledgeable expert in your field.</p>
+                <p><strong>Value Proposition:</strong> The Social Hub makes it effortless to build your professional brand and stay top-of-mind with your network. It provides a steady stream of high-quality, relevant content for you to share, positioning you as a knowledgeable expert in your field.</p>
                 <h4>How it Works</h4>
                 <p>The Social Hub is populated daily with two types of content:</p>
                 <ul>
@@ -206,9 +206,9 @@ const userGuideContent = {
                 <ol>
                     <li>On the Social Hub page, review the available content.</li>
                     <li>Click <button class="btn-primary" disabled>Prepare Post</button> on any item.</li>
-                    <li>A modal will appear with a suggested social media post written for you by the AI.</li>
+                    <li>A modal will appear with a suggested social media post written for you by the AI, summarizing the article or asset.</li>
                     <li>Use the "Refine" feature to have the AI rewrite the post with a different tone based on your prompt.</li>
-                    <li>Click <button class="btn-secondary" disabled>Copy Text</button>, then <button class="btn-primary" disabled>Post to LinkedIn</button> to open a new tab where you can paste your post.</li>
+                    <li>Click <button class="btn-secondary" disabled>Copy Text</button>, then <button class="btn-primary" disabled>Post to LinkedIn</button> to open a new tab where you can paste your post and share it with your network.</li>
                 </ol>
             </div>
         </div>
