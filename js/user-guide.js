@@ -86,7 +86,7 @@ const userGuideContent = {
                     <li><strong>"Committed" Checkbox</strong>: A key feature for forecasting.</li>
                     <li><strong>Deal Insights Charts</strong>: Visual breakdowns of your pipeline by Stage and a 30/60/90 Day Funnel.</li>
                     <li><strong>Deal Integrity</strong>: Deals cannot be deleted; move lost deals to the "Closed Lost" stage to maintain accurate history.</li>
-                </ul>
+                    </ul>
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Deals</h3>
