@@ -39,10 +39,31 @@ const userGuideContent = {
             </div>
         </div>
     `,
+    "global-search": `
+        <div>
+            <div class="guide-card">
+                <h2>1. Global Search: Your Universal Finder</h2>
+                <p>The global search bar, located in the navigation sidebar of all main pages, allows you to search across all of your records simultaneously. It's the fastest way to find a specific contact, account, or deal without navigating away from your current page.</p>
+                <h4>How to Use:</h4>
+                <div ${howToContainerStyle}>
+                    <div ${textContentStyle}>
+                        <ol>
+                            <li>Simply type a name, company, or keyword into the "Global Search" bar.</li>
+                            <li>The results will appear in a dropdown menu as you type, providing quick links to the relevant records.</li>
+                            <li>Clicking a result will take you directly to that contact, account, or deal's detail page.</li>
+                        </ol>
+                    </div>
+                    <div ${imageContainerStyle}>
+                        <img src="assets/user-guide/command-center.PNG" alt="Global Search Bar Screenshot" ${imgStyle}>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `,
     "command-center": `
         <div>
             <div class="guide-card">
-                <h2>1. The Command Center: Your Daily Hub</h2>
+                <h2>2. The Command Center: Your Daily Hub</h2>
                 <p>The Command Center is your home base. It’s the first page you see after logging in and is designed to show you exactly what you need to focus on for the day, from manual tasks to automated sequence steps.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -51,7 +72,6 @@ const userGuideContent = {
                     <li><strong>Sequence Steps Due</strong>: Your automated to-do list, showing sequence steps due today or overdue.</li>
                     <li><strong>Actionable Steps</strong>: Dedicated buttons for streamlining sequence steps (e.g., "Go to LinkedIn," "Send Email").</li>
                     <li><strong>Upcoming Sequence Steps</strong>: A forward-looking view of automated outreach, helping you prepare for future engagements.</li>
-                    <li><strong>Recent Activities</strong>: A live feed of your latest logged activities.</li>
                     <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the \`Contacts\`, \`Accounts\`, and \`Sequences\` pages.</li>
                 </ul>
             </div>
@@ -83,7 +103,7 @@ const userGuideContent = {
     "deals": `
         <div>
             <div class="guide-card">
-                <h2>2. Deals: Managing Your Pipeline</h2>
+                <h2>3. Deals: Managing Your Pipeline</h2>
                 <p>The Deals page is where you track your sales pipeline from start to finish. It provides both a detailed table of your deals and high-level visual insights to help you forecast accurately.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -121,16 +141,18 @@ const userGuideContent = {
     "contacts": `
         <div>
             <div class="guide-card">
-                <h2>3. Contacts: Your Relationship Hub</h2>
+                <h2>4. Contacts: Your Relationship Hub</h2>
                 <p>The Contacts page uses a powerful split-screen layout. On the left is a searchable list of contacts, and on the right is a detailed panel to view and edit their information.</p>
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Contact List Icons</strong>: See key information at a glance: a \`★\` indicates an organic contact, a \`🔥\` means recent activity, and a \`✈️\` means they are in an active sequence.</li>
                     <li><strong>Action Buttons</strong>: Quickly <button class="btn-secondary" ${btnStyle}>Log Activity</button>, <button class="btn-secondary" ${btnStyle}>Assign Sequence</button>, or <button class="btn-secondary" ${btnStyle}>Add Task</button>.</li>
-                    <li><strong>Contact Sorting</strong>: Easily sort the contact list by \`First Name\` or \`Last Name\` using the toggle buttons above the list.</li>
+                    <li><strong>Contact Name Display Toggle</strong>: A feature on the Contacts page allows you to toggle the display format of contact names in the list view between "First Last" and "Last, First".</li>
+                    <li><strong>Bulk Data Export</strong>: The Contacts page includes a button to download all of your records as a CSV file, enabling easy data backup or use in external tools.</li>
                     <li><strong>Sequence Status</strong>: See if a contact is in an automated sequence and manage their enrollment.</li>
                     <li><strong>Logging Emails from Your Inbox</strong>: Automatically log emails by BCCing bcc@constellation-crm.com.</li>
                     <li><strong>AI Tools</strong>: Use <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> for data entry and <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> for summaries.</li>
+                    <li><strong>AI Email Generation</strong>: The Contacts page has a button to generate an email draft for a selected contact using an AI prompt.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -146,17 +168,13 @@ const userGuideContent = {
                         <ol>
                             <li>Use the <button class="btn-secondary" ${btnStyle}>First Name</button> or <button class="btn-secondary" ${btnStyle}>Last Name</button> toggles to sort the list.</li>
                             <li>Click <button class="btn-secondary" ${btnStyle}>Bulk Import from CSV</button> to upload a file.</li>
+                            <li>Click the <button class="btn-secondary" ${btnStyle}>Download Contacts CSV</button> button to export your contacts.</li>
                         </ol>
                         <h4>Using AI Tools:</h4>
                         <ol>
                             <li>Click <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> and paste an image of a signature or use your camera for a business card.</li>
                             <li>Select a contact and click <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> for an instant summary and next-step suggestions.</li>
-                        </ol>
-                        <h4>Viewing Logged Emails:</h4>
-                        <ol>
-                            <li>Select a contact to view a list of logged emails in the 'Logged Emails' section.</li>
-                            <li>Click the <button class="btn-secondary" ${btnStyle}>View</button> button to open a modal with the full email content.</li>
-                            <li>If attachments were logged, you can click the attachment links in the modal to download them.</li>
+                            <li>Click the <button class="btn-primary" ${btnStyle}>Write Email with AI</button> button to generate an email draft for a selected contact.</li>
                         </ol>
                     </div>
                     <div ${imageContainerStyle}>
@@ -169,12 +187,13 @@ const userGuideContent = {
     "accounts": `
         <div>
             <div class="guide-card">
-                <h2>4. Accounts: Your 360-Degree Company View</h2>
+                <h2>5. Accounts: Your 360-Degree Company View</h2>
                 <p>The Accounts page is your central repository for all company-level information, using the same powerful split-screen layout as the Contacts page.</p>
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Account List Icons</strong>: See key information at a glance: a \`$\` indicates an open deal, and a \`🔥\` means recent activity.</li>
                     <li><strong>Account Filtering</strong>: Use the dropdown menu above the account list to filter by \`Hot Accounts\`, \`Accounts with Open Deals\`, \`Customers\`, or \`Prospects\`.</li>
+                    <li><strong>Bulk Data Export</strong>: The Accounts page includes a button to download all of your records as a CSV file, enabling easy data backup or use in external tools.</li>
                     <li><strong>Action Buttons</strong>: <button class="btn-secondary" ${btnStyle}>New Deal</button> or <button class="btn-primary" ${btnStyle}>Add Task</button> directly from an account's page.</li>
                     <li><strong>Related Information</strong>: View all associated contacts, activities, and deals for a complete picture.</li>
                     <li><strong>AI Account Insight</strong>: Get instant summaries of interaction history for the entire account.</li>
@@ -192,6 +211,7 @@ const userGuideContent = {
                         <h4>Importing & Actions:</h4>
                         <ol>
                             <li>Click <button class="btn-secondary" ${btnStyle}>Bulk Import from CSV</button> to upload a file.</li>
+                            <li>Click the <button class="btn-secondary" ${btnStyle}>Bulk Export to CSV</button> button to export your accounts.</li>
                             <li>Select an account and click <button class="btn-secondary" ${btnStyle}>New Deal</button> to create a new sales opportunity.</li>
                             <li>Click <button class="btn-secondary" ${btnStyle}>AI Account Insight</button> for a summary of all activities related to the account.</li>
                         </ol>
@@ -206,7 +226,7 @@ const userGuideContent = {
     "campaigns": `
         <div>
             <div class="guide-card">
-                <h2>5. Campaigns: Targeted Outreach at Scale</h2>
+                <h2>6. Campaigns: Targeted Outreach at Scale</h2>
                 <p>The Campaigns page allows you to create and execute targeted outreach efforts to a filtered list of your contacts, perfect for product announcements, event invitations, or promotions.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -250,7 +270,7 @@ const userGuideContent = {
     "sequences": `
         <div>
             <div class="guide-card">
-                <h2>6. Sequences: Automate Your Outreach</h2>
+                <h2>7. Sequences: Automate Your Outreach</h2>
                 <p>The Sequences page is where you build multi-step, automated outreach plans to ensure consistent follow-up with your prospects.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -258,6 +278,7 @@ const userGuideContent = {
                     <li><strong>Multi-Step Builder</strong>: Add steps like emails, calls, or LinkedIn interactions. The step table allows you to edit, delete, or reorder steps.</li>
                     <li><strong>Pacing Delays</strong>: Define delays in days between each step.</li>
                     <li><strong>AI Generation</strong>: Effortlessly create entire sequences by defining your goals and letting AI draft the content.</li>
+                    <li><strong>Bulk Assign Contacts</strong>: On the Sequences page, you can assign multiple contacts to a sequence at once from a single pop-up menu.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -281,6 +302,12 @@ const userGuideContent = {
                             <li>Click <button class="btn-primary" ${btnStyle}>Generate Sequence with AI</button>.</li>
                             <li>Review, edit, and click <button class="btn-primary" ${btnStyle}>Save AI Generated Sequence</button>.</li>
                         </ol>
+                        <h4>Bulk Assigning Contacts:</h4>
+                        <ol>
+                            <li>Select a sequence from the list.</li>
+                            <li>Click the <button class="btn-primary" ${btnStyle}>Bulk Assign Contacts</button> button to open a selection modal.</li>
+                            <li>Select the contacts you wish to add to the sequence and confirm.</li>
+                        </ol>
                     </div>
                     <div ${imageContainerStyle}>
                         <img src="assets/user-guide/sequences.PNG" alt="Sequences Page Screenshot" ${imgStyle}>
@@ -292,7 +319,7 @@ const userGuideContent = {
     "cognito": `
         <div>
             <div class="guide-card">
-                <h2>7. Cognito: Your AI-Powered Intelligence Agent</h2>
+                <h2>8. Cognito: Your AI-Powered Intelligence Agent</h2>
                 <p>Cognito is your integrated tool for modern, intelligent selling, monitoring the web for timely buying signals.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -324,7 +351,7 @@ const userGuideContent = {
     "social-hub": `
         <div>
             <div class="guide-card">
-                <h2>8. Social Hub: Build Your Brand</h2>
+                <h2>9. Social Hub: Build Your Brand</h2>
                 <p>The Social Hub makes it effortless to build your professional brand by providing a steady stream of high-quality, relevant content to share.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -362,6 +389,26 @@ const userGuideContent = {
                     </div>
                     <div ${imageContainerStyle}>
                         <img src="assets/user-guide/social-hub-II.PNG" alt="Social Hub Marketing Post Screenshot" ${imgStyle}>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `,
+    "theme-management": `
+        <div>
+            <div class="guide-card">
+                <h2>10. Theme Management</h2>
+                <p>You can change the application's visual theme at any time to suit your personal preference or work environment. The application will remember your last selected theme for future sessions.</p>
+                <h4>How-To: Toggle Themes</h4>
+                <div ${howToContainerStyle}>
+                    <div ${textContentStyle}>
+                        <ol>
+                            <li>Click your user name at the bottom of the navigation bar to open the user menu.</li>
+                            <li>Click the <button class="nav-button" ${btnStyle}>Theme: <span id="theme-name">Dark</span></button> button to cycle through the available themes: Dark, Light, Green, Blue, and Corporate.</li>
+                        </ol>
+                    </div>
+                    <div ${imageContainerStyle}>
+                        <img src="assets/user-guide/command-center-II.PNG" alt="User Menu with Theme Toggle" ${imgStyle}>
                     </div>
                 </div>
             </div>
