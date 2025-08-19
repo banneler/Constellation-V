@@ -52,7 +52,7 @@ const userGuideContent = {
                     <li><strong>Actionable Steps</strong>: Dedicated buttons for streamlining sequence steps (e.g., "Go to LinkedIn," "Send Email").</li>
                     <li><strong>Upcoming Sequence Steps</strong>: A forward-looking view of automated outreach, helping you prepare for future engagements.</li>
                     <li><strong>Recent Activities</strong>: A live feed of your latest logged activities.</li>
-                    <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the Contacts, Accounts, and Sequences pages.</li>
+                    <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the `Contacts`, `Accounts`, and `Sequences` pages.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -296,8 +296,8 @@ const userGuideContent = {
                 <p>Cognito is your integrated tool for modern, intelligent selling, monitoring the web for timely buying signals.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Intelligence Alerts</strong>: An AI agent monitors news for buying signals related to your accounts. The Cognito nav button will display a bell icon (🔔) if there are new, unread alerts.</li>
-                    <li><strong>Filters</strong>: The New Alerts section can be filtered by Trigger Type, Relevance, and Account to help you find the most important alerts.</li>
+                    <li><strong>Intelligence Alerts</strong>: An AI agent monitors news for buying signals related to your accounts. The `Cognito` nav button will display a bell icon (`🔔`) if there are new, unread alerts.</li>
+                    <li><strong>Filters</strong>: The `New Alerts` section can be filtered by `Trigger Type`, `Relevance`, and `Account` to help you find the most important alerts.</li>
                     <li><strong>The Action Center</strong>: Clicking "Action" on an alert opens a modal where Cognito's AI drafts a personalized outreach email based on the news.</li>
                 </ul>
             </div>
@@ -328,7 +328,7 @@ const userGuideContent = {
                 <p>The Social Hub makes it effortless to build your professional brand by providing a steady stream of high-quality, relevant content to share.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset". The Social Hub nav button will display a bell icon (🔔) if there is new content to view.</li>
+                    <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset". The `Social Hub` nav button will display a bell icon (`🔔`) if there is new content to view.</li>
                     <li><strong>AI-Assisted Posting</strong>: When you prepare a post, the AI will generate suggested text which you can refine before sharing.</li>
                 </ul>
             </div>
