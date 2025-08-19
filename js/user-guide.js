@@ -11,6 +11,8 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Helper style for inline buttons to make them look good in the guide
 const btnStyle = `style="display: inline-block; pointer-events: none; margin: 0 4px; transform: scale(0.9);"`;
+// Helper style for screenshots
+const imgStyle = `style="width: 100%; max-width: 800px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color);"`;
 
 const userGuideContent = {
     "introduction": `
@@ -28,6 +30,7 @@ const userGuideContent = {
     "command-center": `
         <div>
             <div class="guide-card">
+                <img src="assets/user-guide/command-center.png" alt="Command Center Screenshot" ${imgStyle}>
                 <h2>1. The Command Center: Your Daily Hub</h2>
                 <p>The Command Center is your home base. It’s the first page you see after logging in and is designed to show you exactly what you need to focus on for the day, from manual tasks to automated sequence steps.</p>
                 <h4>Key Features:</h4>
@@ -81,6 +84,7 @@ const userGuideContent = {
     "deals": `
         <div>
             <div class="guide-card">
+                <img src="assets/user-guide/deals.png" alt="Deals Page Screenshot" ${imgStyle}>
                 <h2>2. Deals: Managing Your Pipeline</h2>
                 <p>The Deals page is where you track your sales pipeline from start to finish. It provides both a detailed table of your deals and high-level visual insights to help you forecast accurately.</p>
                 <h4>Key Features:</h4>
@@ -120,6 +124,7 @@ const userGuideContent = {
     "contacts": `
         <div>
             <div class="guide-card">
+                <img src="assets/user-guide/contacts.png" alt="Contacts Page Screenshot" ${imgStyle}>
                 <h2>3. Contacts: Your Relationship Hub</h2>
                 <p>The Contacts page uses a powerful split-screen layout. On the left is a searchable list of all your individual contacts, and on the right is a detailed panel to view and edit their information.</p>
                 <h4>Key Features:</h4>
@@ -177,6 +182,7 @@ const userGuideContent = {
     "accounts": `
         <div>
             <div class="guide-card">
+                <img src="assets/user-guide/accounts.png" alt="Accounts Page Screenshot" ${imgStyle}>
                 <h2>4. Accounts: Your 360-Degree Company View</h2>
                 <p>The Accounts page is your central repository for all company-level information, using the same powerful split-screen layout as the Contacts page.</p>
                 <h4>Key Features:</h4>
@@ -228,6 +234,7 @@ const userGuideContent = {
     "campaigns": `
         <div>
             <div class="guide-card">
+                <img src="assets/user-guide/campaigns.png" alt="Campaigns Page Screenshot" ${imgStyle}>
                 <h2>5. Campaigns: Targeted Outreach at Scale</h2>
                 <p>The Campaigns page allows you to create and execute targeted outreach efforts to a filtered list of your contacts, perfect for product announcements, event invitations, or promotions.</p>
                 <h4>Key Features:</h4>
@@ -279,6 +286,7 @@ const userGuideContent = {
     "sequences": `
        <div>
             <div class="guide-card">
+                <img src="assets/user-guide/sequences.png" alt="Sequences Page Screenshot" ${imgStyle}>
                 <h2>6. Sequences: Automate Your Outreach</h2>
                 <p>The Sequences page is where you build multi-step, automated outreach plans to ensure consistent follow-up with your prospects.</p>
                 <h4>Key Features:</h4>
@@ -316,6 +324,7 @@ const userGuideContent = {
     "cognito": `
         <div>
             <div class="guide-card">
+                <img src="assets/user-guide/cognito.png" alt="Cognito Page Screenshot" ${imgStyle}>
                 <h2>7. Cognito: Your AI-Powered Intelligence Agent</h2>
                 <p>Cognito is your integrated tool for modern, intelligent selling, monitoring the web for timely buying signals.</p>
                 <h4>Key Features:</h4>
@@ -344,6 +353,7 @@ const userGuideContent = {
     "social-hub": `
         <div>
             <div class="guide-card">
+                <img src="assets/user-guide/social-hub.png" alt="Social Hub Page Screenshot" ${imgStyle}>
                 <h2>8. Social Hub: Build Your Brand</h2>
                 <p>The Social Hub makes it effortless to build your professional brand by providing a steady stream of high-quality, relevant content to share.</p>
                 <h4>Key Features:</h4>
@@ -375,7 +385,7 @@ const contentPane = document.getElementById('user-guide-content');
 
 const loadContent = (sectionId) => {
     if (!contentPane) return;
-    const content = userGuideContent[sectionId] || `<h2>Content Not Found</h2>`;
+    const content = userGuideContent[sectionId] || \`<h2>Content Not Found</h2>\`;
     contentPane.innerHTML = content;
 };
 
