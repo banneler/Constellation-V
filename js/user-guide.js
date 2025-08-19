@@ -32,15 +32,24 @@ const userGuideContent = {
                 </ul>
             </div>
             <div class="guide-card">
-                <h3>How-To: Manage Sequence Steps Due</h3>
-                <p><strong>Value Proposition:</strong> This section transforms your automated sequences into a simple, actionable workflow, ensuring you execute every step of your sales playbook with precision and speed.</p>
+                <h3>How-To: Manage Tasks & Sequence Steps</h3>
+                <h4>Creating a New Task</h4>
+                <ol>
+                    <li>From the Command Center, click the <button class="btn-primary" disabled>Add New Task</button> button.</li>
+                    <li>In the pop-up, enter a clear and concise task <strong>Description</strong> (e.g., "Follow up with Jane Doe about proposal").</li>
+                    <li>Optionally, select a <strong>Due Date</strong> to keep your work organized.</li>
+                    <li>To maintain a complete record, you can link the task to a specific <strong>Contact</strong> or <strong>Account</strong> using the dropdowns.</li>
+                    <li>Click <button class="btn-primary" disabled>Add Task</button>. The new task will immediately appear in your "My Tasks" list.</li>
+                </ol>
+                <h4>Managing Sequence Steps Due</h4>
+                <p>This section transforms your automated sequences into a simple, actionable workflow.</p>
                 <ol>
                     <li><strong>Review the Step:</strong> Each row shows you the Contact, the Sequence they are in, and the specific step that is due (e.g., "Email", "LinkedIn").</li>
                     <li><strong>Use Action Buttons:</strong>
                         <ul>
-                            <li><strong>Send Email:</strong> Opens your default email client with the contact's email address pre-filled.</li>
-                            <li><strong>Go to LinkedIn:</strong> Opens a new tab directly to the contact's LinkedIn profile (if available).</li>
-                            <li><strong>Complete:</strong> Once you've performed the action, click this button. A modal will appear allowing you to log notes about the interaction (e.g., "Left a voicemail," "Sent connection request"). This logs the activity and advances the contact to the next step in the sequence.</li>
+                            <li><button class="btn-secondary" disabled>Send Email</button>: Opens your default email client with the contact's email address pre-filled.</li>
+                            <li><button class="btn-secondary" disabled>Go to LinkedIn</button>: Opens a new tab directly to the contact's LinkedIn profile (if available).</li>
+                            <li><button class="btn-primary" disabled>Complete</button>: Once you've performed the action, click this. A modal will appear allowing you to log notes about the interaction (e.g., "Left a voicemail," "Sent connection request"). This logs the activity and advances the contact to the next step in the sequence.</li>
                         </ul>
                     </li>
                 </ol>
@@ -54,29 +63,29 @@ const userGuideContent = {
                 <p><strong>Value Proposition:</strong> The Accounts page is your central repository for all company-level information. It's designed for quick access and provides a complete picture of your relationship with each company, including all associated contacts, deals, and activities.</p>
                 <h4>Key Features</h4>
                 <ul>
-                    <li><strong>Advanced Sorting:</strong> The Accounts list isn't static. Use the dropdown menu at the top to instantly sort your entire list by <strong>Account Name</strong>, <strong>Last Activity Date</strong>, or <strong>Creation Date</strong>, allowing you to easily surface top-priority accounts.</li>
-                    <li><strong>"Organic" Star (<i class="fas fa-star" style="color: #4CAF50;"></i>):</strong> Mark an Account as "Organic" to signify that it was sourced through inbound marketing or other non-sales efforts. This helps with accurate reporting on which channels are driving the most business.</li>
-                    <li><strong>Comprehensive Details:</strong> Track critical account information like Quantity of Sites, Employee Count, and Customer Status to better qualify and segment your prospects.</li>
+                    <li><strong>Clickable Sorting:</strong> The Accounts list isn't static. Click on the column headers for <strong>Account Name</strong>, <strong>Last Activity</strong>, or <strong>Created</strong> to instantly sort the entire list in ascending or descending order.</li>
+                    <li><strong>Visual Indicators:</strong> At a glance, icons next to an account name tell you its status:
+                        <ul>
+                            <li><i class="fas fa-fire" style="color: var(--hot-orange);"></i>: Indicates recent activity within the last 7 days.</li>
+                            <li><i class="fas fa-dollar-sign" style="color: var(--success-green);"></i>: Shows that there is at least one open deal associated with this account.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Unsaved Changes Warning:</strong> The system protects your work. If you make edits in the details panel and try to navigate away or click another account without saving, a warning will appear, preventing you from losing your changes.</li>
                 </ul>
             </div>
-             <div class="guide-card">
-                <h3>How-To: The Intelligent CSV Import Engine</h3>
-                <p><strong>Value Proposition:</strong> Our import tool protects your data integrity. It doesn't just blindly add new records; it intelligently detects potential duplicates or updates to existing records and gives you full control over every change.</p>
-                <ol>
-                    <li>On the Accounts page, click "More Actions" and select "Bulk Import from CSV". A downloadable template is available on the Command Center to ensure your data is formatted correctly.</li>
-                    <li>After uploading your file, the system will present you with an interactive preview.</li>
-                    <li><strong>Review Changes:</strong> For each row, the system will display a status: "New Record", "Potential Duplicate", or "Update to Existing".</li>
-                    <li><strong>Accept or Reject:</strong> You have row-by-row control. Use the checkboxes to accept the suggested changes or skip a specific row if you don't want to import it. This prevents accidental overwrites or duplicate entries.</li>
-                    <li>Click "Confirm Import" to finalize the process.</li>
-                </ol>
-            </div>
             <div class="guide-card">
-                <h3>How-To: AI Account Insight</h3>
-                <p><strong>Value Proposition:</strong> Get up to speed on any account instantly. This feature is perfect for preparing for a call or handing off an account to a colleague.</p>
+                <h3>How-To: Manage Accounts</h3>
+                <h4>Creating a New Account</h4>
                 <ol>
-                    <li>Navigate to the Accounts page and select a record from the list.</li>
-                    <li>In the details panel on the right, click the "AI Account Insight" button.</li>
-                    <li>A modal will appear with a concise, AI-generated summary of all logged activities for that account and a list of clear, actionable suggested next steps.</li>
+                    <li>Click the <button class="btn-primary" disabled>Add New Account</button> button at the top of the list.</li>
+                    <li>Enter the <strong>Account Name</strong> in the modal and click <button class="btn-primary" disabled>Create Account</button>.</li>
+                    <li>The new account is added to the list, and its details panel automatically opens on the right, ready for you to add more information.</li>
+                </ol>
+                <h4>Editing an Account</h4>
+                <ol>
+                    <li>Select an account from the list on the left.</li>
+                    <li>In the details panel on the right, you can update any field, such as Website, Industry, Phone, Address, or toggle the "Is this a Customer?" switch.</li>
+                    <li>After making your changes, click the <button class="btn-primary" disabled>Save Changes</button> button.</li>
                 </ol>
             </div>
         </div>
@@ -88,28 +97,24 @@ const userGuideContent = {
                 <p><strong>Value Proposition:</strong> The Contacts page is where you manage your relationships with the individuals at your target accounts. It provides all the tools you need to engage effectively and keep a complete record of your interactions.</p>
                 <h4>Key Features</h4>
                 <ul>
-                    <li><strong>Action Buttons:</strong> From a contact's detail view, you can instantly <strong>Log Activity</strong>, <strong>Assign a Sequence</strong>, or <strong>Add a Task</strong>.</li>
+                    <li><strong>Action Buttons:</strong> From a contact's detail view, you can instantly <button class="btn-secondary" disabled>Log Activity</button>, <button class="btn-secondary" disabled>Assign Sequence</button>, or <button class="btn-secondary" disabled>Add Task</button>.</li>
                     <li><strong>Sequence Status:</strong> See at a glance if a contact is currently active in a sequence and which one.</li>
-                    <li><strong>Log Emails from Your Inbox:</strong> Keep your activity history complete without extra work. By simply BCCing <strong>bcc@constellation-crm.com</strong> on any email you send from an external client (like Outlook or Gmail), the email will be automatically logged as an activity for that contact in Constellation.</li>
+                    <li><strong>Unsaved Changes Warning:</strong> Just like the Accounts page, the system will warn you if you try to leave with unsaved edits, protecting your work.</li>
                 </ul>
             </div>
             <div class="guide-card">
-                <h3>How-To: AI-Powered Contact Management</h3>
-                <h4>AI Contact Import (from Signatures & Business Cards)</h4>
-                <p><strong>Value Proposition:</strong> Stop manual data entry. Create new contacts or enrich existing ones in seconds from anywhere.</p>
+                <h3>How-To: Manage Contacts</h3>
+                <h4>Creating a New Contact</h4>
                 <ol>
-                    <li>Navigate to the Contacts page and click the "Import Contact Screenshot" button.</li>
-                    <li>In the modal, paste a screenshot of an email signature (CTRL+V or CMD+V) or, if on mobile, use your camera to take a clear picture of a business card.</li>
-                    <li>The AI will analyze the image, extract the contact's details (name, email, phone, title, company), and populate the fields for you.</li>
-                    <li>Review the extracted data and click "Save Changes".</li>
+                    <li>Click the <button class="btn-primary" disabled>Add New Contact</button> button at the top of the list.</li>
+                    <li>Enter the <strong>First Name</strong> and <strong>Last Name</strong> and click <button class="btn-primary" disabled>Create Contact</button>.</li>
+                    <li>The new contact is added, and their details panel opens on the right for you to add their title, email, associated account, and other information.</li>
                 </ol>
-                <h4>AI Write Email</h4>
-                <p><strong>Value Proposition:</strong> Overcome writer's block and craft the perfect outreach email in seconds, directly from the contact's page.</p>
+                <h4>Editing a Contact</h4>
                 <ol>
-                    <li>Select a contact from the list.</li>
-                    <li>In the details panel, click the "AI Write Email" button.</li>
-                    <li>A modal will appear. Enter a simple prompt describing your goal (e.g., "Write a follow-up email asking for a 15-minute meeting next week").</li>
-                    <li>The AI will generate a complete, professional email draft. You can copy it, or refine it further with another prompt.</li>
+                    <li>Select a contact from the list on the left.</li>
+                    <li>In the details panel on the right, update any field.</li>
+                    <li>Click the <button class="btn-primary" disabled>Save Changes</button> button to commit your edits.</li>
                 </ol>
             </div>
         </div>
@@ -124,20 +129,7 @@ const userGuideContent = {
                     <li><strong>Metric Cards:</strong> At-a-glance snapshots of your most important sales figures, including your <strong>Committed Forecast</strong> and <strong>Total Pipeline Value</strong>.</li>
                     <li><strong>Manager's View:</strong> For users with managerial roles, a toggle appears allowing you to switch between "My Deals" and "My Team's Deals", providing a comprehensive overview of your team's performance.</li>
                     <li><strong>"Recently Closed" View:</strong> Celebrate your victories! Toggle from the "Active Pipeline" view to "Recently Closed" to see a list of all your "Closed Won" deals. This is perfect for reporting and recognizing success.</li>
-                    <li><strong>Deal Integrity:</strong> To ensure accurate historical reporting and protect your data, deals cannot be deleted. Instead, move lost deals to the "Closed Lost" stage to maintain a complete record of your sales efforts.</li>
                 </ul>
-            </div>
-            <div class="guide-card">
-                <h3>How-To: Manage Deals</h3>
-                <h4>Editing a Deal</h4>
-                <ol>
-                    <li>Navigate to the Deals page.</li>
-                    <li>In the "Active Pipeline" table, find the deal you wish to update and click the "Edit" button.</li>
-                    <li>In the modal, you can update the <strong>Name</strong>, <strong>Term</strong>, <strong>Stage</strong>, <strong>MRC</strong>, and any other relevant fields.</li>
-                    <li>Click "Save".</li>
-                </ol>
-                <h4>Marking a Deal as Committed for Forecasting</h4>
-                <p>On the Deals page, locate the deal in the "Active Pipeline" table and check the "Committed" checkbox in the first column. This action tells Constellation to include this deal's value in your "Current Commit" metric card, providing a real-time, accurate forecast.</p>
             </div>
         </div>
     `,
@@ -150,16 +142,15 @@ const userGuideContent = {
                 <ul>
                     <li><strong>Personal vs. Marketing Sequences:</strong> You can create your own <strong>Personal Sequences</strong> from scratch, or save time and ensure brand consistency by importing <strong>Marketing Sequences</strong> that have been pre-built and shared by your marketing team.</li>
                     <li><strong>Multi-Step, Multi-Channel Builder:</strong> Add various step types to your sequence, including sending an email, making a phone call, a LinkedIn interaction, or a generic task.</li>
-                    <li><strong>Intelligent Pacing:</strong> Define delays in days for each step to control the timing and cadence of your outreach, ensuring prospects are contacted at the optimal interval.</li>
                 </ul>
             </div>
             <div class="guide-card">
                 <h3>How-To: Create and Manage Sequences</h3>
                 <h4>Creating a Sequence Manually</h4>
                 <ol>
-                    <li>Navigate to the Sequences page and click "Add New Sequence".</li>
+                    <li>Navigate to the Sequences page and click <button class="btn-primary" disabled>Add New Sequence</button>.</li>
                     <li>Give the sequence a name and click "Create".</li>
-                    <li>In the details panel, click "Add New Step" to build your sequence, defining the type, message, and delay for each step.</li>
+                    <li>In the details panel, click <button class="btn-secondary" disabled>Add New Step</button> to build your sequence, defining the type, message, and delay for each step.</li>
                 </ol>
                 <h4>Importing Sequence Steps from CSV</h4>
                  <ol>
@@ -167,11 +158,16 @@ const userGuideContent = {
                     <li>Click "More Actions" and choose "Bulk Import Steps from CSV".</li>
                     <li>Select your prepared CSV file (a template is available on the Command Center). The steps will be appended to your sequence.</li>
                 </ol>
-                <h4>Bulk Assigning Contacts to a Sequence</h4>
-                 <ol>
-                    <li>From the <strong>Contacts</strong> page, use the checkboxes to select multiple contacts.</li>
-                    <li>Click the "Bulk Assign Sequence" button that appears at the top of the list.</li>
-                    <li>Select the desired sequence from the dropdown menu and confirm. All selected contacts will be enrolled.</li>
+            </div>
+            <div class="guide-card">
+                <h3>How-To: AI Sequence Generation</h3>
+                <p><strong>Value Proposition:</strong> Go from a sales goal to a complete, multi-step outreach plan in minutes. Let our AI act as your sales copywriter and strategist.</p>
+                <ol>
+                    <li>Navigate to the Sequences page and scroll down to the "AI Generate New Sequence" section.</li>
+                    <li>Fill in the details: a clear <strong>Sequence Goal/Topic</strong>, the desired <strong>Number of Steps</strong>, the <strong>Total Sequence Duration</strong> in days, the <strong>Step Types</strong> to include, and a <strong>Persona & Voice Prompt</strong> to define the tone.</li>
+                    <li>Click the <button class="btn-primary" disabled>Generate Sequence with AI</button> button.</li>
+                    <li>A preview of the AI-generated steps will appear. You can review and edit any part of any step before saving.</li>
+                    <li>Click <button class="btn-primary" disabled>Save AI Generated Sequence</button>, give it a unique name, and it will be instantly added to your personal sequences list, ready to be assigned to contacts.</li>
                 </ol>
             </div>
         </div>
@@ -181,29 +177,23 @@ const userGuideContent = {
             <div class="guide-card">
                 <h2>Campaigns: Targeted Outreach at Scale</h2>
                 <p><strong>Value Proposition:</strong> Campaigns allow you to create and execute highly targeted, one-time outreach efforts to a specific list of your contacts. This is perfect for product announcements, event invitations, or special promotions.</p>
-                <h4>Key Features</h4>
-                <ul>
-                    <li><strong>Multiple Campaign Types:</strong>
-                        <ul>
-                            <li><strong>Call Blitz:</strong> A focused calling effort with a guided workflow to track calls and log notes.</li>
-                            <li><strong>Email Merge:</strong> For large-scale email blasts. You can export the targeted contact list for use in an external mail merge tool.</li>
-                            <li><strong>Guided Email:</strong> A more personalized, one-by-one approach where you can review and customize each email before sending.</li>
-                        </ul>
-                    </li>
-                    <li><strong>Dynamic Contact Filtering:</strong> Precisely target the right audience by filtering your contacts based on account industry or their customer/prospect status.</li>
-                </ul>
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Campaigns & Templates</h3>
-                <h4>Creating and Executing a Campaign</h4>
+                <h4>Creating a Campaign</h4>
                 <ol>
-                    <li>On the Campaigns page, click "Add New Campaign" and select a campaign type.</li>
-                    <li>Define your Campaign Name and use the dynamic filters to build your target contact list.</li>
-                    <li>Click "Create Campaign".</li>
-                    <li>To begin, select the active campaign from your list. The details panel will transform into the guided workflow UI to help you execute your outreach.</li>
+                    <li>On the Campaigns page, click <button class="btn-primary" disabled>Add New Campaign</button>.</li>
+                    <li>Select a campaign type, define your Campaign Name, and use the dynamic filters to build your target contact list.</li>
+                    <li>Click <button class="btn-primary" disabled>Create Campaign</button>.</li>
                 </ol>
+                <h4>Executing Different Campaign Types</h4>
+                <ul>
+                    <li><strong>Call Blitz:</strong> Select the campaign. The workflow UI will present one contact at a time. Click the phone number to dial (if your device supports it), log notes in the text area, and click <button class="btn-primary" disabled>Log and Next</button> to save the activity and move to the next contact.</li>
+                    <li><strong>Guided Email:</strong> Select the campaign. The workflow UI will show a pre-populated email for each contact. You can make edits directly in the text area for personalization, then click <button class="btn-primary" disabled>Open & Log</button> to open the email in your mail client and automatically log the activity.</li>
+                    <li><strong>Email Merge:</strong> This type is for mass emailing. After creating the campaign, you will be prompted to export the filtered contact list as a CSV, ready for use in an external mail merge tool.</li>
+                </ul>
                 <h4>Managing Email Templates</h4>
-                <p>On the Campaigns page, click "Manage Email Templates". From here, you can create new templates, edit existing ones, or delete them. Use placeholders like [FirstName], [LastName], and [AccountName] for easy personalization.</p>
+                <p>On the Campaigns page, click <button class="btn-secondary" disabled>Manage Email Templates</button>. From here, you can create new templates, edit existing ones, or delete them. Use placeholders like [FirstName], [LastName], and [AccountName] for easy personalization.</p>
             </div>
         </div>
     `,
@@ -211,9 +201,7 @@ const userGuideContent = {
         <div>
             <div class="guide-card">
                 <h2>Cognito: Your AI-Powered Intelligence Agent</h2>
-                <p><strong>Value Proposition:</strong> Cognito gives you an unfair advantage by transforming public information into private intelligence. It acts as your personal research assistant, automatically scanning the web for news and events related to your accounts and alerting you to timely, actionable buying signals.</p>
-                <h4>How it Works</h4>
-                <p>Every day, Cognito's AI engine monitors thousands of sources for events like executive hires, funding rounds, acquisitions, and major company announcements. When it finds a relevant event for one of your accounts, it generates a concise alert and places it on your Cognito page.</p>
+                <p><strong>Value Proposition:</strong> Cognito gives you an unfair advantage by transforming public information into private intelligence. It acts as your personal research assistant, automatically scanning the web daily for news and events related to your accounts and alerting you to timely, actionable buying signals.</p>
                 <h4>Notification Bell Icon <i class="fas fa-bell"></i></h4>
                 <p>To ensure you never miss a timely update, a bell icon will appear next to the Cognito link in the main navigation sidebar whenever new intelligence alerts have been added since your last visit.</p>
             </div>
@@ -222,11 +210,10 @@ const userGuideContent = {
                 <p><strong>Value Proposition:</strong> The Action Center closes the loop from intelligence to action in a single click, allowing you to respond to buying signals in minutes, not hours.</p>
                 <ol>
                     <li><strong>Review Alerts:</strong> On the Cognito page, review your new alerts. Each card shows the Account, the headline of the news, and a brief summary.</li>
-                    <li><strong>Open the Action Center:</strong> Click the "Action" button on any alert.</li>
+                    <li><strong>Open the Action Center:</strong> Click the <button class="btn-primary" disabled>Action</button> button on any alert.</li>
                     <li><strong>Use the AI-Drafted Email:</strong> The Action Center will open with a personalized outreach email already written for you by the AI, referencing the specific news event.</li>
-                    <li><strong>Refine (Optional):</strong> If you want to adjust the tone or message, use the "Refine with Custom Prompt" feature to have the AI rewrite the email based on your instructions.</li>
-                    <li><strong>Log and Create Tasks:</strong> After you've sent the email, you can log the interaction and create a follow-up task (e.g., "Follow up in 1 week") without ever leaving the Action Center.</li>
-                    <li><strong>Dismiss:</strong> If an alert is not relevant, simply click "Dismiss" to remove it from your feed.</li>
+                    <li><strong>Log Your Action (Required):</strong> The AI provides the suggestion, but you must take the action. After sending the email, it's crucial to log your work. Enter notes in the "Log an Interaction" text area and click <button class="btn-secondary" disabled>Log to Constellation</button>.</li>
+                    <li><strong>Create a Follow-Up (Optional):</strong> To ensure you don't forget the next step, you can create a reminder task directly from the Action Center. Fill in the "Create a Task" fields and click <button class="btn-primary" disabled>Create in Constellation</button>. This task will then appear in your "My Tasks" list on the Command Center.</li>
                 </ol>
             </div>
         </div>
@@ -240,7 +227,7 @@ const userGuideContent = {
                 <p>The Social Hub is populated daily with two types of content:</p>
                 <ul>
                     <li><strong>News Articles:</strong> AI-curated articles from around the web that are relevant to your industry and target market.</li>
-                    <li><strong>Campaign Assets:</strong> Pre-approved posts, images, and links provided by your marketing team, ensuring your messaging is always on-brand.</li>
+                    <li><strong>Campaign Assets:</strong> Pre-approved posts, images, and links provided by your marketing team, ensuring your messaging is always on-brand. These are clearly marked to differentiate them from general news.</li>
                 </ul>
                 <h4>Notification Bell Icon <i class="fas fa-bell"></i></h4>
                 <p>A bell icon will appear next to the Social Hub link in the main navigation sidebar whenever new content has been added since your last visit.</p>
@@ -250,11 +237,10 @@ const userGuideContent = {
                 <p><strong>Value Proposition:</strong> Go from finding content to posting it on your social media in under a minute, with AI assistance to craft the perfect message.</p>
                 <ol>
                     <li><strong>Browse the Feed:</strong> On the Social Hub page, review the available content.</li>
-                    <li><strong>Prepare Your Post:</strong> Click the "Prepare Post" button on any item.</li>
+                    <li><strong>Prepare Your Post:</strong> Click the <button class="btn-primary" disabled>Prepare Post</button> button on any item.</li>
                     <li><strong>Use the AI-Generated Copy:</strong> A modal will appear with a suggested social media post written for you by the AI, summarizing the article or asset.</li>
                     <li><strong>Refine (Optional):</strong> Use the "Refine" feature to have the AI rewrite the post with a different tone or style based on your prompt.</li>
-                    <li><strong>Copy and Share:</strong> Click the "Copy Text" button, then click "Post to LinkedIn" to open a new tab where you can paste your perfectly crafted post and share it with your network.</li>
-                    <li><strong>Dismiss:</strong> Click "Dismiss" on any item to remove it from your feed.</li>
+                    <li><strong>Copy and Share:</strong> Click the <button class="btn-secondary" disabled>Copy Text</button> button, then click <button class="btn-primary" disabled>Post to LinkedIn</button> to open a new tab where you can paste your perfectly crafted post and share it with your network.</li>
                 </ol>
             </div>
         </div>
