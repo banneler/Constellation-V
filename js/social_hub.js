@@ -211,4 +211,5 @@ async function initializePage() {
         window.location.href = "index.html";
     }
 }
+initializePage();
 });
