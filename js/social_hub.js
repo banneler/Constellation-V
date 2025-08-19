@@ -6,7 +6,9 @@ import {
     updateActiveNavLink,
     setupUserMenuAndAuth,
     loadSVGs,
-    setupGlobalSearch
+    setupGlobalSearch,
+    updateLastVisited,
+    checkAndSetNotifications
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -190,21 +192,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- INITIALIZATION ---
-    async function initializePage() {
-        await loadSVGs(); // Call this first to load icons
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            updateActiveNavLink();
-            setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await loadSocialContent();
-        } else {
-            window.location.href = "index.html";
-        }
-    }
+     // --- INITIALIZATION ---
+async function initializePage() {
+    await loadSVGs();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        state.currentUser = session.user;
+        await setupUserMenuAndAuth(supabase, state);
+        updateActiveNavLink();
+        setupPageEventListeners();
+        await setupGlobalSearch(supabase, state.currentUser);
+        await loadSocialContent(); 
 
-    initializePage();
+        // NUKE-LEVEL FIX: Await the check, THEN update the visit time.
+        await checkAndSetNotifications(supabase); 
+        updateLastVisited(supabase, 'social_hub'); 
+    } else {
+        window.location.href = "index.html";
+    }
+}
+initializePage();
 });

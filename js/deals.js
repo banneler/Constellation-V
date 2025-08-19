@@ -1,3 +1,4 @@
+// banneler/constellation-v/Constellation-V-8d825689cc599d5206d1e49b4f0dafe9c5ecc390/js/deals.js
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -11,7 +12,8 @@ import {
     updateActiveNavLink,
     setupUserMenuAndAuth,
     loadSVGs,
-    setupGlobalSearch
+    setupGlobalSearch,
+    checkAndSetNotifications
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -40,6 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const metricCurrentCommit = document.getElementById("metric-current-commit");
     const metricBestCase = document.getElementById("metric-best-case");
     const metricFunnel = document.getElementById("metric-funnel");
+    const metricClosedWon = document.getElementById("metric-closed-won"); // New selector
     const viewMyDealsBtn = document.getElementById("view-my-deals-btn");
     const viewAllDealsBtn = document.getElementById("view-all-deals-btn");
     const dealsViewToggleDiv = document.querySelector('.deals-view-toggle');
@@ -329,25 +332,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         
-        const futureDeals = getFutureDeals();
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
-        let currentCommit = 0, bestCase = 0;
+        let currentCommit = 0, bestCase = 0, closedWon = 0;
         
-        futureDeals.forEach((deal) => {
+        state.deals.forEach((deal) => { // Use all deals for closed-won calculation
             const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
             const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
+            
             if (isCurrentMonth) {
-                bestCase += deal.mrc || 0;
-                if (deal.is_committed) currentCommit += deal.mrc || 0;
+                if (deal.stage === 'Closed Won') {
+                    closedWon += deal.mrc || 0;
+                } else {
+                    bestCase += deal.mrc || 0;
+                    if (deal.is_committed) currentCommit += deal.mrc || 0;
+                }
             }
         });
         
-        const totalFunnel = futureDeals.reduce((sum, deal) => sum + (deal.mrc || 0), 0);
+        const totalFunnel = getFutureDeals().reduce((sum, deal) => sum + (deal.mrc || 0), 0);
 
         metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
         metricBestCase.textContent = formatCurrencyK(bestCase);
         metricFunnel.textContent = formatCurrencyK(totalFunnel);
+        metricClosedWon.textContent = formatCurrencyK(closedWon); // Update the new metric
 
         const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
         const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
@@ -472,6 +480,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             setupPageEventListeners();
             await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await checkAndSetNotifications(supabase);
             await loadAllData();
         } else {
             window.location.href = "index.html";

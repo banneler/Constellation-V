@@ -395,8 +395,6 @@ export async function setupGlobalSearch(supabase) {
         searchResultsContainer.classList.remove('hidden');
 
         try {
-            // **FINAL FIX:** Reverted to the simple, standard invoke call.
-            // We pass a plain JavaScript object and let Supabase handle the rest.
             const { data: results, error } = await supabase.functions.invoke('global-search', {
                 body: { searchTerm: term }
             });
@@ -427,9 +425,79 @@ export async function setupGlobalSearch(supabase) {
         `).join('');
     }
 
+    // This is the corrected event listener.
     document.addEventListener('click', (e) => {
-        if (!searchResultsContainer.contains(e.target) && e.target !== searchInput) {
+        const searchContainer = document.querySelector('.global-search-container');
+        if (searchContainer && !searchContainer.contains(e.target)) {
             searchResultsContainer.classList.add('hidden');
         }
     });
+}
+
+
+// --- NOTIFICATION FUNCTIONS (FINAL) ---
+
+/**
+ * Updates the visit timestamp for a page in the background.
+ * This is a "fire and forget" operation.
+ * @param {SupabaseClient} supabase The Supabase client instance.
+ * @param {string} pageName The name of the page being visited.
+ */
+export function updateLastVisited(supabase, pageName) {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        supabase.from('user_page_visits')
+            .upsert({
+                user_id: user.id,
+                page_name: pageName,
+                last_visited_at: new Date().toISOString()
+            }, { onConflict: 'user_id, page_name' })
+            .then(({ error }) => {
+                if (error) console.error(`Error updating visit for ${pageName}:`, error);
+            });
+    });
+}
+
+
+/**
+ * Checks for new content on all pages and updates the bells.
+ * This is now an async function that can be awaited for predictable execution.
+ * @param {SupabaseClient} supabase The Supabase client instance.
+ */
+export async function checkAndSetNotifications(supabase) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const pagesToCheck = [
+        { name: 'social_hub', table: 'social_hub_posts' },
+        { name: 'cognito', table: 'cognito_alerts' }
+    ];
+
+    const { data: visits } = await supabase
+        .from('user_page_visits')
+        .select('page_name, last_visited_at')
+        .eq('user_id', user.id);
+
+    const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
+
+    for (const page of pagesToCheck) {
+        const { data: latestItem } = await supabase
+            .from(page.table)
+            .select('created_at')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+        
+        const notificationDot = document.getElementById(`${page.name}-notification`);
+        if (notificationDot && latestItem) {
+            const lastVisitTime = lastVisits.get(page.name) || 0;
+            const lastContentTime = new Date(latestItem.created_at).getTime();
+            const hasNewContent = lastContentTime > lastVisitTime;
+            
+            notificationDot.classList.toggle('hidden', !hasNewContent);
+
+        } else if (notificationDot) {
+            notificationDot.classList.add('hidden');
+        }
+    }
 }

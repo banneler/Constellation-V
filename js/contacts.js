@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast, setupGlobalSearch } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1403,6 +1403,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const contactIdFromUrl = urlParams.get('contactId');
             if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
             await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await checkAndSetNotifications(supabase);
             await loadAllData();
         } else {
             window.location.href = "index.html";
