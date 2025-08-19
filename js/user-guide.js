@@ -11,12 +11,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Helper style for inline buttons to make them look good in the guide
 const btnStyle = `style="display: inline-block; pointer-events: none; margin: 0 4px; transform: scale(0.9);"`;
-// New styles for the flex layout
-const howToContainerStyle = `style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;"`;
-const textContentStyle = `style="flex: 1; min-width: 300px;"`;
-const imageContainerStyle = `style="flex: 1; min-width: 300px; max-width: 700px;"`;
-const imgStyle = `style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);"`;
-
 
 const userGuideContent = {
     "introduction": `
@@ -57,8 +51,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Your Day from the Command Center</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <h4>Managing Manual Tasks:</h4>
                         <ol>
                             <li>On the Command Center page, click the <button class="btn-primary" ${btnStyle}>Add New Task</button> button.</li>
@@ -73,8 +67,8 @@ const userGuideContent = {
                             <li>After completing the action, click the final <button class="btn-primary" ${btnStyle}>Complete</button> button for that row to log the activity and advance the contact in the sequence.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/command-center.PNG" alt="Command Center Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/command-center.PNG" alt="Command Center Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
@@ -96,8 +90,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Deals</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <h4>Creating a New Deal:</h4>
                         <ol>
                             <li>Navigate to the <strong>Accounts</strong> page and select an account.</li>
@@ -111,8 +105,8 @@ const userGuideContent = {
                             <li>Check the "Committed" checkbox in the first column to include the deal in your forecast.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/deals.PNG" alt="Deals Page Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/deals.PNG" alt="Deals Page Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
@@ -135,8 +129,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Contacts</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <h4>Adding & Editing:</h4>
                         <ol>
                             <li>Click <button class="btn-primary" ${btnStyle}>Add New Contact</button> to create a new record.</li>
@@ -159,8 +153,8 @@ const userGuideContent = {
                             <li>If attachments were logged, you can click the attachment links in the modal to download them.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/contacts.PNG" alt="Contacts Page Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/contacts.PNG" alt="Contacts Page Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
@@ -182,8 +176,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Accounts</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <h4>Adding & Editing:</h4>
                         <ol>
                             <li>Click <button class="btn-primary" ${btnStyle}>Add New Account</button> to create a new record.</li>
@@ -196,8 +190,8 @@ const userGuideContent = {
                             <li>Click <button class="btn-secondary" ${btnStyle}>AI Account Insight</button> for a summary of all activities related to the account.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/accounts.PNG" alt="Accounts Page Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/accounts.PNG" alt="Accounts Page Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
@@ -218,8 +212,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Campaigns</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <h4>Creating a Campaign:</h4>
                         <ol>
                             <li>Click <button class="btn-primary" ${btnStyle}>Create New Campaign</button>, select a type, name it, and use filters to build your audience.</li>
@@ -240,8 +234,8 @@ const userGuideContent = {
                             <li>Click <button class="btn-primary" ${btnStyle}>Download Contacts (.csv)</button> and <button class="btn-secondary" ${btnStyle}>Download Email Template (.txt)</button> for use in an external tool.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/campaigns.PNG" alt="Campaigns Page Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/campaigns.PNG" alt="Campaigns Page Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
@@ -262,8 +256,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Sequences</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <h4>Creating a Sequence Manually:</h4>
                         <ol>
                             <li>Click <button class="btn-primary" ${btnStyle}>Add New Sequence</button>, give it a name, and click "Create".</li>
@@ -282,8 +276,8 @@ const userGuideContent = {
                             <li>Review, edit, and click <button class="btn-primary" ${btnStyle}>Save AI Generated Sequence</button>.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/sequences.PNG" alt="Sequences Page Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/sequences.PNG" alt="Sequences Page Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
@@ -303,8 +297,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Use Cognito Intelligence Alerts</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <h4>Acting on an Alert:</h4>
                         <ol>
                             <li>Navigate to the Cognito page and review the Alert Cards.</li>
@@ -314,8 +308,8 @@ const userGuideContent = {
                             <li>Once satisfied, log the email and create follow-up tasks directly from the modal.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/cognito.PNG" alt="Cognito Page Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/cognito.PNG" alt="Cognito Page Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
@@ -334,8 +328,8 @@ const userGuideContent = {
             </div>
             <div class="guide-card">
                 <h3>How-To: Share AI-Curated News</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <ol>
                             <li>Navigate to the Social Hub page.</li>
                             <li>Find a post tagged as "News Article".</li>
@@ -344,15 +338,15 @@ const userGuideContent = {
                             <li>Click <button class="btn-secondary" ${btnStyle}>Copy Text</button> and then <button class="btn-primary" ${btnStyle}>Post to LinkedIn</button> to share.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/social-hub.PNG" alt="Social Hub Page Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/social-hub.PNG" alt="Social Hub Page Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
             <div class="guide-card">
                 <h3>How-To: Share Marketing-Generated Posts</h3>
-                <div ${howToContainerStyle}>
-                    <div ${textContentStyle}>
+                <div style="display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px;">
                         <ol>
                             <li>Find a post tagged as "Campaign Asset". These are pre-approved by your marketing team.</li>
                             <li>Click <button class="btn-primary" ${btnStyle}>Prepare Post</button>.</li>
@@ -360,8 +354,8 @@ const userGuideContent = {
                             <li>Click <button class="btn-secondary" ${btnStyle}>Copy Text</button> and then <button class="btn-primary" ${btnStyle}>Post to LinkedIn</button>.</li>
                         </ol>
                     </div>
-                    <div ${imageContainerStyle}>
-                        <img src="assets/user-guide/social-hub-II.PNG" alt="Social Hub Marketing Post Screenshot" ${imgStyle}>
+                    <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                        <img src="assets/user-guide/social-hub-II.PNG" alt="Social Hub Marketing Post Screenshot" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
                     </div>
                 </div>
             </div>
