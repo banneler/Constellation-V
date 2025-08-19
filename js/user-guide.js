@@ -52,7 +52,7 @@ const userGuideContent = {
                     <li><strong>Actionable Steps</strong>: Dedicated buttons for streamlining sequence steps (e.g., "Go to LinkedIn," "Send Email").</li>
                     <li><strong>Upcoming Sequence Steps</strong>: A forward-looking view of automated outreach, helping you prepare for future engagements.</li>
                     <li><strong>Recent Activities</strong>: A live feed of your latest logged activities.</li>
-                    <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the `Contacts`, `Accounts`, and `Sequences` pages.</li>
+                    <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the \`Contacts\`, \`Accounts\`, and \`Sequences\` pages.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -125,9 +125,9 @@ const userGuideContent = {
                 <p>The Contacts page uses a powerful split-screen layout. On the left is a searchable list of contacts, and on the right is a detailed panel to view and edit their information.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Contact List Icons</strong>: See key information at a glance: a `★` indicates an organic contact, a `🔥` means recent activity, and a `✈️` means they are in an active sequence.</li>
+                    <li><strong>Contact List Icons</strong>: See key information at a glance: a \`★\` indicates an organic contact, a \`🔥\` means recent activity, and a \`✈️\` means they are in an active sequence.</li>
                     <li><strong>Action Buttons</strong>: Quickly <button class="btn-secondary" ${btnStyle}>Log Activity</button>, <button class="btn-secondary" ${btnStyle}>Assign Sequence</button>, or <button class="btn-secondary" ${btnStyle}>Add Task</button>.</li>
-                    <li><strong>Contact Sorting</strong>: Easily sort the contact list by `First Name` or `Last Name` using the toggle buttons above the list.</li>
+                    <li><strong>Contact Sorting</strong>: Easily sort the contact list by \`First Name\` or \`Last Name\` using the toggle buttons above the list.</li>
                     <li><strong>Sequence Status</strong>: See if a contact is in an automated sequence and manage their enrollment.</li>
                     <li><strong>Logging Emails from Your Inbox</strong>: Automatically log emails by BCCing bcc@constellation-crm.com.</li>
                     <li><strong>AI Tools</strong>: Use <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> for data entry and <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> for summaries.</li>
@@ -173,8 +173,8 @@ const userGuideContent = {
                 <p>The Accounts page is your central repository for all company-level information, using the same powerful split-screen layout as the Contacts page.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Account List Icons</strong>: See key information at a glance: a `$` indicates an open deal, and a `🔥` means recent activity.</li>
-                    <li><strong>Account Filtering</strong>: Use the dropdown menu above the account list to filter by `Hot Accounts`, `Accounts with Open Deals`, `Customers`, or `Prospects`.</li>
+                    <li><strong>Account List Icons</strong>: See key information at a glance: a \`$\` indicates an open deal, and a \`🔥\` means recent activity.</li>
+                    <li><strong>Account Filtering</strong>: Use the dropdown menu above the account list to filter by \`Hot Accounts\`, \`Accounts with Open Deals\`, \`Customers\`, or \`Prospects\`.</li>
                     <li><strong>Action Buttons</strong>: <button class="btn-secondary" ${btnStyle}>New Deal</button> or <button class="btn-primary" ${btnStyle}>Add Task</button> directly from an account's page.</li>
                     <li><strong>Related Information</strong>: View all associated contacts, activities, and deals for a complete picture.</li>
                     <li><strong>AI Account Insight</strong>: Get instant summaries of interaction history for the entire account.</li>
@@ -248,7 +248,7 @@ const userGuideContent = {
         </div>
     `,
     "sequences": `
-       <div>
+        <div>
             <div class="guide-card">
                 <h2>6. Sequences: Automate Your Outreach</h2>
                 <p>The Sequences page is where you build multi-step, automated outreach plans to ensure consistent follow-up with your prospects.</p>
@@ -296,8 +296,8 @@ const userGuideContent = {
                 <p>Cognito is your integrated tool for modern, intelligent selling, monitoring the web for timely buying signals.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Intelligence Alerts</strong>: An AI agent monitors news for buying signals related to your accounts. The `Cognito` nav button will display a bell icon (`🔔`) if there are new, unread alerts.</li>
-                    <li><strong>Filters</strong>: The `New Alerts` section can be filtered by `Trigger Type`, `Relevance`, and `Account` to help you find the most important alerts.</li>
+                    <li><strong>Intelligence Alerts</strong>: An AI agent monitors news for buying signals related to your accounts. The \`Cognito\` nav button will display a bell icon (\`🔔\`) if there are new, unread alerts.</li>
+                    <li><strong>Filters</strong>: The \`New Alerts\` section can be filtered by \`Trigger Type\`, \`Relevance\`, and \`Account\` to help you find the most important alerts.</li>
                     <li><strong>The Action Center</strong>: Clicking "Action" on an alert opens a modal where Cognito's AI drafts a personalized outreach email based on the news.</li>
                 </ul>
             </div>
@@ -328,7 +328,7 @@ const userGuideContent = {
                 <p>The Social Hub makes it effortless to build your professional brand by providing a steady stream of high-quality, relevant content to share.</p>
                 <h4>Key Features:</h4>
                 <ul>
-                    <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset". The `Social Hub` nav button will display a bell icon (`🔔`) if there is new content to view.</li>
+                    <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset". The \`Social Hub\` nav button will display a bell icon (\`🔔\`) if there is new content to view.</li>
                     <li><strong>AI-Assisted Posting</strong>: When you prepare a post, the AI will generate suggested text which you can refine before sharing.</li>
                 </ul>
             </div>
