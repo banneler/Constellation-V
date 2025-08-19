@@ -9,6 +9,9 @@ import {
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Helper style for inline buttons to make them look good in the guide
+const btnStyle = `style="display: inline-block; pointer-events: none; margin: 0 4px; transform: scale(0.9);"`;
+
 const userGuideContent = {
     "introduction": `
         <div>
@@ -41,7 +44,7 @@ const userGuideContent = {
                 <h3>How-To: Manage Tasks (Command Center)</h3>
                 <h4>Adding a New Task:</h4>
                 <ol>
-                    <li>On the Command Center page, click the "Add New Task" button.</li>
+                    <li>On the Command Center page, click the <button class="btn-primary" ${btnStyle}>Add New Task</button> button.</li>
                     <li>In the pop-up, enter the task Description.</li>
                     <li>Optionally, select a Due Date.</li>
                     <li>Optionally, link the task to a Contact or Account using the dropdowns.</li>
@@ -50,12 +53,12 @@ const userGuideContent = {
                 <h4>Completing a Task:</h4>
                 <ol>
                     <li>In the "My Tasks" table on the Command Center, locate the task.</li>
-                    <li>Click the "Complete" button in the "Actions" column. The task will be marked as completed and moved from your active tasks.</li>
+                    <li>Click the <button class="btn-primary" ${btnStyle}>Complete</button> button in the "Actions" column. The task will be marked as completed and moved from your active tasks.</li>
                 </ol>
                 <h4>Editing/Deleting a Task:</h4>
                 <ol>
                     <li>In the "My Tasks" table, locate the task.</li>
-                    <li>Click the "Edit" or "Delete" button in the "Actions" column.</li>
+                    <li>Click the <button class="btn-secondary" ${btnStyle}>Edit</button> or <button class="btn-danger" ${btnStyle}>Delete</button> button in the "Actions" column.</li>
                     <li>Follow the prompts in the modal to update or confirm deletion.</li>
                 </ol>
             </div>
@@ -65,12 +68,12 @@ const userGuideContent = {
                     <li><strong>Review Steps</strong>: In the "Sequence Steps Due" table, identify the contact and the required action (e.g., Email, LinkedIn, Call).</li>
                     <li><strong>Execute the Step</strong>:
                         <ul>
-                            <li>For <strong>Email</strong> steps, click "Send Email". This will open a modal where you can review and edit the AI-personalized email draft before opening it in your default email client.</li>
-                            <li>For <strong>LinkedIn</strong> steps, click "Go to LinkedIn". This will open a new tab to the contact's profile. After you've taken your action (e.g., sent a message, connection request), return to Constellation.</li>
+                            <li>For <strong>Email</strong> steps, click <button class="btn-primary" ${btnStyle}>Send Email</button>. This will open a modal where you can review and edit the AI-personalized email draft before opening it in your default email client.</li>
+                            <li>For <strong>LinkedIn</strong> steps, click <button class="btn-primary" ${btnStyle}>Go to LinkedIn</button>. This will open a new tab to the contact's profile. After you've taken your action (e.g., sent a message, connection request), return to Constellation.</li>
                             <li>For <strong>Call</strong> or other generic steps, perform the action as required.</li>
                         </ul>
                     </li>
-                    <li><strong>Mark as Complete</strong>: After executing the step, click the "Complete" button for that row. This logs the activity and automatically advances the contact to the next step in the sequence.</li>
+                    <li><strong>Mark as Complete</strong>: After executing the step, click the <button class="btn-primary" ${btnStyle}>Complete</button> button for that row. This logs the activity and automatically advances the contact to the next step in the sequence.</li>
                 </ol>
             </div>
         </div>
@@ -95,14 +98,14 @@ const userGuideContent = {
                 <h4>Creating a New Deal:</h4>
                 <ol>
                     <li>Navigate to the <strong>Accounts</strong> page and select the account for which you want to create a deal.</li>
-                    <li>In the account's detail panel, click the "New Deal" button.</li>
+                    <li>In the account's detail panel, click the <button class="btn-secondary" ${btnStyle}>New Deal</button> button.</li>
                     <li>Fill in the deal Name, Term, Stage, Monthly Recurring Revenue (MRC), Close Month, and Products.</li>
                     <li>Click "Create Deal".</li>
                 </ol>
                 <h4>Editing Deal Details:</h4>
                 <ol>
                     <li>On the Deals page, locate the deal in the table.</li>
-                    <li>Click the "Edit" button in the "Actions" column.</li>
+                    <li>Click the <button class="btn-secondary" ${btnStyle}>Edit</button> button in the "Actions" column.</li>
                     <li>In the modal, update any desired fields.</li>
                     <li>Click "Save".</li>
                 </ol>
@@ -136,7 +139,7 @@ const userGuideContent = {
                 <h4>Adding a New Contact (Manual):</h4>
                 <ol>
                     <li>Navigate to the Contacts page.</li>
-                    <li>Click the "Add New Contact" button.</li>
+                    <li>Click the <button class="btn-primary" ${btnStyle}>Add New Contact</button> button.</li>
                     <li>In the modal, enter the First Name and Last Name.</li>
                     <li>Click "Create Contact". The details panel will open for further editing.</li>
                 </ol>
@@ -144,28 +147,28 @@ const userGuideContent = {
                 <ol>
                     <li>On the Contacts page, select a contact from the list.</li>
                     <li>In the details panel, update fields like Email, Phone, Title, Account, or Notes.</li>
-                    <li>Click "Save Changes".</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Save Changes</button>.</li>
                 </ol>
                 <h4>Sorting the Contact List:</h4>
                 <ol>
-                    <li>Above the contact list, click the "First Name" or "Last Name" toggle buttons to sort the list accordingly.</li>
+                    <li>Above the contact list, click the <button class="btn-secondary" ${btnStyle}>First Name</button> or <button class="btn-secondary" ${btnStyle}>Last Name</button> toggle buttons to sort the list accordingly.</li>
                 </ol>
                 <h4>Bulk Import Contacts from CSV:</h4>
                 <ol>
-                    <li>On the Contacts page, click the "Bulk Import from CSV" button.</li>
+                    <li>On the Contacts page, click the <button class="btn-secondary" ${btnStyle}>Bulk Import from CSV</button> button.</li>
                     <li>Select your prepared CSV file. (A template is available in the Command Center.)</li>
                 </ol>
                 <h4>AI Contact Import (from Email Signatures & Business Cards):</h4>
                 <ol>
-                    <li>Navigate to the Contacts page and click the "Import Contact Screenshot" button.</li>
+                    <li>Navigate to the Contacts page and click the <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> button.</li>
                     <li>A modal will appear. For screenshots, paste the image (CTRL+V/CMD+V). For mobile, use the "Take Picture of Signature" button.</li>
                     <li>The AI will analyze the image and populate the contact's details.</li>
-                    <li>Review the populated fields and click "Save Changes".</li>
+                    <li>Review the populated fields and click <button class="btn-primary" ${btnStyle}>Save Changes</button>.</li>
                 </ol>
                 <h4>AI Activity Insight:</h4>
                 <ol>
                     <li>On the Contacts page, select a contact.</li>
-                    <li>Click the "AI Activity Insight" button.</li>
+                    <li>Click the <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> button.</li>
                     <li>A modal will display a summary of activities and suggested next steps.</li>
                 </ol>
             </div>
@@ -191,7 +194,7 @@ const userGuideContent = {
                 <h4>Adding a New Account (Manual):</h4>
                 <ol>
                     <li>Navigate to the Accounts page.</li>
-                    <li>Click the "Add New Account" button.</li>
+                    <li>Click the <button class="btn-primary" ${btnStyle}>Add New Account</button> button.</li>
                     <li>In the modal, enter the Account Name.</li>
                     <li>Click "Create Account". The details panel will open for further editing.</li>
                 </ol>
@@ -199,24 +202,24 @@ const userGuideContent = {
                 <ol>
                     <li>On the Accounts page, select an account from the list.</li>
                     <li>In the details panel, update fields like Website, Industry, or Phone.</li>
-                    <li>Click "Save Changes".</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Save Changes</button>.</li>
                 </ol>
                 <h4>Bulk Import Accounts from CSV:</h4>
                 <ol>
-                    <li>On the Accounts page, click the "Bulk Import from CSV" button.</li>
+                    <li>On the Accounts page, click the <button class="btn-secondary" ${btnStyle}>Bulk Import from CSV</button> button.</li>
                     <li>Select your prepared CSV file. (A template is available in the Command Center.)</li>
                 </ol>
                 <h4>Creating a New Deal from Account Page:</h4>
                 <ol>
                     <li>On the Accounts page, select an account.</li>
-                    <li>Click the "New Deal" button.</li>
+                    <li>Click the <button class="btn-secondary" ${btnStyle}>New Deal</button> button.</li>
                     <li>Fill in the deal details (Name, Term, Stage, MRC, etc.).</li>
                     <li>Click "Create Deal".</li>
                 </ol>
                 <h4>AI Activity Insight:</h4>
                 <ol>
                     <li>On the Accounts page, select an account.</li>
-                    <li>Click the "AI Account Insight" button.</li>
+                    <li>Click the <button class="btn-secondary" ${btnStyle}>AI Account Insight</button> button.</li>
                     <li>A modal will display a summary of activities and suggested next steps for the entire account.</li>
                 </ol>
             </div>
@@ -239,34 +242,34 @@ const userGuideContent = {
                 <h3>How-To: Manage Campaigns</h3>
                 <h4>Creating a Campaign:</h4>
                 <ol>
-                    <li>On the Campaigns page, click "Add New Campaign" and select a type.</li>
+                    <li>On the Campaigns page, click <button class="btn-primary" ${btnStyle}>Create New Campaign</button> and select a type.</li>
                     <li>Define your Campaign Name and use the filters to select your target audience.</li>
                     <li>Click "Create Campaign".</li>
                 </ol>
                 <h4>Executing a Call Blitz Campaign:</h4>
                 <ol>
                     <li>Select an active Call Blitz campaign from the list.</li>
-                    <li>Click "Start Calling". The UI will present one contact at a time.</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Start Calling</button>. The UI will present one contact at a time.</li>
                     <li>Make the call, enter your notes in the text area provided.</li>
-                    <li>Click "Log Call & Next" to save the activity and move to the next contact, or "Skip & Next" to move on without logging.</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Log Call & Next</button> to save the activity and move to the next contact, or <button class="btn-secondary" ${btnStyle}>Skip & Next</button> to move on without logging.</li>
                 </ol>
                 <h4>Executing a Guided Email Campaign:</h4>
                 <ol>
                     <li>Select an active Guided Email campaign from the list.</li>
-                    <li>Click "Start Guided Emails". The UI will present one contact at a time with the email template populated.</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Start Guided Emails</button>. The UI will present one contact at a time with the email template populated.</li>
                     <li>Review and personalize the email text.</li>
-                    <li>Click "Open in Email Client & Next" to open the email in your default mail app and advance to the next contact.</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Open in Email Client & Next</button> to open the email in your default mail app and advance to the next contact.</li>
                 </ol>
                 <h4>Executing an Email Merge Campaign:</h4>
                 <ol>
                     <li>Select an active Email Merge campaign from the list.</li>
-                    <li>Click "Download Contacts (.csv)" to get a list of your filtered contacts.</li>
-                    <li>Click "Download Email Template (.txt)" to get the email body.</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Download Contacts (.csv)</button> to get a list of your filtered contacts.</li>
+                    <li>Click <button class="btn-secondary" ${btnStyle}>Download Email Template (.txt)</button> to get the email body.</li>
                     <li>Use these two files with an external mail merge tool.</li>
                 </ol>
                 <h4>Managing Email Templates:</h4>
                 <ol>
-                    <li>On the Campaigns page, click "Manage Email Templates".</li>
+                    <li>On the Campaigns page, click <button class="btn-secondary" ${btnStyle}>Manage Email Templates</button>.</li>
                     <li>Click "Add New Template" or "Edit"/"Delete" on an existing one.</li>
                     <li>Use placeholders like [FirstName] for dynamic content and save.</li>
                 </ol>
@@ -290,22 +293,22 @@ const userGuideContent = {
                 <h3>How-To: Manage Sequences</h3>
                 <h4>Creating a Personal Sequence (Manual):</h4>
                 <ol>
-                    <li>Navigate to the Sequences page and click "Add New Sequence".</li>
+                    <li>Navigate to the Sequences page and click <button class="btn-primary" ${btnStyle}>Add New Sequence</button>.</li>
                     <li>Enter a Sequence Name and click "Create Sequence".</li>
-                    <li>With the sequence selected, click "Add New Step" and define its parameters.</li>
+                    <li>With the sequence selected, click <button class="btn-secondary" ${btnStyle}>Add New Step</button> and define its parameters.</li>
                 </ol>
                 <h4>Importing Sequence Steps from CSV:</h4>
                 <ol>
-                    <li>Select an existing sequence and click "Bulk Import Steps from CSV".</li>
+                    <li>Select an existing sequence and click <button class="btn-secondary" ${btnStyle}>Bulk Import Steps from CSV</button>.</li>
                     <li>Select your prepared CSV file. The steps will be appended to your sequence.</li>
                 </ol>
                 <h4>AI Generated Sequences:</h4>
                 <ol>
                     <li>Scroll down to the "AI Generate New Sequence" section.</li>
                     <li>Fill in the details: Goal, Number of Steps, Duration, Step Types, and Persona.</li>
-                    <li>Click "Generate Sequence with AI".</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Generate Sequence with AI</button>.</li>
                     <li>Review and edit the generated steps in the preview table.</li>
-                    <li>Click "Save AI Generated Sequence" and provide a unique name.</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Save AI Generated Sequence</button> and provide a unique name.</li>
                 </ol>
             </div>
         </div>
@@ -330,9 +333,9 @@ const userGuideContent = {
                 </ol>
                 <h4>Using the Action Center (AI Email Drafting):</h4>
                 <ol>
-                    <li>On a Cognito Alert Card, click the "Action" button.</li>
+                    <li>On a Cognito Alert Card, click the <button class="btn-primary" ${btnStyle}>Action</button> button.</li>
                     <li>The Action Center modal will open with an AI-drafted email.</li>
-                    <li>Review the draft. Use "Refine with Custom Prompt" to regenerate the text.</li>
+                    <li>Review the draft. Use the <button class="btn-tertiary" ${btnStyle}>Refine with Custom Prompt</button> button to regenerate the text.</li>
                     <li>Once satisfied, log the sent email or create follow-up tasks directly from the modal.</li>
                 </ol>
             </div>
@@ -354,9 +357,9 @@ const userGuideContent = {
                 <h4>Finding and Sharing Content:</h4>
                 <ol>
                     <li>Navigate to the Social Hub page and browse the content.</li>
-                    <li>Click "Prepare Post" on a relevant item.</li>
+                    <li>Click <button class="btn-primary" ${btnStyle}>Prepare Post</button> on a relevant item.</li>
                     <li>A modal will open with AI-generated copy.</li>
-                    <li>Click "Copy Text" and then "Post to LinkedIn" to easily share with your network.</li>
+                    <li>Click <button class="btn-secondary" ${btnStyle}>Copy Text</button> and then <button class="btn-primary" ${btnStyle}>Post to LinkedIn</button> to easily share with your network.</li>
                 </ol>
             </div>
         </div>
