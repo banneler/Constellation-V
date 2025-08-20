@@ -359,7 +359,7 @@ const userGuideContent = {
     "cognito": `
         <div>
             <div class="guide-card">
-                <h2>8. Cognito: Your AI-Powered Intelligence Agent</h2>
+                <h2>9. Cognito: Your AI-Powered Intelligence Agent</h2>
                 <p>Cognito is your integrated tool for modern, intelligent selling, monitoring the web for timely buying signals.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -391,7 +391,7 @@ const userGuideContent = {
     "social-hub": `
         <div>
             <div class="guide-card">
-                <h2>9. Social Hub: Build Your Brand</h2>
+                <h2>8. Social Hub: Build Your Brand</h2>
                 <p>The Social Hub makes it effortless to build your professional brand by providing a steady stream of high-quality, relevant content to share.</p>
                 <h4>Key Features:</h4>
                 <ul>
