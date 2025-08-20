@@ -413,7 +413,7 @@ const userGuideContent = {
                 </div>
             </div>
         </div>
-    `
+    `,
 };
 
 const state = { currentUser: null };
@@ -472,4 +472,3 @@ async function initializePage() {
 }
 
 document.addEventListener("DOMContentLoaded", initializePage);
-});
