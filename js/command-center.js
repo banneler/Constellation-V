@@ -17,6 +17,13 @@ import {
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+        setTimeout(() => {
+            loadingScreen.classList.add('hidden');
+        }, 5000); // 5 seconds
+    }
+    
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
