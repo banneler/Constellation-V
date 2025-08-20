@@ -437,14 +437,16 @@ const userGuideContent = {
     "theme-management": `
         <div>
             <div class="guide-card">
-                <h2>10. Theme Management</h2>
-                <p>You can change the application's visual theme at any time to suit your personal preference or work environment. The application will remember your last selected theme for future sessions.</p>
-                <h4>How-To: Toggle Themes</h4>
+                <h2>10. User Menu</h2>
+                <p>The User Menu, located at the bottom of the navigation bar, provides access to application themes, the user guide, and the logout function. Your name is displayed when the menu is collapsed.</p>
+                <h4>How-To: Use the Menu</h4>
                 <div ${howToContainerStyle}>
                     <div ${textContentStyle}>
                         <ol>
                             <li>Click your user name at the bottom of the navigation bar to open the user menu.</li>
-                            <li>Click the <button class="nav-button" ${btnStyle}>Theme: <span id="theme-name">Dark</span></button> button to cycle through the available themes: Dark, Light, Green, Blue, and Corporate.</li>
+                            <li>Click <button class="nav-button" ${btnStyle}>Theme: <span id="theme-name">Dark</span></button> to cycle through the available visual themes.</li>
+                            <li>Click <a href="user-guide.html" class="nav-button" ${btnStyle}>User Guide</a> to access this guide at any time.</li>
+                             <li>Click <button class="nav-button" ${btnStyle} style="background-color: #773030;">Logout</button> to securely sign out of the application.</li>
                         </ol>
                     </div>
                     <div ${imageContainerStyle}>
