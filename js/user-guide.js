@@ -72,6 +72,7 @@ const userGuideContent = {
                     <li><strong>Sequence Steps Due</strong>: Your automated to-do list, showing sequence steps due today or overdue.</li>
                     <li><strong>Actionable Steps</strong>: Dedicated buttons for streamlining sequence steps (e.g., "Go to LinkedIn," "Send Email").</li>
                     <li><strong>Upcoming Sequence Steps</strong>: A forward-looking view of automated outreach, helping you prepare for future engagements.</li>
+                    <li><strong>Recent Activities</strong>: A log of your most recent logged activities, providing a quick look back at your work.</li>
                     <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the \`Contacts\`, \`Accounts\`, and \`Sequences\` pages.</li>
                 </ul>
             </div>
@@ -108,7 +109,7 @@ const userGuideContent = {
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Metric Cards</strong>: Real-time snapshots of key sales figures: your current commit, best case, total funnel, and month-to-date closed-won revenue. Managers can toggle between "My Deals" and "My Team's Deals."</li>
-                    <li><strong>Deals Table</strong>: A comprehensive, sortable list of all your deals. Click any column header to sort the table.</li>
+                    <li><strong>Deals Table</strong>: A comprehensive list of all your deals. Click any column header to sort the table, or click a deal's name to navigate directly to its associated account.</li>
                     <li><strong>"Committed" Checkbox</strong>: A key feature for forecasting.</li>
                     <li><strong>Deal Insights Charts</strong>: Visual breakdowns of your pipeline by Stage and a 30/60/90 Day Funnel.</li>
                     <li><strong>Deal Integrity</strong>: Deals cannot be deleted; move lost deals to the "Closed Lost" stage to maintain accurate history.</li>
@@ -146,6 +147,7 @@ const userGuideContent = {
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Contact List Icons</strong>: See key information at a glance: a \`★\` indicates an organic contact, a \`🔥\` means recent activity, and a \`✈️\` means they are in an active sequence.</li>
+                    <li><strong>Pending Task Reminders</strong>: A banner will appear at the top of a contact's details if they have any pending tasks, ensuring you never miss a follow-up.</li>
                     <li><strong>Action Buttons</strong>: Quickly <button class="btn-secondary" ${btnStyle}>Log Activity</button>, <button class="btn-secondary" ${btnStyle}>Assign Sequence</button>, or <button class="btn-secondary" ${btnStyle}>Add Task</button>.</li>
                     <li><strong>Contact Name Display Toggle</strong>: A feature on the Contacts page allows you to toggle the display format of contact names in the list view between "First Last" and "Last, First".</li>
                     <li><strong>Bulk Data Export</strong>: The Contacts page includes a button to download all of your records as a CSV file, enabling easy data backup or use in external tools.</li>
@@ -273,7 +275,7 @@ const userGuideContent = {
                     <li><strong>Campaign Types</strong>: Create Call Blitz, Email Merge, or Guided Email campaigns.</li>
                     <li><strong>Dynamic Contact Filtering</strong>: Precisely target contacts based on account industry or customer/prospect status when creating a new campaign.</li>
                     <li><strong>Campaign Execution</strong>: A dedicated workflow UI guides you through each step.</li>
-                    <li><strong>Email Template Management</strong>: Create, edit, and delete reusable email templates.</li>
+                    <li><strong>Email Template Management</strong>: A built-in tool to create, edit, clone, and delete reusable email templates for your campaigns.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -283,6 +285,10 @@ const userGuideContent = {
                         <h4>Creating a Campaign:</h4>
                         <ol>
                             <li>Click <button class="btn-primary" ${btnStyle}>Create New Campaign</button>, select a type, name it, and use filters to build your audience.</li>
+                        </ol>
+                        <h4>Managing Email Templates:</h4>
+                        <ol>
+                            <li>Click <button class="btn-secondary" ${btnStyle}>Manage Email Templates</button> to open a modal where you can create new templates, or edit, delete, and clone existing ones.</li>
                         </ol>
                         <h4>Executing a Call Blitz:</h4>
                         <ol>
@@ -371,7 +377,7 @@ const userGuideContent = {
     "cognito": `
         <div>
             <div class="guide-card">
-                <h2>9. Cognito: Your AI-Powered Intelligence Agent</h2>
+                <h2>8. Cognito: Your AI-Powered Intelligence Agent</h2>
                 <p>Cognito is your integrated tool for modern, intelligent selling, monitoring the web for timely buying signals.</p>
                 <h4>Key Features:</h4>
                 <ul>
@@ -417,12 +423,13 @@ const userGuideContent = {
     "social-hub": `
         <div>
             <div class="guide-card">
-                <h2>8. Social Hub: Build Your Brand</h2>
+                <h2>9. Social Hub: Build Your Brand</h2>
                 <p>The Social Hub makes it effortless to build your professional brand by providing a steady stream of high-quality, relevant content to share.</p>
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset". The \`Social Hub\` nav button will display a bell icon (\`🔔\`) if there is new content to view.</li>
                     <li><strong>AI-Assisted Posting</strong>: When you prepare a post, the AI will generate suggested text which you can refine before sharing.</li>
+                    <li><strong>Dismiss Irrelevant Content</strong>: You can permanently hide any post from your view by clicking the "Dismiss" button, keeping your feed tailored to what's most relevant to you and your network.</li>
                 </ul>
             </div>
             <div class="guide-card">
