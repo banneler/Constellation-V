@@ -96,6 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showTemporaryMessage(error.message, false);
             } else {
                 // EXPLICIT REDIRECT: If there's no error, we are logged in. Go to the command center.
+                sessionStorage.setItem('showLoadingScreen', 'true'); // <-- ADD THIS LINE
                 window.location.href = "command-center.html";
             }
         } else {
