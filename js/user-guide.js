@@ -156,6 +156,17 @@ const userGuideContent = {
                 </ul>
             </div>
             <div class="guide-card">
+                <h3>Supercharge Your Workflow: Automatic Email Logging</h3>
+                <p>Constellation offers a powerful way to keep your contact records up-to-date without any extra effort: automatic email logging. By simply adding a special address to the BCC field of your emails, Constellation will handle the rest.</p>
+                <p><strong>Your unique logging address is:</strong> <code>bcc@constellation-crm.com</code></p>
+                <h4>How It Works:</h4>
+                <ul>
+                    <li><strong>Automatic Association:</strong> When you send an email and include the address above in the BCC field, Constellation automatically scans the "To" field. If an email address matches a contact in your Constellation database, the entire email—including the subject, body, and even attachments—is saved as an activity for that contact.</li>
+                    <li><strong>Attachment Handling:</strong> Any files attached to your email will be securely stored and linked to the activity log, so you'll always have a complete record of what you've sent.</li>
+                    <li><strong>Privacy Guaranteed:</strong> Using BCC ensures that your contacts will never see the logging address. It's your secret tool for a perfectly updated CRM.</li>
+                </ul>
+            </div>
+            <div class="guide-card">
                 <h3>How-To: Manage Contacts</h3>
                 <div ${howToContainerStyle}>
                     <div ${textContentStyle}>
@@ -197,6 +208,7 @@ const userGuideContent = {
                     <li><strong>Action Buttons</strong>: <button class="btn-secondary" ${btnStyle}>New Deal</button> or <button class="btn-primary" ${btnStyle}>Add Task</button> directly from an account's page.</li>
                     <li><strong>Related Information</strong>: View all associated contacts, activities, and deals for a complete picture.</li>
                     <li><strong>AI Account Insight</strong>: Get instant summaries of interaction history for the entire account.</li>
+                    <li><strong>Quick Link to Website</strong>: When you add a URL to the "Website" field for an account, a convenient external link icon appears, allowing you to open the company's website in a new tab with a single click.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -425,7 +437,7 @@ const contentPane = document.getElementById('user-guide-content');
 
 const loadContent = (sectionId) => {
     if (!contentPane) return;
-    const content = userGuideContent[sectionId] || `<h2>Content Not Found</h2>`;
+    const content = userGuideContent[sectionId] || \`<h2>Content Not Found</h2>\`;
     contentPane.innerHTML = content;
 };
 
