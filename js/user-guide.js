@@ -413,7 +413,7 @@ const userGuideContent = {
                 </div>
             </div>
         </div>
-    `,
+    `
 };
 
 const state = { currentUser: null };
