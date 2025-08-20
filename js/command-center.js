@@ -17,13 +17,20 @@ import {
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // --- UPDATED LOADING SCREEN LOGIC ---
     const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
+    if (sessionStorage.getItem('showLoadingScreen') === 'true') {
+        // If the flag exists, show the animation for 5 seconds
+        sessionStorage.removeItem('showLoadingScreen'); // Remove the flag so it doesn't show on refresh
         setTimeout(() => {
-            loadingScreen.classList.add('hidden');
-        }, 6000); // 5 seconds
+            if (loadingScreen) loadingScreen.classList.add('hidden');
+        }, 5000); // 5 seconds
+    } else {
+        // If no flag, hide the screen immediately
+        if (loadingScreen) loadingScreen.classList.add('hidden');
     }
-    
+    // --- END OF UPDATED LOGIC ---
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
