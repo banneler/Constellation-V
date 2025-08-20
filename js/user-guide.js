@@ -22,7 +22,7 @@ const userGuideContent = {
     "introduction": `
         <div>
             <div class="guide-card">
-                <h2>Welcome to the Mission!</h2>
+                <h2>Welcome to the Mission! 🚀</h2>
                 <p>Let's be honest. Modern sales can feel like trying to navigate an asteroid field in a spaceship held together with duct tape. You're juggling tasks, chasing leads, fighting off writer's block, and trying to find that one golden nugget of information that'll close the deal. It's... a lot.</p>
                 <p><strong>That's where Constellation comes in.</strong></p>
                 <p>Think of it less as a CRM and more as your mission control. It’s the co-pilot that’s had three cups of coffee before you've even had one. It's designed to clear the clutter from your dashboard so you can focus on what you actually do best: building relationships and closing deals.</p>
