@@ -10,9 +10,43 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-medium);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            opacity: 1;
+            transition: opacity 0.75s ease-out;
+        }
+
+        #loading-screen video {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
 </head>
 
 <body>
+    <div id="loading-screen">
+        <video autoplay muted playsinline>
+            <source src="Constellation-Animation" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
     <div class="crm-container">
        <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
@@ -161,11 +195,16 @@
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
         document.body.className = `theme-${savedTheme}`;
     })();
+
+    // Script for the loading screen
+    window.addEventListener('load', () => {
+        const loadingScreen = document.getElementById('loading-screen');
+        setTimeout(() => {
+            loadingScreen.classList.add('hidden');
+        }, 3000); // 3 seconds
+    });
     </script>
     <script type="module" src="js/command-center.js"></script>
 </body>
 
 </html>
-
-
-
