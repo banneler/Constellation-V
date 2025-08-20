@@ -150,12 +150,11 @@ const userGuideContent = {
                     <li><strong>Contact Name Display Toggle</strong>: A feature on the Contacts page allows you to toggle the display format of contact names in the list view between "First Last" and "Last, First".</li>
                     <li><strong>Bulk Data Export</strong>: The Contacts page includes a button to download all of your records as a CSV file, enabling easy data backup or use in external tools.</li>
                     <li><strong>Sequence Status</strong>: See if a contact is in an automated sequence and manage their enrollment.</li>
-                    <li><strong>Logging Emails from Your Inbox</strong>: Automatically log emails by BCCing bcc@constellation-crm.com.</li>
                     <li><strong>AI Tools</strong>: Use <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> for data entry and <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> for summaries.</li>
                     <li><strong>AI Email Generation</strong>: The Contacts page has a button to generate an email draft for a selected contact using an AI prompt.</li>
                 </ul>
             </div>
-            <div class="guide-card">
+             <div class="guide-card">
                 <h3>Supercharge Your Workflow: Automatic Email Logging</h3>
                 <p>Constellation offers a powerful way to keep your contact records up-to-date without any extra effort: automatic email logging. By simply adding a special address to the BCC field of your emails, Constellation will handle the rest.</p>
                 <p><strong>Your unique logging address is:</strong> <code>bcc@constellation-crm.com</code></p>
@@ -165,6 +164,26 @@ const userGuideContent = {
                     <li><strong>Attachment Handling:</strong> Any files attached to your email will be securely stored and linked to the activity log, so you'll always have a complete record of what you've sent.</li>
                     <li><strong>Privacy Guaranteed:</strong> Using BCC ensures that your contacts will never see the logging address. It's your secret tool for a perfectly updated CRM.</li>
                 </ul>
+            </div>
+             <div class="guide-card">
+                <h3>Your Personal AI Analyst: AI Activity Insight</h3>
+                <p>Stop scrolling through months of activity logs. With a single click, Constellation's AI can analyze all past interactions with a contact and give you a concise summary and actionable advice.</p>
+                <h4>How It Works:</h4>
+                <ul>
+                    <li><strong>Instant Summaries:</strong> Select any contact and click the <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> button. The AI reads through all logged activities—emails, calls, notes, and sequence steps—to give you a quick overview of the relationship.</li>
+                    <li><strong>Actionable Next Steps:</strong> Beyond just summarizing, the AI provides intelligent suggestions for your next move. Whether it's the perfect time to follow up, a topic to discuss, or a question to ask, you'll have a clear path forward.</li>
+                </ul>
+            </div>
+            <div class="guide-card">
+                <h3>Beat Writer's Block: Write Email with AI</h3>
+                <p>Staring at a blank email draft is a thing of the past. Let Constellation's AI be your personal copywriter, drafting effective outreach emails in seconds.</p>
+                <h4>How It Works:</h4>
+                <ol>
+                    <li>Select a contact who has an email address.</li>
+                    <li>Click the <button class="btn-primary" ${btnStyle}>Write Email with AI</button> button.</li>
+                    <li>In the pop-up, simply tell the AI what you want to achieve. For example: "Write a follow-up email after our meeting about the new project," or "Draft a cold outreach email mentioning their company's recent expansion."</li>
+                    <li>The AI will generate a complete email, including a subject line and body, ready for you to review and send.</li>
+                </ol>
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Contacts</h3>
@@ -209,6 +228,15 @@ const userGuideContent = {
                     <li><strong>Related Information</strong>: View all associated contacts, activities, and deals for a complete picture.</li>
                     <li><strong>AI Account Insight</strong>: Get instant summaries of interaction history for the entire account.</li>
                     <li><strong>Quick Link to Website</strong>: When you add a URL to the "Website" field for an account, a convenient external link icon appears, allowing you to open the company's website in a new tab with a single click.</li>
+                </ul>
+            </div>
+            <div class="guide-card">
+                <h3>Your Personal AI Analyst: AI Account Insight</h3>
+                <p>Get a bird's-eye view of your entire relationship with an account. This tool functions just like the AI Insight for contacts but analyzes activities across all contacts associated with the account.</p>
+                <h4>How It Works:</h4>
+                <ul>
+                    <li><strong>Holistic Summaries:</strong> Select an account and click the <button class="btn-secondary" ${btnStyle}>AI Account Insight</button> button. The AI synthesizes all logged activities for every contact at that company to provide a comprehensive summary of the entire account relationship.</li>
+                    <li><strong>Strategic Guidance:</strong> The AI doesn't just summarize—it provides strategic advice on how to best engage the account as a whole, helping you identify key players and craft a unified outreach strategy.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -437,7 +465,7 @@ const contentPane = document.getElementById('user-guide-content');
 
 const loadContent = (sectionId) => {
     if (!contentPane) return;
-    const content = userGuideContent[sectionId] || `<h2>Content Not Found</h2>`;
+    const content = userGuideContent[sectionId] || \`<h2>Content Not Found</h2>\`;
     contentPane.innerHTML = content;
 };
 
