@@ -22,7 +22,7 @@ const userGuideContent = {
     "introduction": `
         <div>
             <div class="guide-card">
-                <h2>Welcome to the Mission!</h2>
+                <h2>Welcome to the Mission! 🚀</h2>
                 <p>Let's be honest. Modern sales can feel like trying to navigate an asteroid field in a spaceship held together with duct tape. You're juggling tasks, chasing leads, fighting off writer's block, and trying to find that one golden nugget of information that'll close the deal. It's... a lot.</p>
                 <p><strong>That's where Constellation comes in.</strong></p>
                 <p>Think of it less as a CRM and more as your mission control. It’s the co-pilot that’s had three cups of coffee before you've even had one. It's designed to clear the clutter from your dashboard so you can focus on what you actually do best: building relationships and closing deals.</p>
@@ -72,6 +72,7 @@ const userGuideContent = {
                     <li><strong>Sequence Steps Due</strong>: Your automated to-do list, showing sequence steps due today or overdue.</li>
                     <li><strong>Actionable Steps</strong>: Dedicated buttons for streamlining sequence steps (e.g., "Go to LinkedIn," "Send Email").</li>
                     <li><strong>Upcoming Sequence Steps</strong>: A forward-looking view of automated outreach, helping you prepare for future engagements.</li>
+                    <li><strong>Recent Activities</strong>: A log of your most recent logged activities, providing a quick look back at your work.</li>
                     <li><strong>Download Templates</strong>: You can download CSV templates for bulk importing data into the \`Contacts\`, \`Accounts\`, and \`Sequences\` pages.</li>
                 </ul>
             </div>
@@ -108,7 +109,7 @@ const userGuideContent = {
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Metric Cards</strong>: Real-time snapshots of key sales figures: your current commit, best case, total funnel, and month-to-date closed-won revenue. Managers can toggle between "My Deals" and "My Team's Deals."</li>
-                    <li><strong>Deals Table</strong>: A comprehensive, sortable list of all your deals. Click any column header to sort the table.</li>
+                    <li><strong>Deals Table</strong>: A comprehensive list of all your deals. Click any column header to sort the table, or click a deal's name to navigate directly to its associated account.</li>
                     <li><strong>"Committed" Checkbox</strong>: A key feature for forecasting.</li>
                     <li><strong>Deal Insights Charts</strong>: Visual breakdowns of your pipeline by Stage and a 30/60/90 Day Funnel.</li>
                     <li><strong>Deal Integrity</strong>: Deals cannot be deleted; move lost deals to the "Closed Lost" stage to maintain accurate history.</li>
@@ -146,14 +147,45 @@ const userGuideContent = {
                 <h4>Key Features:</h4>
                 <ul>
                     <li><strong>Contact List Icons</strong>: See key information at a glance: a \`★\` indicates an organic contact, a \`🔥\` means recent activity, and a \`✈️\` means they are in an active sequence.</li>
+                    <li><strong>Pending Task Reminders</strong>: A banner will appear at the top of a contact's details if they have any pending tasks, ensuring you never miss a follow-up.</li>
                     <li><strong>Action Buttons</strong>: Quickly <button class="btn-secondary" ${btnStyle}>Log Activity</button>, <button class="btn-secondary" ${btnStyle}>Assign Sequence</button>, or <button class="btn-secondary" ${btnStyle}>Add Task</button>.</li>
                     <li><strong>Contact Name Display Toggle</strong>: A feature on the Contacts page allows you to toggle the display format of contact names in the list view between "First Last" and "Last, First".</li>
                     <li><strong>Bulk Data Export</strong>: The Contacts page includes a button to download all of your records as a CSV file, enabling easy data backup or use in external tools.</li>
                     <li><strong>Sequence Status</strong>: See if a contact is in an automated sequence and manage their enrollment.</li>
-                    <li><strong>Logging Emails from Your Inbox</strong>: Automatically log emails by BCCing bcc@constellation-crm.com.</li>
                     <li><strong>AI Tools</strong>: Use <button class="btn-secondary" ${btnStyle}>Import Contact Screenshot</button> for data entry and <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> for summaries.</li>
                     <li><strong>AI Email Generation</strong>: The Contacts page has a button to generate an email draft for a selected contact using an AI prompt.</li>
                 </ul>
+            </div>
+             <div class="guide-card">
+                <h3>Supercharge Your Workflow: Automatic Email Logging</h3>
+                <p>Constellation offers a powerful way to keep your contact records up-to-date without any extra effort: automatic email logging. By simply adding a special address to the BCC field of your emails, Constellation will handle the rest.</p>
+                <p><strong>Your unique logging address is:</strong> <code>bcc@constellation-crm.com</code></p>
+                <h4>How It Works:</h4>
+                <ul>
+                    <li><strong>Automatic Association:</strong> When you send an email and include the address above in the BCC field, Constellation automatically scans the "To" field. If an email address matches a contact in your Constellation database, the entire email—including the subject, body, and even attachments—is saved as an activity for that contact.</li>
+                    <li><strong>Attachment Handling:</strong> Any files attached to your email will be securely stored and linked to the activity log, so you'll always have a complete record of what you've sent.</li>
+                    <li><strong>Privacy Guaranteed:</strong> Using BCC ensures that your contacts will never see the logging address. It's your secret tool for a perfectly updated CRM.</li>
+                </ul>
+            </div>
+             <div class="guide-card">
+                <h3>Your Personal AI Analyst: AI Activity Insight</h3>
+                <p>Stop scrolling through months of activity logs. With a single click, Constellation's AI can analyze all past interactions with a contact and give you a concise summary and actionable advice.</p>
+                <h4>How It Works:</h4>
+                <ul>
+                    <li><strong>Instant Summaries:</strong> Select any contact and click the <button class="btn-primary" ${btnStyle}>AI Activity Insight</button> button. The AI reads through all logged activities—emails, calls, notes, and sequence steps—to give you a quick overview of the relationship.</li>
+                    <li><strong>Actionable Next Steps:</strong> Beyond just summarizing, the AI provides intelligent suggestions for your next move. Whether it's the perfect time to follow up, a topic to discuss, or a question to ask, you'll have a clear path forward.</li>
+                </ul>
+            </div>
+            <div class="guide-card">
+                <h3>Beat Writer's Block: Write Email with AI</h3>
+                <p>Staring at a blank email draft is a thing of the past. Let Constellation's AI be your personal copywriter, drafting effective outreach emails in seconds.</p>
+                <h4>How It Works:</h4>
+                <ol>
+                    <li>Select a contact who has an email address.</li>
+                    <li>Click the <button class="btn-primary" ${btnStyle}>Write Email with AI</button> button.</li>
+                    <li>In the pop-up, simply tell the AI what you want to achieve. For example: "Write a follow-up email after our meeting about the new project," or "Draft a cold outreach email mentioning their company's recent expansion."</li>
+                    <li>The AI will generate a complete email, including a subject line and body, ready for you to review and send.</li>
+                </ol>
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Contacts</h3>
@@ -197,6 +229,16 @@ const userGuideContent = {
                     <li><strong>Action Buttons</strong>: <button class="btn-secondary" ${btnStyle}>New Deal</button> or <button class="btn-primary" ${btnStyle}>Add Task</button> directly from an account's page.</li>
                     <li><strong>Related Information</strong>: View all associated contacts, activities, and deals for a complete picture.</li>
                     <li><strong>AI Account Insight</strong>: Get instant summaries of interaction history for the entire account.</li>
+                    <li><strong>Quick Link to Website</strong>: When you add a URL to the "Website" field for an account, a convenient external link icon appears, allowing you to open the company's website in a new tab with a single click.</li>
+                </ul>
+            </div>
+            <div class="guide-card">
+                <h3>Your Personal AI Analyst: AI Account Insight</h3>
+                <p>Get a bird's-eye view of your entire relationship with an account. This tool functions just like the AI Insight for contacts but analyzes activities across all contacts associated with the account.</p>
+                <h4>How It Works:</h4>
+                <ul>
+                    <li><strong>Holistic Summaries:</strong> Select an account and click the <button class="btn-secondary" ${btnStyle}>AI Account Insight</button> button. The AI synthesizes all logged activities for every contact at that company to provide a comprehensive summary of the entire account relationship.</li>
+                    <li><strong>Strategic Guidance:</strong> The AI doesn't just summarize—it provides strategic advice on how to best engage the account as a whole, helping you identify key players and craft a unified outreach strategy.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -233,7 +275,7 @@ const userGuideContent = {
                     <li><strong>Campaign Types</strong>: Create Call Blitz, Email Merge, or Guided Email campaigns.</li>
                     <li><strong>Dynamic Contact Filtering</strong>: Precisely target contacts based on account industry or customer/prospect status when creating a new campaign.</li>
                     <li><strong>Campaign Execution</strong>: A dedicated workflow UI guides you through each step.</li>
-                    <li><strong>Email Template Management</strong>: Create, edit, and delete reusable email templates.</li>
+                    <li><strong>Email Template Management</strong>: A built-in tool to create, edit, clone, and delete reusable email templates for your campaigns.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -243,6 +285,10 @@ const userGuideContent = {
                         <h4>Creating a Campaign:</h4>
                         <ol>
                             <li>Click <button class="btn-primary" ${btnStyle}>Create New Campaign</button>, select a type, name it, and use filters to build your audience.</li>
+                        </ol>
+                        <h4>Managing Email Templates:</h4>
+                        <ol>
+                            <li>Click <button class="btn-secondary" ${btnStyle}>Manage Email Templates</button> to open a modal where you can create new templates, or edit, delete, and clone existing ones.</li>
                         </ol>
                         <h4>Executing a Call Blitz:</h4>
                         <ol>
@@ -280,6 +326,18 @@ const userGuideContent = {
                     <li><strong>AI Generation</strong>: Effortlessly create entire sequences by defining your goals and letting AI draft the content.</li>
                     <li><strong>Bulk Assign Contacts</strong>: On the Sequences page, you can assign multiple contacts to a sequence at once from a single pop-up menu.</li>
                 </ul>
+            </div>
+            <div class="guide-card">
+                <h3>Your Personal Strategist: AI Sequence Generation</h3>
+                <p>Why build a sequence from scratch when you can have a sales expert design one for you? Constellation's AI Sequence Generator acts as your personal strategist, creating multi-step outreach campaigns tailored to your specific goals.</p>
+                <h4>How It Works:</h4>
+                <p>Simply provide the AI with a few key details:</p>
+                <ul>
+                    <li><strong>Your Goal:</strong> What do you want to achieve? (e.g., "Cold outreach for cloud solutions," "Follow-up after a webinar").</li>
+                    <li><strong>The Structure:</strong> How many steps should it have, over how many days, and what kind of steps (Email, Call, LinkedIn, etc.)?</li>
+                    <li><strong>Your Voice:</strong> Describe your sales persona (e.g., "Friendly and casual," "Formal B2B expert").</li>
+                </ul>
+                <p>Click <button class="btn-primary" ${btnStyle}>Generate Sequence with AI</button>, and Constellation will instantly draft a complete, multi-step sequence with professionally written email copy and logical follow-up tasks, all ready for you to review, save, and deploy.</p>
             </div>
             <div class="guide-card">
                 <h3>How-To: Manage Sequences</h3>
@@ -346,6 +404,20 @@ const userGuideContent = {
                     </div>
                 </div>
             </div>
+            <div class="guide-card">
+                <h3>Closing the Loop: Your Manual Next Steps</h3>
+                <p>Cognito automates the discovery and the initial outreach, but the final, crucial steps are up to you. To maintain a clean and accurate record of your sales activities, it's essential to log your actions within the Action Center.</p>
+                <h4>Why it Matters:</h4>
+                <ul>
+                    <li><strong>Logging an Interaction</strong> creates a permanent record on the contact's activity timeline. This is vital for your own memory and for the AI tools (like AI Insight) that rely on this history to provide accurate summaries.</li>
+                    <li><strong>Creating a Task</strong> ensures you never forget to follow up. This action places a new to-do item directly in your Command Center, integrating your AI-driven outreach with your daily workflow.</li>
+                </ul>
+                 <h4>How-To: Log and Follow-Up</h4>
+                 <ol>
+                    <li>After sending your email, use the "Log an Interaction" section in the Action Center to jot down a quick note (e.g., "Emailed the new CIO about their recent funding round").</li>
+                    <li>Use the "Create a Task" section to schedule your next step (e.g., "Follow up in 3 days if no reply").</li>
+                 </ol>
+            </div>
         </div>
     `,
     "social-hub": `
@@ -357,6 +429,7 @@ const userGuideContent = {
                 <ul>
                     <li><strong>Curated Content</strong>: The Hub provides AI-curated news articles and pre-approved posts from your marketing team, clearly tagged as "News Article" or "Campaign Asset". The \`Social Hub\` nav button will display a bell icon (\`🔔\`) if there is new content to view.</li>
                     <li><strong>AI-Assisted Posting</strong>: When you prepare a post, the AI will generate suggested text which you can refine before sharing.</li>
+                    <li><strong>Dismiss Irrelevant Content</strong>: You can permanently hide any post from your view by clicking the "Dismiss" button, keeping your feed tailored to what's most relevant to you and your network.</li>
                 </ul>
             </div>
             <div class="guide-card">
@@ -397,14 +470,16 @@ const userGuideContent = {
     "theme-management": `
         <div>
             <div class="guide-card">
-                <h2>10. Theme Management</h2>
-                <p>You can change the application's visual theme at any time to suit your personal preference or work environment. The application will remember your last selected theme for future sessions.</p>
-                <h4>How-To: Toggle Themes</h4>
+                <h2>10. User Menu</h2>
+                <p>The User Menu, located at the bottom of the navigation bar, provides access to application themes, the user guide, and the logout function. Your name is displayed when the menu is collapsed.</p>
+                <h4>How-To: Use the Menu</h4>
                 <div ${howToContainerStyle}>
                     <div ${textContentStyle}>
                         <ol>
                             <li>Click your user name at the bottom of the navigation bar to open the user menu.</li>
-                            <li>Click the <button class="nav-button" ${btnStyle}>Theme: <span id="theme-name">Dark</span></button> button to cycle through the available themes: Dark, Light, Green, Blue, and Corporate.</li>
+                            <li>Click <button class="nav-button" ${btnStyle}>Theme: <span id="theme-name">Dark</span></button> to cycle through the available visual themes.</li>
+                            <li>Click <a href="user-guide.html" class="nav-button" ${btnStyle}>User Guide</a> to access this guide at any time.</li>
+                             <li>Click <button class="nav-button" ${btnStyle} style="background-color: #773030;">Logout</button> to securely sign out of the application.</li>
                         </ol>
                     </div>
                     <div ${imageContainerStyle}>
