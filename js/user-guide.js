@@ -398,6 +398,20 @@ const userGuideContent = {
                     </div>
                 </div>
             </div>
+            <div class="guide-card">
+                <h3>Closing the Loop: Your Manual Next Steps</h3>
+                <p>Cognito automates the discovery and the initial outreach, but the final, crucial steps are up to you. To maintain a clean and accurate record of your sales activities, it's essential to log your actions within the Action Center.</p>
+                <h4>Why it Matters:</h4>
+                <ul>
+                    <li><strong>Logging an Interaction</strong> creates a permanent record on the contact's activity timeline. This is vital for your own memory and for the AI tools (like AI Insight) that rely on this history to provide accurate summaries.</li>
+                    <li><strong>Creating a Task</strong> ensures you never forget to follow up. This action places a new to-do item directly in your Command Center, integrating your AI-driven outreach with your daily workflow.</li>
+                </ul>
+                 <h4>How-To: Log and Follow-Up</h4>
+                 <ol>
+                    <li>After sending your email, use the "Log an Interaction" section in the Action Center to jot down a quick note (e.g., "Emailed the new CIO about their recent funding round").</li>
+                    <li>Use the "Create a Task" section to schedule your next step (e.g., "Follow up in 3 days if no reply").</li>
+                 </ol>
+            </div>
         </div>
     `,
     "social-hub": `
