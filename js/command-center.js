@@ -20,14 +20,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- UPDATED LOADING SCREEN LOGIC ---
     const loadingScreen = document.getElementById('loading-screen');
     if (sessionStorage.getItem('showLoadingScreen') === 'true') {
-        // If the flag exists, show the animation for 5 seconds
-        sessionStorage.removeItem('showLoadingScreen'); // Remove the flag so it doesn't show on refresh
-        setTimeout(() => {
-            if (loadingScreen) loadingScreen.classList.add('hidden');
-        }, 5000); // 5 seconds
-    } else {
-        // If no flag, hide the screen immediately
-        if (loadingScreen) loadingScreen.classList.add('hidden');
+        if (loadingScreen) {
+            // First, make it visible
+            loadingScreen.classList.remove('hidden');
+            
+            // Then, set the timer to hide it again
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+            }, 5000); // 5 seconds
+        }
+        // Remove the flag so it doesn't show on refresh
+        sessionStorage.removeItem('showLoadingScreen');
     }
     // --- END OF UPDATED LOGIC ---
 
