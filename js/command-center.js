@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (loadingScreen) {
         setTimeout(() => {
             loadingScreen.classList.add('hidden');
-        }, 5000); // 5 seconds
+        }, 6000); // 5 seconds
     }
     
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
