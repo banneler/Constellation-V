@@ -437,7 +437,7 @@ const contentPane = document.getElementById('user-guide-content');
 
 const loadContent = (sectionId) => {
     if (!contentPane) return;
-    const content = userGuideContent[sectionId] || \`<h2>Content Not Found</h2>\`;
+    const content = userGuideContent[sectionId] || `<h2>Content Not Found</h2>`;
     contentPane.innerHTML = content;
 };
 
