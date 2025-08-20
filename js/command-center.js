@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Then, set the timer to hide it again
             setTimeout(() => {
                 loadingScreen.classList.add('hidden');
-            }, 5000); // 5 seconds
+            }, 7000); // 7 seconds
         }
         // Remove the flag so it doesn't show on refresh
         sessionStorage.removeItem('showLoadingScreen');
