@@ -322,6 +322,18 @@ const userGuideContent = {
                 </ul>
             </div>
             <div class="guide-card">
+                <h3>Your Personal Strategist: AI Sequence Generation</h3>
+                <p>Why build a sequence from scratch when you can have a sales expert design one for you? Constellation's AI Sequence Generator acts as your personal strategist, creating multi-step outreach campaigns tailored to your specific goals.</p>
+                <h4>How It Works:</h4>
+                <p>Simply provide the AI with a few key details:</p>
+                <ul>
+                    <li><strong>Your Goal:</strong> What do you want to achieve? (e.g., "Cold outreach for cloud solutions," "Follow-up after a webinar").</li>
+                    <li><strong>The Structure:</strong> How many steps should it have, over how many days, and what kind of steps (Email, Call, LinkedIn, etc.)?</li>
+                    <li><strong>Your Voice:</strong> Describe your sales persona (e.g., "Friendly and casual," "Formal B2B expert").</li>
+                </ul>
+                <p>Click <button class="btn-primary" ${btnStyle}>Generate Sequence with AI</button>, and Constellation will instantly draft a complete, multi-step sequence with professionally written email copy and logical follow-up tasks, all ready for you to review, save, and deploy.</p>
+            </div>
+            <div class="guide-card">
                 <h3>How-To: Manage Sequences</h3>
                 <div ${howToContainerStyle}>
                     <div ${textContentStyle}>
