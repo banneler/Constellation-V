@@ -4077,3 +4077,10 @@ body.theme-dark .metric-card-won {
     opacity: 0;
     pointer-events: none;
 }
+/* --- FIX: Prevent Logo Shrink on Load --- */
+.nav-sidebar [data-svg-loader="assets/logo.svg"] {
+    width: 180px;
+    height: 51px; /* Adjust height as needed to prevent layout shift */
+    display: block;
+    margin: 0 auto 0.625rem auto;
+}
