@@ -1677,8 +1677,8 @@ body:not(.theme-green) .user-menu-popup {
         display: grid;
         grid-template-columns: auto 1fr 1fr;
         align-items: center;
-        padding: 10px 15px;
-        gap: 10px;
+        padding: 5px 5px;
+        gap: 5px;
         box-shadow: 0 4px 10px var(--shadow-medium);
         border-radius: 0 !important;
         box-sizing: border-box;
