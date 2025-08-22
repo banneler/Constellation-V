@@ -179,8 +179,7 @@ body.theme-green::before {
 }
 
 /* --- SVG LOGO STYLES --- */
-.auth-logo,
-.nav-logo {
+.auth-logo {
     width: 250px;
     height: auto;
     margin-bottom: 0.75rem;
