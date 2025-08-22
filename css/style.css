@@ -181,7 +181,7 @@ body.theme-green::before {
 /* --- SVG LOGO STYLES --- */
 .auth-logo,
 .nav-logo {
-    width: 250px; /* Or your desired consistent size */
+    width: 250px;
     height: auto;
     margin-bottom: 0.75rem;
     filter: drop-shadow(0 0 7px var(--primary-blue));
@@ -189,7 +189,7 @@ body.theme-green::before {
 }
 
 .nav-logo {
-    /* The width property has been removed from here */
+    width: 180px;
     margin: 0 auto 0.625rem auto;
     display: block;
 }
@@ -4051,4 +4051,30 @@ body.theme-dark .metric-card-won {
     border: none;
     border-top: 1px solid var(--border-color);
     margin: 24px 0;
+}
+/* --- Loading Screen Styles --- */
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--bg-medium);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 1;
+    transition: opacity 0.75s ease-out;
+}
+
+#loading-screen video {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+}
+
+#loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
