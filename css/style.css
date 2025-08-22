@@ -1677,8 +1677,8 @@ body:not(.theme-green) .user-menu-popup {
         display: grid;
         grid-template-columns: auto 1fr 1fr;
         align-items: center;
-        padding: 5px 5px;
-        gap: 5px;
+        padding: 10px 15px;
+        gap: 10px;
         box-shadow: 0 4px 10px var(--shadow-medium);
         border-radius: 0 !important;
         box-sizing: border-box;
@@ -1696,7 +1696,7 @@ body:not(.theme-green) .user-menu-popup {
         justify-content: center;
         flex-grow: 1;
         min-width: 0;
-        padding: 5px 2px;
+        padding: 8px 5px;
     }
 
     a.nav-button[href="command-center.html"],
