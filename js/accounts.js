@@ -350,7 +350,7 @@ const hideAccountDetails = (clearSelection = false) => {
     }
 
     function handleEditDeal(dealId) {
-        const deal = state.deals.find(d => d.id === dealId);
+        const deal = state.selectedAccountDetails.deals.find(d => d.id === dealId);
         if (!deal) return showModal("Error", "Deal not found!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
         const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
