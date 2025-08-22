@@ -17,23 +17,6 @@ import {
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // --- UPDATED LOADING SCREEN LOGIC ---
-    const loadingScreen = document.getElementById('loading-screen');
-    if (sessionStorage.getItem('showLoadingScreen') === 'true') {
-        if (loadingScreen) {
-            // First, make it visible
-            loadingScreen.classList.remove('hidden');
-            
-            // Then, set the timer to hide it again
-            setTimeout(() => {
-                loadingScreen.classList.add('hidden');
-            }, 7000); // 7 seconds
-        }
-        // Remove the flag so it doesn't show on refresh
-        sessionStorage.removeItem('showLoadingScreen');
-    }
-    // --- END OF UPDATED LOGIC ---
-
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
