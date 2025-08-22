@@ -179,20 +179,26 @@ body.theme-green::before {
 }
 
 /* --- SVG LOGO STYLES --- */
+/* Shared styles for both logos */
 .auth-logo,
 .nav-logo {
-    width: 250px;
     height: auto;
     margin-bottom: 0.75rem;
     filter: drop-shadow(0 0 7px var(--primary-blue));
     transition: filter 0.3s;
 }
 
+/* Width for the larger logo on the Login/Auth page */
+.auth-logo {
+    width: 250px;
+}
+
+/* Correct, specific width for the smaller logo in the sidebar */
 .nav-logo {
+    width: 180px; /* This is the correct width for the sidebar */
     margin: 0 auto 0.625rem auto;
     display: block;
 }
-
 .nav-logo path[fill="#FEFEFE"],
 .auth-logo path[fill="#FEFEFE"] {
     fill: var(--logo-primary-color);
