@@ -5,7 +5,6 @@ import {
     SUPABASE_ANON_KEY,
     formatDate,
     setupModalListeners,
-    // _rebindModalActionListeners, // This is no longer needed
     getCurrentModalCallbacks,
     setCurrentModalCallbacks,
     showModal,
@@ -154,11 +153,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         let emailInfoHtml = '';
         if (campaign.type === 'Email' || campaign.type === 'Guided Email') {
+            // MODIFICATION: Changed <pre> to <div> to render HTML
             emailInfoHtml = `
                 <hr>
                 <h4>Email Content</h4>
                 <p><strong>Subject:</strong> ${campaign.email_subject || '(Not set)'}</p>
-                <pre class="email-body-summary">${campaign.email_body || '(Not set)'}</pre>
+                <div class="email-body-summary">${campaign.email_body || '(Not set)'}</div>
             `;
         }
 
@@ -196,7 +196,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
         let emailBodyHtml = '';
         if (campaign.email_body) {
-            emailBodyHtml = `<h4>Email Template Used</h4><pre class="email-body-summary">${campaign.email_body}</pre>`;
+            // MODIFICATION: Changed <pre> to <div> to render HTML
+            emailBodyHtml = `<h4>Email Template Used</h4><div class="email-body-summary">${campaign.email_body}</div>`;
         }
         if (campaignDetailsContent) {
             campaignDetailsContent.innerHTML = `
@@ -320,7 +321,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // CORRECTED LOGIC: Check if there are any pending calls left.
         if (pendingCalls.length === 0) {
             renderCampaignDetails();
             showModal("Call Blitz Complete", "All calls for this campaign have been logged or skipped!", () => {
@@ -330,17 +330,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const currentMember = pendingCalls[0]; // Always take the first one
+        const currentMember = pendingCalls[0];
         const contact = state.contacts.find(c => c.id === currentMember.contact_id);
         const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
 
         if (!contact) {
             console.error("Contact not found for campaign member:", currentMember);
-            handleSkipCall(); // Skip this broken member
+            handleSkipCall();
             return;
         }
 
-        // Set a data attribute on the action buttons to identify the current member
         document.getElementById('log-call-btn').dataset.memberId = currentMember.id;
         document.getElementById('skip-call-btn').dataset.memberId = currentMember.id;
 
@@ -359,8 +358,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             alert('Please enter call notes before logging.');
             return;
         }
-        
-        // CORRECTED: Get memberId from the button that was clicked
+
         const memberId = Number(event.target.dataset.memberId);
         const currentMember = state.campaignMembers.find(m => m.id === memberId);
 
@@ -406,13 +404,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        currentMember.status = 'Completed'; // Update local state immediately
-        displayCurrentCall(); // Refresh UI for next call
+        currentMember.status = 'Completed';
+        displayCurrentCall();
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
 
     const handleSkipCall = async (event) => {
-        // CORRECTED: Get memberId from the button that was clicked
         const memberId = Number(event.target.dataset.memberId);
         const currentMember = state.campaignMembers.find(m => m.id === memberId);
         if (!currentMember) {
@@ -432,8 +429,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        currentMember.status = 'Skipped'; // Update local state immediately
-        displayCurrentCall(); // Refresh UI for next call
+        currentMember.status = 'Skipped';
+        displayCurrentCall();
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
 
@@ -458,7 +455,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // CORRECTED LOGIC: Check if any pending emails are left.
         if (pending.length === 0) {
             renderCampaignDetails();
             showModal("Guided Email Complete", "All guided emails for this campaign have been processed!", () => {
@@ -468,32 +464,36 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const currentMember = pending[0]; // Always take the first pending one
+        const currentMember = pending[0];
         const contact = state.contacts.find(c => c.id === currentMember.contact_id);
         const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
         const campaign = state.campaigns.find(c => c.id === currentMember.campaign_id);
 
         if (!contact || !campaign) {
             console.error("Associated contact or campaign not found for guided email.");
-            handleSkipEmail(); // Skip this broken member
+            handleSkipEmail();
             return;
         }
-        
-        // Set a data attribute on the action buttons to identify the current member
+
         document.getElementById('open-email-client-btn').dataset.memberId = currentMember.id;
         document.getElementById('skip-email-btn').dataset.memberId = currentMember.id;
 
-
+        // NOTE: Guided email does not use rich text, so we strip HTML for the mailto link.
         let emailBody = campaign.email_body || '';
-        emailBody = emailBody.replace(/\[FirstName\]/g, contact.first_name || '');
-        emailBody = emailBody.replace(/\[LastName\]/g, contact.last_name || '');
-        emailBody = emailBody.replace(/\[AccountName\]/g, account ? account.name : '');
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = emailBody;
+        let plainTextBody = tempDiv.textContent || tempDiv.innerText || '';
+
+        plainTextBody = plainTextBody.replace(/\[FirstName\]/g, contact.first_name || '');
+        plainTextBody = plainTextBody.replace(/\[LastName\]/g, contact.last_name || '');
+        plainTextBody = plainTextBody.replace(/\[AccountName\]/g, account ? account.name : '');
 
         emailToAddressEl.textContent = contact.email || 'No Email';
         emailSubjectEl.value = campaign.email_subject || '';
-        emailBodyTextareaEl.value = emailBody;
+        emailBodyTextareaEl.value = plainTextBody;
         emailBodyTextareaEl.focus();
     };
+
 
     const handleOpenEmailClient = async (event) => {
         const to = document.getElementById('email-to-address')?.textContent;
@@ -508,7 +508,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const mailtoLink = `mailto:${to}?subject=${encodeURIComponent(subject || '')}&body=${encodeURIComponent(body || '')}`;
         window.location.href = mailtoLink;
 
-        // CORRECTED: Get memberId from the button that was clicked
         const memberId = Number(event.target.dataset.memberId);
         const currentMember = state.campaignMembers.find(m => m.id === memberId);
         if (!currentMember) {
@@ -545,9 +544,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).eq('id', currentMember.id);
         if (memberUpdateError) console.error("Error updating campaign member status (email):", memberUpdateError);
 
-        currentMember.status = 'Completed'; // Update local state immediately
+        currentMember.status = 'Completed';
 
-        // Delay to allow the mail client to open before processing the next item
         setTimeout(async () => {
             displayCurrentEmail();
             await checkForCampaignCompletion(currentMember.campaign_id);
@@ -555,7 +553,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const handleSkipEmail = async (event) => {
-        // CORRECTED: Get memberId from the button that was clicked
         const memberId = Number(event.target.dataset.memberId);
         const currentMember = state.campaignMembers.find(m => m.id === memberId);
         if (!currentMember) {
@@ -575,13 +572,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        currentMember.status = 'Skipped'; // Update local state immediately
-        displayCurrentEmail(); // Refresh UI for next email
+        currentMember.status = 'Skipped';
+        displayCurrentEmail();
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
-
-    // REMOVED: captureFormState and restoreFormState functions are no longer needed
-    // REMOVED: handleShowAllContactsClick function is no longer needed
 
     async function handleNewCampaignClick() {
         const visibleTemplates = state.emailTemplates.filter(template =>
@@ -655,7 +649,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                     <div id="template-email-preview" class="hidden">
                         <p><strong>Subject:</strong> <span id="preview-template-subject"></span></p>
-                        <pre id="preview-template-body" class="email-body-summary"></pre>
+                        <div id="preview-template-body" class="email-body-summary"></div>
                     </div>
                 </div>
 
@@ -692,7 +686,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     }
                 } else {
                     email_subject = document.getElementById('campaign-email-subject')?.value.trim();
-                    email_body = document.getElementById('campaign-email-body')?.value;
+                    // MODIFICATION: Get content from TinyMCE editor
+                    email_body = tinymce.get('campaign-email-body').getContent();
                 }
             }
 
@@ -746,7 +741,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return false;
             }
 
-            // BUG FIX: Ensure new members have a 'Pending' status.
             const membersToInsert = matchingContacts.map(c => ({
                 campaign_id: newCampaign.id,
                 contact_id: c.id,
@@ -767,11 +761,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             await loadAllData();
             return true;
         };
+        
+        // MODIFICATION: Initialize TinyMCE after the modal is shown
+        const onModalShow = () => {
+             // First, remove any lingering instances to prevent errors
+            tinymce.remove('#campaign-email-body');
+            tinymce.init({
+                selector: '#campaign-email-body',
+                plugins: 'lists link image table code help wordcount',
+                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
+                height: 300,
+                menubar: false
+            });
+            setupCampaignModalListeners();
+        };
 
-        showModal("Create New Campaign", modalBody, createCampaignAndMembers);
-
-        // REMOVED: restoreFormState is no longer needed
-        setupCampaignModalListeners();
+        showModal("Create New Campaign", modalBody, createCampaignAndMembers, false, null, null, onModalShow);
     }
 
     function setupCampaignModalListeners() {
@@ -784,7 +789,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const emailWriteContainer = document.getElementById('email-write-container');
         const templateSelector = document.getElementById('template-selector');
         const subjectInput = document.getElementById('campaign-email-subject');
-        const bodyTextarea = document.getElementById('campaign-email-body');
+        // const bodyTextarea = document.getElementById('campaign-email-body'); // No longer needed for this logic
         const templateEmailPreview = document.getElementById('template-email-preview');
         const previewTemplateSubject = document.getElementById('preview-template-subject');
         const previewTemplateBody = document.getElementById('preview-template-body');
@@ -806,7 +811,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const previewContainer = document.getElementById('contact-preview-container');
             if (previewContainer) {
                 let previewHtml = `<p><strong>${matchingContacts.length}</strong> contacts match your filters.</p>`;
-                
+
                 const listContent = matchingContacts.map(c => {
                     const accountName = state.accounts.find(a => a.id === c.account_id)?.name || 'No Account';
                     return `<li><strong>${c.first_name || ''} ${c.last_name || ''}</strong> <span class="text-medium">(${accountName})</span></li>`;
@@ -814,13 +819,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (matchingContacts.length > 0) {
                     previewHtml += `<div class="table-container-scrollable" style="max-height: 150px;">
-                                    <ul class="summary-contact-list">${listContent}</ul>
-                                </div>`;
+                                        <ul class="summary-contact-list">${listContent}</ul>
+                                    </div>`;
                 }
-
                 previewContainer.innerHTML = previewHtml;
-
-                // REMOVED: No longer need to handle 'show all' button clicks.
             }
         };
 
@@ -852,16 +854,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else {
                     templateEmailPreview.classList.add('hidden');
                     if (previewTemplateSubject) previewTemplateSubject.textContent = '';
-                    if (previewTemplateBody) previewTemplateBody.textContent = '';
+                    if (previewTemplateBody) previewTemplateBody.innerHTML = ''; // Use innerHTML
                 }
             }
 
             if (subjectInput) subjectInput.readOnly = useTemplate;
-            if (bodyTextarea) bodyTextarea.readOnly = useTemplate;
-
-            if (useTemplate && templateSelector) {
-                templateSelector.dispatchEvent(new Event('change'));
-            }
+            // No need to set bodyTextarea to readOnly for TinyMCE
         }
 
         if (templateSelector) {
@@ -874,13 +872,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             const template = state.emailTemplates.find(t => t.id === templateId);
 
             if (subjectInput) subjectInput.value = template ? template.subject || '' : '';
-            if (bodyTextarea) bodyTextarea.value = template ? template.body || '' : '';
+            
+            // MODIFICATION: Update TinyMCE content if it exists
+            const editor = tinymce.get('campaign-email-body');
+            if(editor) {
+                editor.setContent(template ? template.body || '' : '');
+            }
 
             if (previewTemplateSubject) {
                 previewTemplateSubject.textContent = template ? template.subject || '(No Subject)' : '';
             }
             if (previewTemplateBody) {
-                previewTemplateBody.textContent = template ? template.body || '(No Content)' : '';
+                previewTemplateBody.innerHTML = template ? template.body || '(No Content)' : ''; // Use innerHTML
             }
         }
 
@@ -899,23 +902,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function handleMergeFieldClick(e) {
         const field = e.target.dataset.field;
-        const activeTextarea = document.getElementById('template-body') || document.getElementById('campaign-email-body');
+        // MODIFICATION: Check for an active TinyMCE editor first
+        const activeEditor = tinymce.activeEditor;
 
-        if (!activeTextarea || activeTextarea.readOnly) {
-            console.error("No editable textarea found for merge field insertion.");
-            return;
-        }
-
-        activeTextarea.focus();
-        try {
-            const startPos = activeTextarea.selectionStart;
-            const endPos = activeTextarea.selectionEnd;
-            activeTextarea.value = activeTextarea.value.substring(0, startPos) + field + activeTextarea.value.substring(endPos);
-            activeTextarea.setSelectionRange(startPos + field.length, startPos + field.length);
-        } catch (error) {
-            activeTextarea.value += field;
+        if (activeEditor) {
+            activeEditor.execCommand('mceInsertContent', false, field);
+        } else {
+            // Fallback for any other textarea if needed
+            const activeTextarea = document.getElementById('template-body') || document.getElementById('campaign-email-body');
+             if (activeTextarea && !activeTextarea.readOnly) {
+                activeTextarea.focus();
+                const startPos = activeTextarea.selectionStart;
+                const endPos = activeTextarea.selectionEnd;
+                activeTextarea.value = activeTextarea.value.substring(0, startPos) + field + activeTextarea.value.substring(endPos);
+                activeTextarea.setSelectionRange(startPos + field.length, startPos + field.length);
+             } else {
+                console.error("No active or editable editor found for merge field insertion.");
+             }
         }
     }
+
 
     function handleExportCsv() {
         const campaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
@@ -961,7 +967,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
         const readme = `--- MAIL MERGE INSTRUCTIONS ---\n\n1. Open Microsoft Word and paste the email body below into a new document.\n2. Go to the "Mailings" tab and click "Start Mail Merge" -> "Step-by-Step Mail Merge Wizard".\n3. For "Select recipients", choose "Use an existing list" and browse to select the CSV file you downloaded.\n4. Edit the recipient list if needed, then click "Write your e-mail message".\n5. Use the "Insert Merge Field" button to place your fields like [FirstName].\n6. Preview your messages and complete the merge to send.\n\n--- YOUR EMAIL TEMPLATE ---\n\n`;
-        const textContent = readme + campaign.email_body;
+        // MODIFICATION: Strip HTML for the TXT export
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = campaign.email_body;
+        const plainTextBody = tempDiv.textContent || tempDiv.innerText || '';
+
+        const textContent = readme + plainTextBody;
         const blob = new Blob([textContent], {
             type: 'text/plain'
         });
@@ -1146,7 +1157,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <textarea id="template-body" rows="10">${currentTemplateBody}</textarea>
             </div>`;
 
-        showModal(modalTitle, formBody, async () => {
+        const onConfirm = async () => {
             const name = document.getElementById('template-name')?.value.trim();
             if (!name) {
                 alert('Template name is required.');
@@ -1156,20 +1167,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             const templateData = {
                 name,
                 subject: document.getElementById('template-subject')?.value.trim(),
-                body: document.getElementById('template-body')?.value,
+                // MODIFICATION: Get content from TinyMCE editor
+                body: tinymce.get('template-body').getContent(),
                 user_id: state.currentUser.id
             };
 
             let error;
             if (isEditing) {
-                const {
-                    error: updateError
-                } = await supabase.from('email_templates').update(templateData).eq('id', templateToEdit.id);
+                const { error: updateError } = await supabase.from('email_templates').update(templateData).eq('id', templateToEdit.id);
                 error = updateError;
             } else {
-                const {
-                    error: insertError
-                } = await supabase.from('email_templates').insert(templateData);
+                const { error: insertError } = await supabase.from('email_templates').insert(templateData);
                 error = insertError;
             }
 
@@ -1182,7 +1190,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             await loadAllData();
             renderTemplateManager();
             return true;
-        });
+        };
+
+        // MODIFICATION: Initialize TinyMCE after this modal is shown
+        const onModalShow = () => {
+            // First, remove any lingering instances to prevent errors
+            tinymce.remove('#template-body');
+            tinymce.init({
+                selector: '#template-body',
+                plugins: 'lists link image table code help wordcount',
+                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
+                height: 350,
+                menubar: false
+            });
+        };
+        
+        showModal(modalTitle, formBody, onConfirm, false, null, null, onModalShow);
     }
 
     async function handleDeleteTemplate(templateId) {
@@ -1237,11 +1260,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         try {
             const [
-                 { data: campaigns, error: campaignsError },
-                 { data: contacts, error: contactsError },
-                 { data: accounts, error: accountsError },
-                 { data: emailTemplates, error: templatesError },
-                 { data: userQuotas, error: userQuotasError }
+                { data: campaigns, error: campaignsError },
+                { data: contacts, error: contactsError },
+                { data: accounts, error: accountsError },
+                { data: emailTemplates, error: templatesError },
+                { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
                 supabase.from("campaigns").select("*").eq("user_id", state.currentUser.id),
                 supabase.from("contacts").select("*").eq("user_id", state.currentUser.id),
@@ -1305,7 +1328,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     renderCampaignDetails();
                 }
             }
-            // REMOVED: No longer need to listen for 'modal-return-btn' clicks.
             if (e.target.id === 'modal-ok-btn') {
                 hideModal();
             }
@@ -1315,13 +1337,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (campaignDetailsPanel) {
             campaignDetailsPanel.addEventListener('click', (e) => {
                 if (e.target.id === 'start-calling-btn') startCallBlitz();
-                else if (e.target.id === 'log-call-btn') handleLogCall(e); // Pass the event object
-                else if (e.target.id === 'skip-call-btn') handleSkipCall(e); // Pass the event object
+                else if (e.target.id === 'log-call-btn') handleLogCall(e);
+                else if (e.target.id === 'skip-call-btn') handleSkipCall(e);
                 else if (e.target.id === 'export-csv-btn') handleExportCsv();
                 else if (e.target.id === 'export-txt-btn') handleExportTxt();
                 else if (e.target.id === 'start-guided-email-btn') startGuidedEmail();
-                else if (e.target.id === 'open-email-client-btn') handleOpenEmailClient(e); // Pass the event object
-                else if (e.target.id === 'skip-email-btn') handleSkipEmail(e); // Pass the event object
+                else if (e.target.id === 'open-email-client-btn') handleOpenEmailClient(e);
+                else if (e.target.id === 'skip-email-btn') handleSkipEmail(e);
             });
         }
     }
@@ -1348,7 +1370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
             await loadAllData();
         } else {
