@@ -4083,7 +4083,3 @@ body.theme-dark .metric-card-won {
     opacity: 0;
     pointer-events: none;
 }
-/* FIX: Ensures TinyMCE UI (dialogs, menus) appears above the Constellation modal */
-.tox-tinymce-aux {
-  z-index: 10001 !important;
-}
