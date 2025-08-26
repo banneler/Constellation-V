@@ -30,27 +30,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectedCampaignId: null
     };
 
-    let originalModalContent = {
-        title: '',
-        body: '',
-        actions: '',
-        callbacks: {
-            onConfirm: null,
-            onCancel: null
-        }
-    };
-
-    let tempCampaignFormState = {
-        campaignName: '',
-        campaignType: 'Call',
-        emailSourceType: 'write',
-        templateSelector: '',
-        campaignEmailSubject: '',
-        campaignEmailBody: '',
-        filterIndustry: '',
-        filterStatus: ''
-    };
-
     const getInitials = (name) => {
         if (!name || typeof name !== 'string' || name.trim() === '') return '';
         const parts = name.trim().split(' ').filter(p => p);
@@ -153,7 +132,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         let emailInfoHtml = '';
         if (campaign.type === 'Email' || campaign.type === 'Guided Email') {
-            // MODIFICATION: Changed <pre> to <div> to render HTML
             emailInfoHtml = `
                 <hr>
                 <h4>Email Content</h4>
@@ -196,7 +174,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
         let emailBodyHtml = '';
         if (campaign.email_body) {
-            // MODIFICATION: Changed <pre> to <div> to render HTML
             emailBodyHtml = `<h4>Email Template Used</h4><div class="email-body-summary">${campaign.email_body}</div>`;
         }
         if (campaignDetailsContent) {
@@ -336,7 +313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!contact) {
             console.error("Contact not found for campaign member:", currentMember);
-            handleSkipCall();
+            handleSkipCall({ target: { dataset: { memberId: currentMember.id } } });
             return;
         }
 
@@ -471,26 +448,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!contact || !campaign) {
             console.error("Associated contact or campaign not found for guided email.");
-            handleSkipEmail();
+            handleSkipEmail({ target: { dataset: { memberId: currentMember.id } } });
             return;
         }
 
         document.getElementById('open-email-client-btn').dataset.memberId = currentMember.id;
         document.getElementById('skip-email-btn').dataset.memberId = currentMember.id;
 
-        // NOTE: Guided email does not use rich text, so we strip HTML for the mailto link.
-        let emailBody = campaign.email_body || '';
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = emailBody;
-        let plainTextBody = tempDiv.textContent || tempDiv.innerText || '';
+        tempDiv.innerHTML = campaign.email_body || '';
+        let emailBody = tempDiv.textContent || tempDiv.innerText || '';
 
-        plainTextBody = plainTextBody.replace(/\[FirstName\]/g, contact.first_name || '');
-        plainTextBody = plainTextBody.replace(/\[LastName\]/g, contact.last_name || '');
-        plainTextBody = plainTextBody.replace(/\[AccountName\]/g, account ? account.name : '');
+        emailBody = emailBody.replace(/\[FirstName\]/g, contact.first_name || '');
+        emailBody = emailBody.replace(/\[LastName\]/g, contact.last_name || '');
+        emailBody = emailBody.replace(/\[AccountName\]/g, account ? account.name : '');
 
         emailToAddressEl.textContent = contact.email || 'No Email';
         emailSubjectEl.value = campaign.email_subject || '';
-        emailBodyTextareaEl.value = plainTextBody;
+        emailBodyTextareaEl.value = emailBody;
         emailBodyTextareaEl.focus();
     };
 
@@ -626,16 +601,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <input type="text" id="campaign-name" required placeholder="e.g., Q3 Tech Customer Outreach">
                 <label for="campaign-type">Campaign Type:</label>
                 <select id="campaign-type"><option value="Call">Call Blitz</option><option value="Email">Email Merge</option><option value="Guided Email">Guided Email</option></select>
-
                 <div id="email-section-container" class="hidden">
                     <label for="email-source-type">Email Source:</label>
                     <select id="email-source-type"><option value="write">Write New Email</option><option value="template">Use a Template</option></select>
-
                     <div id="template-select-container" class="hidden">
                         <label for="template-selector">Select Template:</label>
                         <select id="template-selector"><option value="">--Select--</option>${templateOptions}</select>
                     </div>
-
                     <div id="email-write-container">
                         <label for="campaign-email-subject">Email Subject:</label>
                         <input type="text" id="campaign-email-subject" placeholder="Your email subject line">
@@ -652,133 +624,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <div id="preview-template-body" class="email-body-summary"></div>
                     </div>
                 </div>
-
                 <hr><h4>Filter Target Contacts</h4>
                 <label for="filter-industry">Account Industry:</label><select id="filter-industry"><option value="">All</option>${industryOptions}</select>
                 <label for="filter-status">Customer Status:</label><select id="filter-status"><option value="">All</option><option value="customer">Customers Only</option><option value="prospect">Prospects Only</option></select>
                 <div id="contact-preview-container" style="margin-top: 1rem;"></div>
             </div>`;
-
-        const createCampaignAndMembers = async () => {
-            const name = document.getElementById('campaign-name')?.value.trim();
-            const type = document.getElementById('campaign-type')?.value;
-            const industry = document.getElementById('filter-industry')?.value;
-            const status = document.getElementById('filter-status')?.value;
-            let email_subject = '';
-            let email_body = '';
-
-            if (!name) {
-                alert('Campaign name is required.');
-                return false;
-            }
-
-            if (type === 'Email' || type === 'Guided Email') {
-                const emailSource = document.getElementById('email-source-type')?.value;
-                if (emailSource === 'template') {
-                    const templateId = Number(document.getElementById('template-selector')?.value);
-                    const selectedTemplate = state.emailTemplates.find(t => t.id === templateId);
-                    if (selectedTemplate) {
-                        email_subject = selectedTemplate.subject;
-                        email_body = selectedTemplate.body;
-                    } else {
-                        alert("Please select a valid template.");
-                        return false;
-                    }
-                } else {
-                    email_subject = document.getElementById('campaign-email-subject')?.value.trim();
-                    // MODIFICATION: Get content from TinyMCE editor
-                    email_body = tinymce.get('campaign-email-body').getContent();
-                }
-            }
-
-            const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
-            const matchingContacts = state.contacts.filter(contact => {
-                if (!contact.account_id) return false;
-                const account = state.accounts.find(a => a.id === contact.account_id);
-                if (!account) return false;
-                const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
-                const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
-                return industryMatch && statusMatch;
-            });
-
-            if (matchingContacts.length === 0) {
-                alert('No contacts match the selected filters. Please adjust filters or add contacts/accounts.');
-                return false;
-            }
-
-            const confirmProceed = await new Promise(resolve => {
-                showModal(
-                    "Confirm Campaign Creation",
-                    `This campaign will include ${matchingContacts.length} contacts. Proceed?`,
-                    () => resolve(true),
-                    true,
-                    `<button id="modal-confirm-btn" class="btn-primary">Yes, Create</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`,
-                    () => resolve(false)
-                );
-            });
-
-            if (!confirmProceed) {
-                return false;
-            }
-
-            const filter_criteria = {
-                industry,
-                status
-            };
-            const {
-                data: newCampaign,
-                error: campaignError
-            } = await supabase.from('campaigns').insert({
-                name,
-                type,
-                filter_criteria,
-                email_subject,
-                email_body,
-                user_id: state.currentUser.id
-            }).select().single();
-            if (campaignError) {
-                alert('Error saving campaign: ' + campaignError.message);
-                return false;
-            }
-
-            const membersToInsert = matchingContacts.map(c => ({
-                campaign_id: newCampaign.id,
-                contact_id: c.id,
-                user_id: state.currentUser.id,
-                status: 'Pending'
-            }));
-            const {
-                error: membersError
-            } = await supabase.from('campaign_members').insert(membersToInsert);
-            if (membersError) {
-                alert('Error saving campaign members: ' + membersError.message);
-                await supabase.from('campaigns').delete().eq('id', newCampaign.id);
-                return false;
-            }
-
-            alert(`Campaign "${name}" created successfully with ${matchingContacts.length} members.`);
-            state.selectedCampaignId = newCampaign.id;
-            await loadAllData();
-            return true;
-        };
         
-        // MODIFICATION: Initialize TinyMCE after the modal is shown
-        const onModalShow = () => {
-             // First, remove any lingering instances to prevent errors
-            tinymce.remove('#campaign-email-body');
-            tinymce.init({
-                selector: '#campaign-email-body',
-                plugins: 'lists link image table code help wordcount',
-                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
-                height: 300,
-                menubar: false
-            });
-            setupCampaignModalListeners();
-        };
-
-        showModal("Create New Campaign", modalBody, createCampaignAndMembers, false, null, null, onModalShow);
+        showModal("Create New Campaign", modalBody, createCampaignAndMembers);
+        setupCampaignModalListeners(); // FIX: Call listeners AFTER modal is in the DOM.
     }
 
+    // FIX: This function now correctly sets up listeners and THEN initializes TinyMCE
     function setupCampaignModalListeners() {
         const industryFilter = document.getElementById('filter-industry');
         const statusFilter = document.getElementById('filter-status');
@@ -789,7 +645,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const emailWriteContainer = document.getElementById('email-write-container');
         const templateSelector = document.getElementById('template-selector');
         const subjectInput = document.getElementById('campaign-email-subject');
-        // const bodyTextarea = document.getElementById('campaign-email-body'); // No longer needed for this logic
         const templateEmailPreview = document.getElementById('template-email-preview');
         const previewTemplateSubject = document.getElementById('preview-template-subject');
         const previewTemplateBody = document.getElementById('preview-template-body');
@@ -797,128 +652,158 @@ document.addEventListener("DOMContentLoaded", async () => {
         const updateContactPreview = () => {
             const industry = industryFilter?.value;
             const status = statusFilter?.value;
-
             const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
             const matchingContacts = state.contacts.filter(contact => {
                 const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
                 if (!account) return false;
-
                 const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
                 const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
                 return industryMatch && statusMatch;
             });
-
             const previewContainer = document.getElementById('contact-preview-container');
             if (previewContainer) {
                 let previewHtml = `<p><strong>${matchingContacts.length}</strong> contacts match your filters.</p>`;
-
                 const listContent = matchingContacts.map(c => {
                     const accountName = state.accounts.find(a => a.id === c.account_id)?.name || 'No Account';
                     return `<li><strong>${c.first_name || ''} ${c.last_name || ''}</strong> <span class="text-medium">(${accountName})</span></li>`;
                 }).join('');
-
                 if (matchingContacts.length > 0) {
-                    previewHtml += `<div class="table-container-scrollable" style="max-height: 150px;">
-                                        <ul class="summary-contact-list">${listContent}</ul>
-                                    </div>`;
+                    previewHtml += `<div class="table-container-scrollable" style="max-height: 150px;"><ul class="summary-contact-list">${listContent}</ul></div>`;
                 }
                 previewContainer.innerHTML = previewHtml;
             }
         };
 
-        if (campaignTypeSelect) {
-            campaignTypeSelect.addEventListener('change', handleCampaignTypeChange);
-        }
-
-        function handleCampaignTypeChange() {
+        const handleCampaignTypeChange = () => {
             const showEmailSection = campaignTypeSelect?.value === 'Email' || campaignTypeSelect?.value === 'Guided Email';
             if (emailSectionContainer) {
                 emailSectionContainer.classList.toggle('hidden', !showEmailSection);
             }
-        }
+        };
 
-        if (emailSourceSelect) {
-            emailSourceSelect.addEventListener('change', handleEmailSourceChange);
-        }
-
-        function handleEmailSourceChange() {
+        const handleEmailSourceChange = () => {
             const useTemplate = emailSourceSelect?.value === 'template';
             if (templateSelectContainer) templateSelectContainer.classList.toggle('hidden', !useTemplate);
-            if (emailWriteContainer) {
-                emailWriteContainer.classList.toggle('hidden', useTemplate);
-            }
+            if (emailWriteContainer) emailWriteContainer.classList.toggle('hidden', useTemplate);
             if (templateEmailPreview) {
-                if (useTemplate) {
-                    templateEmailPreview.classList.remove('hidden');
-                    handleTemplateSelectChange();
-                } else {
-                    templateEmailPreview.classList.add('hidden');
-                    if (previewTemplateSubject) previewTemplateSubject.textContent = '';
-                    if (previewTemplateBody) previewTemplateBody.innerHTML = ''; // Use innerHTML
-                }
+                templateEmailPreview.classList.toggle('hidden', !useTemplate);
+                if (useTemplate) handleTemplateSelectChange();
             }
-
             if (subjectInput) subjectInput.readOnly = useTemplate;
-            // No need to set bodyTextarea to readOnly for TinyMCE
-        }
+        };
 
-        if (templateSelector) {
-            templateSelector.addEventListener('change', handleTemplateSelectChange);
-        }
-
-        function handleTemplateSelectChange() {
-            if (emailSourceSelect && emailSourceSelect.value !== 'template') return;
+        const handleTemplateSelectChange = () => {
             const templateId = Number(templateSelector?.value);
             const template = state.emailTemplates.find(t => t.id === templateId);
-
             if (subjectInput) subjectInput.value = template ? template.subject || '' : '';
-            
-            // MODIFICATION: Update TinyMCE content if it exists
-            const editor = tinymce.get('campaign-email-body');
-            if(editor) {
-                editor.setContent(template ? template.body || '' : '');
-            }
+            tinymce.get('campaign-email-body')?.setContent(template ? template.body || '' : '');
+            if (previewTemplateSubject) previewTemplateSubject.textContent = template ? template.subject || '(No Subject)' : '';
+            if (previewTemplateBody) previewTemplateBody.innerHTML = template ? template.body || '(No Content)' : '';
+        };
 
-            if (previewTemplateSubject) {
-                previewTemplateSubject.textContent = template ? template.subject || '(No Subject)' : '';
-            }
-            if (previewTemplateBody) {
-                previewTemplateBody.innerHTML = template ? template.body || '(No Content)' : ''; // Use innerHTML
-            }
-        }
-
-        if (industryFilter) {
-            industryFilter.addEventListener('change', updateContactPreview);
-        }
-        if (statusFilter) {
-            statusFilter.addEventListener('change', updateContactPreview);
-        }
-
-        if (campaignTypeSelect) handleCampaignTypeChange();
-        if (emailSourceSelect) handleEmailSourceChange();
-
+        campaignTypeSelect?.addEventListener('change', handleCampaignTypeChange);
+        emailSourceSelect?.addEventListener('change', handleEmailSourceChange);
+        templateSelector?.addEventListener('change', handleTemplateSelectChange);
+        industryFilter?.addEventListener('change', updateContactPreview);
+        statusFilter?.addEventListener('change', updateContactPreview);
+        
+        handleCampaignTypeChange();
+        handleEmailSourceChange();
         updateContactPreview();
+
+        tinymce.remove('#campaign-email-body');
+        tinymce.init({
+            selector: '#campaign-email-body',
+            plugins: 'lists link image table code help wordcount',
+            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
+            height: 300,
+            menubar: false
+        });
+    }
+
+    async function createCampaignAndMembers() {
+        const name = document.getElementById('campaign-name')?.value.trim();
+        const type = document.getElementById('campaign-type')?.value;
+        const industry = document.getElementById('filter-industry')?.value;
+        const status = document.getElementById('filter-status')?.value;
+        let email_subject = '';
+        let email_body = '';
+
+        if (!name) {
+            alert('Campaign name is required.');
+            return false;
+        }
+
+        if (type === 'Email' || type === 'Guided Email') {
+            const emailSource = document.getElementById('email-source-type')?.value;
+            if (emailSource === 'template') {
+                const templateId = Number(document.getElementById('template-selector')?.value);
+                const selectedTemplate = state.emailTemplates.find(t => t.id === templateId);
+                if (selectedTemplate) {
+                    email_subject = selectedTemplate.subject;
+                    email_body = selectedTemplate.body;
+                } else {
+                    alert("Please select a valid template.");
+                    return false;
+                }
+            } else {
+                email_subject = document.getElementById('campaign-email-subject')?.value.trim();
+                email_body = tinymce.get('campaign-email-body').getContent();
+            }
+        }
+
+        const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
+        const matchingContacts = state.contacts.filter(contact => {
+            if (!contact.account_id) return false;
+            const account = state.accounts.find(a => a.id === contact.account_id);
+            if (!account) return false;
+            const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
+            const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
+            return industryMatch && statusMatch;
+        });
+
+        if (matchingContacts.length === 0) {
+            alert('No contacts match the selected filters. Please adjust filters or add contacts/accounts.');
+            return false;
+        }
+
+        const confirmProceed = await new Promise(resolve => {
+            showModal("Confirm Campaign Creation", `This campaign will include ${matchingContacts.length} contacts. Proceed?`, () => resolve(true), true, `<button id="modal-confirm-btn" class="btn-primary">Yes, Create</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, () => resolve(false));
+        });
+
+        if (!confirmProceed) return false;
+
+        const filter_criteria = { industry, status };
+        const { data: newCampaign, error: campaignError } = await supabase.from('campaigns').insert({ name, type, filter_criteria, email_subject, email_body, user_id: state.currentUser.id }).select().single();
+        
+        if (campaignError) {
+            alert('Error saving campaign: ' + campaignError.message);
+            return false;
+        }
+
+        const membersToInsert = matchingContacts.map(c => ({ campaign_id: newCampaign.id, contact_id: c.id, user_id: state.currentUser.id, status: 'Pending' }));
+        const { error: membersError } = await supabase.from('campaign_members').insert(membersToInsert);
+        
+        if (membersError) {
+            alert('Error saving campaign members: ' + membersError.message);
+            await supabase.from('campaigns').delete().eq('id', newCampaign.id);
+            return false;
+        }
+
+        alert(`Campaign "${name}" created successfully with ${matchingContacts.length} members.`);
+        state.selectedCampaignId = newCampaign.id;
+        await loadAllData();
+        return true;
     }
 
     function handleMergeFieldClick(e) {
         const field = e.target.dataset.field;
-        // MODIFICATION: Check for an active TinyMCE editor first
         const activeEditor = tinymce.activeEditor;
 
         if (activeEditor) {
             activeEditor.execCommand('mceInsertContent', false, field);
         } else {
-            // Fallback for any other textarea if needed
-            const activeTextarea = document.getElementById('template-body') || document.getElementById('campaign-email-body');
-             if (activeTextarea && !activeTextarea.readOnly) {
-                activeTextarea.focus();
-                const startPos = activeTextarea.selectionStart;
-                const endPos = activeTextarea.selectionEnd;
-                activeTextarea.value = activeTextarea.value.substring(0, startPos) + field + activeTextarea.value.substring(endPos);
-                activeTextarea.setSelectionRange(startPos + field.length, startPos + field.length);
-             } else {
-                console.error("No active or editable editor found for merge field insertion.");
-             }
+            console.error("No active editor found for merge field insertion.");
         }
     }
 
@@ -966,16 +851,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             alert('No email body saved for this campaign to export as text.');
             return;
         }
-        const readme = `--- MAIL MERGE INSTRUCTIONS ---\n\n1. Open Microsoft Word and paste the email body below into a new document.\n2. Go to the "Mailings" tab and click "Start Mail Merge" -> "Step-by-Step Mail Merge Wizard".\n3. For "Select recipients", choose "Use an existing list" and browse to select the CSV file you downloaded.\n4. Edit the recipient list if needed, then click "Write your e-mail message".\n5. Use the "Insert Merge Field" button to place your fields like [FirstName].\n6. Preview your messages and complete the merge to send.\n\n--- YOUR EMAIL TEMPLATE ---\n\n`;
-        // MODIFICATION: Strip HTML for the TXT export
+        const readme = `--- MAIL MERGE INSTRUCTIONS ---\n\n1. Open Microsoft Word...\n\n--- YOUR EMAIL TEMPLATE ---\n\n`;
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = campaign.email_body;
         const plainTextBody = tempDiv.textContent || tempDiv.innerText || '';
 
         const textContent = readme + plainTextBody;
-        const blob = new Blob([textContent], {
-            type: 'text/plain'
-        });
+        const blob = new Blob([textContent], { type: 'text/plain' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = `${campaign.name.replace(/[^a-z0-9]/gi, '_')}_template.txt`;
@@ -997,9 +879,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             };
         });
         if (activitiesToLog.length > 0) {
-            const {
-                error
-            } = await supabase.from('activities').insert(activitiesToLog);
+            const { error } = await supabase.from('activities').insert(activitiesToLog);
             if (error) console.error("Error logging mail merge activity:", error);
         }
     }
@@ -1014,34 +894,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
 
         let templateListHtml = visibleTemplates.map(template => {
-            const templateId = template.id;
-            const templateName = template.name || 'Unnamed Template';
-            let actionButtonsHtml = '';
-            let attributionHtml = '';
-
-            const cloneButton = `<button class="btn-secondary btn-clone-template" data-id="${templateId}">Clone</button>`;
-
-            if (template.user_id === state.currentUser.id) {
-                actionButtonsHtml = `
-                    <button class="btn-secondary btn-edit-template" data-id="${templateId}">Edit</button>
-                    <button class="btn-danger btn-delete-template" data-id="${templateId}">Delete</button>
-                    ${cloneButton}
-                `;
-            } else {
-                const creator = state.user_quotas.find(p => p && p.user_id === template.user_id);
-                const creatorName = creator ? creator.full_name : 'an unknown user';
-                attributionHtml = `<small class="template-attribution">Shared by ${creatorName}</small>`;
-                actionButtonsHtml = cloneButton;
-            }
-
+            const isOwner = template.user_id === state.currentUser.id;
+            const creator = isOwner ? null : state.user_quotas.find(p => p && p.user_id === template.user_id);
+            const creatorName = creator ? creator.full_name : 'an unknown user';
+            const attribution = isOwner ? '' : `<small class="template-attribution">Shared by ${creatorName}</small>`;
+            const actions = isOwner ?
+                `<button class="btn-secondary btn-edit-template" data-id="${template.id}">Edit</button><button class="btn-danger btn-delete-template" data-id="${template.id}">Delete</button>` : '';
             return `
             <div class="template-list-item">
                 <div>
-                    <span>${templateName}</span>
-                    ${attributionHtml}
+                    <span>${template.name || 'Unnamed Template'}</span>
+                    ${attribution}
                 </div>
                 <div class="template-actions">
-                    ${actionButtonsHtml}
+                    ${actions}
+                    <button class="btn-secondary btn-clone-template" data-id="${template.id}">Clone</button>
                 </div>
             </div>`;
         }).join('');
@@ -1052,98 +919,35 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const managerBody = `<div id="template-manager">${templateListHtml}<hr><button id="create-new-template-btn" class="btn-primary full-width">Create New Template</button></div>`;
         const customFooter = `<button class="btn-secondary" id="modal-exit-btn">Exit</button>`;
-
         showModal("Email Template Manager", managerBody, null, true, customFooter);
         setupTemplateManagerListeners();
     }
 
     function setupTemplateManagerListeners() {
-        const createNewTemplateBtn = document.getElementById('create-new-template-btn');
-        if (createNewTemplateBtn) {
-            createNewTemplateBtn.addEventListener('click', () => openTemplateForm(null));
-        }
-
-        document.querySelectorAll('#template-manager .btn-edit-template').forEach(button => {
-            button.addEventListener('click', handleEditTemplateClick);
-        });
-
-        document.querySelectorAll('#template-manager .btn-delete-template').forEach(button => {
-            button.addEventListener('click', handleDeleteTemplateClick);
-        });
-
-        document.querySelectorAll('#template-manager .btn-clone-template').forEach(button => {
-            button.addEventListener('click', handleCloneTemplateClick);
-        });
-
-        const exitButton = document.getElementById('modal-exit-btn');
-        if (exitButton) {
-            exitButton.addEventListener('click', hideModal);
-        }
+        document.getElementById('create-new-template-btn')?.addEventListener('click', () => openTemplateForm(null));
+        document.querySelectorAll('#template-manager .btn-edit-template').forEach(button => button.addEventListener('click', handleEditTemplateClick));
+        document.querySelectorAll('#template-manager .btn-delete-template').forEach(button => button.addEventListener('click', handleDeleteTemplateClick));
+        document.querySelectorAll('#template-manager .btn-clone-template').forEach(button => button.addEventListener('click', handleCloneTemplateClick));
+        document.getElementById('modal-exit-btn')?.addEventListener('click', hideModal);
     }
-
-    async function handleCloneTemplateClick(e) {
-        const templateId = Number(e.target.dataset.id);
-        const originalTemplate = state.emailTemplates.find(t => t.id === templateId);
-
-        if (!originalTemplate) {
-            alert("Could not find the original template to clone.");
-            return;
-        }
-
-        const newName = prompt("Enter a name for your new cloned template:", `${originalTemplate.name} (Copy)`);
-        if (!newName || newName.trim() === '') {
-            return;
-        }
-
-        const {
-            data: newTemplate,
-            error
-        } = await supabase.from('email_templates').insert({
-            name: newName,
-            subject: originalTemplate.subject,
-            body: originalTemplate.body,
-            user_id: state.currentUser.id,
-            is_cloned: true
-        }).select().single();
-
-        if (error) {
-            alert("Error cloning template: " + error.message);
-            return;
-        }
-
-        alert(`Template "${newName}" created successfully!`);
-        await loadAllData();
-        renderTemplateManager();
-    }
-
-    function handleEditTemplateClick(e) {
-        const buttonElement = e.target.closest('.btn-edit-template');
-        if (!buttonElement) return;
-
-        const templateId = Number(buttonElement.dataset.id);
-        const template = state.emailTemplates.find(t => t.id === templateId);
-
-        if (template) {
-            openTemplateForm(template);
-        } else {
-            alert("Could not find the template for editing.");
-        }
-    }
-
-    function handleDeleteTemplateClick(e) {
-        const buttonElement = e.target.closest('.btn-delete-template');
-        if (!buttonElement) return;
-        const templateId = Number(buttonElement.dataset.id);
-        handleDeleteTemplate(templateId);
-    }
-
+    
+    // FIX: This function now updates the existing modal instead of opening a new one.
     function openTemplateForm(templateToEdit = null) {
         const isEditing = templateToEdit !== null;
         const modalTitle = isEditing ? "Edit Email Template" : "Create New Email Template";
         const currentTemplateName = templateToEdit?.name || '';
         const currentTemplateSubject = templateToEdit?.subject || '';
         const currentTemplateBody = templateToEdit?.body || '';
-
+    
+        const modalTitleEl = document.getElementById('modal-title');
+        const modalBodyEl = document.getElementById('modal-body');
+        const modalActionsEl = document.getElementById('modal-actions');
+    
+        if (!modalTitleEl || !modalBodyEl || !modalActionsEl) {
+            console.error("Modal elements not found. Cannot open template form.");
+            return;
+        }
+    
         const formBody = `
             <div id="template-form-container">
                 <label for="template-name">Template Name:</label><input type="text" id="template-name" value="${currentTemplateName}" required>
@@ -1156,22 +960,36 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
                 <textarea id="template-body" rows="10">${currentTemplateBody}</textarea>
             </div>`;
-
-        const onConfirm = async () => {
+    
+        modalTitleEl.textContent = modalTitle;
+        modalBodyEl.innerHTML = formBody;
+        modalActionsEl.innerHTML = `
+            <button id="save-template-btn" class="btn-primary">Save</button>
+            <button id="cancel-template-edit-btn" class="btn-secondary">Back to List</button>`;
+    
+        tinymce.remove('#template-body');
+        tinymce.init({
+            selector: '#template-body',
+            plugins: 'lists link image table code help wordcount',
+            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
+            height: 350,
+            menubar: false
+        });
+    
+        document.getElementById('save-template-btn').addEventListener('click', async () => {
             const name = document.getElementById('template-name')?.value.trim();
             if (!name) {
                 alert('Template name is required.');
-                return false;
+                return;
             }
-
+    
             const templateData = {
                 name,
                 subject: document.getElementById('template-subject')?.value.trim(),
-                // MODIFICATION: Get content from TinyMCE editor
                 body: tinymce.get('template-body').getContent(),
                 user_id: state.currentUser.id
             };
-
+    
             let error;
             if (isEditing) {
                 const { error: updateError } = await supabase.from('email_templates').update(templateData).eq('id', templateToEdit.id);
@@ -1180,39 +998,64 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { error: insertError } = await supabase.from('email_templates').insert(templateData);
                 error = insertError;
             }
-
+    
             if (error) {
                 alert("Error saving template: " + error.message);
-                return false;
+                return;
             }
-
+    
             alert(`Template "${name}" saved successfully!`);
             await loadAllData();
             renderTemplateManager();
-            return true;
-        };
+        });
+    
+        document.getElementById('cancel-template-edit-btn').addEventListener('click', renderTemplateManager);
+    }
 
-        // MODIFICATION: Initialize TinyMCE after this modal is shown
-        const onModalShow = () => {
-            // First, remove any lingering instances to prevent errors
-            tinymce.remove('#template-body');
-            tinymce.init({
-                selector: '#template-body',
-                plugins: 'lists link image table code help wordcount',
-                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
-                height: 350,
-                menubar: false
-            });
-        };
-        
-        showModal(modalTitle, formBody, onConfirm, false, null, null, onModalShow);
+    async function handleCloneTemplateClick(e) {
+        const templateId = Number(e.target.dataset.id);
+        const originalTemplate = state.emailTemplates.find(t => t.id === templateId);
+
+        if (!originalTemplate) {
+            alert("Could not find the original template to clone.");
+            return;
+        }
+
+        const newName = prompt("Enter a name for your new cloned template:", `${originalTemplate.name} (Copy)`);
+        if (!newName || newName.trim() === '') return;
+
+        const { error } = await supabase.from('email_templates').insert({
+            name: newName,
+            subject: originalTemplate.subject,
+            body: originalTemplate.body,
+            user_id: state.currentUser.id,
+            is_cloned: true
+        });
+
+        if (error) {
+            alert("Error cloning template: " + error.message);
+            return;
+        }
+
+        alert(`Template "${newName}" created successfully!`);
+        await loadAllData();
+        renderTemplateManager();
+    }
+
+    function handleEditTemplateClick(e) {
+        const templateId = Number(e.target.closest('.btn-edit-template').dataset.id);
+        const template = state.emailTemplates.find(t => t.id === templateId);
+        if (template) openTemplateForm(template);
+    }
+
+    function handleDeleteTemplateClick(e) {
+        const templateId = Number(e.target.closest('.btn-delete-template').dataset.id);
+        handleDeleteTemplate(templateId);
     }
 
     async function handleDeleteTemplate(templateId) {
         showModal("Confirm Deletion", "Are you sure you want to delete this template? This cannot be undone.", async () => {
-            const {
-                error
-            } = await supabase.from('email_templates').delete().eq('id', templateId);
+            const { error } = await supabase.from('email_templates').delete().eq('id', templateId);
             if (error) {
                 alert("Error deleting template: " + error.message);
                 return false;
@@ -1226,18 +1069,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const handleDeleteSelectedCampaign = () => {
         const campaignId = state.selectedCampaignId;
-
         if (!campaignId) {
             alert("Please select an active campaign to delete.");
             return;
         }
-
         const campaign = state.campaigns.find(c => c.id === campaignId);
         if (campaign && campaign.completed_at) {
             alert("Cannot delete a past campaign. Please select an active campaign.");
             return;
         }
-
         handleDeleteCampaign(campaignId);
     };
 
@@ -1259,13 +1099,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
         try {
-            const [
-                { data: campaigns, error: campaignsError },
-                { data: contacts, error: contactsError },
-                { data: accounts, error: accountsError },
-                { data: emailTemplates, error: templatesError },
-                { data: userQuotas, error: userQuotasError }
-            ] = await Promise.all([
+            const [{ data: campaigns, error: e1 }, { data: contacts, error: e2 }, { data: accounts, error: e3 }, { data: emailTemplates, error: e4 }, { data: userQuotas, error: e5 }] = await Promise.all([
                 supabase.from("campaigns").select("*").eq("user_id", state.currentUser.id),
                 supabase.from("contacts").select("*").eq("user_id", state.currentUser.id),
                 supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
@@ -1273,11 +1107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
 
-            if (campaignsError) throw campaignsError;
-            if (contactsError) throw contactsError;
-            if (accountsError) throw accountsError;
-            if (templatesError) throw templatesError;
-            if (userQuotasError) throw userQuotasError;
+            if (e1 || e2 || e3 || e4 || e5) throw new Error(e1?.message || e2?.message || e3?.message || e4?.message || e5?.message);
 
             state.campaigns = campaigns || [];
             state.contacts = contacts || [];
@@ -1294,10 +1124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function loadCampaignMembers(campaignId) {
-        const {
-            data,
-            error
-        } = await supabase.from('campaign_members').select('*').eq('campaign_id', campaignId);
+        const { data, error } = await supabase.from('campaign_members').select('*').eq('campaign_id', campaignId);
         if (error) {
             console.error('Error fetching campaign members:', error);
             state.campaignMembers = [];
@@ -1336,14 +1163,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const campaignDetailsPanel = document.getElementById('campaign-details');
         if (campaignDetailsPanel) {
             campaignDetailsPanel.addEventListener('click', (e) => {
-                if (e.target.id === 'start-calling-btn') startCallBlitz();
-                else if (e.target.id === 'log-call-btn') handleLogCall(e);
-                else if (e.target.id === 'skip-call-btn') handleSkipCall(e);
-                else if (e.target.id === 'export-csv-btn') handleExportCsv();
-                else if (e.target.id === 'export-txt-btn') handleExportTxt();
-                else if (e.target.id === 'start-guided-email-btn') startGuidedEmail();
-                else if (e.target.id === 'open-email-client-btn') handleOpenEmailClient(e);
-                else if (e.target.id === 'skip-email-btn') handleSkipEmail(e);
+                const targetId = e.target.id;
+                if (targetId === 'start-calling-btn') startCallBlitz();
+                else if (targetId === 'log-call-btn') handleLogCall(e);
+                else if (targetId === 'skip-call-btn') handleSkipCall(e);
+                else if (targetId === 'export-csv-btn') handleExportCsv();
+                else if (targetId === 'export-txt-btn') handleExportTxt();
+                else if (targetId === 'start-guided-email-btn') startGuidedEmail();
+                else if (targetId === 'open-email-client-btn') handleOpenEmailClient(e);
+                else if (targetId === 'skip-email-btn') handleSkipEmail(e);
             });
         }
     }
@@ -1354,29 +1182,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             deleteCampaignBtn.disabled = true;
         }
 
-        const {
-            data: {
-                session
-            },
-            error: sessionError
-        } = await supabase.auth.getSession();
-        if (sessionError) {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
             console.error("Error getting session:", sessionError);
             window.location.href = "index.html";
             return;
         }
 
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser);
-            await checkAndSetNotifications(supabase);
-            await loadAllData();
-        } else {
-            console.log("No active session, redirecting to index.html");
-            window.location.href = "index.html";
-        }
+        state.currentUser = session.user;
+        await setupUserMenuAndAuth(supabase, state);
+        setupPageEventListeners();
+        await setupGlobalSearch(supabase, state.currentUser);
+        await checkAndSetNotifications(supabase);
+        await loadAllData();
     }
 
     initializePage();
