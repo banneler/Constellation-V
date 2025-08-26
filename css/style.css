@@ -4083,3 +4083,5 @@ body.theme-dark .metric-card-won {
     opacity: 0;
     pointer-events: none;
 }
+/* Fix for TinyMCE modals appearing behind the Constellation modal */
+.tox-dialog { z-index: 10000 !important; }
