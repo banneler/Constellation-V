@@ -714,8 +714,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         tinymce.remove('#campaign-email-body');
         tinymce.init({
             selector: '#campaign-email-body',
-            plugins: 'lists link image table code help wordcount',
-            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
+            plugins: 'lists link table code help wordcount',
+            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link | code',
             height: 300,
             menubar: false
         });
@@ -970,8 +970,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         tinymce.remove('#template-body');
         tinymce.init({
             selector: '#template-body',
-            plugins: 'lists link image table code help wordcount',
-            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image | code',
+            plugins: 'lists link table code help wordcount',
+            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link | code',
             height: 350,
             menubar: false
         });
