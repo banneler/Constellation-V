@@ -83,57 +83,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Data Fetching ---
-async function loadAllData() {
-    if (!state.currentUser) return;
-    if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+    async function loadAllData() {
+        if (!state.currentUser) return;
+        if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+        
+        const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks", "cognito_alerts"];
+        const publicTables = ["sequence_steps"];
+        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+        const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
+        const allPromises = [...userPromises, ...publicPromises];
+        const allTableNames = [...userSpecificTables, ...publicTables];
+
+        try {
+            const results = await Promise.allSettled(allPromises);
+            results.forEach((result, index) => {
+                const tableName = allTableNames[index];
+                if (result.status === "fulfilled" && !result.value.error) {
+                    state[tableName] = result.value.data || [];
+                } else {
+                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
+                    state[tableName] = [];
+                }
+            });
+        } catch (error) {
+            console.error("Critical error in loadAllData:", error);
+        }
+
+        // NEW: Logic to find "nurture" accounts based on activity, adapted from accounts.js
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+        const activeAccountIds = new Set(
+            state.activities
+            .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
+            .map(act => {
+                if (act.account_id) return act.account_id;
+                const contact = state.contacts.find(c => c.id === act.contact_id);
+                return contact ? contact.account_id : null;
+            })
+            .filter(id => id)
+        );
+
+        // Filter accounts with no recent activity
+        state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
+        
+        // Now continue with rendering
+        renderDashboard();
+    }
     
-    // MODIFIED: Fetches all accounts, contacts, and activities
-    const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks", "cognito_alerts"];
-    const publicTables = ["sequence_steps"];
-    const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-    const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
-    const allPromises = [...userPromises, ...publicPromises];
-    const allTableNames = [...userSpecificTables, ...publicTables];
-
-    try {
-        const results = await Promise.allSettled(allPromises);
-        results.forEach((result, index) => {
-            const tableName = allTableNames[index];
-            if (result.status === "fulfilled" && !result.value.error) {
-                state[tableName] = result.value.data || [];
-                if (tableName === 'cognito_alerts') {
-    console.log("Raw Cognito Alerts fetched:", result.value.data);
-}
-            } else {
-                console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                state[tableName] = [];
-            }
-        });
-    } catch (error) {
-        console.error("Critical error in loadAllData:", error);
-    } 
-
-    // NEW: Logic to find "nurture" accounts based on activity, adapted from accounts.js
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
-    const activeAccountIds = new Set(
-        state.activities
-        .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
-        .map(act => {
-            if (act.account_id) return act.account_id;
-            const contact = state.contacts.find(c => c.id === act.contact_id);
-            return contact ? contact.account_id : null;
-        })
-        .filter(id => id)
-    );
-
-    // Filter accounts with no recent activity
-    state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
-    
-    // Now continue with rendering
-    renderDashboard();
-}
     // --- Core Logic ---
     async function completeStep(csId, processedDescription = null) {
         const cs = state.contact_sequences.find((c) => c.id === csId);
@@ -163,42 +160,43 @@ async function loadAllData() {
         loadAllData();
     }
 
-// --- NEW: AI Briefing Logic ---
-async function handleGenerateBriefing() {
-    aiBriefingContainer.classList.remove('hidden');
-    aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
+    // --- NEW: AI Briefing Logic ---
+    async function handleGenerateBriefing() {
+        aiBriefingContainer.classList.remove('hidden');
+        aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
-    try {
-        const briefingPayload = {
-            tasks: state.tasks.filter(t => t.status === 'Pending'),
-            sequenceSteps: state.contact_sequences.filter(cs => {
-                if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                const dueDate = new Date(cs.next_step_due_date);
-                const startOfToday = new Date();
-                startOfToday.setHours(0, 0, 0, 0);
-                return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
-            }),
-            deals: state.deals,
-            cognitoAlerts: state.cognitoAlerts,
-            nurtureAccounts: state.nurtureAccounts,
-            contacts: state.contacts,
-            accounts: state.accounts,
-            sequences: state.sequences,
-            sequence_steps: state.sequence_steps
-        };
+        try {
+            const briefingPayload = {
+                tasks: state.tasks.filter(t => t.status === 'Pending'),
+                sequenceSteps: state.contact_sequences.filter(cs => {
+                    if (!cs.next_step_due_date || cs.status !== "Active") return false;
+                    const dueDate = new Date(cs.next_step_due_date);
+                    const startOfToday = new Date();
+                    startOfToday.setHours(0, 0, 0, 0);
+                    return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
+                }),
+                deals: state.deals,
+                cognitoAlerts: state.cognitoAlerts,
+                nurtureAccounts: state.nurtureAccounts,
+                contacts: state.contacts,
+                accounts: state.accounts,
+                sequences: state.sequences,
+                sequence_steps: state.sequence_steps
+            };
 
-        const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
-            body: { briefingPayload }
-        });
+            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
+                body: { briefingPayload }
+            });
 
-        if (error) throw error;
-        renderAIBriefing(briefing);
+            if (error) throw error;
+            renderAIBriefing(briefing);
 
-    } catch (error) {
-        console.error("Error generating AI briefing:", error);
-        aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+        } catch (error) {
+            console.error("Error generating AI briefing:", error);
+            aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+        }
     }
-}
+    
     function renderAIBriefing(briefing) {
         const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
 
@@ -352,9 +350,7 @@ async function handleGenerateBriefing() {
                 });
             });
         }
-        if (aiDailyBriefingBtn) {
-            aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
-        }
+        // Removed the redundant event listener for the AI briefing button.
         document.body.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
@@ -449,32 +445,33 @@ async function handleGenerateBriefing() {
         });
     }
 
-// --- App Initialization ---
-async function initializePage() {
-    await loadSVGs();
-    updateActiveNavLink();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        state.currentUser = session.user;
-        await setupUserMenuAndAuth(supabase, state);
-        await setupGlobalSearch(supabase, state.currentUser);
-        await checkAndSetNotifications(supabase);
+    // --- App Initialization ---
+    async function initializePage() {
+        await loadSVGs();
+        updateActiveNavLink();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            state.currentUser = session.user;
+            await setupUserMenuAndAuth(supabase, state);
+            await setupGlobalSearch(supabase, state.currentUser);
+            await checkAndSetNotifications(supabase);
 
-        // NEW: Load all data first
-        await loadAllData();
+            // This is the critical change: Await all data before doing anything else
+            await loadAllData();
 
-        // NEW: Now, and only now, set up the event listener after the data is guaranteed to be in state
-        const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
-        if (aiDailyBriefingBtn) {
-            aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
+            // Now, set up the event listener after the data is guaranteed to be in state
+            const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+            if (aiDailyBriefingBtn) {
+                aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
+            }
+
+            // Now, set up the rest of your non-data-dependent listeners
+            setupPageEventListeners();
+
+        } else {
+            window.location.href = "index.html";
         }
-
-        setupPageEventListeners();
-
-    } else {
-        window.location.href = "index.html";
     }
-}
 
     initializePage();
 });
