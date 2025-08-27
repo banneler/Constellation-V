@@ -163,17 +163,24 @@ async function loadAllData() {
         loadAllData();
     }
 
+// --- NEW: AI Briefing Logic ---
 async function handleGenerateBriefing() {
     aiBriefingContainer.classList.remove('hidden');
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
+        // Ensure all data is fully loaded before preparing the payload
+        await loadAllData();
+
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const allCognitoAlerts = state.cognitoAlerts;
+        // Filter alerts in the frontend before sending them to the Edge Function
+        const actionableAlerts = state.cognitoAlerts.filter(a =>
+            a.status && a.status.toLowerCase() === 'new' && new Date(a.created_at) > sevenDaysAgo
+        );
 
-        console.log("Unread Cognito Alerts being sent:", allCognitoAlerts);
+        console.log("Actionable Cognito Alerts being sent:", actionableAlerts);
 
         const briefingPayload = {
             tasks: state.tasks.filter(t => t.status === 'Pending'),
@@ -185,16 +192,13 @@ async function handleGenerateBriefing() {
                 return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
             }),
             deals: state.deals,
-            cognitoAlerts: allCognitoAlerts,
+            cognitoAlerts: actionableAlerts,
             nurtureAccounts: state.nurtureAccounts,
             contacts: state.contacts,
             accounts: state.accounts,
             sequences: state.sequences,
             sequence_steps: state.sequence_steps
         };
-
-        // NEW: Add this line to log the full payload
-        console.log("Briefing Payload being sent to Edge Function:", briefingPayload);
 
         const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
             body: { briefingPayload }
