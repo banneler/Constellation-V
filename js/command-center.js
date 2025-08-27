@@ -109,7 +109,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Critical error in loadAllData:", error);
         }
 
-        // NEW: Logic to find "nurture" accounts based on activity, adapted from accounts.js
         const sixtyDaysAgo = new Date();
         sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
@@ -124,10 +123,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             .filter(id => id)
         );
 
-        // Filter accounts with no recent activity
         state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
         
-        // Now continue with rendering
         renderDashboard();
     }
     
@@ -160,7 +157,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadAllData();
     }
 
-    // --- NEW: AI Briefing Logic ---
+    // --- NEW: AI Briefing Logic (Now correctly scoped) ---
     async function handleGenerateBriefing() {
         aiBriefingContainer.classList.remove('hidden');
         aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
@@ -350,7 +347,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             });
         }
-        // Removed the redundant event listener for the AI briefing button.
         document.body.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
@@ -459,7 +455,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             // This is the critical change: Await all data before doing anything else
             await loadAllData();
 
-            // Now, set up the event listener after the data is guaranteed to be in state
+            // Now, and only now, set up the event listener after the data is guaranteed to be in state
             const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
             if (aiDailyBriefingBtn) {
                 aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
