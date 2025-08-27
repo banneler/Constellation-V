@@ -380,7 +380,6 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
-// --- Print Briefing Handler ---
 function handlePrintBriefing() {
     const accountName = state.selectedAccountDetails.account?.name;
     const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
@@ -389,7 +388,6 @@ function handlePrintBriefing() {
         return;
     }
 
-    // Create a hidden iframe to handle printing seamlessly
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
     printFrame.style.width = '0';
@@ -399,12 +397,30 @@ function handlePrintBriefing() {
 
     const frameDoc = printFrame.contentWindow.document;
     frameDoc.open();
-    // This <title> tag will become the default file name for the PDF
     frameDoc.write(`
         <html>
             <head>
-                <title>AI Briefing: ${accountName}</title>
+                <title>AI Briefing: ${accountName}</title> <!-- This sets the PDF file name -->
                 <link rel="stylesheet" href="css/style.css">
+                <style>
+                    @media print {
+                        body { 
+                            margin: 20px; 
+                            font-family: sans-serif;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        .ai-briefing-container { box-shadow: none; border: none; }
+                        h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
+                        .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; }
+                        div.briefing-pre { 
+                            background-color: #eee !important; 
+                            border: 1px solid #ddd;
+                            white-space: pre-wrap;
+                            word-wrap: break-word;
+                        }
+                    }
+                </style>
             </head>
             <body>
                 <h2>AI Reconnaissance Report</h2>
