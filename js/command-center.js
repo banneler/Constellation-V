@@ -463,10 +463,13 @@ async function initializePage() {
         await setupGlobalSearch(supabase, state.currentUser);
         await checkAndSetNotifications(supabase);
         
-        // NEW: Ensure all data is loaded and the state object is fully populated before
-        // the user can interact with the briefing button.
+        // NEW: Load all data and then re-enable the briefing button.
         await loadAllData();
-        
+        const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+        if (aiDailyBriefingBtn) {
+            aiDailyBriefingBtn.disabled = false;
+        }
+
     } else {
         window.location.href = "index.html";
     }
