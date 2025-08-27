@@ -380,126 +380,125 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
-    // --- NEW: Print Briefing Handler ---
-    function handlePrintBriefing() {
-        const accountName = state.selectedAccountDetails.account?.name;
-        const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
+ // --- NEW: Print Briefing Handler (replaces old window.open method) ---
+function handlePrintBriefing() {
+    const accountName = state.selectedAccountDetails.account?.name;
+    const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
+    if (!accountName || !briefingHtml) {
+        alert("Could not find briefing content to print.");
+        return;
+    }
 
-        if (!accountName || !briefingHtml) {
-            alert("Could not find briefing content to print.");
-            return;
-        }
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
 
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>AI Briefing: ${accountName}</title>
-                    <link rel="stylesheet" href="css/style.css">
-                    <style>
-                        /* Print-specific styles */
-                        @media print {
-                            body { 
-                                margin: 20px; 
-                                font-family: sans-serif;
-                                -webkit-print-color-adjust: exact; /* Important for colors in Chrome */
-                                print-color-adjust: exact;
-                            }
-                            .ai-briefing-container {
-                                box-shadow: none;
-                                border: none;
-                            }
-                            h4 {
-                                color: #3b82f6 !important; /* Use a print-friendly blue */
-                                border-bottom: 1px solid #ccc !important;
-                            }
-                            .briefing-section {
-                                background-color: #f9f9f9 !important;
-                                page-break-inside: avoid;
-                            }
-                            pre {
-                                background-color: #eee !important;
-                                border: 1px solid #ddd;
-                            }
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`
+        <html>
+            <head>
+                <title>AI Briefing: ${accountName}</title>
+                <link rel="stylesheet" href="css/style.css">
+                <style>
+                    @media print {
+                        body { 
+                            margin: 20px; 
+                            font-family: sans-serif;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
                         }
-                    </style>
-                </head>
-                <body>
-                    <h2>AI Reconnaissance Report</h2>
-                    <h3>${accountName}</h3>
-                    <div class="ai-briefing-container">${briefingHtml}</div>
-                    <script>
-                        setTimeout(() => { 
-                            window.print();
-                            window.close();
-                        }, 250); // Small delay to ensure styles are applied
-                    </script>
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
+                        .ai-briefing-container { box-shadow: none; border: none; }
+                        h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
+                        .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; }
+                        pre.briefing-pre { 
+                            background-color: #eee !important; 
+                            border: 1px solid #ddd;
+                            white-space: pre-wrap; /* Ensures text wraps */
+                            word-wrap: break-word; /* For older browsers */
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>AI Reconnaissance Report</h2>
+                <h3>${accountName}</h3>
+                <div class="ai-briefing-container">${briefingHtml}</div>
+            </body>
+        </html>
+    `);
+    frameDoc.close();
+
+    setTimeout(() => {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+        document.body.removeChild(printFrame);
+    }, 250);
+}
+   // --- AI Briefing Handler ---
+async function handleGenerateBriefing() {
+    if (!state.selectedAccountId) {
+        showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
     }
-    // --- AI Briefing Handler ---
-    async function handleGenerateBriefing() {
-        if (!state.selectedAccountId) {
-            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        const { account, contacts, activities, deals } = state.selectedAccountDetails;
-        if (!account) return;
+    const { account, contacts, activities, deals } = state.selectedAccountDetails;
+    if (!account) return;
 
-        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+    showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
-        try {
-            const internalData = {
-                accountName: account.name,
-                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
-                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
-                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
-                    const contact = contacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
-                }).join('\n')
-            };
+    try {
+        const internalData = {
+            accountName: account.name,
+            contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
+            deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
+            activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
+                const contact = contacts.find(c => c.id === act.contact_id);
+                const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
+            }).join('\n')
+        };
 
-            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
-            if (error) throw error;
+        const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
+        if (error) throw error;
 
-            const briefingHtml = `
-                <div class="ai-briefing-container">
-                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                        <p><strong>Key Players in CRM:</strong> ${briefing.key_players}</p>
-                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
-                        <p><strong>Recent Activity:</strong></p>
-                        <pre>${briefing.activity_highlights}</pre>
-                    </div>
-                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
-                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
-                        <p><strong>Social Icebreakers:</strong></p>
-                        <pre>${briefing.icebreakers}</pre>
-                    </div>
-                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
-                    <div class="briefing-section recommendation">
-                        <p>${briefing.recommendation}</p>
-                    </div>
-                </div>`;
-            
-            // MODIFIED: Added the new Print button to the modal footer
-            const modalFooter = `
-                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
-                <button id="modal-ok-btn" class="btn-primary">Close</button>
-            `;
-            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
+        // MODIFIED: Added 'briefing-pre' class to <pre> tags
+        const briefingHtml = `
+            <div class="ai-briefing-container">
+                <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
+                <div class="briefing-section">
+                    <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
+                    <p><strong>Key Players in CRM:</strong> ${briefing.key_players}</p>
+                    <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                    <p><strong>Recent Activity:</strong></p>
+                    <pre class="briefing-pre">${briefing.activity_highlights}</pre>
+                </div>
+                <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
+                <div class="briefing-section">
+                    <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
+                    <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
+                    <p><strong>Social Icebreakers:</strong></p>
+                    <pre class="briefing-pre">${briefing.icebreakers}</pre>
+                </div>
+                <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
+                <div class="briefing-section recommendation">
+                    <p>${briefing.recommendation}</p>
+                </div>
+            </div>`;
+        
+        const modalFooter = `
+            <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
+            <button id="modal-ok-btn" class="btn-primary">Close</button>
+        `;
+        showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
 
-        } catch (error) {
-            console.error("Error invoking AI Briefing Edge Function:", error);
-            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
+    } catch (error) {
+        console.error("Error invoking AI Briefing Edge Function:", error);
+        showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
+}
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
