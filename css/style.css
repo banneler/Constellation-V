@@ -4226,4 +4226,8 @@ body.theme-dark .metric-card-won {
     color: #3b82f6; /* A nice blue color */
     font-size: 0.9rem;
 }
+/* --- Print Button Style --- */
+#print-briefing-btn i {
+    margin-right: 0.5rem;
+}
 
