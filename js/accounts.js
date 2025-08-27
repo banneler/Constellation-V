@@ -853,10 +853,10 @@ async function handleGenerateBriefing() {
                     }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             });
         }
-
-       if (aiBriefingBtn) {
+    if (aiBriefingBtn) {
     aiBriefingBtn.addEventListener("click", handleGenerateBriefing);
 }
+    }
 async function initializePage() {
     await loadSVGs();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
