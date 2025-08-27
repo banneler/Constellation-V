@@ -380,7 +380,6 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
-// --- NEW: Print Briefing Handler (replaces old window.open method) ---
 function handlePrintBriefing() {
     const accountName = state.selectedAccountDetails.account?.name;
     const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
@@ -389,7 +388,6 @@ function handlePrintBriefing() {
         return;
     }
 
-    // Create a hidden iframe to handle printing seamlessly
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
     printFrame.style.width = '0';
@@ -402,25 +400,22 @@ function handlePrintBriefing() {
     frameDoc.write(`
         <html>
             <head>
-                <title>AI Briefing: ${accountName}</title>
+                <title>AI Briefing: ${accountName}</title> <!-- This sets the PDF file name -->
                 <link rel="stylesheet" href="css/style.css">
                 <style>
-                    /* Print-specific styles for a clean PDF output */
                     @media print {
                         body { 
                             margin: 20px; 
                             font-family: sans-serif;
-                            color: #000000 !important; /* Force black text */
                             -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
                         }
                         .ai-briefing-container { box-shadow: none; border: none; }
                         h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
                         .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; }
-                        pre { 
+                        div.briefing-pre { 
                             background-color: #eee !important; 
                             border: 1px solid #ddd;
-                            color: #000000 !important;
                             white-space: pre-wrap;
                             word-wrap: break-word;
                         }
@@ -442,7 +437,7 @@ function handlePrintBriefing() {
         document.body.removeChild(printFrame);
     }, 250);
 }
-  // --- AI Briefing Handler ---
+ // --- AI Briefing Handler ---
 async function handleGenerateBriefing() {
     if (!state.selectedAccountId) {
         showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -468,15 +463,16 @@ async function handleGenerateBriefing() {
         const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
         if (error) throw error;
 
-        // NEW: Convert markdown bold to HTML strong tags for rendering
+        // Convert markdown bold to HTML strong tags for rendering
         const keyPlayersHtml = briefing.key_players.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        const icebreakersHtml = briefing.icebreakers.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // NEW: Added this line
 
         const briefingHtml = `
             <div class="ai-briefing-container">
                 <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
                 <div class="briefing-section">
                     <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                    <p><strong>Key Players in CRM:</strong> ${keyPlayersHtml}</p> <!-- MODIFIED -->
+                    <p><strong>Key Players in CRM:</strong> ${keyPlayersHtml}</p>
                     <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
                     <p><strong>Recent Activity:</strong></p>
                     <div class="briefing-pre">${briefing.activity_highlights}</div>
@@ -486,7 +482,7 @@ async function handleGenerateBriefing() {
                     <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
                     <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
                     <p><strong>Social Icebreakers:</strong></p>
-                    <div class="briefing-pre">${briefing.icebreakers}</div>
+                    <div class="briefing-pre">${icebreakersHtml}</div> <!-- MODIFIED -->
                 </div>
                 <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
                 <div class="briefing-section recommendation">
