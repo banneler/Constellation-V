@@ -169,16 +169,16 @@ async function handleGenerateBriefing() {
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
-        // Corrected: Filter to be case-insensitive on the 'status' column
+        // Corrected: Filter to be case-sensitive on the 'status' column and check for 'New'
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
         const unreadCognitoAlerts = state.cognitoAlerts.filter(a =>
-            a.status?.toLowerCase() === 'new' && new Date(a.created_at) > sevenDaysAgo
+            a.status === 'New' && new Date(a.created_at) > sevenDaysAgo
         );
-        
+
         console.log("Unread Cognito Alerts being sent:", unreadCognitoAlerts);
-        
+
         // Prepare the data to send to the Edge Function
         const briefingPayload = {
             // Filter sequence steps to only include those due today or in the past
