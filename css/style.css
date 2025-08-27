@@ -4319,7 +4319,7 @@ div.briefing-pre {
 
 /* --- General Button Styles --- */
 .btn-large {
-    padding: 3rem 2rem; /* Increased padding for a "chunky" feel */
-    font-size: 1.5rem;     /* Slightly larger font */
+    padding: 2rem 2rem; /* Increased padding for a "chunky" feel */
+    font-size: 1.3rem;     /* Slightly larger font */
     line-height: 1;        /* Helps center the text vertically */
 }
