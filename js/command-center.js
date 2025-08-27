@@ -182,9 +182,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function renderAIBriefing(briefing) {
-    // Correctly and safely access the full_name from the state object.
-    const userName = state.currentUser?.user_metadata?.full_name || 'User';
-    const greeting = `<h3>Good Morning, ${userName}! Here are your top priorities:</h3>`;
+    const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
 
     const briefingHtml = `
         ${greeting}
