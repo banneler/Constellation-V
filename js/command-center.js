@@ -45,7 +45,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         activities: [],
         contact_sequences: [],
         tasks: [],
-        deals: []
+        deals: [],
+        cognitoAlerts: [] // NEW: To hold Cognito alerts
     };
 
     // --- DOM Element Selectors ---
@@ -57,6 +58,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addNewTaskBtn = document.getElementById("add-new-task-btn");
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
+    const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn"); // NEW
+    const aiBriefingContainer = document.getElementById("ai-briefing-container"); // NEW
 
     // --- Utility ---
     function getStartOfLocalDayISO() {
@@ -91,7 +94,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!state.currentUser) return;
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
 
-        const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks"];
+        // MODIFIED: Added deals and cognito_alerts to the data fetch
+        const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks", "cognito_alerts"];
         const publicTables = ["sequence_steps"];
         const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
@@ -123,12 +127,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contact = state.contacts.find((c) => c.id === cs.contact_id);
         const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
         if (contact && step) {
-            // ** FIX STARTS HERE **
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
             const rawDescription = step.subject || step.message || "Completed step";
             const finalDescription = replacePlaceholders(rawDescription, contact, account);
             const descriptionForLog = processedDescription || finalDescription;
-            // ** FIX ENDS HERE **
             await supabase.from("activities").insert([{ 
                 contact_id: contact.id, 
                 account_id: contact.account_id, 
@@ -145,6 +147,53 @@ document.addEventListener("DOMContentLoaded", async () => {
             await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", cs.id);
         }
         loadAllData();
+    }
+
+    // --- NEW: AI Briefing Logic ---
+    async function handleGenerateBriefing() {
+        aiBriefingContainer.classList.remove('hidden');
+        aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
+
+        try {
+            // Prepare the data to send to the Edge Function
+            const briefingPayload = {
+                tasks: state.tasks.filter(t => t.status === 'Pending'),
+                sequenceSteps: state.contact_sequences.filter(cs => cs.status === 'Active'),
+                deals: state.deals,
+                cognitoAlerts: state.cognitoAlerts.filter(a => !a.is_read),
+                // Include reference data so the function doesn't have to re-query
+                contacts: state.contacts,
+                accounts: state.accounts,
+                sequences: state.sequences,
+                sequence_steps: state.sequence_steps
+            };
+
+            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
+                body: { briefingPayload }
+            });
+
+            if (error) throw error;
+            renderAIBriefing(briefing);
+
+        } catch (error) {
+            console.error("Error generating AI briefing:", error);
+            aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+        }
+    }
+
+    function renderAIBriefing(briefing) {
+        const briefingHtml = `
+            <h3>Good Morning, ${state.currentUser.user_metadata.full_name || 'User'}. Here are your top priorities:</h3>
+            <ol id="ai-briefing-list">
+                ${briefing.priorities.map(item => `
+                    <li>
+                        <strong>${item.title}</strong>
+                        <em>Why: ${item.reason}</em>
+                    </li>
+                `).join('')}
+            </ol>
+        `;
+        aiBriefingContainer.innerHTML = briefingHtml;
     }
 
     // --- Render Function ---
@@ -284,6 +333,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
+        // NEW: Event listener for the briefing button
+        if (aiDailyBriefingBtn) {
+            aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
+        }
+
         document.body.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
@@ -388,7 +442,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
- // --- App Initialization ---
+    // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
@@ -398,8 +452,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await checkAndSetNotifications(supabase); // <-- AND ADD THIS LINE
+            await setupGlobalSearch(supabase, state.currentUser);
+            await checkAndSetNotifications(supabase);
             loadAllData();
         } else {
             window.location.href = "index.html";
