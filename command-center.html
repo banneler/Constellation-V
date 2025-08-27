@@ -103,6 +103,15 @@
         
         <main class="content-area">
             <div id="dashboard" class="content-view active-view">
+                <!-- NEW: Header for the AI Daily Briefing -->
+                <div class="command-center-header">
+                    <h2>Command Center</h2>
+                    <button id="ai-daily-briefing-btn" class="btn-primary cognito-style-btn"><i class="fas fa-wand-magic-sparkles"></i> Generate AI Daily Briefing</button>
+                </div>
+
+                <!-- NEW: Container for the briefing to be injected into -->
+                <div id="ai-briefing-container" class="hidden"></div>
+
                 <h2>My Tasks</h2>
                     <button id="add-new-task-btn" class="btn-primary" style="margin-bottom: 15px;">Add New Task</button>
                     <div class="table-container">
@@ -168,14 +177,14 @@
                         </table>
                     </div>
                 <div class="downloads-section">
-            <h4>Download CSV Templates</h4>
-            <p>Use these templates to ensure your data is formatted correctly for bulk imports.</p>
-            <div class="downloads-links">
-                <a href="contacts_template.csv" class="btn-secondary" download>Download Contacts Template</a>
-                <a href="accounts_template.csv" class="btn-secondary" download>Download Accounts Template</a>
-                <a href="sequence_steps_template.csv" class="btn-secondary" download>Download Sequence Steps Template</a>
-            </div>
-        </div>
+                    <h4>Download CSV Templates</h4>
+                    <p>Use these templates to ensure your data is formatted correctly for bulk imports.</p>
+                    <div class="downloads-links">
+                        <a href="contacts_template.csv" class="btn-secondary" download>Download Contacts Template</a>
+                        <a href="accounts_template.csv" class="btn-secondary" download>Download Accounts Template</a>
+                        <a href="sequence_steps_template.csv" class="btn-secondary" download>Download Sequence Steps Template</a>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -208,9 +217,3 @@
 </body>
 
 </html>
-
-
-
-
-
-
