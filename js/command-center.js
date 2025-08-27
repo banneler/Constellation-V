@@ -160,46 +160,50 @@ async function loadAllData() {
         loadAllData();
     }
 
-    // --- NEW: AI Briefing Logic ---
-    async function handleGenerateBriefing() {
-        aiBriefingContainer.classList.remove('hidden');
-        aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
+   // --- NEW: AI Briefing Logic ---
+async function handleGenerateBriefing() {
+    aiBriefingContainer.classList.remove('hidden');
+    aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
-        try {
-            // Prepare the data to send to the Edge Function
-            const briefingPayload = {
-                // NEW: Filter sequence steps to only include those due today or in the past
-                tasks: state.tasks.filter(t => t.status === 'Pending'),
-                sequenceSteps: state.contact_sequences.filter(cs => {
-                    if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                    const dueDate = new Date(cs.next_step_due_date);
-                    const startOfToday = new Date();
-                    startOfToday.setHours(0, 0, 0, 0);
-                    return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
-                }),
-                deals: state.deals,
-                cognitoAlerts: state.cognitoAlerts.filter(a => !a.is_read),
-                nurtureAccounts: state.nurtureAccounts, // NEW: Include nurture accounts
-                // Include reference data so the function doesn't have to re-query
-                contacts: state.contacts,
-                accounts: state.accounts,
-                sequences: state.sequences,
-                sequence_steps: state.sequence_steps
-            };
+    try {
+        const unreadCognitoAlerts = state.cognitoAlerts.filter(a => !a.is_read);
+        
+        // NEW: Log the data before sending it to the Edge Function
+        console.log("Unread Cognito Alerts being sent:", unreadCognitoAlerts);
+        
+        // Prepare the data to send to the Edge Function
+        const briefingPayload = {
+            // NEW: Filter sequence steps to only include those due today or in the past
+            tasks: state.tasks.filter(t => t.status === 'Pending'),
+            sequenceSteps: state.contact_sequences.filter(cs => {
+                if (!cs.next_step_due_date || cs.status !== "Active") return false;
+                const dueDate = new Date(cs.next_step_due_date);
+                const startOfToday = new Date();
+                startOfToday.setHours(0, 0, 0, 0);
+                return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
+            }),
+            deals: state.deals,
+            cognitoAlerts: unreadCognitoAlerts, // Use the new variable
+            nurtureAccounts: state.nurtureAccounts,
+            // Include reference data so the function doesn't have to re-query
+            contacts: state.contacts,
+            accounts: state.accounts,
+            sequences: state.sequences,
+            sequence_steps: state.sequence_steps
+        };
 
-            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
-                body: { briefingPayload }
-            });
+        const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
+            body: { briefingPayload }
+        });
 
-            if (error) throw error;
-            renderAIBriefing(briefing);
+        if (error) throw error;
+        renderAIBriefing(briefing);
 
-        } catch (error) {
-            console.error("Error generating AI briefing:", error);
-            aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
-        }
+    } catch (error) {
+        console.error("Error generating AI briefing:", error);
+        aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
     }
-
+}
     function renderAIBriefing(briefing) {
         const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
 
