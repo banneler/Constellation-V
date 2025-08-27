@@ -101,6 +101,9 @@ async function loadAllData() {
             const tableName = allTableNames[index];
             if (result.status === "fulfilled" && !result.value.error) {
                 state[tableName] = result.value.data || [];
+                if (tableName === 'cognito_alerts') {
+    console.log("Raw Cognito Alerts fetched:", result.value.data);
+}
             } else {
                 console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
                 state[tableName] = [];
