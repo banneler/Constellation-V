@@ -173,11 +173,11 @@ async function handleGenerateBriefing() {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const unreadCognitoAlerts = state.cognitoAlerts.filter(a =>
-            a.status === 'New' && new Date(a.created_at) > sevenDaysAgo
-        );
+        // Remove the filter and send all alerts to the AI function.
+        // We will update the Edge Function to handle the filtering.
+        const allCognitoAlerts = state.cognitoAlerts;
 
-        console.log("Unread Cognito Alerts being sent:", unreadCognitoAlerts);
+        console.log("Unread Cognito Alerts being sent:", allCognitoAlerts);
 
         // Prepare the data to send to the Edge Function
         const briefingPayload = {
@@ -191,7 +191,7 @@ async function handleGenerateBriefing() {
                 return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
             }),
             deals: state.deals,
-            cognitoAlerts: unreadCognitoAlerts, // Use the new variable
+            cognitoAlerts: allCognitoAlerts, // Use the new variable
             nurtureAccounts: state.nurtureAccounts,
             // Include reference data so the function doesn't have to re-query
             contacts: state.contacts,
