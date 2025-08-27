@@ -1,4 +1,4 @@
-// banneler/constellation-v/Constellation-V-8d825689cc599d5206d1e49b4f0dafe9c5ecc390/js/deals.js
+// js/deals.js
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         dealsSortBy: "name",
         dealsSortDir: "asc",
         dealsViewMode: 'mine',
+        currentView: 'list', // NEW: 'list' or 'board'
         currentUserQuota: 0,
         allUsersQuotas: [],
         dealsByStageChart: null,
@@ -42,7 +43,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const metricCurrentCommit = document.getElementById("metric-current-commit");
     const metricBestCase = document.getElementById("metric-best-case");
     const metricFunnel = document.getElementById("metric-funnel");
-    const metricClosedWon = document.getElementById("metric-closed-won"); // New selector
+    const metricClosedWon = document.getElementById("metric-closed-won");
     const viewMyDealsBtn = document.getElementById("view-my-deals-btn");
     const viewAllDealsBtn = document.getElementById("view-all-deals-btn");
     const dealsViewToggleDiv = document.querySelector('.deals-view-toggle');
@@ -50,6 +51,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const metricBestCaseTitle = document.getElementById("metric-best-case-title");
     const commitTotalQuota = document.getElementById("commit-total-quota");
     const bestCaseTotalQuota = document.getElementById("best-case-total-quota");
+
+    // NEW: Selectors for view toggle and containers
+    const listViewContainer = document.getElementById('list-view-container');
+    const kanbanBoardView = document.getElementById('kanban-board-view');
+    const listViewBtn = document.getElementById('list-view-btn');
+    const boardViewBtn = document.getElementById('board-view-btn');
+    const dealsByStageChartContainer = document.getElementById('deals-by-stage-chart-container');
 
 
     // --- Data Fetching ---
@@ -91,7 +99,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {
-            renderDealsPage();
+            // MODIFIED: Call the main render function
+            render(); 
             renderDealsMetrics();
             renderDealsByStageChart();
             renderDealsByTimeChart();
@@ -101,10 +110,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Chart Colors & Helpers ---
     function createChartGradient(ctx, chartArea, index, totalDatasets) {
         if (!chartArea || !ctx) return 'rgba(0,0,0,0.5)';
-
         const bodyClass = document.body.className;
         let palette;
-
         if (bodyClass.includes('theme-green')) {
             palette = ['#00ff41', '#33ff66', '#66ff99', '#99ffcc', '#ccffee'];
         } else if (bodyClass.includes('theme-blue')) {
@@ -114,171 +121,119 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else { // Default for dark and light themes
             palette = ['#007bff', '#00aeff', '#00c6ff', '#00dfff', '#00f2ff'];
         }
-        
         const baseColor = palette[index % palette.length];
-        
         const lightenColor = (color, percent) => {
             const f=parseInt(color.slice(1),16),t=percent<0?0:255,p=percent<0?percent*-1:percent,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF;
             return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
         }
-
         const gradient = ctx.createLinearGradient(chartArea.left, chartArea.top, chartArea.right, chartArea.bottom);
         gradient.addColorStop(0, baseColor);
         gradient.addColorStop(1, lightenColor(baseColor, 0.3));
         return gradient;
     }
 
-    // --- Helper to get filtered deals ---
     function getFutureDeals() {
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth() + 1;
-
         return state.deals.filter(deal => {
             if (!deal.close_month) return true;
             const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
             return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
         });
     }
+    
+    // NEW: Main render function to switch between views
+    const render = () => {
+        if (state.currentView === 'list') {
+            renderDealsPage(); // Your original table render function
+            listViewContainer.classList.remove('hidden');
+            kanbanBoardView.classList.add('hidden');
+            dealsByStageChartContainer.classList.remove('hidden');
+        } else {
+            renderKanbanBoard();
+            listViewContainer.classList.add('hidden');
+            kanbanBoardView.classList.remove('hidden');
+            dealsByStageChartContainer.classList.add('hidden'); // Hide redundant chart
+        }
+    };
 
     // --- Render Functions ---
     function renderDealsByStageChart() {
         if (!dealsByStageCanvas || !stageChartEmptyMessage) return;
         const futureDeals = getFutureDeals();
         const openDeals = futureDeals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
-        
         if (openDeals.length === 0) {
             dealsByStageCanvas.classList.add('hidden');
             stageChartEmptyMessage.classList.remove('hidden');
             if (state.dealsByStageChart) { state.dealsByStageChart.destroy(); state.dealsByStageChart = null; }
             return;
         }
-
         dealsByStageCanvas.classList.remove('hidden');
         stageChartEmptyMessage.classList.add('hidden');
-        
         const stageMrc = openDeals.reduce((acc, deal) => {
             const stage = deal.stage || 'Uncategorized';
             acc[stage] = (acc[stage] || 0) + (deal.mrc || 0);
             return acc;
         }, {});
-        
         const sortedStages = Object.entries(stageMrc).sort(([, a], [, b]) => a - b);
         const labels = sortedStages.map(([stage]) => stage);
         const data = sortedStages.map(([, mrc]) => mrc);
-
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
         const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
-
         if (state.dealsByStageChart) state.dealsByStageChart.destroy();
         state.dealsByStageChart = new Chart(dealsByStageCanvas, {
             type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'MRC by Stage',
-                    data: data,
-                    backgroundColor: (context) => createChartGradient(context.chart.ctx, context.chart.chartArea, context.dataIndex, labels.length),
-                    borderColor: 'var(--bg-light)',
-                    borderWidth: 1,
-                    borderRadius: 5
-                }]
-            },
+            data: { labels, datasets: [{ label: 'MRC by Stage', data, backgroundColor: (c) => createChartGradient(c.chart.ctx, c.chart.chartArea, c.dataIndex, labels.length), borderColor: 'var(--bg-light)', borderWidth: 1, borderRadius: 5 }] },
             options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: (c) => `MRC: ${formatCurrency(c.parsed.x)}` } },
-                    annotation: {
-                        annotations: {
-                            quotaLine: {
-                                type: 'line',
-                                scaleID: 'x',
-                                value: effectiveMonthlyQuota,
-                                borderColor: 'red',
-                                borderWidth: 2,
-                                borderDash: [6, 6]
-                            }
-                        }
-                    }
+                    annotation: { annotations: { quotaLine: { type: 'line', scaleID: 'x', value: effectiveMonthlyQuota, borderColor: 'red', borderWidth: 2, borderDash: [6, 6] } } }
                 },
-                scales: {
-                    x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } },
-                    y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false } }
-                }
+                scales: { x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false } } }
             }
         });
     }
 
     function renderDealsByTimeChart() {
         if (!dealsByTimeCanvas || !timeChartEmptyMessage) return;
-        
         const futureDeals = getFutureDeals();
         const openDeals = futureDeals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost' && d.close_month);
-
         if (openDeals.length === 0) {
             dealsByTimeCanvas.classList.add('hidden');
             timeChartEmptyMessage.classList.remove('hidden');
             if (state.dealsByTimeChart) { state.dealsByTimeChart.destroy(); state.dealsByTimeChart = null; }
             return;
         }
-        
         dealsByTimeCanvas.classList.remove('hidden');
         timeChartEmptyMessage.classList.add('hidden');
-        
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
+        const today = new Date(), currentYear = today.getFullYear(), currentMonth = today.getMonth();
         const funnel = { '0-30 Days': 0, '31-60 Days': 0, '61-90 Days': 0, '90+ Days': 0 };
-        
         openDeals.forEach(deal => {
             const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
             const monthDiff = (dealYear - currentYear) * 12 + (dealMonth - 1 - currentMonth);
-
             if (monthDiff === 0) { funnel['0-30 Days'] += deal.mrc || 0; }
             else if (monthDiff === 1) { funnel['31-60 Days'] += deal.mrc || 0; }
             else if (monthDiff === 2) { funnel['61-90 Days'] += deal.mrc || 0; }
             else if (monthDiff > 2) { funnel['90+ Days'] += deal.mrc || 0; }
         });
-
-        const labels = Object.keys(funnel);
-        const data = Object.values(funnel);
-
+        const labels = Object.keys(funnel), data = Object.values(funnel);
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
         const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
-
         if (state.dealsByTimeChart) state.dealsByTimeChart.destroy();
         state.dealsByTimeChart = new Chart(dealsByTimeCanvas, {
             type: 'bar',
-            data: { 
-                labels: labels, 
-                datasets: [{ 
-                    data: data, 
-                    backgroundColor: (c) => createChartGradient(c.chart.ctx, c.chart.chartArea, c.dataIndex, labels.length),
-                    borderColor: 'var(--bg-light)', borderWidth: 1, borderRadius: 5
-                }] 
-            },
+            data: { labels, datasets: [{ data, backgroundColor: (c) => createChartGradient(c.chart.ctx, c.chart.chartArea, c.dataIndex, labels.length), borderColor: 'var(--bg-light)', borderWidth: 1, borderRadius: 5 }] },
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: (c) => `MRC: ${formatCurrency(c.parsed.x)}` } },
-                    annotation: {
-                        annotations: {
-                            quotaLine: {
-                                type: 'line',
-                                scaleID: 'x',
-                                value: effectiveMonthlyQuota,
-                                borderColor: 'red',
-                                borderWidth: 2,
-                                borderDash: [6, 6]
-                            }
-                        }
-                    }
+                    annotation: { annotations: { quotaLine: { type: 'line', scaleID: 'x', value: effectiveMonthlyQuota, borderColor: 'red', borderWidth: 2, borderDash: [6, 6] } } }
                 },
                 scales: { x: { ticks: { color: 'var(--text-medium)', callback: (v) => formatCurrencyK(v) }, grid: { color: 'var(--border-color)' } }, y: { ticks: { color: 'var(--text-medium)' }, grid: { display: false }, barPercentage: 0.7, categoryPercentage: 0.6 } }
             }
@@ -287,20 +242,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderDealsPage = () => {
         if (!dealsTableBody) return;
-        
         const futureDeals = getFutureDeals();
         const dealsWithAccount = futureDeals.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
-        
         dealsWithAccount.sort((a, b) => {
-            const valA = a[state.dealsSortBy]; const valB = b[state.dealsSortBy];
-            let comparison = (typeof valA === "string") ? (valA || "").localeCompare(b.name || "") : (valA > valB ? 1 : -1);
+            const valA = a[state.dealsSortBy], valB = b[state.dealsSortBy];
+            let comparison = (typeof valA === "string") ? (valA || "").localeCompare(b[state.dealsSortBy] || "") : (valA > valB ? 1 : -1);
             return state.dealsSortDir === "desc" ? comparison * -1 : comparison;
         });
-
         dealsTableBody.innerHTML = "";
         dealsWithAccount.forEach((deal) => {
             const row = dealsTableBody.insertRow();
-            row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td class="deal-name-link" data-deal-id="${deal.id}">${deal.name}</td><td>${deal.term || ""}</td><td>${deal.account_name}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><div class="button-group-wrapper"><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></div></td>`;
+            row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td class="deal-name-link" data-deal-id="${deal.id}">${deal.name}</td><td>${deal.term || ""}</td><td>${deal.account_name}</td><td>${deal.stage}</td><td>${formatCurrency(deal.mrc || 0)}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><div class="button-group-wrapper"><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></div></td>`;
         });
         document.querySelectorAll("#deals-table th.sortable").forEach((th) => {
             th.classList.remove("asc", "desc");
@@ -308,18 +260,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
+    // NEW: Kanban Board Render Functions
+    const renderKanbanBoard = () => {
+        kanbanBoardView.innerHTML = '';
+        const dealsToRender = getFutureDeals();
+        const stages = state.dealStages.map(s => s.stage_name);
+
+        stages.forEach(stage => {
+            const dealsInStage = dealsToRender.filter(d => d.stage === stage);
+            const column = document.createElement('div');
+            column.className = 'kanban-column';
+            column.dataset.stage = stage;
+            const totalMRC = dealsInStage.reduce((sum, deal) => sum + deal.mrc, 0);
+            column.innerHTML = `
+                <div class="kanban-column-header">
+                    <h4>${stage} (${dealsInStage.length})</h4>
+                    <span class="kanban-column-total">${formatCurrency(totalMRC)}</span>
+                </div>
+                <div class="kanban-column-body">
+                    ${dealsInStage.map(deal => renderDealCard(deal)).join('')}
+                </div>`;
+            kanbanBoardView.appendChild(column);
+        });
+        setupDragAndDrop();
+    };
+
+    const renderDealCard = (deal) => {
+        const account = state.accounts.find(a => a.id === deal.account_id);
+        const committedIcon = deal.is_committed ? '<i class="fas fa-star committed-icon" title="Committed"></i>' : '';
+        return `
+            <div class="kanban-card" draggable="true" data-id="${deal.id}">
+                <div class="kanban-card-header">
+                    <h5 class="kanban-card-title">${deal.name}</h5>
+                    ${committedIcon}
+                </div>
+                <p class="kanban-card-subtitle">${account ? account.name : 'N/A'}</p>
+                <div class="kanban-card-footer">
+                    <span class="kanban-card-mrc">${formatCurrency(deal.mrc)}</span>
+                    <span class="kanban-card-date">
+                        <i class="fas fa-calendar-alt"></i>
+                        ${deal.close_month ? formatMonthYear(deal.close_month, { month: 'short', year: 'numeric' }) : ''}
+                    </span>
+                </div>
+            </div>`;
+    };
+
     const renderDealsMetrics = () => {
         if (!metricCurrentCommit) return;
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
-
         if (metricCurrentCommitTitle && metricBestCaseTitle) {
             metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
             metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
         }
-
         const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
-
         if (commitTotalQuota && bestCaseTotalQuota) {
             if (isMyTeamView) {
                 commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
@@ -331,35 +325,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                 bestCaseTotalQuota.classList.add('hidden');
             }
         }
-        
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear();
         let currentCommit = 0, bestCase = 0, closedWon = 0;
-        
-        state.deals.forEach((deal) => { // Use all deals for closed-won calculation
+        state.deals.forEach((deal) => {
             const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
             const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
-            
             if (isCurrentMonth) {
-                if (deal.stage === 'Closed Won') {
-                    closedWon += deal.mrc || 0;
-                } else {
+                if (deal.stage === 'Closed Won') closedWon += deal.mrc || 0;
+                else {
                     bestCase += deal.mrc || 0;
                     if (deal.is_committed) currentCommit += deal.mrc || 0;
                 }
             }
         });
-        
         const totalFunnel = getFutureDeals().reduce((sum, deal) => sum + (deal.mrc || 0), 0);
-
         metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
         metricBestCase.textContent = formatCurrencyK(bestCase);
         metricFunnel.textContent = formatCurrencyK(totalFunnel);
-        metricClosedWon.textContent = formatCurrencyK(closedWon); // Update the new metric
-
+        metricClosedWon.textContent = formatCurrencyK(closedWon);
         const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
         const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
-        
         document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
         document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
     };
@@ -380,7 +365,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!deal) return;
         const stageOptions = state.dealStages.sort((a,b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
         const accountOptions = state.accounts.sort((a,b) => (a.name || "").localeCompare(b.name || "")).map(acc => `<option value="${acc.id}" ${deal.account_id === acc.id ? 'selected' : ''}>${acc.name}</option>`).join('');
-
         showModal("Edit Deal", `
             <label>Deal Name:</label><input type="text" id="modal-deal-name" value="${deal.name || ''}" required>
             <label>Account:</label><select id="modal-deal-account" required>${accountOptions}</select>
@@ -405,6 +389,61 @@ document.addEventListener("DOMContentLoaded", async () => {
             else { await loadAllData(); hideModal(); }
         });
     }
+
+    // NEW: Drag and Drop Logic
+    const setupDragAndDrop = () => {
+        const cards = document.querySelectorAll('.kanban-card');
+        const columns = document.querySelectorAll('.kanban-column-body');
+        let draggedCard = null;
+        cards.forEach(card => {
+            card.addEventListener('dragstart', () => {
+                draggedCard = card;
+                setTimeout(() => card.classList.add('dragging'), 0);
+            });
+            card.addEventListener('dragend', () => {
+                draggedCard.classList.remove('dragging');
+                draggedCard = null;
+            });
+        });
+        columns.forEach(column => {
+            column.addEventListener('dragover', e => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(column, e.clientY);
+                if (afterElement == null) column.appendChild(draggedCard);
+                else column.insertBefore(draggedCard, afterElement);
+            });
+            column.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                if (!draggedCard) return;
+                const newStage = column.closest('.kanban-column').dataset.stage;
+                const dealId = Number(draggedCard.dataset.id);
+                const deal = state.deals.find(d => d.id === dealId);
+                if (deal && deal.stage !== newStage) {
+                    deal.stage = newStage; // Optimistic update
+                    render(); // Re-render to update column totals
+                    const { error } = await supabase.from('deals').update({ stage: newStage }).eq('id', dealId);
+                    if (error) {
+                        console.error("Error updating deal stage:", error);
+                        alert("Could not update deal stage. Please try again.");
+                        await loadAllData();
+                    }
+                }
+            });
+        });
+    };
+
+    const getDragAfterElement = (container, y) => {
+        const draggableElements = [...container.querySelectorAll('.kanban-card:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    };
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
@@ -460,7 +499,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                 await loadAllData();
             });
         }
+        
+        // NEW: Event listeners for the view toggle
+        listViewBtn.addEventListener('click', () => handleViewToggle('list'));
+        boardViewBtn.addEventListener('click', () => handleViewToggle('board'));
     }
+    
+    // NEW: Handler for the view toggle
+    const handleViewToggle = (view) => {
+        state.currentView = view;
+        localStorage.setItem('deals_view_mode', view);
+        listViewBtn.classList.toggle('active', view === 'list');
+        boardViewBtn.classList.toggle('active', view === 'board');
+        render();
+    };
 
     // --- App Initialization ---
     async function initializePage() {
@@ -479,8 +531,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
             setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
+            
+            // NEW: Load saved view from localStorage
+            const savedView = localStorage.getItem('deals_view_mode') || 'list';
+            state.currentView = savedView;
+            listViewBtn.classList.toggle('active', savedView === 'list');
+            boardViewBtn.classList.toggle('active', savedView === 'board');
+            
             await loadAllData();
         } else {
             window.location.href = "index.html";
