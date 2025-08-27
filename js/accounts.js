@@ -437,7 +437,7 @@ function handlePrintBriefing() {
         document.body.removeChild(printFrame);
     }, 250);
 }
- // --- AI Briefing Handler ---
+// --- AI Briefing Handler ---
 async function handleGenerateBriefing() {
     if (!state.selectedAccountId) {
         showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -463,9 +463,9 @@ async function handleGenerateBriefing() {
         const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
         if (error) throw error;
 
-        // Convert markdown bold to HTML strong tags for rendering
-        const keyPlayersHtml = briefing.key_players.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        const icebreakersHtml = briefing.icebreakers.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // NEW: Added this line
+        // MODIFIED: Added a safety check to ensure we're always working with strings
+        const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
         const briefingHtml = `
             <div class="ai-briefing-container">
@@ -482,7 +482,7 @@ async function handleGenerateBriefing() {
                     <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
                     <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
                     <p><strong>Social Icebreakers:</strong></p>
-                    <div class="briefing-pre">${icebreakersHtml}</div> <!-- MODIFIED -->
+                    <div class="briefing-pre">${icebreakersHtml}</div>
                 </div>
                 <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
                 <div class="briefing-section recommendation">
@@ -501,6 +501,7 @@ async function handleGenerateBriefing() {
         showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 }
+
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
