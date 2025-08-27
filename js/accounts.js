@@ -380,7 +380,7 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
- // --- NEW: Print Briefing Handler (replaces old window.open method) ---
+// --- NEW: Print Briefing Handler (replaces old window.open method) ---
 function handlePrintBriefing() {
     const accountName = state.selectedAccountDetails.account?.name;
     const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
@@ -389,6 +389,7 @@ function handlePrintBriefing() {
         return;
     }
 
+    // Create a hidden iframe to handle printing seamlessly
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
     printFrame.style.width = '0';
@@ -404,21 +405,24 @@ function handlePrintBriefing() {
                 <title>AI Briefing: ${accountName}</title>
                 <link rel="stylesheet" href="css/style.css">
                 <style>
+                    /* Print-specific styles for a clean PDF output */
                     @media print {
                         body { 
                             margin: 20px; 
                             font-family: sans-serif;
+                            color: #000000 !important; /* Force black text */
                             -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
                         }
                         .ai-briefing-container { box-shadow: none; border: none; }
                         h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
                         .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; }
-                        pre.briefing-pre { 
+                        pre { 
                             background-color: #eee !important; 
                             border: 1px solid #ddd;
-                            white-space: pre-wrap; /* Ensures text wraps */
-                            word-wrap: break-word; /* For older browsers */
+                            color: #000000 !important;
+                            white-space: pre-wrap;
+                            word-wrap: break-word;
                         }
                     }
                 </style>
@@ -438,7 +442,7 @@ function handlePrintBriefing() {
         document.body.removeChild(printFrame);
     }, 250);
 }
-   // --- AI Briefing Handler ---
+  // --- AI Briefing Handler ---
 async function handleGenerateBriefing() {
     if (!state.selectedAccountId) {
         showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -499,7 +503,6 @@ async function handleGenerateBriefing() {
         showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 }
-
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
