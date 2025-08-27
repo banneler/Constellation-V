@@ -4232,7 +4232,7 @@ body.theme-dark .metric-card-won {
 }
 
 /* Fix for text wrapping and font in AI Briefing modal */
-div.briefing-pre, pre.briefing-pre {
+div.briefing-pre {
     white-space: pre-wrap;      /* Allows the text to wrap */
     word-wrap: break-word;        /* Breaks long words if necessary */
     font-family: inherit;       /* Ensures it uses the standard app font */
@@ -4248,7 +4248,9 @@ div.briefing-pre, pre.briefing-pre {
     body { 
         color: #000000 !important; /* Forces all text to be black for readability */
     }
-    pre.briefing-pre, div.briefing-pre {
-        color: #000000 !important; /* Specifically targets the briefing text */
+    
+    .briefing-section, div.briefing-pre {
+        background-color: #ffffff !important; /* NEW: Forces a white background */
+        color: #000000 !important;             /* NEW: Ensures black text */
     }
 }
