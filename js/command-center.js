@@ -182,19 +182,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function renderAIBriefing(briefing) {
-        const briefingHtml = `
-            <h3>Good Morning, ${state.currentUser.user_metadata.full_name || 'User'}. Here are your top priorities:</h3>
-            <ol id="ai-briefing-list">
-                ${briefing.priorities.map(item => `
-                    <li>
-                        <strong>${item.title}</strong>
-                        <em>Why: ${item.reason}</em>
-                    </li>
-                `).join('')}
-            </ol>
-        `;
-        aiBriefingContainer.innerHTML = briefingHtml;
-    }
+    const userName = state.currentUser?.user_metadata?.full_name || state.currentUser?.email || 'User';
+    const greeting = `<h3>Good Morning, ${userName.split('@')[0]}! Here are your top priorities:</h3>`;
+
+    const briefingHtml = `
+        ${greeting}
+        <ol id="ai-briefing-list">
+            ${briefing.priorities.map(item => `
+                <li>
+                    <strong>${item.title}</strong>
+                    <em>Why: ${item.reason}</em>
+                </li>
+            `).join('')}
+        </ol>
+    `;
+    aiBriefingContainer.innerHTML = briefingHtml;
+}
 
     // --- Render Function ---
     function renderDashboard() {
