@@ -166,12 +166,12 @@ async function handleGenerateBriefing() {
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
-        // NEW: Filter alerts to only include those that are new AND less than 7 days old
+        // Corrected: Filter to be case-insensitive on the 'status' column
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
         const unreadCognitoAlerts = state.cognitoAlerts.filter(a =>
-            a.status === 'new' && new Date(a.created_at) > sevenDaysAgo
+            a.status?.toLowerCase() === 'new' && new Date(a.created_at) > sevenDaysAgo
         );
         
         console.log("Unread Cognito Alerts being sent:", unreadCognitoAlerts);
