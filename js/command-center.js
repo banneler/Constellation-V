@@ -21,15 +21,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const loadingScreen = document.getElementById('loading-screen');
     if (sessionStorage.getItem('showLoadingScreen') === 'true') {
         if (loadingScreen) {
-            // First, make it visible
             loadingScreen.classList.remove('hidden');
-            
-            // Then, set the timer to hide it again
             setTimeout(() => {
                 loadingScreen.classList.add('hidden');
             }, 7000); // 7 seconds
         }
-        // Remove the flag so it doesn't show on refresh
         sessionStorage.removeItem('showLoadingScreen');
     }
     // --- END OF UPDATED LOGIC ---
@@ -46,7 +42,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         contact_sequences: [],
         tasks: [],
         deals: [],
-        cognitoAlerts: [] // NEW: To hold Cognito alerts
+        cognitoAlerts: [],
+        nurtureAccounts: [] // NEW: To hold accounts needing nurturing
     };
 
     // --- DOM Element Selectors ---
@@ -58,8 +55,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addNewTaskBtn = document.getElementById("add-new-task-btn");
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
-    const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn"); // NEW
-    const aiBriefingContainer = document.getElementById("ai-briefing-container"); // NEW
+    const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+    const aiBriefingContainer = document.getElementById("ai-briefing-container");
 
     // --- Utility ---
     function getStartOfLocalDayISO() {
@@ -68,11 +65,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return today.toISOString();
     }
 
-    // Helper function to replace placeholders in templates
     function replacePlaceholders(template, contact, account) {
         if (!template) return '';
         let result = template;
-
         if (contact) {
             const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
             result = result.replace(/\[FirstName\]/gi, contact.first_name || '');
@@ -80,27 +75,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             result = result.replace(/\[FullName\]/gi, fullName);
             result = result.replace(/\[Name\]/gi, fullName);
         }
-
         if (account) {
             result = result.replace(/\[AccountName\]/gi, account.name || '');
             result = result.replace(/\[Account\]/gi, account.name || '');
         }
-        
         return result;
     }
-    
+
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
-
-        // MODIFIED: Added deals and cognito_alerts to the data fetch
+        
+        // MODIFIED: Added deals, cognito_alerts, and nurtureAccounts to the data fetch
         const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks", "cognito_alerts"];
         const publicTables = ["sequence_steps"];
         const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
-        const allPromises = [...userPromises, ...publicPromises];
-        const allTableNames = [...userSpecificTables, ...publicTables];
+        
+        // NEW: Fetch accounts needing nurturing (no activity in the last 60 days)
+        const sixtyDaysAgo = addDays(new Date(), -60).toISOString();
+        const nurtureAccountsPromise = supabase
+            .from('accounts')
+            .select('*')
+            .eq('user_id', state.currentUser.id)
+            .not('last_activity_date', 'gte', sixtyDaysAgo);
+
+        const allPromises = [...userPromises, ...publicPromises, nurtureAccountsPromise];
+        const allTableNames = [...userSpecificTables, ...publicTables, 'nurtureAccounts'];
 
         try {
             const results = await Promise.allSettled(allPromises);
@@ -131,13 +133,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             const rawDescription = step.subject || step.message || "Completed step";
             const finalDescription = replacePlaceholders(rawDescription, contact, account);
             const descriptionForLog = processedDescription || finalDescription;
-            await supabase.from("activities").insert([{ 
-                contact_id: contact.id, 
-                account_id: contact.account_id, 
-                date: new Date().toISOString(), 
-                type: `Sequence: ${step.type}`, 
-                description: descriptionForLog, 
-                user_id: state.currentUser.id 
+            await supabase.from("activities").insert([{
+                contact_id: contact.id,
+                account_id: contact.account_id,
+                date: new Date().toISOString(),
+                type: `Sequence: ${step.type}`,
+                description: descriptionForLog,
+                user_id: state.currentUser.id
             }]);
         }
         const nextStep = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number + 1);
@@ -157,10 +159,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             // Prepare the data to send to the Edge Function
             const briefingPayload = {
+                // NEW: Filter sequence steps to only include those due today or in the past
                 tasks: state.tasks.filter(t => t.status === 'Pending'),
-                sequenceSteps: state.contact_sequences.filter(cs => cs.status === 'Active'),
+                sequenceSteps: state.contact_sequences.filter(cs => {
+                    if (!cs.next_step_due_date || cs.status !== "Active") return false;
+                    const dueDate = new Date(cs.next_step_due_date);
+                    const startOfToday = new Date();
+                    startOfToday.setHours(0, 0, 0, 0);
+                    return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
+                }),
                 deals: state.deals,
                 cognitoAlerts: state.cognitoAlerts.filter(a => !a.is_read),
+                nurtureAccounts: state.nurtureAccounts, // NEW: Include nurture accounts
                 // Include reference data so the function doesn't have to re-query
                 contacts: state.contacts,
                 accounts: state.accounts,
@@ -182,21 +192,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function renderAIBriefing(briefing) {
-    const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
+        const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
 
-    const briefingHtml = `
-        ${greeting}
-        <ol id="ai-briefing-list">
-            ${briefing.priorities.map(item => `
-                <li>
-                    <strong>${item.title}</strong>
-                    <em>Why: ${item.reason}</em>
-                </li>
-            `).join('')}
-        </ol>
-    `;
-    aiBriefingContainer.innerHTML = briefingHtml;
-}
+        const briefingHtml = `
+            ${greeting}
+            <ol id="ai-briefing-list">
+                ${briefing.priorities.map(item => `
+                    <li>
+                        <strong>${item.title}</strong>
+                        <em>Why: ${item.reason}</em>
+                    </li>
+                `).join('')}
+            </ol>
+        `;
+        aiBriefingContainer.innerHTML = briefingHtml;
+    }
 
     // --- Render Function ---
     function renderDashboard() {
@@ -334,16 +344,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             });
         }
-
-        // NEW: Event listener for the briefing button
         if (aiDailyBriefingBtn) {
             aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
         }
-
         document.body.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
-
             if (button.matches('.mark-task-complete-btn')) {
                 const taskId = button.dataset.taskId;
                 showModal('Confirm Completion', 'Mark this task as completed?', async () => {
@@ -386,17 +392,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
                 if (!cs) return alert("Contact sequence not found.");
-                
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 if (!contact) return alert("Contact not found.");
-                
                 const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
                 const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
                 if (!step) return alert("Sequence step not found.");
-
                 const subject = replacePlaceholders(step.subject, contact, account);
                 const message = replacePlaceholders(step.message, contact, account);
-                
                 showModal('Compose Email', `
                     <div class="form-group">
                         <label for="modal-email-subject">Subject:</label>
@@ -409,30 +411,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `, async () => {
                     const finalSubject = document.getElementById('modal-email-subject').value;
                     const finalMessage = document.getElementById('modal-email-body').value;
-                    
                     const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
                     window.open(mailtoLink, "_blank");
-                    
                     await completeStep(csId, finalSubject);
-                }, 
+                },
                 true, // This is the 'showCancel' parameter
                 `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-
             } else if (button.matches('.complete-linkedin-step-btn')) {
                 const csId = Number(button.dataset.id);
                 const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl);
                 if (linkedinUrl) { window.open(linkedinUrl, "_blank"); }
                 else { alert("LinkedIn URL is missing from button data attribute."); }
                 completeStep(csId);
-
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.id);
                 completeStep(csId);
-
             } else if (button.matches('.revisit-step-btn')) {
-                 const csId = Number(button.dataset.csId);
+                const csId = Number(button.dataset.csId);
                 const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
                 if (!contactSequence) return;
                 const newStepNumber = Math.max(1, contactSequence.current_step_number - 1);
@@ -448,7 +445,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
-
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
