@@ -468,13 +468,15 @@ async function handleGenerateBriefing() {
         const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
         if (error) throw error;
 
-        // MODIFIED: Replaced <pre> with <div> for proper font rendering and wrapping
+        // NEW: Convert markdown bold to HTML strong tags for rendering
+        const keyPlayersHtml = briefing.key_players.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
         const briefingHtml = `
             <div class="ai-briefing-container">
                 <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
                 <div class="briefing-section">
                     <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                    <p><strong>Key Players in CRM:</strong> ${briefing.key_players}</p>
+                    <p><strong>Key Players in CRM:</strong> ${keyPlayersHtml}</p> <!-- MODIFIED -->
                     <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
                     <p><strong>Recent Activity:</strong></p>
                     <div class="briefing-pre">${briefing.activity_highlights}</div>
@@ -503,6 +505,7 @@ async function handleGenerateBriefing() {
         showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
 }
+
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
         setupModalListeners();
