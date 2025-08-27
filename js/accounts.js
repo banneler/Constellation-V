@@ -468,7 +468,7 @@ async function handleGenerateBriefing() {
         const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
         if (error) throw error;
 
-        // MODIFIED: Added 'briefing-pre' class to <pre> tags
+        // MODIFIED: Replaced <pre> with <div> for proper font rendering and wrapping
         const briefingHtml = `
             <div class="ai-briefing-container">
                 <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
@@ -477,14 +477,14 @@ async function handleGenerateBriefing() {
                     <p><strong>Key Players in CRM:</strong> ${briefing.key_players}</p>
                     <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
                     <p><strong>Recent Activity:</strong></p>
-                    <pre class="briefing-pre">${briefing.activity_highlights}</pre>
+                    <div class="briefing-pre">${briefing.activity_highlights}</div>
                 </div>
                 <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
                 <div class="briefing-section">
                     <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
                     <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
                     <p><strong>Social Icebreakers:</strong></p>
-                    <pre class="briefing-pre">${briefing.icebreakers}</pre>
+                    <div class="briefing-pre">${briefing.icebreakers}</div>
                 </div>
                 <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
                 <div class="briefing-section recommendation">
