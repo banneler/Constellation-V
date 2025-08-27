@@ -160,20 +160,25 @@ async function loadAllData() {
         loadAllData();
     }
 
-   // --- NEW: AI Briefing Logic ---
+ // --- NEW: AI Briefing Logic ---
 async function handleGenerateBriefing() {
     aiBriefingContainer.classList.remove('hidden');
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
-        const unreadCognitoAlerts = state.cognitoAlerts.filter(a => !a.is_read);
+        // NEW: Filter alerts to only include those that are new AND less than 7 days old
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const unreadCognitoAlerts = state.cognitoAlerts.filter(a =>
+            a.status === 'new' && new Date(a.created_at) > sevenDaysAgo
+        );
         
-        // NEW: Log the data before sending it to the Edge Function
         console.log("Unread Cognito Alerts being sent:", unreadCognitoAlerts);
         
         // Prepare the data to send to the Edge Function
         const briefingPayload = {
-            // NEW: Filter sequence steps to only include those due today or in the past
+            // Filter sequence steps to only include those due today or in the past
             tasks: state.tasks.filter(t => t.status === 'Pending'),
             sequenceSteps: state.contact_sequences.filter(cs => {
                 if (!cs.next_step_due_date || cs.status !== "Active") return false;
@@ -192,6 +197,18 @@ async function handleGenerateBriefing() {
             sequence_steps: state.sequence_steps
         };
 
+        const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
+            body: { briefingPayload }
+        });
+
+        if (error) throw error;
+        renderAIBriefing(briefing);
+
+    } catch (error) {
+        console.error("Error generating AI briefing:", error);
+        aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+    }
+}
         const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
             body: { briefingPayload }
         });
