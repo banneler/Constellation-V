@@ -4260,18 +4260,19 @@ div.briefing-pre {
 .tasks-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem; /* Matches the original margin for the button */
+    align-items: flex-start; /* Aligns items to the top */
+    margin-bottom: 1rem;
 }
 
 .tasks-header-left {
     display: flex;
-    align-items: center;
-    gap: 1rem; /* Adds space between "My Tasks" and "Add New Task" */
+    flex-direction: column; /* Stacks the title and button vertically */
+    align-items: flex-start; /* Aligns them to the left */
+    gap: 0.75rem; /* Adds space between the title and the button */
 }
 
 .tasks-header h2 {
-    margin-bottom: 0; /* Removes the default bottom margin from the h2 */
+    margin-bottom: 0; /* Removes default margin from the header */
 }
 
 /* --- AI Briefing Widget Styles --- */
@@ -4318,6 +4319,7 @@ div.briefing-pre {
 
 /* --- General Button Styles --- */
 .btn-large {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
+    padding: 1.25rem 2rem; /* Increased padding for a "chunky" feel */
+    font-size: 1.1rem;     /* Slightly larger font */
+    line-height: 1;        /* Helps center the text vertically */
 }
