@@ -83,45 +83,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Data Fetching ---
-    async function loadAllData() {
-        if (!state.currentUser) return;
-        if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
-        
-        // MODIFIED: Added deals, cognito_alerts, and nurtureAccounts to the data fetch
-        const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks", "cognito_alerts"];
-        const publicTables = ["sequence_steps"];
-        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-        const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
-        
-        // NEW: Fetch accounts needing nurturing (no activity in the last 60 days)
-        const sixtyDaysAgo = addDays(new Date(), -60).toISOString();
-        const nurtureAccountsPromise = supabase
-            .from('accounts')
-            .select('*')
-            .eq('user_id', state.currentUser.id)
-            .not('last_activity_date', 'gte', sixtyDaysAgo);
+async function loadAllData() {
+    if (!state.currentUser) return;
+    if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+    
+    // MODIFIED: Fetches all accounts, contacts, and activities
+    const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks", "cognito_alerts"];
+    const publicTables = ["sequence_steps"];
+    const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+    const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
+    const allPromises = [...userPromises, ...publicPromises];
+    const allTableNames = [...userSpecificTables, ...publicTables];
 
-        const allPromises = [...userPromises, ...publicPromises, nurtureAccountsPromise];
-        const allTableNames = [...userSpecificTables, ...publicTables, 'nurtureAccounts'];
+    try {
+        const results = await Promise.allSettled(allPromises);
+        results.forEach((result, index) => {
+            const tableName = allTableNames[index];
+            if (result.status === "fulfilled" && !result.value.error) {
+                state[tableName] = result.value.data || [];
+            } else {
+                console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
+                state[tableName] = [];
+            }
+        });
+    } catch (error) {
+        console.error("Critical error in loadAllData:", error);
+    } 
 
-        try {
-            const results = await Promise.allSettled(allPromises);
-            results.forEach((result, index) => {
-                const tableName = allTableNames[index];
-                if (result.status === "fulfilled" && !result.value.error) {
-                    state[tableName] = result.value.data || [];
-                } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                    state[tableName] = [];
-                }
-            });
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-        } finally {
-            renderDashboard();
-        }
-    }
+    // NEW: Logic to find "nurture" accounts based on activity, adapted from accounts.js
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
+    const activeAccountIds = new Set(
+        state.activities
+        .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
+        .map(act => {
+            if (act.account_id) return act.account_id;
+            const contact = state.contacts.find(c => c.id === act.contact_id);
+            return contact ? contact.account_id : null;
+        })
+        .filter(id => id)
+    );
+
+    // Filter accounts with no recent activity
+    state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
+    
+    // Now continue with rendering
+    renderDashboard();
+}
     // --- Core Logic ---
     async function completeStep(csId, processedDescription = null) {
         const cs = state.contact_sequences.find((c) => c.id === csId);
