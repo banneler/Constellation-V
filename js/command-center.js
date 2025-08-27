@@ -165,16 +165,10 @@ async function loadAllData() {
 
 // --- NEW: AI Briefing Logic ---
 async function handleGenerateBriefing() {
-    // Show loading state and disable the button
-    const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
-    aiDailyBriefingBtn.disabled = true;
     aiBriefingContainer.classList.remove('hidden');
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
-        // Force a fresh data load on every click
-        await loadAllData();
-
         const briefingPayload = {
             tasks: state.tasks.filter(t => t.status === 'Pending'),
             sequenceSteps: state.contact_sequences.filter(cs => {
@@ -185,7 +179,7 @@ async function handleGenerateBriefing() {
                 return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
             }),
             deals: state.deals,
-            cognitoAlerts: state.cognitoAlerts, // Send ALL alerts to the Edge Function
+            cognitoAlerts: state.cognitoAlerts,
             nurtureAccounts: state.nurtureAccounts,
             contacts: state.contacts,
             accounts: state.accounts,
@@ -203,13 +197,6 @@ async function handleGenerateBriefing() {
     } catch (error) {
         console.error("Error generating AI briefing:", error);
         aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
-
-    } finally {
-        // Re-enable the button once the process is complete (or fails)
-        const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
-        if (aiDailyBriefingBtn) {
-            aiDailyBriefingBtn.disabled = false;
-        }
     }
 }
     function renderAIBriefing(briefing) {
@@ -462,7 +449,7 @@ async function handleGenerateBriefing() {
         });
     }
 
- // --- App Initialization ---
+// --- App Initialization ---
 async function initializePage() {
     await loadSVGs();
     updateActiveNavLink();
@@ -470,16 +457,19 @@ async function initializePage() {
     if (session) {
         state.currentUser = session.user;
         await setupUserMenuAndAuth(supabase, state);
-        setupPageEventListeners();
         await setupGlobalSearch(supabase, state.currentUser);
         await checkAndSetNotifications(supabase);
-        
-        // NEW: Load all data and then re-enable the briefing button.
+
+        // NEW: Load all data before setting up the event listener
         await loadAllData();
+
+        // NEW: Now, set up the event listener after the data is guaranteed to be in state
         const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
         if (aiDailyBriefingBtn) {
-            aiDailyBriefingBtn.disabled = false;
+            aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
         }
+
+        setupPageEventListeners();
 
     } else {
         window.location.href = "index.html";
