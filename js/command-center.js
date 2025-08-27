@@ -163,11 +163,18 @@ async function loadAllData() {
         loadAllData();
     }
 
+// --- NEW: AI Briefing Logic ---
 async function handleGenerateBriefing() {
+    // Show loading state and disable the button
+    const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+    aiDailyBriefingBtn.disabled = true;
     aiBriefingContainer.classList.remove('hidden');
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
+        // Force a fresh data load on every click
+        await loadAllData();
+
         const briefingPayload = {
             tasks: state.tasks.filter(t => t.status === 'Pending'),
             sequenceSteps: state.contact_sequences.filter(cs => {
@@ -178,16 +185,13 @@ async function handleGenerateBriefing() {
                 return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
             }),
             deals: state.deals,
-            cognitoAlerts: state.cognitoAlerts, // Send ALL alerts
+            cognitoAlerts: state.cognitoAlerts, // Send ALL alerts to the Edge Function
             nurtureAccounts: state.nurtureAccounts,
             contacts: state.contacts,
             accounts: state.accounts,
             sequences: state.sequences,
             sequence_steps: state.sequence_steps
         };
-
-        // NEW: This log will now show the content of cognitoAlerts just before it is sent.
-        console.log("Payload to Edge Function:", briefingPayload.cognitoAlerts);
 
         const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
             body: { briefingPayload }
@@ -199,6 +203,13 @@ async function handleGenerateBriefing() {
     } catch (error) {
         console.error("Error generating AI briefing:", error);
         aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+
+    } finally {
+        // Re-enable the button once the process is complete (or fails)
+        const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+        if (aiDailyBriefingBtn) {
+            aiDailyBriefingBtn.disabled = false;
+        }
     }
 }
     function renderAIBriefing(briefing) {
