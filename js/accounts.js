@@ -380,6 +380,65 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
+    // --- NEW: Print Briefing Handler ---
+    function handlePrintBriefing() {
+        const accountName = state.selectedAccountDetails.account?.name;
+        const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
+
+        if (!accountName || !briefingHtml) {
+            alert("Could not find briefing content to print.");
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>AI Briefing: ${accountName}</title>
+                    <link rel="stylesheet" href="css/style.css">
+                    <style>
+                        /* Print-specific styles */
+                        @media print {
+                            body { 
+                                margin: 20px; 
+                                font-family: sans-serif;
+                                -webkit-print-color-adjust: exact; /* Important for colors in Chrome */
+                                print-color-adjust: exact;
+                            }
+                            .ai-briefing-container {
+                                box-shadow: none;
+                                border: none;
+                            }
+                            h4 {
+                                color: #3b82f6 !important; /* Use a print-friendly blue */
+                                border-bottom: 1px solid #ccc !important;
+                            }
+                            .briefing-section {
+                                background-color: #f9f9f9 !important;
+                                page-break-inside: avoid;
+                            }
+                            pre {
+                                background-color: #eee !important;
+                                border: 1px solid #ddd;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>AI Reconnaissance Report</h2>
+                    <h3>${accountName}</h3>
+                    <div class="ai-briefing-container">${briefingHtml}</div>
+                    <script>
+                        setTimeout(() => { 
+                            window.print();
+                            window.close();
+                        }, 250); // Small delay to ensure styles are applied
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
     // --- NEW: AI Briefing Handler (replaces old AI Insight) ---
 async function handleGenerateBriefing() {
     if (!state.selectedAccountId) {
