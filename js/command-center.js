@@ -163,7 +163,6 @@ async function loadAllData() {
         loadAllData();
     }
 
-// --- NEW: AI Briefing Logic ---
 async function handleGenerateBriefing() {
     aiBriefingContainer.classList.remove('hidden');
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
@@ -179,13 +178,16 @@ async function handleGenerateBriefing() {
                 return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
             }),
             deals: state.deals,
-            cognitoAlerts: state.cognitoAlerts, // Corrected: Send all alerts to the Edge Function
+            cognitoAlerts: state.cognitoAlerts, // Send ALL alerts
             nurtureAccounts: state.nurtureAccounts,
             contacts: state.contacts,
             accounts: state.accounts,
             sequences: state.sequences,
             sequence_steps: state.sequence_steps
         };
+
+        // NEW: This log will now show the content of cognitoAlerts just before it is sent.
+        console.log("Payload to Edge Function:", briefingPayload.cognitoAlerts);
 
         const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
             body: { briefingPayload }
