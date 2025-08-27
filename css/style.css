@@ -4235,4 +4235,5 @@ body.theme-dark .metric-card-won {
 pre.briefing-pre {
     white-space: pre-wrap;
     word-wrap: break-word;
+    font-family: inherit; /* Ensures it uses the standard app font */
 }
