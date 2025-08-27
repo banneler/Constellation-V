@@ -4231,3 +4231,8 @@ body.theme-dark .metric-card-won {
     margin-right: 0.5rem;
 }
 
+/* Fix for text wrapping in AI Briefing modal */
+pre.briefing-pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
