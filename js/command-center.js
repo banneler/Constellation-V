@@ -216,7 +216,8 @@ async function handleGenerateBriefing() {
         if (error) throw error;
         renderAIBriefing(briefing);
 
-    } catch (error) {
+    } 
+        catch (error) {
         console.error("Error generating AI briefing:", error);
         aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
     }
