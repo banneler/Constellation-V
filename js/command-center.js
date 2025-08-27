@@ -169,24 +169,6 @@ async function handleGenerateBriefing() {
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        // Filter alerts in the frontend before sending them to the Edge Function
-        const actionableAlerts = state.cognitoAlerts.filter(a =>
-            a.status && a.status.toLowerCase() === 'new' && new Date(a.created_at) > sevenDaysAgo
-        );
-
-        // NEW: Add a single log to show what data is being sent to the Edge Function.
-        console.log("Briefing Payload being sent to Edge Function:", {
-            tasks: state.tasks,
-            sequenceSteps: state.contact_sequences,
-            deals: state.deals,
-            cognitoAlerts: actionableAlerts,
-            nurtureAccounts: state.nurtureAccounts,
-            // We do not need to log the contacts, accounts, etc. as we know they are being passed through.
-        });
-
         const briefingPayload = {
             tasks: state.tasks.filter(t => t.status === 'Pending'),
             sequenceSteps: state.contact_sequences.filter(cs => {
@@ -197,7 +179,7 @@ async function handleGenerateBriefing() {
                 return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
             }),
             deals: state.deals,
-            cognitoAlerts: actionableAlerts,
+            cognitoAlerts: state.cognitoAlerts, // Corrected: Send all alerts to the Edge Function
             nurtureAccounts: state.nurtureAccounts,
             contacts: state.contacts,
             accounts: state.accounts,
