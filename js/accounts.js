@@ -380,6 +380,7 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
+// --- Print Briefing Handler ---
 function handlePrintBriefing() {
     const accountName = state.selectedAccountDetails.account?.name;
     const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
@@ -400,7 +401,7 @@ function handlePrintBriefing() {
     frameDoc.write(`
         <html>
             <head>
-                <title>AI Briefing: ${accountName}</title> <!-- This sets the PDF file name -->
+                <title>AI Briefing: ${accountName}</title>
                 <link rel="stylesheet" href="css/style.css">
                 <style>
                     @media print {
@@ -431,10 +432,17 @@ function handlePrintBriefing() {
     `);
     frameDoc.close();
 
+    // NEW: Temporarily change the main document's title for printing
+    const originalTitle = document.title;
+    document.title = `AI Briefing: ${accountName}`;
+
     setTimeout(() => {
         printFrame.contentWindow.focus();
         printFrame.contentWindow.print();
         document.body.removeChild(printFrame);
+        
+        // NEW: Restore the original title after the print dialog is handled
+        document.title = originalTitle;
     }, 250);
 }
 // --- AI Briefing Handler ---
