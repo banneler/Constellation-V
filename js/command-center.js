@@ -83,50 +83,64 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Data Fetching ---
-    async function loadAllData() {
-        if (!state.currentUser) return;
-        if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
-        
-        const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks", "cognito_alerts"];
-        const publicTables = ["sequence_steps"];
-        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-        const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
-        const allPromises = [...userPromises, ...publicPromises];
-        const allTableNames = [...userSpecificTables, ...publicTables];
+async function loadAllData() {
+    if (!state.currentUser) return;
+    if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+    
+    // Define the mapping from database table names to state object keys
+    const tableMap = {
+        "contacts": "contacts",
+        "accounts": "accounts",
+        "sequences": "sequences",
+        "activities": "activities",
+        "contact_sequences": "contact_sequences",
+        "deals": "deals",
+        "tasks": "tasks",
+        "cognito_alerts": "cognitoAlerts" // <-- Correct mapping here
+    };
 
-        try {
-            const results = await Promise.allSettled(allPromises);
-            results.forEach((result, index) => {
-                const tableName = allTableNames[index];
-                if (result.status === "fulfilled" && !result.value.error) {
-                    state[tableName] = result.value.data || [];
-                } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                    state[tableName] = [];
-                }
-            });
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-        }
+    const userSpecificTables = Object.keys(tableMap);
+    const publicTables = ["sequence_steps"];
+    const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+    const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
+    const allPromises = [...userPromises, ...publicPromises];
+    const allTableNames = [...userSpecificTables, ...publicTables];
 
-        const sixtyDaysAgo = new Date();
-        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
-        const activeAccountIds = new Set(
-            state.activities
-            .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
-            .map(act => {
-                if (act.account_id) return act.account_id;
-                const contact = state.contacts.find(c => c.id === act.contact_id);
-                return contact ? contact.account_id : null;
-            })
-            .filter(id => id)
-        );
-
-        state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
-        
-        renderDashboard();
+    try {
+        const results = await Promise.allSettled(allPromises);
+        results.forEach((result, index) => {
+            const tableName = allTableNames[index];
+            const stateKey = tableMap[tableName] || tableName; // Use the mapped key or fallback
+            if (result.status === "fulfilled" && !result.value.error) {
+                state[stateKey] = result.value.data || [];
+            } else {
+                console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
+                state[stateKey] = [];
+            }
+        });
+    } catch (error) {
+        console.error("Critical error in loadAllData:", error);
     }
+    
+    // ... rest of the function ...
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    const activeAccountIds = new Set(
+        state.activities
+        .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
+        .map(act => {
+            if (act.account_id) return act.account_id;
+            const contact = state.contacts.find(c => c.id === act.contact_id);
+            return contact ? contact.account_id : null;
+        })
+        .filter(id => id)
+    );
+
+    state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
+    
+    renderDashboard();
+}
     
     // --- Core Logic ---
     async function completeStep(csId, processedDescription = null) {
