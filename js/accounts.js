@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
         await switchAccount();
     }
-};
+}
 
     // --- Data Fetching ---
 
