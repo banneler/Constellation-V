@@ -160,7 +160,7 @@ async function loadAllData() {
         loadAllData();
     }
 
- // --- NEW: AI Briefing Logic ---
+// --- NEW: AI Briefing Logic ---
 async function handleGenerateBriefing() {
     aiBriefingContainer.classList.remove('hidden');
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
@@ -197,18 +197,6 @@ async function handleGenerateBriefing() {
             sequence_steps: state.sequence_steps
         };
 
-        const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
-            body: { briefingPayload }
-        });
-
-        if (error) throw error;
-        renderAIBriefing(briefing);
-
-    } catch (error) {
-        console.error("Error generating AI briefing:", error);
-        aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
-    }
-}
         const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
             body: { briefingPayload }
         });
