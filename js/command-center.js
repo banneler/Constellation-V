@@ -163,25 +163,19 @@ async function loadAllData() {
         loadAllData();
     }
 
-// --- NEW: AI Briefing Logic ---
 async function handleGenerateBriefing() {
     aiBriefingContainer.classList.remove('hidden');
     aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
     try {
-        // Corrected: Filter to be case-sensitive on the 'status' column and check for 'New'
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        // Remove the filter and send all alerts to the AI function.
-        // We will update the Edge Function to handle the filtering.
         const allCognitoAlerts = state.cognitoAlerts;
 
         console.log("Unread Cognito Alerts being sent:", allCognitoAlerts);
 
-        // Prepare the data to send to the Edge Function
         const briefingPayload = {
-            // Filter sequence steps to only include those due today or in the past
             tasks: state.tasks.filter(t => t.status === 'Pending'),
             sequenceSteps: state.contact_sequences.filter(cs => {
                 if (!cs.next_step_due_date || cs.status !== "Active") return false;
@@ -191,14 +185,16 @@ async function handleGenerateBriefing() {
                 return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
             }),
             deals: state.deals,
-            cognitoAlerts: allCognitoAlerts, // Use the new variable
+            cognitoAlerts: allCognitoAlerts,
             nurtureAccounts: state.nurtureAccounts,
-            // Include reference data so the function doesn't have to re-query
             contacts: state.contacts,
             accounts: state.accounts,
             sequences: state.sequences,
             sequence_steps: state.sequence_steps
         };
+
+        // NEW: Add this line to log the full payload
+        console.log("Briefing Payload being sent to Edge Function:", briefingPayload);
 
         const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
             body: { briefingPayload }
