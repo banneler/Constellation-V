@@ -103,79 +103,83 @@
         
         <main class="content-area">
             <div id="dashboard" class="content-view active-view">
-                <!-- NEW: Header for the AI Daily Briefing -->
-                <div class="command-center-header">
-                    <h2>Command Center</h2>
-                    <button id="ai-daily-briefing-btn" class="btn-primary cognito-style-btn"><i class="fas fa-wand-magic-sparkles"></i> Generate AI Daily Briefing</button>
-                </div>
-
-                <!-- NEW: Container for the briefing to be injected into -->
+                
+                <!-- Container for the AI briefing to be injected into -->
                 <div id="ai-briefing-container" class="hidden"></div>
 
-                <h2>My Tasks</h2>
-                    <button id="add-new-task-btn" class="btn-primary" style="margin-bottom: 15px;">Add New Task</button>
-                    <div class="table-container">
-                        <table id="my-tasks-table">
-                            <thead>
-                                <tr>
-                                    <th>Due Date</th>
-                                    <th>Description</th>
-                                    <th>Linked To</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                <!-- NEW: Header for the My Tasks section -->
+                <div class="tasks-header">
+                    <div class="tasks-header-left">
+                        <h2>My Tasks</h2>
+                        <button id="add-new-task-btn" class="btn-primary">Add New Task</button>
                     </div>
-                
-                
-                    <h2 style="margin-top: 30px;">Sequence Steps Due</h2>
-                    <div class="table-container">
-                        <table id="dashboard-table">
-                            <thead>
-                                <tr>
-                                    <th>Due Date</th>
-                                    <th>Contact</th>
-                                    <th>Sequence</th>
-                                    <th>Step</th>
-                                    <th>Description</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                    <div class="tasks-header-right">
+                        <button id="ai-daily-briefing-btn" class="btn-primary cognito-style-btn btn-large"><i class="fas fa-wand-magic-sparkles"></i> Generate AI Daily Briefing</button>
                     </div>
-                
-                
-                    <h2 style="margin-top: 30px;">Upcoming Sequence Steps</h2> 
-                    <div class="table-container">
-                        <table id="all-tasks-table">
-                            <thead>
-                                <tr>
-                                    <th>Next Task Due Date</th>
-                                    <th>Contact Name</th>
-                                    <th>Account Name</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+                </div>
 
-                    <h2 style="margin-top: 30px;">Recent Activities</h2>
-                    <div class="table-container">
-                        <table id="recent-activities-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Account</th>
-                                    <th>Contact</th>
-                                    <th>Activity</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+                <div class="table-container">
+                    <table id="my-tasks-table">
+                        <thead>
+                            <tr>
+                                <th>Due Date</th>
+                                <th>Description</th>
+                                <th>Linked To</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                
+                <h2 style="margin-top: 30px;">Sequence Steps Due</h2>
+                <div class="table-container">
+                    <table id="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Due Date</th>
+                                <th>Contact</th>
+                                <th>Sequence</th>
+                                <th>Step</th>
+                                <th>Description</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                
+                <h2 style="margin-top: 30px;">Upcoming Sequence Steps</h2> 
+                <div class="table-container">
+                    <table id="all-tasks-table">
+                        <thead>
+                            <tr>
+                                <th>Next Task Due Date</th>
+                                <th>Contact Name</th>
+                                <th>Account Name</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <h2 style="margin-top: 30px;">Recent Activities</h2>
+                <div class="table-container">
+                    <table id="recent-activities-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Account</th>
+                                <th>Contact</th>
+                                <th>Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
                 <div class="downloads-section">
                     <h4>Download CSV Templates</h4>
                     <p>Use these templates to ensure your data is formatted correctly for bulk imports.</p>
