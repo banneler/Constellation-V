@@ -4083,3 +4083,147 @@ body.theme-dark .metric-card-won {
     opacity: 0;
     pointer-events: none;
 }
+/* === Kanban Board Styles === */
+
+.deals-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.view-mode-toggle {
+    display: flex;
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    padding: 4px;
+}
+
+.view-mode-btn {
+    background-color: transparent;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    color: var(--text-medium);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease-in-out;
+}
+
+.view-mode-btn:hover {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+}
+
+.view-mode-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-board-container {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 0;
+    min-height: 400px; /* Ensure it has height even when empty */
+}
+
+.kanban-column {
+    flex: 0 0 300px; /* Flex-shrink, flex-grow, flex-basis */
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-column-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.kanban-column-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-light);
+}
+
+.kanban-column-total {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.kanban-column-body {
+    flex-grow: 1;
+    padding: 0.75rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.kanban-card {
+    background-color: var(--bg-dark);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: grab;
+    border-left: 4px solid var(--primary-color);
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.kanban-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-card.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.kanban-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.25rem;
+}
+
+.kanban-card-title {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.kanban-card-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-medium);
+    margin: 0 0 1rem 0;
+}
+
+.kanban-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.kanban-card-mrc {
+    font-weight: bold;
+    color: var(--text-light);
+}
+
+.kanban-card-date {
+    color: var(--text-medium);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.committed-icon {
+    color: #3b82f6; /* A nice blue color */
+    font-size: 0.9rem;
+}
+
