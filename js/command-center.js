@@ -467,22 +467,26 @@ async function handleGenerateBriefing() {
         });
     }
 
-    // --- App Initialization ---
-    async function initializePage() {
-        await loadSVGs();
-        updateActiveNavLink();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser);
-            await checkAndSetNotifications(supabase);
-            loadAllData();
-        } else {
-            window.location.href = "index.html";
-        }
+ // --- App Initialization ---
+async function initializePage() {
+    await loadSVGs();
+    updateActiveNavLink();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        state.currentUser = session.user;
+        await setupUserMenuAndAuth(supabase, state);
+        setupPageEventListeners();
+        await setupGlobalSearch(supabase, state.currentUser);
+        await checkAndSetNotifications(supabase);
+        
+        // NEW: Ensure all data is loaded and the state object is fully populated before
+        // the user can interact with the briefing button.
+        await loadAllData();
+        
+    } else {
+        window.location.href = "index.html";
     }
+}
 
     initializePage();
 });
