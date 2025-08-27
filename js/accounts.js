@@ -914,6 +914,12 @@ const hideAccountDetails = (clearSelection = false) => {
     if (aiBriefingBtn) {
     aiBriefingBtn.addEventListener("click", handleGenerateBriefing);
 }
+     // NEW: Event listener for the dynamically created print button
+        document.body.addEventListener('click', (e) => {
+            if (e.target.id === 'print-briefing-btn') {
+                handlePrintBriefing();
+            }
+        });
     }
 async function initializePage() {
     await loadSVGs();
