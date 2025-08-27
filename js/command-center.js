@@ -460,10 +460,10 @@ async function initializePage() {
         await setupGlobalSearch(supabase, state.currentUser);
         await checkAndSetNotifications(supabase);
 
-        // NEW: Load all data before setting up the event listener
+        // NEW: Load all data first
         await loadAllData();
 
-        // NEW: Now, set up the event listener after the data is guaranteed to be in state
+        // NEW: Now, and only now, set up the event listener after the data is guaranteed to be in state
         const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
         if (aiDailyBriefingBtn) {
             aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
