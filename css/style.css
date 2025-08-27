@@ -4231,9 +4231,14 @@ body.theme-dark .metric-card-won {
     margin-right: 0.5rem;
 }
 
-/* Fix for text wrapping in AI Briefing modal */
-pre.briefing-pre {
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-family: inherit; /* Ensures it uses the standard app font */
+/* Fix for text wrapping and font in AI Briefing modal */
+div.briefing-pre {
+    white-space: pre-wrap;      /* Allows the text to wrap */
+    word-wrap: break-word;        /* Breaks long words if necessary */
+    font-family: inherit;       /* Ensures it uses the standard app font */
+    background-color: var(--bg-dark);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.9em;
+    line-height: 1.5;
 }
