@@ -724,6 +724,7 @@ label {
     min-width: 34px;
     height: 34px;
     box-sizing: border-box;
+    text-decoration: none;
 }
 
 /* Adjust padding for buttons that explicitly contain text AND icon */
