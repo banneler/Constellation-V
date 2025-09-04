@@ -668,37 +668,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function openEmailClient(contact) {
-        const emailSubject = document.getElementById('ai-email-subject').value;
-        const emailBody = document.getElementById('ai-email-body').value;
+async function openEmailClient(contact) {
+    const emailSubject = document.getElementById('ai-email-subject').value;
+    const emailBody = document.getElementById('ai-email-body').value;
 
-        const encodedBody = encodeURIComponent(emailBody.replace(/\n/g, '%0D%0A'));
-        const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodedBody}`;
-        window.open(mailtoLink, '_blank');
+    // CORRECTED: Let encodeURIComponent handle the newlines automatically.
+    const encodedBody = encodeURIComponent(emailBody); 
+    
+    const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodedBody}`;
+    window.open(mailtoLink, '_blank');
 
-        try {
-            const { error } = await supabase.from('activities').insert({
-                contact_id: state.selectedContactId,
-                account_id: contact?.account_id,
-                type: 'AI-Generated Email',
-                description: `AI-generated email draft opened in mail client. Subject: "${emailSubject}".`,
-                user_id: state.currentUser.id,
-                date: new Date().toISOString()
-            });
+    try {
+        const { error } = await supabase.from('activities').insert({
+            contact_id: state.selectedContactId,
+            account_id: contact?.account_id,
+            type: 'AI-Generated Email',
+            description: `AI-generated email draft opened in mail client. Subject: "${emailSubject}".`,
+            user_id: state.currentUser.id,
+            date: new Date().toISOString()
+        });
 
-            if (error) {
-                console.error("Error logging AI email activity:", error);
-                showToast("Email activity logged with errors.", "warning");
-            } else {
-                showToast("Email activity successfully logged!", "success");
-            }
+        if (error) {
+            console.error("Error logging AI email activity:", error);
+            showToast("Email activity logged with errors.", "warning");
+        } else {
+            showToast("Email activity successfully logged!", "success");
+        }
 
-            await loadAllData();
-            hideModal();
-        } catch (e) {
-            console.error("Error logging activity:", e);
-        }
-    }
+        await loadAllData();
+        hideModal();
+    } catch (e) {
+        console.error("Error logging activity:", e);
+    }
+}
 
     function setupPageEventListeners() {
         setupModalListeners();
