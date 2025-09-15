@@ -83,65 +83,63 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Data Fetching ---
-async function loadAllData() {
-    if (!state.currentUser) return;
-    if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
-    
-    // Define the mapping from database table names to state object keys
-    const tableMap = {
-        "contacts": "contacts",
-        "accounts": "accounts",
-        "sequences": "sequences",
-        "activities": "activities",
-        "contact_sequences": "contact_sequences",
-        "deals": "deals",
-        "tasks": "tasks",
-        "cognito_alerts": "cognitoAlerts" // <-- Correct mapping here
-    };
+    async function loadAllData() {
+        if (!state.currentUser) return;
+        if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+        
+        const tableMap = {
+            "contacts": "contacts",
+            "accounts": "accounts",
+            "sequences": "sequences",
+            "activities": "activities",
+            "contact_sequences": "contact_sequences",
+            "deals": "deals",
+            "tasks": "tasks",
+            "cognito_alerts": "cognitoAlerts"
+        };
 
-    const userSpecificTables = Object.keys(tableMap);
-    const publicTables = ["sequence_steps"];
-    const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-    const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
-    const allPromises = [...userPromises, ...publicPromises];
-    const allTableNames = [...userSpecificTables, ...publicTables];
+        const userSpecificTables = Object.keys(tableMap);
+        const publicTables = ["sequence_steps"];
+        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+        const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
+        const allPromises = [...userPromises, ...publicPromises];
+        const allTableNames = [...userSpecificTables, ...publicTables];
 
-    try {
-        const results = await Promise.allSettled(allPromises);
-        results.forEach((result, index) => {
-            const tableName = allTableNames[index];
-            const stateKey = tableMap[tableName] || tableName; // Use the mapped key or fallback
-            if (result.status === "fulfilled" && !result.value.error) {
-                state[stateKey] = result.value.data || [];
-            } else {
-                console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                state[stateKey] = [];
-            }
-        });
-    } catch (error) {
-        console.error("Critical error in loadAllData:", error);
+        try {
+            const results = await Promise.allSettled(allPromises);
+            results.forEach((result, index) => {
+                const tableName = allTableNames[index];
+                const stateKey = tableMap[tableName] || tableName;
+                if (result.status === "fulfilled" && !result.value.error) {
+                    state[stateKey] = result.value.data || [];
+                } else {
+                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
+                    state[stateKey] = [];
+                }
+            });
+        } catch (error) {
+            console.error("Critical error in loadAllData:", error);
+        }
+        
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+        const activeAccountIds = new Set(
+            state.activities
+            .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
+            .map(act => {
+                if (act.account_id) return act.account_id;
+                const contact = state.contacts.find(c => c.id === act.contact_id);
+                return contact ? contact.account_id : null;
+            })
+            .filter(id => id)
+        );
+
+        state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
+        
+        renderDashboard();
     }
-    
-    // ... rest of the function ...
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
-    const activeAccountIds = new Set(
-        state.activities
-        .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
-        .map(act => {
-            if (act.account_id) return act.account_id;
-            const contact = state.contacts.find(c => c.id === act.contact_id);
-            return contact ? contact.account_id : null;
-        })
-        .filter(id => id)
-    );
-
-    state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
-    
-    renderDashboard();
-}
-    
+        
     // --- Core Logic ---
     async function completeStep(csId, processedDescription = null) {
         const cs = state.contact_sequences.find((c) => c.id === csId);
@@ -171,49 +169,43 @@ async function loadAllData() {
         loadAllData();
     }
 
-    // --- NEW: AI Briefing Logic (Now correctly scoped) ---
-async function handleGenerateBriefing() {
-    aiBriefingContainer.classList.remove('hidden');
-    aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
+    // --- AI Briefing Logic ---
+    async function handleGenerateBriefing() {
+        aiBriefingContainer.classList.remove('hidden');
+        aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
-    try {
-        const briefingPayload = {
-            tasks: state.tasks.filter(t => t.status === 'Pending'),
-            sequenceSteps: state.contact_sequences.filter(cs => {
-                if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                const dueDate = new Date(cs.next_step_due_date);
-                const startOfToday = new Date();
-                startOfToday.setHours(0, 0, 0, 0);
-                return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
-            }),
-            deals: state.deals,
-            cognitoAlerts: state.cognitoAlerts,
-            nurtureAccounts: state.nurtureAccounts,
-            contacts: state.contacts,
-            accounts: state.accounts,
-            sequences: state.sequences,
-            sequence_steps: state.sequence_steps
-        };
-
-        // 🕵️‍♂️ Add this line to inspect the payload before sending
-        console.log("Payload being sent to Edge Function:", briefingPayload);
-
-        const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
-            body: { briefingPayload }
-        });
-
-        if (error) throw error;
-        renderAIBriefing(briefing);
-
-    } catch (error) {
-        console.error("Error generating AI briefing:", error);
-        aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
-    }
-}
-    
+        try {
+            const briefingPayload = {
+                tasks: state.tasks.filter(t => t.status === 'Pending'),
+                sequenceSteps: state.contact_sequences.filter(cs => {
+                    if (!cs.next_step_due_date || cs.status !== "Active") return false;
+                    const dueDate = new Date(cs.next_step_due_date);
+                    const startOfToday = new Date();
+                    startOfToday.setHours(0, 0, 0, 0);
+                    return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
+                }),
+                deals: state.deals,
+                cognitoAlerts: state.cognitoAlerts,
+                nurtureAccounts: state.nurtureAccounts,
+                contacts: state.contacts,
+                accounts: state.accounts,
+                sequences: state.sequences,
+                sequence_steps: state.sequence_steps
+            };
+            console.log("Payload being sent to Edge Function:", briefingPayload);
+            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
+                body: { briefingPayload }
+            });
+            if (error) throw error;
+            renderAIBriefing(briefing);
+        } catch (error) {
+            console.error("Error generating AI briefing:", error);
+            aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+        }
+    }
+        
     function renderAIBriefing(briefing) {
         const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
-
         const briefingHtml = `
             ${greeting}
             <ol id="ai-briefing-list">
@@ -292,13 +284,16 @@ async function handleGenerateBriefing() {
                 const desc = replacePlaceholders(step.subject || step.message || "", contact, account);
 
                 let btnHtml;
-                if (step.type.toLowerCase() === "linkedin") {
-                    btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
-                } else if (step.type.toLowerCase() === "email" && contact.email) {
+                // --- MODIFIED: LinkedIn button logic ---
+                if (step.type.toLowerCase().includes("linkedin")) {
+                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${cs.id}">Send Message</button>`;
+                } else if (step.type.toLowerCase().includes("email") && contact.email) {
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
                 }
+                // --- END MODIFICATION ---
+
                 row.innerHTML = `<td>${formatSimpleDate(cs.next_step_due_date)}</td><td>${contact.first_name} ${contact.last_name}</td><td>${sequence.name}</td><td>${step.step_number}: ${step.type}</td><td>${desc}</td><td><div class="button-group-wrapper">${btnHtml}</div></td>`;
             });
 
@@ -436,12 +431,47 @@ async function handleGenerateBriefing() {
                 `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-            } else if (button.matches('.complete-linkedin-step-btn')) {
-                const csId = Number(button.dataset.id);
-                const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl);
-                if (linkedinUrl) { window.open(linkedinUrl, "_blank"); }
-                else { alert("LinkedIn URL is missing from button data attribute."); }
-                completeStep(csId);
+            // --- NEW: LinkedIn Message Handler ---
+            } else if (button.matches('.send-linkedin-message-btn')) {
+                const csId = Number(button.dataset.csId);
+                const cs = state.contact_sequences.find(c => c.id === csId);
+                if (!cs) return alert("Contact sequence not found.");
+
+                const contact = state.contacts.find(c => c.id === cs.contact_id);
+                if (!contact) return alert("Contact not found.");
+
+                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+                if (!step) return alert("Sequence step not found.");
+
+                const message = replacePlaceholders(step.message, contact, account);
+                const linkedinUrl = contact.linkedin_profile_url || 'https://www.linkedin.com/feed/';
+
+                showModal('Compose LinkedIn Message', `
+                    <div class="form-group">
+                        <p><strong>To:</strong> ${contact.first_name} ${contact.last_name}</p>
+                        <p class="modal-sub-text">The message below will be copied to your clipboard. Paste it into the message box on LinkedIn.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-linkedin-body">Message:</label>
+                        <textarea id="modal-linkedin-body" class="form-control" rows="10">${message}</textarea>
+                    </div>
+                `, async () => {
+                    const finalMessage = document.getElementById('modal-linkedin-body').value;
+                    try {
+                        await navigator.clipboard.writeText(finalMessage);
+                    } catch (err) {
+                        console.error('Failed to copy text: ', err);
+                        alert('Could not copy text to clipboard. Please copy it manually.');
+                    }
+                    window.open(linkedinUrl, "_blank");
+                    await completeStep(csId, "LinkedIn Message Sent");
+                },
+                true,
+                `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
+                 <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+                );
+            // --- END NEW HANDLER ---
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.id);
                 completeStep(csId);
@@ -468,19 +498,14 @@ async function handleGenerateBriefing() {
             await setupUserMenuAndAuth(supabase, state);
             await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
-
-            // This is the critical change: Await all data before doing anything else
             await loadAllData();
-
-            // Now, and only now, set up the event listener after the data is guaranteed to be in state
+            
             const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
             if (aiDailyBriefingBtn) {
                 aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
             }
-
-            // Now, set up the rest of your non-data-dependent listeners
+            
             setupPageEventListeners();
-
         } else {
             window.location.href = "index.html";
         }
