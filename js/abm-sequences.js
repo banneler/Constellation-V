@@ -41,20 +41,25 @@ async function handleMoveStep(stepId, direction) {
     }
 
     if (targetStep) {
-        // Swap step numbers
+        // Swap step numbers locally first
         const tempStepNumber = currentStep.step_number;
         currentStep.step_number = targetStep.step_number;
         targetStep.step_number = tempStepNumber;
 
-        // Update both records in the database
-        const { error } = await state.supabase.from("sequence_steps").upsert([
-            { id: currentStep.id, step_number: currentStep.step_number },
-            { id: targetStep.id, step_number: targetStep.step_number }
-        ]);
+        // Perform two separate, explicit update commands
+        const { error: error1 } = await state.supabase.from("sequence_steps")
+            .update({ step_number: currentStep.step_number })
+            .eq('id', currentStep.id);
+
+        const { error: error2 } = await state.supabase.from("sequence_steps")
+            .update({ step_number: targetStep.step_number })
+            .eq('id', targetStep.id);
+        
+        const error = error1 || error2;
 
         if (error) {
             alert("Error reordering steps: " + error.message);
-            // Revert local changes on error
+            // Revert local changes if the database update fails
             targetStep.step_number = currentStep.step_number;
             currentStep.step_number = tempStepNumber;
         } else {
