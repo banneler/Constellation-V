@@ -243,40 +243,38 @@ const renderAbmCenter = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const dueTasks = (state.abmTasks || []).filter(task => task.status === 'pending' && new Date(task.due_date) <= today);
-    const upcomingTasks = (state.abmTasks || []).filter(task => task.status === 'pending' && new Date(task.due_date) > today);
-    const completedTasks = (state.abmTasks || []).filter(task => task.status === 'completed').sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at)).slice(0, 20);
+    // Filter using the correct column names from the SQL function
+    const dueTasks = (state.abmTasks || []).filter(task => task.task_status === 'pending' && new Date(task.task_due_date) <= today);
+    const upcomingTasks = (state.abmTasks || []).filter(task => task.task_status === 'pending' && new Date(task.task_due_date) > today);
+    const completedTasks = (state.abmTasks || []).filter(task => task.task_status !== 'pending' && task.task_completed_at).sort((a, b) => new Date(b.task_completed_at) - new Date(a.task_completed_at)).slice(0, 20);
 
     const renderRow = (task) => `
         <tr>
-            <td>${task.contacts?.first_name || ''} ${task.contacts?.last_name || ''}</td>
-            <td>${task.contacts?.accounts?.name || 'N/A'}</td>
-            <td>${task.sequences?.name || 'N/A'}</td>
-            <td>${task.sequence_steps?.subject || task.sequence_steps?.type}</td>
-            <td><button class="btn-primary complete-abm-task-btn" data-id="${task.id}">Complete Task</button></td>
+            <td>${task.contact_first_name || ''} ${task.contact_last_name || ''}</td>
+            <td>${task.account_name || 'N/A'}</td>
+            <td>${task.sequence_name || 'N/A'}</td>
+            <td>${task.step_subject || task.step_type}</td>
+            <td><button class="btn-primary complete-abm-task-btn" data-id="${task.task_id}">Complete Task</button></td>
         </tr>`;
 
-    abmTasksDueTableBody.innerHTML = dueTasks.map(renderRow).join('');
-    if (dueTasks.length === 0) abmTasksDueTableBody.innerHTML = `<tr><td colspan="5">No tasks are due.</td></tr>`;
+    abmTasksDueTableBody.innerHTML = dueTasks.map(renderRow).join('') || `<tr><td colspan="5">No tasks are due.</td></tr>`;
 
     abmTasksUpcomingTableBody.innerHTML = upcomingTasks.map(task => `
         <tr>
-            <td>${task.contacts?.first_name || ''} ${task.contacts?.last_name || ''}</td>
-            <td>${task.contacts?.accounts?.name || 'N/A'}</td>
-            <td>${task.sequences?.name || 'N/A'}</td>
-            <td>${task.sequence_steps?.subject || task.sequence_steps?.type}</td>
-            <td>${formatDate(task.due_date)}</td>
-        </tr>`).join('');
-    if (upcomingTasks.length === 0) abmTasksUpcomingTableBody.innerHTML = `<tr><td colspan="5">No upcoming tasks.</td></tr>`;
+            <td>${task.contact_first_name || ''} ${task.contact_last_name || ''}</td>
+            <td>${task.account_name || 'N/A'}</td>
+            <td>${task.sequence_name || 'N/A'}</td>
+            <td>${task.step_subject || task.step_type}</td>
+            <td>${formatDate(task.task_due_date)}</td>
+        </tr>`).join('') || `<tr><td colspan="5">No upcoming tasks.</td></tr>`;
 
     abmTasksCompletedTableBody.innerHTML = completedTasks.map(task => `
         <tr>
-            <td>${task.contacts?.first_name || ''} ${task.contacts?.last_name || ''}</td>
-            <td>${task.contacts?.accounts?.name || 'N/A'}</td>
-            <td>${task.sequence_steps?.subject || task.sequence_steps?.type}</td>
-            <td>${formatDate(task.completed_at)}</td>
-        </tr>`).join('');
-    if (completedTasks.length === 0) abmTasksCompletedTableBody.innerHTML = `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
+            <td>${task.contact_first_name || ''} ${task.contact_last_name || ''}</td>
+            <td>${task.account_name || 'N/A'}</td>
+            <td>${task.step_subject || task.step_type}</td>
+            <td>${formatDate(task.task_completed_at)}</td>
+        </tr>`).join('') || `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
 };
     
     // --- NEW: ABM Action Handler ---
