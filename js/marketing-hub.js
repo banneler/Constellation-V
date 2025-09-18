@@ -489,7 +489,7 @@ const renderSequenceList = () => {
         let stepsToRender = [];
 
         if (state.selectedSequenceId) {
-            stepsToRender = state.sequence_steps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
+            stepsToRender = state.marketingSequenceSteps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
         } else {
             return;
         }
@@ -1208,7 +1208,7 @@ async function handleDeleteSelectedItem() {
                 r.onload = async function(e) {
                     const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
                     const selectedSequence = state.marketingSequences.find((s) => s.id === state.selectedSequenceId);
-                    const existingSteps = state.sequence_steps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
+                    const existingSteps = state.marketingSequenceSteps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
                     let nextAvailableStepNumber = existingSteps.length > 0 ? Math.max(...existingSteps.map(s => s.step_number)) + 1 : 1;
 
                     const newRecords = rows
