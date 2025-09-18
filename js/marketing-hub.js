@@ -286,6 +286,83 @@ const renderAbmCenter = () => {
         </tr>`).join('') || `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
 };
 
+    // Paste this function into your file, for example, after the renderAbmCenter function.
+
+async function handleCompleteAbmTask(contactSequenceStepId) {
+    try {
+        // Step 1: Mark the current marketing step as 'completed'
+        const { data: completedStep, error: updateError } = await supabase
+            .from('contact_sequence_steps')
+            .update({ status: 'completed', completed_at: new Date().toISOString() })
+            .eq('id', contactSequenceStepId)
+            .select()
+            .single();
+
+        if (updateError) throw updateError;
+        if (!completedStep) throw new Error("Could not find the step to update.");
+
+        const { contact_sequence_id, sequence_id } = completedStep;
+
+        // Step 2: Get the parent sequence's current state to know which step we just finished
+        const { data: contactSequence, error: csError } = await supabase
+            .from('contact_sequences')
+            .select('current_step_number')
+            .eq('id', contact_sequence_id)
+            .single();
+        
+        if (csError) throw csError;
+
+        // Step 3: Find all possible steps for this sequence to determine what's next
+        const { data: allSequenceSteps, error: stepsError } = await supabase
+            .from('sequence_steps')
+            .select('step_number, interval_days')
+            .eq('sequence_id', sequence_id)
+            .order('step_number');
+
+        if (stepsError) throw stepsError;
+        
+        const currentStepNumber = contactSequence.current_step_number;
+        const nextStep = allSequenceSteps.find(s => s.step_number > currentStepNumber);
+
+        // Step 4: Decide whether to advance the sequence or complete it
+        let updateData = {};
+        if (nextStep) {
+            // If there is a next step, advance the sequence
+            const nextDueDate = new Date();
+            nextDueDate.setDate(nextDueDate.getDate() + (nextStep.interval_days || 0)); 
+
+            updateData = {
+                current_step_number: nextStep.step_number,
+                last_completed_date: new Date().toISOString(),
+                next_step_due_date: nextDueDate.toISOString(),
+            };
+        } else {
+            // If there is no next step, the sequence is complete
+            updateData = {
+                status: 'Completed',
+                last_completed_date: new Date().toISOString(),
+                next_step_due_date: null,
+                current_step_number: null 
+            };
+        }
+
+        // Step 5: Update the main contact_sequences record for the sales team
+        const { error: advanceError } = await supabase
+            .from('contact_sequences')
+            .update(updateData)
+            .eq('id', contact_sequence_id);
+
+        if (advanceError) throw advanceError;
+
+        // Step 6: Refresh the data and re-render the command center
+        await loadAllData();
+
+    } catch (error) {
+        console.error('Error completing marketing task:', error);
+        alert('Error completing task: ' + error.message);
+    }
+}
+
     // --- Email Templates Render Functions ---
     const renderTemplateList = () => {
         if (!itemList) return;
