@@ -87,56 +87,70 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     // --- Data Fetching ---
-    async function loadAllData() {
-        if (!state.currentUser) return;
-        const userSpecificTables = ["contacts", "accounts", "activities", "contact_sequences", "sequences", "deals", "tasks"];
-        const sharedTables = ["sequence_steps", "email_log"];
-        const userPromises = userSpecificTables.map((table) => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-        const sharedPromises = sharedTables.map((table) => supabase.from(table).select("*"));
-        
-        const allPromises = [...userPromises, ...sharedPromises];
-        const allTableNames = [...userSpecificTables, ...sharedTables];
+async function loadAllData() {
+    if (!state.currentUser) return;
+    try {
+        const [
+            contactsRes,
+            accountsRes,
+            activitiesRes,
+            contactSequencesRes,
+            personalSequencesRes, // Fetch user's own non-ABM sequences
+            abmSequencesRes,      // Fetch all shared ABM sequences
+            dealsRes,
+            tasksRes,
+            sequenceStepsRes,
+            emailLogRes,
+            activityTypesRes
+        ] = await Promise.all([
+            supabase.from('contacts').select('*').eq('user_id', state.currentUser.id),
+            supabase.from('accounts').select('*').eq('user_id', state.currentUser.id),
+            supabase.from('activities').select('*').eq('user_id', state.currentUser.id),
+            supabase.from('contact_sequences').select('*').eq('user_id', state.currentUser.id),
+            supabase.from('sequences').select('*').eq('user_id', state.currentUser.id).eq('is_abm', false),
+            supabase.from('sequences').select('*').eq('is_abm', true),
+            supabase.from('deals').select('*').eq('user_id', state.currentUser.id),
+            supabase.from('tasks').select('*').eq('user_id', state.currentUser.id),
+            supabase.from('sequence_steps').select('*'), // Fetch all steps
+            supabase.from('email_log').select('*'),
+            supabase.from('activity_types').select('*')
+        ]);
 
-        const { data: allActivityTypes, error: activityError } = await supabase.from("activity_types").select("*");
-        if (activityError) {
-            console.error("Error fetching activity types:", activityError);
-        } else {
-            const allTypes = [...(allActivityTypes || [])];
-            state.activityTypes = [...new Map(allTypes.map(item => [item.type_name, item])).values()];
-        }
-        
-        try {
-            const results = await Promise.allSettled(allPromises);
-            results.forEach((result, index) => {
-                const tableName = allTableNames[index];
-                if (result.status === "fulfilled") {
-                    if (result.value.error) {
-                        console.error(`Supabase error fetching ${tableName}:`, result.value.error.message);
-                        state[tableName] = [];
-                    } else {
-                        state[tableName] = result.value.data || [];
-                    }
-                } else {
-                    console.error(`Failed to fetch ${tableName}:`, result.reason);
-                    state[tableName] = [];
-                }
-            });
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-        } finally {
-            renderContactList();
-            if (state.selectedContactId) {
-                const updatedContact = state.contacts.find(c => c.id === state.selectedContactId);
-                if (updatedContact) {
-                    renderContactDetails();
-                } else {
-                    hideContactDetails(false, true);
-                }
+        // Helper to check for errors and assign data
+        const processResponse = (res, tableName) => {
+            if (res.error) console.error(`Error loading ${tableName}:`, res.error.message);
+            return res.data || [];
+        };
+
+        state.contacts = processResponse(contactsRes, 'contacts');
+        state.accounts = processResponse(accountsRes, 'accounts');
+        state.activities = processResponse(activitiesRes, 'activities');
+        state.contact_sequences = processResponse(contactSequencesRes, 'contact_sequences');
+        state.deals = processResponse(dealsRes, 'deals');
+        state.tasks = processResponse(tasksRes, 'tasks');
+        state.sequence_steps = processResponse(sequenceStepsRes, 'sequence_steps');
+        state.email_log = processResponse(emailLogRes, 'email_log');
+        state.activityTypes = [...new Map(processResponse(activityTypesRes, 'activity_types').map(item => [item.type_name, item])).values()];
+
+        // Combine personal and ABM sequences into one list
+        state.sequences = [...processResponse(personalSequencesRes, 'personal_sequences'), ...processResponse(abmSequencesRes, 'abm_sequences')];
+
+    } catch (error) {
+        console.error("Critical error in loadAllData:", error);
+    } finally {
+        renderContactList();
+        if (state.selectedContactId) {
+            const updatedContact = state.contacts.find(c => c.id === state.selectedContactId);
+            if (updatedContact) {
+                renderContactDetails();
             } else {
                 hideContactDetails(false, true);
             }
+        } else {
+            hideContactDetails(false, true);
         }
     }
+}
 
     function updateSortToggleUI() {
         if (state.nameDisplayFormat === 'firstLast') {
