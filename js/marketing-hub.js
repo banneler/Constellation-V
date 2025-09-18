@@ -165,7 +165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             supabase.from("email_templates").select("*"),
             supabase.from("marketing_sequences").select("*"), // Old marketing-only sequences
             supabase.from("marketing_sequence_steps").select("*"),
-            supabase.from("sequences").select("*").eq('type', 'ABM'), // NEW: Fetch ABM sequences
+            supabase.from("sequences").select("*").eq('is_abm', true), // NEW: Fetch ABM sequences
             supabase.from("sequence_steps").select("*"), // Fetch all steps, will filter later
             supabase.from("user_quotas").select("user_id, full_name"),
             loadAbmData()
@@ -243,8 +243,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Render Due Tasks
         abmTasksDueTableBody.innerHTML = dueTasks.map(task => `
             <tr>
-                <td>${task.contacts.first_name || ''} ${task.contacts.last_name || ''}</td>
-                <td>${task.contacts.accounts.name || 'N/A'}</td>
+                <td>${task.contact_sequences.contacts.first_name || ''} ${task.contact_sequences.contacts.last_name || ''}</td>
+                <td>${task.contact_sequences.contacts.accounts.name || 'N/A'}</td>
                 <td>${task.sequences.name || 'N/A'}</td>
                 <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
                 <td><button class="btn-primary complete-abm-task-btn" data-id="${task.id}">Complete Task</button></td>
@@ -255,8 +255,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Render Upcoming Tasks
         abmTasksUpcomingTableBody.innerHTML = upcomingTasks.map(task => `
             <tr>
-                <td>${task.contacts.first_name || ''} ${task.contacts.last_name || ''}</td>
-                <td>${task.contacts.accounts.name || 'N/A'}</td>
+                <td>${task.contact_sequences.contacts.first_name || ''} ${task.contact_sequences.contacts.last_name || ''}</td>
+                <td>${task.contact_sequences.contacts.accounts.name || 'N/A'}</td>
                 <td>${task.sequences.name || 'N/A'}</td>
                 <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
                 <td>${formatDate(task.due_date)}</td>
@@ -268,8 +268,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Render Completed Tasks
         abmTasksCompletedTableBody.innerHTML = completedTasks.map(task => `
             <tr>
-                <td>${task.contacts.first_name || ''} ${task.contacts.last_name || ''}</td>
-                <td>${task.contacts.accounts.name || 'N/A'}</td>
+                <td>${task.contact_sequences.contacts.first_name || ''} ${task.contact_sequences.contacts.last_name || ''}</td>
+                <td>${task.contact_sequences.contacts.accounts.name || 'N/A'}</td>
                 <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
                 <td>${formatDate(task.completed_at)}</td>
             </tr>
@@ -946,7 +946,7 @@ function handleCreateNewItem() {
             
             let error;
             if (type === 'ABM') {
-                const { error: abmError } = await supabase.from('sequences').insert([{ name, type: 'ABM', user_id: state.currentUser.id }]);
+                const { error: abmError } = await supabase.from('sequences').insert([{ name, is_abm: true, user_id: state.currentUser.id }]);
                 error = abmError;
             } else {
                 const { error: marketingError } = await supabase.from('marketing_sequences').insert([{ name, user_id: state.currentUser.id }]);
