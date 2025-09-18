@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountActivitiesList = document.getElementById("account-activities-list");
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
-    const aiAccountInsightBtn = document.getElementById("ai-account-insight-btn");
+    const aiBriefingBtn = document.getElementById("ai-briefing-btn");
     const accountStatusFilter = document.getElementById("account-status-filter");
 
     // --- Dirty Check and Navigation ---
@@ -350,7 +350,7 @@ const hideAccountDetails = (clearSelection = false) => {
     }
 
     function handleEditDeal(dealId) {
-        const deal = state.deals.find(d => d.id === dealId);
+        const deal = state.selectedAccountDetails.deals.find(d => d.id === dealId);
         if (!deal) return showModal("Error", "Deal not found!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
         const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
@@ -380,6 +380,136 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
+// --- Print Briefing Handler ---
+function handlePrintBriefing() {
+    const accountName = state.selectedAccountDetails.account?.name;
+    const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
+    if (!accountName || !briefingHtml) {
+        alert("Could not find briefing content to print.");
+        return;
+    }
+
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`
+        <html>
+            <head>
+                <title>AI Briefing: ${accountName}</title>
+                <link rel="stylesheet" href="css/style.css">
+                <style>
+                    @media print {
+                        body { 
+                            margin: 20px; 
+                            font-family: sans-serif;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        .ai-briefing-container { box-shadow: none; border: none; }
+                        h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
+                        .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; }
+                        div.briefing-pre { 
+                            background-color: #eee !important; 
+                            border: 1px solid #ddd;
+                            white-space: pre-wrap;
+                            word-wrap: break-word;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>AI Reconnaissance Report</h2>
+                <h3>${accountName}</h3>
+                <div class="ai-briefing-container">${briefingHtml}</div>
+            </body>
+        </html>
+    `);
+    frameDoc.close();
+
+    // NEW: Temporarily change the main document's title for printing
+    const originalTitle = document.title;
+    document.title = `AI Briefing: ${accountName}`;
+
+    setTimeout(() => {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+        document.body.removeChild(printFrame);
+        
+        // NEW: Restore the original title after the print dialog is handled
+        document.title = originalTitle;
+    }, 250);
+}
+// --- AI Briefing Handler ---
+async function handleGenerateBriefing() {
+    if (!state.selectedAccountId) {
+        showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
+    }
+    const { account, contacts, activities, deals } = state.selectedAccountDetails;
+    if (!account) return;
+
+    showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+    try {
+        const internalData = {
+            accountName: account.name,
+            contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
+            deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
+            activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
+                const contact = contacts.find(c => c.id === act.contact_id);
+                const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
+            }).join('\n')
+        };
+
+        const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
+        if (error) throw error;
+
+        // MODIFIED: Added a safety check to ensure we're always working with strings
+        const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+        const briefingHtml = `
+            <div class="ai-briefing-container">
+                <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
+                <div class="briefing-section">
+                    <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
+                    <p><strong>Key Players in CRM:</strong> ${keyPlayersHtml}</p>
+                    <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                    <p><strong>Recent Activity:</strong></p>
+                    <div class="briefing-pre">${briefing.activity_highlights}</div>
+                </div>
+                <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
+                <div class="briefing-section">
+                    <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
+                    <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
+                    <p><strong>Social Icebreakers:</strong></p>
+                    <div class="briefing-pre">${icebreakersHtml}</div>
+                </div>
+                <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
+                <div class="briefing-section recommendation">
+                    <p>${briefing.recommendation}</p>
+                </div>
+            </div>`;
+        
+        const modalFooter = `
+            <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
+            <button id="modal-ok-btn" class="btn-primary">Close</button>
+        `;
+        showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
+
+    } catch (error) {
+        console.error("Error invoking AI Briefing Edge Function:", error);
+        showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    }
+}
+
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
@@ -791,64 +921,16 @@ const hideAccountDetails = (clearSelection = false) => {
                     }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             });
         }
-
-        if (aiAccountInsightBtn) {
-            aiAccountInsightBtn.addEventListener("click", async () => {
-                if (!state.selectedAccountId) {
-                    showModal("Error", "Please select an account to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
-
-                const account = state.selectedAccountDetails.account;
-                if (!account) {
-                    showModal("Error", "Selected account details not loaded. Please try refreshing the page.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
-                const relevantActivities = state.selectedAccountDetails.activities;
-                const relevantContacts = state.selectedAccountDetails.contacts;
-                
-                relevantActivities.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                if (relevantActivities.length === 0) {
-                    showModal("Info", "No activities found for this account to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
-
-                const activityData = relevantActivities.map(act => {
-                    const contact = relevantContacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] Type: ${act.type}, Contact: ${contactName}, Description: ${act.description}`;
-                }).join('\n');
-
-                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing account activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-
-                try {
-                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
-                        body: {
-                            accountName: account.name,
-                            activityLog: activityData
-                        }
-                    });
-                    if (error) throw error;
-
-                    const insight = data.insight || "No insight generated.";
-                    const nextSteps = data.next_steps || "No specific next steps suggested.";
-
-                    showModal("AI Account Insight", `
-                        <h4>Summary:</h4>
-                        <p>${insight}</p>
-                        <h4>Suggested Next Steps:</h4>
-                        <p>${nextSteps}</p>
-                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-
-                } catch (error) {
-                    console.error("Error invoking AI insight Edge Function:", error);
-                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                }
-            });
-        }
+    if (aiBriefingBtn) {
+    aiBriefingBtn.addEventListener("click", handleGenerateBriefing);
+}
+     // NEW: Event listener for the dynamically created print button
+        document.body.addEventListener('click', (e) => {
+            if (e.target.id === 'print-briefing-btn') {
+                handlePrintBriefing();
+            }
+        });
     }
-
 async function initializePage() {
     await loadSVGs();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();

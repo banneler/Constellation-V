@@ -7,6 +7,83 @@ export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const themes = ["dark", "light", "green", "blue", "corporate"];
 
+// --- NEW: GLOBAL STATE MANAGEMENT ---
+const appState = {
+    currentUser: null,          // The actual logged-in user object
+    effectiveUserId: null,      // The ID of the user whose data is being viewed
+    effectiveUserFullName: null,// The name of the user being viewed
+    isManager: false,           // Is the logged-in user a manager?
+    managedUsers: []            // Array of users the manager can view as
+};
+
+/**
+ * Returns the current application state.
+ */
+export function getState() {
+    return { ...appState };
+}
+
+/**
+ * Sets the effective user for impersonation view.
+ * @param {string} userId - The UUID of the user to view as.
+ * @param {string} fullName - The full name of the user to view as.
+ */
+export function setEffectiveUser(userId, fullName) {
+    appState.effectiveUserId = userId;
+    appState.effectiveUserFullName = fullName;
+    console.log(`Viewing as: ${fullName} (${userId})`);
+    
+    // This is the key part for triggering a UI refresh.
+    // We dispatch a custom event that other parts of the app can listen for.
+    window.dispatchEvent(new CustomEvent('effectiveUserChanged'));
+}
+
+/**
+ * Initializes the global state on application startup.
+ * @param {SupabaseClient} supabase The Supabase client.
+ * @returns {Promise<object>} The fully initialized state object.
+ */
+export async function initializeAppState(supabase) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        window.location.href = "index.html";
+        return;
+    }
+
+    appState.currentUser = user;
+    appState.effectiveUserId = user.id;
+
+    // Fetch user's full name for the default state
+    const { data: currentUserQuota, error: quotaError } = await supabase
+        .from('user_quotas')
+        .select('full_name')
+        .eq('user_id', user.id)
+        .single();
+
+    if (quotaError && quotaError.code !== 'PGRST116') console.error("Error fetching current user's name:", quotaError);
+    appState.effectiveUserFullName = currentUserQuota?.full_name || 'User';
+
+    // Check if the current user is a manager and fetch their team
+    const { data: managedUsers, error } = await supabase
+        .from('managers')
+        .select('managed_user_id, users:user_quotas(full_name)')
+        .eq('manager_id', user.id);
+
+    if (error) {
+        console.error("Error checking manager status:", error);
+    } else if (managedUsers && managedUsers.length > 0) {
+        appState.isManager = true;
+        appState.managedUsers = managedUsers.map(u => ({
+            id: u.managed_user_id,
+            full_name: u.users.full_name
+        }));
+    }
+    
+    return appState;
+}
+// --- END NEW SECTION ---
+
+
 // --- THEME MANAGEMENT ---
 let currentThemeIndex = 0;
 
@@ -501,3 +578,4 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
+

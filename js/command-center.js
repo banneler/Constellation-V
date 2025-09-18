@@ -17,6 +17,19 @@ import {
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // --- UPDATED LOADING SCREEN LOGIC ---
+    const loadingScreen = document.getElementById('loading-screen');
+    if (sessionStorage.getItem('showLoadingScreen') === 'true') {
+        if (loadingScreen) {
+            loadingScreen.classList.remove('hidden');
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+            }, 7000); // 7 seconds
+        }
+        sessionStorage.removeItem('showLoadingScreen');
+    }
+    // --- END OF UPDATED LOGIC ---
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
@@ -28,7 +41,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         activities: [],
         contact_sequences: [],
         tasks: [],
-        deals: []
+        deals: [],
+        cognitoAlerts: [],
+        nurtureAccounts: [] // NEW: To hold accounts needing nurturing
     };
 
     // --- DOM Element Selectors ---
@@ -40,6 +55,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addNewTaskBtn = document.getElementById("add-new-task-btn");
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     const themeNameSpan = document.getElementById("theme-name");
+    const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+    const aiBriefingContainer = document.getElementById("ai-briefing-container");
 
     // --- Utility ---
     function getStartOfLocalDayISO() {
@@ -48,11 +65,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return today.toISOString();
     }
 
-    // Helper function to replace placeholders in templates
     function replacePlaceholders(template, contact, account) {
         if (!template) return '';
         let result = template;
-
         if (contact) {
             const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
             result = result.replace(/\[FirstName\]/gi, contact.first_name || '');
@@ -60,21 +75,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             result = result.replace(/\[FullName\]/gi, fullName);
             result = result.replace(/\[Name\]/gi, fullName);
         }
-
         if (account) {
             result = result.replace(/\[AccountName\]/gi, account.name || '');
             result = result.replace(/\[Account\]/gi, account.name || '');
         }
-        
         return result;
     }
-    
+
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+        
+        const tableMap = {
+            "contacts": "contacts",
+            "accounts": "accounts",
+            "sequences": "sequences",
+            "activities": "activities",
+            "contact_sequences": "contact_sequences",
+            "deals": "deals",
+            "tasks": "tasks",
+            "cognito_alerts": "cognitoAlerts"
+        };
 
-        const userSpecificTables = ["contacts", "accounts", "sequences", "activities", "contact_sequences", "deals", "tasks"];
+        const userSpecificTables = Object.keys(tableMap);
         const publicTables = ["sequence_steps"];
         const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
@@ -85,20 +109,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             const results = await Promise.allSettled(allPromises);
             results.forEach((result, index) => {
                 const tableName = allTableNames[index];
+                const stateKey = tableMap[tableName] || tableName;
                 if (result.status === "fulfilled" && !result.value.error) {
-                    state[tableName] = result.value.data || [];
+                    state[stateKey] = result.value.data || [];
                 } else {
                     console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                    state[tableName] = [];
+                    state[stateKey] = [];
                 }
             });
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
-        } finally {
-            renderDashboard();
         }
-    }
+        
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
+        const activeAccountIds = new Set(
+            state.activities
+            .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
+            .map(act => {
+                if (act.account_id) return act.account_id;
+                const contact = state.contacts.find(c => c.id === act.contact_id);
+                return contact ? contact.account_id : null;
+            })
+            .filter(id => id)
+        );
+
+        state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
+        
+        renderDashboard();
+    }
+        
     // --- Core Logic ---
     async function completeStep(csId, processedDescription = null) {
         const cs = state.contact_sequences.find((c) => c.id === csId);
@@ -106,19 +147,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contact = state.contacts.find((c) => c.id === cs.contact_id);
         const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
         if (contact && step) {
-            // ** FIX STARTS HERE **
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
             const rawDescription = step.subject || step.message || "Completed step";
             const finalDescription = replacePlaceholders(rawDescription, contact, account);
             const descriptionForLog = processedDescription || finalDescription;
-            // ** FIX ENDS HERE **
-            await supabase.from("activities").insert([{ 
-                contact_id: contact.id, 
-                account_id: contact.account_id, 
-                date: new Date().toISOString(), 
-                type: `Sequence: ${step.type}`, 
-                description: descriptionForLog, 
-                user_id: state.currentUser.id 
+            await supabase.from("activities").insert([{
+                contact_id: contact.id,
+                account_id: contact.account_id,
+                date: new Date().toISOString(),
+                type: `Sequence: ${step.type}`,
+                description: descriptionForLog,
+                user_id: state.currentUser.id
             }]);
         }
         const nextStep = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number + 1);
@@ -128,6 +167,57 @@ document.addEventListener("DOMContentLoaded", async () => {
             await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", cs.id);
         }
         loadAllData();
+    }
+
+    // --- AI Briefing Logic ---
+    async function handleGenerateBriefing() {
+        aiBriefingContainer.classList.remove('hidden');
+        aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
+
+        try {
+            const briefingPayload = {
+                tasks: state.tasks.filter(t => t.status === 'Pending'),
+                sequenceSteps: state.contact_sequences.filter(cs => {
+                    if (!cs.next_step_due_date || cs.status !== "Active") return false;
+                    const dueDate = new Date(cs.next_step_due_date);
+                    const startOfToday = new Date();
+                    startOfToday.setHours(0, 0, 0, 0);
+                    return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
+                }),
+                deals: state.deals,
+                cognitoAlerts: state.cognitoAlerts,
+                nurtureAccounts: state.nurtureAccounts,
+                contacts: state.contacts,
+                accounts: state.accounts,
+                sequences: state.sequences,
+                sequence_steps: state.sequence_steps
+            };
+            console.log("Payload being sent to Edge Function:", briefingPayload);
+            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
+                body: { briefingPayload }
+            });
+            if (error) throw error;
+            renderAIBriefing(briefing);
+        } catch (error) {
+            console.error("Error generating AI briefing:", error);
+            aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+        }
+    }
+        
+    function renderAIBriefing(briefing) {
+        const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
+        const briefingHtml = `
+            ${greeting}
+            <ol id="ai-briefing-list">
+                ${briefing.priorities.map(item => `
+                    <li>
+                        <strong>${item.title}</strong>
+                        <em>Why: ${item.reason}</em>
+                    </li>
+                `).join('')}
+            </ol>
+        `;
+        aiBriefingContainer.innerHTML = briefingHtml;
     }
 
     // --- Render Function ---
@@ -194,13 +284,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const desc = replacePlaceholders(step.subject || step.message || "", contact, account);
 
                 let btnHtml;
-                if (step.type.toLowerCase() === "linkedin") {
-                    btnHtml = `<button class="btn-primary complete-linkedin-step-btn" data-id="${cs.id}" data-linkedin-url="${encodeURIComponent('https://www.linkedin.com/feed/')}">Go to LinkedIn</button>`;
-                } else if (step.type.toLowerCase() === "email" && contact.email) {
+                // --- MODIFIED: LinkedIn button logic ---
+                if (step.type.toLowerCase().includes("linkedin")) {
+                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${cs.id}">Send Message</button>`;
+                } else if (step.type.toLowerCase().includes("email") && contact.email) {
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
                 }
+                // --- END MODIFICATION ---
+
                 row.innerHTML = `<td>${formatSimpleDate(cs.next_step_due_date)}</td><td>${contact.first_name} ${contact.last_name}</td><td>${sequence.name}</td><td>${step.step_number}: ${step.type}</td><td>${desc}</td><td><div class="button-group-wrapper">${btnHtml}</div></td>`;
             });
 
@@ -266,11 +359,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             });
         }
-
         document.body.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
-
             if (button.matches('.mark-task-complete-btn')) {
                 const taskId = button.dataset.taskId;
                 showModal('Confirm Completion', 'Mark this task as completed?', async () => {
@@ -313,17 +404,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
                 if (!cs) return alert("Contact sequence not found.");
-                
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 if (!contact) return alert("Contact not found.");
-                
                 const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
                 const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
                 if (!step) return alert("Sequence step not found.");
-
                 const subject = replacePlaceholders(step.subject, contact, account);
                 const message = replacePlaceholders(step.message, contact, account);
-                
                 showModal('Compose Email', `
                     <div class="form-group">
                         <label for="modal-email-subject">Subject:</label>
@@ -336,30 +423,60 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `, async () => {
                     const finalSubject = document.getElementById('modal-email-subject').value;
                     const finalMessage = document.getElementById('modal-email-body').value;
-                    
                     const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
                     window.open(mailtoLink, "_blank");
-                    
                     await completeStep(csId, finalSubject);
-                }, 
+                },
                 true, // This is the 'showCancel' parameter
                 `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
+            // --- NEW: LinkedIn Message Handler ---
+            } else if (button.matches('.send-linkedin-message-btn')) {
+                const csId = Number(button.dataset.csId);
+                const cs = state.contact_sequences.find(c => c.id === csId);
+                if (!cs) return alert("Contact sequence not found.");
 
-            } else if (button.matches('.complete-linkedin-step-btn')) {
-                const csId = Number(button.dataset.id);
-                const linkedinUrl = decodeURIComponent(button.dataset.linkedinUrl);
-                if (linkedinUrl) { window.open(linkedinUrl, "_blank"); }
-                else { alert("LinkedIn URL is missing from button data attribute."); }
-                completeStep(csId);
+                const contact = state.contacts.find(c => c.id === cs.contact_id);
+                if (!contact) return alert("Contact not found.");
 
+                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+                if (!step) return alert("Sequence step not found.");
+
+                const message = replacePlaceholders(step.message, contact, account);
+                const linkedinUrl = contact.linkedin_profile_url || 'https://www.linkedin.com/feed/';
+
+                showModal('Compose LinkedIn Message', `
+                    <div class="form-group">
+                        <p><strong>To:</strong> ${contact.first_name} ${contact.last_name}</p>
+                        <p class="modal-sub-text">The message below will be copied to your clipboard. Paste it into the message box on LinkedIn.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-linkedin-body">Message:</label>
+                        <textarea id="modal-linkedin-body" class="form-control" rows="10">${message}</textarea>
+                    </div>
+                `, async () => {
+                    const finalMessage = document.getElementById('modal-linkedin-body').value;
+                    try {
+                        await navigator.clipboard.writeText(finalMessage);
+                    } catch (err) {
+                        console.error('Failed to copy text: ', err);
+                        alert('Could not copy text to clipboard. Please copy it manually.');
+                    }
+                    window.open(linkedinUrl, "_blank");
+                    await completeStep(csId, "LinkedIn Message Sent");
+                },
+                true,
+                `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
+                 <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+                );
+            // --- END NEW HANDLER ---
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.id);
                 completeStep(csId);
-
             } else if (button.matches('.revisit-step-btn')) {
-                 const csId = Number(button.dataset.csId);
+                const csId = Number(button.dataset.csId);
                 const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
                 if (!contactSequence) return;
                 const newStepNumber = Math.max(1, contactSequence.current_step_number - 1);
@@ -371,19 +488,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
- // --- App Initialization ---
+    // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
-
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
+            await setupGlobalSearch(supabase, state.currentUser);
+            await checkAndSetNotifications(supabase);
+            await loadAllData();
+            
+            const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+            if (aiDailyBriefingBtn) {
+                aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
+            }
+            
             setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await checkAndSetNotifications(supabase); // <-- AND ADD THIS LINE
-            loadAllData();
         } else {
             window.location.href = "index.html";
         }

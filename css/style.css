@@ -179,21 +179,26 @@ body.theme-green::before {
 }
 
 /* --- SVG LOGO STYLES --- */
+/* Shared styles for both logos */
 .auth-logo,
 .nav-logo {
-    width: 250px;
     height: auto;
     margin-bottom: 0.75rem;
     filter: drop-shadow(0 0 7px var(--primary-blue));
     transition: filter 0.3s;
 }
 
+/* Width for the larger logo on the Login/Auth page */
+.auth-logo {
+    width: 250px;
+}
+
+/* Correct, specific width for the smaller logo in the sidebar */
 .nav-logo {
-    width: 180px;
+    width: 180px; /* This is the correct width for the sidebar */
     margin: 0 auto 0.625rem auto;
     display: block;
 }
-
 .nav-logo path[fill="#FEFEFE"],
 .auth-logo path[fill="#FEFEFE"] {
     fill: var(--logo-primary-color);
@@ -719,6 +724,7 @@ label {
     min-width: 34px;
     height: 34px;
     box-sizing: border-box;
+    text-decoration: none;
 }
 
 /* Adjust padding for buttons that explicitly contain text AND icon */
@@ -4051,4 +4057,270 @@ body.theme-dark .metric-card-won {
     border: none;
     border-top: 1px solid var(--border-color);
     margin: 24px 0;
+}
+/* --- Loading Screen Styles --- */
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--bg-medium);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 1;
+    transition: opacity 0.75s ease-out;
+}
+
+#loading-screen video {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+}
+
+#loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+/* === Kanban Board Styles === */
+
+.deals-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.view-mode-toggle {
+    display: flex;
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    padding: 4px;
+}
+
+.view-mode-btn {
+    background-color: transparent;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    color: var(--text-medium);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease-in-out;
+}
+
+.view-mode-btn:hover {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+}
+
+.view-mode-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-board-container {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 0;
+    min-height: 400px; /* Ensure it has height even when empty */
+}
+
+.kanban-column {
+    flex: 0 0 300px; /* Flex-shrink, flex-grow, flex-basis */
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-column-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.kanban-column-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-light);
+}
+
+.kanban-column-total {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.kanban-column-body {
+    flex-grow: 1;
+    padding: 0.75rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.kanban-card {
+    background-color: var(--bg-dark);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: grab;
+    border-left: 4px solid var(--primary-color);
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.kanban-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-card.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.kanban-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.25rem;
+}
+
+.kanban-card-title {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.kanban-card-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-medium);
+    margin: 0 0 1rem 0;
+}
+
+.kanban-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.kanban-card-mrc {
+    font-weight: bold;
+    color: var(--text-light);
+}
+
+.kanban-card-date {
+    color: var(--text-medium);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.committed-icon {
+    color: #3b82f6; /* A nice blue color */
+    font-size: 0.9rem;
+}
+/* --- Print Button Style --- */
+#print-briefing-btn i {
+    margin-right: 0.5rem;
+}
+
+/* Fix for text wrapping and font in AI Briefing modal */
+div.briefing-pre {
+    white-space: pre-wrap;      /* Allows the text to wrap */
+    word-wrap: break-word;        /* Breaks long words if necessary */
+    font-family: inherit;       /* Ensures it uses the standard app font */
+    background-color: var(--bg-dark);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+/* Print-specific styles for the briefing PDF */
+@media print {
+    body { 
+        background-color: #ffffff !important; /* NEW: Forces a white background for the whole page */
+        color: #000000 !important;             /* Forces all text to be black */
+    }
+    
+    /* This ensures our section styles are still applied correctly on top of the body style */
+    .briefing-section, div.briefing-pre {
+        background-color: #f9f9f9 !important; 
+        color: #000000 !important;
+    }
+}
+/* --- Command Center Header Styles --- */
+.tasks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Aligns items to the top */
+    margin-bottom: 1rem;
+}
+
+.tasks-header-left {
+    display: flex;
+    flex-direction: column; /* Stacks the title and button vertically */
+    align-items: flex-start; /* Aligns them to the left */
+    gap: 0.75rem; /* Adds space between the title and the button */
+}
+
+.tasks-header h2 {
+    margin-bottom: 0; /* Removes default margin from the header */
+}
+
+/* --- AI Briefing Widget Styles --- */
+#ai-briefing-container {
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+}
+
+#ai-briefing-container h3 {
+    margin-top: 0;
+}
+
+#ai-briefing-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+#ai-briefing-list li {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#ai-briefing-list li:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+#ai-briefing-list strong {
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+#ai-briefing-list em {
+    color: var(--text-medium);
+    font-style: italic;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+/* --- General Button Styles --- */
+.btn-large {
+    padding: 2rem 2rem; /* Increased padding for a "chunky" feel */
+    font-size: 1.3rem;     /* Slightly larger font */
+    line-height: 1;        /* Helps center the text vertically */
 }

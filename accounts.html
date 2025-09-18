@@ -15,15 +15,12 @@
 
 <body>
     <div class="crm-container">
-                <nav class="nav-sidebar">
+        <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
-
             <div class="global-search-container">
                 <input type="text" id="global-search-input" placeholder="Global Search...">
                 <div id="global-search-results" class="global-search-results hidden"></div>
             </div>
-
-
             <a href="command-center.html" class="nav-button">Command Center</a>
             <a href="deals.html" class="nav-button">Deals</a>
             <a href="contacts.html" class="nav-button">Contacts</a>
@@ -31,7 +28,6 @@
             <a href="campaigns.html" class="nav-button">Campaigns</a>
             <a href="sequences.html" class="nav-button">Sequences</a>
             <a href="social_hub.html" class="nav-button">Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
-            
             <div class="nav-bottom-section">
                 <div style="position: relative;">
                     <a href="cognito.html" class="nav-button cognito-nav-link">
@@ -52,7 +48,6 @@
                     </a>
                     <i class="fa-solid fa-bell nav-notification-dot hidden" id="cognito-notification"></i>
                 </div>
-
                 <div class="user-menu" style="margin-top: auto;">
                     <div class="user-menu-header">
                         <div data-svg-loader="assets/user-icon.svg"></div>
@@ -68,7 +63,6 @@
                 </div>
             </div>
         </nav>
-        
         <main class="content-area">
             <div id="accounts" class="content-view active-view">
                 <h2>Accounts</h2>
@@ -78,7 +72,6 @@
                         <button id="bulk-import-accounts-btn" class="btn-secondary full-width">Bulk Import from CSV</button>
                         <button id="bulk-export-accounts-btn" class="btn-secondary full-width">Bulk Export to CSV</button>
                         <input type="file" id="account-csv-input" accept=".csv" class="hidden">
-
                         <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
                         <div class="filter-bar">
                             <select id="account-status-filter">
@@ -113,7 +106,6 @@
                                 <div><label for="account-employees">Employee Count</label><input type="number" id="account-employees" min="0"></div>
                                 <div class="full-span-grid-item"><label for="account-address">Address</label><textarea id="account-address"></textarea></div>
                             </div>
-
                             <div class="form-checkbox-group">
                                 <label for="account-is-customer">Is this a Customer?</label>
                                 <input type="checkbox" id="account-is-customer">
@@ -124,8 +116,9 @@
                         <hr>
                         <div class="action-buttons">
                             <button id="add-deal-btn" class="btn-secondary">New Deal</button>
-                            <button id="add-task-account-btn" class="btn-primary">Add Task</button>
-                            <button id="ai-account-insight-btn" class="btn-secondary">AI Account Insight</button>
+                            <button id="add-task-account-btn" class="btn-secondary">Add Task</button>
+                            <!-- MODIFIED: Replaced old AI button with the new Briefing button -->
+                            <button id="ai-briefing-btn" class="btn-primary cognito-style-btn"><i class="fas fa-bolt-lightning"></i> &nbsp;Generate AI Briefing</button>
                         </div>
                         <div class="related-info">
                             <h4>Current Deals</h4>
@@ -160,7 +153,6 @@
             </div>
         </main>
     </div>
-
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 id="modal-title"></h3>
@@ -169,7 +161,6 @@
             </div>
         </div>
     </div>
-
     <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
         <div class="email-view-modal">
             <div class="email-view-header">
@@ -194,5 +185,4 @@
     </script>
     <script type="module" src="js/accounts.js"></script>
 </body>
-
 </html>

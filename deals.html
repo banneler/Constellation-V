@@ -72,59 +72,76 @@
         
         <main class="content-area">
             <div id="deals" class="content-view active-view">
-                <h2>Deals</h2>
+                <div class="deals-main-header">
+                    <h2>Deals</h2>
+                    <!-- NEW: View Toggle for List vs. Board -->
+                    <div class="view-mode-toggle">
+                        <button id="list-view-btn" class="view-mode-btn active" title="List View"><i class="fas fa-list"></i></button>
+                        <button id="board-view-btn" class="view-mode-btn" title="Board View"><i class="fas fa-th-large"></i></button>
+                    </div>
+                </div>
+
                 <div class="deals-header">
                     <div class="deals-view-toggle">
                         <button id="view-my-deals-btn" class="btn-secondary active">My Deals</button>
                         <button id="view-all-deals-btn" class="btn-secondary">My Team's Deals</button>
                     </div>
-                <div class="deals-metrics-container">
-                    <div class="metric-card">
-                        <div class="metric-title" id="metric-current-commit-title">My Current Commit</div>
-                        <div class="metric-value" id="metric-current-commit"></div>
-                        <span class="metric-quota-percent" id="commit-quota-percent"></span>
-                        <span class="metric-total-quota-display hidden" id="commit-total-quota"></span>
+                    <div class="deals-metrics-container">
+                        <div class="metric-card">
+                            <div class="metric-title" id="metric-current-commit-title">My Current Commit</div>
+                            <div class="metric-value" id="metric-current-commit"></div>
+                            <span class="metric-quota-percent" id="commit-quota-percent"></span>
+                            <span class="metric-total-quota-display hidden" id="commit-total-quota"></span>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title" id="metric-best-case-title">My Current Best Case</div>
+                            <div class="metric-value" id="metric-best-case"></div>
+                            <span class="metric-quota-percent" id="best-case-quota-percent"></span>
+                            <span class="metric-total-quota-display hidden" id="best-case-total-quota"></span>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">My Current Funnel</div>
+                            <div class="metric-value" id="metric-funnel"></div>
+                        </div>
+                        <div class="metric-card metric-card-won">
+                            <div class="metric-title">Closed Won (MTD)</div>
+                            <div class="metric-value" id="metric-closed-won"></div>
+                        </div>
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-title" id="metric-best-case-title">My Current Best Case</div>
-                        <div class="metric-value" id="metric-best-case"></div>
-                        <span class="metric-quota-percent" id="best-case-quota-percent"></span>
-                        <span class="metric-total-quota-display hidden" id="best-case-total-quota"></span>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-title">My Current Funnel</div>
-                        <div class="metric-value" id="metric-funnel"></div>
-                    </div>
-                    <div class="metric-card metric-card-won">
-                        <div class="metric-title">Closed Won (MTD)</div>
-                        <div class="metric-value" id="metric-closed-won"></div>
-                    </div>
-                </div>
                 </div>
 
-                <div class="table-container deals-table-container">
-                    <table id="deals-table">
-                        <thead>
-                            <tr>
-                                <th>Committed</th>
-                                <th data-sort="name" class="sortable">Deal Name <span></span></th>
-                                <th data-sort="term" class="sortable">Term <span></span></th>
-                                <th data-sort="account_name" class="sortable">Account Name <span></span></th>
-                                <th data-sort="stage" class="sortable">Stage <span></span></th>
-                                <th data-sort="mrc" class="sortable">MRC <span></span></th>
-                                <th data-sort="close_month" class="sortable">Close Month <span></span></th>
-                                <th data-sort="products" class="sortable">Products <span></span></th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <!-- CONTAINER FOR THE ORIGINAL LIST/TABLE VIEW -->
+                <div id="list-view-container">
+                    <div class="table-container deals-table-container">
+                        <table id="deals-table">
+                            <thead>
+                                <tr>
+                                    <th>Committed</th>
+                                    <th data-sort="name" class="sortable">Deal Name <span></span></th>
+                                    <th data-sort="term" class="sortable">Term <span></span></th>
+                                    <th data-sort="account_name" class="sortable">Account Name <span></span></th>
+                                    <th data-sort="stage" class="sortable">Stage <span></span></th>
+                                    <th data-sort="mrc" class="sortable">MRC <span></span></th>
+                                    <th data-sort="close_month" class="sortable">Close Month <span></span></th>
+                                    <th data-sort="products" class="sortable">Products <span></span></th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
+
+                <!-- NEW: CONTAINER FOR THE KANBAN BOARD VIEW (Initially hidden) -->
+                <div id="kanban-board-view" class="kanban-board-container hidden">
+                    <!-- Columns will be dynamically generated by deals.js -->
+                </div>
+
 
                 <div class="deals-charts-section">
                     <hr> <h3>Deal Insights</h3>
                     <div class="charts-grid">
-                        <div class="chart-container">
+                        <div class="chart-container" id="deals-by-stage-chart-container">
                             <h4>Deals by Stage</h4>
                             <div class="chart-wrapper">
                                 <canvas id="deals-by-stage-chart"></canvas>
@@ -166,9 +183,4 @@
     <script type="module" src="js/deals.js"></script>
 </body>
 </html>
-
-
-
-
-
 
