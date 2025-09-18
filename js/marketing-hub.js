@@ -201,42 +201,43 @@ async function loadAbmData() {
 }
 
     // --- Render Content Based on View ---
-    const renderContent = () => {
-        const isAbmView = state.currentView === 'abm-center';
-        const isSocialView = state.currentView === 'social-posts';
-        const isTemplateSequenceView = !isAbmView && !isSocialView;
+const renderContent = () => {
+    const isAbmView = state.currentView === 'abm-center';
+    const isSocialView = state.currentView === 'social-posts';
+    const isTemplateSequenceView = !isAbmView && !isSocialView;
 
-        if (abmCenterView) abmCenterView.classList.toggle('hidden', !isAbmView);
-        if (templatesSequencesView) templatesSequencesView.classList.toggle('hidden', !isTemplateSequenceView);
-        if (socialPostView) socialPostView.classList.toggle('hidden', !isSocialView);
-        
-        if (navAbmCenter) navAbmCenter.classList.toggle('active', isAbmView);
-        if (navEmailTemplates) navEmailTemplates.classList.toggle('active', state.currentView === 'email-templates');
-        if (navSequences) navSequences.classList.toggle('active', state.currentView === 'sequences');
-        if (navSocialPosts) navSocialPosts.classList.toggle('active', isSocialView);
+    if (abmCenterView) abmCenterView.classList.toggle('hidden', !isAbmView);
+    if (templatesSequencesView) templatesSequencesView.classList.toggle('hidden', !isTemplateSequenceView);
+    if (socialPostView) socialPostView.classList.toggle('hidden', !isSocialView);
+    
+    if (navAbmCenter) navAbmCenter.classList.toggle('active', isAbmView);
+    if (navEmailTemplates) navEmailTemplates.classList.toggle('active', state.currentView === 'email-templates');
+    if (navSequences) navSequences.classList.toggle('active', state.currentView === 'sequences');
+    if (navSocialPosts) navSocialPosts.classList.toggle('active', isSocialView);
 
-        if (isAbmView) {
-            renderAbmCenter();
-        } else if (isTemplateSequenceView) {
-            if (state.currentView === 'email-templates') {
-                if (listHeader) listHeader.textContent = 'Email Templates';
-                if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
-                if (importItemBtn) importItemBtn.classList.add('hidden');
-                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
-                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
-                renderTemplateList();
-                renderTemplateDetails();
-           } else if (state.currentView === 'sequences') {
-    if (listHeader) listHeader.textContent = 'All Sequences';
-    if (createNewItemBtn) createNewItemBtn.textContent = 'New Sequence';
-    if (importItemBtn) importItemBtn.classList.remove('hidden');
-    // The other button labels are fine as they are generic
-    if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
-    renderSequenceList();
-    // The details panel is now handled by the click handler, so we no longer render it here.
-            }
+    if (isAbmView) {
+        console.log("Data for ABM Center:", state.abmTasks); // <-- Debugger Added
+        renderAbmCenter();
+    } else if (isTemplateSequenceView) {
+        if (state.currentView === 'email-templates') {
+            if (listHeader) listHeader.textContent = 'Email Templates';
+            if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
+            if (importItemBtn) importItemBtn.classList.add('hidden');
+            if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Template';
+            if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
+            renderTemplateList();
+            renderTemplateDetails();
+       } else if (state.currentView === 'sequences') {
+           if (listHeader) listHeader.textContent = 'All Sequences';
+           if (createNewItemBtn) createNewItemBtn.textContent = 'New Sequence';
+           if (importItemBtn) importItemBtn.classList.remove('hidden');
+           // The other button labels are fine as they are generic
+           if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
+           renderSequenceList();
+           // The details panel is now handled by the click handler, so we no longer render it here.
         }
-    };
+    }
+};
     
     // --- NEW: ABM Center Render Functions ---
 const renderAbmCenter = () => {
