@@ -95,8 +95,7 @@ async function loadAllData() {
             accountsRes,
             activitiesRes,
             contactSequencesRes,
-            personalSequencesRes, // Fetch user's own non-ABM sequences
-            abmSequencesRes,      // Fetch all shared ABM sequences
+            sequencesRes, // Consolidated into one simple query
             dealsRes,
             tasksRes,
             sequenceStepsRes,
@@ -107,11 +106,10 @@ async function loadAllData() {
             supabase.from('accounts').select('*').eq('user_id', state.currentUser.id),
             supabase.from('activities').select('*').eq('user_id', state.currentUser.id),
             supabase.from('contact_sequences').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('sequences').select('*').eq('user_id', state.currentUser.id).eq('is_abm', false),
-            supabase.from('sequences').select('*').eq('is_abm', true),
+            supabase.from('sequences').select('*').eq('user_id', state.currentUser.id), // Fetches ALL sequences you own
             supabase.from('deals').select('*').eq('user_id', state.currentUser.id),
             supabase.from('tasks').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('sequence_steps').select('*'), // Fetch all steps
+            supabase.from('sequence_steps').select('*'),
             supabase.from('email_log').select('*'),
             supabase.from('activity_types').select('*')
         ]);
@@ -131,9 +129,7 @@ async function loadAllData() {
         state.sequence_steps = processResponse(sequenceStepsRes, 'sequence_steps');
         state.email_log = processResponse(emailLogRes, 'email_log');
         state.activityTypes = [...new Map(processResponse(activityTypesRes, 'activity_types').map(item => [item.type_name, item])).values()];
-
-        // Combine personal and ABM sequences into one list
-        state.sequences = [...processResponse(personalSequencesRes, 'personal_sequences'), ...processResponse(abmSequencesRes, 'abm_sequences')];
+        state.sequences = processResponse(sequencesRes, 'sequences'); // Assign all of your sequences
 
     } catch (error) {
         console.error("Critical error in loadAllData:", error);
@@ -151,7 +147,6 @@ async function loadAllData() {
         }
     }
 }
-
     function updateSortToggleUI() {
         if (state.nameDisplayFormat === 'firstLast') {
             sortFirstLastBtn.classList.add('active');
