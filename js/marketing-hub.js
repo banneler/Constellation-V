@@ -130,12 +130,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function loadAbmData() {
         const { data, error } = await supabase
             .from('contact_sequence_steps')
-            .select(`
+  .select(`
     id,
     status,
     due_date,
     completed_at,
-    contact_sequences ( /* This is the correct path */
+    contact_sequences (
         contacts (id, first_name, last_name, accounts (id, name))
     ),
     sequences (id, name),
