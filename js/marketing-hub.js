@@ -138,24 +138,23 @@ async function loadAbmData() {
     state.abmTasks = data || [];
 }
 
-   async function loadAllData() {
+ async function loadAllData() {
     if (!state.currentUser) return;
-
     try {
         const [
-            { data: emailTemplates, error: templatesError },
-            { data: marketingSequences, error: marketingSequencesError },
-            { data: marketingSequenceSteps, error: marketingSequenceStepsError },
-            { data: abmSequences, error: abmSequencesError },
-            { data: abmSequenceSteps, error: abmSequenceStepsError },
+            { data: emailTemplates, error: templatesError }, 
+            { data: marketingSequences, error: marketingSequencesError }, 
+            { data: marketingSequenceSteps, error: marketingSequenceStepsError }, 
+            { data: abmSequences, error: abmSequencesError }, 
+            { data: abmSequenceSteps, error: abmSequenceStepsError }, 
             { data: userQuotas, error: userQuotasError }
         ] = await Promise.all([
-            supabase.from("email_templates").select("*"),
-            supabase.from("marketing_sequences").select("*"), // Old marketing-only sequences
-            supabase.from("marketing_sequence_steps").select("*"),
-            supabase.from("sequences").select("*").eq('is_abm', true), // NEW: Fetch ABM sequences
-            supabase.from("sequence_steps").select("*"), // Fetch all steps, will filter later
-            supabase.from("user_quotas").select("user_id, full_name"),
+            supabase.from("email_templates").select("*"), 
+            supabase.from("marketing_sequences").select("*"), 
+            supabase.from("marketing_sequence_steps").select("*"), 
+            supabase.from("sequences").select("*").eq('is_abm', true), 
+            supabase.from("sequence_steps").select("*"), 
+            supabase.from("user_quotas").select("user_id, full_name"), 
             loadAbmData()
         ]);
 
@@ -174,6 +173,22 @@ async function loadAbmData() {
         state.user_quotas = userQuotas || [];
 
         renderContent();
+
+        // NEW: After rendering, re-initialize the editor if an ABM sequence is active
+        if (state.currentView === 'sequences' && state.selectedSequenceType === 'abm' && state.selectedSequenceId) {
+            const sequence = state.abmSequences.find(s => s.id === state.selectedSequenceId);
+            const steps = state.abmSequenceSteps.filter(s => s.sequence_id === state.selectedSequenceId);
+            if (sequence) {
+                initializeAbmSequenceEditor({
+                    supabase,
+                    currentUser: state.currentUser,
+                    sequence,
+                    steps,
+                    containerElement: dynamicDetailsPanel,
+                    onDataChange: loadAllData
+                });
+            }
+        }
     } catch (error) {
         console.error("Error loading data:", error.message);
         alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
