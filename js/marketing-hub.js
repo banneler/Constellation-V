@@ -289,31 +289,46 @@ const renderAbmCenter = () => {
 async function handleCompleteAbmTask(contactSequenceStepId) {
     try {
         // Step 1: Mark the current marketing step as 'completed'
-        const { data: completedStep, error: updateError } = await supabase
+        // REMOVED .single() for resilience
+        const { data: updatedSteps, error: updateError } = await supabase
             .from('contact_sequence_steps')
             .update({ status: 'completed', completed_at: new Date().toISOString() })
             .eq('id', contactSequenceStepId)
-            .select()
-            .single();
+            .select();
 
         if (updateError) throw updateError;
-        if (!completedStep) throw new Error("Could not find the step to update.");
 
+        // NEW: Check if the task was actually found and updated.
+        if (!updatedSteps || updatedSteps.length === 0) {
+            alert("This task may have already been completed or removed. The list will now refresh.");
+            await loadAllData(); // Refresh the UI to reflect the current state.
+            return; // Stop the function from continuing.
+        }
+        
+        const completedStep = updatedSteps[0]; // Proceed with the first (and only) result.
         const { contact_sequence_id, sequence_id } = completedStep;
 
-        // Step 2: Get the parent sequence's current state to know which step we just finished
-        const { data: contactSequence, error: csError } = await supabase
+        // Step 2: Get the parent sequence's current state
+        // REMOVED .single() for resilience
+        const { data: contactSequences, error: csError } = await supabase
             .from('contact_sequences')
             .select('current_step_number')
-            .eq('id', contact_sequence_id)
-            .single();
-        
+            .eq('id', contact_sequence_id);
+
         if (csError) throw csError;
 
-        // Step 3: Find all possible steps for this sequence to determine what's next
+        // NEW: Check if the parent sequence exists.
+        if (!contactSequences || contactSequences.length === 0) {
+            alert("Could not find the parent sequence for this task. It may have been removed. The list will now refresh.");
+            await loadAllData();
+            return;
+        }
+        const contactSequence = contactSequences[0];
+        
+        // The rest of the function continues as before...
         const { data: allSequenceSteps, error: stepsError } = await supabase
             .from('sequence_steps')
-            .select('step_number, delay_days') // CORRECTED: from interval_days to delay_days
+            .select('step_number, delay_days')
             .eq('sequence_id', sequence_id)
             .order('step_number');
 
@@ -322,20 +337,16 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
         const currentStepNumber = contactSequence.current_step_number;
         const nextStep = allSequenceSteps.find(s => s.step_number > currentStepNumber);
 
-        // Step 4: Decide whether to advance the sequence or complete it
         let updateData = {};
         if (nextStep) {
-            // If there is a next step, advance the sequence
             const nextDueDate = new Date();
-            nextDueDate.setDate(nextDueDate.getDate() + (nextStep.delay_days || 0)); // CORRECTED: from interval_days to delay_days
-
+            nextDueDate.setDate(nextDueDate.getDate() + (nextStep.delay_days || 0)); 
             updateData = {
                 current_step_number: nextStep.step_number,
                 last_completed_date: new Date().toISOString(),
                 next_step_due_date: nextDueDate.toISOString(),
             };
         } else {
-            // If there is no next step, the sequence is complete
             updateData = {
                 status: 'Completed',
                 last_completed_date: new Date().toISOString(),
@@ -344,15 +355,13 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
             };
         }
 
-        // Step 5: Update the main contact_sequences record for the sales team
         const { error: advanceError } = await supabase
             .from('contact_sequences')
             .update(updateData)
             .eq('id', contact_sequence_id);
 
         if (advanceError) throw advanceError;
-
-        // Step 6: Refresh the data and re-render the command center
+        
         await loadAllData();
 
     } catch (error) {
