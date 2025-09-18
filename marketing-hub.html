@@ -34,13 +34,14 @@
             <div data-svg-loader="assets/logo.svg"></div>
             <h2 class="text-xl font-bold text-center mb-4">MARKETING HUB</h2>
             
+            <a href="#abm-center" class="nav-button">ABM Command Center</a>
             <a href="#email-templates" class="nav-button">Email Templates</a>
             <a href="#sequences" class="nav-button">Sequences</a>
             <a href="#social-posts" class="nav-button">Social Posts</a>
             
             <button id="download-sequence-template-btn" class="btn-secondary full-width hidden" style="margin-top: 20px;">Download Sequence Template</button>
             <a href="https://www.opengraph.xyz/" class="nav-button" target="_blank" rel="noopener noreferrer">Open Graph</a>
-         
+        
             <div class="user-menu" style="margin-top: auto;">
                 <div class="user-menu-header">
                     <div data-svg-loader="assets/user-icon.svg"></div>
@@ -57,6 +58,63 @@
         <main class="content-area">
             <div id="marketing-hub-content" class="content-view active-view">
                 
+                <div id="abm-center-view" class="hidden">
+                    <h2>ABM Command Center</h2>
+                    <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
+                        This is your hub for all marketing tasks assigned within collaborative ABM sequences. Mark tasks as complete to advance the sequence.
+                    </p>
+                    
+                    <h3 style="margin-top: 2rem;">Marketing ABM Tasks Due</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Contact</th>
+                                    <th>Account</th>
+                                    <th>Sequence</th>
+                                    <th>Task Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="abm-tasks-due-table-body">
+                                </tbody>
+                        </table>
+                    </div>
+
+                    <h3 style="margin-top: 2rem;">Upcoming Marketing Tasks</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Contact</th>
+                                    <th>Account</th>
+                                    <th>Sequence</th>
+                                    <th>Task Description</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="abm-tasks-upcoming-table-body">
+                                </tbody>
+                        </table>
+                    </div>
+
+                    <h3 style="margin-top: 2rem;">Recently Completed</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Contact</th>
+                                    <th>Account</th>
+                                    <th>Task Description</th>
+                                    <th>Completed On</th>
+                                </tr>
+                            </thead>
+                            <tbody id="abm-tasks-completed-table-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div id="templates-sequences-view">
                     <div class="split-view">
                         <div class="item-list-container">
@@ -81,30 +139,30 @@
                       Use this form to create pre-approved posts that will appear in the "Social Hub" for team members to share on LinkedIn.
                     </p>
                     <div id="create-post-form-container" class="action-center-section">
-                      <form id="create-post-form">
-                        <div class="form-grid">
-                          <div>
-                            <label for="post-title">Post Title</label>
-                            <input type="text" id="post-title" name="post-title" placeholder="e.g., We're Hiring! Join Our Team" required>
-                          </div>
-                          <div>
-                            <label for="post-link">Sharing Link URL</label>
-                            <input type="url" id="post-link" name="post-link" placeholder="https://www.constellation.com/careers" required>
-                          </div>
-                        </div>
-                        <div class="full-span-grid-item" style="margin-top: 1rem;">
-                          <label for="post-copy">Approved Post Copy</label>
-                          <textarea id="post-copy" name="post-copy" rows="6" placeholder="Write the full post here, including any #hashtags..." required></textarea>
-                        </div>
-                        <div class="form-checkbox-group">
-                          <input type="checkbox" id="is-dynamic-link" name="is-dynamic-link" checked>
-                          <label for="is-dynamic-link">This link is optimized for social sharing (has an Open Graph image)</label>
-                        </div>
-                        <div class="form-buttons" style="margin-top: 1rem;">
-                          <button type="submit" id="submit-post-btn" class="btn-primary">Add Post to Social Hub</button>
-                        </div>
-                        <p id="form-feedback" class="placeholder-text" style="display: none;"></p>
-                      </form>
+                        <form id="create-post-form">
+                            <div class="form-grid">
+                                <div>
+                                    <label for="post-title">Post Title</label>
+                                    <input type="text" id="post-title" name="post-title" placeholder="e.g., We're Hiring! Join Our Team" required>
+                                </div>
+                                <div>
+                                    <label for="post-link">Sharing Link URL</label>
+                                    <input type="url" id="post-link" name="post-link" placeholder="https://www.constellation.com/careers" required>
+                                </div>
+                            </div>
+                            <div class="full-span-grid-item" style="margin-top: 1rem;">
+                                <label for="post-copy">Approved Post Copy</label>
+                                <textarea id="post-copy" name="post-copy" rows="6" placeholder="Write the full post here, including any #hashtags..." required></textarea>
+                            </div>
+                            <div class="form-checkbox-group">
+                                <input type="checkbox" id="is-dynamic-link" name="is-dynamic-link" checked>
+                                <label for="is-dynamic-link">This link is optimized for social sharing (has an Open Graph image)</label>
+                            </div>
+                            <div class="form-buttons" style="margin-top: 1rem;">
+                                <button type="submit" id="submit-post-btn" class="btn-primary">Add Post to Social Hub</button>
+                            </div>
+                            <p id="form-feedback" class="placeholder-text" style="display: none;"></p>
+                        </form>
                     </div>
                 </div>
             </div>
