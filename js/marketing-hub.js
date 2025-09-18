@@ -174,19 +174,24 @@ async function loadAbmData() {
 
         renderContent();
 
-        // NEW: After rendering, re-initialize the editor if an ABM sequence is active
-        if (state.currentView === 'sequences' && state.selectedSequenceType === 'abm' && state.selectedSequenceId) {
-            const sequence = state.abmSequences.find(s => s.id === state.selectedSequenceId);
-            const steps = state.abmSequenceSteps.filter(s => s.sequence_id === state.selectedSequenceId);
-            if (sequence) {
-                initializeAbmSequenceEditor({
-                    supabase,
-                    currentUser: state.currentUser,
-                    sequence,
-                    steps,
-                    containerElement: dynamicDetailsPanel,
-                    onDataChange: loadAllData
-                });
+        // After rendering, re-initialize the correct details panel if a sequence is active
+        if (state.currentView === 'sequences' && state.selectedSequenceId) {
+            if (state.selectedSequenceType === 'abm') {
+                const sequence = state.abmSequences.find(s => s.id === state.selectedSequenceId);
+                const steps = state.abmSequenceSteps.filter(s => s.sequence_id === state.selectedSequenceId);
+                if (sequence) {
+                    initializeAbmSequenceEditor({
+                        supabase,
+                        currentUser: state.currentUser,
+                        sequence,
+                        steps,
+                        containerElement: dynamicDetailsPanel,
+                        onDataChange: loadAllData
+                    });
+                }
+            } else if (state.selectedSequenceType === 'marketing') {
+                // Re-render the old details panel for marketing sequences
+                renderSequenceDetails();
             }
         }
     } catch (error) {
