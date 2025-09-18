@@ -286,8 +286,6 @@ const renderAbmCenter = () => {
         </tr>`).join('') || `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
 };
 
-    // Paste this function into your file, for example, after the renderAbmCenter function.
-
 async function handleCompleteAbmTask(contactSequenceStepId) {
     try {
         // Step 1: Mark the current marketing step as 'completed'
@@ -315,7 +313,7 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
         // Step 3: Find all possible steps for this sequence to determine what's next
         const { data: allSequenceSteps, error: stepsError } = await supabase
             .from('sequence_steps')
-            .select('step_number, interval_days')
+            .select('step_number, delay_days') // CORRECTED: from interval_days to delay_days
             .eq('sequence_id', sequence_id)
             .order('step_number');
 
@@ -329,7 +327,7 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
         if (nextStep) {
             // If there is a next step, advance the sequence
             const nextDueDate = new Date();
-            nextDueDate.setDate(nextDueDate.getDate() + (nextStep.interval_days || 0)); 
+            nextDueDate.setDate(nextDueDate.getDate() + (nextStep.delay_days || 0)); // CORRECTED: from interval_days to delay_days
 
             updateData = {
                 current_step_number: nextStep.step_number,
