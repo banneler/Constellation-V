@@ -280,17 +280,68 @@ const renderAbmCenter = () => {
 };
     
     // --- NEW: ABM Action Handler ---
-    async function handleCompleteAbmTask(taskId) {
-        const { error } = await supabase
-            .from('contact_sequence_steps')
-            .update({ status: 'completed', completed_at: new Date().toISOString() })
-            .eq('id', taskId);
+  async function handleCompleteAbmTask(contactSequenceStepId) {
+    // 1. Mark the specific marketing step as complete in our new table
+    const { data: completedStep, error: updateError } = await supabase
+        .from('contact_sequence_steps')
+        .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+        })
+        .eq('id', contactSequenceStepId)
+        .select()
+        .single();
 
-        if (error) {
-            alert('Error completing task: ' + error.message);
-        } else {
-            await loadAllData(); // Refresh the data and re-render
-        }
+    if (updateError || !completedStep) {
+        alert('Error completing task: ' + (updateError?.message || 'Unknown error'));
+        return;
+    }
+
+    // 2. Get all steps for the parent sequence to find the next one
+    const { data: allSteps, error: stepsError } = await supabase
+        .from('sequence_steps')
+        .select('*')
+        .eq('sequence_id', completedStep.sequence_id)
+        .order('step_number', { ascending: true });
+    
+    if (stepsError) return alert('Error fetching sequence steps: ' + stepsError.message);
+
+    // 3. Find the current and next steps in the master list
+    const currentStepInMasterList = allSteps.find(s => s.id === completedStep.sequence_step_id);
+    const nextStepInMasterList = allSteps.find(s => s.step_number > currentStepInMasterList.step_number);
+
+    let updateData = {};
+    if (nextStepInMasterList) {
+        // If there's a next step, advance the main sequence record to it
+        const nextDueDate = new Date();
+        nextDueDate.setDate(nextDueDate.getDate() + (nextStepInMasterList.delay_days || 0));
+        updateData = {
+            current_step_number: nextStepInMasterList.step_number,
+            last_completed_date: new Date().toISOString(),
+            next_step_due_date: nextDueDate.toISOString()
+        };
+    } else {
+        // If that was the last step, complete the entire sequence
+        updateData = {
+            status: 'Completed',
+            last_completed_date: new Date().toISOString(),
+            next_step_due_date: null
+        };
+    }
+
+    // 4. Update the main contact_sequences record to advance the sequence for sales
+    const { error: advanceError } = await supabase
+        .from('contact_sequences')
+        .update(updateData)
+        .eq('id', completedStep.contact_sequence_id);
+
+    if (advanceError) {
+        alert('Error advancing sequence: ' + advanceError.message);
+    }
+
+    // 5. Refresh the command center view
+    await loadAllData();
+}
     }
 
 
