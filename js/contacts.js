@@ -1330,41 +1330,47 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
     }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 });
 
-        if (completeSequenceBtn) {
-            completeSequenceBtn.addEventListener("click", async () => {
-                if (!state.selectedContactId) return;
-                const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
-                if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+     if (completeSequenceBtn) {
+    completeSequenceBtn.addEventListener("click", async () => {
+        if (!state.selectedContactId) return;
+        const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
+        if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
-                showModal("Confirm Completion", `Are you sure you want to mark this sequence as complete? This indicates a successful outcome.`, async () => {
-                    const { error } = await supabase.from('contact_sequences').update({ status: 'Completed' }).eq('id', activeContactSequence.id);
-                    if (error) {
-                        showModal("Error", "Error completing sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    } else {
-                        await loadAllData();
-                        hideModal();
-                        showModal("Success", "Sequence marked as complete!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    }
-                }, true, `<button id="modal-confirm-btn" class="btn-primary">Yes, Complete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-            });
+        showModal("Confirm Completion", `Are you sure you want to mark this sequence as complete? This indicates a successful outcome.`, async () => {
+            const { error } = await supabase.from('contact_sequences').update({ status: 'Completed' }).eq('id', activeContactSequence.id);
+            if (error) {
+                showModal("Error", "Error completing sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            } else {
+                // **NEW: Clean up the individual to-do items from the ABM table**
+                await supabase.from('contact_sequence_steps').delete().eq('contact_sequence_id', activeContactSequence.id);
+
+                await loadAllData();
+                hideModal();
+                showModal("Success", "Sequence marked as complete!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            }
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Yes, Complete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+    });
+}
+
+  removeFromSequenceBtn.addEventListener("click", async () => {
+    if (!state.selectedContactId) return;
+    const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
+    if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
+    showModal("Confirm Removal", `Are you sure you want to remove this contact from the sequence? This action should be used if the sequence was unsuccessful.`, async () => {
+        const { error } = await supabase.from('contact_sequences').update({ status: 'Removed' }).eq('id', activeContactSequence.id);
+        if (error) {
+            showModal("Error", "Error removing from sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        } else {
+            // **NEW: Clean up the individual to-do items from the ABM table**
+            await supabase.from('contact_sequence_steps').delete().eq('contact_sequence_id', activeContactSequence.id);
+            
+            await loadAllData();
+            hideModal();
+            showModal("Success", "Contact removed from sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
-
-        removeFromSequenceBtn.addEventListener("click", async () => {
-            if (!state.selectedContactId) return;
-            const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
-            if (!activeContactSequence) return showModal("Info", "Contact is not in an active sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-
-            showModal("Confirm Removal", `Are you sure you want to remove this contact from the sequence? This action should be used if the sequence was unsuccessful.`, async () => {
-                const { error } = await supabase.from('contact_sequences').update({ status: 'Removed' }).eq('id', activeContactSequence.id);
-                if (error) {
-                    showModal("Error", "Error removing from sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                } else {
-                    await loadAllData();
-                    hideModal();
-                    showModal("Success", "Contact removed from sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                }
-            }, true, `<button id="modal-confirm-btn" class="btn-danger">Remove</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-        });
+    }, true, `<button id="modal-confirm-btn" class="btn-danger">Remove</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+});
 
         if (addTaskContactBtn) addTaskContactBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to add a task for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
