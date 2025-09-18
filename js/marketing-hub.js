@@ -12,27 +12,30 @@ import {
     loadSVGs,
     updateActiveNavLink
 } from './shared_constants.js';
+import { initializeAbmSequenceEditor } from './abm-sequences.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
-        currentUser: null,
-        emailTemplates: [],
-        sequences: [],
-        sequence_steps: [],
-        user_quotas: [],
-        // NEW ABM State
-        abmTasks: [], 
-        selectedTemplateId: null,
-        selectedSequenceId: null,
-        isEditingSequenceDetails: false,
-        originalSequenceName: '',
-        originalSequenceDescription: '',
-        editingStepId: null,
-        originalStepValues: {},
-        currentView: 'abm-center' // Default to the new view
-    };
+    currentUser: null,
+    emailTemplates: [],
+    marketingSequences: [], // For old, marketing-only sequences
+    marketingSequenceSteps: [],
+    abmSequences: [], // For new, collaborative ABM sequences
+    abmSequenceSteps: [],
+    user_quotas: [],
+    abmTasks: [],
+    selectedTemplateId: null,
+    selectedSequenceId: null,
+    selectedSequenceType: null, // To track if 'abm' or 'marketing' is selected
+    isEditingSequenceDetails: false,
+    originalSequenceName: '',
+    originalSequenceDescription: '',
+    editingStepId: null,
+    originalStepValues: {},
+    currentView: 'abm-center'
+};
 
     let isLoginMode = true;
 
@@ -145,39 +148,47 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.abmTasks = data;
     }
 
-    async function loadAllData() {
-        if (!state.currentUser) return;
+   async function loadAllData() {
+    if (!state.currentUser) return;
 
-        try {
-            const [
-                { data: emailTemplates, error: templatesError },
-                { data: sequences, error: sequencesError },
-                { data: sequenceSteps, error: sequenceStepsError },
-                { data: userQuotas, error: userQuotasError }
-            ] = await Promise.all([
-                supabase.from("email_templates").select("*"),
-                supabase.from("marketing_sequences").select("*"),
-                supabase.from("marketing_sequence_steps").select("*"),
-                supabase.from("user_quotas").select("user_id, full_name"),
-                loadAbmData() // NEW: Load ABM data alongside other data
-            ]);
+    try {
+        const [
+            { data: emailTemplates, error: templatesError },
+            { data: marketingSequences, error: marketingSequencesError },
+            { data: marketingSequenceSteps, error: marketingSequenceStepsError },
+            { data: abmSequences, error: abmSequencesError },
+            { data: abmSequenceSteps, error: abmSequenceStepsError },
+            { data: userQuotas, error: userQuotasError }
+        ] = await Promise.all([
+            supabase.from("email_templates").select("*"),
+            supabase.from("marketing_sequences").select("*"), // Old marketing-only sequences
+            supabase.from("marketing_sequence_steps").select("*"),
+            supabase.from("sequences").select("*").eq('type', 'ABM'), // NEW: Fetch ABM sequences
+            supabase.from("sequence_steps").select("*"), // Fetch all steps, will filter later
+            supabase.from("user_quotas").select("user_id, full_name"),
+            loadAbmData()
+        ]);
 
-            if (templatesError) throw templatesError;
-            if (sequencesError) throw sequencesError;
-            if (sequenceStepsError) throw sequenceStepsError;
-            if (userQuotasError) throw userQuotasError;
+        if (templatesError) throw templatesError;
+        if (marketingSequencesError) throw marketingSequencesError;
+        if (marketingSequenceStepsError) throw marketingSequenceStepsError;
+        if (abmSequencesError) throw abmSequencesError;
+        if (abmSequenceStepsError) throw abmSequenceStepsError;
+        if (userQuotasError) throw userQuotasError;
 
-            state.emailTemplates = emailTemplates || [];
-            state.sequences = sequences || [];
-            state.sequence_steps = sequenceSteps || [];
-            state.user_quotas = userQuotas || [];
+        state.emailTemplates = emailTemplates || [];
+        state.marketingSequences = marketingSequences || [];
+        state.marketingSequenceSteps = marketingSequenceSteps || [];
+        state.abmSequences = abmSequences || [];
+        state.abmSequenceSteps = abmSequenceSteps || [];
+        state.user_quotas = userQuotas || [];
 
-            renderContent();
-        } catch (error) {
-            console.error("Error loading data:", error.message);
-            alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
-        }
+        renderContent();
+    } catch (error) {
+        console.error("Error loading data:", error.message);
+        alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
     }
+}
 
     // --- Render Content Based on View ---
     const renderContent = () => {
@@ -458,25 +469,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Sequences Render Functions ---
-    const renderSequenceList = () => {
-        if (!itemList) return;
-        itemList.innerHTML = "";
-        state.sequences
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-            .forEach((seq) => {
-                const i = document.createElement("div");
-                i.className = "list-item";
-                i.textContent = seq.name;
-                i.dataset.id = seq.id;
-                i.dataset.type = 'sequence';
-                if (seq.id === state.selectedSequenceId) i.classList.add("selected");
-                itemList.appendChild(i);
-            });
-        if (state.sequences.length === 0) {
-            itemList.innerHTML = '<div class="list-item-placeholder">No marketing sequences created yet.</div>';
-        }
-    };
+const renderSequenceList = () => {
+    if (!itemList) return;
+    itemList.innerHTML = "";
 
+    // Combine and sort all sequences
+    const allSequences = [
+        ...state.abmSequences.map(s => ({ ...s, type: 'abm', displayName: `[ABM] ${s.name}` })),
+        ...state.marketingSequences.map(s => ({ ...s, type: 'marketing', displayName: `[Marketing] ${s.name}` }))
+    ].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    
+    allSequences.forEach((seq) => {
+        const item = document.createElement("div");
+        item.className = "list-item";
+        item.textContent = seq.displayName;
+        item.dataset.id = seq.id;
+        item.dataset.type = 'sequence';
+        item.dataset.sequenceType = seq.type; // Differentiate between 'abm' and 'marketing'
+        if (seq.id === state.selectedSequenceId && seq.type === state.selectedSequenceType) {
+            item.classList.add("selected");
+        }
+        itemList.appendChild(item);
+    });
+
+    if (allSequences.length === 0) {
+        itemList.innerHTML = '<div class="list-item-placeholder">No sequences created yet.</div>';
+    }
+};
     const renderSequenceSteps = () => {
         const sequenceStepsTableBody = dynamicDetailsPanel.querySelector('#sequence-steps-table-body');
         if (!sequenceStepsTableBody) return;
@@ -859,69 +878,120 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Unified Click Handlers ---
-    function handleItemListClick(e) {
-        const item = e.target.closest(".list-item");
-        if (!item) return;
+function handleItemListClick(e) {
+    const item = e.target.closest(".list-item");
+    if (!item) return;
 
-        const itemId = Number(item.dataset.id);
-        const itemType = item.dataset.type;
+    const itemId = Number(item.dataset.id);
+    const itemType = item.dataset.type;
 
-        itemList.querySelectorAll('.list-item').forEach(li => li.classList.remove('selected'));
-        item.classList.add('selected');
+    itemList.querySelectorAll('.list-item').forEach(li => li.classList.remove('selected'));
+    item.classList.add('selected');
 
-        if (itemType === 'template') {
-            state.selectedTemplateId = itemId;
-            state.selectedSequenceId = null;
-            renderTemplateDetails();
-        } else if (itemType === 'sequence') {
-            state.selectedSequenceId = itemId;
-            state.selectedTemplateId = null;
-            renderSequenceDetails();
+    if (itemType === 'template') {
+        state.selectedTemplateId = itemId;
+        state.selectedSequenceId = null;
+        state.selectedSequenceType = null;
+        renderTemplateDetails();
+    } else if (itemType === 'sequence') {
+        state.selectedTemplateId = null;
+        state.selectedSequenceId = itemId;
+        const sequenceType = item.dataset.sequenceType;
+        state.selectedSequenceType = sequenceType;
+
+        // NEW LOGIC: Route to the correct renderer
+        if (sequenceType === 'abm') {
+            const sequence = state.abmSequences.find(s => s.id === itemId);
+            const steps = state.abmSequenceSteps.filter(s => s.sequence_id === itemId);
+            initializeAbmSequenceEditor({
+                supabase,
+                currentUser: state.currentUser,
+                sequence,
+                steps,
+                containerElement: dynamicDetailsPanel,
+                onDataChange: loadAllData // Pass a callback to refresh data
+            });
+        } else {
+            // Fallback to the old renderer for "marketing" sequences
+            renderSequenceDetails(); 
         }
     }
+}
 
-    function handleCreateNewItem() {
-        if (state.currentView === 'email-templates') {
-            state.selectedTemplateId = null;
-            renderTemplateDetails();
-            dynamicDetailsPanel.querySelector('#template-name').focus();
-        } else if (state.currentView === 'sequences') {
-            state.selectedSequenceId = null;
-            showModal("New Marketing Sequence Name", `<label>Sequence Name</label><input type="text" id="modal-sequence-name" required>`, handleNewSequenceCreation);
-        }
-    }
+   function handleCreateNewItem() {
+    if (state.currentView === 'email-templates') {
+        state.selectedTemplateId = null;
+        renderTemplateDetails();
+        dynamicDetailsPanel.querySelector('#template-name').focus();
+    } else if (state.currentView === 'sequences') {
+        // This now needs to ask what kind of sequence to create
+        const modalBody = `
+            <label>Sequence Name</label>
+            <input type="text" id="modal-sequence-name" required>
+            <label>Sequence Type</label>
+            <select id="modal-sequence-type">
+                <option value="ABM" selected>ABM (Sales & Marketing)</option>
+                <option value="Marketing">Marketing (Marketing Only)</option>
+            </select>
+        `;
+        showModal("New Sequence", modalBody, async () => {
+            const name = document.getElementById("modal-sequence-name").value.trim();
+            const type = document.getElementById("modal-sequence-type").value;
+            if (!name) {
+                alert("Sequence name is required.");
+                return false;
+            }
+            
+            let error;
+            if (type === 'ABM') {
+                const { error: abmError } = await supabase.from('sequences').insert([{ name, type: 'ABM', user_id: state.currentUser.id }]);
+                error = abmError;
 
     function handleImportItem() {
-        if (state.currentView === 'sequences') {
-            if (!state.selectedSequenceId) return alert("Please select a marketing sequence to import steps into.");
-            if (state.isEditingSequenceDetails || state.editingStepId) {
-                alert("Please save or cancel any active edits before importing steps.");
-                return;
-            }
-            itemCsvInput.click();
-        }
-    }
+    if (state.currentView === 'sequences') {
+        if (!state.selectedSequenceId) return alert("Please select a sequence to import steps into.");
 
-    async function handleDeleteSelectedItem() {
-        if (state.currentView === 'email-templates') {
-            if (!state.selectedTemplateId) return alert("Please select a template to delete.");
-            await handleDeleteTemplate();
-        } else if (state.currentView === 'sequences') {
-            if (!state.selectedSequenceId) return alert("Please select a marketing sequence to delete.");
-            if (state.isEditingSequenceDetails || state.editingStepId) {
-                alert("Please save or cancel any active edits before deleting the sequence.");
-                return;
-            }
-            showModal("Confirm Deletion", "Are you sure? This will delete the marketing sequence and all its steps. This cannot be undone.", async () => {
-                await supabase.from("marketing_sequence_steps").delete().eq("marketing_sequence_id", state.selectedSequenceId);
-                await supabase.from("marketing_sequences").delete().eq("id", state.selectedSequenceId);
-                state.selectedSequenceId = null;
-                await loadAllData();
-                hideModal();
-                alert("Marketing sequence deleted successfully.");
-            });
+        // Prevent import for ABM sequences as it's not supported by that module yet
+        if (state.selectedSequenceType === 'abm') {
+            alert("CSV import is only supported for Marketing-Only sequences at this time.");
+            return;
         }
+        
+        if (state.isEditingSequenceDetails || state.editingStepId) {
+            alert("Please save or cancel any active edits before importing steps.");
+            return;
+        }
+        itemCsvInput.click();
     }
+}
+
+async function handleDeleteSelectedItem() {
+    if (state.currentView === 'email-templates') {
+        if (!state.selectedTemplateId) return alert("Please select a template to delete.");
+        await handleDeleteTemplate();
+    } else if (state.currentView === 'sequences') {
+        if (!state.selectedSequenceId) return alert("Please select a sequence to delete.");
+        
+        showModal("Confirm Deletion", "Are you sure? This will delete the sequence and all its steps. This cannot be undone.", async () => {
+            if (state.selectedSequenceType === 'abm') {
+                // Delete steps from the main sequence_steps table
+                await supabase.from("sequence_steps").delete().eq("sequence_id", state.selectedSequenceId);
+                // Delete the sequence itself from the main sequences table
+                await supabase.from("sequences").delete().eq("id", state.selectedSequenceId);
+            } else { // 'marketing'
+                // Delete steps from the marketing_sequence_steps table
+                await supabase.from("marketing_sequence_steps").delete().eq("marketing_sequence_id", state.selectedSequenceId);
+                // Delete the sequence itself from the marketing_sequences table
+                await supabase.from("marketing_sequences").delete().eq("id", state.selectedSequenceId);
+            }
+            state.selectedSequenceId = null;
+            state.selectedSequenceType = null;
+            await loadAllData();
+            hideModal();
+            alert("Sequence deleted successfully.");
+        });
+    }
+}
 
     function downloadCsvTemplate() {
         const csvContent = "step_number,type,subject,message,delay_days\n" +
