@@ -725,7 +725,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             contact_id: contactId,
             sequence_id: sequenceId,
             user_id: userId,
-            status: 'Active', // Ensure this matches your status conventions
+            status: 'Active',
             current_step_number: firstStep.step_number,
             next_step_due_date: firstDueDate.toISOString()
         })
@@ -738,14 +738,14 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
     }
 
     // 3. Prepare a to-do item for each step to be inserted into our new table
-    let runningDueDate = new Date();
-    const contactStepRecords = steps.map(step => {
-        // Only add delay for steps after the first one
-        if (step.step_number > 1) {
-            runningDueDate.setDate(runningDueDate.getDate() + (step.delay_days || 0));
+    let runningDueDate = new Date(); // This will be the base for calculating delays
+    const contactStepRecords = steps.map((step, index) => {
+        // The due date is relative to the *previous* step's completion. For initial creation, we chain them from today.
+        if (index > 0) {
+             runningDueDate.setDate(runningDueDate.getDate() + (step.delay_days || 0));
         } else {
-            // Use the first step's delay for the very first step
-            runningDueDate.setDate(new Date().getDate() + (steps[0].delay_days || 0));
+             // The first step's due date is calculated from today
+             runningDueDate.setDate(new Date().getDate() + (step.delay_days || 0));
         }
         
         return {
@@ -759,9 +759,6 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             assigned_to: step.assigned_to
         };
     });
-    
-    // Ensure the very first step's due date matches the main record's due date
-    contactStepRecords[0].due_date = firstDueDate.toISOString();
 
     // 4. Bulk insert all the step tracking records
     const { error: cssError } = await supabase
@@ -770,8 +767,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         
     if (cssError) {
         showModal("Error", 'Failed to create individual step tasks: ' + cssError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        // Attempt to roll back the main enrollment if this fails
-        await supabase.from('contact_sequences').delete().eq('id', contactSequence.id);
+        await supabase.from('contact_sequences').delete().eq('id', contactSequence.id); // Roll back
         return false;
     }
     
@@ -1260,25 +1256,20 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Activity</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
         
-        assignSequenceBtn.addEventListener("click", () => {
+  assignSequenceBtn.addEventListener("click", () => {
     if (!state.selectedContactId) return showModal("Error", "Please select a contact to assign a sequence to.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     
     const currentContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
     if (currentContactSequence) {
         const sequenceName = state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown';
-        showModal("Error", `Contact is already in an active sequence: "${sequenceName}". Remove them from the current sequence first.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        showModal("Error", `Contact is already in an active sequence: "${sequenceName}". Remove them first.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         return;
     }
 
-    // Filter to only show assignable ABM sequences
-    const availableSequences = state.sequences.filter(s => s.is_abm);
-    if(availableSequences.length === 0) {
-        return showModal("Info", "No ABM sequences are available to be assigned.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    }
+    // Show ALL sequences, marking ABM ones
+    const sequenceOptions = state.sequences.map(s => `<option value="${s.id}">${s.is_abm ? '[ABM] ' : ''}${s.name}</option>`).join('');
 
-    const sequenceOptions = availableSequences.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-
-    showModal("Assign ABM Sequence", `
+    showModal("Assign Sequence", `
         <label>Select Sequence:</label>
         <select id="modal-sequence-select" required><option value="">-- Select --</option>${sequenceOptions}</select>
     `, async () => {
@@ -1288,15 +1279,43 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             return false;
         }
 
-        // Call our new, powerful function
-        const success = await handleAssignSequenceToContact(state.selectedContactId, Number(sequenceId), state.currentUser.id);
+        const selectedSequence = state.sequences.find(s => s.id === Number(sequenceId));
+        if (!selectedSequence) {
+            showModal("Error", "Selected sequence not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return false;
+        }
+
+        let success = false;
+        // Check if it's an ABM sequence and use the correct logic
+        if (selectedSequence.is_abm) {
+            success = await handleAssignSequenceToContact(state.selectedContactId, Number(sequenceId), state.currentUser.id);
+        } else {
+            // Use the ORIGINAL, simple logic for regular sales sequences
+            const firstStep = state.sequence_steps.find(s => s.sequence_id === selectedSequence.id && s.step_number === 1);
+            if (!firstStep) {
+                showModal("Error", "Selected sequence has no steps.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return false;
+            }
+            const { error } = await supabase.from('contact_sequences').insert({
+                contact_id: state.selectedContactId,
+                sequence_id: Number(sequenceId),
+                current_step_number: 1,
+                status: 'Active',
+                next_step_due_date: addDays(new Date(), firstStep.delay_days).toISOString(),
+                user_id: state.currentUser.id
+            });
+            if (error) {
+                showModal("Error", "Error assigning sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            } else {
+                success = true;
+            }
+        }
 
         if (success) {
             await loadAllData();
             hideModal();
             showModal("Success", "Sequence assigned successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
-        // If not successful, the function itself will have shown an error modal.
         return success;
 
     }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
