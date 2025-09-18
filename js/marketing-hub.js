@@ -1327,62 +1327,35 @@ async function handleDeleteSelectedItem() {
         }
     }
 
-    // --- App Initialization ---
-    async function initializePage() {
-        await loadSVGs();
+   // --- App Initialization ---
+async function initializePage() {
+    await loadSVGs();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (session) {
+        // User is logged in, show the main content
+        state.currentUser = session.user;
+        if (authContainer) authContainer.classList.add('hidden');
+        if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
         
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            if (authContainer) authContainer.classList.add('hidden');
-            if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
-            await setupUserMenuAndAuth(supabase, state);
-            setupPageEventListeners();
-            const hash = window.location.hash;
-            if (hash === '#sequences') {
-                state.currentView = 'sequences';
-            } else if (hash === '#social-posts') {
-                state.currentView = 'social-posts';
-            } else if (hash === '#email-templates') {
-                state.currentView = 'email-templates';
-            } else {
-                state.currentView = 'abm-center'; // Default to ABM view
-            }
-            await loadAllData();
-        } else {
-            if (authContainer) authContainer.classList.remove('hidden');
-            if (marketingHubContainer) marketingHubContainer.classList.add('hidden');
-            isLoginMode = true;
-            updateAuthUI();
-            setupPageEventListeners();
-        }
+        await setupUserMenuAndAuth(supabase, state);
+        setupPageEventListeners(); // Sets up listeners for the marketing hub
 
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session) {
-                state.currentUser = session.user;
-                if (authContainer) authContainer.classList.add('hidden');
-                if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
-                await setupUserMenuAndAuth(supabase, state);
-                const hash = window.location.hash;
-                 if (hash === '#sequences') {
-                    state.currentView = 'sequences';
-                } else if (hash === '#social-posts') {
-                    state.currentView = 'social-posts';
-                } else if (hash === '#email-templates') {
-                    state.currentView = 'email-templates';
-                } else {
-                    state.currentView = 'abm-center'; // Default to ABM view
-                }
-                await loadAllData();
-            } else {
-                state.currentUser = null;
-                if (authContainer) authContainer.classList.remove('hidden');
-                if (marketingHubContainer) marketingHubContainer.classList.add('hidden');
-                isLoginMode = true;
-                updateAuthUI();
-            }
-        });
+        const hash = window.location.hash.substring(1);
+        state.currentView = ['abm-center', 'email-templates', 'sequences', 'social-posts'].includes(hash) ? hash : 'abm-center';
+        
+        await loadAllData();
+    } else {
+        // If no session, redirect to the main login page, just like other pages
+        window.location.href = "index.html";
     }
+}
 
-    initializePage();
+supabase.auth.onAuthStateChange((_event, session) => {
+    // If the session is ever lost (e.g., user logs out in another tab), redirect
+    if (!session) {
+        window.location.href = "index.html";
+    }
 });
+
+initializePage();
