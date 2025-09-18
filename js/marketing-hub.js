@@ -22,6 +22,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequences: [],
         sequence_steps: [],
         user_quotas: [],
+        // NEW ABM State
+        abmTasks: [], 
         selectedTemplateId: null,
         selectedSequenceId: null,
         isEditingSequenceDetails: false,
@@ -29,7 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         originalSequenceDescription: '',
         editingStepId: null,
         originalStepValues: {},
-        currentView: 'email-templates'
+        currentView: 'abm-center' // Default to the new view
     };
 
     let isLoginMode = true;
@@ -46,9 +48,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const authToggleLink = document.getElementById("auth-toggle-link");
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
+    
+    // Nav Links
+    const navAbmCenter = document.querySelector('a[href="#abm-center"]'); // NEW
     const navEmailTemplates = document.querySelector('a[href="#email-templates"]');
     const navSequences = document.querySelector('a[href="#sequences"]');
     const navSocialPosts = document.querySelector('a[href="#social-posts"]');
+    
+    // Views
+    const abmCenterView = document.getElementById('abm-center-view'); // NEW
+    const templatesSequencesView = document.getElementById('templates-sequences-view');
+    const socialPostView = document.getElementById('social-post-view');
+
+    // ABM Table Bodies
+    const abmTasksDueTableBody = document.getElementById('abm-tasks-due-table-body'); // NEW
+    const abmTasksUpcomingTableBody = document.getElementById('abm-tasks-upcoming-table-body'); // NEW
+    const abmTasksCompletedTableBody = document.getElementById('abm-tasks-completed-table-body'); // NEW
+
+    // General UI
     const createNewItemBtn = document.getElementById('create-new-item-btn');
     const importItemBtn = document.getElementById('import-item-btn');
     const itemCsvInput = document.getElementById('item-csv-input');
@@ -57,8 +74,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const listHeader = document.getElementById('list-header');
     const dynamicDetailsPanel = document.getElementById('dynamic-details-panel');
     const downloadSequenceTemplateBtn = document.getElementById('download-sequence-template-btn');
-    const templatesSequencesView = document.getElementById('templates-sequences-view');
-    const socialPostView = document.getElementById('social-post-view');
     const createPostForm = document.getElementById('create-post-form');
     const submitPostBtn = document.getElementById('submit-post-btn');
     const formFeedback = document.getElementById('form-feedback');
@@ -107,8 +122,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-   
+    
     // --- Data Fetching ---
+    async function loadAbmData() {
+        const { data, error } = await supabase
+            .from('contact_sequence_steps')
+            .select(`
+                id,
+                status,
+                due_date,
+                completed_at,
+                contacts (id, first_name, last_name, accounts (id, name)),
+                sequences (id, name),
+                sequence_steps (id, step_number, subject, type)
+            `)
+            .eq('assigned_to', 'Marketing');
+
+        if (error) {
+            console.error('Error fetching ABM data:', error);
+            return;
+        }
+        state.abmTasks = data;
+    }
+
     async function loadAllData() {
         if (!state.currentUser) return;
 
@@ -122,7 +158,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 supabase.from("email_templates").select("*"),
                 supabase.from("marketing_sequences").select("*"),
                 supabase.from("marketing_sequence_steps").select("*"),
-                supabase.from("user_quotas").select("user_id, full_name")
+                supabase.from("user_quotas").select("user_id, full_name"),
+                loadAbmData() // NEW: Load ABM data alongside other data
             ]);
 
             if (templatesError) throw templatesError;
@@ -144,16 +181,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Render Content Based on View ---
     const renderContent = () => {
+        const isAbmView = state.currentView === 'abm-center';
         const isSocialView = state.currentView === 'social-posts';
+        const isTemplateSequenceView = !isAbmView && !isSocialView;
 
-        if (templatesSequencesView) templatesSequencesView.classList.toggle('hidden', isSocialView);
+        if (abmCenterView) abmCenterView.classList.toggle('hidden', !isAbmView);
+        if (templatesSequencesView) templatesSequencesView.classList.toggle('hidden', !isTemplateSequenceView);
         if (socialPostView) socialPostView.classList.toggle('hidden', !isSocialView);
         
+        if (navAbmCenter) navAbmCenter.classList.toggle('active', isAbmView);
         if (navEmailTemplates) navEmailTemplates.classList.toggle('active', state.currentView === 'email-templates');
         if (navSequences) navSequences.classList.toggle('active', state.currentView === 'sequences');
         if (navSocialPosts) navSocialPosts.classList.toggle('active', isSocialView);
 
-        if (!isSocialView) {
+        if (isAbmView) {
+            renderAbmCenter();
+        } else if (isTemplateSequenceView) {
             if (state.currentView === 'email-templates') {
                 if (listHeader) listHeader.textContent = 'Email Templates';
                 if (createNewItemBtn) createNewItemBtn.textContent = 'Create New Template';
@@ -174,6 +217,67 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
     };
+    
+    // --- NEW: ABM Center Render Functions ---
+    const renderAbmCenter = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const dueTasks = state.abmTasks.filter(task => task.status === 'pending' && new Date(task.due_date) <= today);
+        const upcomingTasks = state.abmTasks.filter(task => task.status === 'pending' && new Date(task.due_date) > today);
+        const completedTasks = state.abmTasks.filter(task => task.status === 'completed').sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at)).slice(0, 20);
+
+        // Render Due Tasks
+        abmTasksDueTableBody.innerHTML = dueTasks.map(task => `
+            <tr>
+                <td>${task.contacts.first_name || ''} ${task.contacts.last_name || ''}</td>
+                <td>${task.contacts.accounts.name || 'N/A'}</td>
+                <td>${task.sequences.name || 'N/A'}</td>
+                <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
+                <td><button class="btn-primary complete-abm-task-btn" data-id="${task.id}">Complete Task</button></td>
+            </tr>
+        `).join('');
+        if (dueTasks.length === 0) abmTasksDueTableBody.innerHTML = `<tr><td colspan="5">No tasks are due.</td></tr>`;
+
+        // Render Upcoming Tasks
+        abmTasksUpcomingTableBody.innerHTML = upcomingTasks.map(task => `
+            <tr>
+                <td>${task.contacts.first_name || ''} ${task.contacts.last_name || ''}</td>
+                <td>${task.contacts.accounts.name || 'N/A'}</td>
+                <td>${task.sequences.name || 'N/A'}</td>
+                <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
+                <td>${formatDate(task.due_date)}</td>
+            </tr>
+        `).join('');
+        if (upcomingTasks.length === 0) abmTasksUpcomingTableBody.innerHTML = `<tr><td colspan="5">No upcoming tasks.</td></tr>`;
+
+
+        // Render Completed Tasks
+        abmTasksCompletedTableBody.innerHTML = completedTasks.map(task => `
+            <tr>
+                <td>${task.contacts.first_name || ''} ${task.contacts.last_name || ''}</td>
+                <td>${task.contacts.accounts.name || 'N/A'}</td>
+                <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
+                <td>${formatDate(task.completed_at)}</td>
+            </tr>
+        `).join('');
+        if (completedTasks.length === 0) abmTasksCompletedTableBody.innerHTML = `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
+    };
+    
+    // --- NEW: ABM Action Handler ---
+    async function handleCompleteAbmTask(taskId) {
+        const { error } = await supabase
+            .from('contact_sequence_steps')
+            .update({ status: 'completed', completed_at: new Date().toISOString() })
+            .eq('id', taskId);
+
+        if (error) {
+            alert('Error completing task: ' + error.message);
+        } else {
+            await loadAllData(); // Refresh the data and re-render
+        }
+    }
+
 
     // --- Email Templates Render Functions ---
     const renderTemplateList = () => {
@@ -204,7 +308,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 item.innerHTML = `
                     <div class="template-list-item-content">
-                         <span class="template-name">${template.name}</span>
+                          <span class="template-name">${template.name}</span>
                     </div>
                 `;
             }
@@ -863,7 +967,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (error) {
-            showModal('Reset Password', `<p style="color: var(--error-error);">Error: ${error.message}</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
+            showModal('Reset Password', `<p style="color: var(--danger-red);">Error: ${error.message}</p>${resetPasswordBody}`, handlePasswordReset, true, modalActions);
             return false;
         } else {
             showModal('Reset Password', `<p style="color: var(--success-color);">Password reset link sent to ${resetEmail}. Check your inbox!</p>`, null, false, `<button id="modal-ok-btn" class="btn-primary">Close</button>`);
@@ -938,6 +1042,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
+        // --- NEW: Nav and Action Listeners ---
+        if (navAbmCenter) {
+            navAbmCenter.addEventListener('click', (e) => {
+                e.preventDefault();
+                state.currentView = 'abm-center';
+                renderContent();
+            });
+        }
+        if (abmTasksDueTableBody) {
+            abmTasksDueTableBody.addEventListener('click', (e) => {
+                const completeButton = e.target.closest('.complete-abm-task-btn');
+                if (completeButton) {
+                    const taskId = completeButton.dataset.id;
+                    handleCompleteAbmTask(taskId);
+                }
+            });
+        }
+
         if (navEmailTemplates) {
             navEmailTemplates.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -970,26 +1092,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.addEventListener('click', downloadCsvTemplate);
         
         if (createPostForm) {
-         createPostForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    submitPostBtn.disabled = true;
-    submitPostBtn.textContent = 'Submitting...';
-    formFeedback.style.display = 'none';
+           createPostForm.addEventListener('submit', async (event) => {
+               event.preventDefault();
+               submitPostBtn.disabled = true;
+               submitPostBtn.textContent = 'Submitting...';
+               formFeedback.style.display = 'none';
 
-    const newPost = {
-        type: 'marketing_post',
-        title: document.getElementById('post-title').value.trim(),
-        link: document.getElementById('post-link').value.trim(),
-        approved_copy: document.getElementById('post-copy').value.trim(),
-        is_dynamic_link: document.getElementById('is-dynamic-link').checked,
-        source_name: 'Marketing Team',
-        status: 'new',
-        user_id: state.currentUser.id // ✅ ADD THIS LINE
-    };
+               const newPost = {
+                   type: 'marketing_post',
+                   title: document.getElementById('post-title').value.trim(),
+                   link: document.getElementById('post-link').value.trim(),
+                   approved_copy: document.getElementById('post-copy').value.trim(),
+                   is_dynamic_link: document.getElementById('is-dynamic-link').checked,
+                   source_name: 'Marketing Team',
+                   status: 'new',
+                   user_id: state.currentUser.id
+               };
 
-    try {
-        const { error } = await supabase.from('social_hub_posts').insert(newPost);
-        if (error) throw error;
+               try {
+                   const { error } = await supabase.from('social_hub_posts').insert(newPost);
+                   if (error) throw error;
 
                     formFeedback.textContent = '✅ Success! The post has been added to the Social Hub.';
                     formFeedback.style.color = 'var(--success-color)';
@@ -1081,8 +1203,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.currentView = 'sequences';
             } else if (hash === '#social-posts') {
                 state.currentView = 'social-posts';
-            } else {
+            } else if (hash === '#email-templates') {
                 state.currentView = 'email-templates';
+            } else {
+                state.currentView = 'abm-center'; // Default to ABM view
             }
             await loadAllData();
         } else {
@@ -1100,12 +1224,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
                 await setupUserMenuAndAuth(supabase, state);
                 const hash = window.location.hash;
-                if (hash === '#sequences') {
+                 if (hash === '#sequences') {
                     state.currentView = 'sequences';
                 } else if (hash === '#social-posts') {
                     state.currentView = 'social-posts';
-                } else {
+                } else if (hash === '#email-templates') {
                     state.currentView = 'email-templates';
+                } else {
+                    state.currentView = 'abm-center'; // Default to ABM view
                 }
                 await loadAllData();
             } else {
