@@ -280,8 +280,8 @@ const renderAbmCenter = () => {
 };
     
     // --- NEW: ABM Action Handler ---
-  async function handleCompleteAbmTask(contactSequenceStepId) {
-    // 1. Mark the specific marketing step as complete in our new table
+ async function handleCompleteAbmTask(contactSequenceStepId) {
+    // 1. Mark the specific marketing step as complete
     const { data: completedStep, error: updateError } = await supabase
         .from('contact_sequence_steps')
         .update({
@@ -304,7 +304,9 @@ const renderAbmCenter = () => {
         .eq('sequence_id', completedStep.sequence_id)
         .order('step_number', { ascending: true });
     
-    if (stepsError) return alert('Error fetching sequence steps: ' + stepsError.message);
+    if (stepsError) {
+        return alert('Error fetching sequence steps: ' + stepsError.message);
+    }
 
     // 3. Find the current and next steps in the master list
     const currentStepInMasterList = allSteps.find(s => s.id === completedStep.sequence_step_id);
@@ -328,7 +330,6 @@ const renderAbmCenter = () => {
             next_step_due_date: null
         };
     }
-  
 
     // 4. Update the main contact_sequences record to advance the sequence for sales
     const { error: advanceError } = await supabase
@@ -343,7 +344,6 @@ const renderAbmCenter = () => {
     // 5. Refresh the command center view
     await loadAllData();
 }
-
 
     // --- Email Templates Render Functions ---
     const renderTemplateList = () => {
