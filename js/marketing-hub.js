@@ -918,7 +918,7 @@ function handleItemListClick(e) {
     }
 }
 
-   function handleCreateNewItem() {
+function handleCreateNewItem() {
     if (state.currentView === 'email-templates') {
         state.selectedTemplateId = null;
         renderTemplateDetails();
@@ -946,6 +946,22 @@ function handleItemListClick(e) {
             if (type === 'ABM') {
                 const { error: abmError } = await supabase.from('sequences').insert([{ name, type: 'ABM', user_id: state.currentUser.id }]);
                 error = abmError;
+            } else {
+                const { error: marketingError } = await supabase.from('marketing_sequences').insert([{ name, user_id: state.currentUser.id }]);
+                error = marketingError;
+            }
+
+            if (error) {
+                alert("Error creating sequence: " + error.message);
+                return false;
+            }
+            
+            await loadAllData();
+            hideModal();
+            return true;
+        });
+    }
+}
 
     function handleImportItem() {
     if (state.currentView === 'sequences') {
