@@ -328,7 +328,7 @@ const renderAbmCenter = () => {
             next_step_due_date: null
         };
     }
-  }
+  
 
     // 4. Update the main contact_sequences record to advance the sequence for sales
     const { error: advanceError } = await supabase
@@ -343,7 +343,7 @@ const renderAbmCenter = () => {
     // 5. Refresh the command center view
     await loadAllData();
 }
-    
+} 
 
 
     // --- Email Templates Render Functions ---
