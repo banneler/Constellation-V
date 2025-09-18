@@ -343,7 +343,6 @@ const renderAbmCenter = () => {
     // 5. Refresh the command center view
     await loadAllData();
 }
-} 
 
 
     // --- Email Templates Render Functions ---
