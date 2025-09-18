@@ -131,14 +131,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data, error } = await supabase
             .from('contact_sequence_steps')
             .select(`
-                id,
-                status,
-                due_date,
-                completed_at,
-                contacts (id, first_name, last_name, accounts (id, name)),
-                sequences (id, name),
-                sequence_steps (id, step_number, subject, type)
-            `)
+    id,
+    status,
+    due_date,
+    completed_at,
+    contact_sequences ( /* This is the correct path */
+        contacts (id, first_name, last_name, accounts (id, name))
+    ),
+    sequences (id, name),
+    sequence_steps (id, step_number, subject, type)
+`)
             .eq('assigned_to', 'Marketing');
 
         if (error) {
