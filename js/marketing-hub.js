@@ -127,28 +127,41 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     
     // --- Data Fetching ---
-    async function loadAbmData() {
-        const { data, error } = await supabase
-            .from('contact_sequence_steps')
-  .select(`
-    id,
-    status,
-    due_date,
-    completed_at,
-    contact_sequences (
-        contacts (id, first_name, last_name, accounts (id, name))
-    ),
-    sequences (id, name),
-    sequence_steps (id, step_number, subject, type)
-`)
-            .eq('assigned_to', 'Marketing');
+ async function loadAbmData() {
+    const { data, error } = await supabase
+        .from('contact_sequences')
+        .select(`
+            *,
+            contacts (id, first_name, last_name, accounts (id, name)),
+            sequences (id, name),
+            contact_sequence_steps (
+                *,
+                sequence_steps!inner (id, step_number, subject, type, assigned_to)
+            )
+        `)
+        .eq('contact_sequence_steps.sequence_steps.assigned_to', 'Marketing');
 
-        if (error) {
-            console.error('Error fetching ABM data:', error);
-            return;
-        }
-        state.abmTasks = data;
+    if (error) {
+        console.error('Error fetching ABM data:', error);
+        state.abmTasks = [];
+        return;
     }
+
+    // Process the data to create a simple flat list of tasks
+    const tasks = [];
+    if (data) {
+        data.forEach(cs => {
+            cs.contact_sequence_steps.forEach(css => {
+                tasks.push({
+                    ...css, // a copy of the contact_sequence_step
+                    contacts: cs.contacts,
+                    sequences: cs.sequences
+                });
+            });
+        });
+    }
+    state.abmTasks = tasks;
+}
 
    async function loadAllData() {
     if (!state.currentUser) return;
@@ -232,50 +245,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
     
     // --- NEW: ABM Center Render Functions ---
-    const renderAbmCenter = () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+const renderAbmCenter = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-        const dueTasks = state.abmTasks.filter(task => task.status === 'pending' && new Date(task.due_date) <= today);
-        const upcomingTasks = state.abmTasks.filter(task => task.status === 'pending' && new Date(task.due_date) > today);
-        const completedTasks = state.abmTasks.filter(task => task.status === 'completed').sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at)).slice(0, 20);
+    const dueTasks = (state.abmTasks || []).filter(task => task.status === 'pending' && new Date(task.due_date) <= today);
+    const upcomingTasks = (state.abmTasks || []).filter(task => task.status === 'pending' && new Date(task.due_date) > today);
+    const completedTasks = (state.abmTasks || []).filter(task => task.status === 'completed').sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at)).slice(0, 20);
 
-        // Render Due Tasks
-        abmTasksDueTableBody.innerHTML = dueTasks.map(task => `
-            <tr>
-                <td>${task.contact_sequences.contacts.first_name || ''} ${task.contact_sequences.contacts.last_name || ''}</td>
-                <td>${task.contact_sequences.contacts.accounts.name || 'N/A'}</td>
-                <td>${task.sequences.name || 'N/A'}</td>
-                <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
-                <td><button class="btn-primary complete-abm-task-btn" data-id="${task.id}">Complete Task</button></td>
-            </tr>
-        `).join('');
-        if (dueTasks.length === 0) abmTasksDueTableBody.innerHTML = `<tr><td colspan="5">No tasks are due.</td></tr>`;
+    const renderRow = (task) => `
+        <tr>
+            <td>${task.contacts?.first_name || ''} ${task.contacts?.last_name || ''}</td>
+            <td>${task.contacts?.accounts?.name || 'N/A'}</td>
+            <td>${task.sequences?.name || 'N/A'}</td>
+            <td>${task.sequence_steps?.subject || task.sequence_steps?.type}</td>
+            <td><button class="btn-primary complete-abm-task-btn" data-id="${task.id}">Complete Task</button></td>
+        </tr>`;
 
-        // Render Upcoming Tasks
-        abmTasksUpcomingTableBody.innerHTML = upcomingTasks.map(task => `
-            <tr>
-                <td>${task.contact_sequences.contacts.first_name || ''} ${task.contact_sequences.contacts.last_name || ''}</td>
-                <td>${task.contact_sequences.contacts.accounts.name || 'N/A'}</td>
-                <td>${task.sequences.name || 'N/A'}</td>
-                <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
-                <td>${formatDate(task.due_date)}</td>
-            </tr>
-        `).join('');
-        if (upcomingTasks.length === 0) abmTasksUpcomingTableBody.innerHTML = `<tr><td colspan="5">No upcoming tasks.</td></tr>`;
+    abmTasksDueTableBody.innerHTML = dueTasks.map(renderRow).join('');
+    if (dueTasks.length === 0) abmTasksDueTableBody.innerHTML = `<tr><td colspan="5">No tasks are due.</td></tr>`;
 
+    abmTasksUpcomingTableBody.innerHTML = upcomingTasks.map(task => `
+        <tr>
+            <td>${task.contacts?.first_name || ''} ${task.contacts?.last_name || ''}</td>
+            <td>${task.contacts?.accounts?.name || 'N/A'}</td>
+            <td>${task.sequences?.name || 'N/A'}</td>
+            <td>${task.sequence_steps?.subject || task.sequence_steps?.type}</td>
+            <td>${formatDate(task.due_date)}</td>
+        </tr>`).join('');
+    if (upcomingTasks.length === 0) abmTasksUpcomingTableBody.innerHTML = `<tr><td colspan="5">No upcoming tasks.</td></tr>`;
 
-        // Render Completed Tasks
-        abmTasksCompletedTableBody.innerHTML = completedTasks.map(task => `
-            <tr>
-                <td>${task.contact_sequences.contacts.first_name || ''} ${task.contact_sequences.contacts.last_name || ''}</td>
-                <td>${task.contact_sequences.contacts.accounts.name || 'N/A'}</td>
-                <td>${task.sequence_steps.subject || task.sequence_steps.type}</td>
-                <td>${formatDate(task.completed_at)}</td>
-            </tr>
-        `).join('');
-        if (completedTasks.length === 0) abmTasksCompletedTableBody.innerHTML = `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
-    };
+    abmTasksCompletedTableBody.innerHTML = completedTasks.map(task => `
+        <tr>
+            <td>${task.contacts?.first_name || ''} ${task.contacts?.last_name || ''}</td>
+            <td>${task.contacts?.accounts?.name || 'N/A'}</td>
+            <td>${task.sequence_steps?.subject || task.sequence_steps?.type}</td>
+            <td>${formatDate(task.completed_at)}</td>
+        </tr>`).join('');
+    if (completedTasks.length === 0) abmTasksCompletedTableBody.innerHTML = `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
+};
     
     // --- NEW: ABM Action Handler ---
     async function handleCompleteAbmTask(taskId) {
@@ -573,11 +581,10 @@ const renderSequenceList = () => {
             });
     };
 
-    const renderSequenceDetails = () => {
-        state.selectedTemplateId = null;
-        state.editingStepId = null;
-
-        const sequence = state.sequences.find(s => s.id === state.selectedSequenceId);
+   const renderSequenceDetails = () => {
+    state.selectedTemplateId = null;
+    state.editingStepId = null;
+    const sequence = state.marketingSequences.find(s => s.id === state.selectedSequenceId); // Corrected
 
         if (sequence) {
             dynamicDetailsPanel.innerHTML = `
@@ -651,7 +658,7 @@ const renderSequenceList = () => {
             return;
         }
         state.isEditingSequenceDetails = true;
-        const currentSequence = state.sequences.find(s => s.id === state.selectedSequenceId);
+        const currentSequence = state.marketingSequences.find(s => s.id === state.selectedSequenceId);
         if (currentSequence) {
             state.originalSequenceName = currentSequence.name || "";
             state.originalSequenceDescription = currentSequence.description || "";
@@ -817,7 +824,7 @@ const renderSequenceList = () => {
     async function handleNewSequenceCreation() {
         const name = document.getElementById("modal-sequence-name").value.trim();
         if (name) {
-            const existingSequence = state.sequences.find(seq => seq.name.toLowerCase() === name.toLowerCase());
+            const existingSequence = state.marketingSequences.find(seq => seq.name.toLowerCase() === name.toLowerCase());
             if (existingSequence) {
                 alert(`A marketing sequence with the name "${name}" already exists. Please choose a different name.`);
                 return false;
@@ -1225,7 +1232,7 @@ async function handleDeleteSelectedItem() {
                 const r = new FileReader();
                 r.onload = async function(e) {
                     const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
-                    const selectedSequence = state.sequences.find((s) => s.id === state.selectedSequenceId);
+                    const selectedSequence = state.marketingSequences.find((s) => s.id === state.selectedSequenceId);
                     const existingSteps = state.sequence_steps.filter(s => s.marketing_sequence_id === state.selectedSequenceId);
                     let nextAvailableStepNumber = existingSteps.length > 0 ? Math.max(...existingSteps.map(s => s.step_number)) + 1 : 1;
 
