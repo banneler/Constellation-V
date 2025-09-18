@@ -648,88 +648,126 @@ async function processBulkAssignment() {
         e.target.value = "";
     }
     
-    async function showMarketingSequencesForImport() {
-        try {
-            const { data: marketingSequences, error } = await supabase.from('marketing_sequences').select('id, name');
-            if (error) throw error;
-    
-            const personalSequenceNames = new Set(state.sequences.map(s => s.name));
-            const availableSequences = marketingSequences.filter(ms => !personalSequenceNames.has(ms.name));
-    
-            if (availableSequences.length === 0) {
-                showModal("Import Marketing Sequence", "<p>All available marketing sequences have already been imported.</p>", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                return;
-            }
-    
-            const sequenceOptionsHtml = availableSequences.map(seq => `
-                <div class="list-item" data-id="${seq.id}" style="cursor: pointer; margin-bottom: 5px;">
-                    <input type="radio" name="marketing_sequence" value="${seq.id}" id="seq-${seq.id}" style="margin-right: 10px;">
-                    <label for="seq-${seq.id}" style="flex-grow: 1; cursor: pointer;">${seq.name}</label>
+async function showMarketingSequencesForImport() {
+    try {
+        // CHANGED: Use our RPC function to get both ABM and Marketing sequences
+        const { data: allSharedSequences, error } = await supabase.rpc('get_all_sequences_for_marketing');
+        if (error) throw error;
+
+        const personalSequenceNames = new Set(state.sequences.map(s => s.name));
+        // Filter out any sequences the user already has a personal copy of by name
+        const availableSequences = allSharedSequences.filter(s => !personalSequenceNames.has(s.name));
+
+        if (availableSequences.length === 0) {
+            showModal("Import Sequence", "<p>All available shared sequences have already been imported.</p>", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+
+        const sequenceOptionsHtml = availableSequences.map(seq => {
+            // Add a visual tag to distinguish the sequence types
+            const typeTag = seq.sequence_type === 'abm' ? '[ABM]' : '[Marketing]';
+            return `
+                <div class="list-item" data-id="${seq.id}" data-type="${seq.sequence_type}" style="cursor: pointer; margin-bottom: 5px;">
+                    <input type="radio" name="shared_sequence" value="${seq.id}" id="seq-${seq.id}" style="margin-right: 10px;">
+                    <label for="seq-${seq.id}" style="flex-grow: 1; cursor: pointer;"><strong>${typeTag}</strong> ${seq.name}</label>
                 </div>
-            `).join('');
-    
-            const modalBody = `<div class="import-modal-list">${sequenceOptionsHtml}</div>`;
-            showModal("Import Marketing Sequence", modalBody, importMarketingSequence, true, `<button id="modal-confirm-btn" class="btn-primary">Import Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-    
-        } catch (error) {
-            showModal("Error", "Error fetching marketing sequences: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
+            `;
+        }).join('');
+
+        const modalBody = `<div class="import-modal-list">${sequenceOptionsHtml}</div>`;
+        showModal("Import Shared Sequence", modalBody, importMarketingSequence, true, `<button id="modal-confirm-btn" class="btn-primary">Import Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+    } catch (error) {
+        showModal("Error", "Error fetching shared sequences: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
     }
+}
     
-    async function importMarketingSequence() {
-        const selectedRadio = document.querySelector('input[name="marketing_sequence"]:checked');
-        if (!selectedRadio) {
-            showModal("Error", "Please select a sequence to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return false;
-        }
-    
-        const marketingSeqId = Number(selectedRadio.value);
-    
-        const { data: originalSequence, error: seqError } = await supabase.from('marketing_sequences').select('*').eq('id', marketingSeqId).single();
-        if (seqError) { showModal("Error", "Error fetching original sequence: " + seqError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
-    
-        const { data: originalSteps, error: stepsError } = await supabase.from('marketing_sequence_steps').select('*').eq('marketing_sequence_id', marketingSeqId);
-        if (stepsError) { showModal("Error", "Error fetching original steps: " + stepsError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
-    
-        const { data: newPersonalSequence, error: insertSeqError } = await supabase.from('sequences').insert({
-            name: originalSequence.name,
-            description: originalSequence.description,
-            source: 'Marketing',
+async function importMarketingSequence() {
+    // Find the div wrapper for the selected radio to get the data-type attribute
+    const selectedRadio = document.querySelector('input[name="shared_sequence"]:checked');
+    if (!selectedRadio) {
+        showModal("Error", "Please select a sequence to import.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return false;
+    }
+
+    const selectedDiv = selectedRadio.closest('.list-item');
+    const sourceSeqId = Number(selectedDiv.dataset.id);
+    const sourceSeqType = selectedDiv.dataset.type;
+
+    let originalSequence = null;
+    let originalSteps = null;
+    let error = null;
+
+    // NEW: Logic to fetch from the correct source tables based on type
+    if (sourceSeqType === 'abm') {
+        // Fetch from the main 'sequences' and 'sequence_steps' tables
+        const { data: seqData, error: seqError } = await supabase.from('sequences').select('*').eq('id', sourceSeqId).single();
+        if (seqError) error = seqError;
+        originalSequence = seqData;
+
+        const { data: stepsData, error: stepsError } = await supabase.from('sequence_steps').select('*').eq('sequence_id', sourceSeqId);
+        if (stepsError) error = stepsError;
+        originalSteps = stepsData;
+    } else {
+        // Fetch from the old 'marketing_sequences' and 'marketing_sequence_steps' tables
+        const { data: seqData, error: seqError } = await supabase.from('marketing_sequences').select('*').eq('id', sourceSeqId).single();
+        if (seqError) error = seqError;
+        originalSequence = seqData;
+
+        const { data: stepsData, error: stepsError } = await supabase.from('marketing_sequence_steps').select('*').eq('marketing_sequence_id', sourceSeqId);
+        if (stepsError) error = stepsError;
+        originalSteps = stepsData;
+    }
+
+    if (error || !originalSequence) {
+        showModal("Error", "Error fetching original sequence details: " + (error?.message || 'Unknown error'), null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return false;
+    }
+
+    // This part remains the same: create a new PERSONAL sequence in the 'sequences' table
+    const { data: newPersonalSequence, error: insertSeqError } = await supabase.from('sequences').insert({
+        name: originalSequence.name,
+        description: originalSequence.description,
+        source: 'Marketing', // We still label the source as 'Marketing' for the user's view
+        is_abm: sourceSeqType === 'abm', // Carry over the ABM flag
+        user_id: state.currentUser.id
+    }).select().single();
+
+    if (insertSeqError) {
+        showModal("Error", "Failed to create new sequence. You may already have a sequence with this name. Error: " + insertSeqError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return false;
+    }
+
+    // This part also remains the same: copy the steps into the 'sequence_steps' table
+    if (originalSteps && originalSteps.length > 0) {
+        const newSteps = originalSteps.map(step => ({
+            sequence_id: newPersonalSequence.id,
+            step_number: step.step_number,
+            type: step.type,
+            subject: step.subject,
+            message: step.message,
+            delay_days: step.delay_days,
+            assigned_to: step.assigned_to || 'Sales', // Default to Sales if not specified
             user_id: state.currentUser.id
-        }).select().single();
-    
-        if (insertSeqError) {
-            showModal("Error", "Failed to create new sequence. You may already have a sequence with this name. Error: " + insertSeqError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }));
+        const { error: insertStepsError } = await supabase.from('sequence_steps').insert(newSteps);
+        if (insertStepsError) {
+            // Clean up the failed sequence creation
+            await supabase.from('sequences').delete().eq('id', newPersonalSequence.id);
+            showModal("Error", "Failed to copy sequence steps. Error: " + insertStepsError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return false;
         }
-    
-        if (originalSteps && originalSteps.length > 0) {
-            const newSteps = originalSteps.map(step => ({
-                sequence_id: newPersonalSequence.id,
-                step_number: step.step_number,
-                type: step.type,
-                subject: step.subject,
-                message: step.message,
-                delay_days: step.delay_days,
-                user_id: state.currentUser.id
-            }));
-            const { error: insertStepsError } = await supabase.from('sequence_steps').insert(newSteps);
-            if (insertStepsError) {
-                await supabase.from('sequences').delete().eq('id', newPersonalSequence.id);
-                showModal("Error", "Failed to copy sequence steps. Error: " + insertStepsError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                return false;
-            }
-        }
-    
-        hideModal();
-        showModal("Success", `Sequence "${originalSequence.name}" imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        await loadAllData();
-        state.selectedSequenceId = newPersonalSequence.id;
-        renderSequenceList();
-        renderSequenceDetails(newPersonalSequence.id);
-    
-        return true;
     }
+
+    hideModal();
+    showModal("Success", `Sequence "${originalSequence.name}" imported successfully!`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    await loadAllData();
+    state.selectedSequenceId = newPersonalSequence.id;
+    renderSequenceList();
+    renderSequenceDetails(newPersonalSequence.id);
+
+    return true;
+}
 
     async function handleAiGenerateSequence() {
         if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
