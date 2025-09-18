@@ -263,13 +263,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         state.contact_sequences
-            .filter(cs => {
-                if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                const dueDate = new Date(cs.next_step_due_date);
-                return dueDate.setHours(0,0,0,0) <= startOfToday.getTime();
-            })
-            .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
-            .forEach(cs => {
+           state.contact_sequences
+    .filter(cs => {
+        if (!cs.next_step_due_date || cs.status !== "Active") return false;
+
+        // Find the current step to check its assignment
+        const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+
+        // Hide the step if it's assigned to Marketing or if the step itself isn't found
+        if (!step || step.assigned_to === 'Marketing') {
+            return false;
+        }
+
+        const dueDate = new Date(cs.next_step_due_date);
+        return dueDate.setHours(0,0,0,0) <= startOfToday.getTime();
+    })
+    .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
+    .forEach(cs => {
                 const row = dashboardTable.insertRow();
                 const dueDate = new Date(cs.next_step_due_date);
                 if (dueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
