@@ -1359,3 +1359,4 @@ supabase.auth.onAuthStateChange((_event, session) => {
 });
 
 initializePage();
+});
