@@ -1327,7 +1327,7 @@ async function handleDeleteSelectedItem() {
         }
     }
 
-   // --- App Initialization ---
+  // --- App Initialization ---
 async function initializePage() {
     await loadSVGs();
     const { data: { session } } = await supabase.auth.getSession();
