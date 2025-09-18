@@ -695,7 +695,7 @@ const renderSequenceList = () => {
             alert("Please save or cancel any active edits before adding a new step.");
             return;
         }
-        const steps = state.sequence_steps.filter((s) => s.marketing_sequence_id === state.selectedSequenceId);
+        const steps = state.marketingSequenceSteps.filter((s) => s.marketing_sequence_id === state.selectedSequenceId);
         const nextNum = steps.length > 0 ? Math.max(...steps.map((s) => s.step_number)) + 1 : 1;
         showModal(
             "Add Sequence Step",
@@ -742,7 +742,7 @@ const renderSequenceList = () => {
                 return;
             }
             state.editingStepId = stepId;
-            const currentStep = state.sequence_steps.find(s => s.id === stepId);
+            const currentStep = state.marketingSequenceSteps.find(s => s.id === stepId);
             if (currentStep) {
                 state.originalStepValues = { ...currentStep };
             }
@@ -838,10 +838,10 @@ const renderSequenceList = () => {
     }
 
     async function handleMoveStep(stepId, direction) {
-        const currentStep = state.sequence_steps.find(s => s.id === stepId);
+        const currentStep = state.marketingSequenceSteps.find(s => s.id === stepId);
         if (!currentStep) return;
 
-        const currentSequenceSteps = state.sequence_steps
+        const currentSequenceSteps = state.marketingSequenceSteps
             .filter(s => s.marketing_sequence_id === state.selectedSequenceId)
             .sort((a, b) => a.step_number - b.step_number);
 
