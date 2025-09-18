@@ -206,15 +206,14 @@ async function loadAbmData() {
                 if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.add('hidden');
                 renderTemplateList();
                 renderTemplateDetails();
-            } else if (state.currentView === 'sequences') {
-                if (listHeader) listHeader.textContent = 'Marketing Sequences';
-                if (createNewItemBtn) createNewItemBtn.textContent = 'New Marketing Sequence';
-                if (importItemBtn) importItemBtn.classList.remove('hidden');
-                if (importItemBtn) importItemBtn.textContent = 'Import Steps from CSV';
-                if (deleteSelectedItemBtn) deleteSelectedItemBtn.textContent = 'Delete Selected Sequence';
-                if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
-                renderSequenceList();
-                renderSequenceDetails();
+           } else if (state.currentView === 'sequences') {
+    if (listHeader) listHeader.textContent = 'All Sequences';
+    if (createNewItemBtn) createNewItemBtn.textContent = 'New Sequence';
+    if (importItemBtn) importItemBtn.classList.remove('hidden');
+    // The other button labels are fine as they are generic
+    if (downloadSequenceTemplateBtn) downloadSequenceTemplateBtn.classList.remove('hidden');
+    renderSequenceList();
+    // The details panel is now handled by the click handler, so we no longer render it here.
             }
         }
     };
