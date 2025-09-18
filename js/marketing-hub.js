@@ -328,6 +328,7 @@ const renderAbmCenter = () => {
             next_step_due_date: null
         };
     }
+  }
 
     // 4. Update the main contact_sequences record to advance the sequence for sales
     const { error: advanceError } = await supabase
