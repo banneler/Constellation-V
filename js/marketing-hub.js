@@ -239,15 +239,23 @@ const renderContent = () => {
     }
 };
     
-    // --- NEW: ABM Center Render Functions ---
+   // --- NEW: ABM Center Render Functions ---
 const renderAbmCenter = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // FIX: Change 'today' to 'endOfToday' for a more reliable comparison
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999); // Set to the last millisecond of the current day
 
-    // Filter using the correct column names from the SQL function
-    const dueTasks = (state.abmTasks || []).filter(task => task.task_status === 'pending' && new Date(task.task_due_date) <= today);
-    const upcomingTasks = (state.abmTasks || []).filter(task => task.task_status === 'pending' && new Date(task.task_due_date) > today);
-    const completedTasks = (state.abmTasks || []).filter(task => task.task_status !== 'pending' && task.task_completed_at).sort((a, b) => new Date(b.task_completed_at) - new Date(a.task_completed_at)).slice(0, 20);
+    // Filter tasks based on the end of today
+    const dueTasks = (state.abmTasks || []).filter(task => 
+        task.task_status === 'pending' && new Date(task.task_due_date) <= endOfToday
+    );
+    const upcomingTasks = (state.abmTasks || []).filter(task => 
+        task.task_status === 'pending' && new Date(task.task_due_date) > endOfToday
+    );
+    const completedTasks = (state.abmTasks || [])
+        .filter(task => task.task_status !== 'pending' && task.task_completed_at)
+        .sort((a, b) => new Date(b.task_completed_at) - new Date(a.task_completed_at))
+        .slice(0, 20);
 
     const renderRow = (task) => `
         <tr>
@@ -277,84 +285,6 @@ const renderAbmCenter = () => {
             <td>${formatDate(task.task_completed_at)}</td>
         </tr>`).join('') || `<tr><td colspan="4">No tasks completed yet.</td></tr>`;
 };
-    
-    // --- NEW: ABM Action Handler ---
-// --- NEW: ABM Action Handler ---
-async function handleCompleteAbmTask(contactSequenceStepId) {
-    try {
-        // Step 1: Mark the current marketing step as 'completed'
-        const { data: completedStep, error: updateError } = await supabase
-            .from('contact_sequence_steps')
-            .update({ status: 'completed', completed_at: new Date().toISOString() })
-            .eq('id', contactSequenceStepId)
-            .select()
-            .single();
-
-        if (updateError) throw updateError;
-        if (!completedStep) throw new Error("Could not find the step to update.");
-
-        const { contact_sequence_id, sequence_id } = completedStep;
-
-        // Step 2: Get the parent sequence's current state to know which step we just finished
-        const { data: contactSequence, error: csError } = await supabase
-            .from('contact_sequences')
-            .select('current_step_number')
-            .eq('id', contact_sequence_id)
-            .single();
-        
-        if (csError) throw csError;
-
-        // Step 3: Find all possible steps for this sequence to determine what's next
-        const { data: allSequenceSteps, error: stepsError } = await supabase
-            .from('sequence_steps')
-            .select('step_number, interval_days') // Corrected from delay_days
-            .eq('sequence_id', sequence_id)
-            .order('step_number');
-
-        if (stepsError) throw stepsError;
-        
-        const currentStepNumber = contactSequence.current_step_number;
-        const nextStep = allSequenceSteps.find(s => s.step_number > currentStepNumber);
-
-        // Step 4: Decide whether to advance the sequence or complete it
-        let updateData = {};
-        if (nextStep) {
-            // If there is a next step, advance the sequence
-            const nextDueDate = new Date();
-            // Use interval_days, the correct column name
-            nextDueDate.setDate(nextDueDate.getDate() + (nextStep.interval_days || 0)); 
-
-            updateData = {
-                current_step_number: nextStep.step_number,
-                last_completed_date: new Date().toISOString(),
-                next_step_due_date: nextDueDate.toISOString(),
-            };
-        } else {
-            // If there is no next step, the sequence is complete
-            updateData = {
-                status: 'Completed',
-                last_completed_date: new Date().toISOString(),
-                next_step_due_date: null,
-                current_step_number: null 
-            };
-        }
-
-        // Step 5: Update the main contact_sequences record for the sales team
-        const { error: advanceError } = await supabase
-            .from('contact_sequences')
-            .update(updateData)
-            .eq('id', contact_sequence_id);
-
-        if (advanceError) throw advanceError;
-
-        // Step 6: Refresh the data and re-render the command center
-        await loadAllData();
-
-    } catch (error) {
-        console.error('Error completing marketing task:', error);
-        alert('Error completing task: ' + error.message);
-    }
-}
 
     // --- Email Templates Render Functions ---
     const renderTemplateList = () => {
