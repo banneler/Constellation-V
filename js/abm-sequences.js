@@ -48,7 +48,6 @@ async function handleSaveDetails() {
         alert("Error saving details: " + error.message);
     } else {
         state.isEditingDetails = false;
-        // Trigger a full data refresh on the parent page
         if (state.onDataChange) await state.onDataChange();
     }
 }
@@ -179,6 +178,9 @@ function renderSteps() {
                     ${isEditing ? `<input type="text" class="form-control edit-step-subject" value="${step.subject || ''}">` : step.subject || ''}
                 </td>
                 <td>
+                    ${isEditing ? `<textarea class="form-control edit-step-message">${step.message || ''}</textarea>` : step.message || ''}
+                </td>
+                <td>
                     ${isEditing ? `<select class="form-control edit-step-assigned-to">
                         <option value="Sales" ${step.assigned_to === 'Sales' ? 'selected' : ''}>Sales</option>
                         <option value="Sales Manager" ${step.assigned_to === 'Sales Manager' ? 'selected' : ''}>Sales Manager</option>
@@ -202,20 +204,6 @@ function renderSteps() {
             </tr>
         `;
     }).join('');
-    
-    // Add full step message as a hidden row for context (optional but helpful)
-     state.steps.forEach(step => {
-        if (step.message) {
-            const stepRow = stepsTableBody.querySelector(`tr[data-id='${step.id}']`);
-            if (stepRow) {
-                stepRow.insertAdjacentHTML('afterend', `
-                    <tr class="step-message-row" data-parent-id="${step.id}">
-                        <td colspan="6"><strong>Message:</strong> ${step.message}</td>
-                    </tr>
-                `);
-            }
-        }
-    });
 }
 
 
@@ -254,6 +242,7 @@ function render() {
                         <th>#</th>
                         <th>Type</th>
                         <th>Subject</th>
+                        <th>Message</th>
                         <th>Assigned To</th>
                         <th>Delay (Days)</th>
                         <th>Actions</th>
