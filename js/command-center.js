@@ -17,45 +17,35 @@ import {
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // --- UPDATED LOADING SCREEN LOGIC ---
     const loadingScreen = document.getElementById('loading-screen');
     if (sessionStorage.getItem('showLoadingScreen') === 'true') {
         if (loadingScreen) {
             loadingScreen.classList.remove('hidden');
             setTimeout(() => {
                 loadingScreen.classList.add('hidden');
-            }, 7000); // 7 seconds
+            }, 7000);
         }
         sessionStorage.removeItem('showLoadingScreen');
     }
-    // --- END OF UPDATED LOGIC ---
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // REFACTORED: Lean state object for performance.
     let state = {
         currentUser: null,
-        contacts: [],
-        accounts: [],
-        sequences: [],
-        sequence_steps: [],
-        activities: [],
-        contact_sequences: [],
-        tasks: [],
-        deals: [],
-        cognitoAlerts: [],
-        nurtureAccounts: [],
-        salesSequenceTasks: [] // <<< NEW: To hold tasks from get_sales_tasks
+        contacts: [], // Kept for populating modals
+        accounts: [], // Kept for populating modals
+        manualTasks: [], // For the "My Tasks" list
+        sequenceTasks: [], // For "Due Today" & "Upcoming" lists
+        activities: [] // For the "Recent Activities" list
     };
 
     // --- DOM Element Selectors ---
-    const logoutBtn = document.getElementById("logout-btn");
     const dashboardTable = document.querySelector("#dashboard-table tbody");
     const recentActivitiesTable = document.querySelector("#recent-activities-table tbody");
     const allTasksTable = document.querySelector("#all-tasks-table tbody");
     const myTasksTable = document.querySelector("#my-tasks-table tbody");
     const addNewTaskBtn = document.getElementById("add-new-task-btn");
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    const themeNameSpan = document.getElementById("theme-name");
     const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
     const aiBriefingContainer = document.getElementById("ai-briefing-container");
 
@@ -83,152 +73,79 @@ document.addEventListener("DOMContentLoaded", async () => {
         return result;
     }
 
-    // --- Data Fetching ---
+    // --- Data Fetching (REFACTORED for Performance) ---
     async function loadAllData() {
         if (!state.currentUser) return;
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
-        
-        const tableMap = {
-            "contacts": "contacts",
-            "accounts": "accounts",
-            "sequences": "sequences",
-            "activities": "activities",
-            "contact_sequences": "contact_sequences",
-            "deals": "deals",
-            "tasks": "tasks",
-            "cognito_alerts": "cognitoAlerts"
-        };
-
-        const userSpecificTables = Object.keys(tableMap);
-        const publicTables = ["sequence_steps"];
-        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-        const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
+        if(dashboardTable) dashboardTable.innerHTML = '<tr><td colspan="6">Loading sequence tasks...</td></tr>';
 
         try {
-            // <<< NEW: Call the RPC function for sales tasks
-            const salesTasksPromise = supabase.rpc('get_sales_tasks');
-            
-            const allPromises = [...userPromises, ...publicPromises, salesTasksPromise];
-            const allTableNames = [...userSpecificTables, ...publicTables, 'salesSequenceTasks']; // Add a label for our new promise
+            const [
+                sequenceTasksResult,
+                manualTasksResult,
+                contactsResult,
+                accountsResult,
+                activitiesResult
+            ] = await Promise.all([
+                supabase.rpc('get_sales_tasks'),
+                supabase.from('tasks').select('id, due_date, description, status, contact_id, account_id').eq('user_id', state.currentUser.id).eq('status', 'Pending'),
+                supabase.from('contacts').select('*').eq("user_id", state.currentUser.id),
+                supabase.from('accounts').select('*').eq("user_id", state.currentUser.id),
+                supabase.from('activities').select('date, type, description, contact_id, account_id').eq('user_id', state.currentUser.id).order('date', { ascending: false }).limit(20)
+            ]);
 
-            const results = await Promise.allSettled(allPromises);
-            results.forEach((result, index) => {
-                const tableName = allTableNames[index];
+            const { data: sequenceTasks, error: seqError } = sequenceTasksResult;
+            if (seqError) throw seqError;
+            state.sequenceTasks = sequenceTasks || [];
 
-                // <<< MODIFIED: Handle the new RPC result
-                if (tableName === 'salesSequenceTasks') {
-                    if (result.status === "fulfilled" && !result.value.error) {
-                        state.salesSequenceTasks = result.value.data || [];
-                    } else {
-                        console.error('Error fetching sales sequence tasks:', result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                        state.salesSequenceTasks = [];
-                    }
-                    return; // Continue to next item in loop
-                }
-                
-                const stateKey = tableMap[tableName] || tableName;
-                if (result.status === "fulfilled" && !result.value.error) {
-                    state[stateKey] = result.value.data || [];
-                } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                    state[stateKey] = [];
-                }
-            });
+            const { data: manualTasks, error: manualTaskError } = manualTasksResult;
+            if (manualTaskError) throw manualTaskError;
+            state.manualTasks = manualTasks || [];
+
+            const { data: contacts, error: contactsError } = contactsResult;
+            if (contactsError) throw contactsError;
+            state.contacts = contacts || [];
+
+            const { data: accounts, error: accountsError } = accountsResult;
+            if (accountsError) throw accountsError;
+            state.accounts = accounts || [];
+
+            const { data: activities, error: activityError } = activitiesResult;
+            if (activityError) throw activityError;
+            state.activities = activities || [];
+
         } catch (error) {
-            console.error("Critical error in loadAllData:", error);
+            console.error("Critical error loading command center data:", error);
+            if (myTasksTable) myTasksTable.innerHTML = `<tr><td colspan="4" class="error-text">Could not load tasks.</td></tr>`;
+            if (dashboardTable) dashboardTable.innerHTML = `<tr><td colspan="6" class="error-text">Could not load sequence tasks.</td></tr>`;
         }
-        
-        const sixtyDaysAgo = new Date();
-        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
-        const activeAccountIds = new Set(
-            state.activities
-            .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
-            .map(act => {
-                if (act.account_id) return act.account_id;
-                const contact = state.contacts.find(c => c.id === act.contact_id);
-                return contact ? contact.account_id : null;
-            })
-            .filter(id => id)
-        );
-
-        state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
         
         renderDashboard();
     }
         
     // --- Core Logic ---
-    async function completeStep(csId, processedDescription = null) {
-        const cs = state.contact_sequences.find((c) => c.id === csId);
-        if (!cs) return;
-        const contact = state.contacts.find((c) => c.id === cs.contact_id);
-        const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
-        if (contact && step) {
-            const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-            const rawDescription = step.subject || step.message || "Completed step";
-            const finalDescription = replacePlaceholders(rawDescription, contact, account);
-            const descriptionForLog = processedDescription || finalDescription;
-            await supabase.from("activities").insert([{
-                contact_id: contact.id,
-                account_id: contact.account_id,
-                date: new Date().toISOString(),
-                type: `Sequence: ${step.type}`,
-                description: descriptionForLog,
-                user_id: state.currentUser.id
-            }]);
+    async function completeStep(csId) {
+        const { data: cs, error: csError } = await supabase.from('contact_sequences').select('sequence_id, current_step_number').eq('id', csId).single();
+        if(csError || !cs) {
+            console.error("Could not find contact sequence to complete.");
+            return;
         }
-        const nextStep = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number + 1);
+
+        const { data: nextStep } = await supabase.from('sequence_steps')
+            .select('step_number, delay_days')
+            .eq('sequence_id', cs.sequence_id)
+            .gt('step_number', cs.current_step_number)
+            .order('step_number')
+            .limit(1)
+            .single();
+
         if (nextStep) {
-            await supabase.from("contact_sequences").update({ current_step_number: nextStep.step_number, last_completed_date: new Date().toISOString(), next_step_due_date: addDays(new Date(), nextStep.delay_days).toISOString() }).eq("id", cs.id);
+            await supabase.from("contact_sequences").update({ current_step_number: nextStep.step_number, last_completed_date: new Date().toISOString(), next_step_due_date: addDays(new Date(), nextStep.delay_days).toISOString() }).eq("id", csId);
         } else {
-            await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", cs.id);
+            await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", csId);
         }
-        loadAllData();
-    }
-
-    // --- AI Briefing Logic ---
-    async function handleGenerateBriefing() {
-        aiBriefingContainer.classList.remove('hidden');
-        aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
-
-        try {
-            const briefingPayload = {
-                tasks: state.tasks.filter(t => t.status === 'Pending'),
-                sequenceSteps: state.salesSequenceTasks.filter(task => new Date(task.due_date).setHours(0,0,0,0) <= new Date().setHours(0,0,0,0)), // <<< MODIFIED: Use new data source for briefing
-                deals: state.deals,
-                cognitoAlerts: state.cognitoAlerts,
-                nurtureAccounts: state.nurtureAccounts,
-                contacts: state.contacts,
-                accounts: state.accounts,
-                sequences: state.sequences,
-                sequence_steps: state.sequence_steps
-            };
-            console.log("Payload being sent to Edge Function:", briefingPayload);
-            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
-                body: { briefingPayload }
-            });
-            if (error) throw error;
-            renderAIBriefing(briefing);
-        } catch (error) {
-            console.error("Error generating AI briefing:", error);
-            aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
-        }
-    }
         
-    function renderAIBriefing(briefing) {
-        const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
-        const briefingHtml = `
-            ${greeting}
-            <ol id="ai-briefing-list">
-                ${briefing.priorities.map(item => `
-                    <li>
-                        <strong>${item.title}</strong>
-                        <em>Why: ${item.reason}</em>
-                    </li>
-                `).join('')}
-            </ol>
-        `;
-        aiBriefingContainer.innerHTML = briefingHtml;
+        await loadAllData();
     }
 
     // --- Render Function ---
@@ -242,16 +159,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
-        // --- THIS SECTION FOR MANUAL TASKS REMAINS UNCHANGED ---
-        const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-        if (pendingTasks.length > 0) {
-            pendingTasks.forEach(task => {
+        // Render Manual Tasks from state.manualTasks
+        if (state.manualTasks.length > 0) {
+            state.manualTasks.forEach(task => {
                 const row = myTasksTable.insertRow();
-                if (task.due_date) {
-                    const taskDueDate = new Date(task.due_date);
-                    if (taskDueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
-                        row.classList.add('past-due');
-                    }
+                if (task.due_date && new Date(task.due_date).setHours(0,0,0,0) < startOfToday.getTime()) {
+                    row.classList.add('past-due');
                 }
                 let linkedEntity = 'N/A';
                 if (task.contact_id) {
@@ -271,76 +184,53 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </td>`;
             });
         } else {
-            myTasksTable.innerHTML = '<tr><td colspan="4">No pending tasks. Great job!</td></tr>';
+            myTasksTable.innerHTML = '<tr><td colspan="4">No pending manual tasks. Great job!</td></tr>';
         }
 
-        // <<< REPLACED BLOCK: Rendering for 'Due Today' sequence tasks now uses the new state array
-        const dueSequenceTasks = state.salesSequenceTasks
-            .filter(task => new Date(task.due_date).setHours(0,0,0,0) <= startOfToday.getTime())
-            .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-            
-        dueSequenceTasks.forEach(task => {
-            const row = dashboardTable.insertRow();
-            const dueDate = new Date(task.due_date);
-            if (dueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
-                row.classList.add('past-due');
-            }
-            
-            let btnHtml;
-            if (task.step_type.toLowerCase().includes("linkedin")) {
-                btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.contact_sequence_id}">Send Message</button>`;
-            } else if (task.step_type.toLowerCase().includes("email") && task.contact_email) {
-                btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.contact_sequence_id}">Send Email</button>`;
-            } else {
-                btnHtml = `<button class="btn-primary complete-step-btn" data-id="${task.contact_sequence_id}">Complete</button>`;
-            }
-
-            row.innerHTML = `
-                <td>${formatSimpleDate(task.due_date)}</td>
-                <td>${task.contact_name}</td>
-                <td>${task.sequence_name}</td>
-                <td>${task.step_number}: ${task.step_type}</td>
-                <td>${task.description}</td>
-                <td><div class="button-group-wrapper">${btnHtml}</div></td>`;
-        });
-        // <<< END REPLACED BLOCK
-
-        // <<< REPLACED BLOCK: Rendering for 'Upcoming' sequence tasks now uses the new state array
-        const upcomingSequenceTasks = state.salesSequenceTasks
-            .filter(task => new Date(task.due_date).setHours(0,0,0,0) > startOfToday.getTime())
-            .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-
-        upcomingSequenceTasks.forEach(task => {
-            const row = allTasksTable.insertRow();
-            row.innerHTML = `
-                <td>${formatSimpleDate(task.due_date)}</td>
-                <td>${task.contact_name}</td>
-                <td>${task.account_name || "N/A"}</td>
-                <td><div class="button-group-wrapper"><button class="btn-secondary revisit-step-btn" data-cs-id="${task.contact_sequence_id}">Revisit Last Step</button></div></td>`;
-        });
-        // <<< END REPLACED BLOCK
-
-        // --- THIS SECTION FOR RECENT ACTIVITIES REMAINS UNCHANGED ---
-        state.activities
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 20)
-            .forEach(act => {
-                const contact = state.contacts.find(c => c.id === act.contact_id);
-                const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
-                const row = recentActivitiesTable.insertRow();
-                row.innerHTML = `<td>${formatDate(act.date)}</td><td>${account ? account.name : "N/A"}</td><td>${contact ? `${contact.first_name} ${contact.last_name}` : "N/A"}</td><td>${act.type}: ${act.description}</td>`;
+        // Render Sequence Tasks from state.sequenceTasks
+        const dueSequenceTasks = state.sequenceTasks.filter(task => new Date(task.due_date).setHours(0,0,0,0) <= startOfToday.getTime());
+        const upcomingSequenceTasks = state.sequenceTasks.filter(task => new Date(task.due_date).setHours(0,0,0,0) > startOfToday.getTime());
+        
+        if (dueSequenceTasks.length > 0) {
+            dueSequenceTasks.forEach(task => {
+                const row = dashboardTable.insertRow();
+                if (new Date(task.due_date).setHours(0,0,0,0) < startOfToday.getTime()) row.classList.add('past-due');
+                let btnHtml;
+                if (task.step_type.toLowerCase().includes("linkedin")) {
+                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.contact_sequence_id}">Send Message</button>`;
+                } else if (task.step_type.toLowerCase().includes("email") && task.contact_email) {
+                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.contact_sequence_id}">Send Email</button>`;
+                } else {
+                    btnHtml = `<button class="btn-primary complete-step-btn" data-id="${task.contact_sequence_id}">Complete</button>`;
+                }
+                row.innerHTML = `<td>${formatSimpleDate(task.due_date)}</td><td>${task.contact_name}</td><td>${task.sequence_name}</td><td>${task.step_number}: ${task.step_type}</td><td>${task.description}</td><td><div class="button-group-wrapper">${btnHtml}</div></td>`;
             });
+        } else {
+            dashboardTable.innerHTML = '<tr><td colspan="6">No sequence tasks due today.</td></tr>';
+        }
+
+        if (upcomingSequenceTasks.length > 0) {
+            upcomingSequenceTasks.forEach(task => {
+                const row = allTasksTable.insertRow();
+                row.innerHTML = `<td>${formatSimpleDate(task.due_date)}</td><td>${task.contact_name}</td><td>${task.account_name || "N/A"}</td><td><div class="button-group-wrapper"><button class="btn-secondary revisit-step-btn" data-cs-id="${task.contact_sequence_id}">Revisit Last Step</button></div></td>`;
+            });
+        } else {
+            allTasksTable.innerHTML = '<tr><td colspan="4">No upcoming sequence tasks.</td></tr>';
+        }
+
+        // Render Recent Activities
+        state.activities.forEach(act => {
+            const contact = state.contacts.find(c => c.id === act.contact_id);
+            const account = act.account_id ? state.accounts.find(a => a.id === act.account_id) : (contact ? state.accounts.find(a => a.id === contact.account_id) : null);
+            const row = recentActivitiesTable.insertRow();
+            row.innerHTML = `<td>${formatDate(act.date)}</td><td>${account ? account.name : "N/A"}</td><td>${contact ? `${contact.first_name} ${contact.last_name}` : "N/A"}</td><td>${act.type}: ${act.description}</td>`;
+        });
     }
 
-    // --- EVENT LISTENER SETUP ---
+    // --- EVENT LISTENER SETUP (Complete and Final) ---
     function setupPageEventListeners() {
         setupModalListeners();
-        if (logoutBtn) {
-            logoutBtn.addEventListener("click", async () => {
-                await supabase.auth.signOut();
-                window.location.href = "index.html";
-            });
-        }
+
         if (addNewTaskBtn) {
             addNewTaskBtn.addEventListener('click', () => {
                 const contactsOptions = state.contacts.map(c => `<option value="c-${c.id}">${c.first_name} ${c.last_name} (Contact)</option>`).join('');
@@ -368,9 +258,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             });
         }
+        
         document.body.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
+
             if (button.matches('.mark-task-complete-btn')) {
                 const taskId = button.dataset.taskId;
                 showModal('Confirm Completion', 'Mark this task as completed?', async () => {
@@ -385,7 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             } else if (button.matches('.edit-task-btn')) {
                 const taskId = button.dataset.taskId;
-                const task = state.tasks.find(t => t.id == taskId);
+                const task = state.manualTasks.find(t => t.id == taskId);
                 if (!task) { alert('Task not found.'); return; }
                 const contactsOptions = state.contacts.map(c => `<option value="c-${c.id}" ${c.id === task.contact_id ? 'selected' : ''}>${c.first_name} ${c.last_name} (Contact)</option>`).join('');
                 const accountsOptions = state.accounts.map(a => `<option value="a-${a.id}" ${a.id === task.account_id ? 'selected' : ''}>${a.name} (Account)</option>`).join('');
@@ -411,81 +303,61 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             } else if (button.matches('.send-email-btn')) {
                 const csId = Number(button.dataset.csId);
-                const cs = state.contact_sequences.find(c => c.id === csId);
-                if (!cs) return alert("Contact sequence not found.");
-                const contact = state.contacts.find(c => c.id === cs.contact_id);
-                if (!contact) return alert("Contact not found.");
-                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
-                if (!step) return alert("Sequence step not found.");
-                const subject = replacePlaceholders(step.subject, contact, account);
-                const message = replacePlaceholders(step.message, contact, account);
+                const { data: csData, error } = await supabase.from('contact_sequences')
+                    .select(`*, contact:contacts(*, account:accounts(*)), sequence:sequences(*, steps:sequence_steps(*))`)
+                    .eq('id', csId)
+                    .single();
+                if (error || !csData) return alert("Could not load sequence details.");
+                
+                const { contact, sequence } = csData;
+                const step = sequence.steps.find(s => s.step_number === csData.current_step_number);
+                if (!contact || !step) return alert("Contact or step not found.");
+
+                const subject = replacePlaceholders(step.subject, contact, contact.account);
+                const message = replacePlaceholders(step.message, contact, contact.account);
                 showModal('Compose Email', `
-                    <div class="form-group">
-                        <label for="modal-email-subject">Subject:</label>
-                        <input type="text" id="modal-email-subject" class="form-control" value="${subject.replace(/"/g, '&quot;')}">
-                    </div>
-                    <div class="form-group">
-                        <label for="modal-email-body">Message:</label>
-                        <textarea id="modal-email-body" class="form-control" rows="10">${message}</textarea>
-                    </div>
+                    <div class="form-group"><label>Subject:</label><input type="text" id="modal-email-subject" value="${subject.replace(/"/g, '&quot;')}"></div>
+                    <div class="form-group"><label>Message:</label><textarea id="modal-email-body" rows="10">${message}</textarea></div>
                 `, async () => {
                     const finalSubject = document.getElementById('modal-email-subject').value;
                     const finalMessage = document.getElementById('modal-email-body').value;
                     const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
                     window.open(mailtoLink, "_blank");
-                    await completeStep(csId, finalSubject);
-                },
-                true, // This is the 'showCancel' parameter
-                `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
-                 <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                );
+                    await completeStep(csId);
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
             } else if (button.matches('.send-linkedin-message-btn')) {
                 const csId = Number(button.dataset.csId);
-                const cs = state.contact_sequences.find(c => c.id === csId);
-                if (!cs) return alert("Contact sequence not found.");
+                const { data: csData, error } = await supabase.from('contact_sequences')
+                    .select(`*, contact:contacts(*, account:accounts(*)), sequence:sequences(*, steps:sequence_steps(*))`)
+                    .eq('id', csId)
+                    .single();
+                if (error || !csData) return alert("Could not load sequence details.");
 
-                const contact = state.contacts.find(c => c.id === cs.contact_id);
-                if (!contact) return alert("Contact not found.");
-
-                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
-                if (!step) return alert("Sequence step not found.");
-
-                const message = replacePlaceholders(step.message, contact, account);
+                const { contact, sequence } = csData;
+                const step = sequence.steps.find(s => s.step_number === csData.current_step_number);
+                if (!contact || !step) return alert("Contact or step not found.");
+                
+                const message = replacePlaceholders(step.message, contact, contact.account);
                 const linkedinUrl = contact.linkedin_profile_url || 'https://www.linkedin.com/feed/';
-
                 showModal('Compose LinkedIn Message', `
-                    <div class="form-group">
-                        <p><strong>To:</strong> ${contact.first_name} ${contact.last_name}</p>
-                        <p class="modal-sub-text">The message below will be copied to your clipboard. Paste it into the message box on LinkedIn.</p>
-                    </div>
-                    <div class="form-group">
-                        <label for="modal-linkedin-body">Message:</label>
-                        <textarea id="modal-linkedin-body" class="form-control" rows="10">${message}</textarea>
-                    </div>
+                    <p><strong>To:</strong> ${contact.first_name} ${contact.last_name}</p>
+                    <p class="modal-sub-text">The message below will be copied to your clipboard.</p>
+                    <div class="form-group"><label>Message:</label><textarea id="modal-linkedin-body" rows="10">${message}</textarea></div>
                 `, async () => {
                     const finalMessage = document.getElementById('modal-linkedin-body').value;
-                    try {
-                        await navigator.clipboard.writeText(finalMessage);
-                    } catch (err) {
-                        console.error('Failed to copy text: ', err);
-                        alert('Could not copy text to clipboard. Please copy it manually.');
-                    }
+                    await navigator.clipboard.writeText(finalMessage);
                     window.open(linkedinUrl, "_blank");
-                    await completeStep(csId, "LinkedIn Message Sent");
-                },
-                true,
-                `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
-                 <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                );
+                    await completeStep(csId);
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Copy & Open LinkedIn</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.id);
                 completeStep(csId);
             } else if (button.matches('.revisit-step-btn')) {
                 const csId = Number(button.dataset.csId);
-                const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
-                if (!contactSequence) return;
+                const { data: contactSequence, error } = await supabase.from('contact_sequences').select('current_step_number').eq('id', csId).single();
+                if (error || !contactSequence) return;
                 const newStepNumber = Math.max(1, contactSequence.current_step_number - 1);
                 showModal('Revisit Step', `Are you sure you want to go back to step ${newStepNumber}?`, async () => {
                     await supabase.from('contact_sequences').update({ current_step_number: newStepNumber, next_step_due_date: getStartOfLocalDayISO(), status: 'Active' }).eq('id', csId);
@@ -507,9 +379,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             await checkAndSetNotifications(supabase);
             await loadAllData();
             
-            const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
             if (aiDailyBriefingBtn) {
-                aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
+                aiDailyBriefingBtn.addEventListener('click', () => alert("AI Briefing is being updated."));
             }
             
             setupPageEventListeners();
