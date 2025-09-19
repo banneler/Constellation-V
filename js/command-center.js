@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
         
         try {
-            // NEW: Fetch sales tasks with our RPC, and fetch other data in parallel
+            // UPDATED: Fetch sales tasks with our RPC, and fetch other data in parallel
             const [
                 salesTasksRes,
                 contactsRes,
@@ -123,7 +123,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Critical error in loadAllData:", error);
         }
         
-        // Nurture Account Logic (remains the same)
         const sixtyDaysAgo = new Date();
         sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
         const activeAccountIds = new Set(
@@ -141,9 +140,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderDashboard();
     }
             
-    // --- Core Task & Step Completion Logic ---
+    // --- NEW: Core Task & Step Completion Logic for the ABM System ---
     async function completeSequenceStep(taskStepId) {
-        // This function will now handle completing steps from the new ABM-aware system
         try {
             const { data: updatedSteps, error: updateError } = await supabase
                 .from('contact_sequence_steps')
@@ -158,7 +156,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
     
             const completedStep = updatedSteps[0];
-            const { contact_sequence_id, sequence_id } = completedStep;
+            const { contact_sequence_id, sequence_id, contact_id } = completedStep;
+
+            const contact = state.contacts.find((c) => c.id === contact_id);
+            const step_details = state.sequence_steps.find(s => s.id === completedStep.sequence_step_id);
+
+            // Log activity for the completed step
+            if (contact && step_details) {
+                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+                const rawDescription = step_details.subject || step_details.message || "Completed step";
+                const finalDescription = replacePlaceholders(rawDescription, contact, account);
+                await supabase.from("activities").insert([{
+                    contact_id: contact.id,
+                    account_id: contact.account_id,
+                    date: new Date().toISOString(),
+                    type: `Sequence: ${step_details.type}`,
+                    description: finalDescription,
+                    user_id: state.currentUser.id
+                }]);
+            }
 
             const { data: contactSequences, error: csError } = await supabase
                 .from('contact_sequences')
@@ -166,7 +182,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .eq('id', contact_sequence_id);
 
             if (csError) throw csError;
-            if (!contactSequences || contactSequences.length === 0) return; // Parent is gone, just stop
+            if (!contactSequences || contactSequences.length === 0) return;
             const contactSequence = contactSequences[0];
 
             const { data: allSequenceSteps, error: stepsError } = await supabase
@@ -205,7 +221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (advanceError) throw advanceError;
 
-            // If it was the last step and we marked the sequence complete, clean up remaining steps
+            // If it was the last step, clean up all associated steps from the to-do list
             if (updateData.status === 'Completed') {
                 await supabase.from('contact_sequence_steps').delete().eq('contact_sequence_id', contact_sequence_id);
             }
@@ -214,7 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Error completing step:", error);
             alert("Error completing step: " + error.message);
         } finally {
-            await loadAllData(); // Refresh the dashboard
+            await loadAllData();
         }
     }
 
@@ -229,7 +245,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const endOfToday = new Date();
         endOfToday.setHours(23, 59, 59, 999);
     
-        // NEW: Filter salesTasks from our RPC call
+        // UPDATED: Filter salesTasks from our RPC call
         const dueSequenceTasks = (state.salesTasks || []).filter(task => new Date(task.task_due_date) <= endOfToday);
         const upcomingSequenceTasks = (state.salesTasks || []).filter(task => new Date(task.task_due_date) > endOfToday);
     
@@ -265,7 +281,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             upcomingTasksTable.innerHTML = '<tr><td colspan="4">No upcoming sequence tasks.</td></tr>';
         }
     
-        // Render Manual "My Tasks" (remains largely the same)
+        // Render Manual "My Tasks"
         const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
@@ -297,7 +313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             myTasksTable.innerHTML = '<tr><td colspan="4">No pending tasks. Great job!</td></tr>';
         }
     
-        // Render Recent Activities (remains the same)
+        // Render Recent Activities
         state.activities
             .sort((a, b) => new Date(b.date) - new Date(a.date))
             .slice(0, 20)
@@ -317,13 +333,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             const button = e.target.closest('button');
             if (!button) return;
 
-            // NEW: Handle completing a sequence step from the new system
+            // UPDATED: Handle completing a sequence step from the new system
             if (button.matches('.complete-step-btn')) {
                 const taskStepId = Number(button.dataset.taskId);
                 await completeSequenceStep(taskStepId);
             }
 
-            // The rest of the click handlers for manual tasks...
+            // Handlers for manual tasks
             if (button.matches('.mark-task-complete-btn')) {
                 const taskId = button.dataset.taskId;
                 showModal('Confirm Completion', 'Mark this task as completed?', async () => {
@@ -406,10 +422,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             await checkAndSetNotifications(supabase);
             await loadAllData();
             
-            const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
             if (aiDailyBriefingBtn) {
-                // This logic seems incomplete in the original, so commenting out for now
-                // aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
+                // The AI briefing logic was removed as it was incomplete and relied on the old data structure
+                // You can add the listener back here if you update handleGenerateBriefing
             }
             
             setupPageEventListeners();
