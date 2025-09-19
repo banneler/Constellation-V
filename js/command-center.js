@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tasks: [],
         deals: [],
         cognitoAlerts: [],
-        nurtureAccounts: [], // NEW: To hold accounts needing nurturing
+        nurtureAccounts: [],
         salesTasks: [] // NEW: To hold tasks from the ABM system
     };
 
@@ -92,10 +92,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
         const userSpecificTables = Object.keys(tableMap);
         const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
-        // UPDATED: Add the RPC call to the public promises
         const publicPromises = [
             supabase.from("sequence_steps").select("*"),
-            supabase.rpc('get_sales_tasks')
+            supabase.rpc('get_sales_tasks') // NEW: Call the function to get ABM tasks
         ];
         const allPromises = [...userPromises, ...publicPromises];
         
@@ -112,7 +111,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
-            // Handle public tables and RPC calls by their index
             const sequenceStepsResult = results[userSpecificTables.length];
             if (sequenceStepsResult.status === "fulfilled" && !sequenceStepsResult.value.error) {
                 state.sequence_steps = sequenceStepsResult.value.data || [];
@@ -147,7 +145,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!cs) return;
 
         const sequence = state.sequences.find(s => s.id === cs.sequence_id);
-        // NEW: If it's an ABM sequence, use the new completion function
         if (sequence && sequence.is_abm) {
             const taskToComplete = state.salesTasks.find(t => t.contact_sequence_id === csId && t.step_number === cs.current_step_number);
             if (taskToComplete) {
@@ -410,14 +407,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const csId = Number(button.dataset.csId);
             const taskId = Number(button.dataset.taskId);
+            const originalCsId = Number(button.dataset.id);
 
             if (button.matches('.complete-step-btn')) {
-                const originalCsId = Number(button.dataset.id);
                 if (taskId) { await completeABMSequenceStep(taskId); }
                 else if (originalCsId) { await completeStep(originalCsId); }
             } else if (button.matches('.send-email-btn')) {
                 let subject, message, contact;
-                let stepIdentifier = {}; // To hold either csId or taskId
+                let stepIdentifier = {};
 
                 if (taskId) { // ABM Task
                     const task = state.salesTasks.find(t => t.task_id === taskId);
@@ -439,9 +436,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     stepIdentifier = { csId };
                 }
 
-                if (!contact) return; // Exit if no contact found
+                if (!contact || !contact.email) return;
 
-                // THIS IS THE FULLY RESTORED MODAL LOGIC
                 showModal('Compose Email', `
                     <div class="form-group">
                         <label for="modal-email-subject">Subject:</label>
@@ -462,11 +458,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     } else if (stepIdentifier.csId) {
                         await completeStep(stepIdentifier.csId, finalSubject);
                     }
-                },
-                true,
-                `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
-                 <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                );
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
             } else if (button.matches('.send-linkedin-message-btn')) {
                 let message, contact, linkedinUrl;
                 let stepIdentifier = {};
@@ -492,7 +485,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!contact) return;
                 linkedinUrl = contact.linkedin_profile_url || 'https://www.linkedin.com/feed/';
 
-                showModal('Compose LinkedIn Message', `...`, async () => { /* Original logic */ });
+                showModal('Compose LinkedIn Message', `
+                    <div class="form-group">
+                        <p><strong>To:</strong> ${contact.first_name} ${contact.last_name}</p>
+                        <p class="modal-sub-text">The message below will be copied to your clipboard. Paste it into the message box on LinkedIn.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-linkedin-body">Message:</label>
+                        <textarea id="modal-linkedin-body" class="form-control" rows="10">${message}</textarea>
+                    </div>
+                `, async () => {
+                    const finalMessage = document.getElementById('modal-linkedin-body').value;
+                    try { await navigator.clipboard.writeText(finalMessage); } 
+                    catch (err) { console.error('Failed to copy text: ', err); alert('Could not copy text to clipboard. Please copy it manually.'); }
+                    window.open(linkedinUrl, "_blank");
+                    if (stepIdentifier.taskId) { await completeABMSequenceStep(stepIdentifier.taskId, "LinkedIn Message Sent"); }
+                    else if (stepIdentifier.csId) { await completeStep(stepIdentifier.csId, "LinkedIn Message Sent"); }
+                }, true, `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
             } else if (button.matches('.revisit-step-btn') && csId) {
                 const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
                 if (!contactSequence) return;
@@ -545,6 +555,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
