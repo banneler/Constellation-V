@@ -263,7 +263,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const salesSequenceTasks = [];
         const upcomingSalesTasks = [];
         
-        // This check now uses the reliable state flag set during initialization.
         const isManager = state.isManager === true;
 
         for (const cs of state.contact_sequences) {
@@ -275,7 +274,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
 
-            // This condition correctly checks all roles based on the reliable flag.
             if (currentStep && ((currentStep.assigned_to === 'Sales' || !currentStep.assigned_to) || (isManager && currentStep.assigned_to === 'Sales Manager'))) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
@@ -583,7 +581,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             await setupUserMenuAndAuth(supabase, state);
             await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
-            await loadAllData(); // This will now correctly use the state.isManager flag.
+            
+            // The `loadAllData` function will now use the correct `state.isManager` flag.
+            await loadAllData();
             
             if (aiDailyBriefingBtn) {
                 aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
