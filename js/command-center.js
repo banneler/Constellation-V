@@ -556,12 +556,18 @@ function renderDashboard() {
     }
 
     // --- App Initialization ---
-    async function initializePage() {
+async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-            state.currentUser = session.user;
+            // --- THIS IS THE FIX ---
+            // Instead of just using session.user, we force a fetch of the latest user data
+            // to ensure metadata (like is_manager) is always up-to-date.
+            const { data: { user } } = await supabase.auth.getUser();
+            state.currentUser = user; // Use the freshly fetched user object
+            // --- END FIX ---
+
             await setupUserMenuAndAuth(supabase, state);
             await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
