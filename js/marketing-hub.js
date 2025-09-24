@@ -128,14 +128,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     // --- Data Fetching ---
 async function loadAbmData() {
-    const { data, error } = await supabase.rpc('get_marketing_tasks');
+    // 1. Fetch all necessary data, similar to the command center
+    const [
+        { data: csSteps, error: csStepsError },
+        { data: contacts, error: contactsError },
+        { data: accounts, error: accountsError },
+        { data: sequences, error: sequencesError },
+        { data: sequenceSteps, error: sequenceStepsError }
+    ] = await Promise.all([
+        supabase.from('contact_sequence_steps').select('*').eq('assigned_to', 'Marketing').eq('status', 'pending'),
+        supabase.from('contacts').select('id, first_name, last_name, account_id'),
+        supabase.from('accounts').select('id, name'),
+        supabase.from('sequences').select('id, name'),
+        supabase.from('sequence_steps').select('id, subject, type')
+    ]);
 
-    if (error) {
-        console.error('Error fetching ABM data:', error);
+    if (csStepsError || contactsError || accountsError || sequencesError || sequenceStepsError) {
+        console.error('Error fetching ABM data:', csStepsError || contactsError || accountsError || sequencesError || sequenceStepsError);
         state.abmTasks = [];
         return;
     }
-    state.abmTasks = data || [];
+
+    // 2. Manually join and construct the task list, filtering ONLY for Marketing
+    const marketingTasks = csSteps.map(task => {
+        const contact = contacts.find(c => c.id === task.contact_id);
+        const account = contact ? accounts.find(a => a.id === contact.account_id) : null;
+        const sequence = sequences.find(s => s.id === task.sequence_id);
+        const step = sequenceSteps.find(s => s.id === task.sequence_step_id);
+
+        return {
+            task_id: task.id,
+            contact_first_name: contact?.first_name,
+            contact_last_name: contact?.last_name,
+            account_name: account?.name,
+            sequence_name: sequence?.name,
+            step_subject: step?.subject,
+            step_type: step?.type,
+            task_due_date: task.due_date,
+            task_status: task.status,
+            task_completed_at: task.completed_at
+        };
+    });
+
+    state.abmTasks = marketingTasks;
 }
 
  async function loadAllData() {
