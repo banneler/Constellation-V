@@ -258,11 +258,10 @@ function renderDashboard() {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
-        // --- NEW: Client-side logic to build the correct task list ---
         const salesSequenceTasks = [];
         const upcomingSalesTasks = [];
         
-        // NEW: Check if the current user is a manager
+        // This is the correct check, using the user's metadata as you pointed out.
         const isManager = state.currentUser.user_metadata?.is_manager === true;
 
         for (const cs of state.contact_sequences) {
@@ -274,8 +273,7 @@ function renderDashboard() {
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
 
-            // THE CRITICAL CHANGE IS HERE:
-            // This condition now checks for 'Sales', unassigned, AND 'Sales Manager' if the user is a manager.
+            // This condition now correctly checks all roles based on the metadata flag.
             if (currentStep && ((currentStep.assigned_to === 'Sales' || !currentStep.assigned_to) || (isManager && currentStep.assigned_to === 'Sales Manager'))) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
@@ -297,7 +295,7 @@ function renderDashboard() {
             }
         }
 
-        // Render manual tasks (Original Logic)
+        // The rest of the function remains the same...
         const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
@@ -329,7 +327,6 @@ function renderDashboard() {
             myTasksTable.innerHTML = '<tr><td colspan="4">No pending tasks. Great job!</td></tr>';
         }
 
-        // Render due sequence tasks (New Logic)
         salesSequenceTasks.sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date));
         
         if (salesSequenceTasks.length > 0) {
@@ -365,7 +362,6 @@ function renderDashboard() {
             dashboardTable.innerHTML = '<tr><td colspan="6">No sequence steps due today.</td></tr>';
         }
 
-        // Render upcoming sequence tasks (New Logic)
         upcomingSalesTasks.sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date));
         
         upcomingSalesTasks.forEach(task => {
@@ -373,7 +369,6 @@ function renderDashboard() {
             row.innerHTML = `<td>${formatSimpleDate(task.next_step_due_date)}</td><td>${task.contact.first_name} ${task.contact.last_name}</td><td>${task.account ? task.account.name : "N/A"}</td><td><div class="button-group-wrapper"><button class="btn-secondary revisit-step-btn" data-cs-id="${task.id}">Revisit Last Step</button></div></td>`;
         });
         
-        // Render recent activities (Original Logic)
         state.activities
             .sort((a, b) => new Date(b.date) - new Date(a.date))
             .slice(0, 20)
