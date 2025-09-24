@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Function ---
-    function renderDashboard() {
+function renderDashboard() {
         if (!myTasksTable || !dashboardTable || !allTasksTable || !recentActivitiesTable) return;
         myTasksTable.innerHTML = "";
         dashboardTable.innerHTML = "";
@@ -261,6 +261,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         // --- NEW: Client-side logic to build the correct task list ---
         const salesSequenceTasks = [];
         const upcomingSalesTasks = [];
+        
+        // NEW: Check if the current user is a manager
+        const isManager = state.currentUser.user_metadata?.is_manager === true;
 
         for (const cs of state.contact_sequences) {
             if (cs.status !== 'Active' || !cs.current_step_number) {
@@ -271,7 +274,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
 
-            if (currentStep && (currentStep.assigned_to === 'Sales' || !currentStep.assigned_to)) {
+            // THE CRITICAL CHANGE IS HERE:
+            // This condition now checks for 'Sales', unassigned, AND 'Sales Manager' if the user is a manager.
+            if (currentStep && ((currentStep.assigned_to === 'Sales' || !currentStep.assigned_to) || (isManager && currentStep.assigned_to === 'Sales Manager'))) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
                 if (contact && sequence) {
