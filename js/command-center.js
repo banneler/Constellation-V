@@ -258,7 +258,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
 
-            if (currentStep && currentStep.assigned_role === 'Sales') {
+            if (currentStep && (currentStep.assigned_to === 'Sales' || !currentStep.assigned_to)) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
                 if (contact && sequence) {
