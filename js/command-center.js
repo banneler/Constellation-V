@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let state = {
         currentUser: null,
+        isManager: false, // Initialize the isManager flag
         contacts: [],
         accounts: [],
         sequences: [],
@@ -43,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tasks: [],
         deals: [],
         cognitoAlerts: [],
-        nurtureAccounts: [] // NEW: To hold accounts needing nurturing
+        nurtureAccounts: []
     };
 
     // --- DOM Element Selectors ---
@@ -149,7 +150,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const currentStepInfo = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
         
         if (contact && currentStepInfo) {
-            // NEW: Update the individual step in the contact_sequence_steps table
             const { error: updateStepError } = await supabase
                 .from('contact_sequence_steps')
                 .update({ status: 'completed', completed_at: new Date().toISOString() })
@@ -158,9 +158,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (updateStepError) {
                 console.error("Error updating contact_sequence_step:", updateStepError);
-                // Optionally, show an alert to the user
                 alert("Could not update the specific task step. Please check the console for errors.");
-                return; // Stop execution if this critical step fails
+                return;
             }
             
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
@@ -196,6 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         await loadAllData();
     }
+
     // --- AI Briefing Logic ---
     async function handleGenerateBriefing() {
         aiBriefingContainer.classList.remove('hidden');
@@ -248,27 +248,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Function ---
-async function renderDashboard() {
+    function renderDashboard() {
         if (!myTasksTable || !dashboardTable || !allTasksTable || !recentActivitiesTable) return;
-
-        // --- THIS IS THE FIX ---
-        // 1. Fetch the current user's profile from the user_quotas table directly.
-        const { data: userProfile, error } = await supabase
-            .from('user_quotas')
-            .select('is_manager')
-            .eq('user_id', state.currentUser.id)
-            .single();
-
-        if (error) {
-            console.error("Critical error fetching user manager status:", error);
-            alert("Could not verify user permissions. Please refresh the page.");
-            return;
-        }
-
-        // 2. Determine manager status from the direct table lookup.
-        const isManager = userProfile?.is_manager === true;
-        // --- END FIX ---
-
         myTasksTable.innerHTML = "";
         dashboardTable.innerHTML = "";
         allTasksTable.innerHTML = "";
@@ -279,6 +260,9 @@ async function renderDashboard() {
 
         const salesSequenceTasks = [];
         const upcomingSalesTasks = [];
+        
+        // This check now uses the reliable state flag set during initialization.
+        const isManager = state.isManager === true;
 
         for (const cs of state.contact_sequences) {
             if (cs.status !== 'Active' || !cs.current_step_number) {
@@ -289,7 +273,7 @@ async function renderDashboard() {
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
 
-            // 3. This logic now uses the 100% reliable isManager flag from our table lookup.
+            // This condition correctly checks all roles based on the reliable flag.
             if (currentStep && ((currentStep.assigned_to === 'Sales' || !currentStep.assigned_to) || (isManager && currentStep.assigned_to === 'Sales Manager'))) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
@@ -500,7 +484,7 @@ async function renderDashboard() {
                     window.open(mailtoLink, "_blank");
                     await completeStep(csId, `Email Sent: ${finalSubject}`);
                 },
-                true, // This is the 'showCancel' parameter
+                true,
                 `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
@@ -571,22 +555,32 @@ async function renderDashboard() {
     }
 
     // --- App Initialization ---
-async function initializePage() {
+    async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-            // --- THIS IS THE FIX ---
-            // Instead of just using session.user, we force a fetch of the latest user data
-            // to ensure metadata (like is_manager) is always up-to-date.
-            const { data: { user } } = await supabase.auth.getUser();
-            state.currentUser = user; // Use the freshly fetched user object
-            // --- END FIX ---
+            state.currentUser = session.user;
 
+            // This is the sequential fix: check permissions first.
+            const { data: userProfile, error } = await supabase
+                .from('user_quotas')
+                .select('is_manager')
+                .eq('user_id', state.currentUser.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { //PGRST116 means no row found, which is fine.
+                console.error("Critical error fetching user manager status:", error);
+                alert("Could not verify user permissions. Please refresh the page.");
+                return;
+            }
+            state.isManager = userProfile?.is_manager === true;
+
+            // Now that state.isManager is set, proceed with the rest of the setup.
             await setupUserMenuAndAuth(supabase, state);
             await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
-            await loadAllData();
+            await loadAllData(); // This will now correctly use the state.isManager flag.
             
             if (aiDailyBriefingBtn) {
                 aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
