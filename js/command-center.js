@@ -250,11 +250,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Render Function ---
 async function renderDashboard() {
         if (!myTasksTable || !dashboardTable || !allTasksTable || !recentActivitiesTable) return;
-        
+
         // --- THIS IS THE FIX ---
-        // Force a refresh of the user object right before rendering to guarantee the metadata is current.
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return; // Exit if for some reason the user isn't available
+        // 1. Fetch the current user's profile from the user_quotas table directly.
+        const { data: userProfile, error } = await supabase
+            .from('user_quotas')
+            .select('is_manager')
+            .eq('user_id', state.currentUser.id)
+            .single();
+
+        if (error) {
+            console.error("Critical error fetching user manager status:", error);
+            alert("Could not verify user permissions. Please refresh the page.");
+            return;
+        }
+
+        // 2. Determine manager status from the direct table lookup.
+        const isManager = userProfile?.is_manager === true;
         // --- END FIX ---
 
         myTasksTable.innerHTML = "";
@@ -267,9 +279,6 @@ async function renderDashboard() {
 
         const salesSequenceTasks = [];
         const upcomingSalesTasks = [];
-        
-        // This check now uses the freshly fetched user object, ensuring it's always accurate.
-        const isManager = user.user_metadata?.is_manager === true;
 
         for (const cs of state.contact_sequences) {
             if (cs.status !== 'Active' || !cs.current_step_number) {
@@ -280,7 +289,7 @@ async function renderDashboard() {
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
 
-            // The core logic remains the same, but it's now fueled by the correct `isManager` flag.
+            // 3. This logic now uses the 100% reliable isManager flag from our table lookup.
             if (currentStep && ((currentStep.assigned_to === 'Sales' || !currentStep.assigned_to) || (isManager && currentStep.assigned_to === 'Sales Manager'))) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
@@ -302,7 +311,6 @@ async function renderDashboard() {
             }
         }
 
-        // (The rest of the function remains exactly the same as before)
         const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
