@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // --- THIS IS THE KEY CHANGE ---
         let userPromises;
         if (state.isManager) {
-            // If user is a manager, fetch data for all users. RLS will handle permissions.
+            // If user is a manager, fetch data for all users. RLS should handle permissions.
             console.log("Manager detected, fetching all user data.");
             userPromises = userSpecificTables.map(table => supabase.from(table).select("*"));
         } else {
