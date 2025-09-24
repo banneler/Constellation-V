@@ -149,6 +149,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         const currentStepInfo = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
         
         if (contact && currentStepInfo) {
+            // NEW: Update the individual step in the contact_sequence_steps table
+            const { error: updateStepError } = await supabase
+                .from('contact_sequence_steps')
+                .update({ status: 'completed', completed_at: new Date().toISOString() })
+                .eq('contact_sequence_id', cs.id)
+                .eq('sequence_step_id', currentStepInfo.id);
+
+            if (updateStepError) {
+                console.error("Error updating contact_sequence_step:", updateStepError);
+                // Optionally, show an alert to the user
+                alert("Could not update the specific task step. Please check the console for errors.");
+                return; // Stop execution if this critical step fails
+            }
+            
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
             const rawDescription = currentStepInfo.subject || currentStepInfo.message || "Completed step";
             const finalDescription = replacePlaceholders(rawDescription, contact, account);
@@ -182,7 +196,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         await loadAllData();
     }
-
     // --- AI Briefing Logic ---
     async function handleGenerateBriefing() {
         aiBriefingContainer.classList.remove('hidden');
