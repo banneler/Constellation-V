@@ -248,8 +248,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Render Function ---
-function renderDashboard() {
+async function renderDashboard() {
         if (!myTasksTable || !dashboardTable || !allTasksTable || !recentActivitiesTable) return;
+        
+        // --- THIS IS THE FIX ---
+        // Force a refresh of the user object right before rendering to guarantee the metadata is current.
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return; // Exit if for some reason the user isn't available
+        // --- END FIX ---
+
         myTasksTable.innerHTML = "";
         dashboardTable.innerHTML = "";
         allTasksTable.innerHTML = "";
@@ -261,8 +268,8 @@ function renderDashboard() {
         const salesSequenceTasks = [];
         const upcomingSalesTasks = [];
         
-        // This is the correct check, using the user's metadata as you pointed out.
-        const isManager = state.currentUser.user_metadata?.is_manager === true;
+        // This check now uses the freshly fetched user object, ensuring it's always accurate.
+        const isManager = user.user_metadata?.is_manager === true;
 
         for (const cs of state.contact_sequences) {
             if (cs.status !== 'Active' || !cs.current_step_number) {
@@ -273,7 +280,7 @@ function renderDashboard() {
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
 
-            // This condition now correctly checks all roles based on the metadata flag.
+            // The core logic remains the same, but it's now fueled by the correct `isManager` flag.
             if (currentStep && ((currentStep.assigned_to === 'Sales' || !currentStep.assigned_to) || (isManager && currentStep.assigned_to === 'Sales Manager'))) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
@@ -295,7 +302,7 @@ function renderDashboard() {
             }
         }
 
-        // The rest of the function remains the same...
+        // (The rest of the function remains exactly the same as before)
         const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
