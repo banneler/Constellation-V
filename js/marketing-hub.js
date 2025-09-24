@@ -128,47 +128,73 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     // --- Data Fetching ---
 async function loadAbmData() {
-    // 1. Fetch all necessary data, similar to the command center
+    // 1. Fetch all data needed to build the task list.
     const [
-        { data: csSteps, error: csStepsError },
+        { data: activeSequences, error: activeSeqError },
         { data: contacts, error: contactsError },
         { data: accounts, error: accountsError },
         { data: sequences, error: sequencesError },
         { data: sequenceSteps, error: sequenceStepsError }
     ] = await Promise.all([
-        supabase.from('contact_sequence_steps').select('*').eq('assigned_to', 'Marketing').eq('status', 'pending'),
+        // Start by getting only the currently active sequences for all users.
+        supabase.from('contact_sequences').select('*').eq('status', 'Active'),
         supabase.from('contacts').select('id, first_name, last_name, account_id'),
         supabase.from('accounts').select('id, name'),
         supabase.from('sequences').select('id, name'),
-        supabase.from('sequence_steps').select('id, subject, type')
+        // We still need all steps to find the details of the current one.
+        supabase.from('sequence_steps').select('*')
     ]);
 
-    if (csStepsError || contactsError || accountsError || sequencesError || sequenceStepsError) {
-        console.error('Error fetching ABM data:', csStepsError || contactsError || accountsError || sequencesError || sequenceStepsError);
+    const anyError = activeSeqError || contactsError || accountsError || sequencesError || sequenceStepsError;
+    if (anyError) {
+        console.error('Error fetching ABM data:', anyError);
         state.abmTasks = [];
         return;
     }
 
-    // 2. Manually join and construct the task list, filtering ONLY for Marketing
-    const marketingTasks = csSteps.map(task => {
-        const contact = contacts.find(c => c.id === task.contact_id);
-        const account = contact ? accounts.find(a => a.id === contact.account_id) : null;
-        const sequence = sequences.find(s => s.id === task.sequence_id);
-        const step = sequenceSteps.find(s => s.id === task.sequence_step_id);
+    // 2. Filter and construct the marketing task list with the correct logic.
+    const marketingTasks = [];
+    for (const activeSeq of activeSequences) {
+        // Find the specific step that is currently active for this contact.
+        const currentStep = sequenceSteps.find(step => 
+            step.sequence_id === activeSeq.sequence_id && 
+            step.step_number === activeSeq.current_step_number
+        );
 
-        return {
-            task_id: task.id,
-            contact_first_name: contact?.first_name,
-            contact_last_name: contact?.last_name,
-            account_name: account?.name,
-            sequence_name: sequence?.name,
-            step_subject: step?.subject,
-            step_type: step?.type,
-            task_due_date: task.due_date,
-            task_status: task.status,
-            task_completed_at: task.completed_at
-        };
-    });
+        // THE CRITICAL CHECK: Only proceed if the current step is assigned to Marketing.
+        if (currentStep && currentStep.assigned_to === 'Marketing') {
+            const contact = contacts.find(c => c.id === activeSeq.contact_id);
+            const account = contact ? accounts.find(a => a.id === contact.account_id) : null;
+            const sequence = sequences.find(s => s.id === activeSeq.sequence_id);
+
+            // Find the individual task record from the 'contact_sequence_steps' table.
+            // This is needed to get the unique ID for the "Complete Task" button.
+            const { data: stepRecord, error: stepRecordError } = await supabase
+                .from('contact_sequence_steps')
+                .select('id, due_date, status, completed_at')
+                .eq('contact_sequence_id', activeSeq.id)
+                .eq('sequence_step_id', currentStep.id)
+                .single();
+
+            if (stepRecordError) {
+                console.error("Could not find the matching task record for an active step:", stepRecordError);
+                continue; // Skip this task if its record is missing
+            }
+
+            marketingTasks.push({
+                task_id: stepRecord.id, // This is the unique ID for the button
+                contact_first_name: contact?.first_name,
+                contact_last_name: contact?.last_name,
+                account_name: account?.name,
+                sequence_name: sequence?.name,
+                step_subject: currentStep?.subject,
+                step_type: currentStep?.type,
+                task_due_date: stepRecord.due_date,
+                task_status: stepRecord.status,
+                task_completed_at: stepRecord.completed_at
+            });
+        }
+    }
 
     state.abmTasks = marketingTasks;
 }
