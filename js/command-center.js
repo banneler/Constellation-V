@@ -54,8 +54,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const allTasksTable = document.querySelector("#all-tasks-table tbody");
     const myTasksTable = document.querySelector("#my-tasks-table tbody");
     const addNewTaskBtn = document.getElementById("add-new-task-btn");
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    const themeNameSpan = document.getElementById("theme-name");
     const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
     const aiBriefingContainer = document.getElementById("ai-briefing-container");
 
@@ -89,19 +87,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
         
         const tableMap = {
-            "contacts": "contacts",
-            "accounts": "accounts",
-            "sequences": "sequences",
-            "activities": "activities",
-            "contact_sequences": "contact_sequences",
-            "deals": "deals",
-            "tasks": "tasks",
-            "cognito_alerts": "cognitoAlerts"
+            "contacts": "contacts", "accounts": "accounts", "sequences": "sequences",
+            "activities": "activities", "contact_sequences": "contact_sequences",
+            "deals": "deals", "tasks": "tasks", "cognito_alerts": "cognitoAlerts"
         };
-
         const userSpecificTables = Object.keys(tableMap);
         const publicTables = ["sequence_steps"];
-        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+
+        // --- THIS IS THE KEY CHANGE ---
+        let userPromises;
+        if (state.isManager) {
+            // If user is a manager, fetch data for all users. RLS will handle permissions.
+            console.log("Manager detected, fetching all user data.");
+            userPromises = userSpecificTables.map(table => supabase.from(table).select("*"));
+        } else {
+            // If not a manager, only fetch data for the current user.
+            console.log("Standard user detected, fetching only own data.");
+            userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+        }
+        // --- END CHANGE ---
+
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...publicPromises];
         const allTableNames = [...userSpecificTables, ...publicTables];
@@ -115,7 +120,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     state[stateKey] = result.value.data || [];
                 } else {
                     console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? (result.value ? result.value.error.message : 'Unknown error') : result.reason);
-                    state[stateKey] = [];
                 }
             });
         } catch (error) {
@@ -124,7 +128,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         const sixtyDaysAgo = new Date();
         sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
         const activeAccountIds = new Set(
             state.activities
             .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
@@ -135,7 +138,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             })
             .filter(id => id)
         );
-
         state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
         
         renderDashboard();
@@ -295,7 +297,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
 
-        const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+        // Only show tasks that belong to the logged-in user in "My Tasks"
+        const pendingTasks = state.tasks.filter(task => task.user_id === state.currentUser.id && task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
                 const row = myTasksTable.insertRow();
