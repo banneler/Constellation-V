@@ -163,14 +163,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     </select>
 ` : (step.assigned_to || 'Sales');
             
-            row.innerHTML = `
-                <td>${step.step_number}</td>
-                <td>${isEditingThisStep ? `<input type="text" class="edit-step-type" value="${step.type || ''}">` : (step.type || '')}</td>
-                <td>${isEditingThisStep ? `<input type="number" class="edit-step-delay" value="${step.delay_days || 0}">` : (step.delay_days || 0)}</td>
-                <td>${isEditingThisStep ? `<input type="text" class="edit-step-subject" value="${step.subject || ''}">` : (step.subject || '')}</td>
-                <td>${isEditingThisStep ? `<textarea class="edit-step-message">${step.message || ''}</textarea>` : (step.message || '')}</td>
-                ${actionsHtml}
-            `;
+           row.innerHTML = `
+    <td>${step.step_number}</td>
+    <td>${isEditingThisStep ? `<input type="text" class="edit-step-type" value="${step.type || ''}">` : (step.type || '')}</td>
+    <td>${isEditingThisStep ? `<input type="number" class="edit-step-delay" value="${step.delay_days || 0}">` : (step.delay_days || 0)}</td>
+    <td>${isEditingThisStep ? `<input type="text" class="edit-step-subject" value="${step.subject || ''}">` : (step.subject || '')}</td>
+    <td>${assignedToHtml}</td>
+    <td>${isEditingThisStep ? `<textarea class="edit-step-message">${step.message || ''}</textarea>` : (step.message || '')}</td>
+    ${actionsHtml}
+`;
         });
     };
     
