@@ -4324,3 +4324,20 @@ div.briefing-pre {
     font-size: 1.3rem;     /* Slightly larger font */
     line-height: 1;        /* Helps center the text vertically */
 }
+/* --- Impersonation Dropdown --- */
+.impersonation-container {
+    padding: 0.5rem 0.625rem;
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+.impersonation-container label {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text-medium);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+#impersonation-select {
+    width: 100%;
+    /* It will inherit the global input/select styles */
+}
