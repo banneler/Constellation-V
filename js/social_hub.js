@@ -1,8 +1,8 @@
-// /js/social_hub.js
+// banneler/constellation-v/Constellation-V-8d825689cc599d5206d1e49b4f0dafe9c5ecc390/js/social_hub.js
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
-    formatDate,
+    formatDate, // Import formatDate
     updateActiveNavLink,
     setupUserMenuAndAuth,
     loadSVGs,
@@ -78,6 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         card.className = 'alert-card';
         card.id = `post-card-${item.id}`;
 
+        // Create the card structure but leave the summary paragraph empty for now
         card.innerHTML = `
             <div class="alert-header"><span class="alert-trigger-type">${triggerType}</span></div>
             <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
@@ -92,10 +93,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
         `;
 
+        // --- THIS IS THE FIX ---
+        // Find the empty summary paragraph.
         const summaryP = card.querySelector('.alert-summary');
+        // Replace newline characters (\n) with HTML line break tags (<br>)
         const formattedSummary = summary.replace(/\n/g, '<br>');
+        // Set the innerHTML with the formatted text.
         summaryP.innerHTML = formattedSummary;
 
+        // Re-attach event listeners
         card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
         card.querySelector('.dismiss-post-btn').addEventListener('click', () => handleDismissPost(item.id));
         return card;
@@ -112,22 +118,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalBackdrop.classList.remove('hidden');
 
         if (item.type === 'marketing_post') {
-            postTextArea.value = item.approved_copy;
+            postTextArea.value = item.approved_copy; // Use pre-approved copy directly
         } else {
-            // =================================================================
-            // --- THIS IS THE FIX ---
-            // We need to include the Authorization header to prove who is making the request.
-            
-            const { data: { session } } = await supabase.auth.getSession();
-
-            const { data, error } = await supabase.functions.invoke('generate-social-post', { 
-                body: item,
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            });
-            // =================================================================
-            
+            // Call the Edge Function to get an initial suggestion
+            const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
             if (error) {
                 postTextArea.value = "Error generating suggestion. Please write your own or try again.";
                 console.error("Edge function error:", error);
@@ -172,6 +166,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
         });
 
+        // Event listener for the "Refine" button
         generateCustomBtn.addEventListener('click', async () => {
             const originalText = postTextArea.value;
             const customPrompt = customPromptInput.value.trim();
@@ -182,22 +177,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             generateCustomBtn.textContent = 'Regenerating...';
             generateCustomBtn.disabled = true;
-            
-            // Also add the Authorization header to this function call
-            const { data: { session } } = await supabase.auth.getSession();
 
-            const { data, error } = await supabase.functions.invoke('refine-social-post', { 
-                body: { originalText, customPrompt },
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            });
+            const { data, error } = await supabase.functions.invoke('refine-social-post', { body: { originalText, customPrompt } });
             
             if (error) {
                 alert("Error refining post. Please check the console.");
             } else {
                 postTextArea.value = data.suggestion;
-                customPromptInput.value = '';
+                customPromptInput.value = ''; // Clear prompt input
             }
 
             generateCustomBtn.textContent = 'Regenerate';
@@ -206,22 +193,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
      // --- INITIALIZATION ---
-    async function initializePage() {
-        await loadSVGs();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            updateActiveNavLink();
-            setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser);
-            await loadSocialContent(); 
+async function initializePage() {
+    await loadSVGs();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        state.currentUser = session.user;
+        await setupUserMenuAndAuth(supabase, state);
+        updateActiveNavLink();
+        setupPageEventListeners();
+        await setupGlobalSearch(supabase, state.currentUser);
+        await loadSocialContent(); 
 
-            await checkAndSetNotifications(supabase); 
-            updateLastVisited(supabase, 'social_hub'); 
-        } else {
-            window.location.href = "index.html";
-        }
+        // NUKE-LEVEL FIX: Await the check, THEN update the visit time.
+        await checkAndSetNotifications(supabase); 
+        updateLastVisited(supabase, 'social_hub'); 
+    } else {
+        window.location.href = "index.html";
     }
-    initializePage();
+}
+initializePage();
 });
