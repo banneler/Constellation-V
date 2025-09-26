@@ -168,8 +168,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     <td>${isEditingThisStep ? `<input type="text" class="edit-step-type" value="${step.type || ''}">` : (step.type || '')}</td>
     <td>${isEditingThisStep ? `<input type="number" class="edit-step-delay" value="${step.delay_days || 0}">` : (step.delay_days || 0)}</td>
     <td>${isEditingThisStep ? `<input type="text" class="edit-step-subject" value="${step.subject || ''}">` : (step.subject || '')}</td>
-    <td>${assignedToHtml}</td>
     <td>${isEditingThisStep ? `<textarea class="edit-step-message">${step.message || ''}</textarea>` : (step.message || '')}</td>
+    <td>${assignedToHtml}</td> 
     ${actionsHtml}
 `;
         });
