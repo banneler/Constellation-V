@@ -13,17 +13,28 @@ import {
     setupUserMenuAndAuth,
     loadSVGs,
     setupGlobalSearch,
-    checkAndSetNotifications,
-    initializeAppState,
-    getState
+    checkAndSetNotifications
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // --- UPDATED LOADING SCREEN LOGIC ---
+    const loadingScreen = document.getElementById('loading-screen');
+    if (sessionStorage.getItem('showLoadingScreen') === 'true') {
+        if (loadingScreen) {
+            loadingScreen.classList.remove('hidden');
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+            }, 7000); // 7 seconds
+        }
+        sessionStorage.removeItem('showLoadingScreen');
+    }
+    // --- END OF UPDATED LOGIC ---
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- STATE MANAGEMENT ---
-    // The local state now primarily holds the data, while user/view state is managed globally.
     let state = {
+        currentUser: null,
+        isManager: false, // Initialize the isManager flag
         contacts: [],
         accounts: [],
         sequences: [],
@@ -70,11 +81,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return result;
     }
 
-    // --- DATA FETCHING (UPDATED FOR IMPERSONATION) ---
+    // --- Data Fetching ---
     async function loadAllData() {
-        const appState = getState();
-        if (!appState.effectiveUserId) return;
-
+        if (!state.currentUser) return;
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
         
         const tableMap = {
@@ -86,12 +95,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         const publicTables = ["sequence_steps"];
 
         // --- THIS IS THE KEY CHANGE ---
-        // All data is now fetched based on the 'effectiveUserId', which could be the manager's own ID
-        // or the ID of the user they are impersonating. RLS policies on the Supabase side
-        // will ensure a manager can only see data they are permitted to see.
-        const userPromises = userSpecificTables.map(table =>
-            supabase.from(table).select("*").eq("user_id", appState.effectiveUserId)
-        );
+        let userPromises;
+        if (state.isManager) {
+            // If user is a manager, fetch data for all users. RLS should handle permissions.
+            console.log("Manager detected, fetching all user data.");
+            userPromises = userSpecificTables.map(table => supabase.from(table).select("*"));
+        } else {
+            // If not a manager, only fetch data for the current user.
+            console.log("Standard user detected, fetching only own data.");
+            userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+        }
         // --- END CHANGE ---
 
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
@@ -132,7 +145,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
     // --- Core Logic ---
     async function completeStep(csId, processedDescription = null) {
-        const appState = getState();
         const cs = state.contact_sequences.find((c) => c.id === csId);
         if (!cs) return;
 
@@ -163,7 +175,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 date: new Date().toISOString(),
                 type: `Sequence: ${currentStepInfo.type}`,
                 description: descriptionForLog,
-                user_id: appState.effectiveUserId // Log activity for the user being viewed
+                user_id: state.currentUser.id
             }]);
         }
         
@@ -209,6 +221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sequences: state.sequences,
                 sequence_steps: state.sequence_steps
             };
+            console.log("Payload being sent to Edge Function:", briefingPayload);
             const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
                 body: { briefingPayload }
             });
@@ -221,8 +234,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
         
     function renderAIBriefing(briefing) {
-        const appState = getState();
-        const greeting = `<h3>Howdy, ${appState.effectiveUserFullName}! Here are your top priorities:</h3>`;
+        const greeting = `<h3>Howdy, Partner! Here are your top priorities:</h3>`;
         const briefingHtml = `
             ${greeting}
             <ol id="ai-briefing-list">
@@ -251,8 +263,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const salesSequenceTasks = [];
         const upcomingSalesTasks = [];
         
-        const appState = getState();
-        const isManagerViewingOwnData = appState.isManager && appState.effectiveUserId === appState.currentUser.id;
+        const isManager = state.isManager === true;
 
         for (const cs of state.contact_sequences) {
             if (cs.status !== 'Active' || !cs.current_step_number) {
@@ -262,22 +273,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const currentStep = state.sequence_steps.find(
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
-            
-            // Logic to determine if a task should be shown
-            let shouldShowTask = false;
-            if (currentStep) {
-                // Always show tasks assigned to the specific user being viewed
-                if (cs.user_id === appState.effectiveUserId) {
-                    // Standard user sees their "Sales" tasks, Manager sees their "Sales Manager" tasks
-                    if (appState.isManager && currentStep.assigned_to === 'Sales Manager') {
-                        shouldShowTask = true;
-                    } else if (!appState.isManager && (currentStep.assigned_to === 'Sales' || !currentStep.assigned_to)) {
-                        shouldShowTask = true;
-                    }
-                }
-            }
 
-            if (shouldShowTask) {
+            if (currentStep && ((isManager && (currentStep.assigned_to === 'Sales Manager' || cs.user_id === state.currentUser.id)) || (!isManager && (currentStep.assigned_to === 'Sales' || !currentStep.assigned_to)))) {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 const sequence = state.sequences.find(s => s.id === cs.sequence_id);
                 if (contact && sequence) {
@@ -297,8 +294,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
         }
-        
-        const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+
+        // Only show tasks that belong to the logged-in user in "My Tasks"
+        const pendingTasks = state.tasks.filter(task => task.user_id === state.currentUser.id && task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
                 const row = myTasksTable.insertRow();
@@ -344,7 +342,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 let btnHtml;
                 if (task.step.type.toLowerCase().includes("linkedin")) {
-                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.id}">Go to LinkedIn</button>`;
+                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.id}">Send Message</button>`;
                 } else if (task.step.type.toLowerCase().includes("email") && task.contact.email) {
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.id}">Send Email</button>`;
                 } else {
@@ -393,7 +391,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (addNewTaskBtn) {
             addNewTaskBtn.addEventListener('click', () => {
-                const appState = getState();
                 const contactsOptions = state.contacts.map(c => `<option value="c-${c.id}">${c.first_name} ${c.last_name} (Contact)</option>`).join('');
                 const accountsOptions = state.accounts.map(a => `<option value="a-${a.id}">${a.name} (Account)</option>`).join('');
                 showModal('Add New Task', `
@@ -410,7 +407,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const dueDate = document.getElementById('modal-task-due-date').value;
                     const linkedEntityValue = document.getElementById('modal-task-linked-entity').value;
                     if (!description) { alert('Description is required.'); return; }
-                    const taskData = { description, due_date: dueDate || null, user_id: appState.effectiveUserId, status: 'Pending' };
+                    const taskData = { description, due_date: dueDate || null, user_id: state.currentUser.id, status: 'Pending' };
                     if (linkedEntityValue.startsWith('c-')) { taskData.contact_id = Number(linkedEntityValue.substring(2)); }
                     else if (linkedEntityValue.startsWith('a-')) { taskData.account_id = Number(linkedEntityValue.substring(2)); }
                     const { error } = await supabase.from('tasks').insert(taskData);
@@ -558,51 +555,45 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- App Initialization (UPDATED) ---
-       async function initializePage() {
-        // --- UPDATED LOADING SCREEN LOGIC ---
-        const loadingScreen = document.getElementById('loading-screen');
-        if (sessionStorage.getItem('showLoadingScreen') === 'true') {
-            if (loadingScreen) {
-                loadingScreen.classList.remove('hidden');
-                setTimeout(() => {
-                    loadingScreen.classList.add('hidden');
-                }, 7000); // 7 seconds
-            }
-            sessionStorage.removeItem('showLoadingScreen');
-        }
-        // --- END OF UPDATED LOGIC ---
-        
+    // --- App Initialization ---
+    async function initializePage() {
         await loadSVGs();
         updateActiveNavLink();
-        
-        // Use the new global state initializer from shared_constants.js
-        const appState = await initializeAppState(supabase);
-        
-        if (appState.currentUser) {
-            // Pass the whole appState object to setup the user menu
-            await setupUserMenuAndAuth(supabase, appState); 
-            
-            // Setup other shared features
-            await setupGlobalSearch(supabase);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            state.currentUser = session.user;
+
+            // This is the sequential fix: check permissions first.
+            const { data: userProfile, error } = await supabase
+                .from('user_quotas')
+                .select('is_manager')
+                .eq('user_id', state.currentUser.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { //PGRST116 means no row found, which is fine.
+                console.error("Critical error fetching user manager status:", error);
+                alert("Could not verify user permissions. Please refresh the page.");
+                return;
+            }
+            state.isManager = userProfile?.is_manager === true;
+
+            // Now that state.isManager is set, proceed with the rest of the setup.
+            await setupUserMenuAndAuth(supabase, state);
+            await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
             
-            // Initial data load for the effective user (which is the current user by default)
+            // The `loadAllData` function will now use the correct `state.isManager` flag.
             await loadAllData();
             
-            // Add event listener for the AI briefing button
             if (aiDailyBriefingBtn) {
                 aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
             }
             
-            // Setup all other page-specific event listeners
             setupPageEventListeners();
-
-            // Listen for the custom event to reload data when a manager impersonates another user
-            window.addEventListener('effectiveUserChanged', loadAllData);
-            
         } else {
-            // This case is handled by initializeAppState, but serves as a fallback
             window.location.href = "index.html";
         }
     }
+
+    initializePage();
+});
