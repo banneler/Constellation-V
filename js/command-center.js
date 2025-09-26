@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let state = {
         currentUser: null,
+        isManager: false, // Initialize the isManager flag
         contacts: [],
         accounts: [],
         sequences: [],
@@ -43,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tasks: [],
         deals: [],
         cognitoAlerts: [],
-        nurtureAccounts: [] // NEW: To hold accounts needing nurturing
+        nurtureAccounts: []
     };
 
     // --- DOM Element Selectors ---
@@ -53,8 +54,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const allTasksTable = document.querySelector("#all-tasks-table tbody");
     const myTasksTable = document.querySelector("#my-tasks-table tbody");
     const addNewTaskBtn = document.getElementById("add-new-task-btn");
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    const themeNameSpan = document.getElementById("theme-name");
     const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
     const aiBriefingContainer = document.getElementById("ai-briefing-container");
 
@@ -88,19 +87,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
         
         const tableMap = {
-            "contacts": "contacts",
-            "accounts": "accounts",
-            "sequences": "sequences",
-            "activities": "activities",
-            "contact_sequences": "contact_sequences",
-            "deals": "deals",
-            "tasks": "tasks",
-            "cognito_alerts": "cognitoAlerts"
+            "contacts": "contacts", "accounts": "accounts", "sequences": "sequences",
+            "activities": "activities", "contact_sequences": "contact_sequences",
+            "deals": "deals", "tasks": "tasks", "cognito_alerts": "cognitoAlerts"
         };
-
         const userSpecificTables = Object.keys(tableMap);
         const publicTables = ["sequence_steps"];
-        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+
+        // --- THIS IS THE KEY CHANGE ---
+        let userPromises;
+        if (state.isManager) {
+            // If user is a manager, fetch data for all users. RLS should handle permissions.
+            console.log("Manager detected, fetching all user data.");
+            userPromises = userSpecificTables.map(table => supabase.from(table).select("*"));
+        } else {
+            // If not a manager, only fetch data for the current user.
+            console.log("Standard user detected, fetching only own data.");
+            userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", state.currentUser.id));
+        }
+        // --- END CHANGE ---
+
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...publicPromises];
         const allTableNames = [...userSpecificTables, ...publicTables];
@@ -110,11 +116,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             results.forEach((result, index) => {
                 const tableName = allTableNames[index];
                 const stateKey = tableMap[tableName] || tableName;
-                if (result.status === "fulfilled" && !result.value.error) {
+                if (result.status === "fulfilled" && result.value && !result.value.error) {
                     state[stateKey] = result.value.data || [];
                 } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error.message : result.reason);
-                    state[stateKey] = [];
+                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? (result.value ? result.value.error.message : 'Unknown error') : result.reason);
                 }
             });
         } catch (error) {
@@ -123,7 +128,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         const sixtyDaysAgo = new Date();
         sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
         const activeAccountIds = new Set(
             state.activities
             .filter(act => act.date && new Date(act.date) > sixtyDaysAgo)
@@ -134,7 +138,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             })
             .filter(id => id)
         );
-
         state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
         
         renderDashboard();
@@ -144,29 +147,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function completeStep(csId, processedDescription = null) {
         const cs = state.contact_sequences.find((c) => c.id === csId);
         if (!cs) return;
+
         const contact = state.contacts.find((c) => c.id === cs.contact_id);
-        const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
-        if (contact && step) {
+        const currentStepInfo = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+        
+        if (contact && currentStepInfo) {
+            const { error: updateStepError } = await supabase
+                .from('contact_sequence_steps')
+                .update({ status: 'completed', completed_at: new Date().toISOString() })
+                .eq('contact_sequence_id', cs.id)
+                .eq('sequence_step_id', currentStepInfo.id);
+
+            if (updateStepError) {
+                console.error("Error updating contact_sequence_step:", updateStepError);
+                alert("Could not update the specific task step. Please check the console for errors.");
+                return;
+            }
+            
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-            const rawDescription = step.subject || step.message || "Completed step";
+            const rawDescription = currentStepInfo.subject || currentStepInfo.message || "Completed step";
             const finalDescription = replacePlaceholders(rawDescription, contact, account);
             const descriptionForLog = processedDescription || finalDescription;
+
             await supabase.from("activities").insert([{
                 contact_id: contact.id,
                 account_id: contact.account_id,
                 date: new Date().toISOString(),
-                type: `Sequence: ${step.type}`,
+                type: `Sequence: ${currentStepInfo.type}`,
                 description: descriptionForLog,
                 user_id: state.currentUser.id
             }]);
         }
-        const nextStep = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number + 1);
+        
+        const allStepsInSequence = state.sequence_steps
+            .filter(s => s.sequence_id === cs.sequence_id)
+            .sort((a, b) => a.step_number - b.step_number);
+        
+        const nextStep = allStepsInSequence.find(s => s.step_number > cs.current_step_number);
+        
         if (nextStep) {
-            await supabase.from("contact_sequences").update({ current_step_number: nextStep.step_number, last_completed_date: new Date().toISOString(), next_step_due_date: addDays(new Date(), nextStep.delay_days).toISOString() }).eq("id", cs.id);
+            await supabase.from("contact_sequences").update({
+                current_step_number: nextStep.step_number,
+                last_completed_date: new Date().toISOString(),
+                next_step_due_date: addDays(new Date(), nextStep.delay_days).toISOString()
+            }).eq("id", cs.id);
         } else {
             await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", cs.id);
         }
-        loadAllData();
+        
+        await loadAllData();
     }
 
     // --- AI Briefing Logic ---
@@ -231,7 +260,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
-        const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+        const salesSequenceTasks = [];
+        const upcomingSalesTasks = [];
+        
+        const isManager = state.isManager === true;
+
+        for (const cs of state.contact_sequences) {
+            if (cs.status !== 'Active' || !cs.current_step_number) {
+                continue;
+            }
+
+            const currentStep = state.sequence_steps.find(
+                s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
+            );
+
+            if (currentStep && ((isManager && (currentStep.assigned_to === 'Sales Manager' || cs.user_id === state.currentUser.id)) || (!isManager && (currentStep.assigned_to === 'Sales' || !currentStep.assigned_to)))) {
+                const contact = state.contacts.find(c => c.id === cs.contact_id);
+                const sequence = state.sequences.find(s => s.id === cs.sequence_id);
+                if (contact && sequence) {
+                    const taskObject = {
+                        ...cs,
+                        contact: contact,
+                        account: contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null,
+                        sequence: sequence,
+                        step: currentStep
+                    };
+                    
+                    if (cs.next_step_due_date && new Date(cs.next_step_due_date).setHours(0,0,0,0) <= startOfToday.getTime()) {
+                        salesSequenceTasks.push(taskObject);
+                    } else {
+                        upcomingSalesTasks.push(taskObject);
+                    }
+                }
+            }
+        }
+
+        // Only show tasks that belong to the logged-in user in "My Tasks"
+        const pendingTasks = state.tasks.filter(task => task.user_id === state.currentUser.id && task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
                 const row = myTasksTable.insertRow();
@@ -262,56 +327,48 @@ document.addEventListener("DOMContentLoaded", async () => {
             myTasksTable.innerHTML = '<tr><td colspan="4">No pending tasks. Great job!</td></tr>';
         }
 
-        state.contact_sequences
-            .filter(cs => {
-                if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                const dueDate = new Date(cs.next_step_due_date);
-                return dueDate.setHours(0,0,0,0) <= startOfToday.getTime();
-            })
-            .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
-            .forEach(cs => {
+        salesSequenceTasks.sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date));
+        
+        if (salesSequenceTasks.length > 0) {
+            salesSequenceTasks.forEach(task => {
                 const row = dashboardTable.insertRow();
-                const dueDate = new Date(cs.next_step_due_date);
-                if (dueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
+                const dueDate = new Date(task.next_step_due_date);
+                if (dueDate < startOfToday) {
                     row.classList.add('past-due');
                 }
-                const contact = state.contacts.find(c => c.id === cs.contact_id);
-                const sequence = state.sequences.find(s => s.id === cs.sequence_id);
-                if (!contact || !sequence) return;
-                const step = state.sequence_steps.find(s => s.sequence_id === sequence.id && s.step_number === cs.current_step_number);
-                if (!step) return;
-                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-                const desc = replacePlaceholders(step.subject || step.message || "", contact, account);
+                
+                const contactName = `${task.contact.first_name || ''} ${task.contact.last_name || ''}`;
+                const description = task.step.subject || task.step.message || '';
 
                 let btnHtml;
-                // --- MODIFIED: LinkedIn button logic ---
-                if (step.type.toLowerCase().includes("linkedin")) {
-                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${cs.id}">Send Message</button>`;
-                } else if (step.type.toLowerCase().includes("email") && contact.email) {
-                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${cs.id}">Send Email</button>`;
+                if (task.step.type.toLowerCase().includes("linkedin")) {
+                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.id}">Send Message</button>`;
+                } else if (task.step.type.toLowerCase().includes("email") && task.contact.email) {
+                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.id}">Send Email</button>`;
                 } else {
-                    btnHtml = `<button class="btn-primary complete-step-btn" data-id="${cs.id}">Complete</button>`;
+                    btnHtml = `<button class="btn-primary complete-step-btn" data-cs-id="${task.id}">Complete</button>`;
                 }
-                // --- END MODIFICATION ---
 
-                row.innerHTML = `<td>${formatSimpleDate(cs.next_step_due_date)}</td><td>${contact.first_name} ${contact.last_name}</td><td>${sequence.name}</td><td>${step.step_number}: ${step.type}</td><td>${desc}</td><td><div class="button-group-wrapper">${btnHtml}</div></td>`;
+                row.innerHTML = `
+                    <td>${formatSimpleDate(task.next_step_due_date)}</td>
+                    <td>${contactName}</td>
+                    <td>${task.sequence.name}</td>
+                    <td>${task.step.type}</td>
+                    <td>${description}</td>
+                    <td><div class="button-group-wrapper">${btnHtml}</div></td>
+                `;
             });
+        } else {
+            dashboardTable.innerHTML = '<tr><td colspan="6">No sequence steps due today.</td></tr>';
+        }
 
-        state.contact_sequences
-            .filter(cs => {
-                if (!cs.next_step_due_date || cs.status !== "Active") return false;
-                const dueDate = new Date(cs.next_step_due_date);
-                return dueDate.setHours(0,0,0,0) > startOfToday.getTime();
-            })
-            .sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date))
-            .forEach(cs => {
-                const row = allTasksTable.insertRow();
-                const contact = state.contacts.find(c => c.id === cs.contact_id);
-                if (!contact) return;
-                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-                row.innerHTML = `<td>${formatSimpleDate(cs.next_step_due_date)}</td><td>${contact.first_name} ${contact.last_name}</td><td>${account ? account.name : "N/A"}</td><td><div class="button-group-wrapper"><button class="btn-secondary revisit-step-btn" data-cs-id="${cs.id}">Revisit Last Step</button></div></td>`;
-            });
-
+        upcomingSalesTasks.sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date));
+        
+        upcomingSalesTasks.forEach(task => {
+            const row = allTasksTable.insertRow();
+            row.innerHTML = `<td>${formatSimpleDate(task.next_step_due_date)}</td><td>${task.contact.first_name} ${task.contact.last_name}</td><td>${task.account ? task.account.name : "N/A"}</td><td><div class="button-group-wrapper"><button class="btn-secondary revisit-step-btn" data-cs-id="${task.id}">Revisit Last Step</button></div></td>`;
+        });
+        
         state.activities
             .sort((a, b) => new Date(b.date) - new Date(a.date))
             .slice(0, 20)
@@ -362,6 +419,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.body.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
+
             if (button.matches('.mark-task-complete-btn')) {
                 const taskId = button.dataset.taskId;
                 showModal('Confirm Completion', 'Mark this task as completed?', async () => {
@@ -425,13 +483,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const finalMessage = document.getElementById('modal-email-body').value;
                     const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
                     window.open(mailtoLink, "_blank");
-                    await completeStep(csId, finalSubject);
+                    await completeStep(csId, `Email Sent: ${finalSubject}`);
                 },
-                true, // This is the 'showCancel' parameter
+                true,
                 `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-            // --- NEW: LinkedIn Message Handler ---
             } else if (button.matches('.send-linkedin-message-btn')) {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
@@ -471,19 +528,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-            // --- END NEW HANDLER ---
             } else if (button.matches('.complete-step-btn')) {
-                const csId = Number(button.dataset.id);
+                const csId = Number(button.dataset.csId);
                 completeStep(csId);
             } else if (button.matches('.revisit-step-btn')) {
                 const csId = Number(button.dataset.csId);
                 const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
                 if (!contactSequence) return;
-                const newStepNumber = Math.max(1, contactSequence.current_step_number - 1);
-                showModal('Revisit Step', `Are you sure you want to go back to step ${newStepNumber}?`, async () => {
-                    await supabase.from('contact_sequences').update({ current_step_number: newStepNumber, next_step_due_date: getStartOfLocalDayISO(), status: 'Active' }).eq('id', csId);
-                    await loadAllData();
-                });
+                
+                const allStepsInSequence = state.sequence_steps
+                    .filter(s => s.sequence_id === contactSequence.sequence_id)
+                    .sort((a,b) => a.step_number - b.step_number);
+
+                const currentStepIndex = allStepsInSequence.findIndex(s => s.step_number === contactSequence.current_step_number);
+                
+                if (currentStepIndex > 0) {
+                    const previousStep = allStepsInSequence[currentStepIndex - 1];
+                    showModal('Revisit Step', `Are you sure you want to go back to step ${previousStep.step_number}?`, async () => {
+                        await supabase.from('contact_sequences').update({ current_step_number: previousStep.step_number, next_step_due_date: getStartOfLocalDayISO(), status: 'Active' }).eq('id', csId);
+                        await loadAllData();
+                    });
+                } else {
+                    alert("This is already the first step.");
+                }
             }
         });
     }
@@ -495,12 +562,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             state.currentUser = session.user;
+
+            // This is the sequential fix: check permissions first.
+            const { data: userProfile, error } = await supabase
+                .from('user_quotas')
+                .select('is_manager')
+                .eq('user_id', state.currentUser.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { //PGRST116 means no row found, which is fine.
+                console.error("Critical error fetching user manager status:", error);
+                alert("Could not verify user permissions. Please refresh the page.");
+                return;
+            }
+            state.isManager = userProfile?.is_manager === true;
+
+            // Now that state.isManager is set, proceed with the rest of the setup.
             await setupUserMenuAndAuth(supabase, state);
             await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
+            
+            // The `loadAllData` function will now use the correct `state.isManager` flag.
             await loadAllData();
             
-            const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
             if (aiDailyBriefingBtn) {
                 aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
             }
