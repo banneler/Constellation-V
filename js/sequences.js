@@ -155,6 +155,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                 </td>`;
 
+            const assignedToHtml = isEditingThisStep ? `
+    <select class="form-control edit-step-assigned-to">
+        <option value="Sales" ${ (step.assigned_to || 'Sales') === 'Sales' ? 'selected' : '' }>Sales</option>
+        <option value="Sales Manager" ${ (step.assigned_to === 'Sales Manager') ? 'selected' : '' }>Sales Manager</option>
+        <option value="Marketing" ${ (step.assigned_to === 'Marketing') ? 'selected' : '' }>Marketing</option>
+    </select>
+` : (step.assigned_to || 'Sales');
+            
             row.innerHTML = `
                 <td>${step.step_number}</td>
                 <td>${isEditingThisStep ? `<input type="text" class="edit-step-type" value="${step.type || ''}">` : (step.type || '')}</td>
@@ -530,6 +538,7 @@ async function processBulkAssignment() {
                 subject: row.querySelector(".edit-step-subject").value.trim(),
                 message: row.querySelector(".edit-step-message").value.trim(),
                 delay_days: parseInt(row.querySelector(".edit-step-delay").value || 0, 10),
+                assigned_to: row.querySelector(".edit-step-assigned-to").value,
             };
             if (!updatedStep.type) { 
                 showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
