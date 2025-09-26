@@ -114,6 +114,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (item.type === 'marketing_post') {
             postTextArea.value = item.approved_copy;
         } else {
+            // =================================================================
+            // --- THIS IS THE FIX ---
+            // We need to include the Authorization header to prove who is making the request.
+            
             const { data: { session } } = await supabase.auth.getSession();
 
             const { data, error } = await supabase.functions.invoke('generate-social-post', { 
@@ -122,6 +126,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     'Authorization': `Bearer ${session.access_token}`
                 }
             });
+            // =================================================================
             
             if (error) {
                 postTextArea.value = "Error generating suggestion. Please write your own or try again.";
@@ -178,6 +183,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             generateCustomBtn.textContent = 'Regenerating...';
             generateCustomBtn.disabled = true;
             
+            // Also add the Authorization header to this function call
             const { data: { session } } = await supabase.auth.getSession();
 
             const { data, error } = await supabase.functions.invoke('refine-social-post', { 
