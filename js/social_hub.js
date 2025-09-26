@@ -114,17 +114,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (item.type === 'marketing_post') {
             postTextArea.value = item.approved_copy;
         } else {
-            // =================================================================
-            // --- THIS IS THE ONLY CHANGE ---
-            // We are now sending the 'item' object directly as the body,
-            // instead of wrapping it in another object like { article: item }.
-            //
-            // BEFORE:
-            // const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
-            //
-            // AFTER:
-            const { data, error } = await supabase.functions.invoke('generate-social-post', { body: item });
-            // =================================================================
+            const { data: { session } } = await supabase.auth.getSession();
+
+            const { data, error } = await supabase.functions.invoke('generate-social-post', { 
+                body: item,
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
             
             if (error) {
                 postTextArea.value = "Error generating suggestion. Please write your own or try again.";
@@ -180,8 +177,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             generateCustomBtn.textContent = 'Regenerating...';
             generateCustomBtn.disabled = true;
+            
+            const { data: { session } } = await supabase.auth.getSession();
 
-            const { data, error } = await supabase.functions.invoke('refine-social-post', { body: { originalText, customPrompt } });
+            const { data, error } = await supabase.functions.invoke('refine-social-post', { 
+                body: { originalText, customPrompt },
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
             
             if (error) {
                 alert("Error refining post. Please check the console.");
