@@ -348,7 +348,7 @@ export async function setupUserMenuAndAuth(supabase, appState) { // Takes the gl
     // Remove any existing impersonation dropdown before adding a new one
     const existingDropdown = document.getElementById('manager-view-select');
     if (existingDropdown) {
-        existingDropdown.remove();
+        existingDropdown.parentElement.removeChild(existingDropdown);
     }
 
     if (appState.isManager) {
@@ -378,6 +378,7 @@ export async function setupUserMenuAndAuth(supabase, appState) { // Takes the gl
                 id: appState.currentUser.id,
                 full_name: appState.currentUser.user_metadata.full_name
             };
+            // This function from shared_constants triggers the 'effectiveUserChanged' event
             setEffectiveUser(selectedUserId, selectedUser.full_name);
         });
     }
@@ -438,7 +439,6 @@ export async function setupUserMenuAndAuth(supabase, appState) { // Takes the gl
                 console.warn("Could not save full_name to user metadata:", updateUserError);
             }
             
-            // This is the first time setup, so we need to update the global state and re-run setup
             await initializeAppState(supabase);
             await setupUserMenuAndAuth(supabase, getState());
 
@@ -447,7 +447,6 @@ export async function setupUserMenuAndAuth(supabase, appState) { // Takes the gl
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
     
     } else {
-        // Display the name of the user being impersonated
         userNameDisplay.textContent = appState.effectiveUserFullName || 'User';
         await setupTheme(supabase, appState.currentUser);
         attachUserMenuListeners();
@@ -647,5 +646,6 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
+
 
 
