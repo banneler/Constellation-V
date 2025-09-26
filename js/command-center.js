@@ -559,34 +559,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- App Initialization (UPDATED) ---
-    async function initializePage() {
+       async function initializePage() {
+        // --- UPDATED LOADING SCREEN LOGIC ---
+        const loadingScreen = document.getElementById('loading-screen');
+        if (sessionStorage.getItem('showLoadingScreen') === 'true') {
+            if (loadingScreen) {
+                loadingScreen.classList.remove('hidden');
+                setTimeout(() => {
+                    loadingScreen.classList.add('hidden');
+                }, 7000); // 7 seconds
+            }
+            sessionStorage.removeItem('showLoadingScreen');
+        }
+        // --- END OF UPDATED LOGIC ---
+        
         await loadSVGs();
         updateActiveNavLink();
         
-        // Use the new global state initializer
+        // Use the new global state initializer from shared_constants.js
         const appState = await initializeAppState(supabase);
         
         if (appState.currentUser) {
-            await setupUserMenuAndAuth(supabase, appState); // Pass the whole appState
-            await setupGlobalSearch(supabase); // No longer needs currentUser passed
+            // Pass the whole appState object to setup the user menu
+            await setupUserMenuAndAuth(supabase, appState); 
+            
+            // Setup other shared features
+            await setupGlobalSearch(supabase);
             await checkAndSetNotifications(supabase);
             
+            // Initial data load for the effective user (which is the current user by default)
             await loadAllData();
             
+            // Add event listener for the AI briefing button
             if (aiDailyBriefingBtn) {
                 aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
             }
             
+            // Setup all other page-specific event listeners
             setupPageEventListeners();
 
-            // NEW: Listen for the custom event to reload data when impersonating
+            // Listen for the custom event to reload data when a manager impersonates another user
             window.addEventListener('effectiveUserChanged', loadAllData);
             
         } else {
-            // This case should be handled by initializeAppState, but as a fallback:
+            // This case is handled by initializeAppState, but serves as a fallback
             window.location.href = "index.html";
         }
     }
-
-    initializePage();
-});
