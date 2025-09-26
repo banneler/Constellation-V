@@ -47,36 +47,61 @@ export async function initializeAppState(supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         window.location.href = "index.html";
-        return;
+        return; // Return early if no user
     }
 
     appState.currentUser = user;
     appState.effectiveUserId = user.id;
 
-    // Fetch user's full name for the default state
-    const { data: currentUserQuota, error: quotaError } = await supabase
+    // Fetch the current user's profile to check if they are a manager
+    const { data: currentUserProfile, error: profileError } = await supabase
         .from('user_quotas')
-        .select('full_name')
+        .select('full_name, is_manager')
         .eq('user_id', user.id)
         .single();
 
-    if (quotaError && quotaError.code !== 'PGRST116') console.error("Error fetching current user's name:", quotaError);
-    appState.effectiveUserFullName = currentUserQuota?.full_name || 'User';
+    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no row, which is a valid state
+        console.error("Error fetching current user profile:", profileError);
+        // Handle error case, maybe by setting default non-manager state
+        appState.isManager = false;
+        appState.effectiveUserFullName = 'User';
+        return appState;
+    }
+    
+    // Set the full name for the logged-in user from their profile
+    // Also, update the user metadata in auth if it's not set
+    if (currentUserProfile?.full_name) {
+        appState.effectiveUserFullName = currentUserProfile.full_name;
+        if (user.user_metadata?.full_name !== currentUserProfile.full_name) {
+             supabase.auth.updateUser({ data: { full_name: currentUserProfile.full_name } });
+        }
+    } else {
+        appState.effectiveUserFullName = 'User'; // Fallback name
+    }
 
-    // Check if the current user is a manager and fetch their team
-    const { data: managedUsers, error } = await supabase
-        .from('managers')
-        .select('managed_user_id, users:user_quotas(full_name)')
-        .eq('manager_id', user.id);
 
-    if (error) {
-        console.error("Error checking manager status:", error);
-    } else if (managedUsers && managedUsers.length > 0) {
+    // Check if the user is a manager
+    if (currentUserProfile && currentUserProfile.is_manager === true) {
         appState.isManager = true;
-        appState.managedUsers = managedUsers.map(u => ({
-            id: u.managed_user_id,
-            full_name: u.users.full_name
-        }));
+        
+        // If they are a manager, fetch all other users to populate the impersonation dropdown
+        const { data: allUsers, error: allUsersError } = await supabase
+            .from('user_quotas')
+            .select('user_id, full_name')
+            .neq('user_id', user.id); // Exclude the manager themselves from the list of managed users
+
+        if (allUsersError) {
+            console.error("Error fetching managed users:", allUsersError);
+            appState.managedUsers = [];
+        } else {
+            appState.managedUsers = allUsers.map(u => ({
+                id: u.user_id,
+                full_name: u.full_name
+            }));
+        }
+    } else {
+        appState.isManager = false;
+        appState.managedUsers = [];
     }
     
     return appState;
@@ -622,4 +647,5 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
+
 
