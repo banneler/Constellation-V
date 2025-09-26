@@ -558,7 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- App Initialization (UPDATED) ---
+// --- App Initialization (UPDATED) ---
     async function initializePage() {
         // --- UPDATED LOADING SCREEN LOGIC ---
         const loadingScreen = document.getElementById('loading-screen');
