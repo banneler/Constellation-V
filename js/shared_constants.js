@@ -56,27 +56,29 @@ export async function initializeAppState(supabase) {
     // Fetch user's full name for the default state
     const { data: currentUserQuota, error: quotaError } = await supabase
         .from('user_quotas')
-        .select('full_name')
+        .select('full_name, is_manager') // Also fetch is_manager status here
         .eq('user_id', user.id)
         .single();
 
     if (quotaError && quotaError.code !== 'PGRST116') console.error("Error fetching current user's name:", quotaError);
     appState.effectiveUserFullName = currentUserQuota?.full_name || 'User';
+    appState.isManager = currentUserQuota?.is_manager === true;
 
-    // Check if the current user is a manager and fetch their team
-    const { data: managedUsers, error } = await supabase
-        .from('managers')
-        .select('managed_user_id, users:user_quotas(full_name)')
-        .eq('manager_id', user.id);
+    // Fetch the list of users this manager can view
+    if (appState.isManager) {
+        const { data: managedUsers, error } = await supabase
+            .from('user_quotas') // Query all users for the dropdown
+            .select('user_id, full_name')
+            .order('full_name');
 
-    if (error) {
-        console.error("Error checking manager status:", error);
-    } else if (managedUsers && managedUsers.length > 0) {
-        appState.isManager = true;
-        appState.managedUsers = managedUsers.map(u => ({
-            id: u.managed_user_id,
-            full_name: u.users.full_name
-        }));
+        if (error) {
+            console.error("Error fetching managed users:", error);
+        } else {
+            appState.managedUsers = managedUsers.map(u => ({
+                id: u.user_id,
+                full_name: u.full_name
+            }));
+        }
     }
     
     return appState;
@@ -578,4 +580,3 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
-
