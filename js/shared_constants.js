@@ -301,8 +301,12 @@ export function showToast(message, type = 'success') {
 }
 
 
-// --- USER MENU & AUTH LOGIC (CORRECTED) ---
-export async function setupUserMenuAndAuth(supabase, state) {
+// js/shared_constants.js
+
+// ... (keep all other functions like SUPABASE_URL, formatDate, initializeAppState, etc., the same)
+
+// --- USER MENU & AUTH LOGIC (UPDATED FOR IMPERSONATION) ---
+export async function setupUserMenuAndAuth(supabase, appState) { // Takes the global appState now
     const userMenuHeader = document.querySelector('.user-menu-header');
     if (!userMenuHeader) return;
 
@@ -315,10 +319,49 @@ export async function setupUserMenuAndAuth(supabase, state) {
         return;
     }
 
+    // --- NEW: Manager Impersonation Dropdown Logic ---
+    // Remove any existing impersonation dropdown before adding a new one
+    const existingDropdown = document.getElementById('manager-view-select');
+    if (existingDropdown) {
+        existingDropdown.remove();
+    }
+
+    if (appState.isManager) {
+        const viewSelect = document.createElement('select');
+        viewSelect.id = 'manager-view-select';
+        viewSelect.className = 'nav-button'; // Style it like other nav buttons
+        viewSelect.style.marginBottom = '5px';
+
+        // Add the manager themself to the list
+        let options = `<option value="${appState.currentUser.id}">${appState.currentUser.user_metadata.full_name} (My View)</option>`;
+
+        // Add managed users
+        options += appState.managedUsers.map(user =>
+            `<option value="${user.id}">${user.full_name}</option>`
+        ).join('');
+
+        viewSelect.innerHTML = options;
+        viewSelect.value = appState.effectiveUserId; // Set the current view
+
+        // Insert the dropdown at the top of the popup menu
+        userMenuPopup.insertBefore(viewSelect, userMenuPopup.firstChild);
+
+        // Add event listener to trigger impersonation
+        viewSelect.addEventListener('change', (e) => {
+            const selectedUserId = e.target.value;
+            const selectedUser = appState.managedUsers.find(u => u.id === selectedUserId) || {
+                id: appState.currentUser.id,
+                full_name: appState.currentUser.user_metadata.full_name
+            };
+            setEffectiveUser(selectedUserId, selectedUser.full_name);
+        });
+    }
+    // --- END NEW LOGIC ---
+
     const { data: userData, error: userError } = await supabase
         .from('user_quotas')
         .select('full_name, monthly_quota')
-        .eq('user_id', state.currentUser.id)
+        .eq('user_id', appState.currentUser.id) // Use the actual logged-in user
         .single();
 
     if (userError && userError.code !== 'PGRST116') {
@@ -351,7 +394,7 @@ export async function setupUserMenuAndAuth(supabase, state) {
             const { error: upsertError } = await supabase
                 .from('user_quotas')
                 .upsert({
-                    user_id: state.currentUser.id,
+                    user_id: appState.currentUser.id,
                     full_name: fullName,
                     monthly_quota: Number(monthlyQuota)
                 }, { onConflict: 'user_id' });
@@ -369,17 +412,19 @@ export async function setupUserMenuAndAuth(supabase, state) {
             if (updateUserError) {
                 console.warn("Could not save full_name to user metadata:", updateUserError);
             }
+            
+            // This is the first time setup, so we need to update the global state and re-run setup
+            await initializeAppState(supabase);
+            await setupUserMenuAndAuth(supabase, getState());
 
-            userNameDisplay.textContent = fullName;
-            await setupTheme(supabase, state.currentUser);
-            attachUserMenuListeners();
             return true;
 
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
     
     } else {
-        userNameDisplay.textContent = userData.full_name || 'User';
-        await setupTheme(supabase, state.currentUser);
+        // Display the name of the user being impersonated
+        userNameDisplay.textContent = appState.effectiveUserFullName || 'User';
+        await setupTheme(supabase, appState.currentUser);
         attachUserMenuListeners();
     }
 
@@ -405,7 +450,6 @@ export async function setupUserMenuAndAuth(supabase, state) {
         userMenuHeader.dataset.listenerAttached = 'true';
     }
 }
-
 export async function loadSVGs() {
     const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
     
@@ -578,4 +622,5 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
+
 
