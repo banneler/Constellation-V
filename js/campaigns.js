@@ -583,6 +583,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     // REMOVED: captureFormState and restoreFormState functions are no longer needed
     // REMOVED: handleShowAllContactsClick function is no longer needed
 
+    // NEW: Helper function to get contacts based on modal filters and campaign type
+    function getFilteredContacts() {
+        const industry = document.getElementById('filter-industry')?.value;
+        const status = document.getElementById('filter-status')?.value;
+        const type = document.getElementById('campaign-type')?.value;
+
+        const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
+
+        return state.contacts.filter(contact => {
+            const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+            if (!account) return false;
+
+            const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
+            const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
+
+            // NEW: Add validation based on campaign type
+            let validationMatch = true;
+            if (type === 'Call') {
+                validationMatch = contact.phone && contact.phone.trim() !== '';
+            } else if (type === 'Email' || type === 'Guided Email') {
+                validationMatch = contact.email && contact.email.trim() !== '';
+            }
+
+            return industryMatch && statusMatch && validationMatch;
+        });
+    }
+
     async function handleNewCampaignClick() {
         const visibleTemplates = state.emailTemplates.filter(template =>
             !template.is_cloned || template.user_id === state.currentUser.id
@@ -696,15 +723,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
-            const matchingContacts = state.contacts.filter(contact => {
-                if (!contact.account_id) return false;
-                const account = state.accounts.find(a => a.id === contact.account_id);
-                if (!account) return false;
-                const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
-                const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
-                return industryMatch && statusMatch;
-            });
+            // MODIFIED: Use the new helper function to get filtered contacts
+            const matchingContacts = getFilteredContacts();
 
             if (matchingContacts.length === 0) {
                 alert('No contacts match the selected filters. Please adjust filters or add contacts/accounts.');
@@ -790,22 +810,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const previewTemplateBody = document.getElementById('preview-template-body');
 
         const updateContactPreview = () => {
-            const industry = industryFilter?.value;
-            const status = statusFilter?.value;
-
-            const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
-            const matchingContacts = state.contacts.filter(contact => {
-                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-                if (!account) return false;
-
-                const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
-                const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
-                return industryMatch && statusMatch;
-            });
+            // MODIFIED: Use the new helper function to get filtered contacts
+            const matchingContacts = getFilteredContacts();
 
             const previewContainer = document.getElementById('contact-preview-container');
             if (previewContainer) {
-                let previewHtml = `<p><strong>${matchingContacts.length}</strong> contacts match your filters.</p>`;
+                // MODIFIED: Added a note to clarify filtering behavior
+                let previewHtml = `<p><strong>${matchingContacts.length}</strong> contacts match your filters.</p>
+                                   <p class="text-small"><em>Note: Contacts require a phone for Call campaigns or an email for Email campaigns.</em></p>`;
                 
                 const listContent = matchingContacts.map(c => {
                     const accountName = state.accounts.find(a => a.id === c.account_id)?.name || 'No Account';
@@ -814,8 +826,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (matchingContacts.length > 0) {
                     previewHtml += `<div class="table-container-scrollable" style="max-height: 150px;">
-                                    <ul class="summary-contact-list">${listContent}</ul>
-                                </div>`;
+                                        <ul class="summary-contact-list">${listContent}</ul>
+                                    </div>`;
                 }
 
                 previewContainer.innerHTML = previewHtml;
@@ -828,11 +840,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             campaignTypeSelect.addEventListener('change', handleCampaignTypeChange);
         }
 
+        // MODIFIED: Function now calls updateContactPreview to refresh the list
         function handleCampaignTypeChange() {
             const showEmailSection = campaignTypeSelect?.value === 'Email' || campaignTypeSelect?.value === 'Guided Email';
             if (emailSectionContainer) {
                 emailSectionContainer.classList.toggle('hidden', !showEmailSection);
             }
+            updateContactPreview(); // Refresh contact list on type change
         }
 
         if (emailSourceSelect) {
@@ -1237,11 +1251,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         try {
             const [
-                 { data: campaigns, error: campaignsError },
-                 { data: contacts, error: contactsError },
-                 { data: accounts, error: accountsError },
-                 { data: emailTemplates, error: templatesError },
-                 { data: userQuotas, error: userQuotasError }
+                { data: campaigns, error: campaignsError },
+                { data: contacts, error: contactsError },
+                { data: accounts, error: accountsError },
+                { data: emailTemplates, error: templatesError },
+                { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
                 supabase.from("campaigns").select("*").eq("user_id", state.currentUser.id),
                 supabase.from("contacts").select("*").eq("user_id", state.currentUser.id),
