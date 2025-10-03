@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceDescriptionTextarea = document.getElementById("sequence-description");
     const sequenceIdInput = document.getElementById("sequence-id");
     const sequenceDetailsPanel = document.getElementById("sequence-details");
+    const saveSequenceDetailsBtn = document.getElementById("save-sequence-details-btn");
 
     // AI Generation Section Selectors
     const aiSequenceGoalTextarea = document.getElementById("ai-sequence-goal");
@@ -201,6 +202,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         deleteSequenceBtn.style.display = 'inline-block';
         addStepBtn.style.display = 'inline-block';
         bulkAssignBtn.style.display = 'inline-block'; // Show the bulk assign button
+        if (saveSequenceDetailsBtn) saveSequenceDetailsBtn.style.display = 'inline-block';
         
         state.editingStepId = null;
         renderSequenceSteps();
@@ -230,6 +232,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (deleteSequenceBtn) deleteSequenceBtn.style.display = 'none';
         if (addStepBtn) addStepBtn.style.display = 'none';
         if (bulkAssignBtn) bulkAssignBtn.style.display = 'none'; // Hide the bulk assign button
+        if (saveSequenceDetailsBtn) saveSequenceDetailsBtn.style.display = 'none';
 
         document.querySelectorAll("#sequence-list .selected").forEach(item => item.classList.remove("selected"));
         state.editingStepId = null;
@@ -253,6 +256,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (deleteSequenceBtn) deleteSequenceBtn.addEventListener("click", handleDeleteSequence);
         if (addStepBtn) addStepBtn.addEventListener("click", handleAddStep);
         if (bulkAssignBtn) bulkAssignBtn.addEventListener("click", handleBulkAssignClick); // Event listener for new button
+        if (saveSequenceDetailsBtn) saveSequenceDetailsBtn.addEventListener("click", handleSaveSequenceDetails);
         if (sequenceList) sequenceList.addEventListener("click", handleSequenceListClick);
         if (sequenceStepsTableBody) sequenceStepsTableBody.addEventListener("click", handleSequenceStepActions);
 
@@ -280,6 +284,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (saveAiSequenceBtn) saveAiSequenceBtn.addEventListener("click", handleSaveAiSequence);
         if (cancelAiSequenceBtn) cancelAiSequenceBtn.addEventListener("click", handleCancelAiSequence);
     }
+    async function handleSaveSequenceDetails() {
+    if (!state.selectedSequenceId) {
+        showModal("Error", "No sequence is selected to save.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
+    }
+
+    const updatedName = sequenceNameInput.value.trim();
+    const updatedDescription = sequenceDescriptionTextarea.value.trim();
+
+    if (!updatedName) {
+        showModal("Error", "Sequence name cannot be empty.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
+    }
+
+    const { error } = await supabase
+        .from("sequences")
+        .update({ name: updatedName, description: updatedDescription })
+        .eq("id", state.selectedSequenceId);
+
+    if (error) {
+        showModal("Error", `Failed to save changes: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    } else {
+        showModal("Success", "Sequence details saved successfully!", async () => {
+            hideModal();
+            await loadAllData();
+        }, false, `<button id="modal-confirm-btn" class="btn-primary">OK</button>`);
+    }
+}
     
     // --- Bulk Assign Functions ---
    async function handleBulkAssignClick() {
