@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectedSequenceId: null,
         contacts: [],
         activities: [],
-        accounts: [], // Added accounts to state for the modal
+        accounts: [],
         contact_sequences: [],
         isEditingSequenceDetails: false,
         originalSequenceName: '',
@@ -29,13 +29,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const importSequenceBtn = document.getElementById("bulk-import-sequence-steps-btn");
     const sequenceCsvInput = document.getElementById("sequence-steps-csv-input");
     const deleteSequenceBtn = document.getElementById("delete-sequence-btn");
-    const bulkAssignBtn = document.getElementById("bulk-assign-btn"); // The new button
+    const bulkAssignBtn = document.getElementById("bulk-assign-btn");
     const sequenceStepsTableBody = document.querySelector("#sequence-steps-table-body");
     const addStepBtn = document.getElementById("add-step-btn");
     const sequenceNameInput = document.getElementById("sequence-name");
     const sequenceDescriptionTextarea = document.getElementById("sequence-description");
     const sequenceIdInput = document.getElementById("sequence-id");
     const sequenceDetailsPanel = document.getElementById("sequence-details");
+    
+    // --- NEW/MODIFIED DOM SELECTORS FOR IN-PAGE EDITING ---
+    const editSequenceDetailsBtn = document.getElementById("edit-sequence-details-btn");
+    const saveSequenceDetailsBtn = document.getElementById("save-sequence-details-btn");
+    const cancelEditSequenceBtn = document.getElementById("cancel-edit-sequence-btn");
+
 
     // AI Generation Section Selectors
     const aiSequenceGoalTextarea = document.getElementById("ai-sequence-goal");
@@ -57,7 +63,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
-        // Add "accounts" to the tables being fetched
         const userSpecificTables = ["sequences", "contacts", "accounts", "contact_sequences", "sequence_steps", "activities"];
         const promises = userSpecificTables.map((table) =>
             supabase.from(table).select("*").eq("user_id", state.currentUser.id)
@@ -163,7 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     </select>
 ` : (step.assigned_to || 'Sales');
             
-           row.innerHTML = `
+            row.innerHTML = `
     <td>${step.step_number}</td>
     <td>${isEditingThisStep ? `<input type="text" class="edit-step-type" value="${step.type || ''}">` : (step.type || '')}</td>
     <td>${isEditingThisStep ? `<input type="number" class="edit-step-delay" value="${step.delay_days || 0}">` : (step.delay_days || 0)}</td>
@@ -195,12 +200,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         const isReadOnly = false;
         
-        sequenceNameInput.disabled = isReadOnly;
-        sequenceDescriptionTextarea.disabled = isReadOnly;
+        sequenceNameInput.disabled = !state.isEditingSequenceDetails;
+        sequenceDescriptionTextarea.disabled = !state.isEditingSequenceDetails;
 
-        deleteSequenceBtn.style.display = 'inline-block';
-        addStepBtn.style.display = 'inline-block';
-        bulkAssignBtn.style.display = 'inline-block'; // Show the bulk assign button
+        // --- BUTTON VISIBILITY LOGIC ---
+        editSequenceDetailsBtn.style.display = state.isEditingSequenceDetails ? 'none' : 'inline-block';
+        saveSequenceDetailsBtn.style.display = state.isEditingSequenceDetails ? 'inline-block' : 'none';
+        cancelEditSequenceBtn.style.display = state.isEditingSequenceDetails ? 'inline-block' : 'none';
+        deleteSequenceBtn.style.display = state.isEditingSequenceDetails ? 'none' : 'inline-block';
+        addStepBtn.style.display = state.isEditingSequenceDetails ? 'none' : 'inline-block';
+        bulkAssignBtn.style.display = 'inline-block';
         
         state.editingStepId = null;
         renderSequenceSteps();
@@ -229,7 +238,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (deleteSequenceBtn) deleteSequenceBtn.style.display = 'none';
         if (addStepBtn) addStepBtn.style.display = 'none';
-        if (bulkAssignBtn) bulkAssignBtn.style.display = 'none'; // Hide the bulk assign button
+        if (bulkAssignBtn) bulkAssignBtn.style.display = 'none';
+        if (editSequenceDetailsBtn) editSequenceDetailsBtn.style.display = 'none';
+        if (saveSequenceDetailsBtn) saveSequenceDetailsBtn.style.display = 'none';
+        if (cancelEditSequenceBtn) cancelEditSequenceBtn.style.display = 'none';
 
         document.querySelectorAll("#sequence-list .selected").forEach(item => item.classList.remove("selected"));
         state.editingStepId = null;
@@ -252,9 +264,44 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(sequenceCsvInput) sequenceCsvInput.addEventListener("change", handleCsvImport);
         if (deleteSequenceBtn) deleteSequenceBtn.addEventListener("click", handleDeleteSequence);
         if (addStepBtn) addStepBtn.addEventListener("click", handleAddStep);
-        if (bulkAssignBtn) bulkAssignBtn.addEventListener("click", handleBulkAssignClick); // Event listener for new button
+        if (bulkAssignBtn) bulkAssignBtn.addEventListener("click", handleBulkAssignClick);
         if (sequenceList) sequenceList.addEventListener("click", handleSequenceListClick);
         if (sequenceStepsTableBody) sequenceStepsTableBody.addEventListener("click", handleSequenceStepActions);
+
+        // --- NEW EVENT LISTENERS FOR IN-PAGE EDITING ---
+        if (editSequenceDetailsBtn) editSequenceDetailsBtn.addEventListener("click", () => {
+            if (!state.selectedSequenceId) return;
+            state.isEditingSequenceDetails = true;
+            renderSequenceDetails(state.selectedSequenceId);
+        });
+
+        if (saveSequenceDetailsBtn) saveSequenceDetailsBtn.addEventListener("click", async () => {
+            if (!state.selectedSequenceId) return;
+            
+            const updatedName = sequenceNameInput.value.trim();
+            const updatedDescription = sequenceDescriptionTextarea.value.trim();
+
+            if (!updatedName) {
+                showModal("Error", "Sequence name cannot be empty.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
+
+            const { error } = await supabase.from("sequences").update({ name: updatedName, description: updatedDescription }).eq("id", state.selectedSequenceId);
+
+            if (error) {
+                showModal("Error", "Error saving sequence details: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            } else {
+                state.isEditingSequenceDetails = false;
+                await loadAllData();
+            }
+        });
+
+        if (cancelEditSequenceBtn) cancelEditSequenceBtn.addEventListener("click", () => {
+            if (!state.selectedSequenceId) return;
+            state.isEditingSequenceDetails = false;
+            renderSequenceDetails(state.selectedSequenceId);
+        });
+
 
         document.body.addEventListener("click", (e) => {
             const target = e.target;
@@ -318,7 +365,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
     }).join('');
 
-    // --- FIX IS HERE: The "Select All" div has been completely removed. ---
     const modalBody = `
         <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
         <div class="item-list-container-modal">
@@ -329,7 +375,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     showModal("Bulk Assign Contacts", modalBody, processBulkAssignment, true, `<button id="modal-confirm-btn" class="btn-primary">Assign Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     
    }
-    
+   
 async function processBulkAssignment() {
     const selectedContactIds = Array.from(document.querySelectorAll('.bulk-assign-checkbox:checked')).map(cb => Number(cb.dataset.contactId));
 
@@ -363,28 +409,22 @@ async function processBulkAssignment() {
         return false;
     }
 
-    // --- THIS IS THE FIX ---
-
-    // 1. Manually hide the first modal (the contact list).
     hideModal();
 
-    // 2. Show the success modal. The data reload will only happen AFTER the user clicks "OK".
     showModal(
         "Success",
         `${selectedContactIds.length} contact(s) have been successfully added to the sequence.`,
         async () => {
-            hideModal(); // Close the success modal
-            await loadAllData(); // THEN reload the data
+            hideModal(); 
+            await loadAllData(); 
         },
-        false, // Don't show a cancel button
+        false, 
         `<button id="modal-confirm-btn" class="btn-primary">OK</button>`
     );
 
-    // 3. Return 'false' to prevent the original modal from trying to close itself again.
-    //    This is the key to stopping the race condition.
     return false;
 }
-                    
+                      
     // --- All other existing functions ---
 
     function handleSequenceListClick(e) {
@@ -1008,7 +1048,7 @@ async function importMarketingSequence() {
             state.currentUser = session.user;
             await setupUserMenuAndAuth(supabase, state);
             setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
+            await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
             await loadAllData();
         } else {
