@@ -4325,7 +4325,7 @@ div.briefing-pre {
     line-height: 1;        /* Helps center the text vertically */
 }
 #account-contacts-list .contact-attribute-icon {
-    color: hotpink !important; /* Use a loud color for testing */
+    color: var(--text-secondary);
     margin-right: 0.4rem;
     font-size: 0.9em;
     vertical-align: middle;
