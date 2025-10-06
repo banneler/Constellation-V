@@ -4324,3 +4324,9 @@ div.briefing-pre {
     font-size: 1.3rem;     /* Slightly larger font */
     line-height: 1;        /* Helps center the text vertically */
 }
+.contact-attribute-icon {
+    color: var(--text-secondary);
+    margin-right: 0.4rem; /* Adds a little space between icons and the name */
+    font-size: 0.9em;     /* Makes icons slightly smaller than the text */
+    vertical-align: middle; /* Ensures they line up nicely with the text */
+}
