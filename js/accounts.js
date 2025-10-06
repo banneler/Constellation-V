@@ -313,12 +313,18 @@ const hideAccountDetails = (clearSelection = false) => {
     });
 
     accountContactsList.innerHTML = "";
-    contacts.forEach((c) => {
-        const li = document.createElement("li");
-        const inSeq = contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
-        li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
-        accountContactsList.appendChild(li);
-    });
+    contacts.forEach((c) => {
+        const li = document.createElement("li");
+        const inSeq = contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+
+        // Check for email and phone to create icon strings
+        const emailIcon = c.email ? ` <i class="fas fa-envelope" style="margin-left: 0.5rem; color: var(--text-secondary);"></i>` : '';
+        const phoneIcon = c.phone ? ` <i class="fas fa-phone" style="margin-left: 0.5rem; color: var(--text-secondary);"></i>` : '';
+
+        // Add the new icons right after the contact's name
+        li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a>${emailIcon}${phoneIcon} (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+        accountContactsList.appendChild(li);
+    });
 
     accountActivitiesList.innerHTML = "";
     activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
