@@ -325,7 +325,6 @@ async function handleBulkAssignClick() {
             </select>
         </div>
 
-        // In the modalBody variable...
 <label class="bulk-assign-select-all">
     <input type="checkbox" id="select-all-checkbox" class="bulk-assign-checkbox">
     <span>Select All / Deselect All</span>
