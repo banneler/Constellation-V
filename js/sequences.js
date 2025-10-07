@@ -325,10 +325,10 @@ async function handleBulkAssignClick() {
             </select>
         </div>
 
-        <div class="bulk-assign-select-all"> 
-             <input type="checkbox" id="select-all-checkbox">
-             <label for="select-all-checkbox">Select All / Deselect All</label>
-        </div>
+        <label class="bulk-assign-select-all">
+            <input type="checkbox" id="select-all-checkbox">
+            <span>Select All / Deselect All</span>
+        </label>
 
         <div class="item-list-container-modal" id="bulk-assign-contact-list">
             </div>
