@@ -4324,9 +4324,18 @@ div.briefing-pre {
     font-size: 1.3rem;     /* Slightly larger font */
     line-height: 1;        /* Helps center the text vertically */
 }
-#account-contacts-list .contact-attribute-icon {
-    color: var(--text-secondary);
+/* Base style for all icons */
+.contact-attribute-icon {
     margin-right: 0.4rem;
     font-size: 0.9em;
     vertical-align: middle;
+}
+
+/* Specific color for each icon type */
+.email-icon {
+    color: var(--primary-blue);
+}
+
+.phone-icon {
+    color: var(--success-green);
 }
