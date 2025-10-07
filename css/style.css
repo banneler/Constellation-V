@@ -4339,3 +4339,12 @@ div.briefing-pre {
 .phone-icon {
     color: var(--success-green);
 }
+/* Add this CSS to your stylesheet */
+.select-all-container {
+    display: flex;        /* Aligns items in a row (the magic!) */
+    align-items: center;  /* Vertically centers the checkbox and text */
+    gap: 8px;             /* Adds a small space between the checkbox and text */
+    margin-top: 15px;     /* Adds some breathing room above */
+    margin-bottom: 10px;  /* Adds some breathing room below */
+    padding-left: 5px;    /* Aligns it slightly with the list items below */
+}
