@@ -281,7 +281,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (cancelAiSequenceBtn) cancelAiSequenceBtn.addEventListener("click", handleCancelAiSequence);
     }
     
-// Replace the entire handleBulkAssignClick function in sequences.js with this one.
 async function handleBulkAssignClick() {
     if (!state.selectedSequenceId) {
         showModal("Error", "Please select a sequence first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -299,8 +298,7 @@ async function handleBulkAssignClick() {
         return;
     }
 
-    // NEW: Generate unique lists for datalist dropdowns.
-    // The .filter(Boolean) removes any null or empty string values.
+    // Generate unique lists for datalist dropdowns.
     const uniqueTitles = [...new Set(state.contacts.map(c => c.title).filter(Boolean))];
     const uniqueCompanies = [...new Set(state.accounts.map(a => a.name).filter(Boolean))];
     const uniqueIndustries = [...new Set(state.accounts.map(a => a.industry).filter(Boolean))];
@@ -309,8 +307,6 @@ async function handleBulkAssignClick() {
     const companiesDatalist = `<datalist id="companies-list">${uniqueCompanies.map(c => `<option value="${c}"></option>`).join('')}</datalist>`;
     const industriesDatalist = `<datalist id="industries-list">${uniqueIndustries.map(i => `<option value="${i}"></option>`).join('')}</datalist>`;
 
-
-    // MODIFIED: Added list attributes to inputs and included the datalist elements.
     const modalBody = `
         <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
         
@@ -329,7 +325,7 @@ async function handleBulkAssignClick() {
             </select>
         </div>
 
-        <div class="select-all-container">
+        <div class="bulk-assign-select-all"> 
              <input type="checkbox" id="select-all-checkbox">
              <label for="select-all-checkbox">Select All / Deselect All</label>
         </div>
@@ -375,7 +371,6 @@ async function handleBulkAssignClick() {
                     const contactActivities = state.activities.filter(act => act.contact_id === contact.id).sort((a, b) => new Date(b.date) - new Date(a.date));
                     const lastActivity = contactActivities.length > 0 ? `Last Activity: ${formatDate(contactActivities[0].date)}` : "No activity";
                     
-                    // MODIFIED: Updated HTML structure for the contact list item
                     return `
                         <div class="list-item contact-item-row"> 
                             <input type="checkbox" id="contact-${contact.id}" data-contact-id="${contact.id}" class="bulk-assign-checkbox">
