@@ -4359,3 +4359,10 @@ div.briefing-pre {
     flex: 1; /* Allows this container to grow and shrink */
     overflow-y: auto; /* Adds a scrollbar ONLY if the content is too tall */
 }
+/* Add this to your stylesheet to fix the checkbox size */
+#select-all-checkbox,
+.bulk-assign-checkbox {
+    width: 16px !important;
+    height: 16px !important;
+    vertical-align: middle; /* Helps with alignment */
+}
