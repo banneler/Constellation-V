@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (cancelAiSequenceBtn) cancelAiSequenceBtn.addEventListener("click", handleCancelAiSequence);
     }
     
-   // Replace the entire handleBulkAssignClick function in sequences.js with this one.
+// Replace the entire handleBulkAssignClick function in sequences.js with this one.
 async function handleBulkAssignClick() {
     if (!state.selectedSequenceId) {
         showModal("Error", "Please select a sequence first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -290,7 +290,6 @@ async function handleBulkAssignClick() {
 
     const activeContactIds = new Set(state.contact_sequences.filter(cs => cs.status === 'Active').map(cs => cs.contact_id));
     
-    // NOTE: availableContacts is now defined here at the top level of the function
     const availableContacts = state.contacts
         .filter(contact => !activeContactIds.has(contact.id))
         .sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
@@ -300,14 +299,29 @@ async function handleBulkAssignClick() {
         return;
     }
 
-    // NEW: HTML for the filter controls
+    // NEW: Generate unique lists for datalist dropdowns.
+    // The .filter(Boolean) removes any null or empty string values.
+    const uniqueTitles = [...new Set(state.contacts.map(c => c.title).filter(Boolean))];
+    const uniqueCompanies = [...new Set(state.accounts.map(a => a.name).filter(Boolean))];
+    const uniqueIndustries = [...new Set(state.accounts.map(a => a.industry).filter(Boolean))];
+
+    const titlesDatalist = `<datalist id="titles-list">${uniqueTitles.map(t => `<option value="${t}"></option>`).join('')}</datalist>`;
+    const companiesDatalist = `<datalist id="companies-list">${uniqueCompanies.map(c => `<option value="${c}"></option>`).join('')}</datalist>`;
+    const industriesDatalist = `<datalist id="industries-list">${uniqueIndustries.map(i => `<option value="${i}"></option>`).join('')}</datalist>`;
+
+
+    // MODIFIED: Added list attributes to inputs and included the datalist elements.
     const modalBody = `
         <p>Select contacts to add to this sequence. Contacts already in an active sequence are not shown.</p>
         
+        ${titlesDatalist}
+        ${companiesDatalist}
+        ${industriesDatalist}
+
         <div class="filter-controls">
-            <input type="text" id="filter-title" class="form-control" placeholder="Filter by Title...">
-            <input type="text" id="filter-company" class="form-control" placeholder="Filter by Company...">
-            <input type="text" id="filter-industry" class="form-control" placeholder="Filter by Industry...">
+            <input type="text" id="filter-title" class="form-control" placeholder="Filter by Title..." list="titles-list">
+            <input type="text" id="filter-company" class="form-control" placeholder="Filter by Company..." list="companies-list">
+            <input type="text" id="filter-industry" class="form-control" placeholder="Filter by Industry..." list="industries-list">
             <select id="filter-activity" class="form-control">
                 <option value="all">Recent Activity (All)</option>
                 <option value="yes">Has Recent Activity</option>
@@ -326,78 +340,77 @@ async function handleBulkAssignClick() {
 
     showModal("Bulk Assign Contacts", modalBody, processBulkAssignment, true, `<button id="modal-confirm-btn" class="btn-primary">Assign Selected</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     
-    // NEW: Get references to the new DOM elements after the modal is shown
-    const contactListContainer = document.getElementById('bulk-assign-contact-list');
-    const titleFilter = document.getElementById('filter-title');
-    const companyFilter = document.getElementById('filter-company');
-    const industryFilter = document.getElementById('filter-industry');
-    const activityFilter = document.getElementById('filter-activity');
-    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    setTimeout(() => {
+        const contactListContainer = document.getElementById('bulk-assign-contact-list');
+        const titleFilter = document.getElementById('filter-title');
+        const companyFilter = document.getElementById('filter-company');
+        const industryFilter = document.getElementById('filter-industry');
+        const activityFilter = document.getElementById('filter-activity');
+        const selectAllCheckbox = document.getElementById('select-all-checkbox');
 
-    // NEW: This is the core filtering and rendering function
-    const renderFilteredContacts = () => {
-        const titleQuery = titleFilter.value.toLowerCase();
-        const companyQuery = companyFilter.value.toLowerCase();
-        const industryQuery = industryFilter.value.toLowerCase();
-        const activityQuery = activityFilter.value;
-        
-        const filteredContacts = availableContacts.filter(contact => {
-            const account = state.accounts.find(a => a.id === contact.account_id) || {};
+        if (!contactListContainer) return;
+
+        const renderFilteredContacts = () => {
+            const titleQuery = titleFilter.value.toLowerCase();
+            const companyQuery = companyFilter.value.toLowerCase();
+            const industryQuery = industryFilter.value.toLowerCase();
+            const activityQuery = activityFilter.value;
             
-            // Check filters
-            const titleMatch = !titleQuery || (contact.title && contact.title.toLowerCase().includes(titleQuery));
-            const companyMatch = !companyQuery || (account.name && account.name.toLowerCase().includes(companyQuery));
-            const industryMatch = !industryQuery || (account.industry && account.industry.toLowerCase().includes(industryQuery));
-
-            // Activity filter logic
-            const hasActivity = state.activities.some(act => act.contact_id === contact.id);
-            const activityMatch = activityQuery === 'all' || (activityQuery === 'yes' && hasActivity) || (activityQuery === 'no' && !hasActivity);
-
-            return titleMatch && companyMatch && industryMatch && activityMatch;
-        });
-
-        // Generate HTML for the filtered list
-        if (filteredContacts.length > 0) {
-            contactListContainer.innerHTML = filteredContacts.map(contact => {
-                const account = state.accounts.find(a => a.id === contact.account_id);
-                const hasActivity = state.activities.some(act => act.contact_id === contact.id);
-                const lastActivity = hasActivity ? `Last Activity: ${formatDate(state.activities.filter(a=>a.contact_id === contact.id).sort((a,b)=>new Date(b.date)-new Date(a.date))[0].date)}` : "No activity";
+            const filteredContacts = availableContacts.filter(contact => {
+                const account = state.accounts.find(a => a.id === contact.account_id) || {};
                 
-                return `
-                    <div class="list-item contact-item-row"> 
-                        <input type="checkbox" id="contact-${contact.id}" data-contact-id="${contact.id}" class="bulk-assign-checkbox">
-                        <label for="contact-${contact.id}">
-                            <span>${contact.first_name} ${contact.last_name} <small>(${account ? account.name : 'No Account'})</small></span>
-                            <span class="last-activity-date">${lastActivity}</span>
-                        </label>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            contactListContainer.innerHTML = `<p class="placeholder-text">No contacts match the current filters.</p>`;
-        }
+                const titleMatch = !titleQuery || (contact.title && contact.title.toLowerCase().includes(titleQuery));
+                const companyMatch = !companyQuery || (account.name && account.name.toLowerCase().includes(companyQuery));
+                const industryMatch = !industryQuery || (account.industry && account.industry.toLowerCase().includes(industryQuery));
+
+                const hasActivity = state.activities.some(act => act.contact_id === contact.id);
+                const activityMatch = activityQuery === 'all' || (activityQuery === 'yes' && hasActivity) || (activityQuery === 'no' && !hasActivity);
+
+                return titleMatch && companyMatch && industryMatch && activityMatch;
+            });
+
+            if (filteredContacts.length > 0) {
+                contactListContainer.innerHTML = filteredContacts.map(contact => {
+                    const account = state.accounts.find(a => a.id === contact.account_id);
+                    const contactActivities = state.activities.filter(act => act.contact_id === contact.id).sort((a, b) => new Date(b.date) - new Date(a.date));
+                    const lastActivity = contactActivities.length > 0 ? `Last Activity: ${formatDate(contactActivities[0].date)}` : "No activity";
+                    
+                    // MODIFIED: Updated HTML structure for the contact list item
+                    return `
+                        <div class="list-item contact-item-row"> 
+                            <input type="checkbox" id="contact-${contact.id}" data-contact-id="${contact.id}" class="bulk-assign-checkbox">
+                            <label for="contact-${contact.id}">
+                                <div class="contact-main-info">
+                                    <div class="contact-name">${contact.first_name} ${contact.last_name}</div>
+                                    <div class="contact-title-company">${contact.title || 'No Title'} at ${account ? account.name : 'No Account'}</div>
+                                </div>
+                                <span class="last-activity-date">${lastActivity}</span>
+                            </label>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                contactListContainer.innerHTML = `<p class="placeholder-text">No contacts match the current filters.</p>`;
+            }
+            
+            selectAllCheckbox.checked = false;
+        };
         
-        // Reset select-all checkbox when filters change
-        selectAllCheckbox.checked = false;
-    };
-    
-    // NEW: Add event listeners to the filter inputs
-    titleFilter.addEventListener('input', renderFilteredContacts);
-    companyFilter.addEventListener('input', renderFilteredContacts);
-    industryFilter.addEventListener('input', renderFilteredContacts);
-    activityFilter.addEventListener('change', renderFilteredContacts);
+        titleFilter.addEventListener('input', renderFilteredContacts);
+        companyFilter.addEventListener('input', renderFilteredContacts);
+        industryFilter.addEventListener('input', renderFilteredContacts);
+        activityFilter.addEventListener('change', renderFilteredContacts);
 
-    // NEW: Add event listener for the "Select All" checkbox
-    selectAllCheckbox.addEventListener('change', (e) => {
-        const isChecked = e.target.checked;
-        const visibleCheckboxes = contactListContainer.querySelectorAll('.bulk-assign-checkbox');
-        visibleCheckboxes.forEach(checkbox => {
-            checkbox.checked = isChecked;
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const visibleCheckboxes = contactListContainer.querySelectorAll('.bulk-assign-checkbox');
+            visibleCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
         });
-    });
 
-    // Initial render of the contact list
-    renderFilteredContacts();
+        renderFilteredContacts();
+    }, 0);
 }
     
 async function processBulkAssignment() {
