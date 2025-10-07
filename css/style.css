@@ -4339,13 +4339,15 @@ div.briefing-pre {
 .phone-icon {
     color: var(--success-green);
 }
-/* Replace the previous CSS with this, using the new unique class name */
+/* Replace the previous CSS with this final, simplified version */
 .bulk-assign-select-all {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-right: auto;   /* This forces the container to the far left */
+    display: flex;         /* Makes the label itself a flex container */
+    align-items: center;   /* Vertically aligns the checkbox and text inside */
+    width: fit-content;    /* Makes the label only as wide as its content */
     margin-top: 15px;
     margin-bottom: 10px;
     padding-left: 5px;
+    gap: 8px;              /* Creates space between the checkbox and text */
+    cursor: pointer;       /* Improves user experience */
+    font-weight: normal;   /* Prevents browser from making the label bold */
 }
