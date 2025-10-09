@@ -582,7 +582,7 @@ async function loadAllData() {
     }
 
     // --- AI EMAIL GENERATION ---
- async function showAIEmailModal() {
+async function showAIEmailModal() {
     if (!state.selectedContactId) {
         showModal("Error", "Please select a contact to write an email for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         return;
@@ -594,11 +594,22 @@ async function loadAllData() {
         return;
     }
 
-    // --- NEW, SIMPLIFIED HTML STRUCTURE ---
+    // --- FINAL VERSION: USING INLINE STYLES FOR GUARANTEED LAYOUT ---
     const productCheckboxes = state.products.map(product => `
-        <div class="product-item">
-            <input type="checkbox" id="prod-${product.replace(/\s+/g, '-')}" class="ai-product-checkbox" value="${product}">
-            <label for="prod-${product.replace(/\s+/g, '-')}">${product}</label>
+        <div style="display: flex; align-items: center; margin-bottom: 12px; padding: 0;">
+            <input 
+                type="checkbox" 
+                id="prod-${product.replace(/\s+/g, '-')}" 
+                class="ai-product-checkbox" 
+                value="${product}" 
+                style="margin: 0 8px 0 0; width: auto; height: auto;"
+            >
+            <label 
+                for="prod-${product.replace(/\s+/g, '-')}" 
+                style="margin: 0; padding: 0; font-weight: normal;"
+            >
+                ${product}
+            </label>
         </div>
     `).join('');
 
@@ -608,16 +619,16 @@ async function loadAllData() {
     const initialModalBody = `
         <p><strong>To:</strong> ${contact.first_name} ${contact.last_name} &lt;${contact.email}&gt;</p>
         <div id="ai-prompt-container">
-            <label>Prompt:</label>
+            <label style="font-weight: 600;">Prompt:</label>
             <textarea id="ai-email-prompt" rows="3" placeholder="e.g., 'Write a follow-up email about our meeting.'"></textarea>
             
-            <div class="ai-options-container">
-                <div class="ai-product-selection">
-                    <p class="section-label">Include Product Info</p>
+            <div style="margin-top: 1.5rem;">
+                <div style="border: none; padding: 0; margin: 0;">
+                    <p style="font-weight: 600; margin-bottom: 12px;">Include Product Info</p>
                     ${productCheckboxes}
                 </div>
-                <div class="ai-industry-selection">
-                    <label for="ai-industry-select" class="section-label">Target Industry</label>
+                <div style="margin-top: 20px;">
+                    <label for="ai-industry-select" style="font-weight: 600; display: block; margin-bottom: 10px;">Target Industry</label>
                     <select id="ai-industry-select">
                         ${industryOptions}
                     </select>
@@ -644,71 +655,6 @@ async function loadAllData() {
     );
 
     document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
-}
-async function generateEmailWithAI(contact) {
-    const userPrompt = document.getElementById('ai-email-prompt').value;
-    const promptContainer = document.getElementById('ai-prompt-container');
-    const responseContainer = document.querySelector('.email-response-container');
-    const aiEmailSubject = document.getElementById('ai-email-subject');
-    const aiEmailBody = document.getElementById('ai-email-body');
-    const generateButton = document.getElementById('ai-generate-email-btn');
-
-    if (!userPrompt) {
-        showToast("Please enter a prompt.", "error");
-        return;
-    }
-
-    // --- NEW: Gather selected products and industry ---
-    const selectedProducts = Array.from(document.querySelectorAll('.ai-product-checkbox:checked')).map(cb => cb.value);
-    const selectedIndustry = document.getElementById('ai-industry-select').value;
-
-    const originalButtonText = generateButton.textContent;
-    generateButton.disabled = true;
-    generateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating...`;
-
-    const contactName = `${contact.first_name} ${contact.last_name}`;
-    const accountName = state.accounts.find(acc => acc.id === contact.account_id)?.name || '';
-
-    try {
-        const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
-            body: {
-                userPrompt: userPrompt,
-                contactName: contactName,
-                accountName: accountName,
-                product_names: selectedProducts, // Pass selected products
-                industry: selectedIndustry       // Pass selected industry
-            }
-        });
-
-        if (error) throw error;
-        
-        const generatedSubject = data.subject || "No Subject";
-        const generatedBody = data.body || "Failed to generate email content.";
-        
-        aiEmailSubject.value = generatedSubject;
-        aiEmailBody.value = generatedBody;
-        
-        promptContainer.classList.add('hidden');
-        responseContainer.classList.remove('hidden');
-
-        // Add the listener here, as the button is now visible
-        document.getElementById('open-email-client-btn').addEventListener('click', () => openEmailClient(contact));
-        
-        showToast("Email generated successfully!", "success");
-
-    } catch (e) {
-        console.error("Error generating email:", e);
-        aiEmailSubject.value = "Error";
-        aiEmailBody.value = "An error occurred while generating the email. Please try again.";
-        
-        promptContainer.classList.add('hidden');
-        responseContainer.classList.remove('hidden');
-        
-        showToast("Failed to generate email.", "error");
-    } finally {
-        generateButton.disabled = false;
-        generateButton.textContent = originalButtonText;
-    }
 }
 
 async function openEmailClient(contact) {
