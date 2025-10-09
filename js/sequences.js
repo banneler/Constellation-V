@@ -4,22 +4,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("sequences.js script started parsing.");
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let state = {
-        currentUser: null,
-        sequences: [],
-        sequence_steps: [],
-        selectedSequenceId: null,
-        contacts: [],
-        activities: [],
-        accounts: [], // Added accounts to state for the modal
-        contact_sequences: [],
-        isEditingSequenceDetails: false,
-        originalSequenceName: '',
-        originalSequenceDescription: '',
-        editingStepId: null,
-        originalStepValues: {},
-        aiGeneratedSteps: []
-    };
+   let state = {
+    currentUser: null,
+    sequences: [],
+    sequence_steps: [],
+    products: [], // <-- ADD THIS LINE
+    selectedSequenceId: null,
+    contacts: [],
+    activities: [],
+    accounts: [], 
+    contact_sequences: [],
+    isEditingSequenceDetails: false,
+    originalSequenceName: '',
+    originalSequenceDescription: '',
+    editingStepId: null,
+    originalStepValues: {},
+    aiGeneratedSteps: []
+};
 
     // --- DOM Element Selectors ---
     const logoutBtn = document.getElementById("logout-btn");
@@ -55,36 +56,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     const cancelAiSequenceBtn = document.getElementById("cancel-ai-sequence-btn");
     
     // --- Data Fetching ---
-    async function loadAllData() {
-        if (!state.currentUser) return;
-        // Add "accounts" to the tables being fetched
-        const userSpecificTables = ["sequences", "contacts", "accounts", "contact_sequences", "sequence_steps", "activities"];
-        const promises = userSpecificTables.map((table) =>
-            supabase.from(table).select("*").eq("user_id", state.currentUser.id)
-        );
+  async function loadAllData() {
+    if (!state.currentUser) return;
+    
+    const userSpecificTables = ["sequences", "contacts", "accounts", "contact_sequences", "sequence_steps", "activities"];
+    const promises = userSpecificTables.map((table) =>
+        supabase.from(table).select("*").eq("user_id", state.currentUser.id)
+    );
+    // Add promise for product_knowledge without a user_id filter
+    promises.push(supabase.from('product_knowledge').select('product_name'));
+    
+    try {
+        const results = await Promise.allSettled(promises);
         
-        try {
-            const results = await Promise.allSettled(promises);
-            results.forEach((result, index) => {
-                const tableName = userSpecificTables[index];
-                if (result.status === "fulfilled" && !result.value.error) {
-                    state[tableName] = result.value.data || [];
-                } else {
-                    console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error?.message : result.reason);
-                }
-            });
-        } catch (error) {
-            console.error("Critical error in loadAllData:", error);
-        } finally {
-            renderSequenceList();
-            if (state.selectedSequenceId && state.sequences.some(s => s.id === state.selectedSequenceId)) {
-                renderSequenceDetails(state.selectedSequenceId);
+        // Use a combined list for processing results
+        const allTables = [...userSpecificTables, 'product_knowledge']; 
+
+        results.forEach((result, index) => {
+            const tableName = allTables[index];
+            if (result.status === "fulfilled" && !result.value.error) {
+                state[tableName] = result.value.data || [];
             } else {
-                clearSequenceDetailsPanel(false);
+                console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error?.message : result.reason);
             }
+        });
+
+        // Process products into a unique, sorted list
+        if (state.product_knowledge) {
+            state.products = [...new Set(state.product_knowledge.map(p => p.product_name))].sort();
+        }
+
+    } catch (error) {
+        console.error("Critical error in loadAllData:", error);
+    } finally {
+        renderSequenceList();
+        renderProductCheckboxes(); // Call the new render function
+        if (state.selectedSequenceId && state.sequences.some(s => s.id === state.selectedSequenceId)) {
+            renderSequenceDetails(state.selectedSequenceId);
+        } else {
+            clearSequenceDetailsPanel(false);
         }
     }
-
+}
     // --- Render Functions ---
     const renderSequenceList = () => {
         if (!sequenceList) return;
@@ -120,6 +133,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sequenceList.appendChild(item);
             });
     };
+    function renderProductCheckboxes() {
+    const productListContainer = document.getElementById('ai-product-list');
+    if (!productListContainer) return;
+
+    if (state.products.length === 0) {
+        productListContainer.innerHTML = '<p class="placeholder-text">No products found.</p>';
+        return;
+    }
+
+    // Use the 'product-item' class for consistency with our CSS
+    productListContainer.innerHTML = state.products.map(product => `
+        <div class="product-item">
+            <input type="checkbox" id="seq-prod-${product.replace(/\s+/g, '-')}" class="ai-product-checkbox" value="${product}">
+            <label for="seq-prod-${product.replace(/\s+/g, '-')}">${product}</label>
+        </div>
+    `).join('');
+}
     const renderSequenceSteps = () => {
         if (!sequenceStepsTableBody) return;
         sequenceStepsTableBody.innerHTML = "";
@@ -857,66 +887,78 @@ async function importMarketingSequence() {
     return true;
 }
 
-    async function handleAiGenerateSequence() {
-        if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
-            showModal("Error", "Please save or cancel any active edits or AI generation preview first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-
-        const sequenceGoal = aiSequenceGoalTextarea.value.trim();
-        const totalDuration = parseInt(aiTotalDurationInput.value, 10);
-        const numSteps = parseInt(aiNumStepsInput.value, 10);
-        const selectedStepTypes = [];
-        if (aiStepTypeEmailCheckbox.checked) selectedStepTypes.push(aiStepTypeEmailCheckbox.value);
-        if (aiStepTypeLinkedinCheckbox.checked) selectedStepTypes.push(aiStepTypeLinkedinCheckbox.value);
-        if (aiStepTypeCallCheckbox.checked) selectedStepTypes.push(aiStepTypeCallCheckbox.value);
-        if (aiStepTypeTaskCheckbox.checked) selectedStepTypes.push(aiStepTypeTaskCheckbox.value);
-        if (aiStepTypeOtherCheckbox.checked) {
-            const customType = aiStepTypeOtherInput.value.trim();
-            if (customType) {
-                selectedStepTypes.push(customType);
-            } else {
-                showModal("Error", "Please provide a name for the 'Other' step type.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                return;
-            }
-        }
-        const personaPrompt = aiPersonaPromptTextarea.value.trim();
-
-        if (!sequenceGoal || isNaN(totalDuration) || totalDuration < 1 || numSteps < 1 || selectedStepTypes.length === 0 || !personaPrompt) {
-            showModal("Error", "Please fill out all AI generation fields correctly.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-
-        showModal("Generating Sequence", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">AI is drafting your sequence steps...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-
-        try {
-            const { data, error } = await supabase.functions.invoke('generate-sequence-steps', {
-                body: { sequenceGoal, numSteps, totalDuration, stepTypes: selectedStepTypes, personaPrompt }
-            });
-
-            if (error) throw error;
-
-            state.aiGeneratedSteps = data.steps.map((step, index) => ({
-                id: `ai-temp-${index}`,
-                step_number: index + 1,
-                type: step.type,
-                subject: step.subject || '',
-                message: step.message || '',
-                delay_days: step.delay_days || 0,
-                isEditing: false
-            }));
-
-            renderAiGeneratedStepsPreview();
-            hideModal();
-            aiGeneratedSequencePreview.classList.remove('hidden');
-            showModal("Success", "AI sequence generated! Review and save below.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-
-        } catch (error) {
-            console.error("Error generating AI sequence:", error);
-            showModal("Error", `Failed to generate AI sequence: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
+   async function handleAiGenerateSequence() {
+    if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
+        showModal("Error", "Please save or cancel any active edits or AI generation preview first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
     }
 
+    const sequenceGoal = aiSequenceGoalTextarea.value.trim();
+    const totalDuration = parseInt(aiTotalDurationInput.value, 10);
+    const numSteps = parseInt(aiNumStepsInput.value, 10);
+    const selectedStepTypes = [];
+    if (aiStepTypeEmailCheckbox.checked) selectedStepTypes.push(aiStepTypeEmailCheckbox.value);
+    if (aiStepTypeLinkedinCheckbox.checked) selectedStepTypes.push(aiStepTypeLinkedinCheckbox.value);
+    if (aiStepTypeCallCheckbox.checked) selectedStepTypes.push(aiStepTypeCallCheckbox.value);
+    if (aiStepTypeTaskCheckbox.checked) selectedStepTypes.push(aiStepTypeTaskCheckbox.value);
+    if (aiStepTypeOtherCheckbox.checked) {
+        const customType = aiStepTypeOtherInput.value.trim();
+        if (customType) {
+            selectedStepTypes.push(customType);
+        } else {
+            showModal("Error", "Please provide a name for the 'Other' step type.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+    }
+    const personaPrompt = aiPersonaPromptTextarea.value.trim();
+
+    // --- NEW: Gather product and industry info ---
+    const selectedProducts = Array.from(document.querySelectorAll('#ai-product-list .ai-product-checkbox:checked')).map(cb => cb.value);
+    const selectedIndustry = document.getElementById('ai-industry-select').value;
+
+    if (!sequenceGoal || isNaN(totalDuration) || totalDuration < 1 || numSteps < 1 || selectedStepTypes.length === 0 || !personaPrompt) {
+        showModal("Error", "Please fill out all AI generation fields correctly.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
+    }
+
+    showModal("Generating Sequence", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">AI is drafting your sequence steps...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+    try {
+        // --- UPDATED: Call function with new data ---
+        const { data, error } = await supabase.functions.invoke('generate-sequence-steps', {
+            body: { 
+                sequenceGoal, 
+                numSteps, 
+                totalDuration, 
+                stepTypes: selectedStepTypes, 
+                personaPrompt,
+                product_names: selectedProducts,
+                industry: selectedIndustry
+            }
+        });
+
+        if (error) throw error;
+
+        state.aiGeneratedSteps = data.steps.map((step, index) => ({
+            id: `ai-temp-${index}`,
+            step_number: index + 1,
+            type: step.type,
+            subject: step.subject || '',
+            message: step.message || '',
+            delay_days: step.delay_days || 0,
+            isEditing: false
+        }));
+
+        renderAiGeneratedStepsPreview();
+        hideModal();
+        aiGeneratedSequencePreview.classList.remove('hidden');
+        showModal("Success", "AI sequence generated! Review and save below.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+
+    } catch (error) {
+        console.error("Error generating AI sequence:", error);
+        showModal("Error", `Failed to generate AI sequence: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+    }
+}
     function renderAiGeneratedStepsPreview() {
         if (!aiGeneratedSequenceForm) return;
         aiGeneratedSequenceForm.innerHTML = "";
