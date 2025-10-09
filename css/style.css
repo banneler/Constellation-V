@@ -4367,7 +4367,7 @@ div.briefing-pre {
     vertical-align: middle; /* Helps with alignment */
 }
 /*
- * Styles for the AI Email Modal Options (Final Version)
+ * FINAL Styles for the AI Email Modal Options
  */
 
 /* Main grid for the two sections: products and industry */
@@ -4385,9 +4385,8 @@ div.briefing-pre {
     padding: 0;
     margin: 0;
     display: grid;
-    /* --- CHANGE 1: Switched to '1fr' to prevent overlap --- */
     grid-template-columns: repeat(2, 1fr); 
-    gap: 10px 20px; 
+    gap: 12px 20px; /* Increased row gap slightly */
 }
 
 /* "Include Product Info" text */
@@ -4401,23 +4400,20 @@ div.briefing-pre {
 /* Wrapper for each checkbox and its label */
 .checkbox-wrapper {
     display: flex;
-    align-items: center;
-    /* --- CHANGE 2: Reduced the gap for tighter spacing --- */
-    gap: 4px;
+    /* --- CHANGE 1: Align checkbox to the top of the text --- */
+    align-items: start; 
+    gap: 8px; /* Reset gap for better spacing */
 }
 
-/* Prevents the checkbox from shrinking */
+/* Fine-tune checkbox position to align with text line-height */
 .checkbox-wrapper input[type="checkbox"] {
-    flex-shrink: 0; 
-    display: inline-block;
-    vertical-align: middle;
+    flex-shrink: 0;
+    margin-top: 3px; /* Adjust this value if needed */
 }
 
-/* Prevents long labels from wrapping */
+/* --- CHANGE 2: Removed white-space: nowrap to allow wrapping --- */
 .checkbox-wrapper label {
-    white-space: nowrap;
     display: inline-block;
-    vertical-align: middle;
 }
 
 /* Container for the industry dropdown */
