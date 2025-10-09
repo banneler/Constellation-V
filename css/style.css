@@ -4377,22 +4377,7 @@ div.briefing-pre {
     padding-top: 1rem;
 }
 
-.product-list-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 10px;
-}
 
-.product-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0;
-}
-
-.product-item input[type="checkbox"] {
-    margin: 0;
-    margin-right: 8px;
-}
 
 .section-label {
     font-weight: 600;
