@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
         marketingContainer.innerHTML = '';
-        const visiblePosts = state.allPosts.filter(post => !state.userInteractions.has(post.id));
+        const visiblePosts = state.allPosts;
         
         if (visiblePosts.length === 0) {
             marketingContainer.innerHTML = `<p class="placeholder-text">The marketing team is busy creating content. Stay tuned for new posts!</p>`;
@@ -77,29 +77,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function createSocialCard(item) {
-        const card = document.createElement('div');
-        card.className = 'alert-card';
-        card.id = `post-card-${item.id}`;
+   function createSocialCard(item) {
+    const card = document.createElement('div');
+    card.className = 'alert-card';
+    card.id = `post-card-${item.id}`;
 
-        card.innerHTML = `
-            <div class="alert-header"><span class="alert-trigger-type">Campaign Asset</span></div>
-            <h5 class="alert-headline">${item.title} ${item.is_dynamic_link ? '<span class="dynamic-link-indicator" title="This link generates a rich preview on LinkedIn">✨</span>' : ''}</h5>
-            <p class="alert-summary">${(item.summary || item.approved_copy).replace(/\n/g, '<br>')}</p>
-            <div class="alert-footer">
-                <span class="alert-source">Source: <a href="${item.link}" target="_blank">Marketing Team</a></span>
-                <span class="alert-date">${formatDate(item.created_at)}</span>
-            </div>
-            <div class="alert-actions">
-                <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}">Dismiss</button>
-                <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
-            </div>
-        `;
-        
-        card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
-        card.querySelector('.dismiss-post-btn').addEventListener('click', () => handleDismissPost(item.id));
-        return card;
-    }
+    card.innerHTML = `
+        <div class="alert-header"><span class="alert-trigger-type">Campaign Asset</span></div>
+        <h5 class="alert-headline">${item.title} ${item.is_dynamic_link ? '<span class="dynamic-link-indicator" title="This link generates a rich preview on LinkedIn">✨</span>' : ''}</h5>
+        <p class="alert-summary">${(item.summary || item.approved_copy).replace(/\n/g, '<br>')}</p>
+        <div class="alert-footer">
+            <span class="alert-source">Source: <a href="${item.link}" target="_blank">Marketing Team</a></span>
+            <span class="alert-date">${formatDate(item.created_at)}</span>
+        </div>
+        <div class="alert-actions">
+            <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
+        </div>
+    `;
+    
+    // The dismiss button listener is now removed
+    card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
+    return card;
+}
 
     async function showAIProductPostModal() {
         const productCheckboxes = state.products.map(product => `
@@ -206,22 +205,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalBackdrop.classList.remove('hidden');
     }
 
-    async function handleDismissPost(postId) {
-        try {
-            await supabase.from('user_post_interactions').insert({ user_id: state.currentUser.id, post_id: postId, status: 'dismissed' });
-            const cardToRemove = document.getElementById(`post-card-${postId}`);
-            if (cardToRemove) {
-                cardToRemove.style.transition = 'opacity 0.5s';
-                cardToRemove.style.opacity = '0';
-                setTimeout(() => cardToRemove.remove(), 500);
-            }
-            state.userInteractions.add(postId);
-        } catch (error) {
-            console.error("Error dismissing post:", error);
-            alert("Could not dismiss the post. Please try again.");
-        }
-    }
-
+   
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         if (aiProductPostBtn) {
