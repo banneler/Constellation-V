@@ -594,9 +594,9 @@ async function loadAllData() {
         return;
     }
 
-    // Dynamically create the product checkboxes HTML
+    // --- NEW, SIMPLIFIED HTML STRUCTURE ---
     const productCheckboxes = state.products.map(product => `
-        <div class="checkbox-wrapper">
+        <div class="product-item">
             <input type="checkbox" id="prod-${product.replace(/\s+/g, '-')}" class="ai-product-checkbox" value="${product}">
             <label for="prod-${product.replace(/\s+/g, '-')}">${product}</label>
         </div>
@@ -610,14 +610,14 @@ async function loadAllData() {
         <div id="ai-prompt-container">
             <label>Prompt:</label>
             <textarea id="ai-email-prompt" rows="3" placeholder="e.g., 'Write a follow-up email about our meeting.'"></textarea>
-
-            <div class="ai-options-grid">
-                <fieldset class="ai-product-selection">
-                    <legend>Include Product Info</legend>
+            
+            <div class="ai-options-container">
+                <div class="ai-product-selection">
+                    <p class="section-label">Include Product Info</p>
                     ${productCheckboxes}
-                </fieldset>
+                </div>
                 <div class="ai-industry-selection">
-                    <label for="ai-industry-select">Target Industry</label>
+                    <label for="ai-industry-select" class="section-label">Target Industry</label>
                     <select id="ai-industry-select">
                         ${industryOptions}
                     </select>
@@ -644,9 +644,7 @@ async function loadAllData() {
     );
 
     document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
-    // The event listener for open-email-client-btn is added dynamically when the container is shown
 }
-
 async function generateEmailWithAI(contact) {
     const userPrompt = document.getElementById('ai-email-prompt').value;
     const promptContainer = document.getElementById('ai-prompt-container');
