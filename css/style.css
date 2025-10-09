@@ -4366,3 +4366,40 @@ div.briefing-pre {
     height: 16px !important;
     vertical-align: middle; /* Helps with alignment */
 }
+/* Styles for AI Sequence Generation Options */
+.ai-options-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-top: 1rem;
+    align-items: start;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.product-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.product-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.product-item input[type="checkbox"] {
+    margin: 0;
+    margin-right: 8px;
+}
+
+.section-label {
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.ai-industry-selection {
+    display: flex;
+    flex-direction: column;
+}
