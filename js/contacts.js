@@ -3,22 +3,23 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvR
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let state = {
-        currentUser: null,
-        contacts: [],
-        accounts: [],
-        activities: [],
-        contact_sequences: [],
-        sequences: [],
-        deals: [],
-        tasks: [],
-        sequence_steps: [],
-        email_log: [],
-        activityTypes: [],
-        selectedContactId: null,
-        isFormDirty: false, // Comma was missing here
-        nameDisplayFormat: 'lastFirst'
-    };
+   let state = {
+    currentUser: null,
+    contacts: [],
+    accounts: [],
+    activities: [],
+    contact_sequences: [],
+    sequences: [],
+    deals: [],
+    tasks: [],
+    sequence_steps: [],
+    email_log: [],
+    activityTypes: [],
+    products: [], // --- ADD THIS LINE ---
+    selectedContactId: null,
+    isFormDirty: false,
+    nameDisplayFormat: 'lastFirst'
+};
 
     // --- DOM Element Selectors ---
     const navSidebar = document.querySelector(".nav-sidebar");
@@ -95,26 +96,27 @@ async function loadAllData() {
             accountsRes,
             activitiesRes,
             contactSequencesRes,
-            sequencesRes, // Consolidated into one simple query
+            sequencesRes,
             dealsRes,
             tasksRes,
             sequenceStepsRes,
             emailLogRes,
-            activityTypesRes
+            activityTypesRes,
+            productsRes // --- ADD THIS ---
         ] = await Promise.all([
             supabase.from('contacts').select('*').eq('user_id', state.currentUser.id),
             supabase.from('accounts').select('*').eq('user_id', state.currentUser.id),
             supabase.from('activities').select('*').eq('user_id', state.currentUser.id),
             supabase.from('contact_sequences').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('sequences').select('*').eq('user_id', state.currentUser.id), // Fetches ALL sequences you own
+            supabase.from('sequences').select('*').eq('user_id', state.currentUser.id),
             supabase.from('deals').select('*').eq('user_id', state.currentUser.id),
             supabase.from('tasks').select('*').eq('user_id', state.currentUser.id),
             supabase.from('sequence_steps').select('*'),
             supabase.from('email_log').select('*'),
-            supabase.from('activity_types').select('*')
+            supabase.from('activity_types').select('*'),
+            supabase.from('product_knowledge').select('product_name') // --- ADD THIS ---
         ]);
 
-        // Helper to check for errors and assign data
         const processResponse = (res, tableName) => {
             if (res.error) console.error(`Error loading ${tableName}:`, res.error.message);
             return res.data || [];
@@ -129,7 +131,11 @@ async function loadAllData() {
         state.sequence_steps = processResponse(sequenceStepsRes, 'sequence_steps');
         state.email_log = processResponse(emailLogRes, 'email_log');
         state.activityTypes = [...new Map(processResponse(activityTypesRes, 'activity_types').map(item => [item.type_name, item])).values()];
-        state.sequences = processResponse(sequencesRes, 'sequences'); // Assign all of your sequences
+        state.sequences = processResponse(sequencesRes, 'sequences');
+
+        // --- ADD THIS BLOCK to process and store unique product names ---
+        const productData = processResponse(productsRes, 'product_knowledge');
+        state.products = [...new Set(productData.map(p => p.product_name))].sort();
 
     } catch (error) {
         console.error("Critical error in loadAllData:", error);
@@ -576,106 +582,136 @@ async function loadAllData() {
     }
 
     // --- AI EMAIL GENERATION ---
-    async function showAIEmailModal() {
-        if (!state.selectedContactId) {
-            showModal("Error", "Please select a contact to write an email for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
+ async function showAIEmailModal() {
+    if (!state.selectedContactId) {
+        showModal("Error", "Please select a contact to write an email for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
+    }
 
-        const contact = state.contacts.find(c => c.id === state.selectedContactId);
-        if (!contact?.email) {
-            showModal("Error", "The selected contact does not have an email address.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
+    const contact = state.contacts.find(c => c.id === state.selectedContactId);
+    if (!contact?.email) {
+        showModal("Error", "The selected contact does not have an email address.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        return;
+    }
 
-        // Updated modal body to include a container for the prompt and make the subject editable
-        const initialModalBody = `
-            <p><strong>To:</strong> ${contact.first_name} ${contact.last_name} &lt;${contact.email}&gt;</p>
-            <div id="ai-prompt-container">
-                <label>Prompt:</label>
-                <textarea id="ai-email-prompt" rows="4" placeholder="e.g., 'Write a follow-up email after our meeting about the new project.'"></textarea>
-            </div>
-            <div class="email-response-container hidden">
-                <hr>
-                <label>AI-Generated Subject:</label>
-                <input type="text" id="ai-email-subject" />
-                <label>AI-Generated Draft:</label>
-                <textarea id="ai-email-body" rows="10"></textarea>
-                <div class="flex-end-buttons">
-                    <button id="open-email-client-btn" class="btn-primary">Open Email Client</button>
+    // Dynamically create the product checkboxes HTML
+    const productCheckboxes = state.products.map(product => `
+        <div class="checkbox-wrapper">
+            <input type="checkbox" id="prod-${product.replace(/\s+/g, '-')}" class="ai-product-checkbox" value="${product}">
+            <label for="prod-${product.replace(/\s+/g, '-')}">${product}</label>
+        </div>
+    `).join('');
+
+    const industries = ['General', 'Healthcare', 'Financial', 'Retail', 'Manufacturing', 'K-12 Education'];
+    const industryOptions = industries.map(ind => `<option value="${ind}">${ind}</option>`).join('');
+
+    const initialModalBody = `
+        <p><strong>To:</strong> ${contact.first_name} ${contact.last_name} &lt;${contact.email}&gt;</p>
+        <div id="ai-prompt-container">
+            <label>Prompt:</label>
+            <textarea id="ai-email-prompt" rows="3" placeholder="e.g., 'Write a follow-up email about our meeting.'"></textarea>
+
+            <div class="ai-options-grid">
+                <fieldset class="ai-product-selection">
+                    <legend>Include Product Info</legend>
+                    ${productCheckboxes}
+                </fieldset>
+                <div class="ai-industry-selection">
+                    <label for="ai-industry-select">Target Industry</label>
+                    <select id="ai-industry-select">
+                        ${industryOptions}
+                    </select>
                 </div>
             </div>
-        `;
-        showModal(
-            `Write Email with AI for ${contact.first_name}`,
-            initialModalBody,
-            null,
-            true,
-            `<button id="ai-generate-email-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-        );
+        </div>
+        <div class="email-response-container hidden">
+            <hr>
+            <label>AI-Generated Subject:</label>
+            <input type="text" id="ai-email-subject" />
+            <label>AI-Generated Draft:</label>
+            <textarea id="ai-email-body" rows="10"></textarea>
+            <div class="flex-end-buttons">
+                <button id="open-email-client-btn" class="btn-primary">Open Email Client</button>
+            </div>
+        </div>
+    `;
+    showModal(
+        `Write Email with AI for ${contact.first_name}`,
+        initialModalBody,
+        null,
+        true,
+        `<button id="ai-generate-email-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+    );
 
-        document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
-        document.getElementById('open-email-client-btn')?.addEventListener('click', () => openEmailClient(contact));
+    document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
+    // The event listener for open-email-client-btn is added dynamically when the container is shown
+}
+
+async function generateEmailWithAI(contact) {
+    const userPrompt = document.getElementById('ai-email-prompt').value;
+    const promptContainer = document.getElementById('ai-prompt-container');
+    const responseContainer = document.querySelector('.email-response-container');
+    const aiEmailSubject = document.getElementById('ai-email-subject');
+    const aiEmailBody = document.getElementById('ai-email-body');
+    const generateButton = document.getElementById('ai-generate-email-btn');
+
+    if (!userPrompt) {
+        showToast("Please enter a prompt.", "error");
+        return;
     }
 
-    async function generateEmailWithAI(contact) {
-        const userPrompt = document.getElementById('ai-email-prompt').value;
-        const promptContainer = document.getElementById('ai-prompt-container');
-        const responseContainer = document.querySelector('.email-response-container');
-        const aiEmailSubject = document.getElementById('ai-email-subject');
-        const aiEmailBody = document.getElementById('ai-email-body');
-        const generateButton = document.getElementById('ai-generate-email-btn');
+    // --- NEW: Gather selected products and industry ---
+    const selectedProducts = Array.from(document.querySelectorAll('.ai-product-checkbox:checked')).map(cb => cb.value);
+    const selectedIndustry = document.getElementById('ai-industry-select').value;
 
-        if (!userPrompt) {
-            showToast("Please enter a prompt.", "error");
-            return;
-        }
+    const originalButtonText = generateButton.textContent;
+    generateButton.disabled = true;
+    generateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating...`;
 
-        const originalButtonText = generateButton.textContent;
-        generateButton.disabled = true;
-        generateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating...`;
+    const contactName = `${contact.first_name} ${contact.last_name}`;
+    const accountName = state.accounts.find(acc => acc.id === contact.account_id)?.name || '';
 
-        const contactName = `${contact.first_name} ${contact.last_name}`;
-        const accountName = state.accounts.find(acc => acc.id === contact.account_id)?.name || '';
+    try {
+        const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
+            body: {
+                userPrompt: userPrompt,
+                contactName: contactName,
+                accountName: accountName,
+                product_names: selectedProducts, // Pass selected products
+                industry: selectedIndustry       // Pass selected industry
+            }
+        });
 
-        try {
-            const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
-                body: {
-                    userPrompt: userPrompt,
-                    contactName: contactName,
-                    accountName: accountName
-                }
-            });
+        if (error) throw error;
+        
+        const generatedSubject = data.subject || "No Subject";
+        const generatedBody = data.body || "Failed to generate email content.";
+        
+        aiEmailSubject.value = generatedSubject;
+        aiEmailBody.value = generatedBody;
+        
+        promptContainer.classList.add('hidden');
+        responseContainer.classList.remove('hidden');
 
-            if (error) throw error;
-            
-            const generatedSubject = data.subject || "No Subject";
-            const generatedBody = data.body || "Failed to generate email content.";
-            
-            aiEmailSubject.value = generatedSubject;
-            aiEmailBody.value = generatedBody;
-            
-            // Hide the prompt container and show the response container after generation
-            promptContainer.classList.add('hidden');
-            responseContainer.classList.remove('hidden');
-            
-            showToast("Email generated successfully!", "success");
+        // Add the listener here, as the button is now visible
+        document.getElementById('open-email-client-btn').addEventListener('click', () => openEmailClient(contact));
+        
+        showToast("Email generated successfully!", "success");
 
-        } catch (e) {
-            console.error("Error generating email:", e);
-            aiEmailSubject.value = "Error";
-            aiEmailBody.value = "An error occurred while generating the email. Please try again.";
-            
-            // Still hide the prompt and show the response container with the error
-            promptContainer.classList.add('hidden');
-            responseContainer.classList.remove('hidden');
-            
-            showToast("Failed to generate email.", "error");
-        } finally {
-            generateButton.disabled = false;
-            generateButton.textContent = originalButtonText;
-        }
+    } catch (e) {
+        console.error("Error generating email:", e);
+        aiEmailSubject.value = "Error";
+        aiEmailBody.value = "An error occurred while generating the email. Please try again.";
+        
+        promptContainer.classList.add('hidden');
+        responseContainer.classList.remove('hidden');
+        
+        showToast("Failed to generate email.", "error");
+    } finally {
+        generateButton.disabled = false;
+        generateButton.textContent = originalButtonText;
     }
+}
 
 async function openEmailClient(contact) {
     const emailSubject = document.getElementById('ai-email-subject').value;
