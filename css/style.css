@@ -4367,50 +4367,31 @@ div.briefing-pre {
     vertical-align: middle; /* Helps with alignment */
 }
 /*
- * FINAL, SIMPLIFIED Styles for the AI Email Modal
+ * FINAL, SIMPLIFIED Styles for AI Modal
  */
 
-/* Stacks the Product and Industry sections vertically */
-.ai-options-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 20px; /* Space between the two sections */
+.ai-options-container {
     margin-top: 1rem;
 }
 
-/* Container for the product checkboxes */
-.ai-product-selection {
-    border: none;
-    padding: 0;
-    margin: 0;
+.product-item {
+    margin-bottom: 10px; /* Space between each line */
 }
 
-/* "Include Product Info" text */
-.ai-product-selection legend {
+.product-item input[type="checkbox"] {
+    vertical-align: middle;
+}
+
+.product-item label {
+    margin-left: 6px; /* Space between checkbox and text */
+    vertical-align: middle;
+}
+
+.section-label {
     font-weight: 600;
     margin-bottom: 12px;
-    padding: 0;
 }
 
-/* Wrapper for each checkbox and its label */
-.checkbox-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 6px; /* Keeps checkbox tight to the label */
-    margin-bottom: 8px; /* "Little margin between lines" */
-}
-
-.checkbox-wrapper input[type="checkbox"] {
-    margin: 0; /* Removes default margin */
-}
-
-/* Container for the industry dropdown */
 .ai-industry-selection {
-    display: flex;
-    flex-direction: column;
-}
-
-.ai-industry-selection label {
-    font-weight: 600;
-    margin-bottom: 10px;
+    margin-top: 20px;
 }
