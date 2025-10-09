@@ -6,7 +6,6 @@ import {
     hideModal,
     setupUserMenuAndAuth,
     loadSVGs,
-    // Note: Removed unused imports like updateActiveNavLink
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -20,16 +19,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
     
     // --- DOM SELECTORS ---
+    const authContainer = document.getElementById('auth-container');
+    const enterpriseHubContent = document.getElementById('enterprise-hub-content');
+    const authForm = document.getElementById('auth-form');
+    const authError = document.getElementById('auth-error');
+    const authEmailInput = document.getElementById('auth-email');
+    const authPasswordInput = document.getElementById('auth-password');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+
     const marketingContainer = document.getElementById('marketing-posts-container');
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalTitle = document.getElementById('modal-title');
     const aiProductPostBtn = document.getElementById('ai-product-post-btn');
 
+    // --- MAIN APP LOGIC (runs after login) ---
+    async function showAppContent(user) {
+        // Hide login form, show app content
+        authContainer.classList.add('hidden');
+        enterpriseHubContent.classList.remove('hidden');
+
+        state.currentUser = user;
+        
+        // Setup the main app features
+        await setupUserMenuAndAuth(supabase, state);
+        setupPageEventListeners();
+        await loadSocialContent();
+    }
+
     // --- DATA FETCHING ---
     async function loadSocialContent() {
         if (!state.currentUser) return;
         try {
-            // Only fetch marketing posts now
             const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').eq('type', 'marketing_post').order('created_at', { ascending: false });
             if (postsError) throw postsError;
             state.allPosts = posts || [];
@@ -67,7 +87,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         card.innerHTML = `
             <div class="alert-header"><span class="alert-trigger-type">Campaign Asset</span></div>
-            <h5 class="alert-headline">${item.title} ${item.is_dynamic_link ? '<span class="dynamic-link-indicator">✨</span>' : ''}</h5>
+            <h5 class="alert-headline">${item.title} ${item.is_dynamic_link ? '<span class="dynamic-link-indicator" title="This link generates a rich preview on LinkedIn">✨</span>' : ''}</h5>
             <p class="alert-summary">${(item.summary || item.approved_copy).replace(/\n/g, '<br>')}</p>
             <div class="alert-footer">
                 <span class="alert-source">Source: <a href="${item.link}" target="_blank">Marketing Team</a></span>
@@ -161,13 +181,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const modalActions = document.getElementById('modal-actions');
 
         modalTitle.textContent = item.title;
-
         modalBody.innerHTML = `
-            <p style="margin-bottom: 15px;"><strong>Sharing Link:</strong> <a id="modal-article-link" href="${item.link}" target="_blank" rel="noopener noreferrer">${item.link}</a></p>
-            <label for="post-text">Post Text:</label>
-            <textarea id="post-text" rows="8"></textarea>
+            <p style="margin-bottom: 15px;"><strong>Sharing Link:</strong> <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.link}</a></p>
+            <label for="post-text-result">Post Text:</label>
+            <textarea id="post-text-result" rows="8"></textarea>
         `;
-        document.getElementById('post-text').value = item.approved_copy;
+        document.getElementById('post-text-result').value = item.approved_copy;
 
         modalActions.innerHTML = `
             <button id="copy-text-btn-result" class="btn-secondary">Copy Text</button>
@@ -176,8 +195,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         `;
 
         document.getElementById('copy-text-btn-result').addEventListener('click', () => {
-            navigator.clipboard.writeText(document.getElementById('post-text').value);
-            // Visual feedback for copy
+            const btn = document.getElementById('copy-text-btn-result');
+            navigator.clipboard.writeText(document.getElementById('post-text-result').value).then(() => {
+                if(btn) btn.textContent = 'Copied!';
+                setTimeout(() => { if(btn) btn.textContent = 'Copy Text'; }, 2000);
+            });
         });
         document.getElementById('post-to-linkedin-btn-result').addEventListener('click', () => {
              window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(item.link)}`, '_blank', 'noopener,noreferrer');
@@ -203,22 +225,46 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         if (aiProductPostBtn) {
             aiProductPostBtn.addEventListener('click', showAIProductPostModal);
         }
     }
 
+    // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            setupPageEventListeners();
-            await loadSocialContent(); 
+        
+        if (session && session.user) {
+            // If session exists, show the app
+            await showAppContent(session.user);
         } else {
-            window.location.href = "index.html";
+            // If no session, show the login form and set up its listener
+            enterpriseHubContent.classList.add('hidden');
+            authContainer.classList.remove('hidden');
+
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = authEmailInput.value.trim();
+                const password = authPasswordInput.value.trim();
+                
+                authSubmitBtn.disabled = true;
+                authSubmitBtn.textContent = "Logging in...";
+                authError.textContent = "";
+
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                
+                if (error) {
+                    authError.textContent = error.message;
+                    authSubmitBtn.disabled = false;
+                    authSubmitBtn.textContent = "Login";
+                } else if (data.user) {
+                    // On successful login, show the app
+                    await showAppContent(data.user);
+                }
+            });
         }
     }
     initializePage();
