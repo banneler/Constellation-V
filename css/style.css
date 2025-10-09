@@ -4367,30 +4367,38 @@ div.briefing-pre {
     vertical-align: middle; /* Helps with alignment */
 }
 /*
- * FINAL, SIMPLIFIED Styles for AI Modal
+ * FINAL Version 2 - AI Modal CSS
  */
 
 .ai-options-container {
     margin-top: 1rem;
 }
 
-.product-item {
-    margin-bottom: 10px; /* Space between each line */
-}
-
-.product-item input[type="checkbox"] {
-    vertical-align: middle;
-}
-
-.product-item label {
-    margin-left: 6px; /* Space between checkbox and text */
-    vertical-align: middle;
+/* --- CHANGE 1: Remove default padding --- */
+.ai-product-selection {
+    border: none;
+    padding: 0; /* This removes the unwanted indent */
+    margin: 0;
 }
 
 .section-label {
     font-weight: 600;
     margin-bottom: 12px;
 }
+
+/* --- CHANGE 2: Re-introduce Flexbox for reliable alignment --- */
+.product-item {
+    display: flex;
+    align-items: center; /* This perfectly centers the box and text */
+    margin-bottom: 10px; 
+}
+
+.product-item input[type="checkbox"] {
+    margin: 0; 
+    margin-right: 8px; /* Creates space between the box and the label */
+}
+
+/* (No styles needed for the label itself anymore) */
 
 .ai-industry-selection {
     margin-top: 20px;
