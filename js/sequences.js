@@ -133,18 +133,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sequenceList.appendChild(item);
             });
     };
-    function renderProductCheckboxes() {
+function renderProductCheckboxes() {
     const productListContainer = document.getElementById('ai-product-list');
     if (!productListContainer) return;
+
+    // --- CHANGE: Apply your existing class name ---
+    productListContainer.className = 'checkbox-group'; 
 
     if (state.products.length === 0) {
         productListContainer.innerHTML = '<p class="placeholder-text">No products found.</p>';
         return;
     }
 
-    // Use the 'product-item' class for consistency with our CSS
+    // Use a simple 'div' wrapper to match the structure of your "Step Types"
     productListContainer.innerHTML = state.products.map(product => `
-        <div class="product-item">
+        <div>
             <input type="checkbox" id="seq-prod-${product.replace(/\s+/g, '-')}" class="ai-product-checkbox" value="${product}">
             <label for="seq-prod-${product.replace(/\s+/g, '-')}">${product}</label>
         </div>
