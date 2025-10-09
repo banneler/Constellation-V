@@ -177,11 +177,10 @@ async function generateProductPostWithAI() {
     const selectedProducts = Array.from(document.querySelectorAll('.ai-product-checkbox:checked')).map(cb => cb.value);
     const selectedIndustry = document.getElementById('ai-industry-select').value;
     
-    // Show a temporary loading state in the main modal
     const modalBody = document.getElementById('modal-body');
     const modalActions = document.getElementById('modal-actions');
     modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">AI is drafting your post...</p>`;
-    modalActions.innerHTML = ''; // Hide buttons during generation
+    modalActions.innerHTML = ''; 
 
     try {
         const { data, error } = await supabase.functions.invoke('custom-user-social-post', {
@@ -193,51 +192,55 @@ async function generateProductPostWithAI() {
         });
 
         if (error) throw error;
-
-        // Hide the generation modal
         hideModal();
         
-        // Re-use the existing post modal to show the results!
         const generatedPost = {
             title: "AI-Generated Custom Post",
-            link: "https://gpcom.com", // A placeholder link
+            link: "https://gpcom.com",
             approved_copy: `${data.post_body}\n\n${data.hashtags}`,
-            type: 'marketing_post' // Treat it like a marketing post for the modal's logic
+            type: 'marketing_post',
+            isPreGenerated: true // <-- THIS IS THE NEW FLAG
         };
         openPostModal(generatedPost);
 
     } catch (error) {
         console.error("Error generating custom post:", error);
-        // If it fails, just hide the modal. The user can try again.
         hideModal();
         alert("Sorry, there was an error generating the post. Please try again.");
     }
     
-    return false; // We handle all modal closing manually, so return false.
+    return false;
 }
     // --- MODAL & ACTION LOGIC ---
-    async function openPostModal(item) {
-        modalTitle.textContent = item.title;
-        modalArticleLink.href = item.link;
-        modalArticleLink.textContent = item.link;
-        postToLinkedInBtn.dataset.url = item.link;
+   async function openPostModal(item) {
+    modalTitle.textContent = item.title;
+    modalArticleLink.href = item.link;
+    modalArticleLink.textContent = item.link;
+    postToLinkedInBtn.dataset.url = item.link;
+    modalBackdrop.classList.remove('hidden');
 
-        postTextArea.value = "Generating AI suggestion...";
-        modalBackdrop.classList.remove('hidden');
+    // --- THIS IS THE FIX ---
+    // If the content is already generated, display it immediately and stop.
+    if (item.isPreGenerated) {
+        postTextArea.value = item.approved_copy;
+        return; 
+    }
+    // --- END FIX ---
 
-        if (item.type === 'marketing_post') {
-            postTextArea.value = item.approved_copy; // Use pre-approved copy directly
+    postTextArea.value = "Generating AI suggestion...";
+
+    if (item.type === 'marketing_post') {
+        postTextArea.value = item.approved_copy;
+    } else {
+        const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
+        if (error) {
+            postTextArea.value = "Error generating suggestion. Please write your own or try again.";
+            console.error("Edge function error:", error);
         } else {
-            // Call the Edge Function to get an initial suggestion
-            const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
-            if (error) {
-                postTextArea.value = "Error generating suggestion. Please write your own or try again.";
-                console.error("Edge function error:", error);
-            } else {
-                postTextArea.value = data.suggestion;
-            }
+            postTextArea.value = data.suggestion;
         }
     }
+}
 
     function hideModal() { modalBackdrop.classList.add('hidden'); }
 
