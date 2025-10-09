@@ -594,22 +594,10 @@ async function showAIEmailModal() {
         return;
     }
 
-    // --- FINAL VERSION: USING INLINE STYLES FOR GUARANTEED LAYOUT ---
     const productCheckboxes = state.products.map(product => `
-        <div style="display: flex; align-items: center; margin-bottom: 12px; padding: 0;">
-            <input 
-                type="checkbox" 
-                id="prod-${product.replace(/\s+/g, '-')}" 
-                class="ai-product-checkbox" 
-                value="${product}" 
-                style="margin: 0 8px 0 0; width: auto; height: auto;"
-            >
-            <label 
-                for="prod-${product.replace(/\s+/g, '-')}" 
-                style="margin: 0; padding: 0; font-weight: normal;"
-            >
-                ${product}
-            </label>
+        <div class="product-item">
+            <input type="checkbox" id="prod-${product.replace(/\s+/g, '-')}" class="ai-product-checkbox" value="${product}">
+            <label for="prod-${product.replace(/\s+/g, '-')}">${product}</label>
         </div>
     `).join('');
 
@@ -619,16 +607,16 @@ async function showAIEmailModal() {
     const initialModalBody = `
         <p><strong>To:</strong> ${contact.first_name} ${contact.last_name} &lt;${contact.email}&gt;</p>
         <div id="ai-prompt-container">
-            <label style="font-weight: 600;">Prompt:</label>
+            <label class="section-label">Prompt:</label>
             <textarea id="ai-email-prompt" rows="3" placeholder="e.g., 'Write a follow-up email about our meeting.'"></textarea>
             
-            <div style="margin-top: 1.5rem;">
-                <div style="border: none; padding: 0; margin: 0;">
-                    <p style="font-weight: 600; margin-bottom: 12px;">Include Product Info</p>
+            <div class="ai-options-container">
+                <div class="ai-product-selection">
+                    <p class="section-label">Include Product Info</p>
                     ${productCheckboxes}
                 </div>
-                <div style="margin-top: 20px;">
-                    <label for="ai-industry-select" style="font-weight: 600; display: block; margin-bottom: 10px;">Target Industry</label>
+                <div class="ai-industry-selection">
+                    <label for="ai-industry-select" class="section-label">Target Industry</label>
                     <select id="ai-industry-select">
                         ${industryOptions}
                     </select>
@@ -646,15 +634,19 @@ async function showAIEmailModal() {
             </div>
         </div>
     `;
+
+    // --- THE FIX ---
+    // We now pass the function call as the onConfirm callback (the 3rd argument)
+    // and use the standard 'modal-confirm-btn' ID for the generate button.
     showModal(
         `Write Email with AI for ${contact.first_name}`,
         initialModalBody,
-        null,
+        () => generateEmailWithAI(contact), // <-- Logic is passed in here
         true,
-        `<button id="ai-generate-email-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+        `<button id="modal-confirm-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
     );
 
-    document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
+    // The old, incorrect event listener that was here has been removed.
 }
 
 async function openEmailClient(contact) {
