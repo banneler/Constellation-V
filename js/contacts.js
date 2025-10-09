@@ -587,7 +587,6 @@ async function showAIEmailModal() {
         showModal("Error", "Please select a contact to write an email for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         return;
     }
-
     const contact = state.contacts.find(c => c.id === state.selectedContactId);
     if (!contact?.email) {
         showModal("Error", "The selected contact does not have an email address.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -600,7 +599,6 @@ async function showAIEmailModal() {
             <label for="prod-${product.replace(/\s+/g, '-')}">${product}</label>
         </div>
     `).join('');
-
     const industries = ['General', 'Healthcare', 'Financial', 'Retail', 'Manufacturing', 'K-12 Education'];
     const industryOptions = industries.map(ind => `<option value="${ind}">${ind}</option>`).join('');
 
@@ -609,7 +607,6 @@ async function showAIEmailModal() {
         <div id="ai-prompt-container">
             <label class="section-label">Prompt:</label>
             <textarea id="ai-email-prompt" rows="3" placeholder="e.g., 'Write a follow-up email about our meeting.'"></textarea>
-            
             <div class="ai-options-container">
                 <div class="ai-product-selection">
                     <p class="section-label">Include Product Info</p>
@@ -635,20 +632,19 @@ async function showAIEmailModal() {
         </div>
     `;
 
-    // --- THE FIX ---
-    // We now pass the function call as the onConfirm callback (the 3rd argument)
-    // and use the standard 'modal-confirm-btn' ID for the generate button.
+    // No onConfirm callback. We will handle the click with a dedicated listener.
     showModal(
         `Write Email with AI for ${contact.first_name}`,
         initialModalBody,
-        () => generateEmailWithAI(contact), // <-- Logic is passed in here
+        null,
         true,
-        `<button id="modal-confirm-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+        // Use a unique ID for our button so the delegated listener can find it
+        `<button id="ai-modal-generate-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
     );
 
-    // The old, incorrect event listener that was here has been removed.
+    // Tag the modal with the active contact ID so our new listener can find it
+    document.getElementById('modal-body').dataset.activeContactId = contact.id;
 }
-
 async function openEmailClient(contact) {
     const emailSubject = document.getElementById('ai-email-subject').value;
     const emailBody = document.getElementById('ai-email-body').value;
@@ -756,7 +752,22 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
 }
     function setupPageEventListeners() {
         setupModalListeners();
-        
+
+        const modalBackdrop = document.getElementById('modal-backdrop');
+    if (modalBackdrop) {
+        modalBackdrop.addEventListener('click', (event) => {
+            if (event.target.id === 'ai-modal-generate-btn') {
+                const modalBody = document.getElementById('modal-body');
+                const contactId = modalBody.dataset.activeContactId;
+                if (contactId) {
+                    const contact = state.contacts.find(c => c.id === Number(contactId));
+                    if (contact) {
+                        generateEmailWithAI(contact);
+                    }
+                }
+            }
+        });
+    }
         navSidebar.addEventListener('click', (e) => {
             const navButton = e.target.closest('a.nav-button');
             if (navButton) {
@@ -1462,6 +1473,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             writeEmailAIButton.addEventListener("click", showAIEmailModal);
         }
     }
+    
 
     // --- App Initialization ---
     async function initializePage() {
