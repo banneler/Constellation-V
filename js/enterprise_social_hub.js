@@ -47,26 +47,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- DATA FETCHING ---
-    async function loadSocialContent() {
-        if (!state.currentUser) return;
-        try {
-            const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').eq('type', 'marketing_post').order('created_at', { ascending: false });
-            if (postsError) throw postsError;
-            state.allPosts = posts || [];
+ async function loadSocialContent() {
+    if (!state.currentUser) return;
+    try {
+        // Now only fetches the posts, not user interactions
+        const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').eq('type', 'marketing_post').order('created_at', { ascending: false });
+        if (postsError) throw postsError;
+        state.allPosts = posts || [];
 
-            const { data: interactions, error: interactionsError } = await supabase.from('user_post_interactions').select('post_id').eq('user_id', state.currentUser.id);
-            if (interactionsError) throw interactionsError;
-            state.userInteractions = new Set(interactions.map(i => i.post_id));
+        const { data: productData, error: productError } = await supabase.from('product_knowledge').select('product_name');
+        if (productError) throw productError;
+        state.products = [...new Set(productData.map(p => p.product_name))].sort();
 
-            const { data: productData, error: productError } = await supabase.from('product_knowledge').select('product_name');
-            if (productError) throw productError;
-            state.products = [...new Set(productData.map(p => p.product_name))].sort();
-
-            renderSocialContent();
-        } catch (error) {
-            console.error("Error fetching Social Hub content:", error);
-        }
+        renderSocialContent();
+    } catch (error) {
+        console.error("Error fetching Social Hub content:", error);
     }
+}
 
     // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
