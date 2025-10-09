@@ -7,30 +7,55 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        .simple-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: var(--sidebar-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .simple-header-logo svg {
+            height: 40px;
+            width: auto;
+        }
+        .content-area {
+            padding: 20px;
+        }
+    </style>
 </head>
 <body>
-    <div class="crm-container">
-        <nav class="nav-sidebar">
-            <div data-svg-loader="assets/logo.svg"></div>
-            
-            <p class="sidebar-tagline">Amplify our voice. Share relevant news and updates with your network.</p>
 
-            <div class="nav-bottom-section">
-                <div class="user-menu" style="margin-top: auto;">
-                    <div class="user-menu-header">
-                        <div data-svg-loader="assets/user-icon.svg"></div>
-                        <span id="user-name-display">Loading...</span>
-                    </div>
-                    <div id="user-menu-popup" class="user-menu-popup">
-                        <button id="theme-toggle-btn" class="nav-button">
-                            Theme: <span id="theme-name">Dark</span>
-                        </button>
-                        <a href="user-guide.html" class="nav-button">User Guide</a>
-                        <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
-                    </div>
+    <div id="auth-container" class="auth-container">
+        <div class="auth-box">
+            <div data-svg-loader="assets/logo.svg"></div>
+            <p id="auth-error" class="auth-error"></p>
+            
+            <form id="auth-form">
+                <input type="email" id="auth-email" placeholder="Email" required>
+                <input type="password" id="auth-password" placeholder="Password" required>
+                <button type="submit" id="auth-submit-btn" class="btn-primary full-width">Login</button>
+            </form>
+            </div>
+    </div>
+    <div id="enterprise-hub-content" class="hidden">
+        <header class="simple-header">
+            <div data-svg-loader="assets/logo.svg" class="simple-header-logo"></div>
+            <div class="user-menu">
+                <div class="user-menu-header">
+                    <div data-svg-loader="assets/user-icon.svg"></div>
+                    <span id="user-name-display">Loading...</span>
+                </div>
+                <div id="user-menu-popup" class="user-menu-popup">
+                    <button id="theme-toggle-btn" class="nav-button">
+                        Theme: <span id="theme-name">Dark</span>
+                    </button>
+                    <a href="user-guide.html" class="nav-button">User Guide</a>
+                    <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
                 </div>
             </div>
-        </nav>
+        </header>
         
         <main class="content-area">
             <div id="social-hub-view" class="content-view active-view">
@@ -64,16 +89,14 @@
             </div>
         </main>
     </div>
-
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width: 650px;">
             <h3 id="modal-title">Prepare Your Post</h3>
-            <div id="modal-body">
-                </div>
-            <div id="modal-actions" class="modal-actions">
-                </div>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
+
     <script>
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
