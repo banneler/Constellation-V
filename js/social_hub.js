@@ -4,6 +4,7 @@ import {
     SUPABASE_ANON_KEY,
     formatDate, // Import formatDate
     showModal,
+    hideModal,
     updateActiveNavLink,
     setupUserMenuAndAuth,
     loadSVGs,
@@ -179,6 +180,7 @@ async function generateProductPostWithAI() {
     
     const modalBody = document.getElementById('modal-body');
     const modalActions = document.getElementById('modal-actions');
+    const modalTitle = document.getElementById('modal-title');
     modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">AI is drafting your post...</p>`;
     modalActions.innerHTML = ''; 
 
@@ -192,16 +194,41 @@ async function generateProductPostWithAI() {
         });
 
         if (error) throw error;
-        hideModal();
+
+        // --- THE FIX: Rebuild the modal content with the results ---
+        const postContent = `${data.post_body}\n\n${data.hashtags}`;
+        const shareLink = "https://gpcom.com"; // Placeholder link
+
+        modalTitle.textContent = 'AI-Generated Custom Post';
         
-        const generatedPost = {
-            title: "AI-Generated Custom Post",
-            link: "https://gpcom.com",
-            approved_copy: `${data.post_body}\n\n${data.hashtags}`,
-            type: 'marketing_post',
-            isPreGenerated: true // <-- THIS IS THE NEW FLAG
-        };
-        openPostModal(generatedPost);
+        modalBody.innerHTML = `
+            <p style="margin-bottom: 15px;"><strong>Sharing Link:</strong> <a id="modal-article-link" href="${shareLink}" target="_blank" rel="noopener noreferrer">${shareLink}</a></p>
+            <label for="post-text">Generated Post Text:</label>
+            <textarea id="post-text" rows="8"></textarea>
+        `;
+        
+        modalActions.innerHTML = `
+            <button id="copy-text-btn-result" class="btn-secondary">Copy Text</button>
+            <button id="post-to-linkedin-btn-result" class="btn-primary">Post to LinkedIn</button>
+            <button id="modal-close-btn-result" class="btn-secondary">Close</button>
+        `;
+
+        // Populate the new textarea with the result
+        const resultTextArea = document.getElementById('post-text');
+        resultTextArea.value = postContent;
+
+        // Add event listeners to the new buttons
+        document.getElementById('copy-text-btn-result').addEventListener('click', () => {
+            navigator.clipboard.writeText(resultTextArea.value).then(() => {
+                const btn = document.getElementById('copy-text-btn-result');
+                if(btn) btn.textContent = 'Copied!';
+                setTimeout(() => { if(btn) btn.textContent = 'Copy Text'; }, 2000);
+            });
+        });
+        document.getElementById('post-to-linkedin-btn-result').addEventListener('click', () => {
+             window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareLink)}`, '_blank', 'noopener,noreferrer');
+        });
+        document.getElementById('modal-close-btn-result').addEventListener('click', hideModal);
 
     } catch (error) {
         console.error("Error generating custom post:", error);
@@ -209,7 +236,7 @@ async function generateProductPostWithAI() {
         alert("Sorry, there was an error generating the post. Please try again.");
     }
     
-    return false;
+    return false; // We handle all modal closing manually, so return false.
 }
     // --- MODAL & ACTION LOGIC ---
    async function openPostModal(item) {
