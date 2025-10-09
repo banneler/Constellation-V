@@ -587,33 +587,48 @@ async function showAIEmailModal() {
         showModal("Error", "Please select a contact to write an email for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         return;
     }
+
     const contact = state.contacts.find(c => c.id === state.selectedContactId);
     if (!contact?.email) {
         showModal("Error", "The selected contact does not have an email address.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         return;
     }
 
+    // --- FINAL VERSION: USING INLINE STYLES FOR GUARANTEED LAYOUT ---
     const productCheckboxes = state.products.map(product => `
-        <div class="product-item">
-            <input type="checkbox" id="prod-${product.replace(/\s+/g, '-')}" class="ai-product-checkbox" value="${product}">
-            <label for="prod-${product.replace(/\s+/g, '-')}">${product}</label>
+        <div style="display: flex; align-items: center; margin-bottom: 12px; padding: 0;">
+            <input 
+                type="checkbox" 
+                id="prod-${product.replace(/\s+/g, '-')}" 
+                class="ai-product-checkbox" 
+                value="${product}" 
+                style="margin: 0 8px 0 0; width: auto; height: auto;"
+            >
+            <label 
+                for="prod-${product.replace(/\s+/g, '-')}" 
+                style="margin: 0; padding: 0; font-weight: normal;"
+            >
+                ${product}
+            </label>
         </div>
     `).join('');
+
     const industries = ['General', 'Healthcare', 'Financial', 'Retail', 'Manufacturing', 'K-12 Education'];
     const industryOptions = industries.map(ind => `<option value="${ind}">${ind}</option>`).join('');
 
     const initialModalBody = `
         <p><strong>To:</strong> ${contact.first_name} ${contact.last_name} &lt;${contact.email}&gt;</p>
         <div id="ai-prompt-container">
-            <label class="section-label">Prompt:</label>
+            <label style="font-weight: 600;">Prompt:</label>
             <textarea id="ai-email-prompt" rows="3" placeholder="e.g., 'Write a follow-up email about our meeting.'"></textarea>
-            <div class="ai-options-container">
-                <div class="ai-product-selection">
-                    <p class="section-label">Include Product Info</p>
+            
+            <div style="margin-top: 1.5rem;">
+                <div style="border: none; padding: 0; margin: 0;">
+                    <p style="font-weight: 600; margin-bottom: 12px;">Include Product Info</p>
                     ${productCheckboxes}
                 </div>
-                <div class="ai-industry-selection">
-                    <label for="ai-industry-select" class="section-label">Target Industry</label>
+                <div style="margin-top: 20px;">
+                    <label for="ai-industry-select" style="font-weight: 600; display: block; margin-bottom: 10px;">Target Industry</label>
                     <select id="ai-industry-select">
                         ${industryOptions}
                     </select>
@@ -631,20 +646,17 @@ async function showAIEmailModal() {
             </div>
         </div>
     `;
-
-    // No onConfirm callback. We will handle the click with a dedicated listener.
     showModal(
         `Write Email with AI for ${contact.first_name}`,
         initialModalBody,
         null,
         true,
-        // Use a unique ID for our button so the delegated listener can find it
-        `<button id="ai-modal-generate-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+        `<button id="ai-generate-email-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
     );
 
-    // Tag the modal with the active contact ID so our new listener can find it
-    document.getElementById('modal-body').dataset.activeContactId = contact.id;
+    document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
 }
+
 async function openEmailClient(contact) {
     const emailSubject = document.getElementById('ai-email-subject').value;
     const emailBody = document.getElementById('ai-email-body').value;
@@ -752,22 +764,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
 }
     function setupPageEventListeners() {
         setupModalListeners();
-
-        const modalBackdrop = document.getElementById('modal-backdrop');
-    if (modalBackdrop) {
-        modalBackdrop.addEventListener('click', (event) => {
-            if (event.target.id === 'ai-modal-generate-btn') {
-                const modalBody = document.getElementById('modal-body');
-                const contactId = modalBody.dataset.activeContactId;
-                if (contactId) {
-                    const contact = state.contacts.find(c => c.id === Number(contactId));
-                    if (contact) {
-                        generateEmailWithAI(contact);
-                    }
-                }
-            }
-        });
-    }
+        
         navSidebar.addEventListener('click', (e) => {
             const navButton = e.target.closest('a.nav-button');
             if (navButton) {
@@ -1473,7 +1470,6 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             writeEmailAIButton.addEventListener("click", showAIEmailModal);
         }
     }
-    
 
     // --- App Initialization ---
     async function initializePage() {
