@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let state = {
         currentUser: null,
         allPosts: [],
+        products: [], // <-- ADD THIS
         userInteractions: new Set()
     };
     
@@ -32,24 +33,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const customPromptInput = document.getElementById('custom-prompt-input');
     const generateCustomBtn = document.getElementById('generate-custom-btn');
+    const aiProductPostBtn = document.getElementById('ai-product-post-btn');
 
     // --- DATA FETCHING ---
-    async function loadSocialContent() {
-        if (!state.currentUser) return;
-        try {
-            const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').order('created_at', { ascending: false });
-            if (postsError) throw postsError;
-            state.allPosts = posts || [];
+   async function loadSocialContent() {
+    if (!state.currentUser) return;
+    try {
+        const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').order('created_at', { ascending: false });
+        if (postsError) throw postsError;
+        state.allPosts = posts || [];
 
-            const { data: interactions, error: interactionsError } = await supabase.from('user_post_interactions').select('post_id').eq('user_id', state.currentUser.id);
-            if (interactionsError) throw interactionsError;
-            
-            state.userInteractions = new Set(interactions.map(i => i.post_id));
-            renderSocialContent();
-        } catch (error) {
-            console.error("Error fetching Social Hub content:", error);
-        }
+        const { data: interactions, error: interactionsError } = await supabase.from('user_post_interactions').select('post_id').eq('user_id', state.currentUser.id);
+        if (interactionsError) throw interactionsError;
+        state.userInteractions = new Set(interactions.map(i => i.post_id));
+
+        // Fetch product data
+        const { data: productData, error: productError } = await supabase.from('product_knowledge').select('product_name');
+        if (productError) throw productError;
+        state.products = [...new Set(productData.map(p => p.product_name))].sort();
+
+        renderSocialContent();
+    } catch (error) {
+        console.error("Error fetching Social Hub content:", error);
     }
+}
 
     // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
@@ -106,7 +113,107 @@ document.addEventListener("DOMContentLoaded", async () => {
         card.querySelector('.dismiss-post-btn').addEventListener('click', () => handleDismissPost(item.id));
         return card;
     }
+async function showAIProductPostModal() {
+    // Re-use the inline style technique for a guaranteed layout
+    const productCheckboxes = state.products.map(product => `
+        <div style="display: flex; align-items: center; margin-bottom: 12px; padding: 0;">
+            <input 
+                type="checkbox" 
+                id="social-prod-${product.replace(/\s+/g, '-')}" 
+                class="ai-product-checkbox" 
+                value="${product}" 
+                style="margin: 0 8px 0 0; width: auto; height: auto;"
+            >
+            <label 
+                for="social-prod-${product.replace(/\s+/g, '-')}" 
+                style="margin: 0; padding: 0; font-weight: normal;"
+            >
+                ${product}
+            </label>
+        </div>
+    `).join('');
 
+    const industries = ['General', 'Healthcare', 'Financial', 'Retail', 'Manufacturing', 'K-12 Education'];
+    const industryOptions = industries.map(ind => `<option value="${ind}">${ind}</option>`).join('');
+
+    const modalBody = `
+        <div id="ai-custom-post-prompt-container">
+            <label style="font-weight: 600;">Post Goal/Topic:</label>
+            <textarea id="ai-post-prompt" rows="3" placeholder="e.g., 'Announce a new feature for Managed Wi-Fi'"></textarea>
+            
+            <div style="margin-top: 1.5rem;">
+                <div style="border: none; padding: 0; margin: 0;">
+                    <p style="font-weight: 600; margin-bottom: 12px;">Include Product Info</p>
+                    ${productCheckboxes}
+                </div>
+                <div style="margin-top: 20px;">
+                    <label for="ai-industry-select" style="font-weight: 600; display: block; margin-bottom: 10px;">Target Industry</label>
+                    <select id="ai-industry-select">
+                        ${industryOptions}
+                    </select>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // We will pass the generation logic as the onConfirm callback
+    showModal(
+        `Create Custom Product Post`,
+        modalBody,
+        generateProductPostWithAI, // Pass the function reference here
+        true,
+        `<button id="modal-confirm-btn" class="btn-primary">Generate Post</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+    );
+}
+
+async function generateProductPostWithAI() {
+    const userPrompt = document.getElementById('ai-post-prompt').value;
+    if (!userPrompt) {
+        alert("Please enter a prompt for the post topic.");
+        return false; // Prevent modal from closing
+    }
+
+    const selectedProducts = Array.from(document.querySelectorAll('.ai-product-checkbox:checked')).map(cb => cb.value);
+    const selectedIndustry = document.getElementById('ai-industry-select').value;
+    
+    // Show a temporary loading state in the main modal
+    const modalBody = document.getElementById('modal-body');
+    const modalActions = document.getElementById('modal-actions');
+    modalBody.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">AI is drafting your post...</p>`;
+    modalActions.innerHTML = ''; // Hide buttons during generation
+
+    try {
+        const { data, error } = await supabase.functions.invoke('custom-user-social-post', {
+            body: {
+                userPrompt,
+                product_names: selectedProducts,
+                industry: selectedIndustry
+            }
+        });
+
+        if (error) throw error;
+
+        // Hide the generation modal
+        hideModal();
+        
+        // Re-use the existing post modal to show the results!
+        const generatedPost = {
+            title: "AI-Generated Custom Post",
+            link: "https://gpcom.com", // A placeholder link
+            approved_copy: `${data.post_body}\n\n${data.hashtags}`,
+            type: 'marketing_post' // Treat it like a marketing post for the modal's logic
+        };
+        openPostModal(generatedPost);
+
+    } catch (error) {
+        console.error("Error generating custom post:", error);
+        // If it fails, just hide the modal. The user can try again.
+        hideModal();
+        alert("Sorry, there was an error generating the post. Please try again.");
+    }
+    
+    return false; // We handle all modal closing manually, so return false.
+}
     // --- MODAL & ACTION LOGIC ---
     async function openPostModal(item) {
         modalTitle.textContent = item.title;
@@ -165,7 +272,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!url) return;
             window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
         });
-
+if (aiProductPostBtn) {
+        aiProductPostBtn.addEventListener('click', showAIProductPostModal);
+    }
         // Event listener for the "Refine" button
         generateCustomBtn.addEventListener('click', async () => {
             const originalText = postTextArea.value;
