@@ -197,7 +197,7 @@ async function generateProductPostWithAI() {
 
         // --- THE FIX: Rebuild the modal content with the results ---
         const postContent = `${data.post_body}\n\n${data.hashtags}`;
-        const shareLink = "https://gpcom.com"; // Placeholder link
+        const shareLink = "https://gpcom.com/business/#products-services", // Placeholder link
 
         modalTitle.textContent = 'AI-Generated Custom Post';
         
