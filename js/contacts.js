@@ -662,6 +662,74 @@ async function showAIEmailModal() {
         }
     }, 0);
 }
+    async function generateEmailWithAI(contact) {
+    const userPrompt = document.getElementById('ai-email-prompt').value;
+    const promptContainer = document.getElementById('ai-prompt-container');
+    const responseContainer = document.querySelector('.email-response-container');
+    const aiEmailSubject = document.getElementById('ai-email-subject');
+    const aiEmailBody = document.getElementById('ai-email-body');
+    const generateButton = document.getElementById('ai-generate-email-btn');
+
+    if (!userPrompt) {
+        showToast("Please enter a prompt.", "error");
+        return;
+    }
+
+    // Gather selected products and industry
+    const selectedProducts = Array.from(document.querySelectorAll('.ai-product-checkbox:checked')).map(cb => cb.value);
+    const selectedIndustry = document.getElementById('ai-industry-select').value;
+
+    const originalButtonText = generateButton.textContent;
+    generateButton.disabled = true;
+    generateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating...`;
+
+    const contactName = `${contact.first_name} ${contact.last_name}`;
+    const accountName = state.accounts.find(acc => acc.id === contact.account_id)?.name || '';
+
+    try {
+        const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
+            body: {
+                userPrompt: userPrompt,
+                contactName: contactName,
+                accountName: accountName,
+                product_names: selectedProducts,
+                industry: selectedIndustry
+            }
+        });
+
+        if (error) throw error;
+        
+        const generatedSubject = data.subject || "No Subject";
+        const generatedBody = data.body || "Failed to generate email content.";
+        
+        aiEmailSubject.value = generatedSubject;
+        aiEmailBody.value = generatedBody;
+        
+        promptContainer.classList.add('hidden');
+        responseContainer.classList.remove('hidden');
+
+        // Add the listener for the 'Open Email Client' button now that it's visible
+        const openEmailBtn = document.getElementById('open-email-client-btn');
+        if(openEmailBtn) {
+            openEmailBtn.addEventListener('click', () => openEmailClient(contact));
+        }
+        
+        showToast("Email generated successfully!", "success");
+
+    } catch (e) {
+        console.error("Error generating email:", e);
+        aiEmailSubject.value = "Error";
+        aiEmailBody.value = "An error occurred while generating the email. Please try again.";
+        
+        promptContainer.classList.add('hidden');
+        responseContainer.classList.remove('hidden');
+        
+        showToast("Failed to generate email.", "error");
+    } finally {
+        generateButton.disabled = false;
+        generateButton.textContent = originalButtonText;
+    }
+}
 async function openEmailClient(contact) {
     const emailSubject = document.getElementById('ai-email-subject').value;
     const emailBody = document.getElementById('ai-email-body').value;
