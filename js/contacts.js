@@ -594,7 +594,6 @@ async function showAIEmailModal() {
         return;
     }
 
-    // --- FINAL VERSION: USING INLINE STYLES FOR GUARANTEED LAYOUT ---
     const productCheckboxes = state.products.map(product => `
         <div style="display: flex; align-items: center; margin-bottom: 12px; padding: 0;">
             <input 
@@ -654,9 +653,15 @@ async function showAIEmailModal() {
         `<button id="ai-generate-email-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
     );
 
-    document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
+    // --- FINAL FIX: Use setTimeout to attach the listener ---
+    // This waits for the browser to finish rendering the modal before trying to find the button.
+    setTimeout(() => {
+        const generateBtn = document.getElementById('ai-generate-email-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => generateEmailWithAI(contact));
+        }
+    }, 0);
 }
-
 async function openEmailClient(contact) {
     const emailSubject = document.getElementById('ai-email-subject').value;
     const emailBody = document.getElementById('ai-email-body').value;
