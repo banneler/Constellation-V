@@ -208,11 +208,21 @@ document.addEventListener("DOMContentLoaded", async () => {
    
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
-        if (aiProductPostBtn) {
-            aiProductPostBtn.addEventListener('click', showAIProductPostModal);
-        }
+    if (aiProductPostBtn) {
+        aiProductPostBtn.addEventListener('click', showAIProductPostModal);
     }
 
+    // --- THIS BLOCK IS NOW ADDED ---
+    // It overrides the default logout behavior from setupUserMenuAndAuth
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault(); // Stop the default redirect
+            await supabase.auth.signOut();
+            window.location.reload(); // Reload this page to show the login form
+        });
+    }
+}
     // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
