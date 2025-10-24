@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Business Case Calculator - Constellation</title>
-    <link rel="stylesheet" href="css/style.css?v=20251024">
+    <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -72,6 +72,10 @@
             
             <section class="results-grid" style="margin-bottom: 20px;">
                 <div class="stat-card">
+                    <h3>Total Contract Value (TCV)</h3>
+                    <p id="result-tcv">$0.00</p>
+                </div>
+                <div class="stat-card">
                     <h3>Net Present Value (NPV)</h3>
                     <p id="result-npv">$0.00</p>
                 </div>
@@ -138,6 +142,12 @@
                         <label>Monthly Revenue ($)</label>
                         <input type="number" class="calc-input" data-field="monthlyRevenue" value="0" placeholder="0">
                     </div>
+                    
+                    <div class="input-group">
+                        <label>NRC (Non-Recurring Charge) ($)</label>
+                        <input type="number" class="calc-input" data-field="nrc" value="0" placeholder="0">
+                    </div>
+
                     <div class="input-group">
                         <label>Monthly Recurring Cost ($)</label>
                         <input type="number" class="calc-input" data-field="monthlyRecurringCost" value="0" placeholder="0">
@@ -149,6 +159,11 @@
                     <div class="input-group">
                         <label>Term (in Months)</label>
                         <input type="number" class="calc-input" data-field="term" value="60" min="1" step="1" placeholder="60">
+                    </div>
+
+                    <div class="input-group" style="justify-content: end;">
+                        <label style="font-size: 0.8rem; color: var(--text-medium);">Location TCV</label>
+                        <p class="location-tcv-display" style="font-size: 1.25rem; font-weight: 600; margin: 0; color: var(--success-color, green);">$0.00</p>
                     </div>
                 </div>
             </div>
