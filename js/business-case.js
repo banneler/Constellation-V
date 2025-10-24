@@ -1,10 +1,9 @@
 // js/business-case.js
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatCurrency } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- AUTHENTICATION CHECK ---
-// This is the code that protects your other pages.
 document.addEventListener("DOMContentLoaded", async () => {
     const { data: { session }, error } = await supabase.auth.getSession();
     
@@ -44,6 +43,7 @@ function initializeCalculator() {
     const discountRateInput = document.getElementById("discount-rate");
 
     // Result display elements
+    const tcvResultEl = document.getElementById("result-tcv"); // TCV Total
     const npvResultEl = document.getElementById("result-npv");
     const irrResultEl = document.getElementById("result-irr");
     const paybackResultEl = document.getElementById("result-payback");
@@ -91,13 +91,41 @@ function initializeCalculator() {
     function calculate() {
         try {
             const locationsData = getLocationData();
+            
+            // --- NEW TCV CALCULATION ---
+            let totalTCV = 0;
+            const locationCards = locationsContainer.querySelectorAll(".location-card");
+            
+            locationsData.forEach((loc, index) => {
+                const monthlyRevenue = loc.monthlyRevenue || 0;
+                const term = loc.term || 0;
+                const nrc = loc.nrc || 0;
+                
+                const locationTCV = (monthlyRevenue * term) + nrc;
+                totalTCV += locationTCV;
+                
+                // Update the TCV display on the specific card
+                const card = locationCards[index];
+                if (card) {
+                    const tcvDisplay = card.querySelector(".location-tcv-display");
+                    if (tcvDisplay) {
+                        tcvDisplay.textContent = formatCurrency(locationTCV);
+                    }
+                }
+            });
+            
+            // Update the total TCV at the top
+            tcvResultEl.textContent = formatCurrency(totalTCV);
+            // --- END TCV CALCULATION ---
+
+
             const masterCashFlow = buildMasterCashFlow(locationsData);
             
             // 1. Calculate NPV
             const discountRate = parseFloat(discountRateInput.value) / 100 || 0;
             const npv = calculateNPV(masterCashFlow, discountRate);
             npvResultEl.textContent = formatCurrency(npv);
-            npvResultEl.style.color = npv >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+            npvResultEl.style.color = npv >= 0 ? 'var(--success-color, green)' : 'var(--danger-red, red)';
 
 
             // 2. Calculate IRR
@@ -107,16 +135,16 @@ function initializeCalculator() {
             
             if (isNaN(annualIRR) || !isFinite(annualIRR)) {
                 irrResultEl.textContent = "N/A";
-                irrResultEl.style.color = 'var(--text-secondary)';
+                irrResultEl.style.color = 'var(--text-secondary, gray)';
             } else {
                 irrResultEl.textContent = (annualIRR * 100).toFixed(2) + "%";
-                irrResultEl.style.color = annualIRR >= discountRate ? 'var(--success-color)' : 'var(--danger-color)';
+                irrResultEl.style.color = annualIRR >= (discountRate || 0) ? 'var(--success-color, green)' : 'var(--danger-red, red)';
             }
 
             // 3. Calculate Payback Period
             const payback = calculatePayback(masterCashFlow);
             paybackResultEl.textContent = payback.isPositive ? `${payback.period} Months` : "Never";
-            paybackResultEl.style.color = payback.isPositive ? 'var(--text-primary)' : 'var(--text-secondary)';
+            paybackResultEl.style.color = payback.isPositive ? 'var(--text-primary, black)' : 'var(--text-secondary, gray)';
 
 
         } catch (error) {
@@ -166,16 +194,27 @@ function initializeCalculator() {
         
         if (maxMonths === 0) maxMonths = 60; 
         
+        // Create an array of 0s, +1 length for Month 0
         const cashFlow = new Array(maxMonths + 1).fill(0); 
 
         // 2. Populate the cash flow array
         locationsData.forEach(loc => {
+            // Add one-time Capex (as negative values)
             const capexMonth = Math.round(loc.constructionStartMonth);
             
             if (capexMonth >= 0 && capexMonth < cashFlow.length) {
                 cashFlow[capexMonth] -= (loc.constructionCost + loc.engineeringCost);
             }
+            
+            // --- NRC LOGIC ADDED ---
+            // Add one-time NRC (Non-Recurring Charge)
+            const nrcMonth = Math.round(loc.billingStartMonth);
+            if (nrcMonth >= 0 && nrcMonth < cashFlow.length && loc.nrc > 0) {
+                cashFlow[nrcMonth] += loc.nrc;
+            }
+            // --- END NRC LOGIC ---
 
+            // Add recurring cash flows
             const netMonthlyFlow = loc.monthlyRevenue - loc.monthlyRecurringCost;
             const start = Math.round(loc.billingStartMonth);
             const end = start + Math.round(loc.term);
@@ -227,7 +266,8 @@ function initializeCalculator() {
         
         // Use absolute value for comparison
         initialInvestment = Math.abs(initialInvestment);
-
+        
+        // Start from month 1 for payback
         for (let month = 1; month < cashFlow.length; month++) {
             // Only count positive flows towards payback
             if (cashFlow[month] > 0) {
@@ -292,12 +332,14 @@ function initializeCalculator() {
     }
 
     // --- Formatting Helpers ---
-
-    function formatCurrency(value) {
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-        }).format(value);
+    // Using the one from shared_constants.js if it exists, otherwise define a fallback.
+    if (typeof formatCurrency !== 'function') {
+        window.formatCurrency = function(value) {
+            return new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+            }).format(value);
+        }
     }
     
     // --- Initial Setup ---
