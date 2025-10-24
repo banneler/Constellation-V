@@ -2050,7 +2050,6 @@ h1, h2, h3, h4, h5, h6 {
     flex-grow: 1; /* Allows content to take up available space */
 }
 
-}
 /* --- Marketing Sequence Import Modal Styles --- */
 .import-modal-list {
     max-height: 40vh;
