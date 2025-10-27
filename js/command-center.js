@@ -572,7 +572,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const notes = document.getElementById('modal-call-notes').value.trim();
                     const descriptionForLog = notes ? `Call Notes: ${notes}` : 'Call Completed';
                     await completeStep(csId, descriptionForLog);
-Click to run
                 });
             // --- END UPDATE ---
             } else if (button.matches('.complete-step-btn')) {
