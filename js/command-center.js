@@ -340,14 +340,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contactName = `${task.contact.first_name || ''} ${task.contact.last_name || ''}`;
                 const description = task.step.subject || task.step.message || '';
 
+                // --- CHANGE #1: Added "call" check ---
                 let btnHtml;
-                if (task.step.type.toLowerCase().includes("linkedin")) {
+                const stepTypeLower = task.step.type.toLowerCase();
+                if (stepTypeLower.includes("linkedin")) {
                     btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.id}">Send Message</button>`;
-                } else if (task.step.type.toLowerCase().includes("email") && task.contact.email) {
+                } else if (stepTypeLower.includes("email") && task.contact.email) {
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.id}">Send Email</button>`;
+                } else if (stepTypeLower === "call") {
+                    btnHtml = `<button class="btn-primary dial-call-btn" data-cs-id="${task.id}">Dial</button>`;
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-cs-id="${task.id}">Complete</button>`;
                 }
+                // --- END CHANGE #1 ---
 
                 row.innerHTML = `
                     <td>${formatSimpleDate(task.next_step_due_date)}</td>
@@ -528,6 +533,37 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
+            // --- CHANGE #2: Added ".dial-call-btn" handler ---
+            } else if (button.matches('.dial-call-btn')) {
+                const csId = Number(button.dataset.csId);
+                const cs = state.contact_sequences.find(c => c.id === csId);
+                if (!cs) return alert("Contact sequence not found.");
+                
+                const contact = state.contacts.find(c => c.id === cs.contact_id);
+                if (!contact) return alert("Contact not found.");
+
+                const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
+                const contactPhone = contact.phone || ''; // Assumes contact.phone exists
+                
+                showModal('Log Call', `
+                    <div class="form-group">
+                        <label>Contact:</label>
+                        <p><strong>${contactName}</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone:</label>
+                        <p><a href="tel:${contactPhone}" class="contact-name-link">${contactPhone || 'No phone on file'}</a></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-call-notes">Call Notes:</label>
+                        <textarea id="modal-call-notes" class="form-control" rows="5" placeholder="Enter notes from your call..."></textarea>
+                    </div>
+                `, async () => {
+                    const notes = document.getElementById('modal-call-notes').value.trim();
+                    const descriptionForLog = notes ? `Call Notes: ${notes}` : 'Call Completed';
+                    await completeStep(csId, descriptionForLog);
+                });
+            // --- END CHANGE #2 ---
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.csId);
                 completeStep(csId);
