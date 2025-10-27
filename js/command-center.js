@@ -340,7 +340,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contactName = `${task.contact.first_name || ''} ${task.contact.last_name || ''}`;
                 const description = task.step.subject || task.step.message || '';
 
-                // --- CHANGE #1: Added "call" check ---
                 let btnHtml;
                 const stepTypeLower = task.step.type.toLowerCase();
                 if (stepTypeLower.includes("linkedin")) {
@@ -352,7 +351,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-cs-id="${task.id}">Complete</button>`;
                 }
-                // --- END CHANGE #1 ---
 
                 row.innerHTML = `
                     <td>${formatSimpleDate(task.next_step_due_date)}</td>
@@ -533,7 +531,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-            // --- CHANGE #2: Added ".dial-call-btn" handler ---
+            // --- UPDATED ".dial-call-btn" handler ---
             } else if (button.matches('.dial-call-btn')) {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
@@ -542,9 +540,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contact = state.contacts.find(c => c.id === cs.contact_id);
                 if (!contact) return alert("Contact not found.");
 
+                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+                if (!step) return alert("Sequence step not found.");
+
                 const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
-                const contactPhone = contact.phone || ''; // Assumes contact.phone exists
+                const contactPhone = contact.phone || '';
                 
+                // Get the script from the step (message first, then subject)
+                const rawScript = step.message || step.subject || 'No script provided for this step.';
+                const callScript = replacePlaceholders(rawScript, contact, account);
+
                 showModal('Log Call', `
                     <div class="form-group">
                         <label>Contact:</label>
@@ -555,6 +561,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <p><a href="tel:${contactPhone}" class="contact-name-link">${contactPhone || 'No phone on file'}</a></p>
                     </div>
                     <div class="form-group">
+                        <label for="modal-call-script">Call Script:</label>
+                        <textarea id="modal-call-script" class="form-control" rows="7" readonly style="background-color: #f8f8f8;">${callScript}</textarea>
+                    </div>
+                    <div class="form-group">
                         <label for="modal-call-notes">Call Notes:</label>
                         <textarea id="modal-call-notes" class="form-control" rows="5" placeholder="Enter notes from your call..."></textarea>
                     </div>
@@ -562,8 +572,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const notes = document.getElementById('modal-call-notes').value.trim();
                     const descriptionForLog = notes ? `Call Notes: ${notes}` : 'Call Completed';
                     await completeStep(csId, descriptionForLog);
+Click to run
                 });
-            // --- END CHANGE #2 ---
+            // --- END UPDATE ---
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.csId);
                 completeStep(csId);
