@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     };
 
-    // --- NEW HELPER FUNCTIONS FOR PHONE NUMBERS ---
+    // --- HELPER FUNCTIONS FOR PHONE NUMBERS ---
 
     /**
      * Sanitizes a single phone number string for use in a tel: link.
@@ -114,6 +114,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         phoneNumbers.forEach((phoneText, index) => {
             const sanitizedHref = sanitizeForTel(phoneText);
             
+            // Don't render a link if it's just an empty string after sanitizing
+            if (sanitizedHref === '') {
+                 container.textContent = phoneText; // just show the text
+                 return;
+            }
+
             const link = document.createElement('a');
             link.href = `tel:${sanitizedHref}`;
             link.textContent = phoneText; // Use the original (but trimmed) text
@@ -128,7 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
     }
-    // --- END NEW HELPER FUNCTIONS ---
+    // --- END HELPER FUNCTIONS ---
 
 
     // --- DOM SELECTORS ---
@@ -381,14 +387,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         const pendingCalls = state.campaignMembers.filter(m => m.status === 'Pending');
         const contactNameEl = document.getElementById('contact-name-call-blitz');
         const contactCompanyEl = document.getElementById('contact-company-call-blitz');
-        // --- CHANGE: Renamed to reflect it's a container ---
-        const phoneContainerEl = document.getElementById('contact-phone-call-blitz');
+        
+        // --- THIS IS THE FIX ---
+        // 1. Get the element. It might be an <a> tag from the original HTML
+        let phoneEl = document.getElementById('contact-phone-call-blitz');
         const callNotesEl = document.getElementById('call-notes');
 
-        if (!contactNameEl || !contactCompanyEl || !phoneContainerEl || !callNotesEl) {
+        if (!contactNameEl || !contactCompanyEl || !phoneEl || !callNotesEl) {
             console.error("Missing call blitz contact info elements.");
             return;
         }
+
+        // 2. Check if it's an <a> tag. If so, replace it with a <span>
+        //    so we can safely inject our *new* <a> tags into it.
+        if (phoneEl.tagName === 'A') {
+            const newSpan = document.createElement('span');
+            newSpan.id = phoneEl.id; // Give the new span the same ID
+            newSpan.className = phoneEl.className; // Copy over any classes
+            phoneEl.parentNode.replaceChild(newSpan, phoneEl);
+            phoneEl = newSpan; // Re-assign our variable to the new span
+        }
+        // --- END FIX ---
+
 
         // CORRECTED LOGIC: Check if there are any pending calls left.
         if (pendingCalls.length === 0) {
@@ -417,9 +437,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         contactNameEl.textContent = `${contact.first_name || ''} ${contact.last_name || ''}`;
         contactCompanyEl.textContent = account ? account.name : 'No Company';
         
-        // --- CHANGE: Use new helper function to render phone links ---
-        renderClickablePhones(phoneContainerEl, contact.phone);
-        // --- END CHANGE ---
+        // Now, this function will render into the <span> (phoneEl)
+        renderClickablePhones(phoneEl, contact.phone);
         
         callNotesEl.value = '';
         callNotesEl.focus();
