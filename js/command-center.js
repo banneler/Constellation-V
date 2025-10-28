@@ -165,15 +165,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-            const rawDescription = currentStepInfo.subject || currentStepInfo.message || "Completed step";
-            const finalDescription = replacePlaceholders(rawDescription, contact, account);
-            const descriptionForLog = processedDescription || finalDescription;
-
+            // --- UPDATED: Use processedDescription first, then step type, then fallback ---
+            const descriptionForLog = processedDescription || `Sequence: ${currentStepInfo.type}` || "Completed step";
+            const activityType = `Sequence: ${currentStepInfo.type}`;
+            
             await supabase.from("activities").insert([{
                 contact_id: contact.id,
                 account_id: contact.account_id,
                 date: new Date().toISOString(),
-                type: `Sequence: ${currentStepInfo.type}`,
+                type: activityType,
                 description: descriptionForLog,
                 user_id: state.currentUser.id
             }]);
@@ -340,10 +340,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contactName = `${task.contact.first_name || ''} ${task.contact.last_name || ''}`;
                 const description = task.step.subject || task.step.message || '';
 
+                // --- CHANGE #1: Updated LinkedIn Button Logic ---
                 let btnHtml;
                 const stepTypeLower = task.step.type.toLowerCase();
-                if (stepTypeLower.includes("linkedin")) {
+                
+                if (stepTypeLower === "linkedin message") {
                     btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.id}">Send Message</button>`;
+                } else if (stepTypeLower.includes("linkedin")) { // Catches other LinkedIn types like "View Post", "Interact"
+                    btnHtml = `<button class="btn-primary open-linkedin-btn" data-cs-id="${task.id}">Open LinkedIn</button>`;
                 } else if (stepTypeLower.includes("email") && task.contact.email) {
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.id}">Send Email</button>`;
                 } else if (stepTypeLower === "call") {
@@ -351,6 +355,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-cs-id="${task.id}">Complete</button>`;
                 }
+                // --- END CHANGE #1 ---
 
                 row.innerHTML = `
                     <td>${formatSimpleDate(task.next_step_due_date)}</td>
@@ -531,7 +536,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-            // --- UPDATED ".dial-call-btn" handler ---
+            // --- CHANGE #2: Added ".open-linkedin-btn" handler ---
+            } else if (button.matches('.open-linkedin-btn')) {
+                const csId = Number(button.dataset.csId);
+                const cs = state.contact_sequences.find(c => c.id === csId);
+                if (!cs) return alert("Contact sequence not found.");
+
+                const contact = state.contacts.find(c => c.id === cs.contact_id);
+                if (!contact) return alert("Contact not found.");
+                
+                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+                if (!step) return alert("Sequence step not found.");
+
+                const linkedinUrl = contact.linkedin_profile_url || 'https://www.linkedin.com/feed/';
+                
+                window.open(linkedinUrl, "_blank");
+                
+                const logMessage = `LinkedIn: ${step.type} Completed`;
+                await completeStep(csId, logMessage);
+            // --- END CHANGE #2 ---
             } else if (button.matches('.dial-call-btn')) {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
@@ -547,7 +570,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
                 const contactPhone = contact.phone || '';
                 
-                // Get the script from the step (message first, then subject)
                 const rawScript = step.message || step.subject || 'No script provided for this step.';
                 const callScript = replacePlaceholders(rawScript, contact, account);
 
@@ -573,10 +595,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const descriptionForLog = notes ? `Call Notes: ${notes}` : 'Call Completed';
                     await completeStep(csId, descriptionForLog);
                 });
-            // --- END UPDATE ---
             } else if (button.matches('.complete-step-btn')) {
                 const csId = Number(button.dataset.csId);
-                completeStep(csId);
+                const cs = state.contact_sequences.find(c => c.id === csId);
+                if (!cs) return alert("Contact sequence not found.");
+                const step = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+                const logMessage = `${step.type}: ${step.subject || 'Task'} Completed`;
+                completeStep(csId, logMessage);
             } else if (button.matches('.revisit-step-btn')) {
                 const csId = Number(button.dataset.csId);
                 const contactSequence = state.contact_sequences.find(cs => cs.id === csId);
