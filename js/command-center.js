@@ -338,15 +338,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
                 
                 const contactName = `${task.contact.first_name || ''} ${task.contact.last_name || ''}`;
-                const description = task.step.subject || task.step.message || '';
+                
+                // --- THIS IS THE FIX ---
+                const rawDescription = task.step.subject || task.step.message || '';
+                const description = replacePlaceholders(rawDescription, task.contact, task.account);
+                // --- END FIX ---
 
-                // --- CHANGE #1: Updated LinkedIn Button Logic ---
                 let btnHtml;
                 const stepTypeLower = task.step.type.toLowerCase();
                 
                 if (stepTypeLower === "linkedin message") {
                     btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.id}">Send Message</button>`;
-                } else if (stepTypeLower.includes("linkedin")) { // Catches other LinkedIn types like "View Post", "Interact"
+                } else if (stepTypeLower.includes("linkedin")) { 
                     btnHtml = `<button class="btn-primary open-linkedin-btn" data-cs-id="${task.id}">Open LinkedIn</button>`;
                 } else if (stepTypeLower.includes("email") && task.contact.email) {
                     btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.id}">Send Email</button>`;
@@ -355,7 +358,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else {
                     btnHtml = `<button class="btn-primary complete-step-btn" data-cs-id="${task.id}">Complete</button>`;
                 }
-                // --- END CHANGE #1 ---
 
                 row.innerHTML = `
                     <td>${formatSimpleDate(task.next_step_due_date)}</td>
@@ -536,7 +538,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `<button id="modal-confirm-btn" class="btn-primary">Copy Text & Open LinkedIn</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
                 );
-            // --- CHANGE #2: Added ".open-linkedin-btn" handler ---
             } else if (button.matches('.open-linkedin-btn')) {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
@@ -554,7 +555,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 
                 const logMessage = `LinkedIn: ${step.type} Completed`;
                 await completeStep(csId, logMessage);
-            // --- END CHANGE #2 ---
             } else if (button.matches('.dial-call-btn')) {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
