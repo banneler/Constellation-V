@@ -61,6 +61,75 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     };
 
+    // --- NEW HELPER FUNCTIONS FOR PHONE NUMBERS ---
+
+    /**
+     * Sanitizes a single phone number string for use in a tel: link.
+     * Replaces the first common extension separator with ';' (pause) and strips invalid characters.
+     * @param {string} phone - The raw phone number string.
+     * @returns {string} A sanitized string for a tel: href.
+     */
+    function sanitizeForTel(phone) {
+        if (!phone) return '';
+        
+        let href = phone.trim();
+        
+        // 1. Replace the *first* common extension separator with a semicolon.
+        // Looks for (with optional spaces): ext. ext x | # or a space-flanked 9
+        href = href.replace(/(\s*(ext\.?|x|\||#| 9 )\s*)/i, ';');
+        
+        // 2. Strip all non-dialable characters (spaces, dashes, parens)
+        // for the href, but keep '+' for country codes and ';' for the pause.
+        href = href.replace(/[^0-9+;]/g, '');
+        
+        return href;
+    }
+
+    /**
+     * Renders one or more clickable phone links into a container.
+     * Splits a phone string by separators and makes each number clickable.
+     * @param {HTMLElement} container - The element to inject the links into.
+     * @param {string} phoneString - The raw string containing one or more phone numbers.
+     */
+    function renderClickablePhones(container, phoneString) {
+        if (!container) return;
+        
+        container.innerHTML = ''; // Clear existing content
+        
+        if (!phoneString || phoneString.trim() === '') {
+            container.textContent = 'No Phone Number';
+            return;
+        }
+        
+        // Split by common separators, then filter out empty strings
+        const phoneNumbers = phoneString.split(/\s*[\/|]|\s+or\s+/i)
+                                      .map(p => p.trim())
+                                      .filter(p => p.length > 0);
+        
+        if (phoneNumbers.length === 0) {
+             container.textContent = 'No Phone Number'; // Fallback
+             return;
+        }
+
+        phoneNumbers.forEach((phoneText, index) => {
+            const sanitizedHref = sanitizeForTel(phoneText);
+            
+            const link = document.createElement('a');
+            link.href = `tel:${sanitizedHref}`;
+            link.textContent = phoneText; // Use the original (but trimmed) text
+            link.className = 'contact-name-link'; // Match styling
+            
+            container.appendChild(link);
+            
+            // Add a separator if it's not the last item
+            if (index < phoneNumbers.length - 1) {
+                const separator = document.createTextNode(' / ');
+                container.appendChild(separator);
+            }
+        });
+    }
+    // --- END NEW HELPER FUNCTIONS ---
+
 
     // --- DOM SELECTORS ---
     const newCampaignBtn = document.getElementById('new-campaign-btn');
@@ -312,10 +381,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const pendingCalls = state.campaignMembers.filter(m => m.status === 'Pending');
         const contactNameEl = document.getElementById('contact-name-call-blitz');
         const contactCompanyEl = document.getElementById('contact-company-call-blitz');
-        const phoneLinkEl = document.getElementById('contact-phone-call-blitz');
+        // --- CHANGE: Renamed to reflect it's a container ---
+        const phoneContainerEl = document.getElementById('contact-phone-call-blitz');
         const callNotesEl = document.getElementById('call-notes');
 
-        if (!contactNameEl || !contactCompanyEl || !phoneLinkEl || !callNotesEl) {
+        if (!contactNameEl || !contactCompanyEl || !phoneContainerEl || !callNotesEl) {
             console.error("Missing call blitz contact info elements.");
             return;
         }
@@ -346,8 +416,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         contactNameEl.textContent = `${contact.first_name || ''} ${contact.last_name || ''}`;
         contactCompanyEl.textContent = account ? account.name : 'No Company';
-        phoneLinkEl.href = `tel:${contact.phone || ''}`;
-        phoneLinkEl.textContent = contact.phone || 'No Phone Number';
+        
+        // --- CHANGE: Use new helper function to render phone links ---
+        renderClickablePhones(phoneContainerEl, contact.phone);
+        // --- END CHANGE ---
+        
         callNotesEl.value = '';
         callNotesEl.focus();
     };
