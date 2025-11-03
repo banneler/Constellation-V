@@ -86,15 +86,8 @@
                             <button id="view-my-deals-btn" class="btn-secondary active">My Deals</button>
                             <button id="view-all-deals-btn" class="btn-secondary">My Team's Deals</button>
                         </div>
-                        
-                        <div class="toggle-switch-container">
-                            <span class="toggle-label">Show Closed Lost</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="toggle-closed-lost" checked>
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
                     </div>
+
                     <div class="deals-metrics-container">
                         <div class="metric-card">
                             <div class="metric-title" id="metric-current-commit-title">My Current Commit</div>
@@ -143,7 +136,15 @@
                 <div id="kanban-board-view" class="kanban-board-container hidden">
                     </div>
 
-
+                <div class="deals-filter-bar">
+                    <div class="toggle-switch-container">
+                        <span class="toggle-label">Show Closed Lost</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-closed-lost" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
                 <div class="deals-charts-section">
                     <hr> <h3>Deal Insights</h3>
                     <div class="charts-grid">
