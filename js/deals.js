@@ -27,7 +27,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         dealsSortBy: "name",
         dealsSortDir: "asc",
         dealsViewMode: 'mine',
-        currentView: 'list', // NEW: 'list' or 'board'
+        currentView: 'list', // 'list' or 'board'
+        showClosedLost: true, // NEW: Toggle state, default to true
         currentUserQuota: 0,
         allUsersQuotas: [],
         dealsByStageChart: null,
@@ -52,12 +53,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const commitTotalQuota = document.getElementById("commit-total-quota");
     const bestCaseTotalQuota = document.getElementById("best-case-total-quota");
 
-    // NEW: Selectors for view toggle and containers
+    // Selectors for view toggle and containers
     const listViewContainer = document.getElementById('list-view-container');
     const kanbanBoardView = document.getElementById('kanban-board-view');
     const listViewBtn = document.getElementById('list-view-btn');
     const boardViewBtn = document.getElementById('board-view-btn');
     const dealsByStageChartContainer = document.getElementById('deals-by-stage-chart-container');
+
+    // NEW: Selector for the 'Closed Lost' toggle
+    const toggleClosedLost = document.getElementById('toggle-closed-lost');
 
 
     // --- Data Fetching ---
@@ -99,11 +103,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {
-            // MODIFIED: Call the main render function
-            render(); 
-            renderDealsMetrics();
-            renderDealsByStageChart();
-            renderDealsByTimeChart();
+            // Call all render functions to update the page
+            renderAll(); 
         }
     }
 
@@ -132,18 +133,44 @@ document.addEventListener("DOMContentLoaded", async () => {
         return gradient;
     }
 
+    /**
+     * Gets all deals with a future or null close date.
+     */
     function getFutureDeals() {
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth() + 1;
         return state.deals.filter(deal => {
-            if (!deal.close_month) return true;
+            if (!deal.close_month) return true; // Keep deals with no close date
             const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
             return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
         });
     }
+
+    /**
+     * NEW: Gets deals for the funnel (list, chart) based on the toggle.
+     * This filters out "Closed Won" and optionally "Closed Lost".
+     */
+    function getFunnelDeals() {
+        const futureDeals = getFutureDeals();
+        return futureDeals.filter(deal => {
+            if (deal.stage === 'Closed Won') return false;
+            if (deal.stage === 'Closed Lost' && !state.showClosedLost) return false;
+            return true;
+        });
+    }
     
-    // NEW: Main render function to switch between views
+    /**
+     * NEW: Master render function to update all dynamic parts of the page.
+     */
+    const renderAll = () => {
+        render(); // Renders List or Board
+        renderDealsMetrics();
+        renderDealsByStageChart();
+        renderDealsByTimeChart();
+    };
+
+    // Main render function to switch between views
     const render = () => {
         if (state.currentView === 'list') {
             renderDealsPage(); // Your original table render function
@@ -161,8 +188,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Render Functions ---
     function renderDealsByStageChart() {
         if (!dealsByStageCanvas || !stageChartEmptyMessage) return;
-        const futureDeals = getFutureDeals();
-        const openDeals = futureDeals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
+
+        // UPDATED: Use getFunnelDeals() to respect the toggle
+        const openDeals = getFunnelDeals(); 
+
         if (openDeals.length === 0) {
             dealsByStageCanvas.classList.add('hidden');
             stageChartEmptyMessage.classList.remove('hidden');
@@ -200,8 +229,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function renderDealsByTimeChart() {
         if (!dealsByTimeCanvas || !timeChartEmptyMessage) return;
-        const futureDeals = getFutureDeals();
-        const openDeals = futureDeals.filter(d => d.stage !== 'Closed Won' && d.stage !== 'Closed Lost' && d.close_month);
+        
+        // This chart shows OPEN deals, so it should also respect the toggle.
+        const openDeals = getFunnelDeals().filter(d => d.close_month);
+
         if (openDeals.length === 0) {
             dealsByTimeCanvas.classList.add('hidden');
             timeChartEmptyMessage.classList.remove('hidden');
@@ -242,8 +273,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderDealsPage = () => {
         if (!dealsTableBody) return;
-        const futureDeals = getFutureDeals();
-        const dealsWithAccount = futureDeals.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
+
+        // UPDATED: Use getFunnelDeals() to respect the toggle
+        const dealsForList = getFunnelDeals();
+        
+        const dealsWithAccount = dealsForList.map((deal) => ({ ...deal, account_name: state.accounts.find((a) => a.id === deal.account_id)?.name || "N/A" }));
         dealsWithAccount.sort((a, b) => {
             const valA = a[state.dealsSortBy], valB = b[state.dealsSortBy];
             let comparison = (typeof valA === "string") ? (valA || "").localeCompare(b[state.dealsSortBy] || "") : (valA > valB ? 1 : -1);
@@ -260,11 +294,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
-    // NEW: Kanban Board Render Functions
+    // Kanban Board Render Functions
     const renderKanbanBoard = () => {
         kanbanBoardView.innerHTML = '';
-        const dealsToRender = getFutureDeals();
-        const stages = state.dealStages.map(s => s.stage_name);
+        
+        // UPDATED: Filter out "Closed Won" deals
+        const dealsToRender = getFutureDeals().filter(deal => deal.stage !== 'Closed Won');
+
+        // UPDATED: Filter columns based on the toggle
+        const stages = state.dealStages
+            .map(s => s.stage_name)
+            .filter(stageName => {
+                if (stageName === 'Closed Won') return false; // Never show "Closed Won" column
+                if (stageName === 'Closed Lost' && !state.showClosedLost) return false; // Hide column if toggled off
+                return true;
+            });
 
         stages.forEach(stage => {
             const dealsInStage = dealsToRender.filter(d => d.stage === stage);
@@ -327,6 +371,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         const currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear();
         let currentCommit = 0, bestCase = 0, closedWon = 0;
+        
+        // This logic remains the same, as it's for *current month* metrics, not the future funnel.
         state.deals.forEach((deal) => {
             const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
             const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
@@ -338,11 +384,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
         });
-        const totalFunnel = getFutureDeals().reduce((sum, deal) => sum + (deal.mrc || 0), 0);
+
+        // UPDATED: Use getFunnelDeals() for the "My Current Funnel" metric
+        const dealsForFunnel = getFunnelDeals();
+        const totalFunnel = dealsForFunnel.reduce((sum, deal) => sum + (deal.mrc || 0), 0);
+
         metricCurrentCommit.textContent = formatCurrencyK(currentCommit);
         metricBestCase.textContent = formatCurrencyK(bestCase);
-        metricFunnel.textContent = formatCurrencyK(totalFunnel);
+        metricFunnel.textContent = formatCurrencyK(totalFunnel); // Updated to use toggled value
         metricClosedWon.textContent = formatCurrencyK(closedWon);
+        
         const commitPercentage = effectiveMonthlyQuota > 0 ? ((currentCommit / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
         const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
         document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
@@ -500,12 +551,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
         
-        // NEW: Event listeners for the view toggle
+        // Event listeners for the view toggle
         listViewBtn.addEventListener('click', () => handleViewToggle('list'));
         boardViewBtn.addEventListener('click', () => handleViewToggle('board'));
+
+        // NEW: Event listener for the 'Closed Lost' toggle
+        toggleClosedLost.addEventListener('change', (e) => {
+            state.showClosedLost = e.target.checked;
+            localStorage.setItem('deals_show_closed_lost', state.showClosedLost);
+            renderAll(); // Re-render everything that depends on this filter
+        });
     }
     
-    // NEW: Handler for the view toggle
+    // Handler for the view toggle
     const handleViewToggle = (view) => {
         state.currentView = view;
         localStorage.setItem('deals_view_mode', view);
@@ -524,7 +582,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             await setupUserMenuAndAuth(supabase, state);
             if (dealsViewToggleDiv) {
                 const isManager = state.currentUser.user_metadata?.is_manager === true;
-                dealsViewToggleDiv.classList.toggle('hidden', !isManager);
+                // This selector is for the PARENT div, to hide 'My Team's Deals'
+                const viewToggleButtons = dealsViewToggleDiv.querySelector('div:first-child');
+                if (viewToggleButtons) {
+                    viewToggleButtons.classList.toggle('hidden', !isManager);
+                }
+                
                 if(isManager) {
                     viewMyDealsBtn.classList.add('active');
                     viewAllDealsBtn.classList.remove('active');
@@ -539,6 +602,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentView = savedView;
             listViewBtn.classList.toggle('active', savedView === 'list');
             boardViewBtn.classList.toggle('active', savedView === 'board');
+
+            // NEW: Load saved toggle state from localStorage
+            const savedShowClosedLost = localStorage.getItem('deals_show_closed_lost');
+            // Default to true if nothing is saved
+            state.showClosedLost = savedShowClosedLost === null ? true : (savedShowClosedLost === 'true');
+            toggleClosedLost.checked = state.showClosedLost;
             
             await loadAllData();
         } else {
