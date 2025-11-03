@@ -4601,9 +4601,9 @@ div.briefing-pre {
     content: "";
     height: 18px;
     width: 18px;
-    left: 2px;  
-    bottom: 2px; 
-    background-color: var(--text-color-light); 
+    left: 2px;
+    bottom: 2px;
+    background-color: #fff; /* Changed to white for visibility in "off" state */
     transition: .4s;
 }
 
