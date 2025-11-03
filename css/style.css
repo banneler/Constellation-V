@@ -4596,6 +4596,8 @@ div.briefing-pre {
     border: 1px solid var(--border-color); 
 }
 
+/* --- UPDATED SLIDER NUB STYLES --- */
+
 .slider:before {
     position: absolute;
     content: "";
@@ -4603,16 +4605,24 @@ div.briefing-pre {
     width: 18px;
     left: 2px;
     bottom: 2px;
-    background-color: #fff; /* Changed to white for visibility in "off" state */
+    background-color: #fff; /* Default: White nub (for dark theme "off" state) */
     transition: .4s;
+    border-radius: 50%; /* Moved this from .slider.round:before */
+}
+
+/* This is the crucial fix: */
+.theme-light .slider:before {
+    background-color: var(--text-color-dark); /* Override: Dark nub for light theme "off" state */
+}
+
+/* This handles the "on" state for all themes */
+input:checked+.slider:before {
+    transform: translateX(20px);
+    background-color: #fff; /* White nub for "on" state */
 }
 
 .theme-light .slider {
     background-color: var(--background-color-light); 
-}
-
-.theme-light .slider:before {
-    background-color: var(--text-color-dark); 
 }
 
 input:checked+.slider {
