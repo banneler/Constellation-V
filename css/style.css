@@ -4526,19 +4526,34 @@ div.briefing-pre {
 .button-danger:hover {
     background-color: #c0392b;
 }
-/* CSS for the new "Show Closed Lost" toggle */
-.chart-header {
+/* --- UPDATED STYLE --- */
+/* This is simplified: it no longer needs to position the toggle */
+.deals-view-toggle {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    padding-right: 5px;
+    flex-grow: 1; /* Still takes up space to push metrics right */
+    gap: 10px; 
+    /* Removed justify-content and padding-right */
 }
 
-.chart-header h4 {
-    margin: 0;
+/* This existing style is fine and needs no changes */
+.deals-view-toggle > div {
+    display: flex;
+    gap: 10px; /* This keeps your buttons spaced */
 }
 
+/* --- NEW STYLE --- */
+/* This is the new container for the toggle, placed after the table */
+.deals-filter-bar {
+    display: flex;
+    justify-content: flex-end; /* Aligns toggle to the right */
+    align-items: center;
+    padding: 10px 0;
+    margin-top: 10px; /* Adds space from the table/board above */
+}
+
+
+/* --- UNCHANGED TOGGLE STYLES (Keep As-Is) --- */
 .toggle-switch-container {
     display: flex;
     align-items: center;
@@ -4547,13 +4562,13 @@ div.briefing-pre {
 
 .toggle-label {
     font-size: 0.9rem;
-    color: var(--text-color-light); /* Using CSS variable */
+    color: var(--text-color-light); 
     user-select: none;
+    white-space: nowrap; 
 }
 
-/* Adjust label color for light theme */
 .theme-light .toggle-label {
-    color: var(--text-color-dark); /* Using CSS variable */
+    color: var(--text-color-dark); 
 }
 
 .toggle-switch {
@@ -4576,9 +4591,9 @@ div.briefing-pre {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--background-color-dark); /* Using CSS variable for dark "off" */
+    background-color: var(--background-color-dark); 
     transition: .4s;
-    border: 1px solid var(--border-color); /* Added border */
+    border: 1px solid var(--border-color); 
 }
 
 .slider:before {
@@ -4586,19 +4601,18 @@ div.briefing-pre {
     content: "";
     height: 18px;
     width: 18px;
-    left: 2px;  /* Adjusted for border */
-    bottom: 2px; /* Adjusted for border */
-    background-color: var(--text-color-light); /* Using CSS variable */
+    left: 2px;  
+    bottom: 2px; 
+    background-color: var(--text-color-light); 
     transition: .4s;
 }
 
-/* Adjust slider for light theme */
 .theme-light .slider {
-    background-color: var(--background-color-light); /* Using CSS variable for light "off" */
+    background-color: var(--background-color-light); 
 }
 
 .theme-light .slider:before {
-    background-color: var(--text-color-dark); /* Using CSS variable */
+    background-color: var(--text-color-dark); 
 }
 
 input:checked+.slider {
