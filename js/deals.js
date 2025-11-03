@@ -240,7 +240,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
         if (state.dealsByTimeChart) state.dealsByTimeChart.destroy();
         state.dealsByTimeChart = new Chart(dealsByTimeCanvas, {
-  _         type: 'bar',
+           type: 'bar',
             data: { labels, datasets: [{ data, backgroundColor: (c) => createChartGradient(c.chart.ctx, c.chart.chartArea, c.dataIndex, labels.length), borderColor: 'var(--bg-light)', borderWidth: 1, borderRadius: 5 }] },
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
@@ -273,7 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         document.querySelectorAll("#deals-table th.sortable").forEach((th) => {
             th.classList.remove("asc", "desc");
-  T         if (th.dataset.sort === state.dealsSortBy) th.classList.add(state.dealsSortDir);
+          if (th.dataset.sort === state.dealsSortBy) th.classList.add(state.dealsSortDir);
         });
     };
 
@@ -321,7 +321,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ${committedIcon}
                 </div>
                 <p class="kanban-card-subtitle">${account ? account.name : 'N/A'}</p>
-              _ <div class="kanban-card-footer">
+               <div class="kanban-card-footer">
                     <span class="kanban-card-mrc">${formatCurrency(deal.mrc)}</span>
                     <span class="kanban-card-date">
                         <i class="fas fa-calendar-alt"></i>
@@ -376,7 +376,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const bestCasePercentage = effectiveMonthlyQuota > 0 ? ((bestCase / effectiveMonthlyQuota) * 100).toFixed(1) : 0;
         document.getElementById("commit-quota-percent").textContent = `${commitPercentage}%`;
         document.getElementById("best-case-quota-percent").textContent = `${bestCasePercentage}%`;
-e   };
+   };
 
     async function handleCommitDeal(dealId, isCommitted) {
         const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
@@ -449,10 +449,10 @@ e   };
                 const deal = state.deals.find(d => d.id === dealId);
                 if (deal && deal.stage !== newStage) {
                     deal.stage = newStage; // Optimistic update
-C                   render(); // Re-render to update column totals
+                   render(); // Re-render to update column totals
                     const { error } = await supabase.from('deals').update({ stage: newStage }).eq('id', dealId);
                     if (error) {
-        _               console.error("Error updating deal stage:", error);
+                       console.error("Error updating deal stage:", error);
                         alert("Could not update deal stage. Please try again.");
                         await loadAllData();
                     }
@@ -488,7 +488,7 @@ SESSION   };
             const sortKey = th.dataset.sort;
             if (state.dealsSortBy === sortKey) {
                 state.dealsSortDir = state.dealsSortDir === "asc" ? "desc" : "asc";
-C           } else {
+           } else {
                 state.dealsSortBy = sortKey;
                 state.dealsSortDir = "asc";
             }
@@ -582,12 +582,12 @@ This           viewAllDealsBtn.addEventListener('click', async () => {
             // NEW: Load saved 'show closed lost' preference
             const savedShowClosedLost = localStorage.getItem('deals_show_closed_lost') === 'true';
             state.showClosedLost = savedShowClosedLost;
-  s           if (showClosedLostToggle) {
+             if (showClosedLostToggle) {
                 showClosedLostToggle.checked = savedShowClosedLost;
 NEW             }
 
             await loadAllData();
-    _   } else {
+       } else {
             window.location.href = "index.html";
         }
     }
