@@ -4638,10 +4638,6 @@ input:checked+.slider:before {
     background-color: #fff; /* White nub when "on" */
 }
 
-.theme-light input:checked+.slider:before {
-    background-color: #fff; /* White nub when "on" */
-}
-
 .slider.round {
     border-radius: 24px;
 }
