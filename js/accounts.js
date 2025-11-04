@@ -126,8 +126,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // MODIFIED: Target new containers
         if (contactListView) contactListView.innerHTML = '<ul id="account-contacts-list"><li>Loading...</li></ul>';
         if (contactOrgChartView) contactOrgChartView.innerHTML = '<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">Loading...</p>';
-        accountActivitiesList.innerHTML = '<li>Loading...</li>';
-        accountDealsTableBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+        if (accountActivitiesList) accountActivitiesList.innerHTML = '<li>Loading...</li>';
+        if (accountDealsTableBody) accountDealsTableBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
         
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
@@ -138,7 +138,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
-            supabase.from("contact_sequences").select("*") // This may need a more specific filter later
+            supabase.from("contact_sequences").select("*").in('contact_id', (contactsRes.data || []).map(c => c.id)) // MODIFIED: More efficient query
         ]);
 
         if (contactsRes.error) throw contactsRes.error;
@@ -211,6 +211,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .filter(act => act.date && new Date(act.date) > thirtyDaysAgo)
                 .map(act => {
                     if (act.account_id) return act.account_id;
+                    // Find contact in master list
                     const contact = state.contacts.find(c => c.id === act.contact_id);
                     return contact ? contact.account_id : null;
                 })
@@ -297,11 +298,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         accountForm.classList.remove('hidden');
         accountForm.querySelector("#account-id").value = account.id;
         accountForm.querySelector("#account-name").value = account.name || "";
-        // ... (rest of the form fields populate as before)
+        
         const websiteInput = accountForm.querySelector("#account-website");
         const websiteLink = document.getElementById("account-website-link");
         websiteInput.value = account.website || "";
-        // This internal function doesn't need to change
+        
         const updateWebsiteLink = (url) => {
             if (!url || !url.trim()) { if (websiteLink) websiteLink.classList.add('hidden'); return; }
             let fullUrl = url.trim();
@@ -348,6 +349,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // NEW: This function acts as a router for the contact view
     const renderContactView = () => {
         if (!contactListView || !contactOrgChartView || !contactListBtn || !contactOrgChartBtn) {
+            // This might happen if the DOM isn't fully ready, though it shouldn't
             console.error('Contact view elements not found. Skipping render.');
             return;
         }
@@ -403,8 +405,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // 2. Build the tree structure
         const tree = [];
         contactMap.forEach(contact => {
-            if (contact.reports_to && contactMap.has(contact.reports_to)) {
-                contactMap.get(contact.reports_to).children.push(contact);
+            if (contact.reports_to && contactMap.has(Number(contact.reports_to))) { // Ensure we check using the correct type
+                contactMap.get(Number(contact.reports_to)).children.push(contact);
             } else {
                 tree.push(contact); // This is a top-level node
             }
@@ -451,32 +453,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     // NEW: Drag and Drop logic for the Org Chart
     const setupOrgChartDragDrop = () => {
         let draggedContactId = null;
+        const contactMap = new Map(state.selectedAccountDetails.contacts.map(c => [c.id, { ...c }]));
+
+        // FIX 2: Helper function to detect circular reporting
+        const isCircular = (targetId, draggedId) => {
+            let currentId = targetId;
+            while (currentId) {
+                if (currentId === draggedId) {
+                    return true; // Loop detected!
+                }
+                const currentContact = contactMap.get(currentId);
+                currentId = currentContact ? currentContact.reports_to : null;
+            }
+            return false;
+        };
 
         contactOrgChartView.querySelectorAll('.contact-card').forEach(card => {
             card.addEventListener('dragstart', (e) => {
-                // Check if the event target is the card itself or its children
                 const targetCard = e.target.closest('.contact-card');
                 if (!targetCard) return;
                 
-                draggedContactId = targetCard.dataset.contactId;
+                draggedContactId = Number(targetCard.dataset.contactId); // FIX 1: Use Number
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', draggedContactId); // For Firefox compatibility
+                e.dataTransfer.setData('text/plain', draggedContactId); 
                 setTimeout(() => targetCard.classList.add('dragging'), 0);
             });
 
             card.addEventListener('dragend', (e) => {
                 const targetCard = e.target.closest('.contact-card');
-                if (targetCard) {
-                    targetCard.classList.remove('dragging');
-                }
+                if (targetCard) targetCard.classList.remove('dragging');
                 draggedContactId = null;
             });
 
-            // Make every card a potential drop target
             card.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 const targetCard = e.target.closest('.contact-card');
-                if (targetCard && targetCard.dataset.contactId !== draggedContactId) {
+                if (targetCard && Number(targetCard.dataset.contactId) !== draggedContactId) { // FIX 1
                     e.dataTransfer.dropEffect = 'move';
                     targetCard.classList.add('drop-target');
                 }
@@ -484,9 +496,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             card.addEventListener('dragleave', (e) => {
                 const targetCard = e.target.closest('.contact-card');
-                if (targetCard) {
-                    targetCard.classList.remove('drop-target');
-                }
+                if (targetCard) targetCard.classList.remove('drop-target');
             });
 
             card.addEventListener('drop', async (e) => {
@@ -497,9 +507,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!targetCard) return;
 
                 targetCard.classList.remove('drop-target');
-                const targetContactId = targetCard.dataset.contactId;
+                const targetContactId = Number(targetCard.dataset.contactId); // FIX 1
 
                 if (draggedContactId && draggedContactId !== targetContactId) {
+                    
+                    // FIX 2: Check for circular reporting
+                    if (isCircular(targetContactId, draggedContactId)) {
+                        showModal("Invalid Move", "Cannot move a manager to report to one of their own subordinates.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        draggedContactId = null;
+                        return;
+                    }
+
                     // Update the database
                     const { error } = await supabase.from('contacts')
                         .update({ reports_to: targetContactId })
@@ -509,14 +527,55 @@ document.addEventListener("DOMContentLoaded", async () => {
                         console.error("Error updating reporting structure:", error);
                         showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     } else {
-                        // Update local state and re-render
-                        const draggedContact = state.selectedAccountDetails.contacts.find(c => c.id == draggedContactId);
+                        // FIX 1: Update local state and re-render
+                        const draggedContact = state.selectedAccountDetails.contacts.find(c => c.id === draggedContactId);
                         if(draggedContact) draggedContact.reports_to = targetContactId;
                         renderOrgChart(); // Re-render the chart with the new structure
                     }
                 }
                 draggedContactId = null;
             });
+        });
+
+        // FIX 3: Add listeners to the main container to break connections
+        contactOrgChartView.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Allow dropping
+            e.dataTransfer.dropEffect = 'move';
+        });
+
+        contactOrgChartView.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            
+            // Check if the drop was on a card (it will have bubbled up if not stopped)
+            const targetCard = e.target.closest('.contact-card');
+            if (targetCard || !draggedContactId) {
+                // If we dropped on a card, that card's handler already ran and stopped propagation.
+                // If we didn't drag anything, do nothing.
+                return;
+            }
+
+            // We dropped on the background!
+            const contact = state.selectedAccountDetails.contacts.find(c => c.id === draggedContactId);
+            if (contact && contact.reports_to === null) {
+                // Already top-level, do nothing
+                draggedContactId = null;
+                return;
+            }
+            
+            // Update DB to set reports_to = null
+            const { error } = await supabase.from('contacts')
+                .update({ reports_to: null })
+                .eq('id', draggedContactId);
+            
+            if (error) {
+                console.error("Error breaking reporting structure:", error);
+                showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            } else {
+                // Update local state and re-render
+                if(contact) contact.reports_to = null;
+                renderOrgChart();
+            }
+            draggedContactId = null;
         });
     };
 
@@ -574,14 +633,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const briefingContainer = document.querySelector('.ai-briefing-container');
         const briefingHtml = briefingContainer ? briefingContainer.innerHTML : '';
         
-        if (!accountName) {
+        if (!accountName && !briefingHtml) { // Check both
             alert("Please generate a briefing first.");
             return;
         }
 
         // NEW: Grab the org chart HTML if it's the active view
         let orgChartHtml = '';
-        if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "") {
+        if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
             // Clone the node to avoid modifying the live one
             const chartClone = contactOrgChartView.cloneNode(true);
             // Remove drag handles for a cleaner print
@@ -589,7 +648,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             orgChartHtml = `
                 <h2>Organizational Chart</h2>
-                <div class="org-chart-print-container">
+                <div class="org-chart-print-container" style="page-break-inside: avoid;">
                     ${chartClone.innerHTML}
                 </div>
                 <hr>
@@ -608,7 +667,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         frameDoc.write(`
             <html>
                 <head>
-                    <title>AI Briefing: ${accountName}</title>
+                    <title>AI Briefing: ${accountName || 'Account'}</title>
                     <link rel="stylesheet" href="css/style.css">
                     <!-- NEW: We must also link the org-chart.css file -->
                     <link rel="stylesheet" href="css/org-chart.css">
@@ -637,7 +696,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 overflow-x: auto; 
                                 padding: 10px; 
                                 background-color: #fdfdfd !important; 
-                                page-break-inside: avoid;
                             }
                             .org-chart-root { justify-content: flex-start; }
                             .org-chart-node::before, .org-chart-node::after { background-color: #999 !important; }
@@ -655,7 +713,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </head>
                 <body>
                     <h2>AI Reconnaissance Report</h2>
-                    <h3>${accountName}</h3>
+                    <h3>${accountName || 'Selected Account'}</h3>
                     <!-- NEW: Inject Org Chart -->
                     ${orgChartHtml}
                     <!-- Inject AI Briefing -->
@@ -666,7 +724,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         frameDoc.close();
 
         const originalTitle = document.title;
-        document.title = `AI Briefing: ${accountName}`;
+        document.title = `AI Briefing: ${accountName || 'Account'}`;
 
         setTimeout(() => {
             try {
@@ -676,7 +734,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 console.error("Print failed:", e);
                 alert("Could not open print dialog. Please check your browser's popup settings.");
             } finally {
-                document.body.removeChild(printFrame);
+                if (document.body.contains(printFrame)) {
+                    document.body.removeChild(printFrame);
+                }
                 document.title = originalTitle;
             }
         }, 250);
@@ -710,12 +770,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 
                 const buildTextTree = (node, prefix = "") => {
                     let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
-                    node.children.forEach(child => {
-                        text += buildTextTree(child, prefix + "  ");
-                    });
+                    node.children
+                        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                        .forEach(child => {
+                            text += buildTextTree(child, prefix + "  ");
+                        });
                     return text;
                 };
-                orgChartText = tree.map(node => buildTextTree(node)).join('');
+                orgChartText = tree
+                    .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                    .map(node => buildTextTree(node)).join('');
             }
 
             const internalData = {
@@ -738,16 +802,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // NEW: Grab the visual org chart HTML to display in the modal
             let orgChartDisplayHtml = '';
-            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "") {
+            // Only show the chart if it's the active view AND it's not empty
+            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
                 const chartClone = contactOrgChartView.cloneNode(true);
                 chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
-                    <div class="briefing-section org-chart-print-container" style="max-height: 300px; overflow: auto;">
+                    <div class="briefing-section org-chart-print-container" style="max-height: 300px; overflow: auto; border: 1px solid var(--border-color); background: var(--bg-dark); padding: 10px; border-radius: 8px;">
                         ${chartClone.innerHTML}
                     </div>`;
             } else if (contacts.length > 0) {
-                // If not in org chart view, just show the list
+                // If not in org chart view, just show the key players text
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
                     <div class="briefing-section">
@@ -1160,8 +1225,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
-        if (accountContactsList) {
-            accountContactsList.addEventListener("click", (e) => {
+        // MODIFIED: This listener is now on the *container*
+        if (contactListView) {
+            contactListView.addEventListener("click", (e) => {
                 const targetLink = e.target.closest(".contact-name-link");
                 if (targetLink) {
                     e.preventDefault();
@@ -1264,7 +1330,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             // The rest of the setup runs after the initial view is ready
             await setupUserMenuAndAuth(supabase, state);
-            await setupGlobalSearch(supabase); // No longer needs currentUser
+            await setupGlobalSearch(supabase, state.currentUser); // MODIFIED: Pass user
             await checkAndSetNotifications(supabase);
             setupPageEventListeners();
 
@@ -1281,3 +1347,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     initializePage();
 });
+
