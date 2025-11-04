@@ -47,12 +47,10 @@
             color: var(--text-color, #fff);
         }
         
-        /* Container for all site-specific forms */
         #site-forms-container .site-form-wrapper {
             display: none; /* Hidden by default */
         }
 
-        /* The active form is displayed */
         #site-forms-container .site-form-wrapper.active {
             display: block;
         }
@@ -80,28 +78,24 @@
             color: var(--color-danger, #ef4444);
         }
 
-        /* Styles for the new Global Results box */
+        /* Styles for the Global Results box */
         #global-results-container {
             border: 2px solid var(--color-primary, #3b82f6);
             background-color: var(--bg-dark, #2a2a2a);
             border-radius: 8px;
             padding: 1.5rem;
-            margin-top: 2rem;
+            margin-bottom: 2rem; /* Added margin to separate from tabs */
             text-align: center;
-        }
-
-        #global-decision-container {
-            margin-bottom: 1rem;
         }
         
         #global-decision {
-            font-size: 3.5rem;
+            font-size: 3rem;
             font-weight: 700;
             letter-spacing: 1px;
         }
 
         #global-annual-irr {
-            font-size: 2.75rem;
+            font-size: 2.25rem;
             font-weight: 700;
             color: var(--color-primary);
             margin-top: 5px;
@@ -109,9 +103,36 @@
 
         #global-error-message {
             color: #e53e3e;
-            margin-top: 20px;
+            margin-top: 1rem;
             font-weight: 500;
-            font-size: 1.1rem;
+        }
+
+        /* Styles for the *Individual Site* Results */
+        .individual-results-container {
+            text-align: center;
+            padding: 1.5rem;
+            background-color: var(--bg-dark, #2a2a2a);
+            border-radius: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .individual-decision {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            line-height: 1;
+        }
+
+        .individual-annual-irr {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+
+        .individual-error-message {
+            color: #e53e3e;
+            margin-top: 1rem;
+            font-weight: 500;
         }
 
     </style>
@@ -170,50 +191,41 @@
             </div>
         </nav>
         
-        <!-- Main Content Area - Updated for Multi-Site -->
+        <!-- Main Content Area - Updated Layout -->
         <main class="content-area">
             <div id="irr-calculator" class="content-view active-view">
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2>Multi-Site IRR Calculator</h2>
                     <div class="form-buttons">
-                        <!-- New Buttons -->
                         <button type="button" id="add-site-btn" class="btn-secondary"><i class="fas fa-plus"></i> Add Site</button>
                         <button type="button" id="print-report-btn" class="btn-primary"><i class="fas fa-print"></i> Print Report</button>
                     </div>
                 </div>
 
-                <!-- Tab bar will be dynamically generated here -->
-                <div id="site-tabs-container" class="irr-tab-bar">
-                    <!-- Example Tab: <button class="irr-tab active">Site 1</button> -->
-                </div>
-
-                <!-- Site forms will be dynamically generated here -->
-                <div id="site-forms-container">
-                    <!-- 
-                      Example Form Wrapper (hidden by default):
-                      <div class="site-form-wrapper active" data-site-id="1">
-                          ... (form content from template) ...
-                      </div>
-                    -->
-                </div>
-
-                <!-- New Global Results Section -->
+                <!-- MOVED: Global Results Section is now at the top -->
                 <div id="global-results-container">
                     <h3>Global Project Results (All Sites)</h3>
-                    
-                    <div id="global-decision-container">
-                        <span id="global-decision" style="font-size: 3.5rem; font-weight: 700;">--</span>
-                    </div>
-
                     <div>
-                        <span style="font-size: 1rem; color: var(--text-color-secondary);">Calculated Global Annual IRR</span>
-                        <p id="global-annual-irr" style="font-size: 2.75rem; font-weight: 700; margin-top: 5px;">--%</p>
+                        <span id="global-decision">--</span>
                     </div>
+                    <div>
+                        <span style="font-size: 1rem; color: var(--text-color-secondary);">Global Annual IRR</span>
+                        <p id="global-annual-irr">--%</p>
+                    </div>
+                    <div id="global-error-message" class="hidden">
+                        <!-- Global error message -->
+                    </div>
+                </div>
 
-                    <div id="global-error-message" class="hidden" style="color: #e53e3e; margin-top: 20px; font-weight: 500; font-size: 1.1rem;">
-                        <!-- Global error message will be populated here by JS -->
-                    </div>
+                <!-- Tab bar -->
+                <div id="site-tabs-container" class="irr-tab-bar">
+                    <!-- Tabs go here -->
+                </div>
+
+                <!-- Site forms container -->
+                <div id="site-forms-container">
+                    <!-- Forms go here -->
                 </div>
 
             </div> <!-- End content-view -->
@@ -221,14 +233,13 @@
     </div>
 
     <!-- 
-      This <template> is invisible. JS will use it to create new forms.
-      Note: All ID-based selectors are replaced with classes for reusability.
+      UPDATED TEMPLATE
+      Now includes the individual-results-container
     -->
     <template id="site-form-template">
         <div class="site-form-wrapper" data-site-id="">
             <div class="details-panel" style="max-width: 900px; margin-top: 0;">
                 <form class="irr-form">
-                    <!-- We add a site name input -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="flex-grow: 1;">
                             <label for="site-name">Site Name</label>
@@ -275,6 +286,22 @@
                         </div>
                     </div>
                 </form>
+
+                <!-- NEW: Individual Site Results (like the original calculator) -->
+                <div class="individual-results-container">
+                    <h3>Site Project Results</h3>
+                    <div class="individual-decision-container">
+                        <span class="individual-decision">--</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 1rem; color: var(--text-color-secondary);">Calculated Site Annual IRR</span>
+                        <p class="individual-annual-irr">--%</p>
+                    </div>
+                    <div class="individual-error-message hidden">
+                        <!-- Individual error message -->
+                    </div>
+                </div>
+
             </div>
         </div>
     </template>
@@ -292,7 +319,6 @@
         <!-- ... (modal content unchanged) ... -->
     </div>
 
-    <!-- Theme loader script from your template -->
     <script>
         (function() {
             const savedTheme = localStorage.getItem('crm-theme') || 'dark';
@@ -300,7 +326,6 @@
         })();
     </script>
     
-    <!-- Updated script source -->
     <script type="module" src="js/irr.js"></script>
 </body>
 </html>
