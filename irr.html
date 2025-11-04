@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="description" content="Constellation CRM: IRR Calculator for fiber projects.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Updated title for the new page -->
+    <title>Strategic - CRM - IRR Calculator</title>
+    
+    <!-- Retaining all styles and scripts from your site's template -->
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="crm-container">
+        <!-- Sidebar Navigation - Copied from accounts.html -->
+        <nav class="nav-sidebar">
+            <div data-svg-loader="assets/logo.svg"></div>
+            <div class="global-search-container">
+                <input type="text" id="global-search-input" placeholder="Global Search...">
+                <div id="global-search-results" class="global-search-results hidden"></div>
+            </div>
+            <a href="command-center.html" class="nav-button">Command Center</a>
+            <a href="deals.html" class="nav-button">Deals</a>
+            <a href="contacts.html" class="nav-button">Contacts</a>
+            <!-- Updated Accounts link to be inactive -->
+            <a href="accounts.html" class="nav-button">Accounts</a>
+            <!-- Added new, active IRR Calculator link -->
+            <a href="irr.html" class="nav-button active">IRR Calculator</a>
+            <a href="campaigns.html" class="nav-button">Campaigns</a>
+            <a href="sequences.html" class="nav-button">Sequences</a>
+            <a href="social_hub.html" class="nav-button">Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
+            <div class="nav-bottom-section">
+                <div style="position: relative;">
+                    <a href="cognito.html" class="nav-button cognito-nav-link">
+                        <h1>
+                            C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#60a5fa;"></stop>
+                                        <stop offset="100%" style="stop-color:#3b82f6;"></stop>
+                                    </linearGradient>
+                                </defs>
+                                <g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round">
+                                    <path d="M32.2,32.2 L45,45"></path>
+                                    <circle cx="20" cy="20" r="15"></circle>
+                                </g>
+                            </svg>gnito
+                        </h1>
+                    </a>
+                    <i class="fa-solid fa-bell nav-notification-dot hidden" id="cognito-notification"></i>
+                </div>
+                <div class="user-menu" style="margin-top: auto;">
+                    <div class="user-menu-header">
+                        <div data-svg-loader="assets/user-icon.svg"></div>
+                        <span id="user-name-display">Loading...</span>
+                    </div>
+                    <div id="user-menu-popup" class="user-menu-popup">
+                        <button id="theme-toggle-btn" class="nav-button">
+                            Theme: <span id="theme-name">Dark</span>
+                        </button>
+                        <a href="user-guide.html" class="nav-button">User Guide</a>
+                        <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content Area - Replaced with IRR Calculator -->
+        <main class="content-area">
+            <div id="irr-calculator" class="content-view active-view">
+                <h2>Fiber Project IRR Calculator</h2>
+                <p style="margin-bottom: 25px; max-width: 800px;">Based on the Great Plains model, this tool calculates the Internal Rate of Return for a variable-term project. Enter the project's costs and revenue to get an instant GO / NO GO decision.</p>
+
+                <!-- 
+                  Using 'details-panel' class from your site's template to ensure 
+                  consistent padding, background, and styling for the form.
+                  Added a max-width to keep the calculator from looking too wide.
+                -->
+                <div class="details-panel" style="max-width: 900px;">
+                    
+                    <form id="irr-form">
+                        
+                        <h3>Project Inputs</h3>
+                        <!-- Using 'form-grid' class from your template for consistent input layout -->
+                        <div class="form-grid">
+                            
+                            <div>
+                                <label for="constructionCost">Construction Cost ($)</label>
+                                <input type="number" id="constructionCost" placeholder="e.g., 100000" value="100000">
+                            </div>
+                            
+                            <div>
+                                <label for="engineeringCost">Engineering Cost ($)</label>
+                                <input type="number" id="engineeringCost" placeholder="e.g., 20000" value="20000">
+                            </div>
+
+                            <div>
+                                <label for="nrr">Non-Recurring Revenue (Upfront) ($)</label>
+                                <input type="number" id="nrr" placeholder="e.g., 5000" value="5000">
+                            </div>
+                            
+                            <div>
+                                <label for="mrr">Monthly Recurring Revenue ($)</label>
+                                <input type="number" id="mrr" placeholder="e.g., 3000" value="3000">
+                            </div>
+
+                            <div>
+                                <label for="monthlyCost">Monthly Costs ($)</label>
+                                <input type="number" id="monthlyCost" placeholder="e.g., 500" value="500">
+                            </div>
+                            
+                            <div>
+                                <label for="term">Project Term (Months)</label>
+                                <input type="number" id="term" placeholder="e.g., 60" value="60">
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h3>Benchmark</h3>
+                        <!-- Using form-grid again, but a single-column style might apply (or we can add one) -->
+                        <div class="form-grid" style="grid-template-columns: 1fr 2fr;">
+                             <div>
+                                <label for="targetIRR">Target Annual IRR (%)</label>
+                                <input type="number" id="targetIRR" placeholder="e.g., 15" value="15">
+                            </div>
+                        </div>
+
+                        <!-- Using 'form-buttons' and 'btn-primary' from your template -->
+                        <div class="form-buttons">
+                            <button type="button" id="calculateButton" class="btn-primary">Calculate</button>
+                        </div>
+                    </form>
+
+                    <hr>
+
+                    <!-- Results Section -->
+                    <!-- This part is new, so it's styled with basic classes and inline styles -->
+                    <!-- Your 'irr.js' will show/hide this and populate the IDs -->
+                    <div id="results" class="hidden" style="text-align: center; padding: 20px 0;">
+                        <h3>Project Results</h3>
+                        
+                        <!-- 
+                          This structure provides clear targets for the JS to populate.
+                          I've used inline styles for text size/color as a starting point,
+                          as these classes don't exist in your template.
+                        -->
+                        <div id="decision-container" style="margin-bottom: 20px;">
+                            <span id="decision" style="font-size: 3.5rem; font-weight: 700; letter-spacing: 1px;">--</span>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Calculated Annual IRR</span>
+                            <p id="annualIRR" style="font-size: 2.75rem; font-weight: 700; color: var(--color-primary); margin-top: 5px;">--%</p>
+                        </div>
+
+                        <div id="errorMessage" class="hidden" style="color: #e53e3e; margin-top: 20px; font-weight: 500; font-size: 1.1rem;">
+                            <!-- Error message will be populated here by JS -->
+                        </div>
+                    </div>
+
+                </div> <!-- End details-panel -->
+            </div> <!-- End content-view -->
+        </main>
+    </div>
+
+    <!-- 
+      Keeping the modal structure from accounts.html 
+      for site consistency and any potential future use.
+    -->
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions">
+            </div>
+        </div>
+    </div>
+    <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
+        <div class="email-view-modal">
+            <div class="email-view-header">
+                <h3 id="email-view-subject" class="email-view-subject"></h3>
+                <button id="email-view-close-btn" class="email-view-close">&times;</button>
+            </div>
+            <div class="email-view-meta">
+                <p><strong>From:</strong> <span id="email-view-from"></span></p>
+                <p><strong>To:</strong> <span id="email-view-to"></span></p>
+                <p><strong>Date:</strong> <span id="email-view-date"></span></p>
+            </div>
+            <div class="email-view-body">
+                <pre id="email-view-body-content"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme loader script from your template -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+            document.body.className = `theme-${savedTheme}`;
+        })();
+    </script>
+    
+    <!-- 
+      Updated script source to 'irr.js' as requested.
+      This file will contain all the calculator logic.
+    -->
+    <script type="module" src="js/irr.js"></script>
+</body>
+</html>
