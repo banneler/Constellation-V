@@ -141,8 +141,25 @@
                             </div>
                         </div>
                         <div class="related-info">
-                            <h4>Associated Contacts</h4>
-                            <ul id="account-contacts-list"></ul>
+                            <!-- NEW: Header for the contact view toggle -->
+                            <div class="contact-view-header">
+                                <h4>Associated Contacts</h4>
+                                <div class="view-mode-toggle">
+                                    <button id="contact-list-btn" class="view-mode-btn active" title="List View"><i class="fas fa-list"></i></button>
+                                    <button id="contact-org-chart-btn" class="view-mode-btn" title="Org Chart View"><i class="fas fa-sitemap"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- NEW: Container for the list view (default) -->
+                            <div id="contact-list-view">
+                                <ul id="account-contacts-list"></ul>
+                            </div>
+
+                            <!-- NEW: Container for the org chart view (hidden) -->
+                            <!-- We'll reuse the kanban-board-container style for its horizontal scrolling properties -->
+                            <div id="contact-org-chart-view" class="kanban-board-container hidden">
+                                <!-- Org chart will be built here by accounts.js -->
+                            </div>
                         </div>
                         <div class="related-info">
                             <h4>Related Activities</h4>
