@@ -709,7 +709,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <head>
                     <title>AI Briefing: ${accountName || 'Account'}</title>
                     <link rel="stylesheet" href="css/style.css">
-                    <!-- NEW: We must also link the org-chart.css file -->
                     <link rel="stylesheet" href="css/org-chart.css">
                     <style>
                         @media print {
@@ -754,9 +753,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <body>
                     <h2>AI Reconnaissance Report</h2>
                     <h3>${accountName || 'Selected Account'}</h3>
-                    <!-- NEW: Inject Org Chart -->
                     ${orgChartHtml}
-                    <!-- Inject AI Briefing -->
                     ${briefingHtml ? `<div class="ai-briefing-container">${briefingHtml}</div>` : ''}
                 </body>
             </html>
@@ -865,8 +862,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
                     <div class="briefing-section">
                         <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                        ${orgChartDisplayHtml} <!-- MODIFIED: Injected here -->
-                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                        ${orgChartDisplayHtml} <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
                         <p><strong>Recent Activity:</strong></p>
                         <div class="briefing-pre">${briefing.activity_highlights}</div>
                     </div>
@@ -1387,4 +1383,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     initializePage();
 });
-
