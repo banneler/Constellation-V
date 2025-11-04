@@ -3,28 +3,31 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvR
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  let state = {
-    currentUser: null,
-    isFormDirty: false,
+    let state = {
+        currentUser: null,
+        isFormDirty: false,
 
-    // Master lists for the main account list view
-    accounts: [],
-    contacts: [],
-    activities: [],
-    deals: [],
-    dealStages: [],
-
-    // A dedicated object to hold data for ONLY the selected account
-    selectedAccountId: null,
-    selectedAccountDetails: {
-        account: null,
-        contacts: [],
+        // Master lists for the main account list view
+        accounts: [],
+        contacts: [], // This list will now need to include the 'reports_to' field
         activities: [],
         deals: [],
-        tasks: [],
-        contact_sequences: []
-    }
-};
+        dealStages: [],
+
+        // A dedicated object to hold data for ONLY the selected account
+        selectedAccountId: null,
+        selectedAccountDetails: {
+            account: null,
+            contacts: [],
+            activities: [],
+            deals: [],
+            tasks: [],
+            contact_sequences: []
+        },
+
+        // NEW: State for toggling the contact view
+        contactViewMode: 'list' // 'list' or 'org'
+    };
 
     // --- DOM Element Selectors ---
     const navSidebar = document.querySelector(".nav-sidebar");
@@ -38,7 +41,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const deleteAccountBtn = document.getElementById("delete-account-btn");
     const addDealBtn = document.getElementById("add-deal-btn");
     const addTaskAccountBtn = document.getElementById("add-task-account-btn");
-    const accountContactsList = document.getElementById("account-contacts-list");
+    
+    // MODIFIED: We'll be selecting the new containers, not the list directly
+    const contactListView = document.getElementById("contact-list-view"); // NEW: This will contain the list
+    const contactOrgChartView = document.getElementById("contact-org-chart-view"); // NEW: This will contain the org chart
+    const accountContactsList = document.getElementById("account-contacts-list"); // This is still the <ul> inside contactListView
+    const contactListBtn = document.getElementById("contact-list-btn"); // NEW: The toggle button
+    const contactOrgChartBtn = document.getElementById("contact-org-chart-btn"); // NEW: The toggle button
+    
     const accountActivitiesList = document.getElementById("account-activities-list");
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
@@ -58,125 +68,128 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const confirmAndSwitchAccount = async (newAccountId) => { // Make the function async
-    const switchAccount = async () => {
-        state.selectedAccountId = newAccountId;
-        renderAccountList(); // Re-render list to highlight the new selection
-        await loadDetailsForSelectedAccount(); // Await the on-demand fetch
-    };
+        const switchAccount = async () => {
+            state.selectedAccountId = newAccountId;
+            renderAccountList(); // Re-render list to highlight the new selection
+            await loadDetailsForSelectedAccount(); // Await the on-demand fetch
+        };
 
-    if (state.isFormDirty) {
-        showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", async () => {
-            state.isFormDirty = false;
-            hideModal();
+        if (state.isFormDirty) {
+            showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to switch accounts?", async () => {
+                state.isFormDirty = false;
+                hideModal();
+                await switchAccount();
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        } else {
             await switchAccount();
-        }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-    } else {
-        await switchAccount();
-    }
-};
+        }
+    };
 
     // --- Data Fetching ---
 
-// 1. Fetches only the data needed to build the account list on the left.
-async function loadInitialData() {
-    if (!state.currentUser) return;
-    
-    // Select only the columns needed for the list view icons (🔥, 💰) to keep the query fast.
-    const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
-        supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
-        supabase.from("deals").select("id, account_id, stage").eq("user_id", state.currentUser.id),
-        supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", state.currentUser.id),
-        supabase.from("contacts").select("id, account_id").eq("user_id", state.currentUser.id),
-        supabase.from("deal_stages").select("*").order('sort_order')
-    ]);
+    // 1. Fetches only the data needed to build the account list on the left.
+    async function loadInitialData() {
+        if (!state.currentUser) return;
+        
+        // MODIFIED: Fetch 'reports_to' from contacts, as this might be useful for a high-level icon (e.g., "Org Chart Built")
+        const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
+            supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
+            supabase.from("deals").select("id, account_id, stage").eq("user_id", state.currentUser.id),
+            supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", state.currentUser.id),
+            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", state.currentUser.id), // MODIFIED
+            supabase.from("deal_stages").select("*").order('sort_order')
+        ]);
 
-    // Check for errors from each query
-    if (accountsRes.error) throw accountsRes.error;
-    if (dealsRes.error) throw dealsRes.error;
-    if (activitiesRes.error) throw activitiesRes.error;
-    if (contactsRes.error) throw contactsRes.error;
-    if (dealStagesRes.error) throw dealStagesRes.error;
-    
-    // Assign data to state
-    state.accounts = accountsRes.data || [];
-    state.deals = dealsRes.data || [];
-    state.activities = activitiesRes.data || [];
-    state.contacts = contactsRes.data || [];
-    state.dealStages = dealStagesRes.data || [];
+        // Check for errors from each query
+        if (accountsRes.error) throw accountsRes.error;
+        if (dealsRes.error) throw dealsRes.error;
+        if (activitiesRes.error) throw activitiesRes.error;
+        if (contactsRes.error) throw contactsRes.error;
+        if (dealStagesRes.error) throw dealStagesRes.error;
+        
+        // Assign data to state
+        state.accounts = accountsRes.data || [];
+        state.deals = dealsRes.data || [];
+        state.activities = activitiesRes.data || [];
+        state.contacts = contactsRes.data || []; // MODIFIED: This now contains 'reports_to'
+        state.dealStages = dealStagesRes.data || [];
 
-    renderAccountList(); // Render the list as soon as it's ready
-}
+        renderAccountList(); // Render the list as soon as it's ready
+    }
 
-// 2. Fetches detailed data for ONE account after it has been selected.
-// Fetches detailed data and puts it into the new state.selectedAccountDetails object
-async function loadDetailsForSelectedAccount() {
-    if (!state.selectedAccountId) return;
+    // 2. Fetches detailed data for ONE account after it has been selected.
+    // Fetches detailed data and puts it into the new state.selectedAccountDetails object
+    async function loadDetailsForSelectedAccount() {
+        if (!state.selectedAccountId) return;
 
-    // Show a loading state in the UI immediately
-    accountContactsList.innerHTML = '<li>Loading...</li>';
-    accountActivitiesList.innerHTML = '<li>Loading...</li>';
-    accountDealsTableBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
-    
-    const account = state.accounts.find(a => a.id === state.selectedAccountId);
-    state.selectedAccountDetails.account = account;
+        // Show a loading state in the UI immediately
+        // MODIFIED: Target new containers
+        if (contactListView) contactListView.innerHTML = '<ul id="account-contacts-list"><li>Loading...</li></ul>';
+        if (contactOrgChartView) contactOrgChartView.innerHTML = '<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">Loading...</p>';
+        accountActivitiesList.innerHTML = '<li>Loading...</li>';
+        accountDealsTableBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+        
+        const account = state.accounts.find(a => a.id === state.selectedAccountId);
+        state.selectedAccountDetails.account = account;
 
-    // Fetch all related data for only the selected account
-    const [contactsRes, dealsRes, activitiesRes, tasksRes, sequencesRes] = await Promise.all([
-        supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("contact_sequences").select("*") // This may need a more specific filter later
-    ]);
+        // Fetch all related data for only the selected account
+        const [contactsRes, dealsRes, activitiesRes, tasksRes, sequencesRes] = await Promise.all([
+            supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId), // This will fetch all fields, including 'reports_to'
+            supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
+            supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
+            supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
+            supabase.from("contact_sequences").select("*") // This may need a more specific filter later
+        ]);
 
-    if (contactsRes.error) throw contactsRes.error;
-    if (dealsRes.error) throw dealsRes.error;
-    if (activitiesRes.error) throw activitiesRes.error;
-    if (tasksRes.error) throw tasksRes.error;
-    if (sequencesRes.error) throw sequencesRes.error;
+        if (contactsRes.error) throw contactsRes.error;
+        if (dealsRes.error) throw dealsRes.error;
+        if (activitiesRes.error) throw activitiesRes.error;
+        if (tasksRes.error) throw tasksRes.error;
+        if (sequencesRes.error) throw sequencesRes.error;
 
-    // Populate the dedicated details object, leaving the master lists untouched
-    state.selectedAccountDetails.contacts = contactsRes.data || [];
-    state.selectedAccountDetails.deals = dealsRes.data || [];
-    state.selectedAccountDetails.activities = activitiesRes.data || [];
-    state.selectedAccountDetails.tasks = tasksRes.data || [];
-    state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
+        // Populate the dedicated details object, leaving the master lists untouched
+        state.selectedAccountDetails.contacts = contactsRes.data || [];
+        state.selectedAccountDetails.deals = dealsRes.data || [];
+        state.selectedAccountDetails.activities = activitiesRes.data || [];
+        state.selectedAccountDetails.tasks = tasksRes.data || [];
+        state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
 
-    renderAccountDetails();
-}
+        renderAccountDetails();
+    }
         // Add this new function
-async function refreshData() {
-    await loadInitialData();
-    // Re-load details only if an account is currently selected
-    if (state.selectedAccountId) {
-        await loadDetailsForSelectedAccount();
+    async function refreshData() {
+        await loadInitialData();
+        // Re-load details only if an account is currently selected
+        if (state.selectedAccountId) {
+            await loadDetailsForSelectedAccount();
+        }
     }
-}
 
-    
-// This function now handles creating the "empty shell" view
-const hideAccountDetails = (clearSelection = false) => {
-    if (accountForm) {
-        accountForm.classList.remove('hidden'); // Ensure form is visible
-        accountForm.reset(); // Clear all fields
-        accountForm.querySelector("#account-id").value = '';
-        document.getElementById("account-last-saved").textContent = "";
-    }
-    
-    // Clear out all related data lists
-    if (accountContactsList) accountContactsList.innerHTML = "";
-    if (accountActivitiesList) accountActivitiesList.innerHTML = "";
-    if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
-    if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
-    
-    // Reset the state for the selected account
-    if (clearSelection) {
-        state.selectedAccountId = null;
-        state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [] };
-        document.querySelectorAll(".list-item.selected").forEach(item => item.classList.remove("selected"));
-        state.isFormDirty = false;
-    }
-};
+        
+    // This function now handles creating the "empty shell" view
+    const hideAccountDetails = (clearSelection = false) => {
+        if (accountForm) {
+            accountForm.classList.remove('hidden'); // Ensure form is visible
+            accountForm.reset(); // Clear all fields
+            accountForm.querySelector("#account-id").value = '';
+            document.getElementById("account-last-saved").textContent = "";
+        }
+        
+        // MODIFIED: Clear out all related data lists using new containers
+        if (contactListView) contactListView.innerHTML = '<ul id="account-contacts-list"></ul>';
+        if (contactOrgChartView) contactOrgChartView.innerHTML = "";
+        if (accountActivitiesList) accountActivitiesList.innerHTML = "";
+        if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
+        if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+        
+        // Reset the state for the selected account
+        if (clearSelection) {
+            state.selectedAccountId = null;
+            state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [] };
+            document.querySelectorAll(".list-item.selected").forEach(item => item.classList.remove("selected"));
+            state.isFormDirty = false;
+        }
+    };
     // --- Render Functions ---
     const renderAccountList = () => {
         if (!accountList || !accountSearch || !accountStatusFilter) {
@@ -261,81 +274,251 @@ const hideAccountDetails = (clearSelection = false) => {
     };
 
     const renderAccountDetails = () => {
-    // Read from the new, dedicated details object
-    const { account, contacts, activities, deals, tasks, contact_sequences } = state.selectedAccountDetails;
+        // Read from the new, dedicated details object
+        const { account, contacts, activities, deals, tasks, contact_sequences } = state.selectedAccountDetails;
 
-    if (!account) {
-        hideAccountDetails(true);
-        return;
-    }
-
-    if (accountPendingTaskReminder) {
-        const pendingAccountTasks = tasks.filter(task => task.status === 'Pending');
-        if (pendingAccountTasks.length > 0) {
-            const taskCount = pendingAccountTasks.length;
-            accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
-            accountPendingTaskReminder.classList.remove('hidden');
-        } else {
-            accountPendingTaskReminder.classList.add('hidden');
+        if (!account) {
+            hideAccountDetails(true);
+            return;
         }
-    }
 
-    // Populate form fields from the account object
-    accountForm.classList.remove('hidden');
-    accountForm.querySelector("#account-id").value = account.id;
-    accountForm.querySelector("#account-name").value = account.name || "";
-    // ... (rest of the form fields populate as before)
-    const websiteInput = accountForm.querySelector("#account-website");
-    const websiteLink = document.getElementById("account-website-link");
-    websiteInput.value = account.website || "";
-    // This internal function doesn't need to change
-    const updateWebsiteLink = (url) => {
-        if (!url || !url.trim()) { if (websiteLink) websiteLink.classList.add('hidden'); return; }
-        let fullUrl = url.trim();
-        if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) { fullUrl = 'https://' + fullUrl; }
-        if (websiteLink) { websiteLink.href = fullUrl; websiteLink.classList.remove('hidden'); }
+        if (accountPendingTaskReminder) {
+            const pendingAccountTasks = tasks.filter(task => task.status === 'Pending');
+            if (pendingAccountTasks.length > 0) {
+                const taskCount = pendingAccountTasks.length;
+                accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
+                accountPendingTaskReminder.classList.remove('hidden');
+            } else {
+                accountPendingTaskReminder.classList.add('hidden');
+            }
+        }
+
+        // Populate form fields from the account object
+        accountForm.classList.remove('hidden');
+        accountForm.querySelector("#account-id").value = account.id;
+        accountForm.querySelector("#account-name").value = account.name || "";
+        // ... (rest of the form fields populate as before)
+        const websiteInput = accountForm.querySelector("#account-website");
+        const websiteLink = document.getElementById("account-website-link");
+        websiteInput.value = account.website || "";
+        // This internal function doesn't need to change
+        const updateWebsiteLink = (url) => {
+            if (!url || !url.trim()) { if (websiteLink) websiteLink.classList.add('hidden'); return; }
+            let fullUrl = url.trim();
+            if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) { fullUrl = 'https://' + fullUrl; }
+            if (websiteLink) { websiteLink.href = fullUrl; websiteLink.classList.remove('hidden'); }
+        };
+        updateWebsiteLink(account.website);
+        accountForm.querySelector("#account-industry").value = account.industry || "";
+        accountForm.querySelector("#account-phone").value = account.phone || "";
+        accountForm.querySelector("#account-address").value = account.address || "";
+        accountForm.querySelector("#account-notes").value = account.notes || "";
+        document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
+        accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
+        accountForm.querySelector("#account-employees").value = account.employee_count || "";
+        accountForm.querySelector("#account-is-customer").checked = account.is_customer;
+
+        // Render related lists using data from the details object
+        accountDealsTableBody.innerHTML = "";
+        deals.forEach((deal) => {
+            const row = accountDealsTableBody.insertRow();
+            row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
+        });
+
+        // MODIFIED: This function now just calls the "router"
+        renderContactView();
+
+        accountActivitiesList.innerHTML = "";
+        activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
+            const c = contacts.find((c) => c.id === act.contact_id);
+            const li = document.createElement("li");
+            li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
+            let borderColor = "var(--primary-blue)";
+            const activityTypeLower = act.type.toLowerCase();
+            if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
+            else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
+            else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
+            li.style.borderLeftColor = borderColor;
+            accountActivitiesList.appendChild(li);
+        });
+
+        state.isFormDirty = false;
     };
-    updateWebsiteLink(account.website);
-    accountForm.querySelector("#account-industry").value = account.industry || "";
-    accountForm.querySelector("#account-phone").value = account.phone || "";
-    accountForm.querySelector("#account-address").value = account.address || "";
-    accountForm.querySelector("#account-notes").value = account.notes || "";
-    document.getElementById("account-last-saved").textContent = account.last_saved ? `Last Saved: ${formatDate(account.last_saved)}` : "";
-    accountForm.querySelector("#account-sites").value = account.quantity_of_sites || "";
-    accountForm.querySelector("#account-employees").value = account.employee_count || "";
-    accountForm.querySelector("#account-is-customer").checked = account.is_customer;
 
-    // Render related lists using data from the details object
-    accountDealsTableBody.innerHTML = "";
-    deals.forEach((deal) => {
-        const row = accountDealsTableBody.insertRow();
-        row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
-    });
+    // NEW: This function acts as a router for the contact view
+    const renderContactView = () => {
+        if (!contactListView || !contactOrgChartView || !contactListBtn || !contactOrgChartBtn) {
+            console.error('Contact view elements not found. Skipping render.');
+            return;
+        }
 
-    accountContactsList.innerHTML = "";
-    contacts.forEach((c) => {
-        const li = document.createElement("li");
-        const inSeq = contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
-        li.innerHTML = `<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
-        accountContactsList.appendChild(li);
-    });
+        if (state.contactViewMode === 'org') {
+            contactListView.classList.add('hidden');
+            contactOrgChartView.classList.remove('hidden');
+            contactListBtn.classList.remove('active');
+            contactOrgChartBtn.classList.add('active');
+            renderOrgChart();
+        } else {
+            contactListView.classList.remove('hidden');
+            contactOrgChartView.classList.add('hidden');
+            contactListBtn.classList.add('active');
+            contactOrgChartBtn.classList.remove('active');
+            renderContactList();
+        }
+    };
 
-    accountActivitiesList.innerHTML = "";
-    activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
-        const c = contacts.find((c) => c.id === act.contact_id);
-        const li = document.createElement("li");
-        li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
-        let borderColor = "var(--primary-blue)";
-        const activityTypeLower = act.type.toLowerCase();
-        if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-        else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-        else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-        li.style.borderLeftColor = borderColor;
-        accountActivitiesList.appendChild(li);
-    });
+    // NEW: This is the logic from your old renderAccountDetails, now as its own function
+    const renderContactList = () => {
+        const { contacts, contact_sequences } = state.selectedAccountDetails;
+        const listElement = document.getElementById('account-contacts-list'); // Get the <ul>
+        if (!listElement) return;
 
-    state.isFormDirty = false;
-};
+        listElement.innerHTML = ""; // Clear the list
+        contacts
+            .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+            .forEach((c) => {
+                const li = document.createElement("li");
+                const inSeq = contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+
+                // Check for email/phone and create icons with new, specific classes
+                const emailIcon = c.email ? `<i class="fas fa-envelope contact-attribute-icon email-icon"></i>` : '';
+                const phoneIcon = c.phone ? `<i class="fas fa-phone contact-attribute-icon phone-icon"></i>` : '';
+
+                // Place icons before the contact's name for clean alignment
+                li.innerHTML = `${phoneIcon}${emailIcon}<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+                listElement.appendChild(li);
+            });
+    };
+
+    // NEW: This is the core logic for the org chart
+    const renderOrgChart = () => {
+        const { contacts } = state.selectedAccountDetails;
+        if (!contactOrgChartView) return;
+
+        contactOrgChartView.innerHTML = ""; // Clear the chart
+
+        // 1. Create a map for easy lookup
+        const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
+        
+        // 2. Build the tree structure
+        const tree = [];
+        contactMap.forEach(contact => {
+            if (contact.reports_to && contactMap.has(contact.reports_to)) {
+                contactMap.get(contact.reports_to).children.push(contact);
+            } else {
+                tree.push(contact); // This is a top-level node
+            }
+        });
+
+        // 3. Recursive function to render the HTML
+        const createNodeHtml = (contact) => {
+            // Sort children alphabetically by first name
+            const sortedChildren = contact.children.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
+            
+            let childrenHtml = '';
+            if (sortedChildren && sortedChildren.length > 0) {
+                // This 'ul' holds the children of the current node
+                childrenHtml = `<ul class="org-chart-children">
+                    ${sortedChildren.map(child => createNodeHtml(child)).join('')}
+                </ul>`;
+            }
+
+            // This 'li' wraps the node and its children
+            return `<li class="org-chart-node">
+                <div class="contact-card" draggable="true" data-contact-id="${contact.id}">
+                    <div class="contact-card-name">${contact.first_name} ${contact.last_name}</div>
+                    <div class="contact-card-title">${contact.title || 'N/A'}</div>
+                </div>
+                ${childrenHtml}
+            </li>`;
+        };
+
+        // 4. Start rendering from the top-level nodes, sorted alphabetically
+        const sortedTree = tree.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
+        if (sortedTree.length > 0) {
+            const chartHtml = `<ul class="org-chart-root">
+                ${sortedTree.map(topLevelNode => createNodeHtml(topLevelNode)).join('')}
+            </ul>`;
+            contactOrgChartView.innerHTML = chartHtml;
+        } else {
+            contactOrgChartView.innerHTML = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
+        }
+
+        // 5. Set up drag-and-drop listeners
+        setupOrgChartDragDrop();
+    };
+
+    // NEW: Drag and Drop logic for the Org Chart
+    const setupOrgChartDragDrop = () => {
+        let draggedContactId = null;
+
+        contactOrgChartView.querySelectorAll('.contact-card').forEach(card => {
+            card.addEventListener('dragstart', (e) => {
+                // Check if the event target is the card itself or its children
+                const targetCard = e.target.closest('.contact-card');
+                if (!targetCard) return;
+                
+                draggedContactId = targetCard.dataset.contactId;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', draggedContactId); // For Firefox compatibility
+                setTimeout(() => targetCard.classList.add('dragging'), 0);
+            });
+
+            card.addEventListener('dragend', (e) => {
+                const targetCard = e.target.closest('.contact-card');
+                if (targetCard) {
+                    targetCard.classList.remove('dragging');
+                }
+                draggedContactId = null;
+            });
+
+            // Make every card a potential drop target
+            card.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const targetCard = e.target.closest('.contact-card');
+                if (targetCard && targetCard.dataset.contactId !== draggedContactId) {
+                    e.dataTransfer.dropEffect = 'move';
+                    targetCard.classList.add('drop-target');
+                }
+            });
+
+            card.addEventListener('dragleave', (e) => {
+                const targetCard = e.target.closest('.contact-card');
+                if (targetCard) {
+                    targetCard.classList.remove('drop-target');
+                }
+            });
+
+            card.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Prevent drop from bubbling to parent nodes
+
+                const targetCard = e.target.closest('.contact-card');
+                if (!targetCard) return;
+
+                targetCard.classList.remove('drop-target');
+                const targetContactId = targetCard.dataset.contactId;
+
+                if (draggedContactId && draggedContactId !== targetContactId) {
+                    // Update the database
+                    const { error } = await supabase.from('contacts')
+                        .update({ reports_to: targetContactId })
+                        .eq('id', draggedContactId);
+
+                    if (error) {
+                        console.error("Error updating reporting structure:", error);
+                        showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    } else {
+                        // Update local state and re-render
+                        const draggedContact = state.selectedAccountDetails.contacts.find(c => c.id == draggedContactId);
+                        if(draggedContact) draggedContact.reports_to = targetContactId;
+                        renderOrgChart(); // Re-render the chart with the new structure
+                    }
+                }
+                draggedContactId = null;
+            });
+        });
+    };
 
 
     // --- Deal Handlers ---
@@ -344,8 +527,11 @@ const hideAccountDetails = (clearSelection = false) => {
         if (error) {
             showModal("Error", 'Error updating commit status: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         } else {
-            const deal = state.deals.find(d => d.id === dealId);
-            if (deal) deal.is_committed = isCommitted;
+            // Update local state for both master list and details list
+            const dealMaster = state.deals.find(d => d.id === dealId);
+            if (dealMaster) dealMaster.is_committed = isCommitted;
+            const dealDetails = state.selectedAccountDetails.deals.find(d => d.id === dealId);
+            if (dealDetails) dealDetails.is_committed = isCommitted;
         }
     }
 
@@ -380,135 +566,229 @@ const hideAccountDetails = (clearSelection = false) => {
             else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
-// --- Print Briefing Handler ---
-function handlePrintBriefing() {
-    const accountName = state.selectedAccountDetails.account?.name;
-    const briefingHtml = document.querySelector('.ai-briefing-container')?.innerHTML;
-    if (!accountName || !briefingHtml) {
-        alert("Could not find briefing content to print.");
-        return;
+
+    // --- Print Briefing Handler ---
+    // MODIFIED: To include Org Chart
+    function handlePrintBriefing() {
+        const accountName = state.selectedAccountDetails.account?.name;
+        const briefingContainer = document.querySelector('.ai-briefing-container');
+        const briefingHtml = briefingContainer ? briefingContainer.innerHTML : '';
+        
+        if (!accountName) {
+            alert("Please generate a briefing first.");
+            return;
+        }
+
+        // NEW: Grab the org chart HTML if it's the active view
+        let orgChartHtml = '';
+        if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "") {
+            // Clone the node to avoid modifying the live one
+            const chartClone = contactOrgChartView.cloneNode(true);
+            // Remove drag handles for a cleaner print
+            chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
+            
+            orgChartHtml = `
+                <h2>Organizational Chart</h2>
+                <div class="org-chart-print-container">
+                    ${chartClone.innerHTML}
+                </div>
+                <hr>
+            `;
+        }
+
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'absolute';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        document.body.appendChild(printFrame);
+
+        const frameDoc = printFrame.contentWindow.document;
+        frameDoc.open();
+        frameDoc.write(`
+            <html>
+                <head>
+                    <title>AI Briefing: ${accountName}</title>
+                    <link rel="stylesheet" href="css/style.css">
+                    <!-- NEW: We must also link the org-chart.css file -->
+                    <link rel="stylesheet" href="css/org-chart.css">
+                    <style>
+                        @media print {
+                            body { 
+                                margin: 20px; 
+                                font-family: sans-serif;
+                                -webkit-print-color-adjust: exact;
+                                print-color-adjust: exact;
+                            }
+                            .ai-briefing-container { box-shadow: none; border: none; }
+                            h2 { font-size: 1.5rem; color: #000; }
+                            h3 { font-size: 1.2rem; color: #333; }
+                            h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
+                            .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; border: 1px solid #eee; }
+                            div.briefing-pre { 
+                                background-color: #eee !important; 
+                                border: 1px solid #ddd;
+                                white-space: pre-wrap;
+                                word-wrap: break-word;
+                            }
+
+                            /* NEW ORG CHART PRINT STYLES */
+                            .org-chart-print-container { 
+                                overflow-x: auto; 
+                                padding: 10px; 
+                                background-color: #fdfdfd !important; 
+                                page-break-inside: avoid;
+                            }
+                            .org-chart-root { justify-content: flex-start; }
+                            .org-chart-node::before, .org-chart-node::after { background-color: #999 !important; }
+                            .org-chart-children::before { background-color: #999 !important; }
+                            .contact-card { 
+                                background-color: #fff !important; 
+                                border: 1px solid #ccc !important; 
+                                color: #000 !important; 
+                                box-shadow: none !important;
+                            }
+                            .contact-card-name { color: #000 !important; }
+                            .contact-card-title { color: #333 !important; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>AI Reconnaissance Report</h2>
+                    <h3>${accountName}</h3>
+                    <!-- NEW: Inject Org Chart -->
+                    ${orgChartHtml}
+                    <!-- Inject AI Briefing -->
+                    ${briefingHtml ? `<div class="ai-briefing-container">${briefingHtml}</div>` : ''}
+                </body>
+            </html>
+        `);
+        frameDoc.close();
+
+        const originalTitle = document.title;
+        document.title = `AI Briefing: ${accountName}`;
+
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (e) {
+                console.error("Print failed:", e);
+                alert("Could not open print dialog. Please check your browser's popup settings.");
+            } finally {
+                document.body.removeChild(printFrame);
+                document.title = originalTitle;
+            }
+        }, 250);
     }
 
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'absolute';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
+    // --- AI Briefing Handler ---
+    // MODIFIED: To include Org Chart in the modal display
+    async function handleGenerateBriefing() {
+        if (!state.selectedAccountId) {
+            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+        const { account, contacts, activities, deals } = state.selectedAccountDetails;
+        if (!account) return;
 
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(`
-        <html>
-            <head>
-                <title>AI Briefing: ${accountName}</title>
-                <link rel="stylesheet" href="css/style.css">
-                <style>
-                    @media print {
-                        body { 
-                            margin: 20px; 
-                            font-family: sans-serif;
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                        }
-                        .ai-briefing-container { box-shadow: none; border: none; }
-                        h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
-                        .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; }
-                        div.briefing-pre { 
-                            background-color: #eee !important; 
-                            border: 1px solid #ddd;
-                            white-space: pre-wrap;
-                            word-wrap: break-word;
-                        }
+        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+        try {
+            // NEW: Build a simple text representation of the org chart for the AI
+            let orgChartText = "No hierarchy defined.";
+            if (contacts.length > 0) {
+                const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
+                const tree = [];
+                contactMap.forEach(contact => {
+                    if (contact.reports_to && contactMap.has(contact.reports_to)) {
+                        contactMap.get(contact.reports_to).children.push(contact);
+                    } else {
+                        tree.push(contact);
                     }
-                </style>
-            </head>
-            <body>
-                <h2>AI Reconnaissance Report</h2>
-                <h3>${accountName}</h3>
-                <div class="ai-briefing-container">${briefingHtml}</div>
-            </body>
-        </html>
-    `);
-    frameDoc.close();
+                });
+                
+                const buildTextTree = (node, prefix = "") => {
+                    let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
+                    node.children.forEach(child => {
+                        text += buildTextTree(child, prefix + "  ");
+                    });
+                    return text;
+                };
+                orgChartText = tree.map(node => buildTextTree(node)).join('');
+            }
 
-    // NEW: Temporarily change the main document's title for printing
-    const originalTitle = document.title;
-    document.title = `AI Briefing: ${accountName}`;
+            const internalData = {
+                accountName: account.name,
+                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
+                orgChart: orgChartText, // NEW: Pass the text tree to the AI
+                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
+                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
+                    const contact = contacts.find(c => c.id === act.contact_id);
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
+                }).join('\n')
+            };
 
-    setTimeout(() => {
-        printFrame.contentWindow.focus();
-        printFrame.contentWindow.print();
-        document.body.removeChild(printFrame);
-        
-        // NEW: Restore the original title after the print dialog is handled
-        document.title = originalTitle;
-    }, 250);
-}
-// --- AI Briefing Handler ---
-async function handleGenerateBriefing() {
-    if (!state.selectedAccountId) {
-        showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        return;
+            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
+            if (error) throw error;
+
+            const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            // NEW: Grab the visual org chart HTML to display in the modal
+            let orgChartDisplayHtml = '';
+            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "") {
+                const chartClone = contactOrgChartView.cloneNode(true);
+                chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
+                orgChartDisplayHtml = `
+                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
+                    <div class="briefing-section org-chart-print-container" style="max-height: 300px; overflow: auto;">
+                        ${chartClone.innerHTML}
+                    </div>`;
+            } else if (contacts.length > 0) {
+                // If not in org chart view, just show the list
+                orgChartDisplayHtml = `
+                    <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
+                    <div class="briefing-section">
+                        <p>${keyPlayersHtml}</p>
+                    </div>`;
+            }
+
+            const briefingHtml = `
+                <div class="ai-briefing-container">
+                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
+                        ${orgChartDisplayHtml} <!-- MODIFIED: Injected here -->
+                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                        <p><strong>Recent Activity:</strong></p>
+                        <div class="briefing-pre">${briefing.activity_highlights}</div>
+                    </div>
+                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
+                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
+                        <p><strong>Social Icebreakers:</strong></p>
+                        <div class="briefing-pre">${icebreakersHtml}</div>
+                    </div>
+                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
+                    <div class="briefing-section recommendation">
+                        <p>${briefing.recommendation}</p>
+                    </div>
+                </div>`;
+            
+            const modalFooter = `
+                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
+                <button id="modal-ok-btn" class="btn-primary">Close</button>
+            `;
+            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
+
+        } catch (error) {
+            console.error("Error invoking AI Briefing Edge Function:", error);
+            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
     }
-    const { account, contacts, activities, deals } = state.selectedAccountDetails;
-    if (!account) return;
-
-    showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-
-    try {
-        const internalData = {
-            accountName: account.name,
-            contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
-            deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
-            activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
-                const contact = contacts.find(c => c.id === act.contact_id);
-                const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
-            }).join('\n')
-        };
-
-        const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
-        if (error) throw error;
-
-        // MODIFIED: Added a safety check to ensure we're always working with strings
-        const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-        const briefingHtml = `
-            <div class="ai-briefing-container">
-                <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
-                <div class="briefing-section">
-                    <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                    <p><strong>Key Players in CRM:</strong> ${keyPlayersHtml}</p>
-                    <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
-                    <p><strong>Recent Activity:</strong></p>
-                    <div class="briefing-pre">${briefing.activity_highlights}</div>
-                </div>
-                <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
-                <div class="briefing-section">
-                    <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
-                    <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
-                    <p><strong>Social Icebreakers:</strong></p>
-                    <div class="briefing-pre">${icebreakersHtml}</div>
-                </div>
-                <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
-                <div class="briefing-section recommendation">
-                    <p>${briefing.recommendation}</p>
-                </div>
-            </div>`;
-        
-        const modalFooter = `
-            <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
-            <button id="modal-ok-btn" class="btn-primary">Close</button>
-        `;
-        showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
-
-    } catch (error) {
-        console.error("Error invoking AI Briefing Edge Function:", error);
-        showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    }
-}
 
 
     // --- Event Listener Setup ---
@@ -544,7 +824,7 @@ async function handleGenerateBriefing() {
         if (addAccountBtn) {
             addAccountBtn.addEventListener("click", () => {
                 const openNewAccountModal = () => {
-                    hideAccountDetails(false, true);
+                    hideAccountDetails(true); // MODIFIED: Pass true to clear selection
                     showModal("New Account", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
                         async () => {
                             const name = document.getElementById("modal-account-name")?.value.trim();
@@ -561,7 +841,7 @@ async function handleGenerateBriefing() {
                             await refreshData();
                             state.selectedAccountId = newAccountArr?.[0]?.id;
                             renderAccountList();
-                            renderAccountDetails();
+                            await loadDetailsForSelectedAccount(); // MODIFIED: Load details for new account
                             hideModal();
                             return true;
                         }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Account</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -646,6 +926,7 @@ async function handleGenerateBriefing() {
                         state.selectedAccountId = null;
                         state.isFormDirty = false;
                         await refreshData();
+                        hideAccountDetails(true); // MODIFIED: Pass true to clear selection
                         hideModal();
                         showModal("Success", "Account deleted successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -708,7 +989,7 @@ async function handleGenerateBriefing() {
 
                         const recordsToUpdate = [];
                         const recordsToInsert = [];
-                        const existingAccountMap = new Map(state.accounts.map(acc => [String(acc.name).toLowerCase(), acc]));
+                        const existingAccountMap = new Map(state.accounts.map(acc => [String(acc.name).trim().toLowerCase(), acc]));
 
                         csvRecords.forEach(record => {
                             if (!record.name) return;
@@ -717,11 +998,11 @@ async function handleGenerateBriefing() {
                             const existingAccount = existingAccountMap.get(recordName);
 
                             const processedRecord = {
-                                name: record.name,
-                                website: record.website || "",
-                                industry: record.industry || "",
-                                phone: record.phone || "",
-                                address: record.address || "",
+                                name: String(record.name).trim(), // Ensure name is trimmed
+                                website: record.website || null,
+                                industry: record.industry || null,
+                                phone: record.phone || null,
+                                address: record.address || null,
                                 quantity_of_sites: (record.quantity_of_sites === 0) ? 0 : (parseInt(record.quantity_of_sites) || null),
                                 employee_count: (record.employee_count === 0) ? 0 : (parseInt(record.employee_count) || null),
                                 is_customer: record.is_customer === true,
@@ -792,7 +1073,10 @@ async function handleGenerateBriefing() {
                                     insertPromises.push(supabase.from("accounts").insert(record));
                                 } else if (action === 'update') {
                                     const record = recordsToUpdate[index];
-                                    const updateData = Object.keys(record.changes).reduce((acc, key) => ({ ...acc, [key]: record[key] }), {});
+                                    const updateData = Object.keys(record.changes).reduce((acc, key) => {
+                                        acc[key] = record.changes[key].new;
+                                        return acc;
+                                    }, {});
                                     updatePromises.push(supabase.from("accounts").update(updateData).eq('id', record.id));
                                 }
                             });
@@ -921,58 +1205,79 @@ async function handleGenerateBriefing() {
                     }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
             });
         }
-    if (aiBriefingBtn) {
-    aiBriefingBtn.addEventListener("click", handleGenerateBriefing);
-}
-     // NEW: Event listener for the dynamically created print button
+        if (aiBriefingBtn) {
+            aiBriefingBtn.addEventListener("click", handleGenerateBriefing);
+        }
+        // NEW: Event listener for the dynamically created print button
         document.body.addEventListener('click', (e) => {
             if (e.target.id === 'print-briefing-btn') {
                 handlePrintBriefing();
             }
         });
-    }
-async function initializePage() {
-    await loadSVGs();
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-    if (sessionError || !session) {
-        console.error('Authentication failed or no session found. Redirecting to login.');
-        window.location.href = "index.html";
-        return;
-    }
-    state.currentUser = session.user;
-
-    try {
-        // Use the new, fast initial load
-        await loadInitialData(); 
-
-        // If an accountId is in the URL from another page, load its details
-        const urlParams = new URLSearchParams(window.location.search);
-        const accountIdFromUrl = urlParams.get('accountId');
-        if (accountIdFromUrl) {
-            state.selectedAccountId = Number(accountIdFromUrl);
-            await loadDetailsForSelectedAccount();
-        } else {
-            // If no account is selected, ensure the details panel is hidden
-            hideAccountDetails(false, true);
+        // NEW: Event listeners for the contact view toggle
+        if (contactListBtn) {
+            contactListBtn.addEventListener('click', () => {
+                state.contactViewMode = 'list';
+                localStorage.setItem('contact_view_mode', 'list');
+                renderContactView();
+            });
         }
-        
-        // The rest of the setup runs after the initial view is ready
-        await setupUserMenuAndAuth(supabase, state);
-        await setupGlobalSearch(supabase); // No longer needs currentUser
-        await checkAndSetNotifications(supabase);
-        setupPageEventListeners();
-
-    } catch (error) {
-        console.error("Critical error during page initialization:", error);
-        showModal(
-            "Loading Error",
-            "There was a problem loading account data. Please refresh the page to try again.",
-            null,
-            false,
-            `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-        );
+        if (contactOrgChartBtn) {
+            contactOrgChartBtn.addEventListener('click', () => {
+                state.contactViewMode = 'org';
+                localStorage.setItem('contact_view_mode', 'org');
+                renderContactView();
+            });
+        }
     }
-}
+    async function initializePage() {
+        await loadSVGs();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError || !session) {
+            console.error('Authentication failed or no session found. Redirecting to login.');
+            window.location.href = "index.html";
+            return;
+        }
+        state.currentUser = session.user;
+
+        try {
+            // Use the new, fast initial load
+            await loadInitialData(); 
+
+            // If an accountId is in the URL from another page, load its details
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountIdFromUrl = urlParams.get('accountId');
+            
+            // NEW: Load saved contact view mode from localStorage
+            const savedView = localStorage.getItem('contact_view_mode') || 'list';
+            state.contactViewMode = savedView;
+
+            if (accountIdFromUrl) {
+                state.selectedAccountId = Number(accountIdFromUrl);
+                await loadDetailsForSelectedAccount();
+            } else {
+                // If no account is selected, ensure the details panel is hidden
+                hideAccountDetails(true); // MODIFIED: Pass true
+            }
+            
+            // The rest of the setup runs after the initial view is ready
+            await setupUserMenuAndAuth(supabase, state);
+            await setupGlobalSearch(supabase); // No longer needs currentUser
+            await checkAndSetNotifications(supabase);
+            setupPageEventListeners();
+
+        } catch (error) {
+            console.error("Critical error during page initialization:", error);
+            showModal(
+                "Loading Error",
+                "There was a problem loading account data. Please refresh the page to try again.",
+                null,
+                false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
+        }
+    }
     initializePage();
 });
