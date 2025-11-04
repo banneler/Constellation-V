@@ -1,5 +1,5 @@
 /**
- * Multi-Site IRR Calculator for Constellation CRM (v4)
+ * Multi-Site IRR Calculator for Constellation CRM (v5)
  *
  * This script powers the irr.html page, managing multiple sites
  * as tabs and calculating a global IRR.
@@ -8,7 +8,7 @@
  * - Saves/Loads projects to/from Supabase 'irr_projects' table.
  * - Uses a single GLOBAL Target IRR for all calculations.
  * - Calculates and displays TCV for sites and the global project.
- * - Retains the layout from irr.html (global results at top, then tabs).
+ * - Exports a CSV with LIVE EXCEL FORMULAS for TCV, IRR, and Decision.
  */
 
 // Import all shared functions and constants
@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saveProjectBtn = document.getElementById('save-project-btn');
     const addSiteBtn = document.getElementById('add-site-btn');
     const printReportBtn = document.getElementById('print-report-btn');
+    const exportCsvBtn = document.getElementById('export-csv-btn'); // <-- NEW
     
     // Project Inputs
     const projectNameInput = document.getElementById('project-name');
@@ -218,9 +219,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- 4. Calculation Functions (Unchanged) ---
-    // ... (All calculation logic from v3 is retained here) ...
-        /**
+    // --- 4. Calculation Functions ---
+
+    /**
      * Calculates IRR for a single site, updates its state, and updates its UI.
      * @param {number} siteId - The ID of the site to calculate
      * @param {boolean} [runGlobal=true] - Whether to trigger a global recalculation
@@ -372,9 +373,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         return { cashFlows, error: null };
     }
 
+    // --- 5. UI Update Functions ---
 
-    // --- 5. UI Update Functions (Unchanged) ---
-    // ... (All UI update functions from v3 are retained here) ...
     function setResultUI(el, text, state) { // state: 'go', 'nogo', 'error', 'pending'
         el.textContent = text;
         el.classList.remove('go', 'nogo', 'error', 'pending');
@@ -441,9 +441,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         globalErrorMessageEl.textContent = message;
         globalErrorMessageEl.classList.remove('hidden');
     }
+    
+    // --- 6. Print Function ---
 
-    // --- 6. Print Function (Unchanged) ---
-    // ... (The print function from v3 is retained here) ...
     function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
@@ -563,8 +563,110 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }, 250);
     }
+    
+    // --- 7. NEW: CSV Export Function ---
 
-    // --- 7. NEW: Database (Save/Load) Functions ---
+    /**
+     * Helper function to escape CSV cell content.
+     * If content contains a comma, newline, or double quote, wrap it in double quotes.
+     * Also doubles up any existing double quotes.
+     */
+    function escapeCSV(content) {
+        let str = String(content);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            str = `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    }
+
+    /**
+     * Generates a CSV file with live formulas and triggers a download.
+     */
+    function handleExportCSV() {
+        const projectName = projectNameInput.value.trim() || "IRR Project";
+        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 15) / 100;
+        
+        let csvContent = [];
+
+        // --- Header Info ---
+        csvContent.push(`Project Name:,${escapeCSV(projectName)}`);
+        csvContent.push(`Global Target IRR:,${globalTargetIRR}`); // This will be read by formulas
+        csvContent.push(""); // Spacer row
+        
+        // --- Site Table Headers ---
+        const headers = [
+            "Site Name",            // Col A
+            "Construction Cost",    // Col B
+            "Engineering Cost",     // Col C
+            "NRR (Upfront)",        // Col D
+            "MRR",                  // Col E
+            "Monthly Cost",         // Col F
+            "Term (Months)",        // Col G
+            "TCV (Formula)",        // Col H
+            "Calculated IRR (Formula)", // Col I
+            "Decision (Formula)"    // Col J
+        ];
+        csvContent.push(headers.join(','));
+
+        // --- Site Data Rows ---
+        const startRow = 5; // CSV row 5 is Excel row 5 (1-based index)
+        state.sites.forEach((site, index) => {
+            const rowNum = startRow + index;
+            const i = site.inputs;
+            
+            // These are the live formulas!
+            const tcvFormula = `"=ROUND((E${rowNum}*G${rowNum})+D${rowNum}, 2)"`;
+            // pv = D-(B+C), pmt = E-F, nper = G
+            const irrFormula = `"=IFERROR((1+RATE(G${rowNum}, E${rowNum}-F${rowNum}, D${rowNum}-(B${rowNum}+C${rowNum})))^12-1, "Error")"`;
+            const decisionFormula = `"=IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))"`;
+
+            const row = [
+                escapeCSV(site.name),
+                i.constructionCost,
+                i.engineeringCost,
+                i.nrr,
+                i.mrr,
+                i.monthlyCost,
+                i.term,
+                tcvFormula,
+                irrFormula,
+                decisionFormula
+            ];
+            csvContent.push(row.join(','));
+        });
+
+        // --- Global Summary ---
+        if (state.sites.length > 0) {
+            const lastRow = startRow + state.sites.length - 1;
+            const summaryStartRow = lastRow + 2;
+            csvContent.push(""); // Spacer row
+            csvContent.push("Global Results,,,,,Inputs,Formulas"); // Header
+            csvContent.push(`Global TCV (Formula):,,"=SUM(H${startRow}:H${lastRow})"`);
+            
+            // As discussed, Global IRR is complex (uneven cash flows)
+            // So we export the *calculated value* from our app, not a formula
+            const globalIRRValue = globalAnnualIRREl.textContent;
+            const globalDecisionValue = globalDecisionEl.textContent;
+            
+            csvContent.push(`Global IRR (Calculated):,,${escapeCSV(globalIRRValue)}`);
+            csvContent.push(`Global Decision (Calculated):,,${escapeCSV(globalDecisionValue)}`);
+        }
+
+        // --- Download Logic ---
+        const csvString = csvContent.join('\n');
+        const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvString);
+        
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `${projectName.replace(/ /g, "_")}_IRR_Model.csv`);
+        document.body.appendChild(link);
+        
+        link.click();
+        
+        document.body.removeChild(link);
+    }
+
+    // --- 8. Database (Save/Load) Functions ---
 
     /**
      * Saves the current project state to Supabase.
@@ -748,7 +850,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 
-    // --- 8. Event Listener Setup ---
+    // --- 9. Event Listener Setup ---
 
     /**
      * Attaches all necessary event listeners to a newly created site form.
@@ -823,6 +925,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (saveProjectBtn) saveProjectBtn.addEventListener('click', handleSaveProject);
         if (addSiteBtn) addSiteBtn.addEventListener('click', addNewSite);
         if (printReportBtn) printReportBtn.addEventListener('click', handlePrintReport);
+        if (exportCsvBtn) exportCsvBtn.addEventListener('click', handleExportCSV); // <-- NEW
         
         // Tab bar click delegation
         if (siteTabsContainer) {
@@ -866,7 +969,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- 9. Main Page Initialization ---
+    // --- 10. Main Page Initialization ---
     async function initializePage() {
         await loadSVGs();
         
@@ -900,7 +1003,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- 10. Financial Calculation (Pure Functions - Unchanged) ---
+    // --- 11. Financial Calculation (Pure Functions) ---
 
     function calculateNPV(rate, cashFlows) {
         let npv = 0;
@@ -921,14 +1024,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         let npvAtMin = calculateNPV(minRate, cashFlows);
         let npvAtMax = calculateNPV(maxRate, cashFlows);
         
+        // This logic attempts to find a valid bracket where NPVs have opposite signs
         if (npvAtMin * npvAtMax > 0) {
-            maxRate = 5.0; 
+            // Try a wider bracket if the first one fails
+            maxRate = 5.0; // 500% monthly
             npvAtMax = calculateNPV(maxRate, cashFlows);
             if (npvAtMin * npvAtMax > 0) {
+                 // Try an even wider bracket
                  minRate = -0.999999;
-                 maxRate = 20.0; 
+                 maxRate = 20.0; // 2000% monthly
                  npvAtMin = calculateNPV(minRate, cashFlows);
                  npvAtMax = calculateNPV(maxRate, cashFlows);
+                 // If it still fails, the cash flow is likely problematic (e.g., all positive)
                  if (npvAtMin * npvAtMax > 0) return NaN; 
             }
         }
@@ -940,17 +1047,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (Math.abs(npvAtMid) < precision) {
                 return midRate;
             } else if (npvAtMid * npvAtMin > 0) {
+                // Both are same sign, move minRate
                 minRate = midRate;
                 npvAtMin = npvAtMid;
             } else {
+                // Signs are different, move maxRate
                 maxRate = midRate;
             }
         }
         
+        // Return the best guess after iterations
         return midRate;
     }
 
-    // --- 11. Run Initialization ---
+    // --- 12. Run Initialization ---
     initializePage();
 });
 
