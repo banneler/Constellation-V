@@ -4341,4 +4341,164 @@ div.briefing-pre {
     width: 100%;
     /* It will inherit the global input/select styles */
 }
-/* =================================== // = Contact View Toggle Header      = // =================================== */.contact-view-header {display: flex;justify-content: space-between;align-items: center;margin-bottom: 1rem; /* Space below the header */}.contact-view-header h4 {margin: 0; /* Remove default margin */}/* We can reuse the existing .view-mode-toggle styles from deals.js // No new CSS needed for the toggle itself *//* =================================== // = Org Chart Structure             = // =================================== *//* This uses the kanban style for horizontal scrolling */#contact-org-chart-view {padding: 1rem;background-color: var(--bg-dark);border: 1px solid var(--border-color);border-radius: 8px;min-height: 200px;}/* Base styles for the chart, using flexbox for layout */.org-chart-root {display: flex;justify-content: center;gap: 20px;padding: 0;margin: 0;list-style: none;}.org-chart-node {display: flex;flex-direction: column;align-items: center;padding-top: 20px; /* Space for the line from parent */position: relative;list-style: none;}/* This draws the vertical line UP from the node to its parent */.org-chart-node::before {content: '';position: absolute;top: 0;height: 20px;width: 2px;background-color: var(--border-color);}/* This draws the horizontal line connecting siblings */.org-chart-node::after {content: '';position: absolute;top: 0;left: 50%;width: 100%;height: 2px;background-color: var(--border-color);}/* Don't draw lines for the very top-level nodes */.org-chart-root > .org-chart-node::before,.org-chart-root > .org-chart-node::after {display: none;}/* Adjust horizontal line for first and last child to create "T" shape */.org-chart-node:first-child::after {left: 50%;width: 50%;}.org-chart-node:last-child::after {left: 0;width: 50%;}/* A single child doesn't need a horizontal line */.org-chart-node:only-child::after {display: none;}/* Container for children /.org-chart-children {display: flex;justify-content: center;gap: 20px; / This should match the root gap */padding: 0;margin: 0;position: relative;list-style: none;}/* This draws the vertical line DOWN from the card to its children /.org-chart-children::before {content: '';position: absolute;top: -20px; / Connects to the card above */height: 20px;width: 2px;background-color: var(--border-color);}/* =================================== // = Org Chart Contact Card          = // =================================== */.contact-card {background-color: var(--bg-medium);border: 1px solid var(--border-color);border-radius: 8px;padding: 10px 15px;min-width: 180px;text-align: center;cursor: grab;transition: box-shadow 0.2s, border-color 0.2s;position: relative; /* Sits on top of the lines */z-index: 1;box-shadow: 0 2px 5px var(--shadow-light);}.contact-card:hover {border-color: var(--primary-blue);}.contact-card.dragging {opacity: 0.8;background-color: var(--bg-light);transform: scale(1.02);}.contact-card.drop-target {border-color: var(--completed-color);box-shadow: 0 0 10px var(--completed-color);}.contact-card-name {font-weight: 600;color: var(--text-light);font-size: 0.9rem;white-space: nowrap;}.contact-card-title {font-size: 0.8rem;color: var(--text-medium);white-space: nowrap;font-style: italic;}
+/* =================================== */
+/* = Contact View Toggle Header      = */
+/* =================================== */
+
+.contact-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem; /* Space below the header */
+}
+
+.contact-view-header h4 {
+    margin: 0; /* Remove default margin */
+}
+
+/* We can reuse the existing .view-mode-toggle styles from deals.js */
+/* No new CSS needed for the toggle itself */
+
+/* =================================== */
+/* = Org Chart Structure             = */
+/* =================================== */
+
+/* This uses the kanban style for horizontal scrolling */
+#contact-org-chart-view {
+    padding: 1rem;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    min-height: 200px;
+}
+
+/* Base styles for the chart, using flexbox for layout */
+.org-chart-root {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.org-chart-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20px; /* Space for the line from parent */
+    position: relative;
+    list-style: none;
+}
+
+/* This draws the vertical line UP from the node to its parent */
+.org-chart-node::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    height: 20px;
+    width: 2px;
+    background-color: var(--border-color);
+}
+
+/* This draws the horizontal line connecting siblings */
+.org-chart-node::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background-color: var(--border-color);
+}
+
+/* Don't draw lines for the very top-level nodes */
+.org-chart-root > .org-chart-node::before,
+.org-chart-root > .org-chart-node::after {
+    display: none;
+}
+
+/* Adjust horizontal line for first and last child to create "T" shape */
+.org-chart-node:first-child::after {
+    left: 50%;
+    width: 50%;
+}
+
+.org-chart-node:last-child::after {
+    left: 0;
+    width: 50%;
+}
+
+/* A single child doesn't need a horizontal line */
+.org-chart-node:only-child::after {
+    display: none;
+}
+
+/* Container for children */
+.org-chart-children {
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* This should match the root gap */
+    padding: 0;
+    margin: 0;
+    position: relative;
+    list-style: none;
+}
+
+/* This draws the vertical line DOWN from the card to its children */
+.org-chart-children::before {
+    content: '';
+    position: absolute;
+    top: -20px; /* Connects to the card above */
+    height: 20px;
+    width: 2px;
+    background-color: var(--border-color);
+}
+
+
+/* =================================== */
+/* = Org Chart Contact Card          = */
+/* =================================== */
+
+.contact-card {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 15px;
+    min-width: 180px;
+    text-align: center;
+    cursor: grab;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    position: relative; /* Sits on top of the lines */
+    z-index: 1;
+    box-shadow: 0 2px 5px var(--shadow-light);
+}
+
+.contact-card:hover {
+    border-color: var(--primary-blue);
+}
+
+.contact-card.dragging {
+    opacity: 0.8;
+    background-color: var(--bg-light);
+    transform: scale(1.02);
+}
+
+.contact-card.drop-target {
+    border-color: var(--completed-color);
+    box-shadow: 0 0 10px var(--completed-color);
+}
+
+.contact-card-name {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.contact-card-title {
+    font-size: 0.8rem;
+    color: var(--text-medium);
+    white-space: nowrap;
+    font-style: italic;
+}
