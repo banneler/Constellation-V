@@ -802,10 +802,21 @@ async function handlePrintBriefing() {
                 const chartClone = contactOrgChartView.cloneNode(true);
                 chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
                 orgChartDisplayHtml = `
-                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
-                    <div class="briefing-section org-chart-print-container" style="max-height: 300px; overflow: auto; border: 1px solid var(--border-color); background: var(--bg-dark); padding: 10px; border-radius: 8px;">
-                        ${chartClone.innerHTML}
-                    </div>`;
+                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
+                    <div class="briefing-section org-chart-print-container" 
+                         style="
+                            max-height: 300px; 
+                            overflow: hidden; /* We changed this from 'auto' */
+                            border: 1px solid var(--border-color); 
+                            background: var(--bg-dark); 
+                            padding: 10px; 
+                            border-radius: 8px;
+             REALLY cool;
+                         ">
+                                                <div style="zoom: 0.75; transform-origin: top left;">
+                            ${chartClone.innerHTML}
+                        </div>
+                    </div>`;
             } else if (contacts.length > 0) {
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
