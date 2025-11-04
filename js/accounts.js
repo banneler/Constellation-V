@@ -512,7 +512,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (targetCard) targetCard.classList.remove('drop-target');
             });
 
-            card.addEventListener('drop', async (e) => {
+                       card.addEventListener('drop', async (e) => {
                 e.preventDefault();
                 e.stopPropagation(); // Prevent drop from bubbling to parent nodes
 
@@ -540,9 +540,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                         console.error("Error updating reporting structure:", error);
                         showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     } else {
-                        // FIX 1: Update local state and re-render
-                        const draggedContact = state.selectedAccountDetails.contacts.find(c => c.id === draggedContactId);
-                        if(draggedContact) draggedContact.reports_to = targetContactId;
+                        // --- THIS IS THE FIX ---
+                        // Instead of just mutating the object, we create a new state array.
+                        // This guarantees the change is detected for re-rendering.
+                        state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact => 
+                            contact.id === draggedContactId
+                                ? { ...contact, reports_to: targetContactId } // This is the updated contact
+                                : contact // This is all the other contacts
+                        );
+                        // --- END OF FIX ---
+
                         renderOrgChart(); // Re-render the chart with the new structure
                     }
                 }
