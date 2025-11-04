@@ -658,7 +658,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // --- 1. Global TCV (Always a formula) ---
             const globalTcvFormulaBase = `SUM(H${startRow}:H${lastRow})`;
-            csvContent.push(`Global TCV (Formula):,,"=${globalTcvFormulaBase}"`);
+            // --- FIX: Use the createCsvFormula helper ---
+            csvContent.push(`Global TCV (Formula):,,${createCsvFormula(globalTcvFormulaBase)}`);
             
             // --- 2. Global IRR (Conditional Formula) ---
             const firstTerm = state.sites[0]?.inputs.term;
@@ -674,7 +675,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const nrrRange = `D${startRow}:D${lastRow}`;
 
                 const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})-SUM(${nrrRange})))^12-1, "Error")`;
-                csvContent.push(`Global IRR (Formula):,,"=${globalIrrFormulaBase}"`);
+                // --- FIX: Use the createCsvFormula helper ---
+                csvContent.push(`Global IRR (Formula):,,${createCsvFormula(globalIrrFormulaBase)}`);
             } else {
                 // Terms are different. Fall back to calculated value.
                 const globalIRRValue = globalAnnualIRREl.textContent;
@@ -685,7 +687,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // --- 3. Global Decision (Always a formula) ---
             // This formula references the cell where the Global IRR was just placed (C + globalIrrRow)
             const globalDecisionFormulaBase = `IF(C${globalIrrRow}="Error", "Error", IF(C${globalIrrRow}>=B$2, "GO", "NO GO"))`;
-            csvContent.push(`Global Decision (Formula):,,"=${globalDecisionFormulaBase}"`);
+            // --- FIX: Use the createCsvFormula helper ---
+            csvContent.push(`Global Decision (Formula):,,${createCsvFormula(globalDecisionFormulaBase)}`);
         }
 
         // --- Download Logic ---
@@ -1099,6 +1102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 12. Run Initialization ---
     initializePage();
 });
+
 
 
 
