@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const siteFormTemplate = document.getElementById('site-form-template');
     const addSiteBtn = document.getElementById('add-site-btn');
     const printReportBtn = document.getElementById('print-report-btn');
-    const projectNameInput = document.getElementById('project-name'); // <-- ADDED
+    const projectNameInput = document.getElementById('project-name');
 
     // Global Results Elements
     const globalDecisionEl = document.getElementById('global-decision');
@@ -160,16 +160,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         const site = state.sites.find(s => s.id === siteId);
         if (!site) return;
 
+        // 1. Find the correct form wrapper
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
-        if (!formWrapper) return;
+        if (!formWrapper) {
+            console.error(`runSiteCalculation: Could not find formWrapper for siteId ${siteId}`);
+            return; 
+        }
 
-        // Get individual UI elements
+        // 2. Find the UI elements *within that specific wrapper*
+        //    This is the critical fix.
         const resultsContainer = formWrapper.querySelector('.individual-results-container');
+        if (!resultsContainer) {
+            console.error(`runSiteCalculation: Could not find .individual-results-container in formWrapper for siteId ${siteId}`);
+            return;
+        }
+        
         const decisionEl = resultsContainer.querySelector('.individual-decision');
         const annualIRREl = resultsContainer.querySelector('.individual-annual-irr');
         const errorMessageEl = resultsContainer.querySelector('.individual-error-message');
 
-        // Read values from form and update state
+        if (!decisionEl || !annualIRREl || !errorMessageEl) {
+            console.error(`runSiteCalculation: Missing results elements for siteId ${siteId}`);
+            return;
+        }
+
+        // 3. Read values from form and update state
         site.name = formWrapper.querySelector('.site-name-input').value || `Site ${site.id}`;
         site.inputs.constructionCost = parseFloat(formWrapper.querySelector('.construction-cost-input').value) || 0;
         site.inputs.engineeringCost = parseFloat(formWrapper.querySelector('.engineering-cost-input').value) || 0;
@@ -179,12 +194,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         site.inputs.term = parseInt(formWrapper.querySelector('.term-input').value) || 0;
         site.inputs.targetIRR = (parseFloat(formWrapper.querySelector('.target-irr-input').value) || 0) / 100;
 
+        // 4. Perform calculation
         const { cashFlows, error: validationError } = getCashFlowsForSite(site.inputs);
 
         if (validationError) {
             site.result.error = validationError;
             site.result.annualIRR = null;
             site.result.decision = 'Error';
+            // 5. Update UI (with correct elements)
             showSiteError(errorMessageEl, decisionEl, annualIRREl, validationError);
         } else {
             const monthlyIRR = calculateIRR(cashFlows);
@@ -192,15 +209,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 site.result.error = "Could not calculate IRR. Check inputs.";
                 site.result.annualIRR = null;
                 site.result.decision = 'Error';
+                // 5. Update UI (with correct elements)
                 showSiteError(errorMessageEl, decisionEl, annualIRREl, site.result.error);
             } else {
                 site.result.error = null;
                 site.result.annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
                 site.result.decision = site.result.annualIRR >= site.inputs.targetIRR ? 'GO' : 'NO GO';
+                // 5. Update UI (with correct elements)
                 showSiteResults(errorMessageEl, decisionEl, annualIRREl, site.result.annualIRR, site.result.decision);
             }
         }
         
+        // 6. Update tabs and global results
         renderTabs();
         setActiveSite(site.id); // Re-assert active tab
         
@@ -359,7 +379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 6. Print Function ---
 
     function handlePrintReport() {
-        // <-- UPDATED: Read the project name from the new input -->
+        // Read the project name from the new input
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
 
         let reportHtml = `
@@ -378,7 +398,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .global-irr { font-size: 2rem; font-weight: bold; margin: 0; }
                 .global-decision { font-size: 2.5rem; font-weight: bold; margin-bottom: 10px; }
             </style>
-            <!-- UPDATED: Use the dynamic project name -->
+            <!-- Use the dynamic project name -->
             <h1>${projectName}</h1>
         `;
 
@@ -448,7 +468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const frameDoc = printFrame.contentWindow.document;
         frameDoc.open();
-        // <-- UPDATED: Use dynamic project name in <title> -->
+        // Use dynamic project name in <title>
         frameDoc.write(`<html><head><title>${projectName}</title></head><body>`);
         frameDoc.write(reportHtml);
         frameDoc.write('</body></html>');
