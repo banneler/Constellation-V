@@ -647,17 +647,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (state.sites.length > 0) {
             const lastRow = startRow + state.sites.length - 1;
             csvContent.push(""); // Spacer row
-            csvContent.push("Global Results,,,,,Inputs,Formulas"); // Header
             
-            // Apply the same CSV formula logic to the Global TCV
+            // --- REMOVED: Confusing "Inputs, Formulas" header ---
+            // csvContent.push("Global Results,,,,,Inputs,Formulas"); // Header
+            
+            // Define summary row numbers
+            const globalTcvRow = lastRow + 2;
+            const globalIrrRow = globalTcvRow + 1;
+            const globalDecisionRow = globalIrrRow + 1;
+
+            // --- 1. Global TCV (Always a formula) ---
             const globalTcvFormulaBase = `SUM(H${startRow}:H${lastRow})`;
             csvContent.push(`Global TCV (Formula):,,"=${globalTcvFormulaBase}"`);
             
-            const globalIRRValue = globalAnnualIRREl.textContent;
-            const globalDecisionValue = globalDecisionEl.textContent;
+            // --- 2. Global IRR (Conditional Formula) ---
+            const firstTerm = state.sites[0]?.inputs.term;
+            const allTermsSame = state.sites.every(s => s.inputs.term === firstTerm);
+
+            if (allTermsSame && firstTerm > 0) {
+                // ALL terms are the same. We can use a single, powerful RATE formula.
+                const firstTermCell = `G${startRow}`; // e.g., G5
+                const pmtRange = `F${startRow}:F${lastRow}`;
+                const mrrRange = `E${startRow}:E${lastRow}`;
+                const constRange = `B${startRow}:B${lastRow}`;
+                const engRange = `C${startRow}:C${lastRow}`;
+                const nrrRange = `D${startRow}:D${lastRow}`;
+
+                const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})-SUM(${nrrRange})))^12-1, "Error")`;
+                csvContent.push(`Global IRR (Formula):,,"=${globalIrrFormulaBase}"`);
+            } else {
+                // Terms are different. Fall back to calculated value.
+                const globalIRRValue = globalAnnualIRREl.textContent;
+                csvContent.push(`Global IRR (Calculated):,,${escapeCSV(globalIRRValue)}`);
+                csvContent.push(`Note:, "Global IRR is a calculated value because site terms are not identical."`);
+            }
             
-            csvContent.push(`Global IRR (Calculated):,,${escapeCSV(globalIRRValue)}`);
-            csvContent.push(`Global Decision (Calculated):,,${escapeCSV(globalDecisionValue)}`);
+            // --- 3. Global Decision (Always a formula) ---
+            // This formula references the cell where the Global IRR was just placed (C + globalIrrRow)
+            const globalDecisionFormulaBase = `IF(C${globalIrrRow}="Error", "Error", IF(C${globalIrrRow}>=B$2, "GO", "NO GO"))`;
+            csvContent.push(`Global Decision (Formula):,,"=${globalDecisionFormulaBase}"`);
         }
 
         // --- Download Logic ---
@@ -1071,6 +1099,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 12. Run Initialization ---
     initializePage();
 });
+
 
 
 
