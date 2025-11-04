@@ -3,95 +3,40 @@
  *
  * This script powers the irr.html page, providing all the logic
  * for calculating the Internal Rate of Return for fiber projects.
+ *
+ * It's structured to match the site's main modules (like accounts.js).
  */
 
-// Wait for the DOM to be fully loaded before attaching listeners
-document.addEventListener('DOMContentLoaded', () => {
+// Import all shared functions and constants
+import {
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    formatDate,
+    formatMonthYear,
+    parseCsvRow,
+    themes,
+    setupModalListeners,
+    showModal,
+    hideModal,
+    updateActiveNavLink,
+    setupUserMenuAndAuth,
+    loadSVGs,
+    setupGlobalSearch,
+    checkAndSetNotifications
+} from './shared_constants.js';
 
-    // --- 1. Get Element References ---
-    // Inputs
-    const constructionCostEl = document.getElementById('constructionCost');
-    const engineeringCostEl = document.getElementById('engineeringCost');
-    const nrrEl = document.getElementById('nrr');
-    const mrrEl = document.getElementById('mrr');
-    const monthlyCostEl = document.getElementById('monthlyCost');
-    const termEl = document.getElementById('term');
-    const targetIRREl = document.getElementById('targetIRR');
-    
-    // Button
-    const calculateButton = document.getElementById('calculateButton');
-    
-    // Outputs
-    const resultsDiv = document.getElementById('results');
-    const decisionEl = document.getElementById('decision');
-    const annualIRREl = document.getElementById('annualIRR');
-    const errorMessageEl = document.getElementById('errorMessage');
+// Wait for the DOM to be fully loaded before initializing
+document.addEventListener('DOMContentLoaded', async () => {
 
-    // --- 2. Attach Event Listeners ---
-    if (calculateButton) {
-        calculateButton.addEventListener('click', runCalculation);
-    }
+    // --- 1. Initialize Supabase and State ---
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let state = {
+        currentUser: null
+        // No 'isFormDirty' needed for the calculator as it doesn't save to DB
+    };
 
-    // Add listeners to all inputs to recalculate on change for a live feel
-    // (This is optional but a nice UX touch)
-    const allInputs = [
-        constructionCostEl, engineeringCostEl, nrrEl, 
-        mrrEl, monthlyCostEl, termEl, targetIRREl
-    ];
-    allInputs.forEach(input => {
-        if (input) {
-            input.addEventListener('input', runCalculation);
-        }
-    });
-
-    // --- 3. Core Calculation Function ---
-    function runCalculation() {
-        // --- Get All Input Values ---
-        const constructionCost = parseFloat(constructionCostEl.value) || 0;
-        const engineeringCost = parseFloat(engineeringCostEl.value) || 0;
-        const nrr = parseFloat(nrrEl.value) || 0;
-        const mrr = parseFloat(mrrEl.value) || 0;
-        const monthlyCost = parseFloat(monthlyCostEl.value) || 0;
-        const term = parseInt(termEl.value) || 0;
-        const targetIRR = (parseFloat(targetIRREl.value) || 0) / 100;
-
-        // --- Create Cash Flow Array ---
-        const cashFlows = [];
-        
-        // Month 0: Initial Investment
-        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost);
-        cashFlows.push(monthZeroCashFlow);
-
-        // Months 1 to Term
-        const monthlyNetCashFlow = mrr - monthlyCost;
-        for (let i = 0; i < term; i++) {
-            cashFlows.push(monthlyNetCashFlow);
-        }
-
-        // --- Validate Inputs ---
-        if (term <= 0 || cashFlows.length <= 1) {
-            showError("Please enter a valid term (at least 1 month).");
-            return;
-        }
-        if (monthZeroCashFlow >= 0 && monthlyNetCashFlow >= 0) {
-             showError("Cannot calculate IRR: Project has no negative cash flow (no investment).");
-             return;
-        }
-
-        // --- 4. Calculate IRR ---
-        const monthlyIRR = calculateIRR(cashFlows);
-        
-        if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
-            showError("Could not calculate IRR. The project may not have a valid return (e.g., all positive or all negative cash flows).");
-            return;
-        }
-
-        // --- 5. Annualize and Display Results ---
-        const annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
-        showResults(annualIRR, targetIRR);
-    }
-
-    // --- 4. Helper Functions ---
+    // --- 2. Calculator-Specific Helper Functions ---
+    // (These are the functions from the original irr.js)
 
     /**
      * Shows the results in the UI.
@@ -99,6 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {number} targetIRR - The user's target IRR.
      */
     function showResults(annualIRR, targetIRR) {
+        const resultsDiv = document.getElementById('results');
+        const errorMessageEl = document.getElementById('errorMessage');
+        const annualIRREl = document.getElementById('annualIRR');
+        const decisionEl = document.getElementById('decision');
+
+        if (!resultsDiv || !errorMessageEl || !annualIRREl || !decisionEl) return;
+
         resultsDiv.classList.remove('hidden');
         errorMessageEl.classList.add('hidden');
 
@@ -106,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
         annualIRREl.textContent = (annualIRR * 100).toFixed(2) + '%';
         
         // Make decision and apply styles
-        // Using var() to pull from your site's CSS variables
         if (annualIRR >= targetIRR) {
             decisionEl.textContent = 'GO';
             decisionEl.style.color = 'var(--color-success, #22c55e)'; // Green
@@ -123,6 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} message - The error message to display.
      */
     function showError(message) {
+        const resultsDiv = document.getElementById('results');
+        const errorMessageEl = document.getElementById('errorMessage');
+        const annualIRREl = document.getElementById('annualIRR');
+        const decisionEl = document.getElementById('decision');
+
+        if (!resultsDiv || !errorMessageEl || !annualIRREl || !decisionEl) return;
+
         resultsDiv.classList.remove('hidden');
         errorMessageEl.classList.remove('hidden');
         errorMessageEl.textContent = message;
@@ -167,8 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Try to find a valid range
         if (npvAtMin * npvAtMax > 0) {
-            // If both are same sign, the bisection method won't work.
-            // Let's try expanding the search range.
             maxRate = 5.0; // 500%
             npvAtMax = calculateNPV(maxRate, cashFlows);
             if (npvAtMin * npvAtMax > 0) {
@@ -176,8 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  maxRate = 20.0; // 2000%
                  npvAtMin = calculateNPV(minRate, cashFlows);
                  npvAtMax = calculateNPV(maxRate, cashFlows);
-                 
-                 // If still failing, return NaN
                  if (npvAtMin * npvAtMax > 0) return NaN;
             }
         }
@@ -187,23 +141,152 @@ document.addEventListener('DOMContentLoaded', () => {
             let npvAtMid = calculateNPV(midRate, cashFlows);
 
             if (Math.abs(npvAtMid) < precision) {
-                // Solution found
                 return midRate;
             } else if (npvAtMid * npvAtMin > 0) {
-                // Same sign as min, so move min to mid
                 minRate = midRate;
                 npvAtMin = npvAtMid;
             } else {
-                // Opposite sign, so move max to mid
                 maxRate = midRate;
             }
         }
         
-        // Return the best guess after max iterations
         return midRate;
     }
 
-    // --- 5. Initial Run ---
-    // Run the calculation on page load with the default values
-    runCalculation();
+    /**
+     * Core calculation function that reads from DOM and calls helpers.
+     */
+    function runCalculation() {
+        // --- Get Element References ---
+        const constructionCostEl = document.getElementById('constructionCost');
+        const engineeringCostEl = document.getElementById('engineeringCost');
+        const nrrEl = document.getElementById('nrr');
+        const mrrEl = document.getElementById('mrr');
+        const monthlyCostEl = document.getElementById('monthlyCost');
+        const termEl = document.getElementById('term');
+        const targetIRREl = document.getElementById('targetIRR');
+
+        // --- Get All Input Values ---
+        const constructionCost = parseFloat(constructionCostEl.value) || 0;
+        const engineeringCost = parseFloat(engineeringCostEl.value) || 0;
+        const nrr = parseFloat(nrrEl.value) || 0;
+        const mrr = parseFloat(mrrEl.value) || 0;
+        const monthlyCost = parseFloat(monthlyCostEl.value) || 0;
+        const term = parseInt(termEl.value) || 0;
+        const targetIRR = (parseFloat(targetIRREl.value) || 0) / 100;
+
+        // --- Create Cash Flow Array ---
+        const cashFlows = [];
+        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost);
+        cashFlows.push(monthZeroCashFlow);
+        const monthlyNetCashFlow = mrr - monthlyCost;
+        for (let i = 0; i < term; i++) {
+            cashFlows.push(monthlyNetCashFlow);
+        }
+
+        // --- Validate Inputs ---
+        if (term <= 0 || cashFlows.length <= 1) {
+            showError("Please enter a valid term (at least 1 month).");
+            return;
+        }
+        if (monthZeroCashFlow >= 0 && monthlyNetCashFlow >= 0) {
+             showError("Cannot calculate IRR: Project has no negative cash flow (no investment).");
+             return;
+        }
+
+        // --- Calculate IRR ---
+        const monthlyIRR = calculateIRR(cashFlows);
+        
+        if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
+            showError("Could not calculate IRR. The project may not have a valid return (e.g., all positive or all negative cash flows).");
+            return;
+        }
+
+        // --- Annualize and Display Results ---
+        const annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
+        showResults(annualIRR, targetIRR);
+    }
+
+    // --- 3. Page-Specific Event Listeners ---
+    function setupPageEventListeners() {
+        // Setup standard modal listeners from shared_constants.js
+        setupModalListeners();
+
+        // Handle navigation clicks from the sidebar
+        const navSidebar = document.querySelector(".nav-sidebar");
+        if (navSidebar) {
+            navSidebar.addEventListener('click', (e) => {
+                const navButton = e.target.closest('a.nav-button');
+                if (navButton) {
+                    e.preventDefault();
+                    // No dirty check needed for the calculator
+                    window.location.href = navButton.href;
+                }
+            });
+        }
+
+        // --- Setup Calculator Listeners ---
+        const calculateButton = document.getElementById('calculateButton');
+        if (calculateButton) {
+            calculateButton.addEventListener('click', runCalculation);
+        }
+
+        // Add listeners to all inputs to recalculate on change
+        const allInputs = [
+            document.getElementById('constructionCost'),
+            document.getElementById('engineeringCost'),
+            document.getElementById('nrr'),
+            document.getElementById('mrr'),
+            document.getElementById('monthlyCost'),
+            document.getElementById('term'),
+            document.getElementById('targetIRR')
+        ];
+
+        allInputs.forEach(input => {
+            if (input) {
+                input.addEventListener('input', runCalculation);
+            }
+        });
+
+        // Run the calculation on page load with the default values
+        runCalculation();
+    }
+
+    // --- 4. Main Page Initialization ---
+    async function initializePage() {
+        // Load all SVGs first
+        await loadSVGs();
+        
+        // Check session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+            console.error('Authentication failed or no session found. Redirecting to login.');
+            window.location.href = "index.html"; // Redirect to login
+            return;
+        }
+        state.currentUser = session.user;
+
+        try {
+            // Setup all the shared UI elements
+            await setupUserMenuAndAuth(supabase, state);
+            await setupGlobalSearch(supabase, state.currentUser);
+            await checkAndSetNotifications(supabase);
+            
+            // Setup the specific listeners for *this* page
+            setupPageEventListeners();
+
+        } catch (error) {
+            console.error("Critical error during page initialization:", error);
+            showModal(
+                "Loading Error",
+                "There was a problem loading the page. Please refresh to try again.",
+                null, false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
+        }
+    }
+
+    // --- 5. Run Initialization ---
+    initializePage();
 });
+
