@@ -632,7 +632,7 @@ async function handlePrintBriefing() {
 
     // --- html2canvas Logic ---
     
-    // 2. Clone the container to work on it without affecting the live modal
+    // 2. Clone the container to work on it
     const printClone = briefingContainer.cloneNode(true);
     
     // 3. Find the org chart element *within the clone*
@@ -644,9 +644,8 @@ async function handlePrintBriefing() {
     if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
         try {
             // 5. "Screenshot" the live org chart element
-            // We force a white background so it looks good on paper
             const canvas = await html2canvas(sourceChartElement, { 
-                backgroundColor: '#ffffff',
+                backgroundColor: '#ffffff', // Force a white background
                 useCORS: true 
             });
             
@@ -654,12 +653,13 @@ async function handlePrintBriefing() {
             const imgDataUrl = canvas.toDataURL('image/png');
             
             // 7. Create new, simple HTML for the image
-           // This is the corrected version
-const orgChartImageHtml = `
-    <div class="briefing-section">
-        <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #eee;">
-    </div>
-`;
+            // --- THIS IS THE FIX for the duplicate header ---
+            // We've removed the <h4> from here, as it's already in the clone.
+            const orgChartImageHtml = `
+                <div class="briefing-section">
+                    <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto;">
+                </div>
+            `;
             
             // 8. *Replace* the complex HTML chart in our clone with the simple image
             chartElement.parentNode.replaceChild(
@@ -674,12 +674,11 @@ const orgChartImageHtml = `
     }
     
     // 9. Get the *entire* inner HTML of our modified clone
-    // This now contains all the text AND the new chart image
     const briefingHtml = printClone.innerHTML;
     
     // --- End of html2canvas Logic ---
 
-    // 10. Create the iframe (same as your old code)
+    // 10. Create the iframe
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'absolute';
     printFrame.style.width = '0';
@@ -691,29 +690,100 @@ const orgChartImageHtml = `
     frameDoc.open();
     
     // 11. Write the new content to the iframe
-    // Notice we no longer link org-chart.css (don't need it)
-    // And we only write `briefingHtml`, which now contains everything.
     frameDoc.write(`
         <html>
             <head>
                 <title>AI Briefing: ${accountName || 'Account'}</title>
                 <link rel="stylesheet" href="css/style.css">
+                
                 <style>
                     @media print {
-                        body { margin: 20px; font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        .ai-briefing-container { box-shadow: none; border: none; }
-                        h2 { font-size: 1.5rem; color: #000; }
-                        h3 { font-size: 1.2rem; color: #333; }
-                        h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
-                        .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; border: 1px solid #eee; }
-                        div.briefing-pre { background-color: #eee !important; border: 1px solid #ddd; white-space: pre-wrap; word-wrap: break-word; }
-                        /* We can remove all the old org-chart print styles */
+                        body { 
+                            margin: 25px; 
+                            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                            color: #333;
+                        }
+
+                        /* NEW: Report Header Block */
+                        .report-header {
+                            background-color: #3b82f6 !important; /* Constellation Blue */
+                            color: #ffffff !important;
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin-bottom: 25px;
+                            page-break-inside: avoid;
+                        }
+                        .report-header h2 {
+                            font-size: 1.8rem;
+                            color: #ffffff !important;
+                            margin: 0;
+                            font-weight: 600;
+                        }
+                        .report-header h3 {
+                            font-size: 1.3rem;
+                            color: #ffffff !important;
+                            margin: 0;
+                            font-weight: 400;
+                            opacity: 0.9;
+                        }
+
+                        /* Upgraded Section Headers */
+                        h4 { 
+                            font-size: 1.1rem;
+                            font-weight: 600;
+                            color: #3b82f6 !important; /* Constellation Blue */
+                            border-bottom: 2px solid #3b82f6 !important;
+                            padding-bottom: 6px;
+                            margin-top: 30px;
+                            margin-bottom: 16px;
+                        }
+                        
+                        /* Upgraded Section Content Box */
+                        .briefing-section { 
+                            background-color: #f9f9f9 !important; 
+                            page-break-inside: avoid; 
+                            border: 1px solid #eee;
+                            padding: 16px;
+                            border-radius: 8px;
+                            margin-bottom: 16px;
+                        }
+
+                        /* Special highlight for the AI Recommendation */
+                        .briefing-section.recommendation {
+                            background-color: #eef5ff !important; /* Light blue */
+                            border-color: #b0cfff !important;
+                        }
+
+                        /* Cleaner text block for lists */
+                        div.briefing-pre { 
+                            background-color: #fff !important; 
+                            border: 1px solid #ddd;
+                            white-space: pre-wrap;
+                            word-wrap: break-word;
+                            padding: 12px;
+                            border-radius: 6px;
+                            font-family: "SF Mono", "Consolas", "Courier New", monospace;
+                            font-size: 0.9rem;
+                        }
+                        
+                        /* Ensure our canvas image looks good */
+                        .briefing-section img {
+                            width: 100%;
+                            max-width: 100%;
+                            height: auto;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                        }
                     }
                 </style>
             </head>
             <body>
-                <h2>AI Reconnaissance Report</h2>
-                <h3>${accountName || 'Selected Account'}</h3>
+                <div class="report-header">
+                    <h2>AI Reconnaissance Report</h2>
+                    <h3>${accountName || 'Selected Account'}</h3>
+                </div>
                 
                 <div class="ai-briefing-container">${briefingHtml}</div>
             
@@ -738,7 +808,7 @@ const orgChartImageHtml = `
             }
             document.title = originalTitle;
         }
-    }, 250); // This timeout is still good, it helps the iframe
+    }, 250); // This timeout helps the iframe's content render
 }
 
     // --- AI Briefing Handler ---
