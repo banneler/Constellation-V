@@ -13,9 +13,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display.swap" rel="stylesheet">
 
-    <!-- New styles for the tabbed interface -->
+    <!-- ... (existing <style> block for tabs, results, etc. is unchanged) ... -->
     <style>
         .irr-tab-bar {
             display: flex;
@@ -163,6 +163,38 @@
             font-weight: 500;
             text-align: center;
         }
+        
+        /* NEW: Style for the load project modal */
+        #load-project-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        #load-project-list li {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #load-project-list li:last-child {
+            border-bottom: none;
+        }
+        #load-project-list li:hover {
+            background-color: var(--bg-hover);
+        }
+        #load-project-list li .project-name {
+            font-weight: 600;
+        }
+        #load-project-list li .project-date {
+            font-size: 0.85rem;
+            color: var(--text-color-secondary);
+        }
 
     </style>
 </head>
@@ -185,6 +217,7 @@
             <a href="sequences.html" class="nav-button">Sequences</a>
             <a href="social_hub.html" class="nav-button">Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
             <div class="nav-bottom-section">
+                <!-- ... (cognito, user menu unchanged) ... -->
                 <div style="position: relative;">
                     <a href="cognito.html" class="nav-button cognito-nav-link">
                         <h1>
@@ -224,36 +257,37 @@
         <main class="content-area">
             <div id="irr-calculator" class="content-view active-view">
                 
-                <!-- This container holds the header, new project name, and buttons -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <h2>Multi-Site IRR Calculator</h2>
+
+                <!-- NEW: Project Controls Bar -->
+                <div class="form-buttons" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; align-items: center;">
+                    <button type="button" id="new-project-btn" class="btn-secondary"><i class="fas fa-file"></i> New Project</button>
+                    <button type="button" id="load-project-btn" class="btn-secondary"><i class="fas fa-folder-open"></i> Load Project</button>
+                    <button type="button" id="save-project-btn" class="btn-primary cognito-style-btn"><i class="fas fa-save"></i> Save Project</button>
                     
-                    <!-- Left side: Title and new Project Name input -->
-                    <div style="flex-grow: 1;">
-                        <h2>Multi-Site IRR Calculator</h2>
-                        <div style="margin-top: 0.5rem; max-width: 450px;">
-                            <label for="project-name" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Project Name</label>
-                            <!-- This input will be read by JS for the print report -->
-                            <input type="text" id="project-name" placeholder="e.g., Citywide Fiber Expansion" style="width: 100%;">
-                        </div>
+                    <!-- Divider -->
+                    <div style="width: 2px; background: var(--border-color); height: 25px; margin: 0 0.5rem;"></div>
+
+                    <button type="button" id="add-site-btn" class="btn-secondary"><i class="fas fa-plus"></i> Add Site</button>
+                    <button type="button" id="print-report-btn" class="btn-secondary"><i class="fas fa-print"></i> Print Report</button>
+                </div>
+
+
+                <!-- Project Inputs (Name and Target) -->
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; max-width: 900px; margin-bottom: 1.5rem;">
+                    <div>
+                        <label for="project-name" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Project Name</label>
+                        <input type="text" id="project-name" placeholder="e.g., Citywide Fiber Expansion" style="width: 100%;">
                     </div>
-                    
-                    <!-- Right side: Buttons -->
-                    <div class="form-buttons" style="flex-shrink: 0; margin-top: 0.5rem;">
-                        <button type="button" id="add-site-btn" class="btn-secondary"><i class="fas fa-plus"></i> Add Site</button>
-                        <button type="button" id="print-report-btn" class="btn-primary"><i class="fas fa-print"></i> Print Report</button>
+                    <div>
+                         <label for="global-target-irr" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Global Target IRR (%)</label>
+                         <input type="number" id="global-target-irr" placeholder="e.g., 15" value="15" style="width: 100%;">
                     </div>
                 </div>
 
-                <!-- NEW: Global Target IRR Input moved here -->
-                <div style="max-width: 450px; margin-bottom: 1.5rem;">
-                     <label for="global-target-irr" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Global Target IRR (%)</label>
-                     <input type="number" id="global-target-irr" placeholder="e.g., 15" value="15" style="width: 100%;">
-                </div>
-
-                <!-- MOVED: Global Results Section is now at the top -->
+                <!-- Global Results Section (Unchanged) -->
                 <div id="global-results-container">
                     <h3>Global Project Results (All Sites)</h3>
-                    <!-- NEW: Grid layout for results -->
                     <div class="global-results-grid">
                         <div>
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Global Decision</span>
@@ -263,7 +297,6 @@
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Global Annual IRR</span>
                             <p id="global-annual-irr" class="pending">--%</p>
                         </div>
-                        <!-- NEW: Global TCV -->
                         <div>
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Global TCV ($)</span>
                             <p id="global-tcv" class="pending">$0</p>
@@ -274,12 +307,12 @@
                     </div>
                 </div>
 
-                <!-- Tab bar -->
+                <!-- Tab bar (Unchanged) -->
                 <div id="site-tabs-container" class="irr-tab-bar">
                     <!-- Tabs go here -->
                 </div>
 
-                <!-- Site forms container -->
+                <!-- Site forms container (Unchanged) -->
                 <div id="site-forms-container">
                     <!-- Forms go here -->
                 </div>
@@ -289,9 +322,7 @@
     </div>
 
     <!-- 
-      UPDATED TEMPLATE
-      - Removed individual "Target Annual IRR"
-      - Added "Site TCV" display
+      Site Form Template (Unchanged from your file)
     -->
     <template id="site-form-template">
         <div class="site-form-wrapper" data-site-id="">
@@ -335,14 +366,10 @@
                         </div>
                     </div>
                     
-                    <!-- REMOVED: Individual Benchmark section -->
-
                 </form>
 
-                <!-- NEW: Individual Site Results (with TCV) -->
                 <div class="individual-results-container">
                     <h3>Site Project Results</h3>
-                    <!-- NEW: Grid layout for individual results -->
                     <div class="individual-results-grid">
                         <div>
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Site Decision</span>
@@ -352,7 +379,6 @@
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Site Annual IRR</span>
                             <p class="individual-annual-irr pending">--%</p>
                         </div>
-                        <!-- NEW: Site TCV -->
                         <div>
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Site TCV ($)</span>
                             <p class="individual-tcv pending">$0</p>
@@ -367,7 +393,7 @@
         </div>
     </template>
 
-    <!-- Modals (Unchanged) -->
+    <!-- Main Modal (Unchanged) -->
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 id="modal-title"></h3>
@@ -379,6 +405,24 @@
     <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
         <!-- ... (modal content unchanged) ... -->
     </div>
+    
+    <!-- NEW: Load Project Modal -->
+    <div id="load-project-modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 id="load-project-modal-title">Load Project</h3>
+            <div id="load-project-modal-body">
+                <p>Select a project to load. This will replace your current, unsaved project.</p>
+                <ul id="load-project-list">
+                    <!-- Projects will be loaded here by JS -->
+                    <li class="placeholder-text">Loading...</li>
+                </ul>
+            </div>
+            <div id="load-project-modal-actions" class="modal-actions">
+                 <button id="load-project-cancel-btn" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         (function() {
