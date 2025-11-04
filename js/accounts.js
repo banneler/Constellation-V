@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 2. Fetches detailed data for ONE account after it has been selected.
     // Fetches detailed data and puts it into the new state.selectedAccountDetails object
     async function loadDetailsForSelectedAccount() {
-    if (!state.selectedAccountId) return;
+        if (!state.selectedAccountId) return;
 
         // Show a loading state in the UI immediately
         // MODIFIED: Target new containers
@@ -132,30 +132,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
 
-    // Fetch all related data for only the selected account
-    // MODIFIED: Broke into two steps to fix the ReferenceError
-    // STEP 1: Fetch all data *except* contact_sequences
-    const [contactsRes, dealsRes, activitiesRes, tasksRes] = await Promise.all([
-        supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId), // This will fetch all fields, including 'reports_to'
-        supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
-        supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId)
-    ]);
+        // Fetch all related data for only the selected account
+        // MODIFIED: Broke into two steps to fix the ReferenceError
+        // STEP 1: Fetch all data *except* contact_sequences
+        const [contactsRes, dealsRes, activitiesRes, tasksRes] = await Promise.all([
+            supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId), // This will fetch all fields, including 'reports_to'
+            supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
+            supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
+            supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId)
+        ]);
 
-    if (contactsRes.error) throw contactsRes.error;
-    if (dealsRes.error) throw dealsRes.error;
-    if (activitiesRes.error) throw activitiesRes.error;
-    if (tasksRes.error) throw tasksRes.error;
+        if (contactsRes.error) throw contactsRes.error;
+        if (dealsRes.error) throw dealsRes.error;
+        if (activitiesRes.error) throw activitiesRes.error;
+        if (tasksRes.error) throw tasksRes.error;
 
-    // STEP 2: Use contactsRes.data to fetch contact_sequences
-    const contactIds = (contactsRes.data || []).map(c => c.id);
-    const sequencesRes = contactIds.length > 0
-        ? await supabase.from("contact_sequences").select("*").in('contact_id', contactIds)
-        : { data: [], error: null }; // Avoid an empty 'in' query
+        // STEP 2: Use contactsRes.data to fetch contact_sequences
+        const contactIds = (contactsRes.data || []).map(c => c.id);
+        const sequencesRes = contactIds.length > 0
+            ? await supabase.from("contact_sequences").select("*").in('contact_id', contactIds)
+            : { data: [], error: null }; // Avoid an empty 'in' query
 
-    if (sequencesRes.error) throw sequencesRes.error;
+        if (sequencesRes.error) throw sequencesRes.error;
 
-    // Populate the dedicated details object, leaving the master lists untouched
+        // Populate the dedicated details object, leaving the master lists untouched
         state.selectedAccountDetails.contacts = contactsRes.data || [];
         state.selectedAccountDetails.deals = dealsRes.data || [];
         state.selectedAccountDetails.activities = activitiesRes.data || [];
@@ -461,17 +461,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     // NEW: Drag and Drop logic for the Org Chart
     const setupOrgChartDragDrop = () => {
         let draggedContactId = null;
-        const contactMap = new Map(state.selectedAccountDetails.contacts.map(c => [c.id, { ...c }]));
-
+        
         // FIX 2: Helper function to detect circular reporting
+        // This function now builds a fresh map from the *current state* every time it's called
         const isCircular = (targetId, draggedId) => {
+            // We use the LIVE state, not a stale map
+            const contacts = state.selectedAccountDetails.contacts;
+            const contactMap = new Map(contacts.map(c => [c.id, c]));
+
             let currentId = targetId;
             while (currentId) {
                 if (currentId === draggedId) {
                     return true; // Loop detected!
                 }
                 const currentContact = contactMap.get(currentId);
-                currentId = currentContact ? currentContact.reports_to : null;
+                // Handle reports_to being null or a number
+                currentId = currentContact && currentContact.reports_to ? Number(currentContact.reports_to) : null;
             }
             return false;
         };
@@ -548,11 +553,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         // FIX 3: Add listeners to the main container to break connections
         contactOrgChartView.addEventListener('dragover', (e) => {
             e.preventDefault(); // Allow dropping
-            e.dataTransfer.dropEffect = 'move';
+            // Check if we're hovering over the background, not a card
+            const targetCard = e.target.closest('.contact-card');
+            if (!targetCard) {
+                e.dataTransfer.dropEffect = 'move';
+                contactOrgChartView.classList.add('drop-target-background');
+            }
+        });
+        
+        contactOrgChartView.addEventListener('dragleave', (e) => {
+             // Only remove if leaving the main container
+             if (e.target === contactOrgChartView) {
+                 contactOrgChartView.classList.remove('drop-target-background');
+             }
         });
 
         contactOrgChartView.addEventListener('drop', async (e) => {
             e.preventDefault();
+            contactOrgChartView.classList.remove('drop-target-background');
             
             // Check if the drop was on a card (it will have bubbled up if not stopped)
             const targetCard = e.target.closest('.contact-card');
@@ -1355,5 +1373,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     initializePage();
 });
-
 
