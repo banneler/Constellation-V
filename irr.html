@@ -195,9 +195,21 @@
         <main class="content-area">
             <div id="irr-calculator" class="content-view active-view">
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2>Multi-Site IRR Calculator</h2>
-                    <div class="form-buttons">
+                <!-- This container holds the header, new project name, and buttons -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                    
+                    <!-- Left side: Title and new Project Name input -->
+                    <div style="flex-grow: 1;">
+                        <h2>Multi-Site IRR Calculator</h2>
+                        <div style="margin-top: 0.5rem; max-width: 450px;">
+                            <label for="project-name" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Project Name</label>
+                            <!-- This input will be read by JS for the print report -->
+                            <input type="text" id="project-name" placeholder="e.g., Citywide Fiber Expansion" style="width: 100%;">
+                        </div>
+                    </div>
+                    
+                    <!-- Right side: Buttons -->
+                    <div class="form-buttons" style="flex-shrink: 0; margin-top: 0.5rem;">
                         <button type="button" id="add-site-btn" class="btn-secondary"><i class="fas fa-plus"></i> Add Site</button>
                         <button type="button" id="print-report-btn" class="btn-primary"><i class="fas fa-print"></i> Print Report</button>
                     </div>
