@@ -512,7 +512,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (targetCard) targetCard.classList.remove('drop-target');
             });
 
-                       card.addEventListener('drop', async (e) => {
+            card.addEventListener('drop', async (e) => {
                 e.preventDefault();
                 e.stopPropagation(); // Prevent drop from bubbling to parent nodes
 
@@ -604,8 +604,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 console.error("Error breaking reporting structure:", error);
                 showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             } else {
-                // Update local state and re-render
-                if(contact) contact.reports_to = null;
+                // --- THIS IS THE FIX (applied here too for consistency) ---
+                // Rebuild the state array to guarantee a re-render
+                state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact => 
+                    contact.id === draggedContactId
+                        ? { ...contact, reports_to: null } // The updated contact
+                        : contact // All other contacts
+                );
+                // --- END OF FIX ---
+                
                 renderOrgChart();
             }
             draggedContactId = null;
@@ -794,8 +801,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
                 const tree = [];
                 contactMap.forEach(contact => {
-                    if (contact.reports_to && contactMap.has(contact.reports_to)) {
-                        contactMap.get(contact.reports_to).children.push(contact);
+                    if (contact.reports_to && contactMap.has(Number(contact.reports_to))) { // Use Number
+                        contactMap.get(Number(contact.reports_to)).children.push(contact);
                     } else {
                         tree.push(contact);
                     }
