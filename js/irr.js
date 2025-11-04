@@ -1,12 +1,13 @@
 /**
- * Multi-Site IRR Calculator for Constellation CRM
+ * Multi-Site IRR Calculator for Constellation CRM (v3)
  *
  * This script powers the irr.html page, managing multiple sites
  * as tabs and calculating a global IRR.
  *
- * Changes:
- * - Implements a single Global Target IRR.
- * - Calculates and displays TCV for individual sites and the global project.
+ * Key features:
+ * - Uses a single GLOBAL Target IRR for all calculations.
+ * - Calculates and displays TCV for sites and the global project.
+ * - Retains the layout from irr.html (global results at top, then tabs).
  */
 
 // Import all shared functions and constants
@@ -30,9 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     let state = {
         currentUser: null,
-        sites: [], 
-        nextSiteId: 1,
-        activeSiteId: null
+        sites: [], // Array to hold all site data objects
+        nextSiteId: 1, // Simple counter for unique IDs
+        activeSiteId: null // The ID of the currently viewed site
     };
 
     // --- 2. DOM Element References ---
@@ -43,42 +44,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     const printReportBtn = document.getElementById('print-report-btn');
     const projectNameInput = document.getElementById('project-name');
 
+    // NEW: Global Target IRR Input
+    const globalTargetIrrInput = document.getElementById('global-target-irr');
+
     // Global Results Elements
     const globalDecisionEl = document.getElementById('global-decision');
     const globalAnnualIRREl = document.getElementById('global-annual-irr');
-    const globalTcvEl = document.getElementById('global-tcv');
+    const globalTcvEl = document.getElementById('global-tcv'); // NEW: Global TCV
     const globalErrorMessageEl = document.getElementById('global-error-message');
-    const globalTargetIrrInput = document.getElementById('global-target-irr-input');
 
     // --- 3. Core Site Management Functions ---
 
+    /**
+     * Creates a new site, adds it to state, and renders it.
+     */
     function addNewSite() {
         const newSiteId = state.nextSiteId++;
         const siteName = `Site ${newSiteId}`;
 
+        // Clone the template
         const templateClone = siteFormTemplate.content.cloneNode(true);
         const newFormWrapper = templateClone.querySelector('.site-form-wrapper');
         
+        // Set unique data-id and default name
         newFormWrapper.dataset.siteId = newSiteId;
         newFormWrapper.querySelector('.site-name-input').value = siteName;
         
+        // Add the new form to the DOM
         siteFormsContainer.appendChild(templateClone);
 
+        // Create the new site object in our state
         const newSite = {
             id: newSiteId,
             name: siteName,
-            inputs: {
+            inputs: { // Default values from the template
                 constructionCost: 100000,
                 engineeringCost: 20000,
                 nrr: 5000,
                 mrr: 3000,
                 monthlyCost: 500,
                 term: 60,
-                // targetIRR is now global, removed from here
+                // targetIRR is now global, not stored per-site
             },
             result: {
                 annualIRR: null,
-                tcv: 0,
+                tcv: 0, // NEW: TCV result
                 decision: '--',
                 error: null
             }
@@ -86,28 +96,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         state.sites.push(newSite);
 
+        // Attach event listeners to the new form
         attachFormListeners(newFormWrapper);
 
         // Run calculation for the new site *before* rendering tabs
-        runSiteCalculation(newSiteId, false); // Don't run global calc yet
+        // Set runGlobal to false to prevent double-calculation
+        runSiteCalculation(newSiteId, false); 
 
         renderTabs();
         setActiveSite(newSiteId);
-        runGlobalCalculation(); // Now run global calc
+        runGlobalCalculation(); // Now run global calc once
     }
 
+    /**
+     * Deletes a site from state and the DOM.
+     * @param {number} siteId - The ID of the site to delete.
+     */
     function deleteSite(siteId) {
         if (state.sites.length <= 1) {
             showModal("Action Not Allowed", "You must have at least one site.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return;
         }
 
+        // Remove from state
         state.sites = state.sites.filter(site => site.id !== siteId);
 
+        // Remove from DOM
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
         if (formWrapper) formWrapper.remove();
         
         renderTabs();
+        
+        // If we deleted the active site, activate the first site in the list
         if (state.activeSiteId === siteId) {
             setActiveSite(state.sites[0].id); 
         }
@@ -115,28 +135,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         runGlobalCalculation();
     }
 
+    /**
+     * Hides all site forms and shows only the one with the matching ID.
+     * @param {number} siteId - The ID of the site to make active.
+     */
     function setActiveSite(siteId) {
         state.activeSiteId = siteId;
 
+        // Update tabs
         siteTabsContainer.querySelectorAll('.irr-tab').forEach(tab => {
             tab.classList.toggle('active', Number(tab.dataset.siteId) === siteId);
         });
 
+        // Update forms
         siteFormsContainer.querySelectorAll('.site-form-wrapper').forEach(form => {
             form.classList.toggle('active', Number(form.dataset.siteId) === siteId);
         });
     }
 
+    /**
+     * Re-draws the entire tab bar based on the current state.
+     */
     function renderTabs() {
-        siteTabsContainer.innerHTML = ''; 
+        siteTabsContainer.innerHTML = ''; // Clear existing tabs
 
         state.sites.forEach(site => {
             const tab = document.createElement('button');
             tab.className = 'irr-tab';
             tab.dataset.siteId = site.id;
 
-            let resultClass = '';
+            let resultClass = 'pending';
             let resultText = '--%';
+            
             if (site.result.error) {
                 resultClass = 'error';
                 resultText = 'Error';
@@ -267,6 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         globalCashFlows = new Array(maxTerm + 1).fill(0);
 
+        // Combine cash flows from all sites
         for (const site of state.sites) {
             const { cashFlows, error } = getCashFlowsForSite(site.inputs);
             if (!error) {
@@ -282,6 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         globalTcvEl.textContent = `$${globalTCV.toLocaleString()}`;
         globalTcvEl.classList.remove('pending');
 
+        // 4. Validate combined cash flows
         const monthZero = globalCashFlows[0];
         const positiveFlow = globalCashFlows.slice(1).some(cf => cf > 0);
         
@@ -294,8 +326,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // 5. Calculate and show results
         const globalMonthlyIRR = calculateIRR(globalCashFlows);
-        showGlobalResults(globalMonthlyIRR, globalTargetIRR);
+        showGlobalResults(globalMonthlyIRR, globalTargetIRR, globalTCV);
     }
 
     /**
@@ -309,8 +342,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const monthlyNetCashFlow = mrr - monthlyCost;
 
         if (term <= 0) return { cashFlows: [], error: "Term must be > 0" };
+        
+        // This is a common scenario: all cash flows are positive (e.g., big NRR).
+        // IRR is not meaningful in this case, but it's not an "error".
         if (monthZeroCashFlow >= 0 && monthlyNetCashFlow >= 0) {
-            return { cashFlows: [], error: "No investment" };
+            return { cashFlows: [], error: "No investment. All cash flows are positive." };
         }
         
         cashFlows.push(monthZeroCashFlow);
@@ -323,25 +359,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 5. UI Update Functions ---
 
+    // Helper to set text and color for a result element
+    function setResultUI(el, text, state) { // state: 'go', 'nogo', 'error', 'pending'
+        el.textContent = text;
+        el.classList.remove('go', 'nogo', 'error', 'pending');
+        
+        switch (state) {
+            case 'go':
+                el.style.color = 'var(--color-success, #22c55e)';
+                break;
+            case 'nogo':
+                el.style.color = 'var(--color-danger, #ef4444)';
+                break;
+            case 'error':
+                el.style.color = 'var(--color-warning, #f97316)';
+                break;
+            case 'pending':
+            default:
+                el.style.color = 'var(--text-color-secondary, #9ca3af)';
+                break;
+        }
+    }
+
     /**
      * Updates the UI for *individual site* results
      */
     function showSiteResults(errorMessageEl, decisionEl, annualIRREl, tcvEl, annualIRR, decision, tcv) {
         errorMessageEl.classList.add('hidden');
         
-        annualIRREl.textContent = (annualIRR * 100).toFixed(2) + '%';
-        decisionEl.textContent = decision;
-        tcvEl.textContent = `$${tcv.toLocaleString()}`;
-        tcvEl.style.color = 'var(--text-color-primary)';
-        tcvEl.classList.remove('pending');
-
-        if (decision === 'GO') {
-            decisionEl.style.color = 'var(--color-success, #22c55e)';
-            annualIRREl.style.color = 'var(--color-success, #22c55e)';
-        } else {
-            decisionEl.style.color = 'var(--color-danger, #ef4444)';
-            annualIRREl.style.color = 'var(--color-danger, #ef4444)';
-        }
+        const decisionState = decision === 'GO' ? 'go' : 'nogo';
+        setResultUI(decisionEl, decision, decisionState);
+        setResultUI(annualIRREl, (annualIRR * 100).toFixed(2) + '%', decisionState);
+        
+        // TCV is always primary color
+        setResultUI(tcvEl, `$${tcv.toLocaleString()}`, 'tcv');
+        tcvEl.style.color = 'var(--color-primary, #3b82f6)';
     }
 
     /**
@@ -351,37 +403,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         errorMessageEl.classList.remove('hidden');
         errorMessageEl.textContent = message;
         
-        decisionEl.textContent = 'Error';
-        decisionEl.style.color = 'var(--text-color-secondary, #9ca3af)';
-        annualIRREl.textContent = '--%';
-        annualIRREl.style.color = 'var(--text-color-secondary, #9ca3af)';
-        tcvEl.textContent = '$0';
-        tcvEl.style.color = 'var(--text-color-secondary, #9ca3af)';
-        tcvEl.classList.remove('pending');
+        setResultUI(decisionEl, 'Error', 'error');
+        setResultUI(annualIRREl, '--%', 'error');
+        setResultUI(tcvEl, '$0', 'error');
     }
 
     /**
      * Updates the UI for *global* results
      */
-    function showGlobalResults(monthlyIRR, targetIRR) {
+    function showGlobalResults(monthlyIRR, targetIRR, tcv) {
+        globalErrorMessageEl.classList.add('hidden');
+        
+        // Update TCV
+        setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
+        globalTcvEl.style.color = 'var(--color-primary, #3b82f6)';
+        
         if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
             showGlobalError("Could not calculate Global IRR. Check inputs.");
             return;
         }
 
-        globalErrorMessageEl.classList.add('hidden');
         const annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
-
-        globalAnnualIRREl.textContent = (annualIRR * 100).toFixed(2) + '%';
         
         if (annualIRR >= targetIRR) {
-            globalDecisionEl.textContent = 'GO';
-            globalDecisionEl.style.color = 'var(--color-success, #22c55e)';
-            globalAnnualIRREl.style.color = 'var(--color-success, #22c55e)';
+            setResultUI(globalDecisionEl, 'GO', 'go');
+            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'go');
         } else {
-            globalDecisionEl.textContent = 'NO GO';
-            globalDecisionEl.style.color = 'var(--color-danger, #ef4444)';
-            globalAnnualIRREl.style.color = 'var(--color-danger, #ef4444)';
+            setResultUI(globalDecisionEl, 'NO GO', 'nogo');
+            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'nogo');
         }
     }
 
@@ -389,12 +438,9 @@ document.addEventListener('DOMContentLoaded', async () => {
      * Updates the UI for a *global* error
      */
     function showGlobalError(message) {
-        globalDecisionEl.textContent = 'Error';
-        globalDecisionEl.style.color = 'var(--text-color-secondary, #9ca3af)';
-        globalAnnualIRREl.textContent = '--%';
-        globalAnnualIRREl.style.color = 'var(--text-color-secondary, #9ca3af)';
-        globalTcvEl.textContent = '$0';
-        globalTcvEl.style.color = 'var(--text-color-secondary, #9ca3af)';
+        setResultUI(globalDecisionEl, 'Error', 'error');
+        setResultUI(globalAnnualIRREl, '--%', 'error');
+        setResultUI(globalTcvEl, '$0', 'error');
         
         globalErrorMessageEl.textContent = message;
         globalErrorMessageEl.classList.remove('hidden');
@@ -416,7 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 th { background-color: #f4f4f4; }
                 .go { color: #16a34a; font-weight: bold; }
                 .nogo { color: #dc2626; font-weight: bold; }
-                .error { color: #6b7280; }
+                .error { color: #f97316; font-weight: bold; }
                 .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
                 .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
                 .global-results-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
@@ -528,20 +574,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 7. Event Listener Setup ---
 
+    /**
+     * Attaches all necessary event listeners to a newly created site form.
+     * @param {HTMLElement} formWrapper - The .site-form-wrapper element.
+     */
     function attachFormListeners(formWrapper) {
         const siteId = Number(formWrapper.dataset.siteId);
 
+        // Listen for *any* input on the form
         formWrapper.addEventListener('input', (e) => {
             if (e.target.classList.contains('site-name-input')) {
+                // If only the name changed, just update the state and tab
                 const site = state.sites.find(s => s.id === siteId);
                 if (site) site.name = e.target.value || `Site ${siteId}`;
                 renderTabs(); 
-                setActiveSite(siteId);
+                setActiveSite(siteId); // Re-set active to keep focus
             } else {
+                // If any other input changed, run the full calculation
                 runSiteCalculation(siteId);
             }
         });
 
+        // Listen for the delete button click
         formWrapper.querySelector('.delete-site-btn').addEventListener('click', () => {
             const site = state.sites.find(s => s.id === siteId);
             showModal("Confirm Deletion", `Are you sure you want to delete "${site ? site.name : 'this site'}"?`,
@@ -554,9 +608,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    /**
+     * Sets up all global, non-site-specific event listeners.
+     */
     function setupPageEventListeners() {
-        setupModalListeners(); 
+        setupModalListeners(); // From shared_constants.js
 
+        // Sidebar navigation
         const navSidebar = document.querySelector(".nav-sidebar");
         if (navSidebar) {
             navSidebar.addEventListener('click', (e) => {
@@ -568,14 +626,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        // "Add Site" button
         if (addSiteBtn) {
             addSiteBtn.addEventListener('click', addNewSite);
         }
         
+        // "Print Report" button
         if (printReportBtn) {
             printReportBtn.addEventListener('click', handlePrintReport);
         }
 
+        // Tab bar click delegation
         if (siteTabsContainer) {
             siteTabsContainer.addEventListener('click', (e) => {
                 const tab = e.target.closest('.irr-tab');
@@ -589,8 +650,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (globalTargetIrrInput) {
             globalTargetIrrInput.addEventListener('input', () => {
                 // When global target changes, recalculate everything
-                state.sites.forEach(site => runSiteCalculation(site.id, false)); // Recalc all sites, don't run global in loop
-                runGlobalCalculation(); // Run global once at the end
+                // 1. Recalculate all individual sites (don't run global calc in the loop)
+                state.sites.forEach(site => runSiteCalculation(site.id, false)); 
+                // 2. Run the global calculation once at the end
+                runGlobalCalculation(); 
             });
         }
     }
@@ -599,6 +662,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function initializePage() {
         await loadSVGs();
         
+        // Check authentication
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session) {
             console.error('Authentication failed or no session found. Redirecting to login.');
@@ -608,10 +672,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.currentUser = session.user;
 
         try {
+            // Setup shared UI components
             await setupUserMenuAndAuth(supabase, state);
             await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
             
+            // Setup page-specific listeners
             setupPageEventListeners();
 
             // Start the user with one site
@@ -630,6 +696,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 9. Financial Calculation (Pure Functions) ---
 
+    /**
+     * Calculates the Net Present Value (NPV) of a series of cash flows.
+     */
     function calculateNPV(rate, cashFlows) {
         let npv = 0;
         for (let i = 0; i < cashFlows.length; i++) {
@@ -638,27 +707,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         return npv;
     }
 
+    /**
+     * Finds the Internal Rate of Return (IRR) for a series of cash flows using the bisection method.
+     */
     function calculateIRR(cashFlows) {
         const maxIterations = 100;
         const precision = 1e-7;
         
-        let minRate = -0.9999;
-        let maxRate = 1.0;
+        let minRate = -0.9999; // Minimum possible rate (to avoid division by zero at -1)
+        let maxRate = 1.0;     // Start with a reasonable upper guess (100% monthly)
         let midRate = (minRate + maxRate) / 2;
 
         let npvAtMin = calculateNPV(minRate, cashFlows);
         let npvAtMax = calculateNPV(maxRate, cashFlows);
         
-        // Try to find a valid bracket
+        // Try to find a valid bracket (one NPV positive, one negative)
         if (npvAtMin * npvAtMax > 0) {
-            maxRate = 5.0; // Try a wider bracket
+            // If both are same sign, widen the bracket.
+            // This is common for very high or low IRRs.
+            maxRate = 5.0; // 500% monthly
             npvAtMax = calculateNPV(maxRate, cashFlows);
             if (npvAtMin * npvAtMax > 0) {
                  minRate = -0.999999;
-                 maxRate = 20.0; // Try an even wider bracket
+                 maxRate = 20.0; // 2000% monthly
                  npvAtMin = calculateNPV(minRate, cashFlows);
                  npvAtMax = calculateNPV(maxRate, cashFlows);
-                 if (npvAtMin * npvAtMax > 0) return NaN; // Give up
+                 // If still no valid bracket, the cash flow is likely problematic (e.g., all positive)
+                 if (npvAtMin * npvAtMax > 0) return NaN; 
             }
         }
 
@@ -668,15 +743,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             let npvAtMid = calculateNPV(midRate, cashFlows);
 
             if (Math.abs(npvAtMid) < precision) {
+                // Found a rate close enough to zero
                 return midRate;
             } else if (npvAtMid * npvAtMin > 0) {
+                // NPV at mid has same sign as NPV at min
+                // so, new min is mid
                 minRate = midRate;
                 npvAtMin = npvAtMid;
             } else {
+                // NPV at mid has different sign
+                // so, new max is mid
                 maxRate = midRate;
             }
         }
         
+        // Return the best guess if we run out of iterations
         return midRate;
     }
 
