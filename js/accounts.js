@@ -619,112 +619,127 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-    // --- Print Briefing Handler ---
-    function handlePrintBriefing() {
-        const accountName = state.selectedAccountDetails.account?.name;
-        const briefingContainer = document.querySelector('.ai-briefing-container');
-        const briefingHtml = briefingContainer ? briefingContainer.innerHTML : '';
-        
-        if (!accountName && !briefingHtml) { 
-            alert("Please generate a briefing first.");
-            return;
-        }
+// MODIFIED: This function is now async to await the canvas generation
+async function handlePrintBriefing() {
+    const accountName = state.selectedAccountDetails.account?.name;
 
-        let orgChartHtml = '';
-        if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
-            const chartClone = contactOrgChartView.cloneNode(true);
-            chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
-            
-            orgChartHtml = `
-                <h2>Organizational Chart</h2>
-                <div class="org-chart-print-container" style="page-break-inside: avoid;">
-                    ${chartClone.innerHTML}
-                </div>
-                <hr>
-            `;
-        }
-
-        const printFrame = document.createElement('iframe');
-        printFrame.style.position = 'absolute';
-        printFrame.style.width = '0';
-        printFrame.style.height = '0';
-        printFrame.style.border = '0';
-        document.body.appendChild(printFrame);
-
-        const frameDoc = printFrame.contentWindow.document;
-        frameDoc.open();
-        frameDoc.write(`
-            <html>
-                <head>
-                    <title>AI Briefing: ${accountName || 'Account'}</title>
-                    <link rel="stylesheet" href="css/style.css">
-                    <link rel="stylesheet" href="css/org-chart.css">
-                    <style>
-                        @media print {
-                            body { 
-                                margin: 20px; 
-                                font-family: sans-serif;
-                                -webkit-print-color-adjust: exact;
-                                print-color-adjust: exact;
-                            }
-                            .ai-briefing-container { box-shadow: none; border: none; }
-                            h2 { font-size: 1.5rem; color: #000; }
-                            h3 { font-size: 1.2rem; color: #333; }
-                            h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
-                            .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; border: 1px solid #eee; }
-                            div.briefing-pre { 
-                                background-color: #eee !important; 
-                                border: 1px solid #ddd;
-                                white-space: pre-wrap;
-                                word-wrap: break-word;
-                            }
-                            .org-chart-print-container { 
-                                overflow-x: auto; 
-                                padding: 10px; 
-                                background-color: #fdfdfd !important; 
-                            }
-                            .org-chart-root { justify-content: flex-start; }
-                            .org-chart-node::before, .org-chart-node::after { background-color: #999 !important; }
-                            .org-chart-children::before { background-color: #999 !important; }
-                            .contact-card { 
-                                background-color: #fff !important; 
-                                border: 1px solid #ccc !important; 
-                                color: #000 !important; 
-                                box-shadow: none !important;
-                            }
-                            .contact-card-name { color: #000 !important; }
-                            .contact-card-title { color: #333 !important; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <h2>AI Reconnaissance Report</h2>
-                    <h3>${accountName || 'Selected Account'}</h3>
-                    ${orgChartHtml}
-                    ${briefingHtml ? `<div class="ai-briefing-container">${briefingHtml}</div>` : ''}
-                </body>
-            </html>
-        `);
-        frameDoc.close();
-
-        const originalTitle = document.title;
-        document.title = `AI Briefing: ${accountName || 'Account'}`;
-
-        setTimeout(() => {
-            try {
-                printFrame.contentWindow.focus();
-                printFrame.contentWindow.print();
-            } catch (e) {
-                console.error("Print failed:", e);
-                alert("Could not open print dialog. Please check your browser's popup settings.");
-            } finally {
-                if (document.body.contains(printFrame)) {
-                    document.body.removeChild(printFrame);
-                }
-                document.title = originalTitle;
-            }
-        }, 250);
+    // 1. Find the modal's briefing container
+    const briefingContainer = document.querySelector('.ai-briefing-container');
+    if (!briefingContainer) {
+        alert("Please generate a briefing first.");
+        return;
     }
+
+    // --- html2canvas Logic ---
+    
+    // 2. Clone the container to work on it without affecting the live modal
+    const printClone = briefingContainer.cloneNode(true);
+    
+    // 3. Find the org chart element *within the clone*
+    const chartElement = printClone.querySelector('.org-chart-print-container');
+    
+    // 4. Find the *live* org chart element to "screenshot"
+    const sourceChartElement = briefingContainer.querySelector('.org-chart-print-container');
+
+    if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
+        try {
+            // 5. "Screenshot" the live org chart element
+            // We force a white background so it looks good on paper
+            const canvas = await html2canvas(sourceChartElement, { 
+                backgroundColor: '#ffffff',
+                useCORS: true 
+            });
+            
+            // 6. Convert the canvas "screenshot" to a PNG image URL
+            const imgDataUrl = canvas.toDataURL('image/png');
+            
+            // 7. Create new, simple HTML for the image
+            const orgChartImageHtml = `
+                <div class="briefing-section">
+                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
+                    <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #eee;">
+                </div>
+            `;
+            
+            // 8. *Replace* the complex HTML chart in our clone with the simple image
+            chartElement.parentNode.replaceChild(
+                document.createRange().createContextualFragment(orgChartImageHtml), 
+                chartElement
+            );
+            
+        } catch (err) {
+            console.error("html2canvas failed:", err);
+            // If it fails, it will just print the (ugly) HTML as a fallback
+        }
+    }
+    
+    // 9. Get the *entire* inner HTML of our modified clone
+    // This now contains all the text AND the new chart image
+    const briefingHtml = printClone.innerHTML;
+    
+    // --- End of html2canvas Logic ---
+
+    // 10. Create the iframe (same as your old code)
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    
+    // 11. Write the new content to the iframe
+    // Notice we no longer link org-chart.css (don't need it)
+    // And we only write `briefingHtml`, which now contains everything.
+    frameDoc.write(`
+        <html>
+            <head>
+                <title>AI Briefing: ${accountName || 'Account'}</title>
+                <link rel="stylesheet" href="css/style.css">
+                <style>
+                    @media print {
+                        body { margin: 20px; font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .ai-briefing-container { box-shadow: none; border: none; }
+                        h2 { font-size: 1.5rem; color: #000; }
+                        h3 { font-size: 1.2rem; color: #333; }
+                        h4 { color: #3b82f6 !important; border-bottom: 1px solid #ccc !important; }
+                        .briefing-section { background-color: #f9f9f9 !important; page-break-inside: avoid; border: 1px solid #eee; }
+                        div.briefing-pre { background-color: #eee !important; border: 1px solid #ddd; white-space: pre-wrap; word-wrap: break-word; }
+                        /* We can remove all the old org-chart print styles */
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>AI Reconnaissance Report</h2>
+                <h3>${accountName || 'Selected Account'}</h3>
+                
+                <div class="ai-briefing-container">${briefingHtml}</div>
+            
+            </body>
+        </html>
+    `);
+    frameDoc.close();
+
+    const originalTitle = document.title;
+    document.title = `AI Briefing: ${accountName || 'Account'}`;
+
+    setTimeout(() => {
+        try {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        } catch (e) {
+            console.error("Print failed:", e);
+            alert("Could not open print dialog. Please check your browser's popup settings.");
+        } finally {
+            if (document.body.contains(printFrame)) {
+                document.body.removeChild(printFrame);
+            }
+            document.title = originalTitle;
+        }
+    }, 250); // This timeout is still good, it helps the iframe
+}
 
     // --- AI Briefing Handler ---
     async function handleGenerateBriefing() {
