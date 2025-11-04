@@ -614,11 +614,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             const rowNum = startRow + index;
             const i = site.inputs;
             
-            // These are the live formulas!
-            const tcvFormula = `"=ROUND((E${rowNum}*G${rowNum})+D${rowNum}, 2)"`;
-            // pv = D-(B+C), pmt = E-F, nper = G
-            const irrFormula = `"=IFERROR((1+RATE(G${rowNum}, E${rowNum}-F${rowNum}, D${rowNum}-(B${rowNum}+C${rowNum})))^12-1, "Error")"`;
-            const decisionFormula = `"=IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))"`;
+            // --- UPDATED FORMULA LOGIC ---
+            // 1. Define formulas WITHOUT leading '=' or outer quotes.
+            const tcvFormulaBase = `ROUND((E${rowNum}*G${rowNum})+D${rowNum}, 2)`;
+            const irrFormulaBase = `IFERROR((1+RATE(G${rowNum}, F${rowNum}-E${rowNum}, (B${rowNum}+C${rowNum})-D${rowNum}))^12-1, "Error")`;
+            const decisionFormulaBase = `IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))`;
+
+            // 2. Helper to finalize the formula string for CSV
+            const createCsvFormula = (baseFormula) => {
+                // Escape internal quotes by doubling them up
+                const escapedFormula = baseFormula.replace(/"/g, '""');
+                // Prepend '=' and wrap the whole thing in quotes
+                return `"=${escapedFormula}"`;
+            };
 
             const row = [
                 escapeCSV(site.name),
@@ -628,9 +636,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 i.mrr,
                 i.monthlyCost,
                 i.term,
-                tcvFormula,
-                irrFormula,
-                decisionFormula
+                createCsvFormula(tcvFormulaBase),
+                createCsvFormula(irrFormulaBase),
+                createCsvFormula(decisionFormulaBase)
             ];
             csvContent.push(row.join(','));
         });
@@ -638,13 +646,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- Global Summary ---
         if (state.sites.length > 0) {
             const lastRow = startRow + state.sites.length - 1;
-            const summaryStartRow = lastRow + 2;
             csvContent.push(""); // Spacer row
             csvContent.push("Global Results,,,,,Inputs,Formulas"); // Header
-            csvContent.push(`Global TCV (Formula):,,"=SUM(H${startRow}:H${lastRow})"`);
             
-            // As discussed, Global IRR is complex (uneven cash flows)
-            // So we export the *calculated value* from our app, not a formula
+            // Apply the same CSV formula logic to the Global TCV
+            const globalTcvFormulaBase = `SUM(H${startRow}:H${lastRow})`;
+            csvContent.push(`Global TCV (Formula):,,"=${globalTcvFormulaBase}"`);
+            
             const globalIRRValue = globalAnnualIRREl.textContent;
             const globalDecisionValue = globalDecisionEl.textContent;
             
@@ -1063,4 +1071,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 12. Run Initialization ---
     initializePage();
 });
+
+
 
