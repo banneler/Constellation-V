@@ -2,27 +2,174 @@
 <html lang="en">
 
 <head>
-    <meta name="description"
-        content="Constellation CRM: Multi-Site IRR Calculator for building fiber project business cases.">
+    <meta name="description" content="Constellation CRM: Multi-site IRR Calculator for fiber projects.">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strategic - CRM - IRR Calculator</title>
-    <!-- Link to the existing stylesheet -->
+    <title>Strategic - CRM - Multi-Site IRR Calculator</title>
+
+    <!-- Retaining all styles and scripts from your site's template -->
     <link rel="stylesheet" href="css/style.css">
-    <!-- Supabase, PapaParse, html2canvas -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Orbitron Font -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+
+    <!-- New styles for the tabbed interface -->
+    <style>
+        .irr-tab-bar {
+            display: flex;
+            flex-wrap: wrap;
+            border-bottom: 2px solid var(--border-color, #444);
+            margin-bottom: 1.5rem;
+        }
+
+        .irr-tab {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-color-secondary, #9ca3af);
+            font-size: 1rem;
+            font-weight: 500;
+            position: relative;
+        }
+
+        .irr-tab.active {
+            color: var(--color-primary, #3b82f6);
+            border-bottom-color: var(--color-primary, #3b82f6);
+            font-weight: 700;
+        }
+
+        .irr-tab:hover:not(.active) {
+            background-color: var(--bg-hover, #333);
+            color: var(--text-color, #fff);
+        }
+        
+        #site-forms-container .site-form-wrapper {
+            display: none; /* Hidden by default */
+        }
+
+        #site-forms-container .site-form-wrapper.active {
+            display: block;
+        }
+
+        .irr-tab-results {
+            font-size: 0.8rem;
+            font-weight: 400;
+            display: block;
+            margin-top: 4px;
+        }
+        
+        .irr-tab-results .go { color: var(--color-success, #22c55e); }
+        .irr-tab-results .nogo { color: var(--color-danger, #ef4444); }
+        .irr-tab-results .error { color: var(--text-color-secondary, #9ca3af); }
+
+        .delete-site-btn {
+            background: none;
+            border: none;
+            color: var(--text-color-secondary, #9ca3af);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0 0 0 0.5rem;
+        }
+        .delete-site-btn:hover {
+            color: var(--color-danger, #ef4444);
+        }
+
+        /* Styles for the Global Results box */
+        #global-results-container {
+            border: 2px solid var(--color-primary, #3b82f6);
+            background-color: var(--bg-dark, #2a2a2a);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem; /* Added margin to separate from tabs */
+        }
+
+        /* NEW: Grid for Global Results */
+        .global-results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            text-align: center;
+        }
+        
+        #global-decision {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            line-height: 1;
+            margin: 0;
+        }
+
+        #global-annual-irr, #global-tcv {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0.5rem 0 0 0;
+            line-height: 1;
+        }
+        
+        #global-tcv {
+             color: var(--color-primary, #3b82f6);
+        }
+
+        #global-error-message {
+            color: #e53e3e;
+            margin-top: 1rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* Styles for the *Individual Site* Results */
+        .individual-results-container {
+            text-align: center;
+            padding: 1.5rem;
+            background-color: var(--bg-dark, #2a2a2a);
+            border-radius: 8px;
+            margin-top: 1.5rem;
+        }
+        
+        /* NEW: Grid for Individual Results */
+        .individual-results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            text-align: center;
+        }
+
+        .individual-decision {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            line-height: 1;
+            margin: 0;
+        }
+
+        .individual-annual-irr, .individual-tcv {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0.5rem 0 0 0;
+            line-height: 1;
+        }
+        
+        .individual-tcv {
+            color: var(--color-primary, #3b82f6);
+        }
+
+        .individual-error-message {
+            color: #e53e3e;
+            margin-top: 1rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+    </style>
 </head>
 
 <body>
-    <!-- Main CRM Container -->
     <div class="crm-container">
-        <!-- Navigation Sidebar (Copied from accounts.html) -->
+        <!-- Sidebar Navigation (Unchanged) -->
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
             <div class="global-search-container">
@@ -33,18 +180,15 @@
             <a href="deals.html" class="nav-button">Deals</a>
             <a href="contacts.html" class="nav-button">Contacts</a>
             <a href="accounts.html" class="nav-button">Accounts</a>
-            <!-- ADDED: IRR Calculator Link -->
             <a href="irr.html" class="nav-button active">IRR Calculator</a>
             <a href="campaigns.html" class="nav-button">Campaigns</a>
             <a href="sequences.html" class="nav-button">Sequences</a>
-            <a href="social_hub.html" class="nav-button">Social Hub <i
-                    class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
+            <a href="social_hub.html" class="nav-button">Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
             <div class="nav-bottom-section">
                 <div style="position: relative;">
                     <a href="cognito.html" class="nav-button cognito-nav-link">
                         <h1>
-                            C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50"
-                                xmlns="http://www.w3.org/2000/svg">
+                            C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
                                 <defs>
                                     <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                         <stop offset="0%" style="stop-color:#60a5fa;"></stop>
@@ -75,154 +219,175 @@
                 </div>
             </div>
         </nav>
-
-        <!-- Main Content Area -->
+        
+        <!-- Main Content Area - Updated Layout -->
         <main class="content-area">
-            <!-- IRR Calculator View -->
             <div id="irr-calculator" class="content-view active-view">
-                <div class="irr-header-bar">
-                    <div class="irr-header-left">
+                
+                <!-- This container holds the header, new project name, and buttons -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                    
+                    <!-- Left side: Title and new Project Name input -->
+                    <div style="flex-grow: 1;">
                         <h2>Multi-Site IRR Calculator</h2>
-                        <!-- NEW: Project Name Input -->
-                        <input type="text" id="project-name" placeholder="Enter Project Name (for Print)" class="irr-project-name-input">
+                        <div style="margin-top: 0.5rem; max-width: 450px;">
+                            <label for="project-name" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Project Name</label>
+                            <!-- This input will be read by JS for the print report -->
+                            <input type="text" id="project-name" placeholder="e.g., Citywide Fiber Expansion" style="width: 100%;">
+                        </div>
                     </div>
-                    <div class="irr-header-actions">
-                        <button id="add-site-btn" class="btn-primary"><i class="fas fa-plus"></i> Add Site</button>
-                        <button id="print-report-btn" class="btn-secondary"><i class="fas fa-print"></i> Print Report</button>
+                    
+                    <!-- Right side: Buttons -->
+                    <div class="form-buttons" style="flex-shrink: 0; margin-top: 0.5rem;">
+                        <button type="button" id="add-site-btn" class="btn-secondary"><i class="fas fa-plus"></i> Add Site</button>
+                        <button type="button" id="print-report-btn" class="btn-primary"><i class="fas fa-print"></i> Print Report</button>
                     </div>
                 </div>
 
-                <!-- NEW: Global Project Results Card -->
-                <div class="irr-card global-results-card">
-                    <h3 class="irr-card-title">Global Project Results (All Sites)</h3>
-                    <div class="irr-results-grid global-results-grid">
+                <!-- NEW: Global Target IRR Input moved here -->
+                <div style="max-width: 450px; margin-bottom: 1.5rem;">
+                     <label for="global-target-irr" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Global Target IRR (%)</label>
+                     <input type="number" id="global-target-irr" placeholder="e.g., 15" value="15" style="width: 100%;">
+                </div>
+
+                <!-- MOVED: Global Results Section is now at the top -->
+                <div id="global-results-container">
+                    <h3>Global Project Results (All Sites)</h3>
+                    <!-- NEW: Grid layout for results -->
+                    <div class="global-results-grid">
                         <div>
-                            <p>Global Decision</p>
-                            <h2 id="global-decision" class="irr-result-value pending">--</h2>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Global Decision</span>
+                            <p id="global-decision" class="pending">--</p>
                         </div>
                         <div>
-                            <p>Calculated Global Annual IRR</p>
-                            <h2 id="global-annual-irr" class="irr-result-value pending">--%</h2>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Global Annual IRR</span>
+                            <p id="global-annual-irr" class="pending">--%</p>
                         </div>
                         <!-- NEW: Global TCV -->
                         <div>
-                            <p>Global TCV ($)</p>
-                            <h2 id="global-tcv" class="irr-result-value pending">$0</h2>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Global TCV ($)</span>
+                            <p id="global-tcv" class="pending">$0</p>
                         </div>
                     </div>
-                    <p id="global-error-message" class="irr-error-message hidden"></p>
-                    
-                    <!-- NEW: Global Target IRR Input -->
-                    <div class="irr-global-target-container">
-                        <label for="global-target-irr-input">Global Target IRR (%)</label>
-                        <input type="number" id="global-target-irr-input" class="irr-input" value="15" step="0.1">
+                    <div id="global-error-message" class="hidden">
+                        <!-- Global error message -->
                     </div>
                 </div>
 
-                <!-- Tab navigation for sites -->
-                <div id="site-tabs-container" class="irr-tabs">
-                    <!-- Tabs will be dynamically inserted here -->
+                <!-- Tab bar -->
+                <div id="site-tabs-container" class="irr-tab-bar">
+                    <!-- Tabs go here -->
                 </div>
 
-                <!-- Container for site forms -->
+                <!-- Site forms container -->
                 <div id="site-forms-container">
-                    <!-- Site forms will be dynamically inserted here -->
+                    <!-- Forms go here -->
                 </div>
-            </div>
+
+            </div> <!-- End content-view -->
         </main>
     </div>
 
-    <!-- MODAL (Copied from accounts.html) -->
+    <!-- 
+      UPDATED TEMPLATE
+      - Removed individual "Target Annual IRR"
+      - Added "Site TCV" display
+    -->
+    <template id="site-form-template">
+        <div class="site-form-wrapper" data-site-id="">
+            <div class="details-panel" style="max-width: 900px; margin-top: 0;">
+                <form class="irr-form">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex-grow: 1;">
+                            <label for="site-name">Site Name</label>
+                            <input type="text" class="site-name-input" placeholder="e.g., Downtown Business Park" value="Site 1">
+                        </div>
+                        <button type="button" class="btn-danger delete-site-btn" title="Delete this site" style="margin-left: 1rem; margin-top: 1.25rem;">
+                            <i class="fas fa-trash"></i> Delete Site
+                        </button>
+                    </div>
+
+                    <h3 style="margin-top: 1.5rem;">Project Inputs</h3>
+                    <div class="form-grid">
+                        <div>
+                            <label>Construction Cost ($)</label>
+                            <input type="number" class="construction-cost-input" placeholder="e.g., 100000" value="100000">
+                        </div>
+                        <div>
+                            <label>Engineering Cost ($)</label>
+                            <input type="number" class="engineering-cost-input" placeholder="e.g., 20000" value="20000">
+                        </div>
+                        <div>
+                            <label>Non-Recurring Revenue (Upfront) ($)</label>
+                            <input type="number" class="nrr-input" placeholder="e.g., 5000" value="5000">
+                        </div>
+                        <div>
+                            <label>Monthly Recurring Revenue ($)</label>
+                            <input type="number" class="mrr-input" placeholder="e.g., 3000" value="3000">
+                        </div>
+                        <div>
+                            <label>Monthly Costs ($)</label>
+                            <input type="number" class="monthly-cost-input" placeholder="e.g., 500" value="500">
+                        </div>
+                        <div>
+                            <label>Project Term (Months)</label>
+                            <input type="number" class="term-input" placeholder="e.g., 60" value="60">
+                        </div>
+                    </div>
+                    
+                    <!-- REMOVED: Individual Benchmark section -->
+
+                </form>
+
+                <!-- NEW: Individual Site Results (with TCV) -->
+                <div class="individual-results-container">
+                    <h3>Site Project Results</h3>
+                    <!-- NEW: Grid layout for individual results -->
+                    <div class="individual-results-grid">
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Site Decision</span>
+                            <p class="individual-decision pending">--</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Site Annual IRR</span>
+                            <p class="individual-annual-irr pending">--%</p>
+                        </div>
+                        <!-- NEW: Site TCV -->
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Site TCV ($)</span>
+                            <p class="individual-tcv pending">$0</p>
+                        </div>
+                    </div>
+                    <div class="individual-error-message hidden">
+                        <!-- Individual error message -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </template>
+
+    <!-- Modals (Unchanged) -->
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 id="modal-title"></h3>
             <div id="modal-body"></div>
-            <div id="modal-actions" class="modal-actions"></div>
+            <div id="modal-actions" class="modal-actions">
+            </div>
         </div>
     </div>
-    <!-- (End of modal) -->
+    <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
+        <!-- ... (modal content unchanged) ... -->
+    </div>
 
-    <!-- 
-      TEMPLATE for a single site's calculator.
-      This is never shown directly, but is cloned by JS to create new sites.
-    -->
-    <template id="site-form-template">
-        <div class="site-form-wrapper irr-card">
-            <!-- Site Header: Name Input and Delete Button -->
-            <div class="irr-site-header">
-                <input type="text" class="irr-input site-name-input" value="Site 1" placeholder="Enter Site Name">
-                <button class="btn-danger delete-site-btn" title="Delete this site"><i class="fas fa-trash"></i> Delete Site</button>
-            </div>
-            
-            <div class="irr-content-split">
-                <!-- Left Side: Inputs -->
-                <div class="irr-inputs-container">
-                    <h3 class="irr-card-title">Site Inputs</h3>
-                    <div class="irr-form-grid">
-                        <div>
-                            <label>Construction Cost ($)</label>
-                            <input type="number" class="irr-input construction-cost-input" value="100000" min="0">
-                        </div>
-                        <div>
-                            <label>Engineering Cost ($)</label>
-                            <input type="number" class="irr-input engineering-cost-input" value="20000" min="0">
-                        </div>
-                        <div>
-                            <label>Non-Recurring Revenue (Upfront) ($)</label>
-                            <input type="number" class="irr-input nrr-input" value="5000" min="0">
-                        </div>
-                        <div>
-                            <label>Monthly Recurring Revenue ($)</label>
-                            <input type="number" class="irr-input mrr-input" value="3000" min="0">
-                        </div>
-                        <div>
-                            <label>Monthly Costs ($)</label>
-                            <input type="number" class="irr-input monthly-cost-input" value="500" min="0">
-                        </div>
-                        <div>
-                            <label>Project Term (Months)</label>
-                            <input type="number" class="irr-input term-input" value="60" min="1">
-                        </div>
-                        <!-- REMOVED: Individual Target IRR Input -->
-                    </div>
-                </div>
-
-                <!-- Right Side: Individual Results -->
-                <div class="irr-results-container individual-results-container">
-                    <h3 class="irr-card-title">Site Results</h3>
-                    <div class="irr-results-grid individual-results-grid">
-                        <div>
-                            <p>Site Decision</p>
-                            <h2 class="irr-result-value individual-decision pending">--</h2>
-                        </div>
-                        <div>
-                            <p>Calculated Site Annual IRR</p>
-                            <h2 class="irr-result-value individual-annual-irr pending">--%</h2>
-                        </div>
-                        <!-- NEW: Site TCV -->
-                        <div>
-                            <p>Site TCV ($)</p>
-                            <h2 class="irr-result-value individual-tcv pending">$0</h2>
-                        </div>
-                    </div>
-                    <p class="irr-error-message individual-error-message hidden">Error message here</p>
-                </div>
-            </div>
-        </div>
-    </template>
-    <!-- (End of template) -->
-
-
-    <!-- Load the theme from local storage -->
     <script>
-        (function () {
+        (function() {
             const savedTheme = localStorage.getItem('crm-theme') || 'dark';
             document.body.className = `theme-${savedTheme}`;
         })();
     </script>
-    <!-- Load the new irr.js module -->
+    
     <script type="module" src="js/irr.js"></script>
 </body>
-
 </html>
 
