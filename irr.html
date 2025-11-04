@@ -13,7 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display.swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 
     <!-- ... (existing <style> block for tabs, results, etc. is unchanged) ... -->
     <style>
@@ -164,7 +164,7 @@
             text-align: center;
         }
         
-        /* NEW: Style for the load project modal */
+        /* Style for the load project modal */
         #load-project-list {
             list-style: none;
             padding: 0;
@@ -259,7 +259,7 @@
                 
                 <h2>Multi-Site IRR Calculator</h2>
 
-                <!-- NEW: Project Controls Bar -->
+                <!-- Project Controls Bar - ADDED EXPORT BUTTON -->
                 <div class="form-buttons" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; align-items: center;">
                     <button type="button" id="new-project-btn" class="btn-secondary"><i class="fas fa-file"></i> New Project</button>
                     <button type="button" id="load-project-btn" class="btn-secondary"><i class="fas fa-folder-open"></i> Load Project</button>
@@ -270,10 +270,11 @@
 
                     <button type="button" id="add-site-btn" class="btn-secondary"><i class="fas fa-plus"></i> Add Site</button>
                     <button type="button" id="print-report-btn" class="btn-secondary"><i class="fas fa-print"></i> Print Report</button>
+                    <button type="button" id="export-csv-btn" class="btn-secondary"><i class="fas fa-file-csv"></i> Export to CSV</button>
                 </div>
 
 
-                <!-- Project Inputs (Name and Target) -->
+                <!-- Project Inputs (Name and Target) (Unchanged) -->
                 <div class="form-grid" style="grid-template-columns: 1fr 1fr; max-width: 900px; margin-bottom: 1.5rem;">
                     <div>
                         <label for="project-name" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Project Name</label>
@@ -322,7 +323,7 @@
     </div>
 
     <!-- 
-      Site Form Template (Unchanged from your file)
+      Site Form Template (Unchanged)
     -->
     <template id="site-form-template">
         <div class="site-form-wrapper" data-site-id="">
@@ -406,7 +407,7 @@
         <!-- ... (modal content unchanged) ... -->
     </div>
     
-    <!-- NEW: Load Project Modal -->
+    <!-- Load Project Modal (Unchanged) -->
     <div id="load-project-modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width: 600px;">
             <h3 id="load-project-modal-title">Load Project</h3>
