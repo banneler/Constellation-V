@@ -3,6 +3,10 @@
  *
  * This script powers the irr.html page, managing multiple sites
  * as tabs and calculating a global IRR.
+ *
+ * Changes:
+ * - Implements a single Global Target IRR.
+ * - Calculates and displays TCV for individual sites and the global project.
  */
 
 // Import all shared functions and constants
@@ -42,7 +46,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Global Results Elements
     const globalDecisionEl = document.getElementById('global-decision');
     const globalAnnualIRREl = document.getElementById('global-annual-irr');
+    const globalTcvEl = document.getElementById('global-tcv');
     const globalErrorMessageEl = document.getElementById('global-error-message');
+    const globalTargetIrrInput = document.getElementById('global-target-irr-input');
 
     // --- 3. Core Site Management Functions ---
 
@@ -68,16 +74,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mrr: 3000,
                 monthlyCost: 500,
                 term: 60,
-                targetIRR: 0.15 // Store as decimal
+                // targetIRR is now global, removed from here
             },
             result: {
                 annualIRR: null,
+                tcv: 0,
                 decision: '--',
                 error: null
             }
         };
-        // Set targetIRR from the form default
-        newSite.inputs.targetIRR = (parseFloat(newFormWrapper.querySelector('.target-irr-input').value) || 0) / 100;
         
         state.sites.push(newSite);
 
@@ -160,15 +165,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const site = state.sites.find(s => s.id === siteId);
         if (!site) return;
 
-        // 1. Find the correct form wrapper
+        // 1. Get the single Global Target IRR
+        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
+
+        // 2. Find the correct form wrapper
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
         if (!formWrapper) {
             console.error(`runSiteCalculation: Could not find formWrapper for siteId ${siteId}`);
             return; 
         }
 
-        // 2. Find the UI elements *within that specific wrapper*
-        //    This is the critical fix.
+        // 3. Find the UI elements *within that specific wrapper*
         const resultsContainer = formWrapper.querySelector('.individual-results-container');
         if (!resultsContainer) {
             console.error(`runSiteCalculation: Could not find .individual-results-container in formWrapper for siteId ${siteId}`);
@@ -177,14 +184,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const decisionEl = resultsContainer.querySelector('.individual-decision');
         const annualIRREl = resultsContainer.querySelector('.individual-annual-irr');
+        const tcvEl = resultsContainer.querySelector('.individual-tcv'); // NEW TCV element
         const errorMessageEl = resultsContainer.querySelector('.individual-error-message');
 
-        if (!decisionEl || !annualIRREl || !errorMessageEl) {
+        if (!decisionEl || !annualIRREl || !tcvEl || !errorMessageEl) {
             console.error(`runSiteCalculation: Missing results elements for siteId ${siteId}`);
             return;
         }
 
-        // 3. Read values from form and update state
+        // 4. Read values from form and update state
         site.name = formWrapper.querySelector('.site-name-input').value || `Site ${site.id}`;
         site.inputs.constructionCost = parseFloat(formWrapper.querySelector('.construction-cost-input').value) || 0;
         site.inputs.engineeringCost = parseFloat(formWrapper.querySelector('.engineering-cost-input').value) || 0;
@@ -192,35 +200,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         site.inputs.mrr = parseFloat(formWrapper.querySelector('.mrr-input').value) || 0;
         site.inputs.monthlyCost = parseFloat(formWrapper.querySelector('.monthly-cost-input').value) || 0;
         site.inputs.term = parseInt(formWrapper.querySelector('.term-input').value) || 0;
-        site.inputs.targetIRR = (parseFloat(formWrapper.querySelector('.target-irr-input').value) || 0) / 100;
+        
+        // 5. NEW: Calculate TCV
+        // TCV = (MRR * Term) + NRR
+        const siteTCV = (site.inputs.mrr * site.inputs.term) + site.inputs.nrr;
+        site.result.tcv = siteTCV;
 
-        // 4. Perform calculation
+        // 6. Perform IRR calculation
         const { cashFlows, error: validationError } = getCashFlowsForSite(site.inputs);
 
         if (validationError) {
             site.result.error = validationError;
             site.result.annualIRR = null;
             site.result.decision = 'Error';
-            // 5. Update UI (with correct elements)
-            showSiteError(errorMessageEl, decisionEl, annualIRREl, validationError);
+            // 7. Update UI (with correct elements)
+            showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, validationError);
         } else {
             const monthlyIRR = calculateIRR(cashFlows);
             if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
                 site.result.error = "Could not calculate IRR. Check inputs.";
                 site.result.annualIRR = null;
                 site.result.decision = 'Error';
-                // 5. Update UI (with correct elements)
-                showSiteError(errorMessageEl, decisionEl, annualIRREl, site.result.error);
+                // 7. Update UI
+                showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, site.result.error);
             } else {
                 site.result.error = null;
                 site.result.annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
-                site.result.decision = site.result.annualIRR >= site.inputs.targetIRR ? 'GO' : 'NO GO';
-                // 5. Update UI (with correct elements)
-                showSiteResults(errorMessageEl, decisionEl, annualIRREl, site.result.annualIRR, site.result.decision);
+                // 7. Update UI (using GLOBAL target)
+                site.result.decision = site.result.annualIRR >= globalTargetIRR ? 'GO' : 'NO GO';
+                showSiteResults(errorMessageEl, decisionEl, annualIRREl, tcvEl, site.result.annualIRR, site.result.decision, site.result.tcv);
             }
         }
         
-        // 6. Update tabs and global results
+        // 8. Update tabs and global results
         renderTabs();
         setActiveSite(site.id); // Re-assert active tab
         
@@ -230,33 +242,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
-     * Calculates the combined IRR for *all* sites.
+     * Calculates the combined IRR and TCV for *all* sites.
      */
     function runGlobalCalculation() {
         let globalCashFlows = [0]; 
         let maxTerm = 0;
-        let globalTargetIRR = 0; 
+        let globalTCV = 0;
         
         if (state.sites.length === 0) {
-            showGlobalResults(NaN, 0); 
+            showGlobalResults(NaN, 0, 0); 
             return;
         }
 
-        // Use the active site's target IRR for the global decision
-        const activeSite = state.sites.find(s => s.id === state.activeSiteId);
-        globalTargetIRR = activeSite ? activeSite.inputs.targetIRR : state.sites[0].inputs.targetIRR;
+        // 1. Get the single Global Target IRR
+        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
 
         state.sites.forEach(site => {
             if (site.inputs.term > maxTerm) {
                 maxTerm = site.inputs.term;
             }
+            // 2. Sum the TCV from each site's results
+            globalTCV += site.result.tcv || 0;
         });
         
         globalCashFlows = new Array(maxTerm + 1).fill(0);
 
         for (const site of state.sites) {
-            // Note: We re-calculate cash flows here, NOT using stored results
-            // This ensures global calc is always in sync with inputs
             const { cashFlows, error } = getCashFlowsForSite(site.inputs);
             if (!error) {
                 for (let i = 0; i < cashFlows.length; i++) {
@@ -266,6 +277,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         }
+        
+        // 3. Update Global TCV UI
+        globalTcvEl.textContent = `$${globalTCV.toLocaleString()}`;
+        globalTcvEl.classList.remove('pending');
 
         const monthZero = globalCashFlows[0];
         const positiveFlow = globalCashFlows.slice(1).some(cf => cf > 0);
@@ -311,10 +326,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * Updates the UI for *individual site* results
      */
-    function showSiteResults(errorMessageEl, decisionEl, annualIRREl, annualIRR, decision) {
+    function showSiteResults(errorMessageEl, decisionEl, annualIRREl, tcvEl, annualIRR, decision, tcv) {
         errorMessageEl.classList.add('hidden');
+        
         annualIRREl.textContent = (annualIRR * 100).toFixed(2) + '%';
         decisionEl.textContent = decision;
+        tcvEl.textContent = `$${tcv.toLocaleString()}`;
+        tcvEl.style.color = 'var(--text-color-primary)';
+        tcvEl.classList.remove('pending');
 
         if (decision === 'GO') {
             decisionEl.style.color = 'var(--color-success, #22c55e)';
@@ -328,7 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * Updates the UI for an *individual site* error
      */
-    function showSiteError(errorMessageEl, decisionEl, annualIRREl, message) {
+    function showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, message) {
         errorMessageEl.classList.remove('hidden');
         errorMessageEl.textContent = message;
         
@@ -336,6 +355,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         decisionEl.style.color = 'var(--text-color-secondary, #9ca3af)';
         annualIRREl.textContent = '--%';
         annualIRREl.style.color = 'var(--text-color-secondary, #9ca3af)';
+        tcvEl.textContent = '$0';
+        tcvEl.style.color = 'var(--text-color-secondary, #9ca3af)';
+        tcvEl.classList.remove('pending');
     }
 
     /**
@@ -371,6 +393,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         globalDecisionEl.style.color = 'var(--text-color-secondary, #9ca3af)';
         globalAnnualIRREl.textContent = '--%';
         globalAnnualIRREl.style.color = 'var(--text-color-secondary, #9ca3af)';
+        globalTcvEl.textContent = '$0';
+        globalTcvEl.style.color = 'var(--text-color-secondary, #9ca3af)';
         
         globalErrorMessageEl.textContent = message;
         globalErrorMessageEl.classList.remove('hidden');
@@ -379,13 +403,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 6. Print Function ---
 
     function handlePrintReport() {
-        // Read the project name from the new input
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
+        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
 
         let reportHtml = `
             <style>
                 body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background: #fff; color: #000; }
-                h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; }
+                h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-size: 2rem; }
                 h2 { color: #111; margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -393,25 +417,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .go { color: #16a34a; font-weight: bold; }
                 .nogo { color: #dc2626; font-weight: bold; }
                 .error { color: #6b7280; }
-                .global-results { margin-top: 30px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; }
-                .global-results h2 { margin-top: 0; border: none; }
-                .global-irr { font-size: 2rem; font-weight: bold; margin: 0; }
-                .global-decision { font-size: 2.5rem; font-weight: bold; margin-bottom: 10px; }
+                .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
+                .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
+                .global-results-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+                .global-results-grid p { margin: 0; color: #555; font-size: 0.9rem; }
+                .global-results-grid .value { font-size: 1.75rem; font-weight: bold; margin-top: 5px; }
             </style>
-            <!-- Use the dynamic project name -->
             <h1>${projectName}</h1>
         `;
 
-        // Add Global Results FIRST
+        // Add Global Results
         const globalDecision = globalDecisionEl.textContent;
         const globalDecisionClass = globalDecision === 'GO' ? 'go' : (globalDecision === 'NO GO' ? 'nogo' : 'error');
         
         reportHtml += `
             <div class="global-results">
                 <h2>Global Project Results (All Sites)</h2>
-                <p class="global-decision ${globalDecisionClass}">${globalDecision}</p>
-                <p style="margin:0; color: #555;">Calculated Global Annual IRR</p>
-                <p class="global-irr ${globalDecisionClass}">${globalAnnualIRREl.textContent}</p>
+                <div class="global-results-grid">
+                    <div>
+                        <p>Global Decision</p>
+                        <div class="value ${globalDecisionClass}">${globalDecision}</div>
+                    </div>
+                    <div>
+                        <p>Calculated Global Annual IRR</p>
+                        <div class="value ${globalDecisionClass}">${globalAnnualIRREl.textContent}</div>
+                    </div>
+                    <div>
+                        <p>Global TCV ($)</p>
+                        <div class="value" style="color: #3b82f6;">${globalTcvEl.textContent}</div>
+                    </div>
+                </div>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                <p style="margin: 0;"><strong>Global Target IRR:</strong> ${(globalTargetIRR * 100).toFixed(2)}%</p>
             </div>
         `;
 
@@ -422,12 +459,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <thead>
                     <tr>
                         <th>Site Name</th>
+                        <th>TCV ($)</th>
                         <th>Construction ($)</th>
                         <th>Eng. ($)</th>
                         <th>NRR ($)</th>
                         <th>MRR ($)</th>
                         <th>Term (Mos)</th>
-                        <th>Target IRR</th>
                         <th>Calculated IRR</th>
                         <th>Decision</th>
                     </tr>
@@ -444,12 +481,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             reportHtml += `
                 <tr>
                     <td>${site.name}</td>
+                    <td>$${(res.tcv || 0).toLocaleString()}</td>
                     <td>${inputs.constructionCost.toLocaleString()}</td>
                     <td>${inputs.engineeringCost.toLocaleString()}</td>
                     <td>${inputs.nrr.toLocaleString()}</td>
                     <td>${inputs.mrr.toLocaleString()}</td>
                     <td>${inputs.term}</td>
-                    <td>${(inputs.targetIRR * 100).toFixed(0)}%</td>
                     <td class="${decisionClass}">${irrText}</td>
                     <td class="${decisionClass}">${res.decision}</td>
                 </tr>
@@ -468,7 +505,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const frameDoc = printFrame.contentWindow.document;
         frameDoc.open();
-        // Use dynamic project name in <title>
         frameDoc.write(`<html><head><title>${projectName}</title></head><body>`);
         frameDoc.write(reportHtml);
         frameDoc.write('</body></html>');
@@ -548,6 +584,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
+        
+        // NEW: Listener for the Global Target IRR
+        if (globalTargetIrrInput) {
+            globalTargetIrrInput.addEventListener('input', () => {
+                // When global target changes, recalculate everything
+                state.sites.forEach(site => runSiteCalculation(site.id, false)); // Recalc all sites, don't run global in loop
+                runGlobalCalculation(); // Run global once at the end
+            });
+        }
     }
 
     // --- 8. Main Page Initialization ---
@@ -604,18 +649,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         let npvAtMin = calculateNPV(minRate, cashFlows);
         let npvAtMax = calculateNPV(maxRate, cashFlows);
         
+        // Try to find a valid bracket
         if (npvAtMin * npvAtMax > 0) {
-            maxRate = 5.0;
+            maxRate = 5.0; // Try a wider bracket
             npvAtMax = calculateNPV(maxRate, cashFlows);
             if (npvAtMin * npvAtMax > 0) {
                  minRate = -0.999999;
-                 maxRate = 20.0;
+                 maxRate = 20.0; // Try an even wider bracket
                  npvAtMin = calculateNPV(minRate, cashFlows);
                  npvAtMax = calculateNPV(maxRate, cashFlows);
-                 if (npvAtMin * npvAtMax > 0) return NaN;
+                 if (npvAtMin * npvAtMax > 0) return NaN; // Give up
             }
         }
 
+        // Bisection method
         for (let i = 0; i < maxIterations; i++) {
             midRate = (minRate + maxRate) / 2;
             let npvAtMid = calculateNPV(midRate, cashFlows);
