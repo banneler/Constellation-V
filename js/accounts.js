@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 2. Fetches detailed data for ONE account after it has been selected.
     // Fetches detailed data and puts it into the new state.selectedAccountDetails object
     async function loadDetailsForSelectedAccount() {
-        if (!state.selectedAccountId) return;
+    if (!state.selectedAccountId) return;
 
         // Show a loading state in the UI immediately
         // MODIFIED: Target new containers
@@ -132,22 +132,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
 
-        // Fetch all related data for only the selected account
-        const [contactsRes, dealsRes, activitiesRes, tasksRes, sequencesRes] = await Promise.all([
-            supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId), // This will fetch all fields, including 'reports_to'
-            supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
-            supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
-            supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
-            supabase.from("contact_sequences").select("*").in('contact_id', (contactsRes.data || []).map(c => c.id)) // MODIFIED: More efficient query
-        ]);
+    // Fetch all related data for only the selected account
+    // MODIFIED: Broke into two steps to fix the ReferenceError
+    // STEP 1: Fetch all data *except* contact_sequences
+    const [contactsRes, dealsRes, activitiesRes, tasksRes] = await Promise.all([
+        supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId), // This will fetch all fields, including 'reports_to'
+        supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
+        supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId)
+    ]);
 
-        if (contactsRes.error) throw contactsRes.error;
-        if (dealsRes.error) throw dealsRes.error;
-        if (activitiesRes.error) throw activitiesRes.error;
-        if (tasksRes.error) throw tasksRes.error;
-        if (sequencesRes.error) throw sequencesRes.error;
+    if (contactsRes.error) throw contactsRes.error;
+    if (dealsRes.error) throw dealsRes.error;
+    if (activitiesRes.error) throw activitiesRes.error;
+    if (tasksRes.error) throw tasksRes.error;
 
-        // Populate the dedicated details object, leaving the master lists untouched
+    // STEP 2: Use contactsRes.data to fetch contact_sequences
+    const contactIds = (contactsRes.data || []).map(c => c.id);
+    const sequencesRes = contactIds.length > 0
+        ? await supabase.from("contact_sequences").select("*").in('contact_id', contactIds)
+        : { data: [], error: null }; // Avoid an empty 'in' query
+
+    if (sequencesRes.error) throw sequencesRes.error;
+
+    // Populate the dedicated details object, leaving the master lists untouched
         state.selectedAccountDetails.contacts = contactsRes.data || [];
         state.selectedAccountDetails.deals = dealsRes.data || [];
         state.selectedAccountDetails.activities = activitiesRes.data || [];
@@ -1347,4 +1355,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     initializePage();
 });
+
 
