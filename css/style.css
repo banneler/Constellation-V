@@ -4401,21 +4401,28 @@ div.briefing-pre {
 
 /* --- THE LINES --- */
 
-/* 1. Line UP from child card to the horizontal bar */
-/* 1. Line UP from child card AND horizontal bar */
+/* 1. Line UP from child card */
 #contact-org-chart-view .org-chart-node::before {
     content: '';
     position: absolute;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 100%; /* Make it full width */
-    height: 20px;
-    border-top: 2px solid var(--border-color); /* The horizontal line */
-    border-left: 2px solid var(--border-color); /* The vertical line */
+    width: 2px;
+    height: 20px; /* Space between card and horizontal line */
+    background-color: var(--border-color);
 }
 
-
+/* 2. THE FIX: Repurpose the '::after' to be the horizontal bar */
+#contact-org-chart-view .org-chart-node::after {
+    content: '';
+    position: absolute;
+    top: 0; /* Align with the top of the vertical line */
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--border-color);
+}
 
 /* 3. Line DOWN from parent card */
 #contact-org-chart-view .contact-card::after {
@@ -4429,15 +4436,14 @@ div.briefing-pre {
     background-color: var(--border-color);
 }
 
-/* 4. THE GHOST FIX: This MUST be here to kill the old rule */
-#contact-org-chart-view .org-chart-node::after {
-    display: none !important;
-}
-
 /* --- LINE CLEANUP --- */
 
 /* Hide line UP from top-level nodes */
 #contact-org-chart-view .org-chart-root > .org-chart-node::before {
+    display: none;
+}
+/* Hide horizontal bar for top-level nodes */
+#contact-org-chart-view .org-chart-root > .org-chart-node::after {
     display: none;
 }
 
@@ -4446,33 +4452,22 @@ div.briefing-pre {
     display: none;
 }
 
-/* Trim horizontal line for a single child */
-#contact-org-chart-view .org-chart-children .org-chart-node:only-child::before {
-    display: none; 
-}
-
 /* Trim horizontal line for the first child */
-#contact-org-chart-view .org-chart-children .org-chart-node:first-child::before {
+#contact-org-chart-view .org-chart-children .org-chart-node:first-child::after {
     left: 50%;
     width: 50%;
-    border-left: none; /* No vertical line needed */
 }
 
 /* Trim horizontal line for the last child */
-#contact-org-chart-view .org-chart-children .org-chart-node:last-child::before {
+#contact-org-chart-view .org-chart-children .org-chart-node:last-child::after {
     left: 0;
     width: 50%;
-    border-right: 2px solid var(--border-color); /* Add a right-side border */
 }
 
 /* A single child doesn't need a horizontal line */
-#contact-org-chart-view .org-chart-children .org-chart-node:only-child::before {
-    border-top: none; /* Just draw the vertical line up */
-    border-left: 2px solid var(--border-color);
-    left: 50%;
-    width: 0;
+#contact-org-chart-view .org-chart-children .org-chart-node:only-child::after {
+    display: none;
 }
-
 
 /* --- COMPACT CARD STYLES --- */
 
@@ -4526,20 +4521,23 @@ div.briefing-pre {
 
 /* --- NEW: Unassigned Contacts Box --- */
 
-#contact-org-chart-view .unassigned-container {
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 2px dashed var(--border-color);
+#unassigned-contacts-container {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-dark);
 }
 
-#contact-org-chart-view .unassigned-container h4 {
+#unassigned-contacts-container h4 {
     color: var(--text-medium);
     font-size: 0.9rem;
     text-align: left;
+    margin-top: 0;
     margin-bottom: 1rem;
 }
 
-#contact-org-chart-view .unassigned-contacts-list {
+#unassigned-contacts-container .unassigned-contacts-list {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -4547,6 +4545,6 @@ div.briefing-pre {
 }
 
 /* Make unassigned cards use the same style but take up less space */
-#contact-org-chart-view .unassigned-contacts-list .contact-card {
+#unassigned-contacts-container .contact-card {
     margin-top: 0; /* No line needed */
 }
