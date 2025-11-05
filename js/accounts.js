@@ -713,7 +713,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-   // MODIFIED: This function is now async to await the canvas generation
+// MODIFIED: This function is now async to await the canvas generation
     async function handlePrintBriefing() {
         const accountName = state.selectedAccountDetails.account?.name;
 
@@ -757,11 +757,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const imgDataUrl = canvas.toDataURL('image/png');
                 
                 // 7. Create new, simple HTML for the image
-const orgChartImageHtml = `
-    <div class="briefing-section" style="page-break-inside: auto !important;">
-        <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
-    </div>
-`;
+                const orgChartImageHtml = `
+                    <div class="briefing-section" style="page-break-inside: auto !important;">
+                        <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                `;
                 
                 // 8. *Replace* the complex HTML chart in our clone with the simple image
                 chartElement.parentNode.replaceChild(
@@ -820,21 +820,22 @@ const orgChartImageHtml = `
                                 margin: 20px;
                             }
 
-                            /* --- Report Header Block (Your style) --- */
+                            /* --- HEADER FIX (YOUR SUGGESTION) --- */
                             .report-header {
                                 background-color: #3b82f6 !important;
                                 color: #ffffff !important;
-                                padding: 20px;
+                                padding: 12px 16px; /* Reduced padding */
                                 border-radius: 8px;
-                                margin-bottom: 25px;
+                                margin-bottom: 20px; /* Reduced margin */
                                 page-break-inside: avoid;
                             }
-                            .report-header h2, .report-header h3 {
+                            /* H2 removed */
+                            .report-header h3 {
+                                font-size: 1.35rem; /* Make account name the title */
+                                font-weight: 600;
                                 color: #ffffff !important;
                                 margin: 0;
                             }
-                            .report-header h2 { font-size: 1.75rem; font-weight: 600; }
-                            .report-header h3 { font-size: 1.25rem; font-weight: 400; opacity: 0.9; margin-top: 4px; }
 
                             /* --- Section Headers (h4) (Your style) --- */
                             h4 {
@@ -845,6 +846,7 @@ const orgChartImageHtml = `
                                 padding-bottom: 6px;
                                 margin-top: 30px;
                                 margin-bottom: 16px;
+                                page-break-after: auto !important; /* FIX for orphaned headings */
                             }
                             
                             /* --- BORDER FIX: Added !important --- */
@@ -859,12 +861,7 @@ const orgChartImageHtml = `
                                 line-height: 1.6;
                             }
 
-                            /* --- THIS IS THE FIX --- */
-                            /* Override the 'avoid' rule just for the chart container */
-                            .org-chart-print-container {
-                                page-break-inside: auto !important;
-                            }
-                            /* --- END OF FIX --- */
+                            /* Removed the useless .org-chart-print-container rule */
 
                             /* --- AI Recommendation Box (Your style) --- */
                             .briefing-section.recommendation {
@@ -897,7 +894,6 @@ const orgChartImageHtml = `
                 </head>
                 <body>
                     <div class="report-header">
-                        <h2>AI Reconnaissance Report</h2>
                         <h3>${accountName || 'Selected Account'}</h3>
                     </div>
                     
