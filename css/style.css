@@ -4487,8 +4487,8 @@ div.briefing-pre {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 8px 12px;
-    width: 170px;  /* Set a fixed, compact width */
-    text-align: left;
+    width: 100px;  /* Set a fixed, compact width */
+    text-align: center;
     cursor: grab;
     transition: box-shadow 0.2s, border-color 0.2s;
     position: relative;
@@ -4555,7 +4555,7 @@ div.briefing-pre {
 #unassigned-contacts-container h4 {
     color: var(--text-medium);
     font-size: 0.9rem;
-    text-align: left;
+    text-align: center;
     margin-top: 0;
     margin-bottom: 1rem;
 }
