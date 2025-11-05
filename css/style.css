@@ -4435,6 +4435,14 @@ div.briefing-pre {
     background-color: var(--border-color);
 }
 
+/* * 4. THE GHOST FIX:
+ * This explicitly disables the old, broken rule that is
+ * drawing the faint grey 100%-width bars.
+ */
+.org-chart-node::after {
+    display: none;
+}
+
 /* --- LINE CLEANUP --- */
 
 /* Hide line UP from top-level nodes */
@@ -4465,6 +4473,7 @@ div.briefing-pre {
     left: 0;
     width: 50%;
 }
+
 
 /* --- COMPACT CARD STYLES --- */
 
