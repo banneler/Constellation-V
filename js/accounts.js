@@ -335,8 +335,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.isFormDirty = false;
     };
 
-    const renderContactView = () => {
-        if (!contactListView || !contactOrgChartView || !contactListBtn || !contactOrgChartBtn) {
+   const renderContactView = () => {
+        // Find the new container
+        const unassignedContainer = document.getElementById("unassigned-contacts-container");
+
+        if (!contactListView || !contactOrgChartView || !contactListBtn || !contactOrgChartBtn || !unassignedContainer) {
             console.error('Contact view elements not found. Skipping render.');
             return;
         }
@@ -344,12 +347,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (state.contactViewMode === 'org') {
             contactListView.classList.add('hidden');
             contactOrgChartView.classList.remove('hidden');
+            unassignedContainer.classList.remove('hidden'); // Show this
             contactListBtn.classList.remove('active');
             contactOrgChartBtn.classList.add('active');
-            renderOrgChart();
+            renderOrgChart(); // This function will now render in two places
         } else {
             contactListView.classList.remove('hidden');
             contactOrgChartView.classList.add('hidden');
+            unassignedContainer.classList.add('hidden'); // Hide this
             contactListBtn.classList.add('active');
             contactOrgChartBtn.classList.remove('active');
             renderContactList();
@@ -376,11 +381,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
     };
 
-  const renderOrgChart = () => {
+ const renderOrgChart = () => {
         const { contacts } = state.selectedAccountDetails;
-        if (!contactOrgChartView) return;
+        // Get both render targets
+        const chartView = document.getElementById("contact-org-chart-view");
+        const unassignedContainer = document.getElementById("unassigned-contacts-container");
+        
+        if (!chartView || !unassignedContainer) return;
 
-        contactOrgChartView.innerHTML = ""; // Clear the chart
+        chartView.innerHTML = ""; // Clear the main chart
+        unassignedContainer.innerHTML = ""; // Clear the unassigned box
 
         // 1. Create a map for easy lookup
         const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
@@ -391,18 +401,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (contact.reports_to && contactMap.has(Number(contact.reports_to))) {
                 contactMap.get(Number(contact.reports_to)).children.push(contact);
             } else {
-                topLevelNodes.push(contact); // This is a top-level node (manager or unassigned)
+                topLevelNodes.push(contact); 
             }
         });
 
-        // 3. NEW: Separate managers from unassigned contacts
+        // 3. Separate managers from unassigned contacts
         const finalTree = [];
         const unassigned = [];
         topLevelNodes.forEach(node => {
+            // A node is part of the tree if it has children
             if (node.children.length > 0) {
-                finalTree.push(node); // It's a top-level manager
+                finalTree.push(node);
             } else {
-                unassigned.push(node); // It's an unassigned contact
+                unassigned.push(node);
             }
         });
 
@@ -434,36 +445,29 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>`;
         };
 
-        // 6. Start rendering
-        let chartHtml = '';
-        
-        // Render the main tree
+        // 6. Render the main tree
         const sortedTree = finalTree.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
         if (sortedTree.length > 0) {
-            chartHtml += `<ul class="org-chart-root">
+            chartView.innerHTML = `<ul class="org-chart-root">
                 ${sortedTree.map(topLevelNode => createNodeHtml(topLevelNode)).join('')}
             </ul>`;
+        } else {
+            chartView.innerHTML = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No managers with direct reports found.</p>`;
         }
 
-        // Render the new unassigned box
+        // 7. Render the new unassigned box
         const sortedUnassigned = unassigned.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
         if (sortedUnassigned.length > 0) {
-            chartHtml += `
-                <div class="unassigned-container">
-                    <h4>Unassigned Contacts</h4>
-                    <div class="unassigned-contacts-list">
-                        ${sortedUnassigned.map(contact => createUnassignedCardHtml(contact)).join('')}
-                    </div>
+            unassignedContainer.innerHTML = `
+                <h4>Unassigned Contacts</h4>
+                <div class="unassigned-contacts-list">
+                    ${sortedUnassigned.map(contact => createUnassignedCardHtml(contact)).join('')}
                 </div>`;
+        } else {
+            // Optional: Show a message if there are no unassigned contacts
+             unassignedContainer.innerHTML = `<h4>Unassigned Contacts</h4><p classs="placeholder-text" style="margin: 0; text-align: left; font-style: italic; color: var(--text-medium);">None.</p>`;
         }
         
-        // 7. Set the final HTML
-        if (chartHtml.length > 0) {
-            contactOrgChartView.innerHTML = chartHtml;
-        } else {
-            contactOrgChartView.innerHTML = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
-        }
-
         // 8. Set up drag-and-drop listeners
         setupOrgChartDragDrop();
     };
