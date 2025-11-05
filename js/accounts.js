@@ -977,42 +977,45 @@ document.addEventListener("DOMContentLoaded", async () => {
             const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
             let orgChartDisplayHtml = '';
-            // --- FIX IS HERE ---
-            // Check if the main chart view is active and has content
+
+            // --- THIS IS THE FIX ---
             if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
                 
-                // 1. Clone the main manager tree
-                const chartClone = contactOrgChartView.cloneNode(true);
-                chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
+                // 1. Get the INNER HTML from the live chart
+                const chartCloneHtml = contactOrgChartView.innerHTML;
                 
-                // 2. ALSO clone the unassigned contacts container
+                // 2. Get the INNER HTML from the unassigned container
                 const unassignedContainer = document.getElementById("unassigned-contacts-container");
                 let unassignedCloneHtml = '';
                 if (unassignedContainer) {
-                    const unassignedClone = unassignedContainer.cloneNode(true);
-                    unassignedClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
-                    unassignedCloneHtml = unassignedClone.innerHTML; // Get its HTML
+                    unassignedCloneHtml = unassignedContainer.innerHTML;
                 }
                 
-                // 3. Combine them in the output
+                // 3. Re-wrap the HTML in the IDs/classes that our CSS file needs
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
                     <div class="briefing-section org-chart-print-container"
                          style="
                             max-height: 300px;
-                            overflow: hidden; /* We changed this from 'auto' */
+                            overflow: hidden;
                             border: 1px solid var(--border-color);
                             background: var(--bg-dark);
                             padding: 10px;
                             border-radius: 8px;
                          ">
                         <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
-                            ${chartClone.innerHTML}
-                            ${unassignedCloneHtml} 
+                            
+                            <div id="contact-org-chart-view">
+                                ${chartCloneHtml}
+                            </div>
+                            <div id="unassigned-contacts-container">
+                                ${unassignedCloneHtml} 
+                            </div>
+                            
                         </div>
                     </div>`;
                 // --- END OF FIX ---
-
+                
             } else if (contacts.length > 0) {
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
