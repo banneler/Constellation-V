@@ -376,23 +376,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
     };
 
-    const renderOrgChart = () => {
+  const renderOrgChart = () => {
         const { contacts } = state.selectedAccountDetails;
         if (!contactOrgChartView) return;
 
-        contactOrgChartView.innerHTML = "";
+        contactOrgChartView.innerHTML = ""; // Clear the chart
 
+        // 1. Create a map for easy lookup
         const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
         
-        const tree = [];
+        // 2. Build the tree structure
+        const topLevelNodes = [];
         contactMap.forEach(contact => {
             if (contact.reports_to && contactMap.has(Number(contact.reports_to))) {
                 contactMap.get(Number(contact.reports_to)).children.push(contact);
             } else {
-                tree.push(contact);
+                topLevelNodes.push(contact); // This is a top-level node (manager or unassigned)
             }
         });
 
+        // 3. NEW: Separate managers from unassigned contacts
+        const finalTree = [];
+        const unassigned = [];
+        topLevelNodes.forEach(node => {
+            if (node.children.length > 0) {
+                finalTree.push(node); // It's a top-level manager
+            } else {
+                unassigned.push(node); // It's an unassigned contact
+            }
+        });
+
+        // 4. Recursive function to render the HTML for the main tree
         const createNodeHtml = (contact) => {
             const sortedChildren = contact.children.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
             
@@ -412,16 +426,45 @@ document.addEventListener("DOMContentLoaded", async () => {
             </li>`;
         };
 
-        const sortedTree = tree.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
+        // 5. Recursive function to render the HTML for *unassigned* cards
+        const createUnassignedCardHtml = (contact) => {
+             return `<div class="contact-card" draggable="true" data-contact-id="${contact.id}">
+                <div class="contact-card-name">${contact.first_name} ${contact.last_name}</div>
+                <div class="contact-card-title">${contact.title || 'N/A'}</div>
+            </div>`;
+        };
+
+        // 6. Start rendering
+        let chartHtml = '';
+        
+        // Render the main tree
+        const sortedTree = finalTree.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
         if (sortedTree.length > 0) {
-            const chartHtml = `<ul class="org-chart-root">
+            chartHtml += `<ul class="org-chart-root">
                 ${sortedTree.map(topLevelNode => createNodeHtml(topLevelNode)).join('')}
             </ul>`;
+        }
+
+        // Render the new unassigned box
+        const sortedUnassigned = unassigned.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
+        if (sortedUnassigned.length > 0) {
+            chartHtml += `
+                <div class="unassigned-container">
+                    <h4>Unassigned Contacts</h4>
+                    <div class="unassigned-contacts-list">
+                        ${sortedUnassigned.map(contact => createUnassignedCardHtml(contact)).join('')}
+                    </div>
+                </div>`;
+        }
+        
+        // 7. Set the final HTML
+        if (chartHtml.length > 0) {
             contactOrgChartView.innerHTML = chartHtml;
         } else {
             contactOrgChartView.innerHTML = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
         }
 
+        // 8. Set up drag-and-drop listeners
         setupOrgChartDragDrop();
     };
 
