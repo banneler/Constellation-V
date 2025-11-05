@@ -4360,36 +4360,37 @@ div.briefing-pre {
 /* ========================================= */
 
 #contact-org-chart-view {
-    padding: 2rem; /* Give the chart breathing room */
+    padding: 2rem;
     background-color: var(--bg-dark);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     min-height: 200px;
-    overflow-x: auto; /* Enable horizontal scrolling */
+    overflow-x: auto;
+    text-align: center; /* Center the whole chart block */
 }
 
-/* Make the root a non-flex container that can scroll */
-.org-chart-root {
+/* The root <ul> starts the chart */
+#contact-org-chart-view .org-chart-root {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: inline-block; /* Allows the container to size to its content */
-    min-width: 100%;
+    display: inline-flex; /* Use inline-flex to size to content */
+    justify-content: center;
+    position: relative;
 }
 
-/* All <ul> elements are flex containers */
-.org-chart-root,
-.org-chart-children {
+/* A <ul> that contains children */
+#contact-org-chart-view .org-chart-children {
+    list-style: none;
+    padding: 0;
+    margin: 0;
     display: flex;
     justify-content: center;
     position: relative;
-    list-style: none;
-    padding: 0;
-    margin: 0;
 }
 
-/* The <li> is the main "column" for a node and its children */
-.org-chart-node {
+/* The <li> "column" for a node */
+#contact-org-chart-view .org-chart-node {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -4401,7 +4402,7 @@ div.briefing-pre {
 /* --- THE LINES --- */
 
 /* 1. Line UP from child card to the horizontal bar */
-.org-chart-node::before {
+#contact-org-chart-view .org-chart-node::before {
     content: '';
     position: absolute;
     top: 0;
@@ -4413,18 +4414,18 @@ div.briefing-pre {
 }
 
 /* 2. Horizontal line ACROSS the top of a children group */
-.org-chart-children::before {
+#contact-org-chart-view .org-chart-children::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 10%; /* Start line part-way */
-    right: 10%; /* End line part-way */
+    left: 10%; 
+    right: 10%;
     height: 2px;
     background-color: var(--border-color);
 }
 
 /* 3. Line DOWN from parent card */
-.contact-card::after {
+#contact-org-chart-view .contact-card::after {
     content: '';
     position: absolute;
     bottom: -20px; /* Matches the 'top' space */
@@ -4435,41 +4436,36 @@ div.briefing-pre {
     background-color: var(--border-color);
 }
 
-/* * 4. THE GHOST FIX:
- * This explicitly disables the old, broken rule that is
- * drawing the faint grey 100%-width bars.
- */
-.org-chart-node::after {
-    display: none;
+/* 4. THE GHOST FIX: This MUST be here to kill the old rule */
+#contact-org-chart-view .org-chart-node::after {
+    display: none !important;
 }
 
 /* --- LINE CLEANUP --- */
 
 /* Hide line UP from top-level nodes */
-.org-chart-root > .org-chart-node::before {
+#contact-org-chart-view .org-chart-root > .org-chart-node::before {
     display: none;
 }
 
 /* Hide line DOWN from cards that have NO children */
-.org-chart-node:not(:has(.org-chart-children)) > .contact-card::after {
+#contact-org-chart-view .org-chart-node:not(:has(.org-chart-children)) > .contact-card::after {
     display: none;
 }
 
 /* Trim horizontal line for a single child */
-.org-chart-children .org-chart-node:only-child::before {
-    display: none; /* No need for a line up if it's 1-to-1 */
+#contact-org-chart-view .org-chart-children .org-chart-node:only-child::before {
+    display: none; 
 }
 
 /* Trim horizontal line for the first child */
-.org-chart-children .org-chart-node:first-child::before {
-    /* This makes the line draw from 50% to 100% */
+#contact-org-chart-view .org-chart-children .org-chart-node:first-child::before {
     left: 50%;
     width: 50%;
 }
 
 /* Trim horizontal line for the last child */
-.org-chart-children .org-chart-node:last-child::before {
-    /* This makes the line draw from 0% to 50% */
+#contact-org-chart-view .org-chart-children .org-chart-node:last-child::before {
     left: 0;
     width: 50%;
 }
@@ -4477,7 +4473,7 @@ div.briefing-pre {
 
 /* --- COMPACT CARD STYLES --- */
 
-.contact-card {
+#contact-org-chart-view .contact-card {
     background-color: var(--bg-medium);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -4492,22 +4488,22 @@ div.briefing-pre {
     margin-top: 20px; /* Space for the line */
 }
 
-.contact-card:hover {
+#contact-org-chart-view .contact-card:hover {
     border-color: var(--primary-blue);
 }
 
-.contact-card.dragging {
+#contact-org-chart-view .contact-card.dragging {
     opacity: 0.8;
     background-color: var(--bg-light);
     transform: scale(1.02);
 }
 
-.contact-card.drop-target {
+#contact-org-chart-view .contact-card.drop-target {
     border-color: var(--completed-color);
     box-shadow: 0 0 10px var(--completed-color);
 }
 
-.contact-card-name {
+#contact-org-chart-view .contact-card-name {
     font-weight: 600;
     color: var(--text-light);
     font-size: 0.85rem; /* Reduced font size */
@@ -4516,11 +4512,38 @@ div.briefing-pre {
     text-overflow: ellipsis;
 }
 
-.contact-card-title {
+#contact-org-chart-view .contact-card-title {
     font-size: 0.75rem; /* Reduced font size */
     color: var(--text-medium);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-style: italic;
+}
+
+/* --- NEW: Unassigned Contacts Box --- */
+
+#contact-org-chart-view .unassigned-container {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 2px dashed var(--border-color);
+}
+
+#contact-org-chart-view .unassigned-container h4 {
+    color: var(--text-medium);
+    font-size: 0.9rem;
+    text-align: left;
+    margin-bottom: 1rem;
+}
+
+#contact-org-chart-view .unassigned-contacts-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-start; /* Aligns cards to the left */
+}
+
+/* Make unassigned cards use the same style but take up less space */
+#contact-org-chart-view .unassigned-contacts-list .contact-card {
+    margin-top: 0; /* No line needed */
 }
