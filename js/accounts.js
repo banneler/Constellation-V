@@ -887,9 +887,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                             padding: 10px;
                             border-radius: 8px;
                          ">
-                      <div id="org-chart-render-target">
-    ${chartClone.innerHTML}
-</div>
+                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
+                            ${chartClone.innerHTML}
+                        </div>
                     </div>`;
             } else if (contacts.length > 0) {
                 orgChartDisplayHtml = `
