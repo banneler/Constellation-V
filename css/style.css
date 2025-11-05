@@ -4401,7 +4401,7 @@ div.briefing-pre {
 
 /* --- THE LINES --- */
 
-/* 1. Line UP from child card */
+/* 1. Line UP from child card to the horizontal bar */
 #contact-org-chart-view .org-chart-node::before {
     content: '';
     position: absolute;
@@ -4413,19 +4413,21 @@ div.briefing-pre {
     background-color: var(--border-color);
 }
 
-/* 2. THE FIX: Repurpose the '::after' to be the horizontal bar */
-#contact-org-chart-view .org-chart-node::after {
+/* 2. Horizontal line ACROSS the top of a children group */
+#contact-org-chart-view .org-chart-children::before {
     content: '';
     position: absolute;
-    top: 0; /* Align with the top of the vertical line */
-    left: 0;
-    width: 100%;
+    top: 0;
+    left: 10%; 
+    right: 10%;
     height: 2px;
     background-color: var(--border-color);
 }
 
 /* 3. Line DOWN from parent card */
-#contact-org-chart-view .contact-card::after {
+/* We group this so it works on unassigned cards too (for dragging) */
+#contact-org-chart-view .contact-card::after,
+#unassigned-contacts-container .contact-card::after {
     content: '';
     position: absolute;
     bottom: -20px; /* Matches the 'top' space */
@@ -4436,15 +4438,16 @@ div.briefing-pre {
     background-color: var(--border-color);
 }
 
+/* 4. THE GHOST FIX: This MUST be here to kill the old rule */
+#contact-org-chart-view .org-chart-node::after {
+    display: none !important;
+}
+
 /* --- LINE CLEANUP --- */
 
 /* Hide line UP from top-level nodes */
 #contact-org-chart-view .org-chart-root > .org-chart-node::before {
-    display: none;
-}
-/* Hide horizontal bar for top-level nodes */
-#contact-org-chart-view .org-chart-root > .org-chart-node::after {
-    display: none;
+    display: none !important;
 }
 
 /* Hide line DOWN from cards that have NO children */
@@ -4452,32 +4455,40 @@ div.briefing-pre {
     display: none;
 }
 
+/* Hide line DOWN for ALL unassigned cards */
+#unassigned-contacts-container .contact-card::after {
+    display: none;
+}
+
+/* Trim horizontal line for a single child */
+#contact-org-chart-view .org-chart-children .org-chart-node:only-child::before {
+    display: none; 
+}
+
 /* Trim horizontal line for the first child */
-#contact-org-chart-view .org-chart-children .org-chart-node:first-child::after {
+#contact-org-chart-view .org-chart-children .org-chart-node:first-child::before {
     left: 50%;
     width: 50%;
 }
 
 /* Trim horizontal line for the last child */
-#contact-org-chart-view .org-chart-children .org-chart-node:last-child::after {
+#contact-org-chart-view .org-chart-children .org-chart-node:last-child::before {
     left: 0;
     width: 50%;
 }
 
-/* A single child doesn't need a horizontal line */
-#contact-org-chart-view .org-chart-children .org-chart-node:only-child::after {
-    display: none;
-}
 
-/* --- COMPACT CARD STYLES --- */
+/* --- COMPACT CARD STYLES (FIXES 1 & 3) --- */
 
-#contact-org-chart-view .contact-card {
+/* Grouped selector to style ALL cards */
+#contact-org-chart-view .contact-card,
+#unassigned-contacts-container .contact-card {
     background-color: var(--bg-medium);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 8px 12px; /* Reduced padding */
-    min-width: 170px;  /* Reduced min-width */
-    text-align: left; /* Aligns text left */
+    padding: 8px 12px;
+    width: 170px;  /* Set a fixed, compact width */
+    text-align: left;
     cursor: grab;
     transition: box-shadow 0.2s, border-color 0.2s;
     position: relative;
@@ -4486,40 +4497,52 @@ div.briefing-pre {
     margin-top: 20px; /* Space for the line */
 }
 
-#contact-org-chart-view .contact-card:hover {
+/* Specific margin-top override for unassigned cards */
+#unassigned-contacts-container .contact-card {
+    margin-top: 0;
+}
+
+#contact-org-chart-view .contact-card:hover,
+#unassigned-contacts-container .contact-card:hover {
     border-color: var(--primary-blue);
 }
 
-#contact-org-chart-view .contact-card.dragging {
+#contact-org-chart-view .contact-card.dragging,
+#unassigned-contacts-container .contact-card.dragging {
     opacity: 0.8;
     background-color: var(--bg-light);
     transform: scale(1.02);
 }
 
-#contact-org-chart-view .contact-card.drop-target {
+#contact-org-chart-view .contact-card.drop-target,
+#unassigned-contacts-container .contact-card.drop-target {
     border-color: var(--completed-color);
     box-shadow: 0 0 10px var(--completed-color);
 }
 
-#contact-org-chart-view .contact-card-name {
+/* Grouped selector for Name */
+#contact-org-chart-view .contact-card-name,
+#unassigned-contacts-container .contact-card-name {
     font-weight: 600;
     color: var(--text-light);
-    font-size: 0.85rem; /* Reduced font size */
+    font-size: 0.85rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-#contact-org-chart-view .contact-card-title {
-    font-size: 0.75rem; /* Reduced font size */
+/* Grouped selector for Title (WORD WRAP FIX) */
+#contact-org-chart-view .contact-card-title,
+#unassigned-contacts-container .contact-card-title {
+    font-size: 0.75rem;
     color: var(--text-medium);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     font-style: italic;
+    white-space: normal; /* Allow wrapping */
+    overflow-wrap: break-word; /* Break long words */
+    min-height: 1.5em; /* Reserve space for two lines */
 }
 
-/* --- NEW: Unassigned Contacts Box --- */
+/* --- UNASSIGNED CONTACTS BOX (STYLES MOVED HERE) --- */
 
 #unassigned-contacts-container {
     margin-top: 1rem;
@@ -4542,9 +4565,4 @@ div.briefing-pre {
     flex-wrap: wrap;
     gap: 10px;
     justify-content: flex-start; /* Aligns cards to the left */
-}
-
-/* Make unassigned cards use the same style but take up less space */
-#unassigned-contacts-container .contact-card {
-    margin-top: 0; /* No line needed */
 }
