@@ -845,6 +845,7 @@ const orgChartImageHtml = `
                                 padding-bottom: 6px;
                                 margin-top: 30px;
                                 margin-bottom: 16px;
+                                page-break-after: auto !important;
                             }
                             
                             /* --- BORDER FIX: Added !important --- */
@@ -1039,8 +1040,7 @@ const orgChartImageHtml = `
                 ${orgChartDisplayHtml}
 
                 <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
-                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
-                    <div class="briefing-section">
+                   <div class="briefing-section">
                         <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
                         <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
                         <p><strong>Social Icebreakers:</strong></p>
