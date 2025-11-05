@@ -826,73 +826,72 @@ Route   	 }
   }, 250); // This timeout helps the iframe's content render
 }
 
-    // --- AI Briefing Handler ---
-    async function handleGenerateBriefing() {
-        if (!state.selectedAccountId) {
-            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        const { account, contacts, activities, deals } = state.selectedAccountDetails;
-        if (!account) return;
+   // --- AI Briefing Handler ---
+    async function handleGenerateBriefing() {
+        if (!state.selectedAccountId) {
+            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+        const { account, contacts, activities, deals } = state.selectedAccountDetails;
+        if (!account) return;
 
-        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
-        try {
-            let orgChartText = "No hierarchy defined.";
-            if (contacts.length > 0) {
-                const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
-                const tree = [];
-                contactMap.forEach(contact => {
-                    if (contact.reports_to && contactMap.has(Number(contact.reports_to))) { 
-                        contactMap.get(Number(contact.reports_to)).children.push(contact);
-                    } else {
-                        tree.push(contact);
-                    }
-                });
-                
-                const buildTextTree = (node, prefix = "") => {
-                    let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
-                    node.children
-                        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
-                        .forEach(child => {
-                            text += buildTextTree(child, prefix + "  ");
-                        });
-                    return text;
-                };
-                orgChartText = tree
-                    .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
-                    .map(node => buildTextTree(node)).join('');
-            }
+        try {
+            let orgChartText = "No hierarchy defined.";
+            if (contacts.length > 0) {
+                const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
+                const tree = [];
+                contactMap.forEach(contact => {
+                    if (contact.reports_to && contactMap.has(Number(contact.reports_to))) { 
+                        contactMap.get(Number(contact.reports_to)).children.push(contact);
+                    } else {
+                        tree.push(contact);
+                    }
+                });
+                
+                const buildTextTree = (node, prefix = "") => {
+                    let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
+                    node.children
+                        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                        .forEach(child => {
+                            text += buildTextTree(child, prefix + "  ");
+                        });
+                    return text;
+                };
+                orgChartText = tree
+                    .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                    .map(node => buildTextTree(node)).join('');
+            }
 
-            const internalData = {
-                accountName: account.name,
-                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
-                orgChart: orgChartText, 
-                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
-                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
-                    const contact = contacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
-                }).join('\n')
-            };
+            const internalData = {
+                accountName: account.name,
+                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
+                orgChart: orgChartText, 
+                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
+                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
+                    const contact = contacts.find(c => c.id === act.contact_id);
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
+                }).join('\n')
+            };
 
-            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
-            if (error) throw error;
+            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
+            if (error) throw error;
 
-            const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-          let orgChartDisplayHtml = '';
+            let orgChartDisplayHtml = '';
             if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
                 const chartClone = contactOrgChartView.cloneNode(true);
                 chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
                 
-                // --- START: UPDATED BLOCK ---
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
                     <div class="briefing-section org-chart-print-container" 
                          style="
-                            max-height: 300px;s
+                            max-height: 300px;
                             overflow: hidden; /* We changed this from 'auto' */
                             border: 1px solid var(--border-color); 
                             background: var(--bg-dark); 
@@ -903,48 +902,48 @@ Route   	 }
         	 	 	 	 	 	 ${chartClone.innerHTML}
     	 	 	 	 	 	 </div>
     	 	 	 	 	 </div>`;
-            } else if (contacts.length > 0) {
-                orgChartDisplayHtml = `
-                    <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
-                    <div class="briefing-section">
-                        <p>${keyPlayersHtml}</p>
-                    </div>`;
-            }
+            } else if (contacts.length > 0) {
+                orgChartDisplayHtml = `
+                    <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
+                    <div class="briefing-section">
+                        <p>${keyPlayersHtml}</p>
+                    </div>`;
+            }
 
-            const briefingHtml = `
-                <div class="ai-briefing-container">
-                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                        ${orgChartDisplayHtml} 
-                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
-                        <p><strong>Recent Activity:</strong></p>
-                        <div class="briefing-pre">${briefing.activity_highlights}</div>
-                    </div>
-                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
-                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
-                        <p><strong>Social Icebreakers:</strong></p>
-                        <div class="briefing-pre">${icebreakersHtml}</div>
-                    </div>
-                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
-                    <div class="briefing-section recommendation">
-                        <p>${briefing.recommendation}</p>
-                    </div>
-                </div>`;
-            
-            const modalFooter = `
-                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
-                <button id="modal-ok-btn" class="btn-primary">Close</button>
-            `;
-            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
+            const briefingHtml = `
+                <div class="ai-briefing-container">
+                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
+                        ${orgChartDisplayHtml} 
+                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                        <p><strong>Recent Activity:</strong></p>
+                        <div class="briefing-pre">${briefing.activity_highlights}</div>
+                    </div>
+                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
+                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
+                        <p><strong>Social Icebreakers:</strong></p>
+                        <div class="briefing-pre">${icebreakersHtml}</div>
+                    </div>
+                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
+                    <div class="briefing-section recommendation">
+                        <p>${briefing.recommendation}</p>
+                    </div>
+                </div>`;
+            
+            const modalFooter = `
+                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
+                <button id="modal-ok-btn" class="btn-primary">Close</button>
+            `;
+            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
 
-        } catch (error) {
-            console.error("Error invoking AI Briefing Edge Function:", error);
-            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
-    }
+        } catch (error) {
+            console.error("Error invoking AI Briefing Edge Function:", error);
+            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    }
 
 
     // --- Event Listener Setup ---
