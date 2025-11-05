@@ -161,9 +161,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
     const hideAccountDetails = (clearSelection = false) => {
         if (accountForm) {
-            // --- THIS IS THE FIX ---
-            // Reverted from .add('hidden') to .remove('hidden')
-            // to ensure the form stays visible as an "empty shell".
+            // --- FIX: Reverted to your working version ---
             accountForm.classList.remove('hidden'); 
             accountForm.reset();
             accountForm.querySelector("#account-id").value = '';
@@ -172,6 +170,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         if (contactListView) contactListView.innerHTML = '<ul id="account-contacts-list"></ul>';
         if (contactOrgChartView) contactOrgChartView.innerHTML = "";
+        
+        // --- FIX: Also hide the new unassigned container ---
+        const unassignedContainer = document.getElementById("unassigned-contacts-container");
+        if (unassignedContainer) unassignedContainer.innerHTML = "";
+
         if (accountActivitiesList) accountActivitiesList.innerHTML = "";
         if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
         if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
@@ -335,7 +338,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.isFormDirty = false;
     };
 
-   const renderContactView = () => {
+    const renderContactView = () => {
         // Find the new container
         const unassignedContainer = document.getElementById("unassigned-contacts-container");
 
@@ -381,7 +384,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
     };
 
- const renderOrgChart = () => {
+    const renderOrgChart = () => {
         const { contacts } = state.selectedAccountDetails;
         // Get both render targets
         const chartView = document.getElementById("contact-org-chart-view");
@@ -465,7 +468,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>`;
         } else {
             // Optional: Show a message if there are no unassigned contacts
-             unassignedContainer.innerHTML = `<h4>Unassigned Contacts</h4><p classs="placeholder-text" style="margin: 0; text-align: left; font-style: italic; color: var(--text-medium);">None.</p>`;
+             unassignedContainer.innerHTML = `<h4>Unassigned Contacts</h4><p class="placeholder-text" style="margin: 0; text-align: left; font-style: italic; color: var(--text-medium);">None.</p>`;
         }
         
         // 8. Set up drag-and-drop listeners
@@ -473,7 +476,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const setupOrgChartDragDrop = () => {
-        
         const isCircular = (targetId, draggedId) => {
             const contacts = state.selectedAccountDetails.contacts;
             const contactMap = new Map(contacts.map(c => [c.id, c]));
@@ -489,7 +491,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         };
 
-        contactOrgChartView.querySelectorAll('.contact-card').forEach(card => {
+        // --- FIX 1: Query for ALL contact cards in both containers ---
+        const allCards = document.querySelectorAll('#contact-org-chart-view .contact-card, #unassigned-contacts-container .contact-card');
+        
+        allCards.forEach(card => {
             card.addEventListener('dragstart', (e) => {
                 const targetCard = e.target.closest('.contact-card');
                 if (!targetCard) return;
@@ -553,60 +558,113 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 : contact
                         );
                         
-                        renderOrgChart();
+                        renderOrgChart(); // This is the combined render function
                     }
                 }
             });
         });
 
-        contactOrgChartView.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const targetCard = e.target.closest('.contact-card');
-            if (!targetCard) {
-                e.dataTransfer.dropEffect = 'move';
-                contactOrgChartView.classList.add('drop-target-background');
-            }
-        });
+        // --- FIX 2: Add drop listeners to BOTH containers for background drops ---
         
-        contactOrgChartView.addEventListener('dragleave', (e) => {
-             if (e.target === contactOrgChartView) {
-                 contactOrgChartView.classList.remove('drop-target-background');
-             }
-        });
-
-        contactOrgChartView.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            contactOrgChartView.classList.remove('drop-target-background');
+        // Listener for the MAIN chart (promotes someone to top-level manager)
+        if (contactOrgChartView) {
+            contactOrgChartView.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                const targetCard = e.target.closest('.contact-card');
+                if (!targetCard) {
+                    e.dataTransfer.dropEffect = 'move';
+                    contactOrgChartView.classList.add('drop-target-background');
+                }
+            });
             
-            const localDraggedContactId = draggedContactId;
+            contactOrgChartView.addEventListener('dragleave', (e) => {
+                 if (e.target === contactOrgChartView) {
+                     contactOrgChartView.classList.remove('drop-target-background');
+                 }
+            });
 
-            const targetCard = e.target.closest('.contact-card');
-            if (targetCard || !localDraggedContactId) {
-                return;
-            }
-
-            const contact = state.selectedAccountDetails.contacts.find(c => c.id === localDraggedContactId);
-            if (contact && contact.reports_to === null) {
-                return;
-            }
-            
-            const { error } = await supabase.from('contacts')
-                .update({ reports_to: null })
-                .eq('id', localDraggedContactId);
-            
-            if (error) {
-                console.error("Error breaking reporting structure:", error);
-                showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            } else {
-                state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
-                    contact.id === localDraggedContactId
-                        ? { ...contact, reports_to: null }
-                        : contact
-                );
+            contactOrgChartView.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                contactOrgChartView.classList.remove('drop-target-background');
                 
-                renderOrgChart();
-            }
-        });
+                const localDraggedContactId = draggedContactId;
+                const targetCard = e.target.closest('.contact-card');
+                
+                // If we dropped on a card or didn't drag anything, do nothing
+                if (targetCard || !localDraggedContactId) {
+                    return;
+                }
+                
+                // Dropped on the main chart background.
+                const contact = state.selectedAccountDetails.contacts.find(c => c.id === localDraggedContactId);
+
+                // This action (dropping on main chart) should only be for
+                // promoting an UNASSIGNED contact to a new TOP-LEVEL MANAGER.
+                // It should NOT break existing connections.
+                if (contact && contact.reports_to === null) {
+                    // It's already unassigned, but now it's a "manager"
+                    // In our new logic, this just means re-rendering.
+                    // But we should check if it has children. If not, it stays unassigned.
+                    // This drop target doesn't really do anything in the new logic,
+                    // as "unassigned" and "top-level manager" are both reports_to: null.
+                    // We will let the UNASSIGNED box handle all "break" actions.
+                    return; 
+                }
+            });
+        }
+        
+        // Listener for the UNASSIGNED box (sets reports_to to null)
+        const unassignedContainer = document.getElementById("unassigned-contacts-container");
+        if (unassignedContainer) {
+            unassignedContainer.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                const targetCard = e.target.closest('.contact-card');
+                if (!targetCard) {
+                    e.dataTransfer.dropEffect = 'move';
+                    unassignedContainer.classList.add('drop-target-background');
+                }
+            });
+            
+            unassignedContainer.addEventListener('dragleave', (e) => {
+                 if (e.target === unassignedContainer) {
+                     unassignedContainer.classList.remove('drop-target-background');
+                 }
+            });
+
+            unassignedContainer.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                unassignedContainer.classList.remove('drop-target-background');
+                
+                const localDraggedContactId = draggedContactId;
+                const targetCard = e.target.closest('.contact-card');
+                
+                if (targetCard || !localDraggedContactId) {
+                    return;
+                }
+                
+                // Dropped on the unassigned background.
+                const contact = state.selectedAccountDetails.contacts.find(c => c.id === localDraggedContactId);
+                if (contact && contact.reports_to === null) {
+                    return; // Already unassigned
+                }
+
+                // This is the main "break connection" action
+                const { error } = await supabase.from('contacts')
+                    .update({ reports_to: null })
+                    .eq('id', localDraggedContactId);
+                
+                if (error) {
+                    console.error("Error breaking reporting structure:", error);
+                } else {
+                    state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
+                        contact.id === localDraggedContactId
+                            ? { ...contact, reports_to: null }
+                            : contact
+                    );
+                    renderOrgChart();
+                }
+            });
+        }
     };
 
 
@@ -862,7 +920,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 250); // This timeout helps the iframe's content render
     }
 
-    // --- AI Briefing Handler ---
+// --- AI Briefing Handler ---
     async function handleGenerateBriefing() {
         if (!state.selectedAccountId) {
             showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -919,10 +977,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
             let orgChartDisplayHtml = '';
+            // --- FIX IS HERE ---
+            // Check if the main chart view is active and has content
             if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
+                
+                // 1. Clone the main manager tree
                 const chartClone = contactOrgChartView.cloneNode(true);
                 chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
                 
+                // 2. ALSO clone the unassigned contacts container
+                const unassignedContainer = document.getElementById("unassigned-contacts-container");
+                let unassignedCloneHtml = '';
+                if (unassignedContainer) {
+                    const unassignedClone = unassignedContainer.cloneNode(true);
+                    unassignedClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
+                    unassignedCloneHtml = unassignedClone.innerHTML; // Get its HTML
+                }
+                
+                // 3. Combine them in the output
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
                     <div class="briefing-section org-chart-print-container"
@@ -934,10 +1006,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                             padding: 10px;
                             border-radius: 8px;
                          ">
-                        <div id="org-chart-render-target" style="zoom: 0.50; transform-origin: top left;">
+                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
                             ${chartClone.innerHTML}
+                            ${unassignedCloneHtml} 
                         </div>
                     </div>`;
+                // --- END OF FIX ---
+
             } else if (contacts.length > 0) {
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
