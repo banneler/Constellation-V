@@ -1,79 +1,129 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, setupModalListeners, showModal, hideModal, setupUserMenuAndAuth, loadSVGs, setupGlobalSearch, checkAndSetNotifications } from './shared_constants.js';
+/**
+ * Multi-Site IRR Calculator for Constellation CRM (v5)
+ *
+ * This script powers the irr.html page, managing multiple sites
+ * as tabs and calculating a global IRR.
+ *
+ * Key features:
+ * - Saves/Loads projects to/from Supabase 'irr_projects' table.
+ * - Uses a single GLOBAL Target IRR for all calculations.
+ * - Calculates and displays TCV for sites and the global project.
+ * - Exports a CSV with LIVE EXCEL FORMULAS for TCV, IRR, and Decision.
+ */
 
-document.addEventListener("DOMContentLoaded", async () => {
-    // --- Supabase Client ---
-    // The Supabase client is loaded from the shared constants.
+// Import all shared functions and constants
+import {
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    setupModalListeners,
+    showModal,
+    hideModal,
+    setupUserMenuAndAuth,
+    loadSVGs,
+    setupGlobalSearch,
+    checkAndSetNotifications,
+    formatDate // <-- Added for formatting dates in the load modal
+} from './shared_constants.js';
+
+// Wait for the DOM to be fully loaded before initializing
+document.addEventListener('DOMContentLoaded', async () => {
+
+    // --- 1. Initialize Supabase and State ---
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // --- State Management ---
+    const IRR_TABLE = 'irr_projects'; // Public table for all users
+    
     let state = {
         currentUser: null,
-        activeSiteId: null,
-        sites: [], // This will hold all site data objects
-        currentProjectId: null, // ID of the saved project
-        isDirty: false, // Tracks unsaved changes
+        sites: [], // Array to hold all site data objects
+        nextSiteId: 1, // Simple counter for unique IDs
+        activeSiteId: null, // The ID of the currently viewed site
+        currentProjectId: null, // null = new project, otherwise DB 'id'
+        isFormDirty: false // Track unsaved changes
     };
 
-    // --- DOM Element Selectors ---
-    const navSidebar = document.querySelector(".nav-sidebar");
-    const projectNameInput = document.getElementById("project-name");
-    const globalTargetIrrInput = document.getElementById("global-target-irr");
-    const globalDecisionEl = document.getElementById("global-decision");
-    const globalAnnualIRREl = document.getElementById("global-annual-irr");
-    const globalTcvEl = document.getElementById("global-tcv");
-    const globalErrorEl = document.getElementById("global-error-message");
+    // --- 2. DOM Element References ---
+    // Project Controls
+    const newProjectBtn = document.getElementById('new-project-btn');
+    const loadProjectBtn = document.getElementById('load-project-btn');
+    const saveProjectBtn = document.getElementById('save-project-btn');
+    const addSiteBtn = document.getElementById('add-site-btn');
+    const printReportBtn = document.getElementById('print-report-btn');
+    const exportCsvBtn = document.getElementById('export-csv-btn'); // <-- NEW
+    
+    // Project Inputs
+    const projectNameInput = document.getElementById('project-name');
+    const globalTargetIrrInput = document.getElementById('global-target-irr');
 
-    const siteTabsContainer = document.getElementById("site-tabs-container");
-    const siteFormsContainer = document.getElementById("site-forms-container");
-    const siteFormTemplate = document.getElementById("site-form-template");
+    // Site Containers
+    const siteTabsContainer = document.getElementById('site-tabs-container');
+    const siteFormsContainer = document.getElementById('site-forms-container');
+    const siteFormTemplate = document.getElementById('site-form-template');
 
-    // Project Control Buttons
-    const newProjectBtn = document.getElementById("new-project-btn");
-    const saveProjectBtn = document.getElementById("save-project-btn");
-    const loadProjectBtn = document.getElementById("load-project-btn");
-    const addSiteBtn = document.getElementById("add-site-btn");
-    const printReportBtn = document.getElementById("print-report-btn");
-    const exportCsvBtn = document.getElementById("export-csv-btn");
+    // Global Results Elements
+    const globalDecisionEl = document.getElementById('global-decision');
+    const globalAnnualIRREl = document.getElementById('global-annual-irr');
+    const globalTcvEl = document.getElementById('global-tcv');
+    const globalErrorMessageEl = document.getElementById('global-error-message');
 
-    // Load Modal
-    const loadProjectModal = document.getElementById("load-project-modal-backdrop");
-    const loadProjectList = document.getElementById("load-project-list");
-    const loadProjectModalCloseBtn = document.getElementById("load-project-modal-close-btn");
+    // Load Modal Elements
+    const loadProjectModal = document.getElementById('load-project-modal-backdrop');
+    const loadProjectList = document.getElementById('load-project-list');
+    const loadProjectCancelBtn = document.getElementById('load-project-cancel-btn');
 
-    // --- Core Logic ---
+    // --- 3. Core Project/Site Management Functions ---
 
     /**
-     * Resets the entire calculator to a fresh, new project state.
+     * Resets the entire page to a blank, new project.
+     * Asks for confirmation if there are unsaved changes.
      */
-    function initializeNewProject() {
-        projectNameInput.value = "New Project";
-        globalTargetIrrInput.value = "15";
-        state.sites = [];
-        state.currentProjectId = null;
-        state.isDirty = false;
-        siteTabsContainer.innerHTML = "";
-        siteFormsContainer.innerHTML = "";
-        
-        addNewSite(true); // Add the first "Site 1"
-        runGlobalCalculation();
-        
-        // This is now considered the "saved" state
-        state.isDirty = false;
-        updateSaveButtonState();
+    function handleNewProject() {
+        const createNew = () => {
+            state.currentProjectId = null;
+            state.sites = [];
+            state.nextSiteId = 1;
+            state.activeSiteId = null;
+            state.isFormDirty = false;
+
+            projectNameInput.value = '';
+            globalTargetIrrInput.value = '15';
+
+            siteFormsContainer.innerHTML = '';
+            siteTabsContainer.innerHTML = '';
+
+            addNewSite(); // Adds one default site
+            runGlobalCalculation();
+            hideModal();
+        };
+
+        if (state.isFormDirty) {
+            showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to create a new project?",
+                createNew, true,
+                `<button id="modal-confirm-btn" class="btn-danger">Discard & Create New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+            );
+        } else {
+            createNew();
+        }
     }
 
     /**
-     * Adds a new site tab and form to the page.
-     * @param {boolean} [isFirstSite=false] - If true, won't show the delete button.
+     * Creates a new site, adds it to state, and renders it.
      */
-    function addNewSite(isFirstSite = false) {
-        const siteId = `site_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-        const siteNumber = state.sites.length + 1;
+    function addNewSite() {
+        const newSiteId = state.nextSiteId++;
+        const siteName = `Site ${newSiteId}`;
+
+        const templateClone = siteFormTemplate.content.cloneNode(true);
+        const newFormWrapper = templateClone.querySelector('.site-form-wrapper');
         
-        const newSiteData = {
-            id: siteId,
+        newFormWrapper.dataset.siteId = newSiteId;
+        newFormWrapper.querySelector('.site-name-input').value = siteName;
+        
+        siteFormsContainer.appendChild(templateClone);
+
+        const newSite = {
+            id: newSiteId, // This is a local-to-project ID
+            name: siteName,
             inputs: {
-                siteName: `Site ${siteNumber}`,
                 constructionCost: 100000,
                 engineeringCost: 20000,
                 nrr: 5000,
@@ -81,713 +131,452 @@ document.addEventListener("DOMContentLoaded", async () => {
                 monthlyCost: 500,
                 term: 60,
             },
-            results: {
-                irr: 0,
+            result: {
+                annualIRR: null,
                 tcv: 0,
-                decision: '...',
-                isValid: false
+                decision: '--',
+                error: null
             }
         };
-
-        // Add to state
-        state.sites.push(newSiteData);
-        state.isDirty = true;
-
-        // --- Create Tab ---
-        const tab = document.createElement("button");
-        tab.className = "irr-tab";
-        tab.dataset.tabId = siteId;
-        tab.innerHTML = `
-            <span class="tab-site-name">${newSiteData.inputs.siteName}</span>
-            <span class="irr-tab-results">--%</span>
-        `;
         
-        // Add delete button (but not for the very first site)
-        if (!isFirstSite) {
-            const deleteBtn = document.createElement("button");
-            deleteBtn.className = "delete-site-btn";
-            deleteBtn.innerHTML = "&times;";
-            deleteBtn.title = "Delete this site";
-            tab.appendChild(deleteBtn);
-        }
+        state.sites.push(newSite);
+        attachFormListeners(newFormWrapper);
 
-        siteTabsContainer.appendChild(tab);
-
-        // --- Create Form ---
-        const templateClone = siteFormTemplate.content.cloneNode(true);
-        const formWrapper = templateClone.querySelector(".site-form-wrapper");
-        formWrapper.dataset.siteId = siteId;
-
-        // Set default values in the form
-        const form = formWrapper.querySelector(".irr-form");
-        form.querySelector(".site-name-input").value = newSiteData.inputs.siteName;
-        form.querySelector(".construction-cost-input").value = newSiteData.inputs.constructionCost;
-        form.querySelector(".engineering-cost-input").value = newSiteData.inputs.engineeringCost;
-        form.querySelector(".nrr-input").value = newSiteData.inputs.nrr;
-        form.querySelector(".mrr-input").value = newSiteData.inputs.mrr;
-        form.querySelector(".monthly-cost-input").value = newSiteData.inputs.monthlyCost;
-        form.querySelector(".term-input").value = newSiteData.inputs.term;
-
-        // Hide delete button on form if it's the first site
-        if (isFirstSite) {
-            formWrapper.querySelector(".delete-site-btn").classList.add("hidden");
-        }
-
-        siteFormsContainer.appendChild(templateClone);
-
-        // Activate the new tab
-        setActiveTab(siteId);
-        runSiteCalculation(siteId, false); // Run initial calc
-        updateSaveButtonState();
+        runSiteCalculation(newSiteId, false); 
+        renderTabs();
+        setActiveSite(newSiteId);
+        runGlobalCalculation();
+        state.isFormDirty = true;
     }
 
     /**
-     * Sets the active tab and shows the corresponding form.
-     * @param {string} siteId - The ID of the site to activate.
-     */
-    function setActiveTab(siteId) {
-        state.activeSiteId = siteId;
-
-        // Update tabs
-        siteTabsContainer.querySelectorAll(".irr-tab").forEach(tab => {
-            tab.classList.toggle("active", tab.dataset.tabId === siteId);
-        });
-
-        // Update forms
-        siteFormsContainer.querySelectorAll(".site-form-wrapper").forEach(form => {
-            form.classList.toggle("active", form.dataset.siteId === siteId);
-        });
-    }
-
-    /**
-     * Deletes a site from the state and the DOM.
-     * @param {string} siteId - The ID of the site to delete.
+     * Deletes a site from state and the DOM.
      */
     function deleteSite(siteId) {
-        // Prevent deleting the last site
         if (state.sites.length <= 1) {
-            showModal("Cannot Delete", "You must have at least one site.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            showModal("Action Not Allowed", "You must have at least one site.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return;
         }
 
-        // Find and remove from state
         state.sites = state.sites.filter(site => site.id !== siteId);
-        state.isDirty = true;
 
-        // Find and remove tab
-        const tab = siteTabsContainer.querySelector(`.irr-tab[data-tab-id="${siteId}"]`);
-        if (tab) tab.remove();
-
-        // Find and remove form
-        const form = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
-        if (form) form.remove();
-
-        // If we deleted the active site, set a new active one
-        if (state.activeSiteId === siteId) {
-            setActiveTab(state.sites[0].id);
-        }
+        const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
+        if (formWrapper) formWrapper.remove();
         
+        renderTabs();
+        
+        if (state.activeSiteId === siteId) {
+            setActiveSite(state.sites[0].id); 
+        }
+
         runGlobalCalculation();
-        updateSaveButtonState();
+        state.isFormDirty = true;
     }
 
     /**
-     * Runs the IRR and TCV calculation for a single site and updates its UI.
-     * @param {string} siteId - The ID of the site to calculate.
-     * @param {boolean} [runGlobal=true] - Whether to trigger a global recalculation.
+     * Hides all site forms and shows only the one with the matching ID.
+     */
+    function setActiveSite(siteId) {
+        state.activeSiteId = siteId;
+
+        siteTabsContainer.querySelectorAll('.irr-tab').forEach(tab => {
+            tab.classList.toggle('active', Number(tab.dataset.siteId) === siteId);
+        });
+
+        siteFormsContainer.querySelectorAll('.site-form-wrapper').forEach(form => {
+            form.classList.toggle('active', Number(form.dataset.siteId) === siteId);
+        });
+    }
+
+    /**
+     * Re-draws the entire tab bar based on the current state.
+     */
+    function renderTabs() {
+        siteTabsContainer.innerHTML = ''; 
+
+        state.sites.forEach(site => {
+            const tab = document.createElement('button');
+            tab.className = 'irr-tab';
+            tab.dataset.siteId = site.id;
+
+            let resultClass = 'pending';
+            let resultText = '--%';
+            
+            if (site.result.error) {
+                resultClass = 'error';
+                resultText = 'Error';
+            } else if (site.result.annualIRR !== null) {
+                resultClass = site.result.decision === 'GO' ? 'go' : 'nogo';
+                resultText = `${site.result.decision} (${(site.result.annualIRR * 100).toFixed(2)}%)`;
+            }
+
+            tab.innerHTML = `
+                ${site.name}
+                <span class="irr-tab-results ${resultClass}">${resultText}</span>
+            `;
+
+            siteTabsContainer.appendChild(tab);
+        });
+    }
+
+    // --- 4. Calculation Functions ---
+
+    /**
+     * Calculates IRR for a single site, updates its state, and updates its UI.
+     * @param {number} siteId - The ID of the site to calculate
+     * @param {boolean} [runGlobal=true] - Whether to trigger a global recalculation
      */
     function runSiteCalculation(siteId, runGlobal = true) {
         const site = state.sites.find(s => s.id === siteId);
         if (!site) return;
 
+        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
+
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
-        if (!formWrapper) return;
-        
-        const form = formWrapper.querySelector('.irr-form');
+        if (!formWrapper) {
+            console.error(`runSiteCalculation: Could not find formWrapper for siteId ${siteId}`);
+            return; 
+        }
+
         const resultsContainer = formWrapper.querySelector('.individual-results-container');
-        if (!form || !resultsContainer) return;
-
-        // Find all UI elements for this site's results
-        const decisionEl = resultsContainer.querySelector(".individual-decision");
-        const irrEl = resultsContainer.querySelector(".individual-annual-irr");
-        const tcvEl = resultsContainer.querySelector(".individual-tcv");
-        const errorEl = resultsContainer.querySelector(".individual-error-message");
-
-        // 1. Get Inputs from form
-        const constCost = parseFloat(form.querySelector(".construction-cost-input").value) || 0;
-        const engCost = parseFloat(form.querySelector(".engineering-cost-input").value) || 0;
-        const nrr = parseFloat(form.querySelector(".nrr-input").value) || 0;
-        const mrr = parseFloat(form.querySelector(".mrr-input").value) || 0;
-        const monthlyCost = parseFloat(form.querySelector(".monthly-cost-input").value) || 0;
-        const term = parseInt(form.querySelector(".term-input").value) || 0;
-        const siteName = form.querySelector(".site-name-input").value.trim() || "Untitled Site";
+        if (!resultsContainer) {
+            console.error(`runSiteCalculation: Could not find .individual-results-container in formWrapper for siteId ${siteId}`);
+            return;
+        }
         
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 15) / 100;
+        const decisionEl = resultsContainer.querySelector('.individual-decision');
+        const annualIRREl = resultsContainer.querySelector('.individual-annual-irr');
+        const tcvEl = resultsContainer.querySelector('.individual-tcv'); 
+        const errorMessageEl = resultsContainer.querySelector('.individual-error-message');
 
-        // 2. Store inputs in state
-        site.inputs = { siteName, constCost, engCost, nrr, mrr, monthlyCost, term };
+        if (!decisionEl || !annualIRREl || !tcvEl || !errorMessageEl) {
+            console.error(`runSiteCalculation: Missing results elements for siteId ${siteId}`);
+            return;
+        }
+
+        site.name = formWrapper.querySelector('.site-name-input').value || `Site ${site.id}`;
+        site.inputs.constructionCost = parseFloat(formWrapper.querySelector('.construction-cost-input').value) || 0;
+        site.inputs.engineeringCost = parseFloat(formWrapper.querySelector('.engineering-cost-input').value) || 0;
+        site.inputs.nrr = parseFloat(formWrapper.querySelector('.nrr-input').value) || 0;
+        site.inputs.mrr = parseFloat(formWrapper.querySelector('.mrr-input').value) || 0;
+        site.inputs.monthlyCost = parseFloat(formWrapper.querySelector('.monthly-cost-input').value) || 0;
+        site.inputs.term = parseInt(formWrapper.querySelector('.term-input').value) || 0;
         
-        // 3. Update Site Name in Tab
-        const tab = siteTabsContainer.querySelector(`.irr-tab[data-tab-id="${siteId}"] .tab-site-name`);
-        if (tab) tab.textContent = siteName;
+        const siteTCV = (site.inputs.mrr * site.inputs.term) + site.inputs.nrr;
+        site.result.tcv = siteTCV;
 
-        // 4. Validate Inputs
-        if (term <= 0) {
-            updateSiteUI(site, errorEl, irrEl, tcvEl, decisionEl, 0, 0, 'Term must be > 0');
-            if (runGlobal) runGlobalCalculation();
-            return;
-        }
+        const { cashFlows, error: validationError } = getCashFlowsForSite(site.inputs);
 
-        const upfrontCost = constCost + engCost;
-        const netUpfront = nrr - upfrontCost;
-        const netMonthly = mrr - monthlyCost;
-
-        if (netUpfront >= 0 && netMonthly >= 0) {
-            updateSiteUI(site, errorEl, irrEl, tcvEl, decisionEl, Infinity, (mrr * term) + nrr, 'Infinite IRR', globalTargetIRR);
-            if (runGlobal) runGlobalCalculation();
-            return;
-        }
-        if (netUpfront <= 0 && netMonthly <= 0) {
-            updateSiteUI(site, errorEl, irrEl, tcvEl, decisionEl, -1, (mrr * term) + nrr, 'Negative IRR', globalTargetIRR);
-            if (runGlobal) runGlobalCalculation();
-            return;
-        }
-
-        // 5. Build Cash Flow
-        const cashFlows = [netUpfront];
-        for (let i = 0; i < term; i++) {
-            cashFlows.push(netMonthly);
-        }
-
-        // 6. Calculate IRR
-        const monthlyIRR = calculateIRR(cashFlows);
-        let annualIRR;
-
-        if (monthlyIRR === null || !isFinite(monthlyIRR)) {
-            annualIRR = 0; // Treat calculation errors as 0
+        if (validationError) {
+            site.result.error = validationError;
+            site.result.annualIRR = null;
+            site.result.decision = 'Error';
+            showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, validationError);
         } else {
-            annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
+            const monthlyIRR = calculateIRR(cashFlows);
+            if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
+                site.result.error = "Could not calculate IRR. Check inputs.";
+                site.result.annualIRR = null;
+                site.result.decision = 'Error';
+                showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, site.result.error);
+            } else {
+                site.result.error = null;
+                site.result.annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
+                site.result.decision = site.result.annualIRR >= globalTargetIRR ? 'GO' : 'NO GO';
+                showSiteResults(errorMessageEl, decisionEl, annualIRREl, tcvEl, site.result.annualIRR, site.result.decision, site.result.tcv);
+            }
         }
         
-        if (annualIRR > 500) annualIRR = Infinity; // Cap at 50000%
-        if (annualIRR < -1) annualIRR = -1; // Floor at -100%
-
-        // 7. Calculate TCV
-        const tcv = (mrr * term) + nrr;
-
-        // 8. Update UI
-        updateSiteUI(site, errorEl, irrEl, tcvEl, decisionEl, annualIRR, tcv, null, globalTargetIRR);
-
-        // 9. Update Global
+        renderTabs();
+        setActiveSite(site.id); 
+        
         if (runGlobal) {
             runGlobalCalculation();
         }
-        
-        state.isDirty = true;
-        updateSaveButtonState();
     }
 
     /**
-     * Updates the UI elements for a single site's results.
-     */
-    function updateSiteUI(site, errorEl, irrEl, tcvEl, decisionEl, annualIRR, tcv, errorMessage, targetIRR) {
-        // Find tab result element
-        const tabResultEl = siteTabsContainer.querySelector(`.irr-tab[data-tab-id="${site.id}"] .irr-tab-results`);
-        
-        // --- Store Results in State ---
-        site.results.irr = annualIRR;
-        site.results.tcv = tcv;
-        site.results.isValid = !errorMessage;
-
-        if (errorMessage) {
-            errorEl.textContent = errorMessage;
-            errorEl.classList.remove("hidden");
-            irrEl.textContent = "--%";
-            tcvEl.textContent = "$0.00";
-            decisionEl.textContent = "Error";
-            decisionEl.className = "individual-decision error";
-            if (tabResultEl) {
-                tabResultEl.textContent = "Error";
-                tabResultEl.className = "irr-tab-results error";
-            }
-            site.results.decision = 'Error';
-            return;
-        }
-
-        errorEl.classList.add("hidden");
-
-        // Format and display TCV
-        tcvEl.textContent = formatCurrency(tcv);
-
-        // Format and display IRR
-        let irrText, tabIrrText;
-        if (annualIRR === Infinity) {
-            irrText = "Infinite";
-            tabIrrText = "Inf%";
-        } else if (annualIRR === -1) {
-            irrText = "-100.00%";
-            tabIrrText = "-100%";
-        } else {
-            irrText = (annualIRR * 100).toFixed(2) + "%";
-            tabIrrText = (annualIRR * 100).toFixed(1) + "%";
-        }
-        irrEl.textContent = irrText;
-        if (tabResultEl) tabResultEl.textContent = tabIrrText;
-
-
-        // Make decision
-        const isGo = annualIRR >= targetIRR;
-        const decision = isGo ? "GO" : "NO GO";
-        site.results.decision = decision;
-
-        decisionEl.textContent = decision;
-        decisionEl.className = isGo ? "individual-decision go" : "individual-decision nogo";
-        
-        if(tabResultEl) {
-            tabResultEl.className = isGo ? "irr-tab-results go" : "irr-tab-results nogo";
-        }
-    }
-
-
-    /**
-     * Calculates IRR using the Newton-Raphson method.
-     * @param {number[]} cashFlows - Array of cash flows, starting with index 0.
-     * @returns {number|null} The monthly internal rate of return, or null if not found.
-     */
-    function calculateIRR(cashFlows) {
-        const maxIterations = 1000;
-        const tolerance = 1e-6;
-        let guess = 0.1; // 10%
-
-        for (let i = 0; i < maxIterations; i++) {
-            let npv = 0;
-            let dNpv = 0; // Derivative of NPV
-
-            for (let t = 0; t < cashFlows.length; t++) {
-                npv += cashFlows[t] / Math.pow(1 + guess, t);
-                dNpv -= t * cashFlows[t] / Math.pow(1 + guess, t + 1);
-            }
-
-            const newGuess = guess - npv / dNpv;
-
-            if (Math.abs(newGuess - guess) < tolerance) {
-                return newGuess;
-            }
-            guess = newGuess;
-        }
-        return null; // Failed to converge
-    }
-
-    /**
-     * Runs the calculation for the entire project (all sites combined).
+     * Calculates the combined IRR and TCV for *all* sites.
      */
     function runGlobalCalculation() {
-        const totalSites = state.sites.length;
-        if (totalSites === 0) {
-            updateGlobalUI(0, 0, "Add a site to begin", 0);
+        let globalCashFlows = [0]; 
+        let maxTerm = 0;
+        let globalTCV = 0;
+        
+        if (state.sites.length === 0) {
+            showGlobalResults(NaN, 0, 0); 
             return;
         }
 
-        let maxTerm = 0;
-        let globalTCV = 0;
-        let allValid = true;
+        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
 
         state.sites.forEach(site => {
             if (site.inputs.term > maxTerm) {
                 maxTerm = site.inputs.term;
             }
-            globalTCV += site.results.tcv;
-            if (!site.results.isValid) {
-                allValid = false;
-            }
+            globalTCV += site.result.tcv || 0;
         });
+        
+        globalCashFlows = new Array(maxTerm + 1).fill(0);
 
-        if (!allValid) {
-            updateGlobalUI(0, globalTCV, "One or more sites have errors", 0);
-            return;
-        }
-
-        if (maxTerm === 0) {
-            updateGlobalUI(0, globalTCV, "Project term must be > 0", 0);
-            return;
-        }
-
-        // Create a combined cash flow array
-        const globalCashFlows = new Array(maxTerm + 1).fill(0);
-
-        state.sites.forEach(site => {
-            // Add upfront
-            globalCashFlows[0] += (site.inputs.nrr - (site.inputs.constCost + site.inputs.engCost));
-            
-            // Add monthly
-            const netMonthly = site.inputs.mrr - site.inputs.monthlyCost;
-            for (let t = 1; t <= site.inputs.term; t++) {
-                globalCashFlows[t] += netMonthly;
+        for (const site of state.sites) {
+            const { cashFlows, error } = getCashFlowsForSite(site.inputs);
+            if (!error) {
+                for (let i = 0; i < cashFlows.length; i++) {
+                    if (i < globalCashFlows.length) {
+                        globalCashFlows[i] += cashFlows[i];
+                    }
+                }
             }
-        });
-
-        // Check for edge cases
-        const netUpfront = globalCashFlows[0];
-        const netMonthlyTotal = globalCashFlows.slice(1).reduce((a, b) => a + b, 0); // Simplified check
-
-        if (netUpfront >= 0 && netMonthlyTotal >= 0) {
-            updateGlobalUI(Infinity, globalTCV, null, parseFloat(globalTargetIrrInput.value) / 100);
-            return;
-        }
-        if (netUpfront <= 0 && netMonthlyTotal <= 0 && (netUpfront !== 0 || netMonthlyTotal !== 0)) {
-            updateGlobalUI(-1, globalTCV, null, parseFloat(globalTargetIrrInput.value) / 100);
-            return;
-        }
-
-        // Calculate Global IRR
-        const globalMonthlyIRR = calculateIRR(globalCashFlows);
-        let globalAnnualIRR;
-
-        if (globalMonthlyIRR === null || !isFinite(globalMonthlyIRR)) {
-            globalAnnualIRR = 0;
-        } else {
-            globalAnnualIRR = Math.pow(1 + globalMonthlyIRR, 12) - 1;
         }
         
-        if (globalAnnualIRR > 500) globalAnnualIRR = Infinity;
-        if (globalAnnualIRR < -1) globalAnnualIRR = -1;
+        globalTcvEl.textContent = `$${globalTCV.toLocaleString()}`;
+        globalTcvEl.classList.remove('pending');
 
-        updateGlobalUI(globalAnnualIRR, globalTCV, null, parseFloat(globalTargetIrrInput.value) / 100);
-    }
-
-    /**
-     * Updates the UI elements for the global results section.
-     */
-    function updateGlobalUI(annualIRR, tcv, errorMessage, targetIRR) {
-        if (errorMessage) {
-            globalErrorEl.textContent = errorMessage;
-            globalErrorEl.classList.remove("hidden");
-            globalAnnualIRREl.textContent = "--%";
-            globalTcvEl.textContent = "$0.00";
-            globalDecisionEl.textContent = "Error";
-            globalDecisionEl.className = "nogo";
+        const monthZero = globalCashFlows[0];
+        const positiveFlow = globalCashFlows.slice(1).some(cf => cf > 0);
+        
+        if (monthZero >= 0 && !globalCashFlows.slice(1).some(cf => cf < 0)) {
+            showGlobalError("Global project has no negative cash flow (no investment).");
+            return;
+        }
+         if (monthZero <= 0 && !positiveFlow) {
+            showGlobalError("Global project has no positive cash flow.");
             return;
         }
 
-        globalErrorEl.classList.add("hidden");
-
-        // Format and display TCV
-        globalTcvEl.textContent = formatCurrency(tcv);
-
-        // Format and display IRR
-        let irrText;
-        if (annualIRR === Infinity) {
-            irrText = "Infinite";
-        } else if (annualIRR === -1) {
-            irrText = "-100.00%";
-        } else {
-            irrText = (annualIRR * 100).toFixed(2) + "%";
-        }
-        globalAnnualIRREl.textContent = irrText;
-
-        // Make decision
-        const isGo = annualIRR >= targetIRR;
-        const decision = isGo ? "GO" : "NO GO";
-        globalDecisionEl.textContent = decision;
-        globalDecisionEl.className = isGo ? "go" : "nogo";
+        const globalMonthlyIRR = calculateIRR(globalCashFlows);
+        showGlobalResults(globalMonthlyIRR, globalTargetIRR, globalTCV);
     }
 
     /**
-     * Generates a clean, printable report in a new window.
+     * Helper to get a cash flow array from a site's inputs
      */
-    function handlePrintReport() {
-        const projectName = projectNameInput.value.trim() || "IRR Project";
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 15);
+    function getCashFlowsForSite(inputs) {
+        const { nrr, constructionCost, engineeringCost, mrr, monthlyCost, term } = inputs;
+        const cashFlows = [];
+        
+        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost);
+        const monthlyNetCashFlow = mrr - monthlyCost;
 
-        let sitesHtml = "";
+        if (term <= 0) return { cashFlows: [], error: "Term must be > 0" };
+        
+        if (monthZeroCashFlow >= 0 && monthlyNetCashFlow >= 0) {
+            return { cashFlows: [], error: "No investment. All cash flows are positive." };
+        }
+        
+        cashFlows.push(monthZeroCashFlow);
+        for (let i = 0; i < term; i++) {
+            cashFlows.push(monthlyNetCashFlow);
+        }
+        
+        return { cashFlows, error: null };
+    }
+
+    // --- 5. UI Update Functions ---
+
+    function setResultUI(el, text, state) { // state: 'go', 'nogo', 'error', 'pending'
+        el.textContent = text;
+        el.classList.remove('go', 'nogo', 'error', 'pending');
+        
+        switch (state) {
+            case 'go':
+                el.style.color = 'var(--color-success, #22c55e)';
+                break;
+            case 'nogo':
+                el.style.color = 'var(--color-danger, #ef4444)';
+                break;
+            case 'error':
+                el.style.color = 'var(--color-warning, #f97316)';
+                break;
+            case 'pending':
+            default:
+                el.style.color = 'var(--text-color-secondary, #9ca3af)';
+                break;
+        }
+    }
+
+    function showSiteResults(errorMessageEl, decisionEl, annualIRREl, tcvEl, annualIRR, decision, tcv) {
+        errorMessageEl.classList.add('hidden');
+        const decisionState = decision === 'GO' ? 'go' : 'nogo';
+        setResultUI(decisionEl, decision, decisionState);
+        setResultUI(annualIRREl, (annualIRR * 100).toFixed(2) + '%', decisionState);
+        setResultUI(tcvEl, `$${tcv.toLocaleString()}`, 'tcv');
+        tcvEl.style.color = 'var(--color-primary, #3b82f6)';
+    }
+
+    function showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, message) {
+        errorMessageEl.classList.remove('hidden');
+        errorMessageEl.textContent = message;
+        setResultUI(decisionEl, 'Error', 'error');
+        setResultUI(annualIRREl, '--%', 'error');
+        setResultUI(tcvEl, '$0', 'error');
+    }
+
+    function showGlobalResults(monthlyIRR, targetIRR, tcv) {
+        globalErrorMessageEl.classList.add('hidden');
+        setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
+        globalTcvEl.style.color = 'var(--color-primary, #3b82f6)';
+        
+        if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
+            showGlobalError("Could not calculate Global IRR. Check inputs.");
+            return;
+        }
+
+        const annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
+        
+        if (annualIRR >= targetIRR) {
+            setResultUI(globalDecisionEl, 'GO', 'go');
+            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'go');
+        } else {
+            setResultUI(globalDecisionEl, 'NO GO', 'nogo');
+            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'nogo');
+        }
+    }
+
+    function showGlobalError(message) {
+        setResultUI(globalDecisionEl, 'Error', 'error');
+        setResultUI(globalAnnualIRREl, '--%', 'error');
+        setResultUI(globalTcvEl, '$0', 'error');
+        globalErrorMessageEl.textContent = message;
+        globalErrorMessageEl.classList.remove('hidden');
+    }
+    
+    // --- 6. Print Function ---
+
+    function handlePrintReport() {
+        const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
+        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
+
+        let reportHtml = `
+            <style>
+                body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background: #fff; color: #000; }
+                h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-size: 2rem; }
+                h2 { color: #111; margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f4f4f4; }
+                .go { color: #16a34a; font-weight: bold; }
+                .nogo { color: #dc2626; font-weight: bold; }
+                .error { color: #f97316; font-weight: bold; }
+                .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
+                .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
+                .global-results-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+                .global-results-grid p { margin: 0; color: #555; font-size: 0.9rem; }
+                .global-results-grid .value { font-size: 1.75rem; font-weight: bold; margin-top: 5px; }
+            </style>
+            <h1>${projectName}</h1>
+        `;
+
+        const globalDecision = globalDecisionEl.textContent;
+        const globalDecisionClass = globalDecision === 'GO' ? 'go' : (globalDecision === 'NO GO' ? 'nogo' : 'error');
+        
+        reportHtml += `
+            <div class="global-results">
+                <h2>Global Project Results (All Sites)</h2>
+                <div class="global-results-grid">
+                    <div>
+                        <p>Global Decision</p>
+                        <div class="value ${globalDecisionClass}">${globalDecision}</div>
+                    </div>
+                    <div>
+                        <p>Calculated Global Annual IRR</p>
+                        <div class="value ${globalDecisionClass}">${globalAnnualIRREl.textContent}</div>
+                    </div>
+                    <div>
+                        <p>Global TCV ($)</p>
+                        <div class="value" style="color: #3b82f6;">${globalTcvEl.textContent}</div>
+                    </div>
+                </div>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                <p style="margin: 0;"><strong>Global Target IRR:</strong> ${(globalTargetIRR * 100).toFixed(2)}%</p>
+            </div>
+        `;
+
+        reportHtml += `
+            <h2>Site Summary</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Site Name</th>
+                        <th>TCV ($)</th>
+                        <th>Construction ($)</th>
+                        <th>Eng. ($)</th>
+                        <th>NRR ($)</th>
+                        <th>MRR ($)</th>
+                        <th>Term (Mos)</th>
+                        <th>Calculated IRR</th>
+                        <th>Decision</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
         state.sites.forEach(site => {
-            const { inputs, results } = site;
-            sitesHtml += `
+            const inputs = site.inputs;
+            const res = site.result;
+            const irrText = res.error ? 'Error' : `${(res.annualIRR * 100).toFixed(2)}%`;
+            const decisionClass = res.decision === 'GO' ? 'go' : (res.decision === 'NO GO' ? 'nogo' : 'error');
+
+            reportHtml += `
                 <tr>
-                    <td>${escapeHTML(inputs.siteName)}</td>
-                    <td>${formatCurrency(results.tcv)}</td>
-                    <td>${formatCurrency(inputs.constCost)}</td>
-                    <td>${formatCurrency(inputs.engCost)}</td>
-                    <td>${formatCurrency(inputs.nrr)}</td>
-                    <td>${formatCurrency(inputs.mrr)}</td>
+                    <td>${site.name}</td>
+                    <td>$${(res.tcv || 0).toLocaleString()}</td>
+                    <td>${inputs.constructionCost.toLocaleString()}</td>
+                    <td>${inputs.engineeringCost.toLocaleString()}</td>
+                    <td>${inputs.nrr.toLocaleString()}</td>
+                    <td>${inputs.mrr.toLocaleString()}</td>
                     <td>${inputs.term}</td>
-                    <td>${(results.irr * 100).toFixed(2)}%</td>
-                    <td class="${results.decision === 'GO' ? 'go' : 'nogo'}">${results.decision}</td>
+                    <td class="${decisionClass}">${irrText}</td>
+                    <td class="${decisionClass}">${res.decision}</td>
                 </tr>
             `;
         });
 
-        const reportHtml = `
-            <html>
-            <head>
-                <title>IRR Report: ${escapeHTML(projectName)}</title>
-                <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2rem; color: #333; }
-                    h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; }
-                    h2 { color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 2rem; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-                    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-                    th { background-color: #f9f9f9; }
-                    tr:nth-child(even) { background-color: #fcfcfc; }
-                    .global-results { background-color: #f4f8ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
-                    .global-results h2 { margin-top: 0; }
-                    .global-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-                    .global-grid div { text-align: center; }
-                    .global-grid .decision { font-size: 2.5rem; font-weight: 700; }
-                    .global-grid .irr { font-size: 2rem; font-weight: 600; color: #3b82f6; }
-                    .global-grid .tcv { font-size: 2rem; font-weight: 600; }
-                    .go { color: #16a34a; font-weight: 700; }
-                    .nogo { color: #dc2626; font-weight: 700; }
-                    @media print {
-                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        h1, h2 { page-break-after: avoid; }
-                        table { page-break-inside: auto; }
-                        tr { page-break-inside: avoid; page-break-after: auto; }
-                        .global-results { page-break-inside: avoid; }
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>IRR Project Report: ${escapeHTML(projectName)}</h1>
-                
-                <div class="global-results">
-                    <h2>Global Project Results (All Sites)</h2>
-                    <div class="global-grid">
-                        <div>
-                            <div class="decision ${globalDecisionEl.className}">${globalDecisionEl.textContent}</div>
-                            <div>Global Decision</div>
-                        </div>
-                        <div>
-                            <div class="irr">${globalAnnualIRREl.textContent}</div>
-                            <div>Calculated Global Annual IRR</div>
-                        </div>
-                        <div>
-                            <div class="tcv">${globalTcvEl.textContent}</div>
-                            <div>Global TCV ($)</div>
-                        </div>
-                    </div>
-                    <p style="text-align: center; margin-top: 1.5rem; font-size: 1.1rem; font-weight: 500;">
-                        Global Target IRR: ${globalTargetIRR.toFixed(2)}%
-                    </p>
-                </div>
-                
-                <h2>Site Summary</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Site Name</th>
-                            <th>TCV ($)</th>
-                            <th>Construction ($)</th>
-                            <th>Eng. ($)</th>
-                            <th>NRR ($)</th>
-                            <th>MRR ($)</th>
-                            <th>Term (Mos)</th>
-                            <th>Calculated IRR</th>
-                            <th>Decision</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${sitesHtml}
-                    </tbody>
-                </table>
-            </body>
-            </html>
-        `;
+        reportHtml += `</tbody></table>`;
 
-        const reportWindow = window.open("", "_blank");
-        reportWindow.document.write(reportHtml);
-        reportWindow.document.close();
-        setTimeout(() => reportWindow.print(), 500);
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'absolute';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        document.body.appendChild(printFrame);
+
+        const frameDoc = printFrame.contentWindow.document;
+        frameDoc.open();
+        frameDoc.write(`<html><head><title>${projectName}</title></head><body>`);
+        frameDoc.write(reportHtml);
+        frameDoc.write('</body></html>');
+        frameDoc.close();
+
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (e) {
+                console.error("Print failed:", e);
+                showModal("Error", "Could not open print dialog. Please check browser settings.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            } finally {
+                if (document.body.contains(printFrame)) {
+                    document.body.removeChild(printFrame);
+                }
+            }
+        }, 250);
     }
     
-    // --- Database Functions ---
+    // --- 7. NEW: CSV Export Function ---
 
     /**
-     * Saves the current project state to Supabase.
+     * Helper function to escape CSV cell content.
+     * If content contains a comma, newline, or double quote, wrap it in double quotes.
+     * Also doubles up any existing double quotes.
      */
-    async function handleSaveProject() {
-        if (!state.currentUser) {
-            showModal("Error", "You must be logged in to save.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
+    function escapeCSV(content) {
+        let str = String(content);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            str = `"${str.replace(/"/g, '""')}"`;
         }
-
-        const projectName = projectNameInput.value.trim() || "Untitled Project";
-        const projectData = {
-            project_name: projectName,
-            global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
-            sites: state.sites,
-            user_id: state.currentUser.id
-        };
-
-        let result;
-        if (state.currentProjectId) {
-            // Update existing project
-            result = await supabase
-                .from("irr_projects")
-                .update({ project_data: projectData })
-                .eq("id", state.currentProjectId)
-                .select();
-        } else {
-            // Create new project
-            result = await supabase
-                .from("irr_projects")
-                .insert({ project_data: projectData })
-                .select();
-        }
-
-        const { data, error } = result;
-        if (error) {
-            console.error("Error saving project:", error);
-            showModal("Error", `Could not save project: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        } else if (data) {
-            state.currentProjectId = data[0].id;
-            projectNameInput.value = projectData.project_name; // Sync name
-            state.isDirty = false;
-            updateSaveButtonState();
-            showModal("Success", "Project saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
-    }
-
-    /**
-     * Shows the modal to load a saved project.
-     */
-    async function showLoadProjectModal() {
-        if (state.isDirty) {
-            showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to load a new project? Your current changes will be lost.",
-                () => {
-                    hideModal();
-                    fetchAndDisplayProjects(); // Proceed to load
-                },
-                true,
-                `<button id="modal-confirm-btn" class="btn-primary">Discard & Load</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-            );
-        } else {
-            fetchAndDisplayProjects();
-        }
-    }
-
-    /**
-     * Fetches the list of projects and displays them in the modal.
-     */
-    async function fetchAndDisplayProjects() {
-        const { data, error } = await supabase
-            .from("irr_projects")
-            .select("id, created_at, project_data->project_name, auth_user_email")
-            .order("created_at", { ascending: false });
-
-        if (error) {
-            console.error("Error fetching projects:", error);
-            showModal("Error", `Could not load projects: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-
-        loadProjectList.innerHTML = ""; // Clear list
-        if (data.length === 0) {
-            loadProjectList.innerHTML = "<li>No saved projects found.</li>";
-        } else {
-            data.forEach(project => {
-                const li = document.createElement("li");
-                li.className = "list-item";
-                li.dataset.projectId = project.id;
-                li.innerHTML = `
-                    <div class="load-project-name">${escapeHTML(project.project_name || 'Untitled Project')}</div>
-                    <div class="load-project-meta">
-                        Saved by: ${escapeHTML(project.auth_user_email || 'Unknown')} on ${new Date(project.created_at).toLocaleDateString()}
-                    </div>
-                `;
-                loadProjectList.appendChild(li);
-            });
-        }
-        
-        loadProjectModal.classList.remove("hidden");
-    }
-
-    /**
-     * Loads a selected project's data into the calculator.
-     * @param {string} projectId - The ID of the project to load.
-     */
-    async function loadProject(projectId) {
-        const { data, error } = await supabase
-            .from("irr_projects")
-            .select("project_data")
-            .eq("id", projectId)
-            .single();
-
-        if (error) {
-            console.error("Error loading project:", error);
-            showModal("Error", `Could not load project: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-
-        const projectData = data.project_data;
-        
-        // --- Clear existing state ---
-        siteTabsContainer.innerHTML = "";
-        siteFormsContainer.innerHTML = "";
-
-        // --- Load new state ---
-        state.currentProjectId = projectId;
-        state.sites = projectData.sites || [];
-        projectNameInput.value = projectData.project_name || "Loaded Project";
-        globalTargetIrrInput.value = projectData.global_target_irr || 15;
-        
-        if (state.sites.length === 0) {
-            // Handle case of empty project
-            initializeNewProject();
-            return;
-        }
-
-        // --- Rebuild UI from state ---
-        state.sites.forEach((siteData, index) => {
-            // --- Create Tab ---
-            const tab = document.createElement("button");
-            tab.className = "irr-tab";
-            tab.dataset.tabId = siteData.id;
-            tab.innerHTML = `
-                <span class="tab-site-name">${escapeHTML(siteData.inputs.siteName)}</span>
-                <span class="irr-tab-results">--%</span>
-            `;
-            
-            if (index > 0) { // Add delete button if not the first tab
-                const deleteBtn = document.createElement("button");
-                deleteBtn.className = "delete-site-btn";
-                deleteBtn.innerHTML = "&times;";
-                deleteBtn.title = "Delete this site";
-                tab.appendChild(deleteBtn);
-            }
-            siteTabsContainer.appendChild(tab);
-
-            // --- Create Form ---
-            const templateClone = siteFormTemplate.content.cloneNode(true);
-            const formWrapper = templateClone.querySelector(".site-form-wrapper");
-            formWrapper.dataset.siteId = siteData.id;
-
-            const form = formWrapper.querySelector(".irr-form");
-            form.querySelector(".site-name-input").value = siteData.inputs.siteName;
-            form.querySelector(".construction-cost-input").value = siteData.inputs.constCost;
-            form.querySelector(".engineering-cost-input").value = siteData.inputs.engCost;
-            form.querySelector(".nrr-input").value = siteData.inputs.nrr;
-            form.querySelector(".mrr-input").value = siteData.inputs.mrr;
-            form.querySelector(".monthly-cost-input").value = siteData.inputs.monthlyCost;
-            form.querySelector(".term-input").value = siteData.inputs.term;
-
-            if (index === 0) { // Hide delete button on first form
-                formWrapper.querySelector(".delete-site-btn").classList.add("hidden");
-            }
-            
-            siteFormsContainer.appendChild(templateClone);
-            
-            // Run calculation to populate results
-            runSiteCalculation(siteData.id, false);
-        });
-
-        // Set first site as active
-        setActiveTab(state.sites[0].id);
-        runGlobalCalculation();
-        
-        state.isDirty = false; // Freshly loaded, not dirty
-        updateSaveButtonState();
-        loadProjectModal.classList.add("hidden");
+        return str;
     }
 
     /**
@@ -797,14 +586,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const projectName = projectNameInput.value.trim() || "IRR Project";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 15) / 100;
         
-        // --- FIX: Defined the helper function here, at the top of the function scope ---
-        const createCsvFormula = (baseFormula) => {
-            // Escape internal quotes by doubling them up
-            const escapedFormula = baseFormula.replace(/"/g, '""');
-            // Prepend '=' and wrap the whole thing in quotes
-            return `"=${escapedFormula}"`;
-        };
-        
         let csvContent = [];
 
         // --- Header Info ---
@@ -812,40 +593,54 @@ document.addEventListener("DOMContentLoaded", async () => {
         csvContent.push(`Global Target IRR:,${globalTargetIRR}`); // This will be read by formulas
         csvContent.push(""); // Spacer row
         
-        // --- Table Header ---
+        // --- Site Table Headers ---
         const headers = [
-            "Site Name", "Construction Cost", "Engineering Cost", "NRR (Upfront)", "Monthly Recurring Revenue", 
-            "Monthly Costs", "Project Term (Months)", "TCV (Formula)", "Calculated IRR (Formula)", "Decision (Formula)"
+            "Site Name",            // Col A
+            "Construction Cost",    // Col B
+            "Engineering Cost",     // Col C
+            "NRR (Upfront)",        // Col D
+            "MRR",                  // Col E
+            "Monthly Cost",         // Col F
+            "Term (Months)",        // Col G
+            "TCV (Formula)",        // Col H
+            "Calculated IRR (Formula)", // Col I
+            "Decision (Formula)"    // Col J
         ];
-        csvContent.push(headers.join(","));
+        csvContent.push(headers.join(','));
 
-        // --- Table Rows (Site Data) ---
-        const startRow = 5; // CSV row 5 (1-indexed)
+        // --- Site Data Rows ---
+        const startRow = 5; // CSV row 5 is Excel row 5 (1-based index)
         state.sites.forEach((site, index) => {
             const rowNum = startRow + index;
-            const { inputs } = site;
+            const i = site.inputs;
             
-            // 1. Base Formulas
-            const tcvFormulaBase = `(E${rowNum}*G${rowNum})+D${rowNum}`;
+            // --- UPDATED FORMULA LOGIC ---
+            // 1. Define formulas WITHOUT leading '=' or outer quotes.
+            const tcvFormulaBase = `ROUND((E${rowNum}*G${rowNum})+D${rowNum}, 2)`;
             const irrFormulaBase = `IFERROR((1+RATE(G${rowNum}, F${rowNum}-E${rowNum}, (B${rowNum}+C${rowNum})-D${rowNum}))^12-1, "Error")`;
             const decisionFormulaBase = `IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))`;
 
             // 2. Helper to finalize the formula string for CSV
-            // --- REMOVED: Definition was moved to the top ---
+            const createCsvFormula = (baseFormula) => {
+                // Escape internal quotes by doubling them up
+                const escapedFormula = baseFormula.replace(/"/g, '""');
+                // Prepend '=' and wrap the whole thing in quotes
+                return `"=${escapedFormula}"`;
+            };
 
             const row = [
-                escapeCSV(inputs.siteName),
-                inputs.constCost,
-                inputs.engCost,
-                inputs.nrr,
-                inputs.mrr,
-                inputs.monthlyCost,
-                inputs.term,
+                escapeCSV(site.name),
+                i.constructionCost,
+                i.engineeringCost,
+                i.nrr,
+                i.mrr,
+                i.monthlyCost,
+                i.term,
                 createCsvFormula(tcvFormulaBase),
                 createCsvFormula(irrFormulaBase),
                 createCsvFormula(decisionFormulaBase)
             ];
-            csvContent.push(row.join(","));
+            csvContent.push(row.join(','));
         });
 
         // --- Global Summary ---
@@ -853,8 +648,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             const lastRow = startRow + state.sites.length - 1;
             csvContent.push(""); // Spacer row
             
+            // --- REMOVED: Confusing "Inputs, Formulas" header ---
+            // csvContent.push("Global Results,,,,,Inputs,Formulas"); // Header
+            
             // Define summary row numbers
-            const globalTcvRow = lastRow + 3; // +1 for spacer, +1 for 1-indexing, +1 for new row
+            const globalTcvRow = lastRow + 2;
             const globalIrrRow = globalTcvRow + 1;
             const globalDecisionRow = globalIrrRow + 1;
 
@@ -894,212 +692,413 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         // --- Download Logic ---
-        const csvString = csvContent.join("\n");
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
+        const csvString = csvContent.join('\n');
+        const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvString);
         
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${projectName.replace(/[^a-z0-9]/gi, '_')}_IRR_Export.csv`);
-        link.style.visibility = 'hidden';
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `${projectName.replace(/ /g, "_")}_IRR_Model.csv`);
         document.body.appendChild(link);
+        
         link.click();
+        
         document.body.removeChild(link);
     }
 
-    // --- Helper Functions ---
+    // --- 8. Database (Save/Load) Functions ---
 
     /**
-     * Updates the save button state (enabled/disabled) based on isDirty flag.
+     * Saves the current project state to Supabase.
+     * Inserts if new (state.currentProjectId is null), updates if existing.
      */
-    function updateSaveButtonState() {
-        if (state.isDirty) {
-            saveProjectBtn.disabled = false;
-            saveProjectBtn.textContent = "Save Project *";
+    async function handleSaveProject() {
+        const projectName = projectNameInput.value.trim();
+        if (!projectName) {
+            showModal("Cannot Save", "Please enter a Project Name before saving.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+
+        // Show loading modal
+        showModal("Saving...", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Saving project to database...</p>`, null, false, ``);
+
+        const projectData = {
+            project_name: projectName,
+            global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
+            sites: state.sites, // Save the entire sites array as JSON
+            user_id: state.currentUser.id,
+            last_saved: new Date().toISOString()
+        };
+
+        let result;
+        if (state.currentProjectId) {
+            // Update existing project
+            result = await supabase.from(IRR_TABLE)
+                .update(projectData)
+                .eq('id', state.currentProjectId)
+                .select();
         } else {
-            saveProjectBtn.disabled = true;
-            saveProjectBtn.textContent = "Saved";
+            // Insert new project
+            result = await supabase.from(IRR_TABLE)
+                .insert(projectData)
+                .select();
+        }
+
+        if (result.error) {
+            console.error("Error saving project:", result.error);
+            showModal("Error", `Could not save project: ${result.error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        } else {
+            // Success! Update state with new ID (if it was an insert)
+            if (result.data && result.data[0]) {
+                state.currentProjectId = result.data[0].id;
+            }
+            state.isFormDirty = false;
+            // Show success message
+            showModal("Success!", "Project saved successfully.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
 
-    function formatCurrency(value) {
-        return (value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-    }
+    /**
+     * Fetches the list of saved projects and displays the load modal.
+     */
+    async function handleLoadProject() {
+        loadProjectList.innerHTML = `<li class="placeholder-text">Loading...</li>`;
+        loadProjectModal.classList.remove('hidden');
 
-    function escapeHTML(str) {
-        return (str || '').replace(/[&<>"']/g, function(m) {
-            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
-        });
-    }
+        const { data, error } = await supabase
+            .from(IRR_TABLE)
+            .select('id, project_name, last_saved, user_id') // We can add user_id if we want to show who saved it
+            .order('last_saved', { ascending: false });
 
-    function escapeCSV(str) {
-        if (str == null) return '""';
-        str = String(str);
-        const needsQuotes = str.includes(',') || str.includes('"') || str.includes('\n');
-        if (needsQuotes) {
-            return `"${str.replace(/"/g, '""')}"`;
+        if (error) {
+            console.error("Error fetching projects:", error);
+            loadProjectList.innerHTML = `<li class="placeholder-text error">Could not load projects.</li>`;
+            return;
         }
-        return str;
+
+        if (data.length === 0) {
+            loadProjectList.innerHTML = `<li class="placeholder-text">No saved projects found.</li>`;
+            return;
+        }
+
+        // Render the list
+        loadProjectList.innerHTML = '';
+        data.forEach(project => {
+            const li = document.createElement('li');
+            li.dataset.projectId = project.id;
+            li.innerHTML = `
+                <span class="project-name">${project.project_name}</span>
+                <span class="project-date">Saved: ${formatDate(project.last_saved)}</span>
+            `;
+            loadProjectList.appendChild(li);
+        });
     }
-    
-    // --- Event Listener Setup ---
-    function setupPageEventListeners() {
-        setupModalListeners(); // From shared_constants
 
-        // --- Project Controls ---
-        newProjectBtn.addEventListener("click", () => {
-            if (state.isDirty) {
-                showModal("Unsaved Changes", "You have unsaved changes. Are you sure you want to create a new project? Your current changes will be lost.",
-                    () => {
-                        hideModal();
-                        initializeNewProject();
-                    },
-                    true,
-                    `<button id="modal-confirm-btn" class="btn-primary">Discard & Create New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                );
-            } else {
-                initializeNewProject();
-            }
-        });
-        
-        saveProjectBtn.addEventListener("click", handleSaveProject);
-        loadProjectBtn.addEventListener("click", showLoadProjectModal);
-        addSiteBtn.addEventListener("click", () => addNewSite(false));
-        printReportBtn.addEventListener("click", handlePrintReport);
-        exportCsvBtn.addEventListener("click", handleExportCSV);
-
-        // --- Global Inputs ---
-        projectNameInput.addEventListener("input", () => {
-            state.isDirty = true;
-            updateSaveButtonState();
-        });
-        
-        globalTargetIrrInput.addEventListener("input", () => {
-            // Recalculate all individual sites AND global
-            state.sites.forEach(site => runSiteCalculation(site.id, false));
-            runGlobalCalculation();
-            state.isDirty = true;
-            updateSaveButtonState();
-        });
-
-        // --- Tab Bar ---
-        siteTabsContainer.addEventListener("click", (e) => {
-            const tab = e.target.closest(".irr-tab");
-            const deleteBtn = e.target.closest(".delete-site-btn");
-
-            if (deleteBtn) {
-                e.stopPropagation(); // Prevent tab from activating
-                const siteId = tab.dataset.tabId;
-                showModal("Confirm Deletion", "Are you sure you want to delete this site?",
-                    () => {
-                        deleteSite(siteId);
-                        hideModal();
-                    },
-                    true,
-                    `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                );
-            } else if (tab) {
-                setActiveTab(tab.dataset.tabId);
-            }
-        });
-
-        // --- Site Forms (Event Delegation) ---
-        siteFormsContainer.addEventListener("input", (e) => {
-            const formWrapper = e.target.closest(".site-form-wrapper");
-            if (!formWrapper) return;
+    /**
+     * Loads a full project from the database by its ID.
+     * @param {string} projectId - The UUID of the project to load.
+     */
+    async function loadProjectFromList(projectId) {
+        const loadProject = async () => {
+            // 1. Hide load modal, show loading modal
+            loadProjectModal.classList.add('hidden');
+            showModal("Loading...", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Loading project...</p>`, null, false, ``);
             
-            runSiteCalculation(formWrapper.dataset.siteId);
-        });
+            // 2. Fetch full project data
+            const { data, error } = await supabase
+                .from(IRR_TABLE)
+                .select('*')
+                .eq('id', projectId)
+                .single();
 
-        siteFormsContainer.addEventListener("click", (e) => {
-            const deleteBtn = e.target.closest(".delete-site-btn");
-            if (deleteBtn) {
-                const formWrapper = e.target.closest(".site-form-wrapper");
-                const siteId = formWrapper.dataset.siteId;
-                showModal("Confirm Deletion", "Are you sure you want to delete this site?",
-                    () => {
-                        deleteSite(siteId);
-                        hideModal();
-                    },
-                    true,
-                    `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-                );
+            if (error) {
+                console.error("Error loading project:", error);
+                showModal("Error", `Could not load project: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
             }
-        });
-        
-        // --- Load Modal ---
-        loadProjectModalCloseBtn.addEventListener("click", () => {
-            loadProjectModal.classList.add("hidden");
-        });
-        
-        loadProjectList.addEventListener("click", (e) => {
-            const listItem = e.target.closest(".list-item");
-            if (listItem) {
-                loadProject(listItem.dataset.projectId);
-            }
-        });
-        
-        // --- Navigation ---
-        navSidebar.addEventListener('click', (e) => {
-            const navButton = e.target.closest('a.nav-button');
-            if (navButton && !navButton.classList.contains("active")) {
-                e.preventDefault();
-                handleNavigation(navButton.href);
-            }
-        });
-    }
 
-    /**
-     * Handles navigation away from the page, checking for unsaved changes.
-     * @param {string} url - The URL to navigate to.
-     */
-    function handleNavigation(url) {
-        if (state.isDirty) {
-            showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", () => {
-                state.isDirty = false;
-                window.location.href = url;
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Leave</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            // 3. Hydrate state and DOM from loaded data
+            hydrateState(data);
+            
+            // 4. Hide loading modal
+            hideModal();
+            state.isFormDirty = false;
+        };
+        
+        if (state.isFormDirty) {
+             showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to load a different project?",
+                loadProject, true,
+                `<button id="modal-confirm-btn" class="btn-danger">Discard & Load</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+            );
         } else {
-            window.location.href = url;
+            loadProject();
         }
     }
 
     /**
-     * Warns user before unload if there are unsaved changes.
+     * Rebuilds the entire page (state and DOM) from a loaded project object.
+     * @param {object} projectData - The full project object from Supabase.
      */
-    window.addEventListener('beforeunload', (event) => {
-        if (state.isDirty) {
-            event.preventDefault();
-            event.returnValue = '';
-        }
-    });
+    function hydrateState(projectData) {
+        // 1. Clear existing DOM
+        siteFormsContainer.innerHTML = '';
+        siteTabsContainer.innerHTML = '';
 
-    // --- Page Initialization ---
+        // 2. Set global state
+        state.currentProjectId = projectData.id;
+        state.sites = projectData.sites || [];
+        state.activeSiteId = state.sites.length > 0 ? state.sites[0].id : null;
+        // Ensure nextSiteId is higher than any loaded ID
+        state.nextSiteId = state.sites.length > 0 
+            ? Math.max(...state.sites.map(s => s.id)) + 1 
+            : 1;
+
+        // 3. Set global inputs
+        projectNameInput.value = projectData.project_name || '';
+        globalTargetIrrInput.value = projectData.global_target_irr || 15;
+        
+        // 4. Rebuild DOM for each site
+        state.sites.forEach(site => {
+            const templateClone = siteFormTemplate.content.cloneNode(true);
+            const newFormWrapper = templateClone.querySelector('.site-form-wrapper');
+            
+            newFormWrapper.dataset.siteId = site.id;
+            
+            // Populate all inputs from saved data
+            newFormWrapper.querySelector('.site-name-input').value = site.name;
+            const inputs = site.inputs || {};
+            newFormWrapper.querySelector('.construction-cost-input').value = inputs.constructionCost || 0;
+            newFormWrapper.querySelector('.engineering-cost-input').value = inputs.engineeringCost || 0;
+            newFormWrapper.querySelector('.nrr-input').value = inputs.nrr || 0;
+            newFormWrapper.querySelector('.mrr-input').value = inputs.mrr || 0;
+            newFormWrapper.querySelector('.monthly-cost-input').value = inputs.monthlyCost || 0;
+            newFormWrapper.querySelector('.term-input').value = inputs.term || 0;
+            
+            siteFormsContainer.appendChild(templateClone);
+            attachFormListeners(newFormWrapper);
+            
+            // Recalculate this site's results (don't trigger global calc yet)
+            runSiteCalculation(site.id, false);
+        });
+
+        // 5. Run final calculations and renders
+        runGlobalCalculation(); // Run global calc once
+        renderTabs(); // Render all tabs
+        if (state.activeSiteId) {
+            setActiveSite(state.activeSiteId); // Activate the first tab
+        }
+    }
+
+
+    // --- 9. Event Listener Setup ---
+
+    /**
+     * Attaches all necessary event listeners to a newly created site form.
+     */
+    function attachFormListeners(formWrapper) {
+        const siteId = Number(formWrapper.dataset.siteId);
+
+        formWrapper.addEventListener('input', (e) => {
+            state.isFormDirty = true; // Mark as dirty
+            if (e.target.classList.contains('site-name-input')) {
+                const site = state.sites.find(s => s.id === siteId);
+                if (site) site.name = e.target.value || `Site ${siteId}`;
+                renderTabs(); 
+                setActiveSite(siteId);
+            } else {
+                runSiteCalculation(siteId);
+            }
+        });
+
+        formWrapper.querySelector('.delete-site-btn').addEventListener('click', () => {
+            const site = state.sites.find(s => s.id === siteId);
+            showModal("Confirm Deletion", `Are you sure you want to delete "${site ? site.name : 'this site'}"?`,
+                () => {
+                    deleteSite(siteId);
+                    hideModal();
+                }, true, 
+                `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+            );
+        });
+    }
+
+    /**
+     * Sets up all global, non-site-specific event listeners.
+     */
+    function setupPageEventListeners() {
+        setupModalListeners(); 
+
+        // Handle sidebar navigation with dirty check
+        const navSidebar = document.querySelector(".nav-sidebar");
+        if (navSidebar) {
+            navSidebar.addEventListener('click', (e) => {
+                const navButton = e.target.closest('a.nav-button');
+                if (navButton) {
+                    e.preventDefault();
+                    const url = navButton.href;
+                    if (state.isFormDirty) {
+                        showModal("Unsaved Changes", "You have unsaved changes that will be lost. Are you sure you want to leave?", 
+                            () => {
+                                state.isFormDirty = false; 
+                                window.location.href = url;
+                            }, true, 
+                            `<button id="modal-confirm-btn" class="btn-danger">Discard & Leave</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+                        );
+                    } else {
+                        window.location.href = url;
+                    }
+                }
+            });
+        }
+        
+        // Beforeunload confirmation (browser native)
+        window.addEventListener('beforeunload', (event) => {
+            if (state.isFormDirty) {
+                event.preventDefault();
+                event.returnValue = ''; // Required for legacy browsers
+            }
+        });
+
+        // Project Control Buttons
+        if (newProjectBtn) newProjectBtn.addEventListener('click', handleNewProject);
+        if (loadProjectBtn) loadProjectBtn.addEventListener('click', handleLoadProject);
+        if (saveProjectBtn) saveProjectBtn.addEventListener('click', handleSaveProject);
+        if (addSiteBtn) addSiteBtn.addEventListener('click', addNewSite);
+        if (printReportBtn) printReportBtn.addEventListener('click', handlePrintReport);
+        if (exportCsvBtn) exportCsvBtn.addEventListener('click', handleExportCSV); // <-- NEW
+        
+        // Tab bar click delegation
+        if (siteTabsContainer) {
+            siteTabsContainer.addEventListener('click', (e) => {
+                const tab = e.target.closest('.irr-tab');
+                if (tab) {
+                    setActiveSite(Number(tab.dataset.siteId));
+                }
+            });
+        }
+        
+        // Global Target IRR listener
+        if (globalTargetIrrInput) {
+            globalTargetIrrInput.addEventListener('input', () => {
+                state.isFormDirty = true;
+                state.sites.forEach(site => runSiteCalculation(site.id, false)); 
+                runGlobalCalculation(); 
+            });
+        }
+        
+        // Project Name listener
+        if (projectNameInput) {
+            projectNameInput.addEventListener('input', () => {
+                state.isFormDirty = true;
+            });
+        }
+
+        // Load Modal Listeners
+        if (loadProjectCancelBtn) {
+            loadProjectCancelBtn.addEventListener('click', () => {
+                loadProjectModal.classList.add('hidden');
+            });
+        }
+        if (loadProjectList) {
+            loadProjectList.addEventListener('click', (e) => {
+                const li = e.target.closest('li[data-project-id]');
+                if (li) {
+                    loadProjectFromList(li.dataset.projectId);
+                }
+            });
+        }
+    }
+
+    // --- 10. Main Page Initialization ---
     async function initializePage() {
         await loadSVGs();
+        
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
         if (sessionError || !session) {
             console.error('Authentication failed or no session found. Redirecting to login.');
-            window.location.href = "index.html"; // Redirect to login
+            window.location.href = "index.html";
             return;
         }
         state.currentUser = session.user;
 
         try {
-            await setupUserMenuAndAuth(supabase, state); // from shared_constants
-            await setupGlobalSearch(supabase, state.currentUser); // from shared_constants
-            await checkAndSetNotifications(supabase); // from shared_constants
-            setupPageEventListeners();
+            await setupUserMenuAndAuth(supabase, state);
+            await setupGlobalSearch(supabase, state.currentUser);
+            await checkAndSetNotifications(supabase);
             
-            // Start with a fresh project on load
-            initializeNewProject();
+            setupPageEventListeners();
+
+            // Start the user with one site
+            handleNewProject(); // This will set up the first default site
+            state.isFormDirty = false; // It's not "dirty" on first load
+
         } catch (error) {
             console.error("Critical error during page initialization:", error);
-            showModal("Loading Error", "There was a problem loading the page. Please refresh.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            showModal(
+                "Loading Error",
+                "There was a problem loading the page. Please refresh to try again.",
+                null, false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
         }
     }
 
+    // --- 11. Financial Calculation (Pure Functions) ---
+
+    function calculateNPV(rate, cashFlows) {
+        let npv = 0;
+        for (let i = 0; i < cashFlows.length; i++) {
+            npv += cashFlows[i] / Math.pow(1 + rate, i);
+        }
+        return npv;
+    }
+
+    function calculateIRR(cashFlows) {
+        const maxIterations = 100;
+        const precision = 1e-7;
+        
+        let minRate = -0.9999; 
+        let maxRate = 1.0;     
+        let midRate = (minRate + maxRate) / 2;
+
+        let npvAtMin = calculateNPV(minRate, cashFlows);
+        let npvAtMax = calculateNPV(maxRate, cashFlows);
+        
+        // This logic attempts to find a valid bracket where NPVs have opposite signs
+        if (npvAtMin * npvAtMax > 0) {
+            // Try a wider bracket if the first one fails
+            maxRate = 5.0; // 500% monthly
+            npvAtMax = calculateNPV(maxRate, cashFlows);
+            if (npvAtMin * npvAtMax > 0) {
+                 // Try an even wider bracket
+                 minRate = -0.999999;
+                 maxRate = 20.0; // 2000% monthly
+                 npvAtMin = calculateNPV(minRate, cashFlows);
+                 npvAtMax = calculateNPV(maxRate, cashFlows);
+                 // If it still fails, the cash flow is likely problematic (e.g., all positive)
+                 if (npvAtMin * npvAtMax > 0) return NaN; 
+            }
+        }
+
+        for (let i = 0; i < maxIterations; i++) {
+            midRate = (minRate + maxRate) / 2;
+            let npvAtMid = calculateNPV(midRate, cashFlows);
+
+            if (Math.abs(npvAtMid) < precision) {
+                return midRate;
+            } else if (npvAtMid * npvAtMin > 0) {
+                // Both are same sign, move minRate
+                minRate = midRate;
+                npvAtMin = npvAtMid;
+            } else {
+                // Signs are different, move maxRate
+                maxRate = midRate;
+            }
+        }
+        
+        // Return the best guess after iterations
+        return midRate;
+    }
+
+    // --- 12. Run Initialization ---
     initializePage();
 });
-
