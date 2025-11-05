@@ -859,12 +859,7 @@ const orgChartImageHtml = `
                                 line-height: 1.6;
                             }
 
-                            /* --- THIS IS THE FIX --- */
-                            /* Override the 'avoid' rule just for the chart container */
-                            .org-chart-print-container {
-                                page-break-inside: auto !important;
-                            }
-                            /* --- END OF FIX --- */
+                
 
                             /* --- AI Recommendation Box (Your style) --- */
                             .briefing-section.recommendation {
