@@ -4387,6 +4387,7 @@ div.briefing-pre {
     display: flex;
     justify-content: center;
     position: relative;
+    padding-top: 20px; /* <-- THE FIX: Adds space for the parent's line */
 }
 
 /* The <li> "column" for a node */
