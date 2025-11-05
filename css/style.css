@@ -4355,158 +4355,163 @@ div.briefing-pre {
 .contact-view-header h4 {
     margin: 0; /* Remove default margin */
 }
-
-/* We can reuse the existing .view-mode-toggle styles from deals.js */
-/* No new CSS needed for the toggle itself */
-
 /* ========================================= */
-/* = Org Chart Structure (Vertical Layout) = */
+/* = Org Chart Structure (Horizontal-FIXED) = */
 /* ========================================= */
 
 #contact-org-chart-view {
-    padding: 1em;
+    padding: 2rem; /* Give the chart breathing room */
     background-color: var(--bg-dark);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     min-height: 200px;
-    /* NEW: Add overflow-x for safety, though vertical should prevent it */
-    overflow-x: auto; 
+    overflow-x: auto; /* Enable horizontal scrolling */
 }
 
-/* The container for the chart in the modal, used for zooming */
-.org-chart-print-container {
-  padding: 1em;
-  background: var(--bg-dark);
-  border-radius: 8px;
-}
-
-/* The root <ul> doesn't need indentation or lines */
+/* Make the root a non-flex container that can scroll */
 .org-chart-root {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-  position: relative;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: inline-block; /* Allows the container to size to its content */
+    min-width: 100%;
 }
 
-/* All <li> and <ul> elements */
-.org-chart-node,
+/* All <ul> elements are flex containers */
+.org-chart-root,
 .org-chart-children {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-  position: relative;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
-/* Indent all children <ul> elements */
-.org-chart-children {
-  padding-left: 25px; 
-}
-
-/* Add spacing above each <li> */
+/* The <li> is the main "column" for a node and its children */
 .org-chart-node {
-  padding-top: 15px; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding: 0 5px; /* Compact horizontal spacing */
+    list-style: none;
 }
 
-/* --- Draw the connector lines --- */
+/* --- THE LINES --- */
 
-/* Draw the L-shaped "bend" for each node */
+/* 1. Line UP from child card to the horizontal bar */
 .org-chart-node::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -15px; /* Aligns with the vertical line */
-  width: 15px;
-  /* Adjust height to center on the card */
-  height: 35px; 
-  border-bottom: 2px solid var(--border-color);
-  border-left: 2px solid var(--border-color);
-  display: block;
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 20px; /* Space between card and horizontal line */
+    background-color: var(--border-color);
 }
 
-/* Draw the vertical "spine" connecting siblings */
-.org-chart-node::after {
-  content: '';
-  position: absolute;
-  top: 35px; /* Start from the L-bend */
-  bottom: 0;
-  left: -15px; /* Align with the L-bend's vertical */
-  width: 2px;
-  background: var(--border-color);
-  display: block;
+/* 2. Horizontal line ACROSS the top of a children group */
+.org-chart-children::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%; /* Start line part-way */
+    right: 10%; /* End line part-way */
+    height: 2px;
+    background-color: var(--border-color);
 }
 
-/* --- Clean-up Rules --- */
-
-/* Don't draw any lines for top-level nodes */
-.org-chart-root > .org-chart-node {
-  padding-top: 0;
-}
-.org-chart-root > .org-chart-node::before,
-.org-chart-root > .org-chart-node::after {
-  display: none;
-}
-
-/* Stop the vertical "spine" for the last child in a list */
-.org-chart-node:last-child::after {
-  display: none;
+/* 3. Line DOWN from parent card */
+.contact-card::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; /* Matches the 'top' space */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 20px;
+    background-color: var(--border-color);
 }
 
-/* =================================== */
-/* = Org Chart Contact Card (NEW)    = */
-/* =================================== */
+/* --- LINE CLEANUP --- */
+
+/* Hide line UP from top-level nodes */
+.org-chart-root > .org-chart-node::before {
+    display: none;
+}
+
+/* Hide line DOWN from cards that have NO children */
+.org-chart-node:not(:has(.org-chart-children)) > .contact-card::after {
+    display: none;
+}
+
+/* Trim horizontal line for a single child */
+.org-chart-children .org-chart-node:only-child::before {
+    display: none; /* No need for a line up if it's 1-to-1 */
+}
+
+/* Trim horizontal line for the first child */
+.org-chart-children .org-chart-node:first-child::before {
+    /* This makes the line draw from 50% to 100% */
+    left: 50%;
+    width: 50%;
+}
+
+/* Trim horizontal line for the last child */
+.org-chart-children .org-chart-node:last-child::before {
+    /* This makes the line draw from 0% to 50% */
+    left: 0;
+    width: 50%;
+}
+
+/* --- COMPACT CARD STYLES --- */
 
 .contact-card {
-  margin-left: 10px; /* Space from the connector lines */
-  display: inline-block; /* Allows it to sit next to the lines */
-  width: auto; /* Let it size to content */
-  min-width: 220px;
-  max-width: 300px;
-  background-color: var(--bg-light);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  text-align: left;
-  font-size: 0.9rem;
-  cursor: grab;
-  position: relative; 
-  z-index: 1; /* Ensures card is above lines */
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s;
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px; /* Reduced padding */
+    min-width: 170px;  /* Reduced min-width */
+    text-align: left; /* Aligns text left */
+    cursor: grab;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 2px 5px var(--shadow-light);
+    margin-top: 20px; /* Space for the line */
 }
 
 .contact-card:hover {
-  border-color: var(--primary-blue);
+    border-color: var(--primary-blue);
 }
 
 .contact-card.dragging {
-  opacity: 0.5;
-  background: var(--primary-blue-dark);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  transform: scale(1.05);
+    opacity: 0.8;
+    background-color: var(--bg-light);
+    transform: scale(1.02);
 }
 
 .contact-card.drop-target {
-  box-shadow: 0 0 0 3px var(--primary-blue);
-  background-color: var(--bg-light);
-  border-color: var(--primary-blue);
+    border-color: var(--completed-color);
+    box-shadow: 0 0 10px var(--completed-color);
 }
 
-/* Styling for card text */
 .contact-card-name {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--text-light);
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.85rem; /* Reduced font size */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .contact-card-title {
-  font-weight: 400;
-  font-size: 0.85rem;
-  color: var(--text-medium);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    font-size: 0.75rem; /* Reduced font size */
+    color: var(--text-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: italic;
 }
