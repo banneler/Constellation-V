@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Master lists for the main account list view
         accounts: [],
-        contacts: [], 
+        contacts: [],
         activities: [],
         deals: [],
         dealStages: [],
@@ -44,11 +44,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addDealBtn = document.getElementById("add-deal-btn");
     const addTaskAccountBtn = document.getElementById("add-task-account-btn");
     
-    const contactListView = document.getElementById("contact-list-view"); 
+    const contactListView = document.getElementById("contact-list-view");
     const contactOrgChartView = document.getElementById("contact-org-chart-view");
-    const accountContactsList = document.getElementById("account-contacts-list"); 
-    const contactListBtn = document.getElementById("contact-list-btn"); 
-    const contactOrgChartBtn = document.getElementById("contact-org-chart-btn"); 
+    const accountContactsList = document.getElementById("account-contacts-list");
+    const contactListBtn = document.getElementById("contact-list-btn");
+    const contactOrgChartBtn = document.getElementById("contact-org-chart-btn");
     
     const accountActivitiesList = document.getElementById("account-activities-list");
     const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
@@ -68,11 +68,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const confirmAndSwitchAccount = async (newAccountId) => { 
+    const confirmAndSwitchAccount = async (newAccountId) => {
         const switchAccount = async () => {
             state.selectedAccountId = newAccountId;
-            renderAccountList(); 
-            await loadDetailsForSelectedAccount(); 
+            renderAccountList();
+            await loadDetailsForSelectedAccount();
         };
 
         if (state.isFormDirty) {
@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
             supabase.from("deals").select("id, account_id, stage").eq("user_id", state.currentUser.id),
             supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", state.currentUser.id),
-            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", state.currentUser.id), 
+            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", state.currentUser.id),
             supabase.from("deal_stages").select("*").order('sort_order')
         ]);
 
@@ -107,10 +107,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.accounts = accountsRes.data || [];
         state.deals = dealsRes.data || [];
         state.activities = activitiesRes.data || [];
-        state.contacts = contactsRes.data || []; 
+        state.contacts = contactsRes.data || [];
         state.dealStages = dealStagesRes.data || [];
 
-        renderAccountList(); 
+        renderAccountList();
     }
 
     async function loadDetailsForSelectedAccount() {
@@ -125,7 +125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.selectedAccountDetails.account = account;
 
         const [contactsRes, dealsRes, activitiesRes, tasksRes] = await Promise.all([
-            supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId), 
+            supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId)
@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contactIds = (contactsRes.data || []).map(c => c.id);
         const sequencesRes = contactIds.length > 0
             ? await supabase.from("contact_sequences").select("*").in('contact_id', contactIds)
-            : { data: [], error: null }; 
+            : { data: [], error: null };
 
         if (sequencesRes.error) throw sequencesRes.error;
 
@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         renderAccountDetails();
     }
-   
+    
     async function refreshData() {
         await loadInitialData();
         if (state.selectedAccountId) {
@@ -162,8 +162,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         
     const hideAccountDetails = (clearSelection = false) => {
         if (accountForm) {
-            accountForm.classList.remove('hidden'); 
-            accountForm.reset(); 
+            // --- LOGIC ERROR FIXED ---
+            // Was .remove('hidden'), which showed the form. Changed to .add('hidden').
+            accountForm.classList.add('hidden');
+            accountForm.reset();
             accountForm.querySelector("#account-id").value = '';
             document.getElementById("account-last-saved").textContent = "";
         }
@@ -356,10 +358,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderContactList = () => {
         const { contacts, contact_sequences } = state.selectedAccountDetails;
-        const listElement = document.getElementById('account-contacts-list'); 
+        const listElement = document.getElementById('account-contacts-list');
         if (!listElement) return;
 
-        listElement.innerHTML = ""; 
+        listElement.innerHTML = "";
         contacts
             .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
             .forEach((c) => {
@@ -378,16 +380,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         const { contacts } = state.selectedAccountDetails;
         if (!contactOrgChartView) return;
 
-        contactOrgChartView.innerHTML = ""; 
+        contactOrgChartView.innerHTML = "";
 
         const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
         
         const tree = [];
         contactMap.forEach(contact => {
-            if (contact.reports_to && contactMap.has(Number(contact.reports_to))) { 
+            if (contact.reports_to && contactMap.has(Number(contact.reports_to))) {
                 contactMap.get(Number(contact.reports_to)).children.push(contact);
             } else {
-                tree.push(contact); 
+                tree.push(contact);
             }
         });
 
@@ -425,7 +427,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const setupOrgChartDragDrop = () => {
         // --- FIX 1 (continued): Remove the 'let' from here. We use the global 'draggedContactId' ---
-        // let draggedContactId = null; 
+        // let draggedContactId = null;
         
         const isCircular = (targetId, draggedId) => {
             const contacts = state.selectedAccountDetails.contacts;
@@ -434,7 +436,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             let currentId = targetId;
             while (currentId) {
                 if (currentId === draggedId) {
-                    return true; 
+                    return true;
                 }
                 const currentContact = contactMap.get(currentId);
                 currentId = currentContact && currentContact.reports_to ? Number(currentContact.reports_to) : null;
@@ -447,9 +449,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const targetCard = e.target.closest('.contact-card');
                 if (!targetCard) return;
                 
-                draggedContactId = Number(targetCard.dataset.contactId); 
+                draggedContactId = Number(targetCard.dataset.contactId);
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', draggedContactId); 
+                e.dataTransfer.setData('text/plain', draggedContactId);
                 setTimeout(() => targetCard.classList.add('dragging'), 0);
             });
 
@@ -457,13 +459,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const targetCard = e.target.closest('.contact-card');
                 if (targetCard) targetCard.classList.remove('dragging');
                 // --- FIX 4: This is now the ONLY place this is reset ---
-                draggedContactId = null; 
+                draggedContactId = null;
             });
 
             card.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 const targetCard = e.target.closest('.contact-card');
-                if (targetCard && Number(targetCard.dataset.contactId) !== draggedContactId) { 
+                if (targetCard && Number(targetCard.dataset.contactId) !== draggedContactId) {
                     e.dataTransfer.dropEffect = 'move';
                     targetCard.classList.add('drop-target');
                 }
@@ -476,7 +478,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             card.addEventListener('drop', async (e) => {
                 e.preventDefault();
-                e.stopPropagation(); 
+                e.stopPropagation();
 
                 const targetCard = e.target.closest('.contact-card');
                 if (!targetCard) return;
@@ -504,13 +506,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                         console.error("Error updating reporting structure:", error);
                         showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     } else {
-                        state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact => 
+                        state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
                             contact.id === localDraggedContactId // <-- Use local ID
-                                ? { ...contact, reports_to: targetContactId } 
-                                : contact 
+                                ? { ...contact, reports_to: targetContactId }
+                                : contact
                         );
                         
-                        renderOrgChart(); 
+                        renderOrgChart();
                     }
                 }
                 // --- FIX 3: Remove reset from here. Let dragend handle it. ---
@@ -519,7 +521,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         contactOrgChartView.addEventListener('dragover', (e) => {
-            e.preventDefault(); 
+            e.preventDefault();
             const targetCard = e.target.closest('.contact-card');
             if (!targetCard) {
                 e.dataTransfer.dropEffect = 'move';
@@ -559,9 +561,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 console.error("Error breaking reporting structure:", error);
                 showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             } else {
-                state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact => 
+                state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
                     contact.id === localDraggedContactId // <-- Use local ID
-                        ? { ...contact, reports_to: null } 
+                        ? { ...contact, reports_to: null }
                         : contact
                 );
                 
@@ -621,329 +623,329 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // MODIFIED: This function is now async to await the canvas generation
 async function handlePrintBriefing() {
-    const accountName = state.selectedAccountDetails.account?.name;
+    const accountName = state.selectedAccountDetails.account?.name;
 
-    // 1. Find the modal's briefing container
-    const briefingContainer = document.querySelector('.ai-briefing-container');
-    if (!briefingContainer) {
-        alert("Please generate a briefing first.");
-        return;
-    }
+    // 1. Find the modal's briefing container
+    const briefingContainer = document.querySelector('.ai-briefing-container');
+    if (!briefingContainer) {
+        alert("Please generate a briefing first.");
+        return;
+    }
 
-    // --- html2canvas Logic ---
-    
-    // 2. Clone the container to work on it
-    const printClone = briefingContainer.cloneNode(true);
-    
-    // 3. Find the org chart *placeholder* element *within the clone*
-    const chartElement = printClone.querySelector('.org-chart-print-container');
-    
-    // 4. Find the *live* org chart *inner div* to "screenshot"
-    const sourceChartElement = briefingContainer.querySelector('#org-chart-render-target'); // <-- ORG CHART FIX 1: Target new ID
-    let originalStyle = null; // Store original style here
+    // --- html2canvas Logic ---
+    
+    // 2. Clone the container to work on it
+    const printClone = briefingContainer.cloneNode(true);
+    
+    // 3. Find the org chart *placeholder* element *within the clone*
+    const chartElement = printClone.querySelector('.org-chart-print-container');
+    
+    // 4. Find the *live* org chart *inner div* to "screenshot"
+    const sourceChartElement = briefingContainer.querySelector('#org-chart-render-target'); // <-- ORG CHART FIX 1: Target new ID
+    let originalStyle = null; // Store original style here
 
-    if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
-        try {
-            // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
-            originalStyle = sourceChartElement.getAttribute('style');
-            // Force zoom: 1, add a background (which html2canvas needs), and keep padding
-            sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #2d3748); padding: 10px;'); 
-            
-            // 5. "Screenshot" the live org chart element at high resolution
-            const canvas = await html2canvas(sourceChartElement, { 
-          	 	 backgroundColor: '#2d3748', // Explicitly set dark background
-          	 	 useCORS: true,
-          	 	 scale: 1.5 // Increase scale for better resolution
-        	 });
-            
-      	 	 // --- ORG CHART FIX 3: Restore original style to the live modal ---
-    	 	 if (originalStyle) sourceChartElement.setAttribute('style', originalStyle);
+    if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
+        try {
+            // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
+            originalStyle = sourceChartElement.getAttribute('style');
+            // Force zoom: 1, add a background (which html2canvas needs), and keep padding
+            sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #2d3748); padding: 10px;');
+            
+            // 5. "Screenshot" the live org chart element at high resolution
+            const canvas = await html2canvas(sourceChartElement, {
+                backgroundColor: '#2d3748', // Explicitly set dark background
+                useCORS: true,
+                scale: 1.5 // Increase scale for better resolution
+            });
+            
+            // --- ORG CHART FIX 3: Restore original style to the live modal ---
+            if (originalStyle) sourceChartElement.setAttribute('style', originalStyle);
 
-    	 	 // 6. Convert the canvas "screenshot" to a PNG image URL
-    	 	 const imgDataUrl = canvas.toDataURL('image/png');
-    	 	 
-    	 	 // 7. Create new, simple HTML for the image
-    	 	 const orgChartImageHtml = `
-    	 	 	 <div class="briefing-section">
-    	 	 	 	     	 	 	 	 <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
-    	 	 	 </div>
-    	 	 `;
-    	 	 
-    	 	 // 8. *Replace* the complex HTML chart in our clone with the simple image
-    	 	 chartElement.parentNode.replaceChild(
-    	 	 	 document.createRange().createContextualFragment(orgChartImageHtml), 
-    	 	 	 chartElement
-    	 	 );
-    	 	 
-    } catch (err) {
-    	 console.error("html2canvas failed:", err);
-    	 // If it fails, restore original style
-    	 if (sourceChartElement && originalStyle) {
-    	 	 sourceChartElement.setAttribute('style', originalStyle);
-    	 }
-    }
-  }
-    
-  // 9. Get the *entire* inner HTML of our modified clone
-  const briefingHtml = printClone.innerHTML;
-  
-  // --- End of html2canvas Logic ---
+            // 6. Convert the canvas "screenshot" to a PNG image URL
+            const imgDataUrl = canvas.toDataURL('image/png');
+            
+            // 7. Create new, simple HTML for the image
+            const orgChartImageHtml = `
+                <div class="briefing-section">
+                            <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+            `;
+            
+            // 8. *Replace* the complex HTML chart in our clone with the simple image
+            chartElement.parentNode.replaceChild(
+                document.createRange().createContextualFragment(orgChartImageHtml),
+                chartElement
+            );
+            
+        } catch (err) {
+            console.error("html2canvas failed:", err);
+            // If it fails, restore original style
+            if (sourceChartElement && originalStyle) {
+                sourceChartElement.setAttribute('style', originalStyle);
+            }
+        }
+    }
+    
+    // 9. Get the *entire* inner HTML of our modified clone
+    const briefingHtml = printClone.innerHTML;
+    
+    // --- End of html2canvas Logic ---
 
-  // 10. Create the iframe
-  const printFrame = document.createElement('iframe');
-  printFrame.style.position = 'absolute';
-  printFrame.style.width = '0';
-s   printFrame.style.height = '0';
-  printFrame.style.border = '0';
-  document.body.appendChild(printFrame);
+    // 10. Create the iframe
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
 
-  const frameDoc = printFrame.contentWindow.document;
-  frameDoc.open();
-  
-  // 11. Write the new content to the iframe
-  frameDoc.write(`
-  	 <html>
-  	 	 <head>
-  	 	 	 <title>AI Briefing: ${accountName || 'Account'}</title>
-s   	 	 	   	 	 	 <link rel="stylesheet" href="css/style.css">
-  	 	 	 
-  	 	 	   	 	 	 <style>
-  	 	 	 	 @media print {
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    
+    // 11. Write the new content to the iframe
+    frameDoc.write(`
+        <html>
+            <head>
+                <title>AI Briefing: ${accountName || 'Account'}</title>
+                    <link rel="stylesheet" href="css/style.css">
+                
+                    <style>
+                        @media print {
 
-  	 	 	 	 	 /* --- FONT FIX: Force sans-serif on all text elements --- */
-  	 	 	 	 	 body, p, li, h1, h2, h3, h4, h5, h6, strong, div {
-                            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-s                           color: #2d3748 !important;
-                        }
+                            /* --- FONT FIX: Force sans-serif on all text elements --- */
+                            body, p, li, h1, h2, h3, h4, h5, h6, strong, div {
+                                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                                color: #2d3748 !important;
+                            }
 
-                        body { 
-                            margin: 20px; 
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                      S }
-                        @page {
-s                           size: auto;
-                            margin: 20px;
-                        }
+                            body {
+                                margin: 20px;
+                                -webkit-print-color-adjust: exact;
+                                print-color-adjust: exact;
+                            }
+                            @page {
+                                size: auto;
+                                margin: 20px;
+                            }
 
-                        /* --- Report Header Block (Your style) --- */
-s                       .report-header {
-                            background-color: #3b82f6 !important;
-                            color: #ffffff !important;
-                            padding: 20px;
-                            border-radius: 8px;
-                            margin-bottom: 25px;
-                            page-break-inside: avoid;
-                        }
-                        .report-header h2, .report-header h3 {
-                            color: #ffffff !important;
-                            margin: 0;
-                        }
-                        .report-header h2 { font-size: 1.75rem; font-weight: 600; }
-                        .report-header h3 { font-size: 1.25rem; font-weight: 400; opacity: 0.9; margin-top: 4px; }
+                            /* --- Report Header Block (Your style) --- */
+                            .report-header {
+                                background-color: #3b82f6 !important;
+                                color: #ffffff !important;
+                                padding: 20px;
+                                border-radius: 8px;
+                                margin-bottom: 25px;
+                                page-break-inside: avoid;
+                            }
+                            .report-header h2, .report-header h3 {
+                                color: #ffffff !important;
+                                margin: 0;
+                            }
+                            .report-header h2 { font-size: 1.75rem; font-weight: 600; }
+                            .report-header h3 { font-size: 1.25rem; font-weight: 400; opacity: 0.9; margin-top: 4px; }
 
-                        /* --- Section Headers (h4) (Your style) --- */
-                        h4 { 
-                            font-size: 1.1rem;
-                            font-weight: 600;
-                            color: #3b82f6 !important; 
-                            border-bottom: 2px solid #3b82f6 !important;
-                    s       padding-bottom: 6px;
-                            margin-top: 30px;
-S                           margin-bottom: 16px;
-                        }
-                        
-                    s   /* --- BORDER FIX: Added !important --- */
-                        .briefing-section { 
-                            background-color: #f9f9f9 !important; 
-                            page-break-inside: avoid !important; 
-                            border: 1px solid #eee !important;
-                            padding: 16px !important;
-                s           border-radius: 8px !important;
-                            margin-bottom: 16px !important;
-                            font-size: 0.95rem;
-                            line-height: 1.6;
-s                     }
+                            /* --- Section Headers (h4) (Your style) --- */
+                            h4 {
+                                font-size: 1.1rem;
+                                font-weight: 600;
+                                color: #3b82f6 !important;
+                                border-bottom: 2px solid #3b82f6 !important;
+                                padding-bottom: 6px;
+                                margin-top: 30px;
+                                margin-bottom: 16px;
+                            }
+                            
+                            /* --- BORDER FIX: Added !important --- */
+                            .briefing-section {
+                                background-color: #f9f9f9 !important;
+                                page-break-inside: avoid !important;
+                                border: 1px solid #eee !important;
+                                padding: 16px !important;
+                                border-radius: 8px !important;
+                                margin-bottom: 16px !important;
+                                font-size: 0.95rem;
+                                line-height: 1.6;
+                            }
 
-                        /* --- AI Recommendation Box (Your style) --- */
-s                       .briefing-section.recommendation {
-                            background-color: #eef5ff !important;
-                            border-color: #b0cfff !important;
-                A     }
+                            /* --- AI Recommendation Box (Your style) --- */
+                            .briefing-section.recommendation {
+                                background-color: #eef5ff !important;
+                                border-color: #b0cfff !important;
+                            }
 
-                        /* --- BORDER/FONT FIX: Added !important --- */
-                      	 div.briefing-pre { 
-                    s       background-color: #fff !important;
-                            border: 1px solid #ddd !important;
-                          	 white-space: pre-wrap !important;
-A                         	 word-wrap: break-word !important;
-                          	 padding: 12px !important;
-                        	 	 border-radius: 6px !important;
-                        	 	 font-family: inherit !important; /* <-- Use the body's sans-serif font */
-                      	 	 	 font-size: 0.9rem !important;
-s                   }
-                        
-                        /* --- This ensures our new canvas image looks good --- */
-                        .briefing-section img {
-s                         	 width: 100%;
-s                         	 max-width: 100%;
-                          	 height: auto;
-                          	 border: 1px solid #ccc;
-s       .               	 border-radius: 4px;
-                      	 }
-                    }
-                </style>
-            	             </head>
-            <body>
-                <div class="report-header">
-          	 	 	 <h2>AI Reconnaissance Report</h2>
-                    <h3>${accountName || 'Selected Account'}</h3>
-                </div>
-    s           
-              	 <div class="ai-briefing-container">${briefingHtml}</div>
-            
-          	 </body>
-      	 </html>
-    `);
-  frameDoc.close();
+                            /* --- BORDER/FONT FIX: Added !important --- */
+                            div.briefing-pre {
+                                background-color: #fff !important;
+                                border: 1px solid #ddd !important;
+                                white-space: pre-wrap !important;
+                                word-wrap: break-word !important;
+                                padding: 12px !important;
+                                border-radius: 6px !important;
+                                font-family: inherit !important; /* <-- Use the body's sans-serif font */
+                                font-size: 0.9rem !important;
+                            }
+                            
+                            /* --- This ensures our new canvas image looks good --- */
+                            .briefing-section img {
+                                width: 100%;
+                                max-width: 100%;
+                                height: auto;
+                                border: 1px solid #ccc;
+                                border-radius: 4px;
+                            }
+                        }
+                    </style>
+                        </head>
+            <body>
+                <div class="report-header">
+                    <h2>AI Reconnaissance Report</h2>
+                    <h3>${accountName || 'Selected Account'}</h3>
+                </div>
+                
+                <div class="ai-briefing-container">${briefingHtml}</div>
+            
+            </body>
+        </html>
+    `);
+    frameDoc.close();
 
-  const originalTitle = document.title;
-  document.title = `AI Briefing: ${accountName || 'Account'}`;
+    const originalTitle = document.title;
+    document.title = `AI Briefing: ${accountName || 'Account'}`;
 
-s   setTimeout(() => {
-  	 try {
-  	 	 printFrame.contentWindow.focus();
-  	 	 printFrame.contentWindow.print();
-  	 } catch (e) {
-  	 	 console.error("Print failed:", e);
-  	 	 alert("Could not open print dialog. Please check your browser's popup settings.");
-  	 } finally {
-  	 	 if (document.body.contains(printFrame)) {
-Example   	 	 	 document.body.removeChild(printFrame);
-            }
-  	 	 document.title = originalTitle;
-  	 }
-  }, 250); // This timeout helps the iframe's content render
+    setTimeout(() => {
+        try {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        } catch (e) {
+            console.error("Print failed:", e);
+            alert("Could not open print dialog. Please check your browser's popup settings.");
+        } finally {
+            if (document.body.contains(printFrame)) {
+                document.body.removeChild(printFrame);
+            }
+            document.title = originalTitle;
+        }
+    }, 250); // This timeout helps the iframe's content render
 }
 
 // --- AI Briefing Handler ---
-    async function handleGenerateBriefing() {
-        if (!state.selectedAccountId) {
-            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        const { account, contacts, activities, deals } = state.selectedAccountDetails;
-        if (!account) return;
+    async function handleGenerateBriefing() {
+        if (!state.selectedAccountId) {
+            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+        const { account, contacts, activities, deals } = state.selectedAccountDetails;
+        if (!account) return;
 
-        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
-        try {
-            let orgChartText = "No hierarchy defined.";
-            if (contacts.length > 0) {
-                const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
-                const tree = [];
-                contactMap.forEach(contact => {
-                    if (contact.reports_to && contactMap.has(Number(contact.reports_to))) { 
-                        contactMap.get(Number(contact.reports_to)).children.push(contact);
-                    } else {
-                        tree.push(contact);
-                    }
-                });
-                
-                const buildTextTree = (node, prefix = "") => {
-                    let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
-                    node.children
-                        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
-                        .forEach(child => {
-                            text += buildTextTree(child, prefix + "  ");
-                        });
-                    return text;
-                };
-                orgChartText = tree
-                    .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
-                    .map(node => buildTextTree(node)).join('');
-            }
+        try {
+            let orgChartText = "No hierarchy defined.";
+            if (contacts.length > 0) {
+                const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
+                const tree = [];
+                contactMap.forEach(contact => {
+                    if (contact.reports_to && contactMap.has(Number(contact.reports_to))) {
+                        contactMap.get(Number(contact.reports_to)).children.push(contact);
+                    } else {
+                        tree.push(contact);
+                    }
+                });
+                
+                const buildTextTree = (node, prefix = "") => {
+                    let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
+                    node.children
+                        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                        .forEach(child => {
+                            text += buildTextTree(child, prefix + "  ");
+                        });
+                    return text;
+                };
+                orgChartText = tree
+                    .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                    .map(node => buildTextTree(node)).join('');
+            }
 
-            const internalData = {
-                accountName: account.name,
-                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
-                orgChart: orgChartText, 
-                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
-                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
-                    const contact = contacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
-                }).join('\n')
-            };
+            const internalData = {
+                accountName: account.name,
+                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
+                orgChart: orgChartText,
+                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
+                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
+                    const contact = contacts.find(c => c.id === act.contact_id);
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
+                }).join('\n')
+            };
 
-            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
-            if (error) throw error;
+            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
+            if (error) throw error;
 
-            const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-            let orgChartDisplayHtml = '';
-            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
-                const chartClone = contactOrgChartView.cloneNode(true);
-                chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
-                
-                orgChartDisplayHtml = `
-                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
-                    <div class="briefing-section org-chart-print-container" 
-                         style="
-                            max-height: 300px;
-                            overflow: hidden; /* We changed this from 'auto' */
-                            border: 1px solid var(--border-color); 
-                            background: var(--bg-dark); 
-                            padding: 10px; 
-                            border-radius: 8px;
-                        ">
-                                                <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
-        	 	 	 	 	 	 ${chartClone.innerHTML}
-    	 	 	 	 	 	 </div>
-    	 	 	 	 	 </div>`;
-            } else if (contacts.length > 0) {
-                orgChartDisplayHtml = `
-                    <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
-                    <div class="briefing-section">
-                        <p>${keyPlayersHtml}</p>
-              M     </div>`;
-            }
+            let orgChartDisplayHtml = '';
+            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
+                const chartClone = contactOrgChartView.cloneNode(true);
+                chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
+                
+                orgChartDisplayHtml = `
+                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
+                    <div class="briefing-section org-chart-print-container"
+                        style="
+                            max-height: 300px;
+                            overflow: hidden; /* We changed this from 'auto' */
+                            border: 1px solid var(--border-color);
+                            background: var(--bg-dark);
+                            padding: 10px;
+                            border-radius: 8px;
+                        ">
+                            <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
+                                ${chartClone.innerHTML}
+                            </div>
+                        </div>`;
+            } else if (contacts.length > 0) {
+                orgChartDisplayHtml = `
+                    <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
+                    <div class="briefing-section">
+                        <p>${keyPlayersHtml}</p>
+                    </div>`;
+            }
 
-            const briefingHtml = `
-                <div class="ai-briefing-container">
-                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                        ${orgChartDisplayHtml} 
-                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
-                        <p><strong>Recent Activity:</strong></p>
-                        <div class="briefing-pre">${briefing.activity_highlights}</div>
-                    </div>
-                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
-                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
-                        <p><strong>Social Icebreakers:</strong></p>
-                        <div class="briefing-pre">${icebreakersHtml}</div>
-s                 </div>
-                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
-                    <div class="briefing-section recommendation">
-                        <p>${briefing.recommendation}</p>
-S                 </div>
-                </div>`;
-            
-            const modalFooter = `
-                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
-                <button id="modal-ok-btn" class="btn-primary">Close</button>
-s           `;
-            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
+            const briefingHtml = `
+                <div class="ai-briefing-container">
+                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
+                        ${orgChartDisplayHtml}
+                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                        <p><strong>Recent Activity:</strong></p>
+                        <div class="briefing-pre">${briefing.activity_highlights}</div>
+                    </div>
+                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
+                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
+                        <p><strong>Social Icebreakers:</strong></p>
+                        <div class="briefing-pre">${icebreakersHtml}</div>
+                    </div>
+                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
+                    <div class="briefing-section recommendation">
+                        <p>${briefing.recommendation}</p>
+                    </div>
+                </div>`;
+            
+            const modalFooter = `
+                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
+                <button id="modal-ok-btn" class="btn-primary">Close</button>
+            `;
+            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
 
-        } catch (error) {
-            console.error("Error invoking AI Briefing Edge Function:", error);
-            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
-    }
+        } catch (error) {
+            console.error("Error invoking AI Briefing Edge Function:", error);
+            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    }
 
 
     // --- Event Listener Setup ---
@@ -979,7 +981,7 @@ s           `;
         if (addAccountBtn) {
             addAccountBtn.addEventListener("click", () => {
                 const openNewAccountModal = () => {
-                    hideAccountDetails(true); 
+                    hideAccountDetails(true);
                     showModal("New Account", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
                         async () => {
                             const name = document.getElementById("modal-account-name")?.value.trim();
@@ -996,7 +998,7 @@ s           `;
                             await refreshData();
                             state.selectedAccountId = newAccountArr?.[0]?.id;
                             renderAccountList();
-                            await loadDetailsForSelectedAccount(); 
+                            await loadDetailsForSelectedAccount();
                             hideModal();
                             return true;
                         }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Account</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -1081,7 +1083,7 @@ s           `;
                         state.selectedAccountId = null;
                         state.isFormDirty = false;
                         await refreshData();
-                        hideAccountDetails(true); 
+                        hideAccountDetails(true);
                         hideModal();
                         showModal("Success", "Account deleted successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -1153,7 +1155,7 @@ s           `;
                             const existingAccount = existingAccountMap.get(recordName);
 
                             const processedRecord = {
-                                name: String(record.name).trim(), 
+                                name: String(record.name).trim(),
                                 website: record.website || null,
                                 industry: record.industry || null,
                                 phone: record.phone || null,
@@ -1397,7 +1399,7 @@ s           `;
         state.currentUser = session.user;
 
         try {
-            await loadInitialData(); 
+            await loadInitialData();
 
             const urlParams = new URLSearchParams(window.location.search);
             const accountIdFromUrl = urlParams.get('accountId');
@@ -1409,11 +1411,11 @@ s           `;
                 state.selectedAccountId = Number(accountIdFromUrl);
                 await loadDetailsForSelectedAccount();
             } else {
-                hideAccountDetails(true); 
+                hideAccountDetails(true);
             }
             
             await setupUserMenuAndAuth(supabase, state);
-            await setupGlobalSearch(supabase, state.currentUser); 
+            await setupGlobalSearch(supabase, state.currentUser);
             await checkAndSetNotifications(supabase);
             setupPageEventListeners();
 
