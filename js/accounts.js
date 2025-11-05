@@ -161,9 +161,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         
     const hideAccountDetails = (clearSelection = false) => {
         if (accountForm) {
-            // --- LOGIC ERROR FIXED ---
-            // Was .remove('hidden'), which showed the form. Changed to .add('hidden').
-            accountForm.classList.add('hidden');
+            // --- THIS IS THE FIX ---
+            // Reverted from .add('hidden') to .remove('hidden')
+            // to ensure the form stays visible as an "empty shell".
+            accountForm.classList.remove('hidden'); 
             accountForm.reset();
             accountForm.querySelector("#account-id").value = '';
             document.getElementById("account-last-saved").textContent = "";
