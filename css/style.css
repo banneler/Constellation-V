@@ -4373,9 +4373,9 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-root {
     list-style: none;
     padding: 0;
-    margin: 0;
-    display: inline-flex; /* Use inline-flex to size to content */
-    justify-content: center;
+    margin: 0 auto; /* <-- CHANGED: This centers the block */
+    display: table; /* <-- CHANGED: This makes the block shrink-to-fit */
+    /* justify-content: center; <-- This is no longer needed */
     position: relative;
 }
 
@@ -4454,8 +4454,9 @@ div.briefing-pre {
     display: none;
 }
 
-/* Hide line DOWN from cards that have NO children */
-#contact-org-chart-view .org-chart-node:not(:has(.org-chart-children)) > .contact-card::after {
+/* Hide line DOWN from cards that have NO children (or an empty child list) */
+#contact-org-chart-view .org-chart-node:not(:has(.org-chart-children)) > .contact-card::after,
+#contact-org-chart-view .org-chart-node:has(.org-chart-children:empty) > .contact-card::after {
     display: none;
 }
 
