@@ -1027,15 +1027,18 @@ const orgChartImageHtml = `
             }
 
             const briefingHtml = `
-                <div class="ai-briefing-container">
-                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                        ${orgChartDisplayHtml}
-                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
-                        <p><strong>Recent Activity:</strong></p>
-                        <div class="briefing-pre">${briefing.activity_highlights}</div>
-                    </div>
+            <div class="ai-briefing-container">
+                <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
+                <div class="briefing-section">
+                    <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
+                    <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                    <p><strong>Recent Activity:</strong></p>
+                    <div class="briefing-pre">${briefing.activity_highlights}</div>
+                </div>
+
+                ${orgChartDisplayHtml}
+
+                <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
                     <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
                     <div class="briefing-section">
                         <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
