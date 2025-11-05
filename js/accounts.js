@@ -920,7 +920,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 250); // This timeout helps the iframe's content render
     }
 
-    // --- AI Briefing Handler ---
+// --- AI Briefing Handler ---
     async function handleGenerateBriefing() {
         if (!state.selectedAccountId) {
             showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -977,12 +977,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
             let orgChartDisplayHtml = '';
+            // --- FIX IS HERE ---
+            // Check if the main chart view is active and has content
             if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
+                
+                // 1. Clone the main manager tree
                 const chartClone = contactOrgChartView.cloneNode(true);
                 chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
                 
-                // --- THIS IS THE FIX for the Syntax Error ---
-                // The stray 'REALLY cool;' text has been removed.
+                // 2. ALSO clone the unassigned contacts container
+                const unassignedContainer = document.getElementById("unassigned-contacts-container");
+                let unassignedCloneHtml = '';
+                if (unassignedContainer) {
+                    const unassignedClone = unassignedContainer.cloneNode(true);
+                    unassignedClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
+                    unassignedCloneHtml = unassignedClone.innerHTML; // Get its HTML
+                }
+                
+                // 3. Combine them in the output
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
                     <div class="briefing-section org-chart-print-container"
@@ -994,10 +1006,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                             padding: 10px;
                             border-radius: 8px;
                          ">
-                        <div id="org-chart-render-target" style="zoom: 0.50; transform-origin: top left;">
+                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
                             ${chartClone.innerHTML}
+                            ${unassignedCloneHtml} 
                         </div>
                     </div>`;
+                // --- END OF FIX ---
+
             } else if (contacts.length > 0) {
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
