@@ -472,8 +472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setupOrgChartDragDrop();
     };
 
-    const setupOrgChartDragDrop = () => {
-        
+   const setupOrgChartDragDrop = () => {
         const isCircular = (targetId, draggedId) => {
             const contacts = state.selectedAccountDetails.contacts;
             const contactMap = new Map(contacts.map(c => [c.id, c]));
@@ -489,7 +488,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         };
 
-        contactOrgChartView.querySelectorAll('.contact-card').forEach(card => {
+        // --- FIX 1: Query for ALL contact cards in both containers ---
+        const allCards = document.querySelectorAll('#contact-org-chart-view .contact-card, #unassigned-contacts-container .contact-card');
+        
+        allCards.forEach(card => {
             card.addEventListener('dragstart', (e) => {
                 const targetCard = e.target.closest('.contact-card');
                 if (!targetCard) return;
@@ -553,11 +555,127 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 : contact
                         );
                         
-                        renderOrgChart();
+                        renderOrgChart(); // This is the combined render function
                     }
                 }
             });
         });
+
+        // --- FIX 2: Add drop listeners to BOTH containers for background drops ---
+        
+        // Listener for the MAIN chart (promotes someone to top-level manager)
+        if (contactOrgChartView) {
+            contactOrgChartView.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                const targetCard = e.target.closest('.contact-card');
+                if (!targetCard) {
+                    e.dataTransfer.dropEffect = 'move';
+                    contactOrgChartView.classList.add('drop-target-background');
+                }
+            });
+            
+            contactOrgChartView.addEventListener('dragleave', (e) => {
+                 if (e.target === contactOrgChartView) {
+                     contactOrgChartView.classList.remove('drop-target-background');
+                 }
+            });
+
+            contactOrgChartView.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                contactOrgChartView.classList.remove('drop-target-background');
+                
+                const localDraggedContactId = draggedContactId;
+                const targetCard = e.target.closest('.contact-card');
+                
+                // If we dropped on a card or didn't drag anything, do nothing
+                if (targetCard || !localDraggedContactId) {
+                    return;
+                }
+                
+                // Dropped on the main chart background. Check if already a manager.
+                const contact = state.selectedAccountDetails.contacts.find(c => c.id === localDraggedContactId);
+                // We only care if they are being moved from *unassigned* to *manager*
+                // Note: The logic to make an existing subordinate a top-level manager is handled by dropping on the unassigned box first.
+                // This drop listener is primarily for unassigned -> manager.
+                if (contact && contact.reports_to === null) {
+                    return; // Already null, do nothing
+                }
+
+                // This logic is mostly for dragging from unassigned *up* to the chart
+                // or from a manager *down* to the chart background. Both make it `null`.
+                // Let's make this *only* for setting reports_to to null.
+                if (contact && contact.reports_to !== null) {
+                     const { error } = await supabase.from('contacts')
+                        .update({ reports_to: null })
+                        .eq('id', localDraggedContactId);
+                    
+                    if (error) {
+                        console.error("Error breaking reporting structure:", error);
+                    } else {
+                        state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
+                            contact.id === localDraggedContactId
+                                ? { ...contact, reports_to: null }
+                                : contact
+                        );
+                        renderOrgChart();
+                    }
+                }
+            });
+        }
+        
+        // Listener for the UNASSIGNED box (sets reports_to to null)
+        const unassignedContainer = document.getElementById("unassigned-contacts-container");
+        if (unassignedContainer) {
+            unassignedContainer.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                const targetCard = e.target.closest('.contact-card');
+                if (!targetCard) {
+                    e.dataTransfer.dropEffect = 'move';
+                    unassignedContainer.classList.add('drop-target-background');
+                }
+            });
+            
+            unassignedContainer.addEventListener('dragleave', (e) => {
+                 if (e.target === unassignedContainer) {
+                     unassignedContainer.classList.remove('drop-target-background');
+                 }
+            });
+
+            unassignedContainer.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                unassignedContainer.classList.remove('drop-target-background');
+                
+                const localDraggedContactId = draggedContactId;
+                const targetCard = e.target.closest('.contact-card');
+                
+                if (targetCard || !localDraggedContactId) {
+                    return;
+                }
+                
+                // Dropped on the unassigned background.
+                const contact = state.selectedAccountDetails.contacts.find(c => c.id === localDraggedContactId);
+                if (contact && contact.reports_to === null) {
+                    return; // Already unassigned
+                }
+
+                // This is the main "break connection" action
+                const { error } = await supabase.from('contacts')
+                    .update({ reports_to: null })
+                    .eq('id', localDraggedContactId);
+                
+                if (error) {
+                    console.error("Error breaking reporting structure:", error);
+                } else {
+                    state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
+                        contact.id === localDraggedContactId
+                            ? { ...contact, reports_to: null }
+                            : contact
+                    );
+                    renderOrgChart();
+                }
+            });
+        }
+    };
 
         contactOrgChartView.addEventListener('dragover', (e) => {
             e.preventDefault();
