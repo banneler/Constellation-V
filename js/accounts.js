@@ -635,213 +635,206 @@ async function handlePrintBriefing() {
     // 2. Clone the container to work on it
     const printClone = briefingContainer.cloneNode(true);
     
-    // 3. Find the org chart element *within the clone*
+    // 3. Find the org chart *placeholder* element *within the clone*
     const chartElement = printClone.querySelector('.org-chart-print-container');
     
-    // 4. Find the *live* org chart element to "screenshot"
-    const sourceChartElement = briefingContainer.querySelector('.org-chart-print-container');
+    // 4. Find the *live* org chart *inner div* to "screenshot"
+    const sourceChartElement = briefingContainer.querySelector('#org-chart-render-target'); // <-- ORG CHART FIX 1: Target new ID
 
     if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
         try {
-            // 5. "Screenshot" the live org chart element
+            // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
+            const originalStyle = sourceChartElement.getAttribute('style');
+            // Force zoom: 1, add a background (which html2canvas needs), and keep padding
+            sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: #2d3748; padding: 10px;'); 
+            
+            // 5. "Screenshot" the live org chart element at high resolution
             const canvas = await html2canvas(sourceChartElement, { 
-                backgroundColor: '#ffffff', // Force a white background
-                useCORS: true 
+                backgroundColor: '#2d3748', // Explicitly set background
+                useCORS: true,
+                scale: 1.5 // Increase scale for better resolution
             });
             
+            // --- ORG CHART FIX 3: Restore original style to the live modal ---
+            sourceChartElement.setAttribute('style', originalStyle);
+
             // 6. Convert the canvas "screenshot" to a PNG image URL
             const imgDataUrl = canvas.toDataURL('image/png');
             
             // 7. Create new, simple HTML for the image
-            // --- THIS IS THE FIX for the duplicate header ---
-            // We've removed the <h4> from here, as it's already in the clone.
             const orgChartImageHtml = `
                 <div class="briefing-section">
-                    <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto;">
+                                        <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
                 </div>
-            `;
+        	 	 `;
             
             // 8. *Replace* the complex HTML chart in our clone with the simple image
             chartElement.parentNode.replaceChild(
                 document.createRange().createContextualFragment(orgChartImageHtml), 
                 chartElement
-            );
+      	 	 );
             
         } catch (err) {
-            console.error("html2canvas failed:", err);
-            // If it fails, it will just print the (ugly) HTML as a fallback
-        }
+        	 console.error("html2canvas failed:", err);
+  	   	 // If it fails, restore original style
+  	 	 	 if (sourceChartElement && originalStyle) {
+  	 	 	 	 sourceChartElement.setAttribute('style', originalStyle);
+  	 	 	 }
+    	 }
     }
     
     // 9. Get the *entire* inner HTML of our modified clone
     const briefingHtml = printClone.innerHTML;
-    
+  	 
     // --- End of html2canvas Logic ---
 
-    // 10. Create the iframe
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'absolute';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
+  	 // 10. Create the iframe
+  	 const printFrame = document.createElement('iframe');
+  	 printFrame.style.position = 'absolute';
+  	 printFrame.style.width = '0';
+  	 printFrame.style.height = '0';
+  	 printFrame.style.border = '0';
+  	 document.body.appendChild(printFrame);
 
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    
-    // 11. Write the new content to the iframe
-    frameDoc.write(`
-        <html>
-            <head>
-                <title>AI Briefing: ${accountName || 'Account'}</title>
-                <link rel="stylesheet" href="css/style.css">
-                
-                                <style>
-                    @media print {
+  	 const frameDoc = printFrame.contentWindow.document;
+  	 frameDoc.open();
+  	 
+  	 // 11. Write the new content to the iframe
+  	 frameDoc.write(`
+  	 	 <html>
+  	 	 	 <head>
+  	 	 	 	 <title>AI Briefing: ${accountName || 'Account'}</title>
+  	 	 	 	   	 	 	 	 <link rel="stylesheet" href="css/style.css"> 
+  	 	 	 	 
+  	 	 	 	   	 	 	 	 <style>
+  	 	 	 	 	 @media print {
+  	 	 	 	 	 
+  	 	 	 	 	 	 /* --- FONT CONSISTENCY FIX ---
+  	 	 	 	 	 	  * We apply this to specific text elements.
+  	 	 	 	 	 	  * *** We removed 'div' from this list to stop it from
+  	 	 	 	 	 	  * *** breaking the .briefing-section style.
+  	 	 	 	 	 	  */
+  	 	 	 	 	 	 body, p, li, h1, h2, h3, h4, h5, h6, strong {
+  	 	 	 	 	 	 	 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  	 	 	 	 	 	 	 color: #2d3748 !important;
+  	 	 	 	 	 	 }
 
-                        /*                          * FIX 1: FONT CONSISTENCY 
-                         * Force a single, clean font family on all elements to
-                         * override the main style.css and fix mismatches.
-                        */
-                        body, p, li, div, h1, h2, h3, h4, h5, h6 {
-                            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-                            color: #2d3748 !important; /* Softer black text */
-                  S_S     }
-                        body { 
-                            margin: 20px; 
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                        }
-                        @page {
-                            size: auto;
-                            margin: 20px;
-                        }
+  	 	 	 	 	 	 body { 
+  	 	 	 	 	 	 	 margin: 20px; 
+  	 	 	 	 	 	 	 -webkit-print-color-adjust: exact;
+  	 	 	 	 	 	 	 print-color-adjust: exact;
+  	 	 	 	 	 	 }
+  	 	 	 	 	 	 @page {
+  	 	 	 	 	 	 	 size: auto;
+  	 	 	 	 	 	 	 margin: 20px;
+  	 	 	 	 	 	 }
 
-                        /* --- REFINED: Report Header Block --- */
-                        .report-header {
-                            background-color: #3b82f6 !important; /* Constellation Blue */
-                            color: #ffffff !important;
-                            padding: 20px;
-                            border-radius: 8px;
-                            margin-bottom: 25px;
-                            page-break-inside: avoid;
-                        }
-                        .report-header h2 {
-                            font-size: 1.75rem;
-                            color: #ffffff !important;
-                            margin: 0;
-                            font-weight: 600;
-                        }
-                        .report-header h3 {
-                            font-size: 1.25rem;
-                            color: #ffffff !important;
-                            margin: 4px 0 0 0;
-                            font-weight: 400;
-                            opacity: 0.9;
-    _                     }
+  	 	 	 	 	 	 /* --- Report Header Block (Your style) --- */
+  	 	 	 	 	 	 .report-header {
+  	 	 	 	 	 	 	 background-color: #3b82f6 !important;
+  	 	 	 	 	 	 	 color: #ffffff !important;
+  	 	 	 	 	 	 	 padding: 20px;
+  	 	 	 	 	 	 	 border-radius: 8px;
+  	 	 	 	 	 	 	 margin-bottom: 25px;
+  	 	 	 	 	 	 	 page-break-inside: avoid;
+  	 	 	 	 	 	 }
+  	 	 	 	 	 	 .report-header h2 {
+  	 	 	 	 	 	 	 font-size: 1.75rem;
+  	 	 	 	 	 	 	 color: #ffffff !important;
+  	 	 	 	 	 	 	 margin: 0;
+  	 	 	 	 	 	 	 font-weight: 600;
+  	 	 	 	 	 	 }
+  	 	 	 	 	 	 .report-header h3 {
+  	 	 	 	 	 	 	 font-size: 1.25rem;
+  	 	 	 	 	 	 	 color: #ffffff !important;
+  	 	 	 	 	 	 	 margin: 4px 0 0 0;
+  	 	 	 	 	 	 	 font-weight: 400;
+  	 	 	 	 	 	 	 opacity: 0.9;
+  	 	 	 	 	 	 }
 
-                        /* --- REFINED: Section Headers (h4) --- */
-                        h4 { 
-                            font-size: 1.1rem;
-                            font-weight: 600;
-                            color: #3b82f6 !important; /* Constellation Blue */
-                            border-bottom: 2px solid #e2e8f0 !important; /* Lighter border */
-                            padding-bottom: 6px;
-                            margin-top: 25px;
-                            margin-bottom: 15px;
-                        }
-                        
-                        /* --- REFINED: Section Content Box --- */
-                        .briefing-section { 
-                            background-color: #f7fafc !important; /* Lighter gray */
-                            page-break-inside: avoid; 
-                            border: 1px solid #e2e8f0 !important;
-                            padding: 16px;
-                            border-radius: 8px;
-                            margin-bottom: 16px;
-                            font-size: 0.95rem;
-                            line-height: 1.6;
-s                       }
-                        .briefing-section p strong {
-                            color: #2d3748 !important;
-                        }
+  	 	 	 	 	 	 /* --- Section Headers (h4) (Your style) --- */
+  	 	 	 	 	 	 h4 { 
+  	 	 	 	 	 	 	 font-size: 1.1rem;
+  	 	 	 	 	 	 	 font-weight: 600;
+  	 	 	 	 	 	 	 color: #3b82f6 !important; 
+  	 	 	 	 	 	 	 border-bottom: 2px solid #3b82f6 !important;
+  	 	 	 	 	 	 	 padding-bottom: 6px;
+  	 	 	 	 	 	 	 margin-top: 30px;
+  	 	 	 	 	 	 	 margin-bottom: 16px;
+  	 	 	 	 	 	 }
+  	 	 	 	 	 	 
+  	 	 	 	 	 	 /* --- Section Content Box (Your style) --- */
+s   	 	 	 	 	 .briefing-section { 
+  	 	 	 	 	 	 	 background-color: #f9f9f9 !important; 
+  	 	 	 	 	 	 	 page-break-inside: avoid; 
+  	 	 	 	 	 	 	 border: 1px solid #eee !important;
+  	 	 	 	 	 	 	 padding: 16px !important;
+  	 	 	 	 	 	 	 border-radius: 8px !important;
+  	 	 	 	 	 	 	 margin-bottom: 16px !important;
+  	 	 	 	 	 	 	 font-size: 0.95rem;
+  	 	 	 	 	 	 	 line-height: 1.6;
+  	 	 	 	 	 	 }
 
-                        /* --- REFINED: AI Recommendation Box --- */
-s                     .briefing-section.recommendation {
-                            background-color: #ebf8ff !important; /* Light blue */
-                            border-color: #bee3f8 !important; /* Blue border */
-                        }
+  	 	 	 	 	 	 /* --- AI Recommendation Box (Your style) --- */
+  	 	 	 	 	 	 .briefing-section.recommendation {
+  	 	 	 	 	 	 	 background-color: #eef5ff !important;
+  	 	 	 	 	 	 	 border-color: #b0cfff !important;
+s   	 	 	 	 	 }
 
-                        /*                          * FIX 2: MONOSPACE LISTS 
-                         * Make the 'pre' blocks (used for activities/icebreakers)
-                         * use the body font, not a monospace code font.
-                        */
-                        div.briefing-pre { 
-                            background-color: #ffffff !important; 
-                            border: 1px solid #e2e8f0 !important;
-                	         white-space: pre-wrap;
-                            word-wrap: break-word;
-                            padding: 12px 16px;
-                            border-radius: 6px;
-                            font-family: inherit !important; /* <<< USES BODY FONT */
-                        	 font-size: 0.9rem;
-                            line-height: 1.5;
-                        }
-          	           div.briefing-pre strong {
-                            color: #2c5282 !important; /* Dark blue for emphasis */
-                            font-weight: 600;
-                        }
-                        
-          	           /* --- REFINED: Canvas/Image Styling --- */
-          	           .briefing-section img {
-          	               width: 100%;
-          	               max-width: 100%;
-          	               height: auto;
-          	 	         border: 1px solid #e2e8f0 !important;
-          	 	         border-radius: 4px;
-          	 	     }
+  	 	 	 	 	 	 /* --- Cleaner text block for lists (Your style + Font Fix) --- */
+  	 	 	 	 	 	 div.briefing-pre { 
+  	 	 	 	 	 	 	 background-color: #fff !important; 
+  	 	 	 	 	 	 	 border: 1px solid #ddd;
+  	 	 	 	 	 	 	 white-space: pre-wrap;
+  	 	 	 	 	 	 	 word-wrap: break-word;
+  	 	 	 	 	 	 	 padding: 12px;
+  	 	 	 	 	 	 	 border-radius: 6px;
+  	 	 	 	 	 	 	 font-family: inherit !important; /* <-- Use the body's sans-serif font */
+  	 	 	 	 	 	 	 font-size: 0.9rem;
+  	 	 	 	 	 	 	 line-height: 1.5;
+  	 	 	 	 	 	 }
+  	 	 	 	 	 	 
+  	 	 	 	 	 	 /* --- Image/Canvas Styling (Your style) --- */
+  	 	 	 	 	 	 .briefing-section img {
+  	 	 	 	 	 	 	 width: 100%;
+  	 	 	 	 	 	 	 max-width: 100%;
+  	 	 	 	 	 	 	 height: auto;
+  	 	 	 	 	 	 	 border: 1px solid #ccc;
+s   	 	 	 	 	 	 border-radius: 4px;
+  	 	 	 	 	 	 }
+  	 	 	 	 	 }
+    	 	 	 	 </style>
+    	 	 	 	   	 	 	 </head>
+  	 	 	 <body>
+  	 	 	 	 <div class="report-header">
+  	 	 	 	 	 <h2>AI Reconnaissance Report</h2>
+  	 	 	 	 	 <h3>${accountName || 'Selected Account'}</h3>
+  	 	 	 	 </div>
+  	 	 	 	 
+  	 	 	 	 <div class="ai-briefing-container">${briefingHtml}</div>
+  	 	 	 
+  	 	 	 </body>
+  	 	 </html>
+  	 `);
+  	 frameDoc.close();
 
-          	 	       /* --- NEW: Clean up links --- */
-          	 	       a {
-          	 	       	 color: #3b82f6 !important;
-s           	 	       	 text-decoration: none !important;
-  	 	   	       }
-  	 	   	       a[href]:after {
-  	 	   	       	 content: none !important; /* Don't show URL on print */
-  	 	   	       }
-                    }
-                </style>
-                            </head>
-            <body>
-                <div class="report-header">
-                    <h2>AI Reconnaissance Report</h2>
-                    <h3>${accountName || 'Selected Account'}</h3>
-                </div>
-                
-                <div class="ai-briefing-container">${briefingHtml}</div>
-            
-            </body>
-        </html>
-    `);
-    frameDoc.close();
+  	 const originalTitle = document.title;
+  	 document.title = `AI Briefing: ${accountName || 'Account'}`;
 
-    const originalTitle = document.title;
-    document.title = `AI Briefing: ${accountName || 'Account'}`;
-
-    setTimeout(() => {
-        try {
-            printFrame.contentWindow.focus();
-            printFrame.contentWindow.print();
-        } catch (e) {
-            console.error("Print failed:", e);
-            alert("Could not open print dialog. Please check your browser's popup settings.");
-        } finally {
-            if (document.body.contains(printFrame)) {
-                document.body.removeChild(printFrame);
-            }
-            document.title = originalTitle;
-        }
-    }, 250); // This timeout helps the iframe's content render
+  	 setTimeout(() => {
+  	 	 try {
+  	 	 	 printFrame.contentWindow.focus();
+  	 	 	 printFrame.contentWindow.print();
+  	 	 } catch (e) {
+  	 	 	 console.error("Print failed:", e);
+  	 	 	 alert("Could not open print dialog. Please check your browser's popup settings.");
+s   	 } finally {
+  	 	 	 if (document.body.contains(printFrame)) {
+  	 	 	 	 document.body.removeChild(printFrame);
+  	 	 	 }
+  	 	 	 document.title = originalTitle;
+  	 	 }
+  	 }, 250); // This timeout helps the iframe's content render
 }
 
     // --- AI Briefing Handler ---
