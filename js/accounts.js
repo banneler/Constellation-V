@@ -1389,14 +1389,20 @@ async function handlePrintBriefing() {
     }
     async function initializePage() {
         await loadSVGs();
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        // --- THIS IS THE FIX ---
+        // Changed from getSession() to getUser()
+        // getSession() only reads from storage and may not have user_metadata
+        // getUser() fetches the full user object from the server, ensuring the name is present
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        if (sessionError || !session) {
-            console.error('Authentication failed or no session found. Redirecting to login.');
+        if (userError || !user) {
+            console.error('Authentication failed or no user found. Redirecting to login.');
             window.location.href = "index.html";
             return;
         }
-        state.currentUser = session.user;
+        state.currentUser = user; // Set state from the user object, not session.user
+        // --- END OF FIX ---
 
         try {
             await loadInitialData();
