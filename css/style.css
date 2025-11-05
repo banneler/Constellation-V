@@ -4373,10 +4373,10 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-root {
     list-style: none;
     padding: 0;
-    margin: 0 auto; /* <-- CHANGED: This centers the block */
-    display: table; /* <-- CHANGED: This makes the block shrink-to-fit */
-    /* justify-content: center; <-- This is no longer needed */
+    margin: 0; /* <-- FIX: Reset margin */
+    display: inline-block; /* <-- FIX: Use inline-block for robust centering */
     position: relative;
+    text-align: left; /* <-- FIX: Reset text-align for chart contents */
 }
 
 /* A <ul> that contains children */
@@ -4425,8 +4425,7 @@ div.briefing-pre {
 }
 
 /* 3. Line DOWN from parent card */
-/* We group this so it works on unassigned cards too (for dragging) */
-#contact-org-chart-view .contact-card::after,
+/* GHOST LINE FIX: This rule now *only* applies to unassigned cards */
 #unassigned-contacts-container .contact-card::after {
     content: '';
     position: absolute;
@@ -4454,10 +4453,16 @@ div.briefing-pre {
     display: none;
 }
 
-/* Hide line DOWN from cards that have NO children (or an empty child list) */
-#contact-org-chart-view .org-chart-node:not(:has(.org-chart-children)) > .contact-card::after,
-#contact-org-chart-view .org-chart-node:has(.org-chart-children:empty) > .contact-card::after {
-    display: none;
+/* 4. GHOST LINE FIX (REVISED): Add line DOWN *only* from parents that have children */
+#contact-org-chart-view .org-chart-node:has(.org-chart-children .org-chart-node) > .contact-card::after {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 20px;
+    background-color: var(--border-color);
 }
 
 /* Hide line DOWN for ALL unassigned cards */
