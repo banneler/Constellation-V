@@ -653,8 +653,6 @@ async function handlePrintBriefing() {
             const imgDataUrl = canvas.toDataURL('image/png');
             
             // 7. Create new, simple HTML for the image
-            // --- THIS IS THE FIX for the duplicate header ---
-            // We've removed the <h4> from here, as it's already in the clone.
             const orgChartImageHtml = `
                 <div class="briefing-section">
                     <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto;">
@@ -778,7 +776,7 @@ async function handlePrintBriefing() {
                         }
                     }
                 </style>
-            </head>
+                </head>
             <body>
                 <div class="report-header">
                     <h2>AI Reconnaissance Report</h2>
@@ -811,7 +809,7 @@ async function handlePrintBriefing() {
     }, 250); // This timeout helps the iframe's content render
 }
 
-    // --- AI Briefing Handler ---
+  // --- AI Briefing Handler ---
     async function handleGenerateBriefing() {
         if (!state.selectedAccountId) {
             showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
