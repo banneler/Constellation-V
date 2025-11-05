@@ -4402,27 +4402,20 @@ div.briefing-pre {
 /* --- THE LINES --- */
 
 /* 1. Line UP from child card to the horizontal bar */
+/* 1. Line UP from child card AND horizontal bar */
 #contact-org-chart-view .org-chart-node::before {
     content: '';
     position: absolute;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 2px;
-    height: 20px; /* Space between card and horizontal line */
-    background-color: var(--border-color);
+    width: 100%; /* Make it full width */
+    height: 20px;
+    border-top: 2px solid var(--border-color); /* The horizontal line */
+    border-left: 2px solid var(--border-color); /* The vertical line */
 }
 
-/* 2. Horizontal line ACROSS the top of a children group */
-#contact-org-chart-view .org-chart-children::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 10%; 
-    right: 10%;
-    height: 2px;
-    background-color: var(--border-color);
-}
+
 
 /* 3. Line DOWN from parent card */
 #contact-org-chart-view .contact-card::after {
@@ -4462,12 +4455,22 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-children .org-chart-node:first-child::before {
     left: 50%;
     width: 50%;
+    border-left: none; /* No vertical line needed */
 }
 
 /* Trim horizontal line for the last child */
 #contact-org-chart-view .org-chart-children .org-chart-node:last-child::before {
     left: 0;
     width: 50%;
+    border-right: 2px solid var(--border-color); /* Add a right-side border */
+}
+
+/* A single child doesn't need a horizontal line */
+#contact-org-chart-view .org-chart-children .org-chart-node:only-child::before {
+    border-top: none; /* Just draw the vertical line up */
+    border-left: 2px solid var(--border-color);
+    left: 50%;
+    width: 0;
 }
 
 
