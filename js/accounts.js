@@ -713,7 +713,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-    // MODIFIED: This function is now async to await the canvas generation
+   // MODIFIED: This function is now async to await the canvas generation
     async function handlePrintBriefing() {
         const accountName = state.selectedAccountDetails.account?.name;
 
@@ -759,7 +759,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // 7. Create new, simple HTML for the image
                 const orgChartImageHtml = `
                     <div class="briefing-section">
-                            <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+                        <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
                     </div>
                 `;
                 
@@ -858,6 +858,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 font-size: 0.95rem;
                                 line-height: 1.6;
                             }
+
+                            /* --- THIS IS THE FIX --- */
+                            /* Override the 'avoid' rule just for the chart container */
+                            .org-chart-print-container {
+                                page-break-inside: auto !important;
+                            }
+                            /* --- END OF FIX --- */
 
                             /* --- AI Recommendation Box (Your style) --- */
                             .briefing-section.recommendation {
