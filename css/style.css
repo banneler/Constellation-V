@@ -4373,10 +4373,10 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-root {
     list-style: none;
     padding: 0;
-    margin: 0; /* <-- FIX: Reset margin */
-    display: inline-block; /* <-- FIX: Use inline-block for robust centering */
+    margin: 0 auto; /* <-- CHANGED: This centers the block */
+    display: table; /* <-- CHANGED: This makes the block shrink-to-fit */
+    /* justify-content: center; <-- This is no longer needed */
     position: relative;
-    text-align: left; /* <-- FIX: Reset text-align for chart contents */
 }
 
 /* A <ul> that contains children */
@@ -4425,7 +4425,8 @@ div.briefing-pre {
 }
 
 /* 3. Line DOWN from parent card */
-/* GHOST LINE FIX: This rule now *only* applies to unassigned cards */
+/* We group this so it works on unassigned cards too (for dragging) */
+#contact-org-chart-view .contact-card::after,
 #unassigned-contacts-container .contact-card::after {
     content: '';
     position: absolute;
@@ -4453,16 +4454,10 @@ div.briefing-pre {
     display: none;
 }
 
-/* 4. GHOST LINE FIX (REVISED): Add line DOWN *only* from parents that have children */
-#contact-org-chart-view .org-chart-node:has(.org-chart-children .org-chart-node) > .contact-card::after {
-    content: '';
-    position: absolute;
-    bottom: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 2px;
-    height: 20px;
-    background-color: var(--border-color);
+/* Hide line DOWN from cards that have NO children (or an empty child list) */
+#contact-org-chart-view .org-chart-node:not(:has(.org-chart-children)) > .contact-card::after,
+#contact-org-chart-view .org-chart-node:has(.org-chart-children:empty) > .contact-card::after {
+    display: none;
 }
 
 /* Hide line DOWN for ALL unassigned cards */
@@ -4581,4 +4576,9 @@ div.briefing-pre {
     background-color: var(--bg-light);
     border-color: var(--primary-blue);
     box-shadow: inset 0 0 10px var(--primary-blue);
+}
+/* NEW FIX: Hide lines from empty, ghost nodes */
+#contact-org-chart-view .org-chart-node:empty::before,
+#contact-org-chart-view .org-chart-node:empty::after {
+    display: none;
 }
