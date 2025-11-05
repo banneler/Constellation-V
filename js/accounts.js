@@ -621,194 +621,227 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // MODIFIED: This function is now async to await the canvas generation
 async function handlePrintBriefing() {
-    const accountName = state.selectedAccountDetails.account?.name;
+    const accountName = state.selectedAccountDetails.account?.name;
 
-    // 1. Find the modal's briefing container
-    const briefingContainer = document.querySelector('.ai-briefing-container');
-    if (!briefingContainer) {
-        alert("Please generate a briefing first.");
-        return;
-    }
+    // 1. Find the modal's briefing container
+    const briefingContainer = document.querySelector('.ai-briefing-container');
+    if (!briefingContainer) {
+        alert("Please generate a briefing first.");
+        return;
+    }
 
-    // --- html2canvas Logic ---
-    
-    // 2. Clone the container to work on it
-    const printClone = briefingContainer.cloneNode(true);
-    
-    // 3. Find the org chart element *within the clone*
-    const chartElement = printClone.querySelector('.org-chart-print-container');
-    
-    // 4. Find the *live* org chart element to "screenshot"
-    const sourceChartElement = briefingContainer.querySelector('.org-chart-print-container');
+    // --- html2canvas Logic ---
+    
+    // 2. Clone the container to work on it
+    const printClone = briefingContainer.cloneNode(true);
+    
+    // 3. Find the org chart element *within the clone*
+    const chartElement = printClone.querySelector('.org-chart-print-container');
+    
+    // 4. Find the *live* org chart element to "screenshot"
+    const sourceChartElement = briefingContainer.querySelector('.org-chart-print-container');
 
-    if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
-        try {
-            // 5. "Screenshot" the live org chart element
-            const canvas = await html2canvas(sourceChartElement, { 
-                backgroundColor: '#ffffff', // Force a white background
-                useCORS: true 
-            });
-            
-            // 6. Convert the canvas "screenshot" to a PNG image URL
-            const imgDataUrl = canvas.toDataURL('image/png');
-            
-            // 7. Create new, simple HTML for the image
-            // --- THIS IS THE FIX for the duplicate header ---
-            // We've removed the <h4> from here, as it's already in the clone.
-            const orgChartImageHtml = `
-                <div class="briefing-section">
-                    <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto;">
-                </div>
-            `;
-            
-            // 8. *Replace* the complex HTML chart in our clone with the simple image
-            chartElement.parentNode.replaceChild(
-                document.createRange().createContextualFragment(orgChartImageHtml), 
-                chartElement
-            );
-            
-        } catch (err) {
-            console.error("html2canvas failed:", err);
-            // If it fails, it will just print the (ugly) HTML as a fallback
-        }
-    }
-    
-    // 9. Get the *entire* inner HTML of our modified clone
-    const briefingHtml = printClone.innerHTML;
-    
-    // --- End of html2canvas Logic ---
+    if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
+        try {
+            // 5. "Screenshot" the live org chart element
+            const canvas = await html2canvas(sourceChartElement, { 
+                backgroundColor: '#ffffff', // Force a white background
+                useCORS: true 
+            });
+            
+            // 6. Convert the canvas "screenshot" to a PNG image URL
+            const imgDataUrl = canvas.toDataURL('image/png');
+            
+            // 7. Create new, simple HTML for the image
+            // --- THIS IS THE FIX for the duplicate header ---
+            // We've removed the <h4> from here, as it's already in the clone.
+            const orgChartImageHtml = `
+                <div class="briefing-section">
+                    <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto;">
+                </div>
+            `;
+            
+            // 8. *Replace* the complex HTML chart in our clone with the simple image
+            chartElement.parentNode.replaceChild(
+                document.createRange().createContextualFragment(orgChartImageHtml), 
+                chartElement
+            );
+            
+        } catch (err) {
+            console.error("html2canvas failed:", err);
+            // If it fails, it will just print the (ugly) HTML as a fallback
+        }
+    }
+    
+    // 9. Get the *entire* inner HTML of our modified clone
+    const briefingHtml = printClone.innerHTML;
+    
+    // --- End of html2canvas Logic ---
 
-    // 10. Create the iframe
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'absolute';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
+    // 10. Create the iframe
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'absolute';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
 
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    
-    // 11. Write the new content to the iframe
-    frameDoc.write(`
-        <html>
-            <head>
-                <title>AI Briefing: ${accountName || 'Account'}</title>
-                <link rel="stylesheet" href="css/style.css">
-                
-                <style>
-                    @media print {
-                        body { 
-                            margin: 25px; 
-                            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                            color: #333;
-                        }
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    
+    // 11. Write the new content to the iframe
+    frameDoc.write(`
+        <html>
+            <head>
+                <title>AI Briefing: ${accountName || 'Account'}</title>
+                <link rel="stylesheet" href="css/style.css">
+                
+                                <style>
+                    @media print {
 
-                        /* NEW: Report Header Block */
-                        .report-header {
-                            background-color: #3b82f6 !important; /* Constellation Blue */
-                            color: #ffffff !important;
-                            padding: 20px;
-                            border-radius: 8px;
-                            margin-bottom: 25px;
-                            page-break-inside: avoid;
-                        }
-                        .report-header h2 {
-                            font-size: 1.8rem;
-                            color: #ffffff !important;
-                            margin: 0;
-                            font-weight: 600;
-                        }
-                        .report-header h3 {
-                            font-size: 1.3rem;
-                            color: #ffffff !important;
-                            margin: 0;
-                            font-weight: 400;
-                            opacity: 0.9;
-                        }
+                        /*                          * FIX 1: FONT CONSISTENCY 
+                         * Force a single, clean font family on all elements to
+                         * override the main style.css and fix mismatches.
+                        */
+                        body, p, li, div, h1, h2, h3, h4, h5, h6 {
+                            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                            color: #2d3748 !important; /* Softer black text */
+                  S_S     }
+                        body { 
+                            margin: 20px; 
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        @page {
+                            size: auto;
+                            margin: 20px;
+                        }
 
-                        /* Upgraded Section Headers */
-                        h4 { 
-                            font-size: 1.1rem;
-                            font-weight: 600;
-                            color: #3b82f6 !important; /* Constellation Blue */
-                            border-bottom: 2px solid #3b82f6 !important;
-                            padding-bottom: 6px;
-                            margin-top: 30px;
-                            margin-bottom: 16px;
-                        }
-                        
-                        /* Upgraded Section Content Box */
-                        .briefing-section { 
-                            background-color: #f9f9f9 !important; 
-                            page-break-inside: avoid; 
-                            border: 1px solid #eee;
-                            padding: 16px;
-                            border-radius: 8px;
-                            margin-bottom: 16px;
-                        }
+                        /* --- REFINED: Report Header Block --- */
+                        .report-header {
+                            background-color: #3b82f6 !important; /* Constellation Blue */
+                            color: #ffffff !important;
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin-bottom: 25px;
+                            page-break-inside: avoid;
+                        }
+                        .report-header h2 {
+                            font-size: 1.75rem;
+                            color: #ffffff !important;
+                            margin: 0;
+                            font-weight: 600;
+                        }
+                        .report-header h3 {
+                            font-size: 1.25rem;
+                            color: #ffffff !important;
+                            margin: 4px 0 0 0;
+                            font-weight: 400;
+                            opacity: 0.9;
+    _                     }
 
-                        /* Special highlight for the AI Recommendation */
-                        .briefing-section.recommendation {
-                            background-color: #eef5ff !important; /* Light blue */
-                            border-color: #b0cfff !important;
-                        }
+                        /* --- REFINED: Section Headers (h4) --- */
+                        h4 { 
+                            font-size: 1.1rem;
+                            font-weight: 600;
+                            color: #3b82f6 !important; /* Constellation Blue */
+                            border-bottom: 2px solid #e2e8f0 !important; /* Lighter border */
+                            padding-bottom: 6px;
+                            margin-top: 25px;
+                            margin-bottom: 15px;
+                        }
+                        
+                        /* --- REFINED: Section Content Box --- */
+                        .briefing-section { 
+                            background-color: #f7fafc !important; /* Lighter gray */
+                            page-break-inside: avoid; 
+                            border: 1px solid #e2e8f0 !important;
+                            padding: 16px;
+                            border-radius: 8px;
+                            margin-bottom: 16px;
+                            font-size: 0.95rem;
+                            line-height: 1.6;
+s                       }
+                        .briefing-section p strong {
+                            color: #2d3748 !important;
+                        }
 
-                        /* Cleaner text block for lists */
-                        div.briefing-pre { 
-                            background-color: #fff !important; 
-                            border: 1px solid #ddd;
-                            white-space: pre-wrap;
-                            word-wrap: break-word;
-                            padding: 12px;
-                            border-radius: 6px;
-                            font-family: "SF Mono", "Consolas", "Courier New", monospace;
-                            font-size: 0.9rem;
-                        }
-                        
-                        /* Ensure our canvas image looks good */
-                        .briefing-section img {
-                            width: 100%;
-                            max-width: 100%;
-                            height: auto;
-                            border: 1px solid #ccc;
-                            border-radius: 4px;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="report-header">
-                    <h2>AI Reconnaissance Report</h2>
-                    <h3>${accountName || 'Selected Account'}</h3>
-                </div>
-                
-                <div class="ai-briefing-container">${briefingHtml}</div>
-            
-            </body>
-        </html>
-    `);
-    frameDoc.close();
+                        /* --- REFINED: AI Recommendation Box --- */
+s                     .briefing-section.recommendation {
+                            background-color: #ebf8ff !important; /* Light blue */
+                            border-color: #bee3f8 !important; /* Blue border */
+                        }
 
-    const originalTitle = document.title;
-    document.title = `AI Briefing: ${accountName || 'Account'}`;
+                        /*                          * FIX 2: MONOSPACE LISTS 
+                         * Make the 'pre' blocks (used for activities/icebreakers)
+                         * use the body font, not a monospace code font.
+                        */
+                        div.briefing-pre { 
+                            background-color: #ffffff !important; 
+                            border: 1px solid #e2e8f0 !important;
+                	         white-space: pre-wrap;
+                            word-wrap: break-word;
+                            padding: 12px 16px;
+                            border-radius: 6px;
+                            font-family: inherit !important; /* <<< USES BODY FONT */
+                        	 font-size: 0.9rem;
+                            line-height: 1.5;
+                        }
+          	           div.briefing-pre strong {
+                            color: #2c5282 !important; /* Dark blue for emphasis */
+                            font-weight: 600;
+                        }
+                        
+          	           /* --- REFINED: Canvas/Image Styling --- */
+          	           .briefing-section img {
+          	               width: 100%;
+          	               max-width: 100%;
+          	               height: auto;
+          	 	         border: 1px solid #e2e8f0 !important;
+          	 	         border-radius: 4px;
+          	 	     }
 
-    setTimeout(() => {
-        try {
-            printFrame.contentWindow.focus();
-            printFrame.contentWindow.print();
-        } catch (e) {
-            console.error("Print failed:", e);
-            alert("Could not open print dialog. Please check your browser's popup settings.");
-        } finally {
-            if (document.body.contains(printFrame)) {
-                document.body.removeChild(printFrame);
-            }
-            document.title = originalTitle;
-        }
-    }, 250); // This timeout helps the iframe's content render
+          	 	       /* --- NEW: Clean up links --- */
+          	 	       a {
+          	 	       	 color: #3b82f6 !important;
+s           	 	       	 text-decoration: none !important;
+  	 	   	       }
+  	 	   	       a[href]:after {
+  	 	   	       	 content: none !important; /* Don't show URL on print */
+  	 	   	       }
+                    }
+                </style>
+                            </head>
+            <body>
+                <div class="report-header">
+                    <h2>AI Reconnaissance Report</h2>
+                    <h3>${accountName || 'Selected Account'}</h3>
+                </div>
+                
+                <div class="ai-briefing-container">${briefingHtml}</div>
+            
+            </body>
+        </html>
+    `);
+    frameDoc.close();
+
+    const originalTitle = document.title;
+    document.title = `AI Briefing: ${accountName || 'Account'}`;
+
+    setTimeout(() => {
+        try {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        } catch (e) {
+            console.error("Print failed:", e);
+            alert("Could not open print dialog. Please check your browser's popup settings.");
+        } finally {
+            if (document.body.contains(printFrame)) {
+                document.body.removeChild(printFrame);
+            }
+            document.title = originalTitle;
+        }
+    }, 250); // This timeout helps the iframe's content render
 }
 
     // --- AI Briefing Handler ---
