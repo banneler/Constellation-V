@@ -162,8 +162,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         
     const hideAccountDetails = (clearSelection = false) => {
         if (accountForm) {
-            // --- LOGIC ERROR FIXED ---
-            // Was .remove('hidden'), which showed the form. Changed to .add('hidden').
             accountForm.classList.add('hidden');
             accountForm.reset();
             accountForm.querySelector("#account-id").value = '';
@@ -1387,13 +1385,10 @@ async function handlePrintBriefing() {
             });
         }
     }
+    
     async function initializePage() {
         await loadSVGs();
         
-        // --- THIS IS THE FIX ---
-        // Changed from getSession() to getUser()
-        // getSession() only reads from storage and may not have user_metadata
-        // getUser() fetches the full user object from the server, ensuring the name is present
         const { data: { user }, error: userError } = await supabase.auth.getUser();
 
         if (userError || !user) {
@@ -1401,7 +1396,28 @@ async function handlePrintBriefing() {
             window.location.href = "index.html";
             return;
         }
-        state.currentUser = user; // Set state from the user object, not session.user
+
+        // --- THIS IS THE FIX ---
+        // 1. Set the auth user first
+        state.currentUser = user; 
+
+        // 2. Manually fetch the user's profile/name from `user_quotas`
+        // (Assuming the foreign key is `user_id` as seen in other tables)
+        const { data: profile, error: profileError } = await supabase
+            .from('user_quotas')
+            .select('full_name') // Only select the name, or any other data you need
+            .eq('user_id', state.currentUser.id)
+            .single();
+
+        if (profileError) {
+            console.error("Error fetching user profile:", profileError.message);
+            // Don't stop execution, just log the error. The menu will say 'User'.
+        }
+
+        // 3. Merge the profile data into state.currentUser
+        if (profile) {
+            state.currentUser = { ...user, ...profile };
+        }
         // --- END OF FIX ---
 
         try {
@@ -1420,8 +1436,10 @@ async function handlePrintBriefing() {
                 hideAccountDetails(true);
             }
             
+            // Now, when setupUserMenuAndAuth is called, state.currentUser.full_name already exists.
             await setupUserMenuAndAuth(supabase, state);
             await setupGlobalSearch(supabase, state.currentUser);
+all_sales
             await checkAndSetNotifications(supabase);
             setupPageEventListeners();
 
