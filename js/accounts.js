@@ -757,11 +757,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const imgDataUrl = canvas.toDataURL('image/png');
                 
                 // 7. Create new, simple HTML for the image
-                const orgChartImageHtml = `
-                    <div class="briefing-section">
-                        <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
-                    </div>
-                `;
+const orgChartImageHtml = `
+    <div class="briefing-section" style="page-break-inside: auto !important;">
+        <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+`;
                 
                 // 8. *Replace* the complex HTML chart in our clone with the simple image
                 chartElement.parentNode.replaceChild(
