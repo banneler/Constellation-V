@@ -449,6 +449,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // --- 6. Print Function ---
 
+// --- 6. Print Function ---
+
     function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
@@ -509,7 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <th>Eng. ($)</th>
                         <th>NRR ($)</th>
                         <th>MRR ($)</th>
-                        <th>Term (Mos)</th>
+                        <th>Monthly Cost ($)</th> <th>Term (Mos)</th>
                         <th>Calculated IRR</th>
                         <th>Decision</th>
                     </tr>
@@ -531,7 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td>${inputs.engineeringCost.toLocaleString()}</td>
                     <td>${inputs.nrr.toLocaleString()}</td>
                     <td>${inputs.mrr.toLocaleString()}</td>
-                    <td>${inputs.term}</td>
+                    <td>${inputs.monthlyCost.toLocaleString()}</td> <td>${inputs.term}</td>
                     <td class="${decisionClass}">${irrText}</td>
                     <td class="${decisionClass}">${res.decision}</td>
                 </tr>
