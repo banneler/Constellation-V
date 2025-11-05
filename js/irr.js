@@ -608,6 +608,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         ];
         csvContent.push(headers.join(','));
 
+        // --- Helper function for creating CSV formulas ---
+        // *** FIX: Moved from inside the loop to the parent scope ***
+        const createCsvFormula = (baseFormula) => {
+            // Escape internal quotes by doubling them up
+            const escapedFormula = baseFormula.replace(/"/g, '""');
+            // Prepend '=' and wrap the whole thing in quotes
+            return `"=${escapedFormula}"`;
+        };
+
         // --- Site Data Rows ---
         const startRow = 5; // CSV row 5 is Excel row 5 (1-based index)
         state.sites.forEach((site, index) => {
@@ -620,13 +629,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const irrFormulaBase = `IFERROR((1+RATE(G${rowNum}, F${rowNum}-E${rowNum}, (B${rowNum}+C${rowNum})-D${rowNum}))^12-1, "Error")`;
             const decisionFormulaBase = `IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))`;
 
-            // 2. Helper to finalize the formula string for CSV
-            const createCsvFormula = (baseFormula) => {
-                // Escape internal quotes by doubling them up
-                const escapedFormula = baseFormula.replace(/"/g, '""');
-                // Prepend '=' and wrap the whole thing in quotes
-                return `"=${escapedFormula}"`;
-            };
+            // 2. Helper was moved to parent scope
 
             const row = [
                 escapeCSV(site.name),
@@ -1057,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const precision = 1e-7;
         
         let minRate = -0.9999; 
-        let maxRate = 1.0;     
+        let maxRate = 1.0;    
         let midRate = (minRate + maxRate) / 2;
 
         let npvAtMin = calculateNPV(minRate, cashFlows);
