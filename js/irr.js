@@ -1,5 +1,5 @@
 /**
- * Multi-Site IRR Calculator for Constellation CRM (v5)
+ * Multi-Site IRR Calculator for Constellation CRM (v6)
  *
  * This script powers the irr.html page, managing multiple sites
  * as tabs and calculating a global IRR.
@@ -9,6 +9,7 @@
  * - Uses a single GLOBAL Target IRR for all calculations.
  * - Calculates and displays TCV for sites and the global project.
  * - Exports a CSV with LIVE EXCEL FORMULAS for TCV, IRR, and Decision.
+ * - Factors in SG&A (Commission) to all IRR calculations.
  */
 
 // Import all shared functions and constants
@@ -356,7 +357,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { nrr, constructionCost, engineeringCost, mrr, monthlyCost, term } = inputs;
         const cashFlows = [];
         
-        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost);
+        // --- NEW: Calculate SG&A (Commission) Cost ---
+        const sg_and_a_cost = (mrr * 1) + (nrr * 0.03);
+        
+        // --- UPDATED: Added sg_and_a_cost to the initial outflow ---
+        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost + sg_and_a_cost);
         const monthlyNetCashFlow = mrr - monthlyCost;
 
         if (term <= 0) return { cashFlows: [], error: "Term must be > 0" };
@@ -609,7 +614,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         csvContent.push(headers.join(','));
 
         // --- Helper function for creating CSV formulas ---
-        // *** FIX: Moved from inside the loop to the parent scope ***
         const createCsvFormula = (baseFormula) => {
             // Escape internal quotes by doubling them up
             const escapedFormula = baseFormula.replace(/"/g, '""');
@@ -626,10 +630,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             // --- UPDATED FORMULA LOGIC ---
             // 1. Define formulas WITHOUT leading '=' or outer quotes.
             const tcvFormulaBase = `ROUND((E${rowNum}*G${rowNum})+D${rowNum}, 2)`;
-            const irrFormulaBase = `IFERROR((1+RATE(G${rowNum}, F${rowNum}-E${rowNum}, (B${rowNum}+C${rowNum})-D${rowNum}))^12-1, "Error")`;
+            
+            // --- UPDATED: Added commission to PV calculation (B+C+E-0.97*D) ---
+            // PV = (B+C + (E*1 + D*0.03)) - D
+            // PV = B+C+E+0.03*D-D
+            // PV = B+C+E-0.97*D
+            const irrFormulaBase = `IFERROR((1+RATE(G${rowNum}, F${rowNum}-E${rowNum}, B${rowNum}+C${rowNum}+E${rowNum}-0.97*D${rowNum}))^12-1, "Error")`;
             const decisionFormulaBase = `IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))`;
-
-            // 2. Helper was moved to parent scope
 
             const row = [
                 escapeCSV(site.name),
@@ -651,9 +658,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const lastRow = startRow + state.sites.length - 1;
             csvContent.push(""); // Spacer row
             
-            // --- REMOVED: Confusing "Inputs, Formulas" header ---
-            // csvContent.push("Global Results,,,,,Inputs,Formulas"); // Header
-            
             // Define summary row numbers
             const globalTcvRow = lastRow + 2;
             const globalIrrRow = globalTcvRow + 1;
@@ -661,7 +665,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // --- 1. Global TCV (Always a formula) ---
             const globalTcvFormulaBase = `SUM(H${startRow}:H${lastRow})`;
-            // --- FIX: Use the createCsvFormula helper ---
             csvContent.push(`Global TCV (Formula):,,${createCsvFormula(globalTcvFormulaBase)}`);
             
             // --- 2. Global IRR (Conditional Formula) ---
@@ -677,8 +680,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const engRange = `C${startRow}:C${lastRow}`;
                 const nrrRange = `D${startRow}:D${lastRow}`;
 
-                const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})-SUM(${nrrRange})))^12-1, "Error")`;
-                // --- FIX: Use the createCsvFormula helper ---
+                // --- UPDATED: Added global commission to PV calculation (SUM(B)+SUM(C)+SUM(E)-0.97*SUM(D)) ---
+                // PV = SUM(B) + SUM(C) + SUM(E*1 + D*0.03) - SUM(D)
+                // PV = SUM(B) + SUM(C) + SUM(E) + 0.03*SUM(D) - SUM(D)
+                // PV = SUM(B) + SUM(C) + SUM(E) - 0.97*SUM(D)
+                const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})+SUM(${mrrRange})-0.97*SUM(${nrrRange})))^12-1, "Error")`;
                 csvContent.push(`Global IRR (Formula):,,${createCsvFormula(globalIrrFormulaBase)}`);
             } else {
                 // Terms are different. Fall back to calculated value.
@@ -690,7 +696,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // --- 3. Global Decision (Always a formula) ---
             // This formula references the cell where the Global IRR was just placed (C + globalIrrRow)
             const globalDecisionFormulaBase = `IF(C${globalIrrRow}="Error", "Error", IF(C${globalIrrRow}>=B$2, "GO", "NO GO"))`;
-            // --- FIX: Use the createCsvFormula helper ---
             csvContent.push(`Global Decision (Formula):,,${createCsvFormula(globalDecisionFormulaBase)}`);
         }
 
