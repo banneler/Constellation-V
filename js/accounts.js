@@ -887,7 +887,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             padding: 10px;
                             border-radius: 8px;
                          ">
-                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
+                        <div id="org-chart-render-target" style="zoom: 0.50; transform-origin: top left;">
                             ${chartClone.innerHTML}
                         </div>
                     </div>`;
