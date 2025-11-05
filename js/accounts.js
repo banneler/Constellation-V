@@ -28,7 +28,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         contactViewMode: 'list' // 'list' or 'org'
     };
 
-    // --- FIX 1: Move draggedContactId to the top-level scope ---
     let draggedContactId = null;
 
     // --- DOM Element Selectors ---
@@ -426,8 +425,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const setupOrgChartDragDrop = () => {
-        // --- FIX 1 (continued): Remove the 'let' from here. We use the global 'draggedContactId' ---
-        // let draggedContactId = null;
         
         const isCircular = (targetId, draggedId) => {
             const contacts = state.selectedAccountDetails.contacts;
@@ -458,7 +455,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             card.addEventListener('dragend', (e) => {
                 const targetCard = e.target.closest('.contact-card');
                 if (targetCard) targetCard.classList.remove('dragging');
-                // --- FIX 4: This is now the ONLY place this is reset ---
                 draggedContactId = null;
             });
 
@@ -483,10 +479,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const targetCard = e.target.closest('.contact-card');
                 if (!targetCard) return;
 
-                // --- FIX 2: Capture IDs *before* any await ---
                 const localDraggedContactId = draggedContactId;
                 const targetContactId = Number(targetCard.dataset.contactId);
-                // --- End Capture ---
 
                 targetCard.classList.remove('drop-target');
 
@@ -494,20 +488,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                     
                     if (isCircular(targetContactId, localDraggedContactId)) {
                         showModal("Invalid Move", "Cannot move a manager to report to one of their own subordinates.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                        return; // Let dragend handle the reset
+                        return;
                     }
 
-                    // Update the database
                     const { error } = await supabase.from('contacts')
                         .update({ reports_to: targetContactId })
-                        .eq('id', localDraggedContactId); // <-- Use local ID
+                        .eq('id', localDraggedContactId); 
 
                     if (error) {
                         console.error("Error updating reporting structure:", error);
                         showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     } else {
                         state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
-                            contact.id === localDraggedContactId // <-- Use local ID
+                            contact.id === localDraggedContactId
                                 ? { ...contact, reports_to: targetContactId }
                                 : contact
                         );
@@ -515,8 +508,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         renderOrgChart();
                     }
                 }
-                // --- FIX 3: Remove reset from here. Let dragend handle it. ---
-                // draggedContactId = null;
             });
         });
 
@@ -539,9 +530,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             e.preventDefault();
             contactOrgChartView.classList.remove('drop-target-background');
             
-            // --- FIX 2: Capture ID *before* any await ---
             const localDraggedContactId = draggedContactId;
-            // --- End Capture ---
 
             const targetCard = e.target.closest('.contact-card');
             if (targetCard || !localDraggedContactId) {
@@ -555,23 +544,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             const { error } = await supabase.from('contacts')
                 .update({ reports_to: null })
-                .eq('id', localDraggedContactId); // <-- Use local ID
+                .eq('id', localDraggedContactId);
             
             if (error) {
                 console.error("Error breaking reporting structure:", error);
                 showModal("Error", `Could not update reporting structure: ${error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             } else {
                 state.selectedAccountDetails.contacts = state.selectedAccountDetails.contacts.map(contact =>
-                    contact.id === localDraggedContactId // <-- Use local ID
+                    contact.id === localDraggedContactId
                         ? { ...contact, reports_to: null }
                         : contact
                 );
                 
                 renderOrgChart();
             }
-            
-            // --- FIX 3: Remove reset from here. Let dragend handle it. ---
-            // draggedContactId = null;
         });
     };
 
@@ -621,94 +607,94 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
     }
 
-// MODIFIED: This function is now async to await the canvas generation
-async function handlePrintBriefing() {
-    const accountName = state.selectedAccountDetails.account?.name;
+    // MODIFIED: This function is now async to await the canvas generation
+    async function handlePrintBriefing() {
+        const accountName = state.selectedAccountDetails.account?.name;
 
-    // 1. Find the modal's briefing container
-    const briefingContainer = document.querySelector('.ai-briefing-container');
-    if (!briefingContainer) {
-        alert("Please generate a briefing first.");
-        return;
-    }
+        // 1. Find the modal's briefing container
+        const briefingContainer = document.querySelector('.ai-briefing-container');
+        if (!briefingContainer) {
+            alert("Please generate a briefing first.");
+            return;
+        }
 
-    // --- html2canvas Logic ---
-    
-    // 2. Clone the container to work on it
-    const printClone = briefingContainer.cloneNode(true);
-    
-    // 3. Find the org chart *placeholder* element *within the clone*
-    const chartElement = printClone.querySelector('.org-chart-print-container');
-    
-    // 4. Find the *live* org chart *inner div* to "screenshot"
-    const sourceChartElement = briefingContainer.querySelector('#org-chart-render-target'); // <-- ORG CHART FIX 1: Target new ID
-    let originalStyle = null; // Store original style here
+        // --- html2canvas Logic ---
+        
+        // 2. Clone the container to work on it
+        const printClone = briefingContainer.cloneNode(true);
+        
+        // 3. Find the org chart *placeholder* element *within the clone*
+        const chartElement = printClone.querySelector('.org-chart-print-container');
+        
+        // 4. Find the *live* org chart *inner div* to "screenshot"
+        const sourceChartElement = briefingContainer.querySelector('#org-chart-render-target'); // <-- ORG CHART FIX 1: Target new ID
+        let originalStyle = null; // Store original style here
 
-    if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
-        try {
-            // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
-            originalStyle = sourceChartElement.getAttribute('style');
-            // Force zoom: 1, add a background (which html2canvas needs), and keep padding
-            sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #2d3748); padding: 10px;');
-            
-            // 5. "Screenshot" the live org chart element at high resolution
-            const canvas = await html2canvas(sourceChartElement, {
-                backgroundColor: '#2d3748', // Explicitly set dark background
-                useCORS: true,
-                scale: 1.5 // Increase scale for better resolution
-            });
-            
-            // --- ORG CHART FIX 3: Restore original style to the live modal ---
-            if (originalStyle) sourceChartElement.setAttribute('style', originalStyle);
+        if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
+            try {
+                // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
+                originalStyle = sourceChartElement.getAttribute('style');
+                // Force zoom: 1, add a background (which html2canvas needs), and keep padding
+                sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #2d3748); padding: 10px;');
+                
+                // 5. "Screenshot" the live org chart element at high resolution
+                const canvas = await html2canvas(sourceChartElement, {
+                    backgroundColor: '#2d3748', // Explicitly set dark background
+                    useCORS: true,
+                    scale: 1.5 // Increase scale for better resolution
+                });
+                
+                // --- ORG CHART FIX 3: Restore original style to the live modal ---
+                if (originalStyle) sourceChartElement.setAttribute('style', originalStyle);
 
-            // 6. Convert the canvas "screenshot" to a PNG image URL
-            const imgDataUrl = canvas.toDataURL('image/png');
-            
-            // 7. Create new, simple HTML for the image
-            const orgChartImageHtml = `
-                <div class="briefing-section">
+                // 6. Convert the canvas "screenshot" to a PNG image URL
+                const imgDataUrl = canvas.toDataURL('image/png');
+                
+                // 7. Create new, simple HTML for the image
+                const orgChartImageHtml = `
+                    <div class="briefing-section">
                             <img src="${imgDataUrl}" style="width: 100%; max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
-                </div>
-            `;
-            
-            // 8. *Replace* the complex HTML chart in our clone with the simple image
-            chartElement.parentNode.replaceChild(
-                document.createRange().createContextualFragment(orgChartImageHtml),
-                chartElement
-            );
-            
-        } catch (err) {
-            console.error("html2canvas failed:", err);
-            // If it fails, restore original style
-            if (sourceChartElement && originalStyle) {
-                sourceChartElement.setAttribute('style', originalStyle);
+                    </div>
+                `;
+                
+                // 8. *Replace* the complex HTML chart in our clone with the simple image
+                chartElement.parentNode.replaceChild(
+                    document.createRange().createContextualFragment(orgChartImageHtml),
+                    chartElement
+                );
+                
+            } catch (err) {
+                console.error("html2canvas failed:", err);
+                // If it fails, restore original style
+                if (sourceChartElement && originalStyle) {
+                    sourceChartElement.setAttribute('style', originalStyle);
+                }
             }
         }
-    }
-    
-    // 9. Get the *entire* inner HTML of our modified clone
-    const briefingHtml = printClone.innerHTML;
-    
-    // --- End of html2canvas Logic ---
+        
+        // 9. Get the *entire* inner HTML of our modified clone
+        const briefingHtml = printClone.innerHTML;
+        
+        // --- End of html2canvas Logic ---
 
-    // 10. Create the iframe
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'absolute';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    document.body.appendChild(printFrame);
+        // 10. Create the iframe
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'absolute';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        document.body.appendChild(printFrame);
 
-    const frameDoc = printFrame.contentWindow.document;
-    frameDoc.open();
-    
-    // 11. Write the new content to the iframe
-    frameDoc.write(`
-        <html>
-            <head>
-                <title>AI Briefing: ${accountName || 'Account'}</title>
+        const frameDoc = printFrame.contentWindow.document;
+        frameDoc.open();
+        
+        // 11. Write the new content to the iframe
+        frameDoc.write(`
+            <html>
+                <head>
+                    <title>AI Briefing: ${accountName || 'Account'}</title>
                     <link rel="stylesheet" href="css/style.css">
-                
+                    
                     <style>
                         @media print {
 
@@ -795,40 +781,40 @@ async function handlePrintBriefing() {
                             }
                         }
                     </style>
-                        </head>
-            <body>
-                <div class="report-header">
-                    <h2>AI Reconnaissance Report</h2>
-                    <h3>${accountName || 'Selected Account'}</h3>
-                </div>
+                </head>
+                <body>
+                    <div class="report-header">
+                        <h2>AI Reconnaissance Report</h2>
+                        <h3>${accountName || 'Selected Account'}</h3>
+                    </div>
+                    
+                    <div class="ai-briefing-container">${briefingHtml}</div>
                 
-                <div class="ai-briefing-container">${briefingHtml}</div>
-            
-            </body>
-        </html>
-    `);
-    frameDoc.close();
+                </body>
+            </html>
+        `);
+        frameDoc.close();
 
-    const originalTitle = document.title;
-    document.title = `AI Briefing: ${accountName || 'Account'}`;
+        const originalTitle = document.title;
+        document.title = `AI Briefing: ${accountName || 'Account'}`;
 
-    setTimeout(() => {
-        try {
-            printFrame.contentWindow.focus();
-            printFrame.contentWindow.print();
-        } catch (e) {
-            console.error("Print failed:", e);
-            alert("Could not open print dialog. Please check your browser's popup settings.");
-        } finally {
-            if (document.body.contains(printFrame)) {
-                document.body.removeChild(printFrame);
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (e) {
+                console.error("Print failed:", e);
+                alert("Could not open print dialog. Please check your browser's popup settings.");
+            } finally {
+                if (document.body.contains(printFrame)) {
+                    document.body.removeChild(printFrame);
+                }
+                document.title = originalTitle;
             }
-            document.title = originalTitle;
-        }
-    }, 250); // This timeout helps the iframe's content render
-}
+        }, 250); // This timeout helps the iframe's content render
+    }
 
-// --- AI Briefing Handler ---
+    // --- AI Briefing Handler ---
     async function handleGenerateBriefing() {
         if (!state.selectedAccountId) {
             showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -892,18 +878,18 @@ async function handlePrintBriefing() {
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
                     <div class="briefing-section org-chart-print-container"
-                        style="
+                         style="
                             max-height: 300px;
                             overflow: hidden; /* We changed this from 'auto' */
                             border: 1px solid var(--border-color);
                             background: var(--bg-dark);
                             padding: 10px;
                             border-radius: 8px;
-                        ">
-                            <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
-                                ${chartClone.innerHTML}
-                            </div>
-                        </div>`;
+                         ">
+                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
+                            ${chartClone.innerHTML}
+                        </div>
+                    </div>`;
             } else if (contacts.length > 0) {
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
@@ -1415,7 +1401,12 @@ async function handlePrintBriefing() {
             }
             
             await setupUserMenuAndAuth(supabase, state);
-            await setupGlobalSearch(supabase, state.currentUser);
+            
+            // --- THIS IS THE FIX ---
+            // Reverted to the "known working" call, as you pointed out.
+            await setupGlobalSearch(supabase); 
+            // --- END OF FIX ---
+
             await checkAndSetNotifications(supabase);
             setupPageEventListeners();
 
