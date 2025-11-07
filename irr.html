@@ -20,6 +20,8 @@
             flex-wrap: wrap;
             border-bottom: 2px solid var(--border-color, #444);
             margin-bottom: 1.5rem;
+            /* NEW: Add max-width to match other elements */
+            max-width: 900px;
         }
 
         .irr-tab {
@@ -82,7 +84,7 @@
             background-color: var(--bg-dark, #2a2a2a);
             border-radius: 8px;
             padding: 1.5rem;
-            margin-bottom: 2rem; /* Added margin to separate from tabs */
+            margin-bottom: 1.5rem; /* MODIFIED: Aligned margin */
         }
 
         /* NEW: Grid for Global Results */
@@ -261,7 +263,7 @@
                 
                 <h2>Multi-Site IRR Calculator</h2>
 
-                <div class="form-buttons" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; align-items: center;">
+                <div class="form-buttons" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; align-items: center; max-width: 900px;">
                     <button type="button" id="new-project-btn" class="btn-secondary"><i class="fas fa-file"></i> New Project</button>
                     <button type="button" id="load-project-btn" class="btn-secondary"><i class="fas fa-folder-open"></i> Load Project</button>
                     <button type="button" id="save-project-btn" class="btn-primary cognito-style-btn"><i class="fas fa-save"></i> Save Project</button>
@@ -285,7 +287,7 @@
                     </div>
                 </div>
 
-                <div id="global-results-container">
+                <div id="global-results-container" style="max-width: 900px;">
                     <h3>Global Project Results (All Sites)</h3>
                     <div class="global-results-grid">
                         <div>
@@ -309,7 +311,7 @@
                         </div>
                 </div>
 
-                <div id="site-tabs-container" class="irr-tab-bar">
+                <div id="site-tabs-container" class="irr-tab-bar" style="max-width: 900px;">
                     </div>
 
                 <div id="site-forms-container">
