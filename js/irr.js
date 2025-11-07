@@ -1,5 +1,5 @@
 /**
- * Multi-Site IRR Calculator for Constellation CRM (v7.2 - CapEx Update)
+ * Multi-Site IRR Calculator for Constellation CRM (v7.3 - Product Cost Update)
  *
  * This script powers the irr.html page, managing multiple sites
  * as tabs and calculating a global IRR and Payback.
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const globalAnnualIRREl = document.getElementById('global-annual-irr');
     const globalTcvEl = document.getElementById('global-tcv');
     const globalPaybackEl = document.getElementById('global-payback'); 
-    const globalCapitalInvestmentEl = document.getElementById('global-capital-investment'); // <-- NEW
+    const globalCapitalInvestmentEl = document.getElementById('global-capital-investment');
     const globalErrorMessageEl = document.getElementById('global-error-message');
 
     // Load Modal Elements
@@ -129,9 +129,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             inputs: {
                 constructionCost: 100000,
                 engineeringCost: 20000,
+                productCost: 0, // <-- NEW
+                monthlyCost: 500,
                 nrr: 5000,
                 mrr: 3000,
-                monthlyCost: 500,
                 term: 60,
             },
             result: {
@@ -262,12 +263,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 1. Read inputs from DOM and save to state
         site.name = formWrapper.querySelector('.site-name-input').value || `Site ${site.id}`;
+        site.inputs.term = parseInt(formWrapper.querySelector('.term-input').value) || 0; // <-- MOVED
         site.inputs.constructionCost = parseFloat(formWrapper.querySelector('.construction-cost-input').value) || 0;
         site.inputs.engineeringCost = parseFloat(formWrapper.querySelector('.engineering-cost-input').value) || 0;
+        site.inputs.productCost = parseFloat(formWrapper.querySelector('.product-cost-input').value) || 0; // <-- NEW
+        site.inputs.monthlyCost = parseFloat(formWrapper.querySelector('.monthly-cost-input').value) || 0;
         site.inputs.nrr = parseFloat(formWrapper.querySelector('.nrr-input').value) || 0;
         site.inputs.mrr = parseFloat(formWrapper.querySelector('.mrr-input').value) || 0;
-        site.inputs.monthlyCost = parseFloat(formWrapper.querySelector('.monthly-cost-input').value) || 0;
-        site.inputs.term = parseInt(formWrapper.querySelector('.term-input').value) || 0;
         
         // 2. Calculate TCV
         const siteTCV = (site.inputs.mrr * site.inputs.term) + site.inputs.nrr;
@@ -323,16 +325,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         let maxTerm = 0;
         let globalTCV = 0;
         
-        // --- NEW: Global Payback & CapEx Vars ---
+        // --- MODIFIED: Global Payback & CapEx Vars ---
         let totalGlobalConstructionCost = 0;
         let totalGlobalEngineeringCost = 0;
-        let totalGlobalCapitalInvestment = 0; // <-- NEW
+        let totalGlobalProductCost = 0; // <-- NEW
+        let totalGlobalCapitalInvestment = 0;
         let totalGlobalNrr = 0;
         let totalGlobalMrr = 0;
         let totalGlobalMonthlyCost = 0;
         
         if (state.sites.length === 0) {
-            showGlobalResults(NaN, 0, 0, null, 0, null, 0); // <-- NEW: Added CapEx
+            showGlobalResults(NaN, 0, 0, null, 0, null, 0);
             return;
         }
 
@@ -348,18 +351,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Sum inputs for global payback & CapEx
             totalGlobalConstructionCost += site.inputs.constructionCost || 0;
             totalGlobalEngineeringCost += site.inputs.engineeringCost || 0;
+            totalGlobalProductCost += site.inputs.productCost || 0; // <-- NEW
             totalGlobalNrr += site.inputs.nrr || 0;
             totalGlobalMrr += site.inputs.mrr || 0;
             totalGlobalMonthlyCost += site.inputs.monthlyCost || 0;
         });
         
-        // <-- NEW: Calculate Total Capital Investment -->
-        totalGlobalCapitalInvestment = totalGlobalConstructionCost + totalGlobalEngineeringCost;
+        // <-- MODIFIED: Calculate Total Capital Investment -->
+        totalGlobalCapitalInvestment = totalGlobalConstructionCost + totalGlobalEngineeringCost + totalGlobalProductCost;
 
         globalTcvEl.textContent = `$${globalTCV.toLocaleString()}`;
         globalTcvEl.classList.remove('pending');
         
-        // <-- NEW: Update CapEx UI -->
         globalCapitalInvestmentEl.textContent = `$${totalGlobalCapitalInvestment.toLocaleString()}`;
         globalCapitalInvestmentEl.classList.remove('pending');
         globalCapitalInvestmentEl.style.color = 'var(--text-color, #fff)';
@@ -369,6 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const globalPaybackInputs = {
             constructionCost: totalGlobalConstructionCost,
             engineeringCost: totalGlobalEngineeringCost,
+            productCost: totalGlobalProductCost, // <-- NEW
             nrr: totalGlobalNrr,
             mrr: totalGlobalMrr,
             monthlyCost: totalGlobalMonthlyCost,
@@ -380,6 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         globalCashFlows = new Array(maxTerm + 1).fill(0);
 
         for (const site of state.sites) {
+            // getCashFlowsForSite is now updated to include productCost
             const { cashFlows, error } = getCashFlowsForSite(site.inputs);
             if (!error) {
                 for (let i = 0; i < cashFlows.length; i++) {
@@ -395,13 +400,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (monthZero >= 0 && !globalCashFlows.slice(1).some(cf => cf < 0)) {
             showGlobalError("Global project has no negative cash flow (no investment).");
-            // Still show payback
             setPaybackUI(globalPaybackEl, globalPaybackMonths, maxTerm, globalPaybackRatio);
             return;
         }
          if (monthZero <= 0 && !positiveFlow) {
             showGlobalError("Global project has no positive cash flow.");
-            // Still show payback
             setPaybackUI(globalPaybackEl, globalPaybackMonths, maxTerm, globalPaybackRatio);
             return;
         }
@@ -416,7 +419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             globalPaybackMonths,
             maxTerm,
             globalPaybackRatio,
-            totalGlobalCapitalInvestment // <-- NEW: Pass CapEx
+            totalGlobalCapitalInvestment
         );
     }
 
@@ -424,14 +427,14 @@ document.addEventListener('DOMContentLoaded', async () => {
      * Helper to get a cash flow array from a site's inputs
      */
     function getCashFlowsForSite(inputs) {
-        const { nrr, constructionCost, engineeringCost, mrr, monthlyCost, term } = inputs;
+        // <-- MODIFIED: Added productCost
+        const { nrr, constructionCost, engineeringCost, productCost, mrr, monthlyCost, term } = inputs;
         const cashFlows = [];
         
-        // --- NEW: Calculate SG&A (Commission) Cost ---
         const sg_and_a_cost = (mrr * 1) + (nrr * 0.03);
         
-        // --- UPDATED: Added sg_and_a_cost to the initial outflow ---
-        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost + sg_and_a_cost);
+        // <-- MODIFIED: Added productCost to the initial outflow
+        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost + productCost + sg_and_a_cost);
         const monthlyNetCashFlow = mrr - monthlyCost;
 
         if (term <= 0) return { cashFlows: [], error: "Term must be > 0" };
@@ -449,12 +452,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
-     * NEW: Helper to get payback metrics from a site's inputs
+     * MODIFIED: Helper to get payback metrics from a site's inputs
      */
     function getPaybackForSite(inputs) {
-        const { constructionCost, engineeringCost, nrr, mrr, monthlyCost, term } = inputs;
+        // <-- MODIFIED: Added productCost
+        const { constructionCost, engineeringCost, productCost, nrr, mrr, monthlyCost, term } = inputs;
 
-        const netCapex = (constructionCost + engineeringCost) - nrr;
+        // <-- MODIFIED: Added productCost to netCapex
+        const netCapex = (constructionCost + engineeringCost + productCost) - nrr;
         const netMonthlyIncome = mrr - monthlyCost;
 
         let paybackMonths = null;
@@ -467,21 +472,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             paybackRatio = Infinity;
         } else if (netMonthlyIncome <= 0) {
             if (netCapex > 0) {
-                // Costs money upfront and loses money monthly -> never pays back
                 paybackMonths = Infinity;
                 paybackRatio = Infinity;
             } else {
-                // Profitable upfront, but loses money monthly
-                // We'll say it "pays back" at month 0
                 paybackMonths = 0;
                 paybackRatio = 0;
             }
         } else if (netCapex <= 0) {
-            // Profitable upfront and makes money monthly -> pays back at month 0
             paybackMonths = 0;
             paybackRatio = 0;
         } else {
-            // Standard case: costs money upfront, makes money monthly
             paybackMonths = netCapex / netMonthlyIncome;
             paybackRatio = paybackMonths / term;
         }
@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'error':
                 el.style.color = 'var(--color-warning, #f97316)';
                 break;
-            case 'default': // <-- NEW
+            case 'default':
                 el.style.color = 'var(--text-color, #fff)';
                 break;
             case 'pending':
@@ -516,9 +516,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    /**
-     * NEW: Helper to set payback UI elements with color coding
-     */
     function setPaybackUI(element, paybackMonths, term, ratio) {
         element.classList.remove('pending', 'payback-green', 'payback-yellow', 'payback-red');
         
@@ -549,7 +546,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setResultUI(tcvEl, `$${tcv.toLocaleString()}`, 'tcv');
         tcvEl.style.color = 'var(--color-primary, #3b82f6)';
         
-        // Set Payback UI
         setPaybackUI(paybackEl, paybackMonths, term, paybackRatio);
     }
 
@@ -560,22 +556,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         setResultUI(annualIRREl, '--%', 'error');
         setResultUI(tcvEl, '$0', 'error');
         
-        // Reset Payback UI
         setPaybackUI(paybackEl, null, null, null);
     }
 
-    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalTerm, globalPaybackRatio, totalCapitalInvestment) { // <-- NEW
+    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalTerm, globalPaybackRatio, totalCapitalInvestment) {
         globalErrorMessageEl.classList.add('hidden');
         
-        // TCV
         setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
         globalTcvEl.style.color = 'var(--color-primary, #3b82f6)';
         
-        // Capital Investment
-        setResultUI(globalCapitalInvestmentEl, `$${(totalCapitalInvestment || 0).toLocaleString()}`, 'default'); // <-- NEW
-        globalCapitalInvestmentEl.style.color = 'var(--text-color, #fff)'; // <-- NEW
+        setResultUI(globalCapitalInvestmentEl, `$${(totalCapitalInvestment || 0).toLocaleString()}`, 'default');
+        globalCapitalInvestmentEl.style.color = 'var(--text-color, #fff)';
 
-        // Global Payback UI
         setPaybackUI(globalPaybackEl, globalPaybackMonths, globalTerm, globalPaybackRatio);
 
         if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
@@ -598,20 +590,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         setResultUI(globalDecisionEl, 'Error', 'error');
         setResultUI(globalAnnualIRREl, '--%', 'error');
         setResultUI(globalTcvEl, '$0', 'error');
-        setResultUI(globalCapitalInvestmentEl, '$0', 'error'); // <-- NEW
-        // We still might have valid payback, so don't reset it here
-        // setPaybackUI(globalPaybackEl, null, null, null); 
+        setResultUI(globalCapitalInvestmentEl, '$0', 'error');
+        
         globalErrorMessageEl.textContent = message;
         globalErrorMessageEl.classList.remove('hidden');
     }
     
-    // --- 6. Print Function ---
-
-  // --- 6. Print Function ---
-
-   // --- 6. Print Function ---
-// --- 6. Print Function ---
-
     // --- 6. Print Function ---
 
     function handlePrintReport() {
@@ -636,7 +620,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
                 .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
                 
-                /* ***** MODIFIED: Added text-align: center; ***** */
                 .global-results-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; text-align: center; }
                 
                 .global-results-grid p { margin: 0; color: #555; font-size: 0.9rem; }
@@ -694,7 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <th>TCV ($)</th>
                         <th>Construction ($)</th>
                         <th>Eng. ($)</th>
-                        <th>NRR ($)</th>
+                        <th>Product ($)</th> <th>NRR ($)</th>
                         <th>MRR ($)</th>
                         <th>Monthly Cost ($)</th>
                         <th>Term (Mos)</th>
@@ -730,7 +713,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td>$${(res.tcv || 0).toLocaleString()}</td>
                     <td>${inputs.constructionCost.toLocaleString()}</td>
                     <td>${inputs.engineeringCost.toLocaleString()}</td>
-                    <td>${inputs.nrr.toLocaleString()}</td>
+                    <td>${inputs.productCost.toLocaleString()}</td> <td>${inputs.nrr.toLocaleString()}</td>
                     <td>${inputs.mrr.toLocaleString()}</td>
                     <td>${inputs.monthlyCost.toLocaleString()}</td>
                     <td>${inputs.term}</td>
@@ -799,20 +782,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         csvContent.push(`Global Target IRR:,${globalTargetIRR}`);
         csvContent.push("");
         
-        // --- Site Table Headers ---
+        // --- MODIFIED: Site Table Headers ---
         const headers = [
             "Site Name",            // Col A
             "Construction Cost",    // Col B
             "Engineering Cost",     // Col C
-            "NRR (Upfront)",        // Col D
-            "MRR",                  // Col E
-            "Monthly Cost",         // Col F
-            "Term (Months)",        // Col G
-            "TCV (Formula)",        // Col H
-            "Calculated IRR (Formula)", // Col I
-            "Decision (Formula)",   // Col J
-            "Payback Months (Formula)", // Col K
-            "Payback Ratio (Formula)"   // Col L
+            "Product Cost",         // Col D  <-- NEW
+            "NRR (Upfront)",        // Col E
+            "MRR",                  // Col F
+            "Monthly Cost",         // Col G
+            "Term (Months)",        // Col H
+            "TCV (Formula)",        // Col I
+            "Calculated IRR (Formula)", // Col J
+            "Decision (Formula)",   // Col K
+            "Payback Months (Formula)", // Col L
+            "Payback Ratio (Formula)"   // Col M
         ];
         csvContent.push(headers.join(','));
 
@@ -822,22 +806,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             return `"=${escapedFormula}"`;
         };
 
-        // --- Site Data Rows ---
+        // --- MODIFIED: Site Data Rows ---
         const startRow = 5;
         state.sites.forEach((site, index) => {
             const rowNum = startRow + index;
             const i = site.inputs;
             
-            const tcvFormulaBase = `ROUND((E${rowNum}*G${rowNum})+D${rowNum}, 2)`;
-            const irrFormulaBase = `IFERROR((1+RATE(G${rowNum}, F${rowNum}-E${rowNum}, B${rowNum}+C${rowNum}+E${rowNum}-0.97*D${rowNum}))^12-1, "Error")`;
-            const decisionFormulaBase = `IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))`;
-            const paybackMonthsBase = `IFERROR(IF(E${rowNum}-F${rowNum}<=0, "Never", IF(B${rowNum}+C${rowNum}-D${rowNum}<=0, 0, (B${rowNum}+C${rowNum}-D${rowNum}) / (E${rowNum}-F${rowNum}))), "Error")`;
-            const paybackRatioBase = `IFERROR(IF(K${rowNum}="Never", "Never", K${rowNum}/G${rowNum}), "Error")`;
+            // --- MODIFIED: All formulas shifted and updated ---
+            const tcvFormulaBase = `ROUND((F${rowNum}*H${rowNum})+E${rowNum}, 2)`;
+            
+            // PV = B+C+D+F-0.97*E
+            const irrFormulaBase = `IFERROR((1+RATE(H${rowNum}, G${rowNum}-F${rowNum}, B${rowNum}+C${rowNum}+D${rowNum}+F${rowNum}-0.97*E${rowNum}))^12-1, "Error")`;
+            const decisionFormulaBase = `IF(J${rowNum}="Error", "Error", IF(J${rowNum}>=B$2, "GO", "NO GO"))`;
+
+            // Payback Months = (B+C+D-E) / (F-G)
+            const paybackMonthsBase = `IFERROR(IF(F${rowNum}-G${rowNum}<=0, "Never", IF(B${rowNum}+C${rowNum}+D${rowNum}-E${rowNum}<=0, 0, (B${rowNum}+C${rowNum}+D${rowNum}-E${rowNum}) / (F${rowNum}-G${rowNum}))), "Error")`;
+            const paybackRatioBase = `IFERROR(IF(L${rowNum}="Never", "Never", L${rowNum}/H${rowNum}), "Error")`;
+
 
             const row = [
                 escapeCSV(site.name),
                 i.constructionCost,
                 i.engineeringCost,
+                i.productCost, // <-- NEW
                 i.nrr,
                 i.mrr,
                 i.monthlyCost,
@@ -851,51 +842,51 @@ document.addEventListener('DOMContentLoaded', async () => {
             csvContent.push(row.join(','));
         });
 
-        // --- Global Summary ---
+        // --- MODIFIED: Global Summary ---
         if (state.sites.length > 0) {
             const lastRow = startRow + state.sites.length - 1;
             csvContent.push("");
             
             // Define summary row numbers
             const globalTcvRow = lastRow + 2;
-            const globalCapExRow = globalTcvRow + 1; // <-- NEW
-            const globalIrrRow = globalCapExRow + 1; // <-- Renumbered
-            const globalDecisionRow = globalIrrRow + 1; // <-- Renumbered
-            const globalPaybackMonthsRow = globalDecisionRow + 1; // <-- Renumbered
-            const globalPaybackRatioRow = globalPaybackMonthsRow + 1; // <-- Renumbered
+            const globalCapExRow = globalTcvRow + 1;
+            const globalIrrRow = globalCapExRow + 1;
+            const globalDecisionRow = globalIrrRow + 1;
+            const globalPaybackMonthsRow = globalDecisionRow + 1;
+            const globalPaybackRatioRow = globalPaybackMonthsRow + 1;
 
-            // --- 1. Global TCV (Always a formula) ---
-            const globalTcvFormulaBase = `SUM(H${startRow}:H${lastRow})`;
+            // --- 1. Global TCV (Formula uses new Col I) ---
+            const globalTcvFormulaBase = `SUM(I${startRow}:I${lastRow})`;
             csvContent.push(`Global TCV (Formula):,,${createCsvFormula(globalTcvFormulaBase)}`);
             
-            // --- 2. Global Capital Investment (Always a formula) ---
-            const constRange = `B${startRow}:B${lastRow}`; // <-- NEW
-            const engRange = `C${startRow}:C${lastRow}`; // <-- NEW
-            const globalCapExFormulaBase = `SUM(${constRange})+SUM(${engRange})`; // <-- NEW
-            csvContent.push(`Total Capital Investment (Formula):,,${createCsvFormula(globalCapExFormulaBase)}`); // <-- NEW
+            // --- 2. Global Capital Investment (Formula uses new Col D) ---
+            const constRange = `B${startRow}:B${lastRow}`;
+            const engRange = `C${startRow}:C${lastRow}`;
+            const prodRange = `D${startRow}:D${lastRow}`; // <-- NEW
+            const globalCapExFormulaBase = `SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})`; // <-- MODIFIED
+            csvContent.push(`Total Capital Investment (Formula):,,${createCsvFormula(globalCapExFormulaBase)}`);
 
             // --- 3. Global IRR & Payback (Conditional Formula) ---
             const firstTerm = state.sites[0]?.inputs.term;
             const allTermsSame = state.sites.every(s => s.inputs.term === firstTerm);
 
             if (allTermsSame && firstTerm > 0) {
-                // ALL terms are the same. We can use a single, powerful RATE formula.
-                const firstTermCell = `G${startRow}`;
-                const pmtRange = `F${startRow}:F${lastRow}`;
-                const mrrRange = `E${startRow}:E${lastRow}`;
-                const nrrRange = `D${startRow}:D${lastRow}`;
-                // constRange and engRange already defined above
+                const firstTermCell = `H${startRow}`; // <-- MODIFIED (was G)
+                const pmtRange = `G${startRow}:G${lastRow}`; // <-- MODIFIED (was F)
+                const mrrRange = `F${startRow}:F${lastRow}`; // <-- MODIFIED (was E)
+                const nrrRange = `E${startRow}:E${lastRow}`; // <-- MODIFIED (was D)
+                // constRange, engRange, prodRange defined above
 
-                // Global IRR
-                const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})+SUM(${mrrRange})-0.97*SUM(${nrrRange})))^12-1, "Error")`;
+                // Global IRR (Formula uses new Col D)
+                const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})+SUM(${mrrRange})-0.97*SUM(${nrrRange})))^12-1, "Error")`;
                 csvContent.push(`Global IRR (Formula):,,${createCsvFormula(globalIrrFormulaBase)}`);
                 
                 // Global Decision
                 const globalDecisionFormulaBase = `IF(C${globalIrrRow}="Error", "Error", IF(C${globalIrrRow}>=B$2, "GO", "NO GO"))`;
                 csvContent.push(`Global Decision (Formula):,,${createCsvFormula(globalDecisionFormulaBase)}`);
 
-                // Global Payback Months
-                const globalPaybackMonthsBase = `IFERROR(IF(SUM(${mrrRange})-SUM(${pmtRange})<=0, "Never", IF(SUM(${constRange})+SUM(${engRange})-SUM(${nrrRange})<=0, 0, (SUM(${constRange})+SUM(${engRange})-SUM(${nrrRange})) / (SUM(${mrrRange})-SUM(${pmtRange})))), "Error")`;
+                // Global Payback Months (Formula uses new Col D)
+                const globalPaybackMonthsBase = `IFERROR(IF(SUM(${mrrRange})-SUM(${pmtRange})<=0, "Never", IF(SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})-SUM(${nrrRange})<=0, 0, (SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})-SUM(${nrrRange})) / (SUM(${mrrRange})-SUM(${pmtRange})))), "Error")`;
                 csvContent.push(`Global Payback Months (Formula):,,${createCsvFormula(globalPaybackMonthsBase)}`);
 
                 // Global Payback Ratio
@@ -903,9 +894,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 csvContent.push(`Global Payback Ratio (Formula):,,${createCsvFormula(globalPaybackRatioBase)}`);
 
             } else {
-                // Terms are different. Fall back to calculated value.
-                // Note: CapEx and TCV are already handled by formulas above.
-                
+                // Fallback to calculated values
                 const globalIRRValue = globalAnnualIRREl.textContent;
                 csvContent.push(`Global IRR (Calculated):,,${escapeCSV(globalIRRValue)}`);
                 
@@ -1086,14 +1075,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             newFormWrapper.dataset.siteId = site.id;
             
+            // Populate all inputs from saved data
             newFormWrapper.querySelector('.site-name-input').value = site.name;
             const inputs = site.inputs || {};
+            newFormWrapper.querySelector('.term-input').value = inputs.term || 0; // <-- MODIFIED
             newFormWrapper.querySelector('.construction-cost-input').value = inputs.constructionCost || 0;
             newFormWrapper.querySelector('.engineering-cost-input').value = inputs.engineeringCost || 0;
+            newFormWrapper.querySelector('.product-cost-input').value = inputs.productCost || 0; // <-- NEW
+            newFormWrapper.querySelector('.monthly-cost-input').value = inputs.monthlyCost || 0;
             newFormWrapper.querySelector('.nrr-input').value = inputs.nrr || 0;
             newFormWrapper.querySelector('.mrr-input').value = inputs.mrr || 0;
-            newFormWrapper.querySelector('.monthly-cost-input').value = inputs.monthlyCost || 0;
-            newFormWrapper.querySelector('.term-input').value = inputs.term || 0;
             
             siteFormsContainer.appendChild(templateClone);
             attachFormListeners(newFormWrapper);
