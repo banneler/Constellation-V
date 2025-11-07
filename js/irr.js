@@ -1,5 +1,5 @@
 /**
- * Multi-Site IRR Calculator for Constellation CRM (v7.1 - UI Tweaks)
+ * Multi-Site IRR Calculator for Constellation CRM (v7.2 - CapEx Update)
  *
  * This script powers the irr.html page, managing multiple sites
  * as tabs and calculating a global IRR and Payback.
@@ -7,7 +7,7 @@
  * Key features:
  * - Saves/Loads projects to/from Supabase 'irr_projects' table.
  * - Uses a single GLOBAL Target IRR for all calculations.
- * - Calculates and displays TCV, IRR, and Payback for sites and the global project.
+ * - Calculates and displays TCV, IRR, Payback, and Capital Investment.
  * - Exports a CSV with LIVE EXCEL FORMULAS for TCV, IRR, and Decision.
  * - Factors in SG&A (Commission) to all IRR calculations.
  */
@@ -64,7 +64,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const globalDecisionEl = document.getElementById('global-decision');
     const globalAnnualIRREl = document.getElementById('global-annual-irr');
     const globalTcvEl = document.getElementById('global-tcv');
-    const globalPaybackEl = document.getElementById('global-payback');
+    const globalPaybackEl = document.getElementById('global-payback'); 
+    const globalCapitalInvestmentEl = document.getElementById('global-capital-investment'); // <-- NEW
     const globalErrorMessageEl = document.getElementById('global-error-message');
 
     // Load Modal Elements
@@ -322,15 +323,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         let maxTerm = 0;
         let globalTCV = 0;
         
-        // --- NEW: Global Payback Vars ---
+        // --- NEW: Global Payback & CapEx Vars ---
         let totalGlobalConstructionCost = 0;
         let totalGlobalEngineeringCost = 0;
+        let totalGlobalCapitalInvestment = 0; // <-- NEW
         let totalGlobalNrr = 0;
         let totalGlobalMrr = 0;
         let totalGlobalMonthlyCost = 0;
         
         if (state.sites.length === 0) {
-            showGlobalResults(NaN, 0, 0, null, 0, null);
+            showGlobalResults(NaN, 0, 0, null, 0, null, 0); // <-- NEW: Added CapEx
             return;
         }
 
@@ -343,7 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             globalTCV += site.result.tcv || 0;
             
-            // Sum inputs for global payback
+            // Sum inputs for global payback & CapEx
             totalGlobalConstructionCost += site.inputs.constructionCost || 0;
             totalGlobalEngineeringCost += site.inputs.engineeringCost || 0;
             totalGlobalNrr += site.inputs.nrr || 0;
@@ -351,8 +353,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalGlobalMonthlyCost += site.inputs.monthlyCost || 0;
         });
         
+        // <-- NEW: Calculate Total Capital Investment -->
+        totalGlobalCapitalInvestment = totalGlobalConstructionCost + totalGlobalEngineeringCost;
+
         globalTcvEl.textContent = `$${globalTCV.toLocaleString()}`;
         globalTcvEl.classList.remove('pending');
+        
+        // <-- NEW: Update CapEx UI -->
+        globalCapitalInvestmentEl.textContent = `$${totalGlobalCapitalInvestment.toLocaleString()}`;
+        globalCapitalInvestmentEl.classList.remove('pending');
+        globalCapitalInvestmentEl.style.color = 'var(--text-color, #fff)';
+
 
         // --- 2. Calculate Global Payback ---
         const globalPaybackInputs = {
@@ -404,7 +415,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             globalTCV,
             globalPaybackMonths,
             maxTerm,
-            globalPaybackRatio
+            globalPaybackRatio,
+            totalGlobalCapitalInvestment // <-- NEW: Pass CapEx
         );
     }
 
@@ -480,7 +492,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 5. UI Update Functions ---
 
-    function setResultUI(el, text, state) { // state: 'go', 'nogo', 'error', 'pending'
+    function setResultUI(el, text, state) { // state: 'go', 'nogo', 'error', 'pending', 'default'
         el.textContent = text;
         el.classList.remove('go', 'nogo', 'error', 'pending');
         
@@ -493,6 +505,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 break;
             case 'error':
                 el.style.color = 'var(--color-warning, #f97316)';
+                break;
+            case 'default': // <-- NEW
+                el.style.color = 'var(--text-color, #fff)';
                 break;
             case 'pending':
             default:
@@ -549,12 +564,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         setPaybackUI(paybackEl, null, null, null);
     }
 
-    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalTerm, globalPaybackRatio) {
+    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalTerm, globalPaybackRatio, totalCapitalInvestment) { // <-- NEW
         globalErrorMessageEl.classList.add('hidden');
+        
+        // TCV
         setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
         globalTcvEl.style.color = 'var(--color-primary, #3b82f6)';
         
-        // Set Global Payback UI
+        // Capital Investment
+        setResultUI(globalCapitalInvestmentEl, `$${(totalCapitalInvestment || 0).toLocaleString()}`, 'default'); // <-- NEW
+        globalCapitalInvestmentEl.style.color = 'var(--text-color, #fff)'; // <-- NEW
+
+        // Global Payback UI
         setPaybackUI(globalPaybackEl, globalPaybackMonths, globalTerm, globalPaybackRatio);
 
         if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
@@ -577,6 +598,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setResultUI(globalDecisionEl, 'Error', 'error');
         setResultUI(globalAnnualIRREl, '--%', 'error');
         setResultUI(globalTcvEl, '$0', 'error');
+        setResultUI(globalCapitalInvestmentEl, '$0', 'error'); // <-- NEW
         // We still might have valid payback, so don't reset it here
         // setPaybackUI(globalPaybackEl, null, null, null); 
         globalErrorMessageEl.textContent = message;
@@ -599,11 +621,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 th { background-color: #f4f4f4; }
                 .go { color: #16a34a; font-weight: bold; }
                 .nogo { color: #dc2626; font-weight: bold; }
-                .warn { color: #f59e0b; font-weight: bold; } /* NEW for Payback */
+                .warn { color: #f59e0b; font-weight: bold; }
                 .error { color: #f97316; font-weight: bold; }
                 .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
                 .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
-                .global-results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; }
+                .global-results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 20px; }
                 .global-results-grid p { margin: 0; color: #555; font-size: 0.9rem; }
                 .global-results-grid .value { font-size: 1.75rem; font-weight: bold; margin-top: 5px; }
             </style>
@@ -613,7 +635,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const globalDecision = globalDecisionEl.textContent;
         const globalDecisionClass = globalDecision === 'GO' ? 'go' : (globalDecision === 'NO GO' ? 'nogo' : 'error');
         
-        // NEW: Get Payback text and class
         const globalPayback = globalPaybackEl.textContent;
         const globalPaybackClass = (globalPaybackEl.className.match(/payback-(green|yellow|red)/) || [])[0] || '';
         let globalPaybackPrintClass = 'pending';
@@ -632,6 +653,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div>
                         <p>Global Annual IRR</p>
                         <div class="value ${globalDecisionClass}">${globalAnnualIRREl.textContent}</div>
+                    </div>
+                    <div>
+                        <p>Total Capital Invest.</p>
+                        <div class="value" style="color: #111;">${globalCapitalInvestmentEl.textContent}</div>
                     </div>
                     <div>
                         <p>Global TCV ($)</p>
@@ -674,7 +699,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const irrText = res.error ? 'Error' : `${(res.annualIRR * 100).toFixed(2)}%`;
             const decisionClass = res.decision === 'GO' ? 'go' : (res.decision === 'NO GO' ? 'nogo' : 'error');
 
-            // NEW: Format Payback for print
             let p_text = '-- / --';
             let p_class = '';
             if (!isFinite(res.paybackRatio)) {
@@ -819,26 +843,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             const lastRow = startRow + state.sites.length - 1;
             csvContent.push("");
             
+            // Define summary row numbers
             const globalTcvRow = lastRow + 2;
-            const globalIrrRow = globalTcvRow + 1;
-            const globalDecisionRow = globalIrrRow + 1;
-            const globalPaybackMonthsRow = globalDecisionRow + 1;
-            const globalPaybackRatioRow = globalPaybackMonthsRow + 1;
+            const globalCapExRow = globalTcvRow + 1; // <-- NEW
+            const globalIrrRow = globalCapExRow + 1; // <-- Renumbered
+            const globalDecisionRow = globalIrrRow + 1; // <-- Renumbered
+            const globalPaybackMonthsRow = globalDecisionRow + 1; // <-- Renumbered
+            const globalPaybackRatioRow = globalPaybackMonthsRow + 1; // <-- Renumbered
 
-            // Global TCV
+            // --- 1. Global TCV (Always a formula) ---
             const globalTcvFormulaBase = `SUM(H${startRow}:H${lastRow})`;
             csvContent.push(`Global TCV (Formula):,,${createCsvFormula(globalTcvFormulaBase)}`);
             
+            // --- 2. Global Capital Investment (Always a formula) ---
+            const constRange = `B${startRow}:B${lastRow}`; // <-- NEW
+            const engRange = `C${startRow}:C${lastRow}`; // <-- NEW
+            const globalCapExFormulaBase = `SUM(${constRange})+SUM(${engRange})`; // <-- NEW
+            csvContent.push(`Total Capital Investment (Formula):,,${createCsvFormula(globalCapExFormulaBase)}`); // <-- NEW
+
+            // --- 3. Global IRR & Payback (Conditional Formula) ---
             const firstTerm = state.sites[0]?.inputs.term;
             const allTermsSame = state.sites.every(s => s.inputs.term === firstTerm);
 
             if (allTermsSame && firstTerm > 0) {
+                // ALL terms are the same. We can use a single, powerful RATE formula.
                 const firstTermCell = `G${startRow}`;
                 const pmtRange = `F${startRow}:F${lastRow}`;
                 const mrrRange = `E${startRow}:E${lastRow}`;
-                const constRange = `B${startRow}:B${lastRow}`;
-                const engRange = `C${startRow}:C${lastRow}`;
                 const nrrRange = `D${startRow}:D${lastRow}`;
+                // constRange and engRange already defined above
 
                 // Global IRR
                 const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})+SUM(${mrrRange})-0.97*SUM(${nrrRange})))^12-1, "Error")`;
@@ -857,7 +890,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 csvContent.push(`Global Payback Ratio (Formula):,,${createCsvFormula(globalPaybackRatioBase)}`);
 
             } else {
-                // Fallback to calculated values
+                // Terms are different. Fall back to calculated value.
+                // Note: CapEx and TCV are already handled by formulas above.
+                
                 const globalIRRValue = globalAnnualIRREl.textContent;
                 csvContent.push(`Global IRR (Calculated):,,${escapeCSV(globalIRRValue)}`);
                 
