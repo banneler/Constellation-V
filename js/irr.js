@@ -609,13 +609,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- 6. Print Function ---
 
+   // --- 6. Print Function ---
+
     function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
 
         let reportHtml = `
             <style>
-                /* ***** MODIFIED: Added font-size: 10pt; to scale all rem units down ***** */
+                /* ***** MODIFIED: Set base font-size to 10pt ***** */
                 body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background: #fff; color: #000; font-size: 10pt; }
                 h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-size: 2rem; }
                 h2 { color: #111; margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
@@ -628,7 +630,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .error { color: #f97316; font-weight: bold; }
                 .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
                 .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
-                .global-results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 20px; }
+                
+                /* ***** MODIFIED: Forced 5 columns and reduced gap ***** */
+                .global-results-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+                
                 .global-results-grid p { margin: 0; color: #555; font-size: 0.9rem; }
                 .global-results-grid .value { font-size: 1.75rem; font-weight: bold; margin-top: 5px; }
             </style>
