@@ -607,13 +607,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // --- 6. Print Function ---
 
+  // --- 6. Print Function ---
+
     function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
 
         let reportHtml = `
             <style>
-                body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background: #fff; color: #000; }
+                /* ***** MODIFIED: Added font-size: 10pt; to scale all rem units down ***** */
+                body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background: #fff; color: #000; font-size: 10pt; }
                 h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-size: 2rem; }
                 h2 { color: #111; margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
