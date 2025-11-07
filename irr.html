@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategic - CRM - Multi-Site IRR Calculator</title>
 
-    <!-- Retaining all styles and scripts from your site's template -->
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -15,7 +14,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 
-    <!-- ... (existing <style> block for tabs, results, etc. is unchanged) ... -->
     <style>
         .irr-tab-bar {
             display: flex;
@@ -103,7 +101,8 @@
             margin: 0;
         }
 
-        #global-annual-irr, #global-tcv {
+        /* MODIFIED: Added #global-payback */
+        #global-annual-irr, #global-tcv, #global-payback {
             font-size: 2.25rem;
             font-weight: 700;
             margin: 0.5rem 0 0 0;
@@ -146,7 +145,8 @@
             margin: 0;
         }
 
-        .individual-annual-irr, .individual-tcv {
+        /* MODIFIED: Added .individual-payback */
+        .individual-annual-irr, .individual-tcv, .individual-payback {
             font-size: 2.25rem;
             font-weight: 700;
             margin: 0.5rem 0 0 0;
@@ -163,6 +163,11 @@
             font-weight: 500;
             text-align: center;
         }
+
+        /* NEW: Payback color styles */
+        .payback-green { color: var(--color-success, #22c55e); }
+        .payback-yellow { color: #f59e0b; } /* Amber/Warning */
+        .payback-red { color: var(--color-danger, #ef4444); }
         
         /* Style for the load project modal */
         #load-project-list {
@@ -201,7 +206,6 @@
 
 <body>
     <div class="crm-container">
-        <!-- Sidebar Navigation (Unchanged) -->
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
             <div class="global-search-container">
@@ -217,7 +221,6 @@
             <a href="sequences.html" class="nav-button">Sequences</a>
             <a href="social_hub.html" class="nav-button">Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
             <div class="nav-bottom-section">
-                <!-- ... (cognito, user menu unchanged) ... -->
                 <div style="position: relative;">
                     <a href="cognito.html" class="nav-button cognito-nav-link">
                         <h1>
@@ -253,19 +256,16 @@
             </div>
         </nav>
         
-        <!-- Main Content Area - Updated Layout -->
         <main class="content-area">
             <div id="irr-calculator" class="content-view active-view">
                 
                 <h2>Multi-Site IRR Calculator</h2>
 
-                <!-- Project Controls Bar - ADDED EXPORT BUTTON -->
                 <div class="form-buttons" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; align-items: center;">
                     <button type="button" id="new-project-btn" class="btn-secondary"><i class="fas fa-file"></i> New Project</button>
                     <button type="button" id="load-project-btn" class="btn-secondary"><i class="fas fa-folder-open"></i> Load Project</button>
                     <button type="button" id="save-project-btn" class="btn-primary cognito-style-btn"><i class="fas fa-save"></i> Save Project</button>
                     
-                    <!-- Divider -->
                     <div style="width: 2px; background: var(--border-color); height: 25px; margin: 0 0.5rem;"></div>
 
                     <button type="button" id="add-site-btn" class="btn-secondary"><i class="fas fa-plus"></i> Add Site</button>
@@ -274,7 +274,6 @@
                 </div>
 
 
-                <!-- Project Inputs (Name and Target) (Unchanged) -->
                 <div class="form-grid" style="grid-template-columns: 1fr 1fr; max-width: 900px; margin-bottom: 1.5rem;">
                     <div>
                         <label for="project-name" style="font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Project Name</label>
@@ -286,7 +285,6 @@
                     </div>
                 </div>
 
-                <!-- Global Results Section (Unchanged) -->
                 <div id="global-results-container">
                     <h3>Global Project Results (All Sites)</h3>
                     <div class="global-results-grid">
@@ -302,29 +300,24 @@
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Global TCV ($)</span>
                             <p id="global-tcv" class="pending">$0</p>
                         </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Global Payback / Term</span>
+                            <p id="global-payback" class="pending">-- / --</p>
+                        </div>
                     </div>
                     <div id="global-error-message" class="hidden">
-                        <!-- Global error message -->
-                    </div>
+                        </div>
                 </div>
 
-                <!-- Tab bar (Unchanged) -->
                 <div id="site-tabs-container" class="irr-tab-bar">
-                    <!-- Tabs go here -->
-                </div>
+                    </div>
 
-                <!-- Site forms container (Unchanged) -->
                 <div id="site-forms-container">
-                    <!-- Forms go here -->
-                </div>
+                    </div>
 
-            </div> <!-- End content-view -->
-        </main>
+            </div> </main>
     </div>
 
-    <!-- 
-      Site Form Template (Unchanged)
-    -->
     <template id="site-form-template">
         <div class="site-form-wrapper" data-site-id="">
             <div class="details-panel" style="max-width: 900px; margin-top: 0;">
@@ -384,17 +377,19 @@
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Site TCV ($)</span>
                             <p class="individual-tcv pending">$0</p>
                         </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Site Payback / Term</span>
+                            <p class="individual-payback pending">-- / --</p>
+                        </div>
                     </div>
                     <div class="individual-error-message hidden">
-                        <!-- Individual error message -->
-                    </div>
+                        </div>
                 </div>
 
             </div>
         </div>
     </template>
 
-    <!-- Main Modal (Unchanged) -->
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content">
             <h3 id="modal-title"></h3>
@@ -404,17 +399,14 @@
         </div>
     </div>
     <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
-        <!-- ... (modal content unchanged) ... -->
-    </div>
+        </div>
     
-    <!-- Load Project Modal (Unchanged) -->
     <div id="load-project-modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width: 600px;">
             <h3 id="load-project-modal-title">Load Project</h3>
             <div id="load-project-modal-body">
                 <p>Select a project to load. This will replace your current, unsaved project.</p>
                 <ul id="load-project-list">
-                    <!-- Projects will be loaded here by JS -->
                     <li class="placeholder-text">Loading...</li>
                 </ul>
             </div>
@@ -435,4 +427,3 @@
     <script type="module" src="js/irr.js"></script>
 </body>
 </html>
-
