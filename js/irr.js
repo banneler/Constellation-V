@@ -612,6 +612,8 @@ document.addEventListener('DOMContentLoaded', async () => {
    // --- 6. Print Function ---
 // --- 6. Print Function ---
 
+    // --- 6. Print Function ---
+
     function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
@@ -623,10 +625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 h2 { color: #111; margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
                 
-                /* ***** MODIFIED: Centered all cells by default ***** */
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-                
-                /* ***** NEW: Left-align the first column (Site Name) ***** */
                 th:first-child, td:first-child { text-align: left; }
 
                 th { background-color: #f4f4f4; }
@@ -637,7 +636,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
                 .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
                 
-                .global-results-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+                /* ***** MODIFIED: Added text-align: center; ***** */
+                .global-results-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; text-align: center; }
                 
                 .global-results-grid p { margin: 0; color: #555; font-size: 0.9rem; }
                 .global-results-grid .value { font-size: 1.75rem; font-weight: bold; margin-top: 5px; }
