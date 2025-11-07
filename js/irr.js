@@ -610,6 +610,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- 6. Print Function ---
 
    // --- 6. Print Function ---
+// --- 6. Print Function ---
 
     function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
@@ -617,12 +618,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let reportHtml = `
             <style>
-                /* ***** MODIFIED: Set base font-size to 10pt ***** */
                 body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background: #fff; color: #000; font-size: 10pt; }
                 h1 { color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-size: 2rem; }
                 h2 { color: #111; margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                
+                /* ***** MODIFIED: Centered all cells by default ***** */
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                
+                /* ***** NEW: Left-align the first column (Site Name) ***** */
+                th:first-child, td:first-child { text-align: left; }
+
                 th { background-color: #f4f4f4; }
                 .go { color: #16a34a; font-weight: bold; }
                 .nogo { color: #dc2626; font-weight: bold; }
@@ -631,7 +637,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .global-results { margin-top: 20px; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background-color: #f9faff; page-break-inside: avoid; }
                 .global-results h2 { margin-top: 0; border: none; font-size: 1.5rem; }
                 
-                /* ***** MODIFIED: Forced 5 columns and reduced gap ***** */
                 .global-results-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
                 
                 .global-results-grid p { margin: 0; color: #555; font-size: 0.9rem; }
