@@ -90,7 +90,8 @@
         /* NEW: Grid for Global Results */
         .global-results-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            /* Updated to fit 5 items better */
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 1rem;
             text-align: center;
         }
@@ -103,8 +104,8 @@
             margin: 0;
         }
 
-        /* MODIFIED: Added #global-payback */
-        #global-annual-irr, #global-tcv, #global-payback {
+        /* MODIFIED: Added #global-capital-investment */
+        #global-annual-irr, #global-tcv, #global-payback, #global-capital-investment {
             font-size: 2.25rem;
             font-weight: 700;
             margin: 0.5rem 0 0 0;
@@ -171,7 +172,7 @@
         .payback-yellow { color: #f59e0b; } /* Amber/Warning */
         .payback-red { color: var(--color-danger, #ef4444); }
         
-        /* Style for the load project modal */
+        /* Style for the load project modal (unchanged) */
         #load-project-list {
             list-style: none;
             padding: 0;
@@ -299,6 +300,10 @@
                             <p id="global-annual-irr" class="pending">--%</p>
                         </div>
                         <div>
+                            <span style="font-size: 1rem; color: var(--text-color-secondary);">Total Capital Invest.</span>
+                            <p id="global-capital-investment" class="pending">$0</p>
+                        </div>
+                        <div>
                             <span style="font-size: 1rem; color: var(--text-color-secondary);">Global TCV ($)</span>
                             <p id="global-tcv" class="pending">$0</p>
                         </div>
@@ -396,7 +401,7 @@
         <div class="modal-content">
             <h3 id="modal-title"></h3>
             <div id="modal-body"></div>
-            <div id="modal-actions" class="modal-actions">
+            <div id="modal-actions" classL="modal-actions">
             </div>
         </div>
     </div>
