@@ -1,5 +1,5 @@
 /**
- * Multi-Site IRR Calculator for Constellation CRM (v7 - Payback Update)
+ * Multi-Site IRR Calculator for Constellation CRM (v7.1 - UI Tweaks)
  *
  * This script powers the irr.html page, managing multiple sites
  * as tabs and calculating a global IRR and Payback.
@@ -23,7 +23,7 @@ import {
     loadSVGs,
     setupGlobalSearch,
     checkAndSetNotifications,
-    formatDate // <-- Added for formatting dates in the load modal
+    formatDate
 } from './shared_constants.js';
 
 // Wait for the DOM to be fully loaded before initializing
@@ -31,15 +31,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 1. Initialize Supabase and State ---
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const IRR_TABLE = 'irr_projects'; // Public table for all users
+    const IRR_TABLE = 'irr_projects';
     
     let state = {
         currentUser: null,
-        sites: [], // Array to hold all site data objects
-        nextSiteId: 1, // Simple counter for unique IDs
-        activeSiteId: null, // The ID of the currently viewed site
-        currentProjectId: null, // null = new project, otherwise DB 'id'
-        isFormDirty: false // Track unsaved changes
+        sites: [],
+        nextSiteId: 1,
+        activeSiteId: null,
+        currentProjectId: null,
+        isFormDirty: false
     };
 
     // --- 2. DOM Element References ---
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const globalDecisionEl = document.getElementById('global-decision');
     const globalAnnualIRREl = document.getElementById('global-annual-irr');
     const globalTcvEl = document.getElementById('global-tcv');
-    const globalPaybackEl = document.getElementById('global-payback'); // <-- NEW
+    const globalPaybackEl = document.getElementById('global-payback');
     const globalErrorMessageEl = document.getElementById('global-error-message');
 
     // Load Modal Elements
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         siteFormsContainer.appendChild(templateClone);
 
         const newSite = {
-            id: newSiteId, // This is a local-to-project ID
+            id: newSiteId,
             name: siteName,
             inputs: {
                 constructionCost: 100000,
@@ -137,8 +137,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 annualIRR: null,
                 tcv: 0,
                 decision: '--',
-                payback: null, // <-- NEW
-                paybackRatio: null, // <-- NEW
+                payback: null,
+                paybackRatio: null,
                 error: null
             }
         };
@@ -251,10 +251,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const decisionEl = resultsContainer.querySelector('.individual-decision');
         const annualIRREl = resultsContainer.querySelector('.individual-annual-irr');
         const tcvEl = resultsContainer.querySelector('.individual-tcv');  
-        const paybackEl = resultsContainer.querySelector('.individual-payback'); // <-- NEW
+        const paybackEl = resultsContainer.querySelector('.individual-payback');
         const errorMessageEl = resultsContainer.querySelector('.individual-error-message');
 
-        if (!decisionEl || !annualIRREl || !tcvEl || !errorMessageEl || !paybackEl) { // <-- NEW
+        if (!decisionEl || !annualIRREl || !tcvEl || !errorMessageEl || !paybackEl) {
             console.error(`runSiteCalculation: Missing results elements for siteId ${siteId}`);
             return;
         }
@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let totalGlobalMonthlyCost = 0;
         
         if (state.sites.length === 0) {
-            showGlobalResults(NaN, 0, 0, null, 0, null); // <-- NEW: Added payback
+            showGlobalResults(NaN, 0, 0, null, 0, null);
             return;
         }
 
@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="value ${globalDecisionClass}">${globalDecision}</div>
                     </div>
                     <div>
-                        <p>Calculated Global Annual IRR</p>
+                        <p>Global Annual IRR</p>
                         <div class="value ${globalDecisionClass}">${globalAnnualIRREl.textContent}</div>
                     </div>
                     <div>
@@ -660,7 +660,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <th>MRR ($)</th>
                         <th>Monthly Cost ($)</th>
                         <th>Term (Mos)</th>
-                        <th>Payback / Term</th> <th>Calculated IRR</th>
+                        <th>Payback / Term</th>
+                        <th>Calculated IRR</th>
                         <th>Decision</th>
                     </tr>
                 </thead>
@@ -696,7 +697,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td>${inputs.mrr.toLocaleString()}</td>
                     <td>${inputs.monthlyCost.toLocaleString()}</td>
                     <td>${inputs.term}</td>
-                    <td class="${p_class}">${p_text}</td> <td class="${decisionClass}">${irrText}</td>
+                    <td class="${p_class}">${p_text}</td>
+                    <td class="${decisionClass}">${irrText}</td>
                     <td class="${decisionClass}">${res.decision}</td>
                 </tr>
             `;
@@ -733,7 +735,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 250);
     }
     
-    // --- 7. NEW: CSV Export Function ---
+    // --- 7. CSV Export Function ---
 
     /**
      * Helper function to escape CSV cell content.
@@ -757,8 +759,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // --- Header Info ---
         csvContent.push(`Project Name:,${escapeCSV(projectName)}`);
-        csvContent.push(`Global Target IRR:,${globalTargetIRR}`); // This will be read by formulas
-        csvContent.push(""); // Spacer row
+        csvContent.push(`Global Target IRR:,${globalTargetIRR}`);
+        csvContent.push("");
         
         // --- Site Table Headers ---
         const headers = [
@@ -772,8 +774,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             "TCV (Formula)",        // Col H
             "Calculated IRR (Formula)", // Col I
             "Decision (Formula)",   // Col J
-            "Payback Months (Formula)", // Col K <-- NEW
-            "Payback Ratio (Formula)"   // Col L <-- NEW
+            "Payback Months (Formula)", // Col K
+            "Payback Ratio (Formula)"   // Col L
         ];
         csvContent.push(headers.join(','));
 
@@ -784,24 +786,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         // --- Site Data Rows ---
-        const startRow = 5; // CSV row 5 is Excel row 5 (1-based index)
+        const startRow = 5;
         state.sites.forEach((site, index) => {
             const rowNum = startRow + index;
             const i = site.inputs;
             
-            // --- 1. Define formulas WITHOUT leading '=' or outer quotes. ---
             const tcvFormulaBase = `ROUND((E${rowNum}*G${rowNum})+D${rowNum}, 2)`;
-            
-            // PV = B+C+E-0.97*D
             const irrFormulaBase = `IFERROR((1+RATE(G${rowNum}, F${rowNum}-E${rowNum}, B${rowNum}+C${rowNum}+E${rowNum}-0.97*D${rowNum}))^12-1, "Error")`;
             const decisionFormulaBase = `IF(I${rowNum}="Error", "Error", IF(I${rowNum}>=B$2, "GO", "NO GO"))`;
-
-            // NEW: Payback Formulas
-            // Payback Months = (B+C-D) / (E-F)
             const paybackMonthsBase = `IFERROR(IF(E${rowNum}-F${rowNum}<=0, "Never", IF(B${rowNum}+C${rowNum}-D${rowNum}<=0, 0, (B${rowNum}+C${rowNum}-D${rowNum}) / (E${rowNum}-F${rowNum}))), "Error")`;
-            // Payback Ratio = K / G
             const paybackRatioBase = `IFERROR(IF(K${rowNum}="Never", "Never", K${rowNum}/G${rowNum}), "Error")`;
-
 
             const row = [
                 escapeCSV(site.name),
@@ -814,8 +808,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 createCsvFormula(tcvFormulaBase),
                 createCsvFormula(irrFormulaBase),
                 createCsvFormula(decisionFormulaBase),
-                createCsvFormula(paybackMonthsBase), // <-- NEW
-                createCsvFormula(paybackRatioBase)  // <-- NEW
+                createCsvFormula(paybackMonthsBase),
+                createCsvFormula(paybackRatioBase)
             ];
             csvContent.push(row.join(','));
         });
@@ -823,26 +817,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- Global Summary ---
         if (state.sites.length > 0) {
             const lastRow = startRow + state.sites.length - 1;
-            csvContent.push(""); // Spacer row
+            csvContent.push("");
             
-            // Define summary row numbers
             const globalTcvRow = lastRow + 2;
             const globalIrrRow = globalTcvRow + 1;
             const globalDecisionRow = globalIrrRow + 1;
-            const globalPaybackMonthsRow = globalDecisionRow + 1; // <-- NEW
-            const globalPaybackRatioRow = globalPaybackMonthsRow + 1; // <-- NEW
+            const globalPaybackMonthsRow = globalDecisionRow + 1;
+            const globalPaybackRatioRow = globalPaybackMonthsRow + 1;
 
-            // --- 1. Global TCV (Always a formula) ---
+            // Global TCV
             const globalTcvFormulaBase = `SUM(H${startRow}:H${lastRow})`;
             csvContent.push(`Global TCV (Formula):,,${createCsvFormula(globalTcvFormulaBase)}`);
             
-            // --- 2. Global IRR & Payback (Conditional Formula) ---
             const firstTerm = state.sites[0]?.inputs.term;
             const allTermsSame = state.sites.every(s => s.inputs.term === firstTerm);
 
             if (allTermsSame && firstTerm > 0) {
-                // ALL terms are the same. We can use a single, powerful RATE formula.
-                const firstTermCell = `G${startRow}`; // e.g., G5
+                const firstTermCell = `G${startRow}`;
                 const pmtRange = `F${startRow}:F${lastRow}`;
                 const mrrRange = `E${startRow}:E${lastRow}`;
                 const constRange = `B${startRow}:B${lastRow}`;
@@ -850,7 +841,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const nrrRange = `D${startRow}:D${lastRow}`;
 
                 // Global IRR
-                // PV = SUM(B)+SUM(C)+SUM(E)-0.97*SUM(D)
                 const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})+SUM(${mrrRange})-0.97*SUM(${nrrRange})))^12-1, "Error")`;
                 csvContent.push(`Global IRR (Formula):,,${createCsvFormula(globalIrrFormulaBase)}`);
                 
@@ -867,7 +857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 csvContent.push(`Global Payback Ratio (Formula):,,${createCsvFormula(globalPaybackRatioBase)}`);
 
             } else {
-                // Terms are different. Fall back to calculated value.
+                // Fallback to calculated values
                 const globalIRRValue = globalAnnualIRREl.textContent;
                 csvContent.push(`Global IRR (Calculated):,,${escapeCSV(globalIRRValue)}`);
                 
@@ -899,7 +889,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /**
      * Saves the current project state to Supabase.
-     * Inserts if new (state.currentProjectId is null), updates if existing.
      */
     async function handleSaveProject() {
         const projectName = projectNameInput.value.trim();
@@ -908,26 +897,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Show loading modal
         showModal("Saving...", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Saving project to database...</p>`, null, false, ``);
 
         const projectData = {
             project_name: projectName,
             global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
-            sites: state.sites, // Save the entire sites array as JSON
+            sites: state.sites,
             user_id: state.currentUser.id,
             last_saved: new Date().toISOString()
         };
 
         let result;
         if (state.currentProjectId) {
-            // Update existing project
+            // Update
             result = await supabase.from(IRR_TABLE)
                 .update(projectData)
                 .eq('id', state.currentProjectId)
                 .select();
         } else {
-            // Insert new project
+            // Insert
             result = await supabase.from(IRR_TABLE)
                 .insert(projectData)
                 .select();
@@ -937,12 +925,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error("Error saving project:", result.error);
             showModal("Error", `Could not save project: ${result.error.message}`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         } else {
-            // Success! Update state with new ID (if it was an insert)
             if (result.data && result.data[0]) {
                 state.currentProjectId = result.data[0].id;
             }
             state.isFormDirty = false;
-            // Show success message
             showModal("Success!", "Project saved successfully.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
@@ -956,7 +942,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { data, error } = await supabase
             .from(IRR_TABLE)
-            .select('id, project_name, last_saved, user_id') // We can add user_id if we want to show who saved it
+            .select('id, project_name, last_saved, user_id')
             .order('last_saved', { ascending: false });
 
         if (error) {
@@ -1037,7 +1023,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.currentProjectId = projectData.id;
         state.sites = projectData.sites || [];
         state.activeSiteId = state.sites.length > 0 ? state.sites[0].id : null;
-        // Ensure nextSiteId is higher than any loaded ID
         state.nextSiteId = state.sites.length > 0 
             ? Math.max(...state.sites.map(s => s.id)) + 1 
             : 1;
@@ -1053,7 +1038,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             newFormWrapper.dataset.siteId = site.id;
             
-            // Populate all inputs from saved data
             newFormWrapper.querySelector('.site-name-input').value = site.name;
             const inputs = site.inputs || {};
             newFormWrapper.querySelector('.construction-cost-input').value = inputs.constructionCost || 0;
@@ -1066,15 +1050,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             siteFormsContainer.appendChild(templateClone);
             attachFormListeners(newFormWrapper);
             
-            // Recalculate this site's results (don't trigger global calc yet)
             runSiteCalculation(site.id, false);
         });
 
         // 5. Run final calculations and renders
-        runGlobalCalculation(); // Run global calc once
-        renderTabs(); // Render all tabs
+        runGlobalCalculation();
+        renderTabs();
         if (state.activeSiteId) {
-            setActiveSite(state.activeSiteId); // Activate the first tab
+            setActiveSite(state.activeSiteId);
         }
     }
 
@@ -1088,7 +1071,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const siteId = Number(formWrapper.dataset.siteId);
 
         formWrapper.addEventListener('input', (e) => {
-            state.isFormDirty = true; // Mark as dirty
+            state.isFormDirty = true;
             if (e.target.classList.contains('site-name-input')) {
                 const site = state.sites.find(s => s.id === siteId);
                 if (site) site.name = e.target.value || `Site ${siteId}`;
@@ -1117,7 +1100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function setupPageEventListeners() {
         setupModalListeners();  
 
-        // Handle sidebar navigation with dirty check
+        // Sidebar navigation
         const navSidebar = document.querySelector(".nav-sidebar");
         if (navSidebar) {
             navSidebar.addEventListener('click', (e) => {
@@ -1140,11 +1123,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // Beforeunload confirmation (browser native)
+        // Beforeunload confirmation
         window.addEventListener('beforeunload', (event) => {
             if (state.isFormDirty) {
                 event.preventDefault();
-                event.returnValue = ''; // Required for legacy browsers
+                event.returnValue = '';
             }
         });
 
@@ -1218,8 +1201,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             setupPageEventListeners();
 
             // Start the user with one site
-            handleNewProject(); // This will set up the first default site
-            state.isFormDirty = false; // It's not "dirty" on first load
+            handleNewProject();
+            state.isFormDirty = false;
 
         } catch (error) {
             console.error("Critical error during page initialization:", error);
@@ -1253,18 +1236,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         let npvAtMin = calculateNPV(minRate, cashFlows);
         let npvAtMax = calculateNPV(maxRate, cashFlows);
         
-        // This logic attempts to find a valid bracket where NPVs have opposite signs
         if (npvAtMin * npvAtMax > 0) {
-            // Try a wider bracket if the first one fails
-            maxRate = 5.0; // 500% monthly
+            maxRate = 5.0;
             npvAtMax = calculateNPV(maxRate, cashFlows);
             if (npvAtMin * npvAtMax > 0) {
-                 // Try an even wider bracket
                  minRate = -0.999999;
-                 maxRate = 20.0; // 2000% monthly
+                 maxRate = 20.0;
                  npvAtMin = calculateNPV(minRate, cashFlows);
                  npvAtMax = calculateNPV(maxRate, cashFlows);
-                 // If it still fails, the cash flow is likely problematic (e.g., all positive)
                  if (npvAtMin * npvAtMax > 0) return NaN;  
             }
         }
@@ -1276,16 +1255,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (Math.abs(npvAtMid) < precision) {
                 return midRate;
             } else if (npvAtMid * npvAtMin > 0) {
-                // Both are same sign, move minRate
                 minRate = midRate;
                 npvAtMin = npvAtMid;
             } else {
-                // Signs are different, move maxRate
                 maxRate = midRate;
             }
         }
         
-        // Return the best guess after iterations
         return midRate;
     }
 
