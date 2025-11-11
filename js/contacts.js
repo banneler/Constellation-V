@@ -1560,7 +1560,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         globalState = await initializeAppState(supabase);
         if (!globalState.currentUser) {
             // initializeAppState handles the redirect, but we stop execution
-s           return; 
+           return; 
         }
 
         // --- NEW: Add the listener for the impersonation event ---
