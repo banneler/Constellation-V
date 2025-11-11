@@ -33,6 +33,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const aiProductPostBtn = document.getElementById('ai-product-post-btn');
     const aiContainer = document.getElementById('ai-articles-container');
 
+    // --- ADDED DOM SELECTORS ---
+    const modalArticleLink = document.getElementById('modal-article-link');
+    const postTextArea = document.getElementById('post-text');
+    const copyTextBtn = document.getElementById('copy-text-btn');
+    const postToLinkedInBtn = document.getElementById('post-to-linkedin-btn');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const customPromptInput = document.getElementById('custom-prompt-input');
+    const generateCustomBtn = document.getElementById('generate-custom-btn');
+    // --- END ADD ---
+
+
     // --- MAIN APP LOGIC (runs after login) ---
     async function showAppContent(user) {
         // Hide login form, show app content
@@ -68,7 +79,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .from('social_hub_posts')
                 .select('*')
                 .eq('type', 'ai_article')
-                .gt('created_at', isoDateString) // <-- This is the new filter
+                .gt('created_at', isoDateString) // <-- This is the 60-day filter
                 .order('created_at', { ascending: false });
 
             if (marketingError || aiError) {
@@ -93,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-       // --- RENDER FUNCTIONS ---
+    // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
         aiContainer.innerHTML = ''; // Clear AI container
         marketingContainer.innerHTML = ''; // Clear Marketing container
@@ -117,7 +128,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
- function createSocialCard(item) {
+   function createSocialCard(item) {
         const card = document.createElement('div');
         card.className = 'alert-card';
         card.id = `post-card-${item.id}`;
@@ -143,6 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
         `;
         
+        // This button does *not* have the dismiss listener
         card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
         return card;
     }
@@ -205,7 +217,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 title: "AI-Generated Custom Post",
                 link: "https://gpcom.com/business/#products-services",
                 approved_copy: `${data.post_body}\n\n${data.hashtags}`,
-                isPreGenerated: true
+                isPreGenerated: true // This flag tells openPostModal to just display the text
             };
             openPostModal(generatedPost);
 
@@ -218,58 +230,99 @@ document.addEventListener("DOMContentLoaded", async () => {
         return false;
     }
 
+    // --- REPLACED FUNCTION ---
+    // This now includes the AI call for 'ai_article'
     async function openPostModal(item) {
-        const modalTitle = document.getElementById('modal-title');
-        const modalBody = document.getElementById('modal-body');
-        const modalActions = document.getElementById('modal-actions');
-
         modalTitle.textContent = item.title;
-        modalBody.innerHTML = `
-            <p style="margin-bottom: 15px;"><strong>Sharing Link:</strong> <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.link}</a></p>
-            <label for="post-text-result">Post Text:</label>
-            <textarea id="post-text-result" rows="8"></textarea>
-        `;
-        document.getElementById('post-text-result').value = item.approved_copy;
-
-        modalActions.innerHTML = `
-            <button id="copy-text-btn-result" class="btn-secondary">Copy Text</button>
-            <button id="post-to-linkedin-btn-result" class="btn-primary">Post to LinkedIn</button>
-            <button id="modal-close-btn-result" class="btn-secondary">Close</button>
-        `;
-
-        document.getElementById('copy-text-btn-result').addEventListener('click', () => {
-            const btn = document.getElementById('copy-text-btn-result');
-            navigator.clipboard.writeText(document.getElementById('post-text-result').value).then(() => {
-                if(btn) btn.textContent = 'Copied!';
-                setTimeout(() => { if(btn) btn.textContent = 'Copy Text'; }, 2000);
-            });
-        });
-        document.getElementById('post-to-linkedin-btn-result').addEventListener('click', () => {
-             window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(item.link)}`, '_blank', 'noopener,noreferrer');
-        });
-        document.getElementById('modal-close-btn-result').addEventListener('click', hideModal);
-
+        modalArticleLink.href = item.link;
+        modalArticleLink.textContent = item.link;
+        postToLinkedInBtn.dataset.url = item.link;
         modalBackdrop.classList.remove('hidden');
+
+        // This handles the "Create Custom Product Post" flow
+        if (item.isPreGenerated) {
+            postTextArea.value = item.approved_copy;
+            return; 
+        }
+
+        postTextArea.value = "Generating AI suggestion...";
+
+        // This is the logic you were missing:
+        if (item.type === 'marketing_post') {
+            postTextArea.value = item.approved_copy;
+        } else {
+            // It's an 'ai_article', so we call the function
+            const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
+            if (error) {
+                postTextArea.value = "Error generating suggestion. Please write your own or try again.";
+                console.error("Edge function error:", error);
+            } else {
+                postTextArea.value = data.suggestion;
+            }
+        }
     }
 
    
-    // --- EVENT LISTENER SETUP ---
+    // --- REPLACED FUNCTION ---
+    // This now includes listeners for the refine button
     function setupPageEventListeners() {
-    if (aiProductPostBtn) {
-        aiProductPostBtn.addEventListener('click', showAIProductPostModal);
-    }
-
-    // --- THIS BLOCK IS NOW ADDED ---
-    // It overrides the default logout behavior from setupUserMenuAndAuth
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault(); // Stop the default redirect
-            await supabase.auth.signOut();
-            window.location.reload(); // Reload this page to show the login form
+        modalCloseBtn.addEventListener('click', hideModal);
+    
+        copyTextBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(postTextArea.value).then(() => {
+                copyTextBtn.textContent = 'Copied!';
+                setTimeout(() => { copyTextBtn.textContent = 'Copy Text'; }, 2000);
+            });
         });
+
+        postToLinkedInBtn.addEventListener('click', function() {
+            const url = this.dataset.url;
+            if (!url) return;
+            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
+        });
+
+        if (aiProductPostBtn) {
+            aiProductPostBtn.addEventListener('click', showAIProductPostModal);
+        }
+        
+        // --- THIS IS THE NEW, CRITICAL LOGIC ---
+        // Event listener for the "Refine" button
+        generateCustomBtn.addEventListener('click', async () => {
+            const originalText = postTextArea.value;
+            const customPrompt = customPromptInput.value.trim();
+            if (!customPrompt) {
+                alert("Please enter a prompt to refine the text.");
+                return;
+            }
+
+            generateCustomBtn.textContent = 'Regenerating...';
+            generateCustomBtn.disabled = true;
+
+            const { data, error } = await supabase.functions.invoke('refine-social-post', { body: { originalText, customPrompt } });
+            
+            if (error) {
+                alert("Error refining post. Please check the console.");
+            } else {
+                postTextArea.value = data.suggestion;
+                customPromptInput.value = ''; // Clear prompt input
+            }
+
+            generateCustomBtn.textContent = 'Regenerate';
+            generateCustomBtn.disabled = false;
+        });
+        // --- END NEW LOGIC ---
+
+        // It overrides the default logout behavior from setupUserMenuAndAuth
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async (e) => {
+                e.preventDefault(); // Stop the default redirect
+                await supabase.auth.signOut();
+                window.location.reload(); // Reload this page to show the login form
+            });
+        }
     }
-}
+    
     // --- INITIALIZATION ---
     async function initializePage() {
         await loadSVGs();
