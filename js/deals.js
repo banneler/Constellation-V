@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dealsByStageChartContainer = document.getElementById('deals-by-stage-chart-container');
 
     // NEW: Selector for the 'Closed Lost' toggle
-    const toggleClosedLost = document.getElementById('toggle-closed-lost');
+    const toggleClosedLost = document.getElementById('show-closed-lost-check');
 
 
     // --- Data Fetching ---
