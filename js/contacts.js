@@ -1558,10 +1558,6 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         // Reload all data using the new effectiveUserId
         await loadAllData(); 
     }
-    // --- END OF NEW FUNCTION ---
-
-    async function initializePage() {
-        await loadSVGs();
 
     // --- App Initialization ---
    async function initializePage() {
