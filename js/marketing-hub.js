@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     abmSequenceSteps: [],
     user_quotas: [],
     abmTasks: [],
+    myPosts: [],
     selectedTemplateId: null,
     selectedSequenceId: null,
     selectedSequenceType: null, // To track if 'abm' or 'marketing' is selected
@@ -211,7 +212,7 @@ async function loadAbmData() {
             { data: abmSequences, error: abmSequencesError }, 
             { data: abmSequenceSteps, error: abmSequenceStepsError }, 
             { data: userQuotas, error: userQuotasError },
-            { data: myPosts, error: postsError } // <-- THIS IS THE FIX
+            { data: myPosts, error: postsError }
         ] = await Promise.all([
             supabase.from("email_templates").select("*"), 
             supabase.from("marketing_sequences").select("*"), 
@@ -260,7 +261,6 @@ async function loadAbmData() {
                 // Re-render the old details panel for marketing sequences
                 renderSequenceDetails();
             }
-        }
         }
     } else if (isSocialView) {
         renderMyPosts(); // Call new render function
