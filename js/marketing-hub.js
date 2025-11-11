@@ -266,8 +266,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Error loading data:", error.message);
             alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
         }
-    }
-    
+    } // <-- THE STRAY "};" WAS REMOVED FROM HERE
+
     // --- Render Content Based on View ---
     const renderContent = () => {
         const isAbmView = state.currentView === 'abm-center';
@@ -1532,23 +1532,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                 e.target.value = "";
             });
         }
-    }
-    // <-- NEW: Delegated event listener for Edit/Delete buttons -->
-    if (myPostsContainer) {
-        myPostsContainer.addEventListener('click', (e) => {
-            const editBtn = e.target.closest('.edit-post-btn');
-            const deleteBtn = e.target.closest('.delete-post-btn');
+    
+        // <-- NEW: Delegated event listener for Edit/Delete buttons -->
+        if (myPostsContainer) {
+            myPostsContainer.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('.edit-post-btn');
+                const deleteBtn = e.target.closest('.delete-post-btn');
 
-            if (editBtn) {
-                handleEditPost(Number(editBtn.dataset.postId));
-                return;
-            }
-            if (deleteBtn) {
-                handleDeletePost(Number(deleteBtn.dataset.postId));
-                return;
-            }
-        });
-    }
+                if (editBtn) {
+                    handleEditPost(Number(editBtn.dataset.postId));
+                    return;
+                }
+                if (deleteBtn) {
+                    handleDeletePost(Number(deleteBtn.dataset.postId));
+                    return;
+                }
+            });
+        }
+    } // <-- THIS IS THE CORRECT END for setupPageEventListeners
 
 
     // --- App Initialization ---
