@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const signupFields = document.getElementById("signup-fields");
     const authConfirmPasswordInput = document.getElementById("auth-confirm-password");
     
+    
     // Nav Links
     const navAbmCenter = document.querySelector('a[href="#abm-center"]'); // NEW
     const navEmailTemplates = document.querySelector('a[href="#email-templates"]');
@@ -80,6 +81,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const createPostForm = document.getElementById('create-post-form');
     const submitPostBtn = document.getElementById('submit-post-btn');
     const formFeedback = document.getElementById('form-feedback');
+    const myPostsContainer = document.getElementById('my-posts-container');
 
 
     // --- Helper functions ---
@@ -216,6 +218,7 @@ async function loadAbmData() {
             supabase.from("sequences").select("*").eq('is_abm', true), 
             supabase.from("sequence_steps").select("*"), 
             supabase.from("user_quotas").select("user_id, full_name"), 
+            supabase.from('social_hub_posts').select('*').eq('user_id', state.currentUser.id).order('created_at', { ascending: false }),
             loadAbmData()
         ]);
 
@@ -225,6 +228,7 @@ async function loadAbmData() {
         if (abmSequencesError) throw abmSequencesError;
         if (abmSequenceStepsError) throw abmSequenceStepsError;
         if (userQuotasError) throw userQuotasError;
+        if (postsError) throw postsError;
 
         state.emailTemplates = emailTemplates || [];
         state.marketingSequences = marketingSequences || [];
@@ -232,6 +236,7 @@ async function loadAbmData() {
         state.abmSequences = abmSequences || [];
         state.abmSequenceSteps = abmSequenceSteps || [];
         state.user_quotas = userQuotas || [];
+        state.myPosts = myPosts || [];
 
         renderContent();
 
@@ -1016,6 +1021,117 @@ const renderSequenceList = () => {
             }
         }
     }
+    // --- NEW: Social Post Render Functions ---
+    const renderMyPosts = () => {
+        if (!myPostsContainer) return;
+        myPostsContainer.innerHTML = "";
+
+        if (state.myPosts.length === 0) {
+            myPostsContainer.innerHTML = `<p class="placeholder-text" style="grid-column: 1 / -1;">You have not created any posts yet.</p>`;
+            return;
+        }
+
+        state.myPosts.forEach(post => {
+            myPostsContainer.appendChild(createMyPostCard(post));
+        });
+    };
+
+    function createMyPostCard(item) {
+        const card = document.createElement('div');
+        card.className = 'alert-card';
+        card.id = `my-post-card-${item.id}`;
+
+        const headline = item.title;
+        const link = item.link;
+        const summary = item.summary || item.approved_copy;
+        const sourceName = 'My Post'; // It's always their post on this page
+        const dynamicLinkIndicator = item.is_dynamic_link ? `<span class="dynamic-link-indicator" title="This link generates a rich preview on LinkedIn">✨</span>` : '';
+
+        card.innerHTML = `
+            <div class="alert-header"><span class="alert-trigger-type">Campaign Asset</span></div>
+            <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
+            <p class="alert-summary">${(summary || '').replace(/\n/g, '<br>')}</p>
+            <div class="alert-footer">
+                <span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span>
+                <span class="alert-date">${formatDate(item.created_at)}</span>
+            </div>
+            <div class="alert-actions">
+                <button class="btn-secondary edit-post-btn" data-post-id="${item.id}">Edit</button>
+                <button class="btn-danger delete-post-btn" data-post-id="${item.id}">Delete</button>
+            </div>
+        `;
+        
+        return card;
+    }
+
+    // --- NEW: Social Post Action Handlers ---
+    async function handleEditPost(postId) {
+        const post = state.myPosts.find(p => p.id === postId);
+        if (!post) {
+            alert("Could not find the post to edit.");
+            return;
+        }
+
+        // Re-use the HTML structure from the create form for the edit modal
+        const modalBody = `
+            <form id="edit-post-form">
+                <input type="hidden" id="edit-post-id" value="${post.id}">
+                <div class="form-grid">
+                    <div>
+                        <label for="edit-post-title">Post Title</label>
+                        <input type="text" id="edit-post-title" name="edit-post-title" value="${post.title || ''}" required>
+                    </div>
+                    <div>
+                        <label for="edit-post-link">Sharing Link URL</label>
+                        <input type="url" id="edit-post-link" name="edit-post-link" value="${post.link || ''}" required>
+                    </div>
+                </div>
+                <div class="full-span-grid-item" style="margin-top: 1rem;">
+                    <label for="edit-post-copy">Approved Post Copy</label>
+                    <textarea id="edit-post-copy" name="edit-post-copy" rows="6" required>${post.approved_copy || ''}</textarea>
+                </div>
+                <div class="form-checkbox-group">
+                    <input type="checkbox" id="edit-is-dynamic-link" name="edit-is-dynamic-link" ${post.is_dynamic_link ? 'checked' : ''}>
+                    <label for="edit-is-dynamic-link">This link is optimized for social sharing (has an Open Graph image)</label>
+                </div>
+            </form>
+        `;
+
+        showModal("Edit Social Post", modalBody, async () => {
+            const updatedPost = {
+                title: document.getElementById('edit-post-title').value.trim(),
+                link: document.getElementById('edit-post-link').value.trim(),
+                approved_copy: document.getElementById('edit-post-copy').value.trim(),
+                is_dynamic_link: document.getElementById('edit-is-dynamic-link').checked,
+            };
+
+            const { error } = await supabase.from('social_hub_posts').update(updatedPost).eq('id', post.id);
+
+            if (error) {
+                alert("Error updating post: " + error.message);
+                return false;
+            }
+
+            await loadAllData(); // Refresh the list
+            hideModal();
+            return true;
+        });
+    }
+
+    async function handleDeletePost(postId) {
+        showModal("Confirm Deletion", "Are you sure you want to delete this post? This cannot be undone.", async () => {
+            const { error } = await supabase.from('social_hub_posts').delete().eq('id', postId);
+
+            if (error) {
+                alert("Error deleting post: " + error.message);
+                return false;
+            }
+
+            await loadAllData(); // Refresh the list
+            hideModal();
+            return true;
+        });
+    }
 
     // --- Unified Click Handlers ---
 function handleItemListClick(e) {
@@ -1343,6 +1459,7 @@ async function handleDeleteSelectedItem() {
                     formFeedback.style.color = 'var(--success-color)';
                     formFeedback.style.display = 'block';
                     createPostForm.reset();
+                   await loadAllData(); //
                 } catch (error) {
                     console.error('Error submitting post:', error);
                     formFeedback.textContent = `❌ Error: ${error.message}`;
@@ -1412,6 +1529,24 @@ async function handleDeleteSelectedItem() {
             });
         }
     }
+    // <-- NEW: Delegated event listener for Edit/Delete buttons -->
+    if (myPostsContainer) {
+        myPostsContainer.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.edit-post-btn');
+            const deleteBtn = e.target.closest('.delete-post-btn');
+
+            if (editBtn) {
+                handleEditPost(Number(editBtn.dataset.postId));
+                return;
+            }
+            if (deleteBtn) {
+                handleDeletePost(Number(deleteBtn.dataset.postId));
+                return;
+            }
+        });
+    }
+
+    if (itemCsvInput) {
 
   // --- App Initialization ---
 async function initializePage() {
