@@ -262,10 +262,6 @@ async function loadAbmData() {
                 renderSequenceDetails();
             }
         }
-    } else if (isSocialView) {
-        renderMyPosts(); // Call new render function
-    }
-
     } catch (error) {
         console.error("Error loading data:", error.message);
         alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
