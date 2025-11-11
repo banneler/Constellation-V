@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Data Fetching ---
 async function loadAllData() {
-    if (!state.currentUser) return;
+    if (!globalState.currentUser) return;
     try {
         const [
             contactsRes,
@@ -518,7 +518,7 @@ async function loadAllData() {
                         phone: contactData.phone || '',
                         title: contactData.title || '',
                         account_id: accountIdToLink,
-                        user_id: state.currentUser.id
+                        user_id: globalState.effectiveUserId
                     }
                 ]).select();
                 if (insertError) throw insertError;
@@ -1551,6 +1551,17 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             writeEmailAIButton.addEventListener("click", showAIEmailModal);
         }
     }
+    // --- ADD THIS ENTIRE FUNCTION ---
+    async function refreshData() {
+        // Clear selection, hide details
+        hideContactDetails(true, true); 
+        // Reload all data using the new effectiveUserId
+        await loadAllData(); 
+    }
+    // --- END OF NEW FUNCTION ---
+
+    async function initializePage() {
+        await loadSVGs();
 
     // --- App Initialization ---
    async function initializePage() {
