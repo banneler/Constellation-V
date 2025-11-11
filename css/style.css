@@ -4583,3 +4583,54 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-node:empty::after {
     display: none;
 }
+/* --- Deals Page Table Options --- */
+
+.deals-table-options {
+  display: flex;
+  align-items: center; /* This is the key: vertically centers the text and box */
+  gap: 0.625rem; /* 10px space between box and text */
+  margin-top: 1.25rem; /* Gives it space from the table above */
+  padding-left: 0.9375rem; /* Aligns it with the table content (using your 'th, td' padding) */
+}
+
+/* This makes the text "pop" */
+.deals-table-options label {
+  font-weight: 600;
+  color: var(--text-light); /* Makes it bright white */
+  font-size: 0.9rem;
+  cursor: pointer; /* Good UX */
+}
+
+/* This styles the checkbox to match your table's checkboxes */
+.deals-table-options input[type="checkbox"] {
+  outline: none;
+  box-shadow: none;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-dark);
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+  position: relative;
+  border-radius: 3px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.deals-table-options input[type="checkbox"]:checked {
+  background-color: var(--primary-blue);
+  border-color: var(--primary-blue);
+}
+
+.deals-table-options input[type="checkbox"]:checked::after {
+  content: "✔";
+  font-size: 0.875rem;
+  color: var(--text-light);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.deals-table-options input[type="checkbox"]:focus {
+  box-shadow: 0 0 0 2px var(--primary-blue);
+}
