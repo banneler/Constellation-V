@@ -61,9 +61,11 @@
                         </div>
                     </div>
                 </div>
+
                 <h3>AI-Curated Content</h3>
                 <div id="ai-articles-container" class="alerts-container">
                     </div>
+
                 <div class="section-header" style="margin-top: 50px;">
                     <h3>From Our Marketing Team</h3>
                     <a href="https://gpcom-my.sharepoint.com/personal/dmunoz_gpcom_com/_layouts/15/onedrive.aspx?id=%2Fpersonal%2Fdmunoz%5Fgpcom%5Fcom%2FDocuments%2FDesktop%2FGraphics%20for%20LI%20posts&ga=1&startedResponseCatch=true" class="btn-primary" target="_blank" rel="noopener noreferrer">
@@ -77,9 +79,24 @@
 
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content" style="max-width: 650px;">
-            <h3 id="modal-title"></h3>
-            <div id="modal-body"></div>
-            <div id="modal-actions"></div>
+            <h3 id="modal-title">Prepare Your Post</h3>
+            <div id="modal-body">
+                <p style="margin-bottom: 15px;"><strong>Sharing Link:</strong> <a id="modal-article-link" href="#" target="_blank" rel="noopener noreferrer">Article Title</a></p>
+                
+                <label for="post-text">Suggested Post Text:</label>
+                <textarea id="post-text" rows="8" placeholder="AI-generated text will appear here..."></textarea>
+
+                <div id="refine-prompt-section" style="margin-top: 20px;">
+                    <label for="custom-prompt-input">Refine with Custom Prompt:</label>
+                    <input type="text" id="custom-prompt-input" placeholder="e.g., 'Make it more casual' or 'Add a question at the end'">
+                    <button class="btn-primary" id="generate-custom-btn" style="width: 100%; margin-top: 10px;">Regenerate</button>
+                </div>
+            </div>
+            <div id="modal-actions" class="modal-actions">
+                 <button id="copy-text-btn" class="btn-secondary">Copy Text</button>
+                 <button id="post-to-linkedin-btn" class="btn-primary">Post to LinkedIn</button>
+                 <button id="modal-close-btn" class="btn-secondary">Close</button>
+            </div>
         </div>
     </div>
 
