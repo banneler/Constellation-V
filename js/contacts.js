@@ -926,7 +926,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         first_name: firstName, 
                         last_name: lastName,
                             globalState = getState(), // <-- ADD THIS
-                        user_id: globalState.effectiveUserId // <-- UPDATE THIS
+                        user_id: globalState.effectiveUserId, // <-- UPDATE THIS
                     }]).select();
 
                     if (error) {
@@ -991,7 +991,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 notes: contactForm.querySelector("#contact-notes").value,
                 last_saved: new Date().toISOString(),
                 globalState = getState(), // <-- ADD THIS
-                user_id: globalState.effectiveUserId // <-- UPDATE THIS
+                user_id: globalState.effectiveUserId, // <-- UPDATE THIS
             };
             if (!data.first_name || !data.last_name) {
                 showModal("Error", "First and Last name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -1054,7 +1054,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         title: c[4] || "",
                         company: c[5] || "",
                             globalState = getState(), // <-- ADD THIS
-                        user_id: globalState.effectiveUserId // <-- UPDATE THIS
+                        user_id: globalState.effectiveUserId, // <-- UPDATE THIS
                     };
                 });
 
@@ -1371,7 +1371,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                status: 'Active',
                 next_step_due_date: addDays(new Date(), firstStep.delay_days).toISOString(),
                 globalState = getState(), // <-- ADD THIS
-                user_id: globalState.effectiveUserId // <-- UPDATE THIS
+                user_id: globalState.effectiveUserId, // <-- UPDATE THIS
             });
             if (error) {
                 showModal("Error", "Error assigning sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
