@@ -210,7 +210,8 @@ async function loadAbmData() {
             { data: marketingSequenceSteps, error: marketingSequenceStepsError }, 
             { data: abmSequences, error: abmSequencesError }, 
             { data: abmSequenceSteps, error: abmSequenceStepsError }, 
-            { data: userQuotas, error: userQuotasError }
+            { data: userQuotas, error: userQuotasError },
+            { data: myPosts, error: postsError } // <-- THIS IS THE FIX
         ] = await Promise.all([
             supabase.from("email_templates").select("*"), 
             supabase.from("marketing_sequences").select("*"), 
@@ -260,6 +261,11 @@ async function loadAbmData() {
                 renderSequenceDetails();
             }
         }
+        }
+    } else if (isSocialView) {
+        renderMyPosts(); // Call new render function
+    }
+};
     } catch (error) {
         console.error("Error loading data:", error.message);
         alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
@@ -1549,7 +1555,6 @@ async function handleDeleteSelectedItem() {
         });
     }
 
-    if (itemCsvInput) {
 
   // --- App Initialization ---
 async function initializePage() {
