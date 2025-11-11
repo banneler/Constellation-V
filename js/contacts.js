@@ -741,13 +741,13 @@ async function openEmailClient(contact) {
     window.open(mailtoLink, '_blank');
 
     try {
+        globalState = getState(); // <-- MOVED HERE
         const { error } = await supabase.from('activities').insert({
             contact_id: state.selectedContactId,
             account_id: contact?.account_id,
             type: 'AI-Generated Email',
             description: `AI-generated email draft opened in mail client. Subject: "${emailSubject}".`,
-            globalState = getState(); // <-- ADD THIS
-            user_id: globalState.effectiveUserId, // <-- UPDATE THIS
+            user_id: globalState.effectiveUserId, // <-- CORRECTED
             date: new Date().toISOString()
         });
 
