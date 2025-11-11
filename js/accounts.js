@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         contactViewMode: 'list' // 'list' or 'org'
     };
-let globalState = {};
+    let globalState = {};
     
     let draggedContactId = null;
 
@@ -86,17 +86,17 @@ let globalState = {};
     };
 
     // --- Data Fetching ---
-   async function loadInitialData() {
+    async function loadInitialData() {
         globalState = getState(); // <-- ADD THIS
-        if (!globalState.currentUser) return; // <-- UPDATE THIS
-        
-        const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
-            supabase.from("accounts").select("*").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
-            supabase.from("deals").select("id, account_id, stage").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
-            supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
-            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
-            supabase.from("deal_stages").select("*").order('sort_order')
-        ]);
+        if (!globalState.currentUser) return; // <-- UPDATE THIS
+        
+        const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
+            supabase.from("accounts").select("*").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("deals").select("id, account_id, stage").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("deal_stages").select("*").order('sort_order')
+        ]);
 
         if (accountsRes.error) throw accountsRes.error;
         if (dealsRes.error) throw dealsRes.error;
@@ -152,10 +152,10 @@ let globalState = {};
         renderAccountDetails();
     }
     
-  async function refreshData() {
+    async function refreshData() {
         hideAccountDetails(true); // Clear selection and details
-        await loadInitialData(); // Reloads list based on effectiveUserId
-    }
+        await loadInitialData(); // Reloads list based on effectiveUserId
+    }
 
         
     const hideAccountDetails = (clearSelection = false) => {
@@ -577,9 +577,9 @@ let globalState = {};
             });
             
             contactOrgChartView.addEventListener('dragleave', (e) => {
-                 if (e.target === contactOrgChartView) {
-                     contactOrgChartView.classList.remove('drop-target-background');
-                 }
+                if (e.target === contactOrgChartView) {
+                    contactOrgChartView.classList.remove('drop-target-background');
+                }
             });
 
             contactOrgChartView.addEventListener('drop', async (e) => {
@@ -625,9 +625,9 @@ let globalState = {};
             });
             
             unassignedContainer.addEventListener('dragleave', (e) => {
-                 if (e.target === unassignedContainer) {
-                     unassignedContainer.classList.remove('drop-target-background');
-                 }
+                if (e.target === unassignedContainer) {
+                    unassignedContainer.classList.remove('drop-target-background');
+                }
             });
 
             unassignedContainer.addEventListener('drop', async (e) => {
@@ -1004,7 +1004,7 @@ let globalState = {};
                             background: var(--bg-dark);
                             padding: 10px;
                             border-radius: 8px;
-                         ">
+                       ">
                         <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
                             
                             <div id="contact-org-chart-view">
@@ -1102,10 +1102,10 @@ let globalState = {};
                             if (!name) {
                                 showModal("Error", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                                 return false;
-                            }
+                            }
                             globalState = getState(); // <-- ADD THIS
-                            const { data: newAccountArr, error } = await supabase.from("accounts").insert([{ name, user_id: globalState.effectiveUserId }]).select(); // <-- UPDATE THIS
-                            if (error) {
+                            const { data: newAccountArr, error } = await supabase.from("accounts").insert([{ name, user_id: globalState.effectiveUserId }]).select(); // <-- UPDATE THIS
+                            if (error) {
                                 showModal("Error", "Error creating account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                                 return false;
                             }
@@ -1268,7 +1268,7 @@ let globalState = {};
 
                             const recordName = String(record.name).trim().toLowerCase();
                             const existingAccount = existingAccountMap.get(recordName);
-
+                            globalState = getState(); // <-- ADD THIS
                             const processedRecord = {
                                 name: String(record.name).trim(),
                                 website: record.website || null,
@@ -1278,9 +1278,8 @@ let globalState = {};
                                 quantity_of_sites: (record.quantity_of_sites === 0) ? 0 : (parseInt(record.quantity_of_sites) || null),
                                 employee_count: (record.employee_count === 0) ? 0 : (parseInt(record.employee_count) || null),
                                 is_customer: record.is_customer === true,
-                                globalState = getState(), // <-- ADD THIS
-                                user_id: globalState.effectiveUserId // <-- UPDATE THIS
-                            };
+                                user_id: globalState.effectiveUserId // <-- UPDATE THIS
+                            };
 
                             if (existingAccount) {
                                 let changes = {};
@@ -1402,9 +1401,9 @@ let globalState = {};
                     <label>Close Month:</label><input type="month" id="modal-deal-close-month">
                     <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated"></textarea>
                 `, async () => {
-                   globalState = getState();
+                    globalState = getState();
                     const newDeal = {
-                        user_id: state.currentUser.id,
+                        user_id: globalState.effectiveUserId, // <-- UPDATE THIS
                         account_id: state.selectedAccountId,
                         name: document.getElementById('modal-deal-name')?.value.trim(),
                         term: document.getElementById('modal-deal-term')?.value.trim(),
@@ -1460,9 +1459,9 @@ let globalState = {};
                             return false;
                         }
                             globalState = getState(); // <-- ADD THIS
-                        const newTask = {
-                            user_id: globalState.effectiveUserId, // <-- UPDATE THIS
-                            description,
+                        const newTask = {
+                            user_id: globalState.effectiveUserId, // <-- UPDATE THIS
+                            description,
                             due_date: document.getElementById('modal-task-due-date')?.value || null,
                             status: 'Pending',
                             account_id: state.selectedAccountId,
@@ -1505,66 +1504,58 @@ let globalState = {};
             });
         }
     }
- async function initializePage() {
-        await loadSVGs();
-        
+    async function initializePage() {
+        await loadSVGs();
+        
         // --- MODIFIED: Use new global state initialization ---
-        globalState = await initializeAppState(supabase);
-        if (!globalState.currentUser) {
-            // initializeAppState handles the redirect, but we stop execution
-            return; 
-        }
+        globalState = await initializeAppState(supabase);
+        if (!globalState.currentUser) {
+            // initializeAppState handles the redirect, but we stop execution
+            return; 
+        }
 
-        // --- NEW: Add the listener for the impersonation event ---
-        window.addEventListener('effectiveUserChanged', async () => {
-            // When the user is changed in the menu, get the new state
-            globalState = getState();
-            // Reload all data using the new effectiveUserId
-            await refreshData();
-        });
-        // --- END NEW ---
+        // --- NEW: Add the listener for the impersonation event ---
+        window.addEventListener('effectiveUserChanged', async () => {
+            // When the user is changed in the menu, get the new state
+            globalState = getState();
+            // Reload all data using the new effectiveUserId
+            await refreshData();
+        });
+        // --- END NEW ---
 
-        try {
-            await loadInitialData();
+        try {
+            await loadInitialData();
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const accountIdFromUrl = urlParams.get('accountId');
-            
-            const savedView = localStorage.getItem('contact_view_mode') || 'list';
-            state.contactViewMode = savedView;
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountIdFromUrl = urlParams.get('accountId');
+            
+            const savedView = localStorage.getItem('contact_view_mode') || 'list';
+            state.contactViewMode = savedView;
 
-            if (accountIdFromUrl) {
-                state.selectedAccountId = Number(accountIdFromUrl);
-                await loadDetailsForSelectedAccount();
-            } else {
-                hideAccountDetails(true);
-            }
-            
-            // --- MODIFIED: Pass globalState to user menu setup ---
-            await setupUserMenuAndAuth(supabase, globalState);
-            
-            await setupGlobalSearch(supabase);
-            await checkAndSetNotifications(supabase);
-            setupPageEventListeners();
+            if (accountIdFromUrl) {
+                state.selectedAccountId = Number(accountIdFromUrl);
+                await loadDetailsForSelectedAccount();
+            } else {
+                hideAccountDetails(true);
+            }
+            
+            // --- MODIFIED: Pass globalState to user menu setup ---
+            await setupUserMenuAndAuth(supabase, globalState);
+            
+            await setupGlobalSearch(supabase);
+            await checkAndSetNotifications(supabase);
+            setupPageEventListeners();
 
-        } catch (error) {
-            console.error("Critical error during page initialization:", error);
-            showModal(
-                "Loading Error",
-                "There was a problem loading account data. Please refresh the page to try again.",
-Error in llm-helper: 
-json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-During handling of the above exception, another exception occurred:
-
-google.api_core.exceptions.Unknown: None: Error building tool call:
-Could not find the end of the JSON block.
-```json
-                null,
-                false,
-                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-            );
-        }
-    }
+        } catch (error) {
+            console.error("Critical error during page initialization:", error);
+            showModal(
+                "Loading Error",
+                "There was a problem loading account data. Please refresh the page to try again.",
+                null,
+                false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
+        }
+    }
     initializePage();
 });
