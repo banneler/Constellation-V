@@ -4583,26 +4583,34 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-node:empty::after {
     display: none;
 }
-/* --- Deals Page Table Options (Non-Flex Fix) --- */
+/* --- Deals Page Table Options (Nested Flex Fix) --- */
 
+/* 1. The main (outer) container */
 .deals-table-options {
-  /* REMOVED all flex properties */
-  text-align: right; /* Aligns all inline children to the right */
+  display: flex;
+  justify-content: flex-end; /* Pushes the inner group to the right */
   margin-top: 1.25rem;
   padding-right: 0.9375rem; /* Aligns group with the table's right edge */
+  /* We removed all gap/align-items from here */
 }
 
-/* This makes the text "pop" */
+/* 2. The NEW inner wrapper */
+.checkbox-label-group {
+  display: flex;
+  align-items: center; /* Vertically centers the box and text */
+  gap: 0.3125rem; /* The small 5px gap you wanted */
+}
+
+/* 3. The label */
 .deals-table-options label {
   font-weight: bold;
   color: var(--text-light);
   font-size: 0.9rem;
   cursor: pointer;
-  margin-left: 0.3125rem; /* <-- This is our NEW gap (5px) */
-  vertical-align: middle; /* <-- This aligns the text with the box */
+  margin: 0; /* Remove any default margins */
 }
 
-/* This styles the checkbox */
+/* 4. The checkbox */
 .deals-table-options input[type="checkbox"] {
   outline: none;
   box-shadow: none;
@@ -4615,7 +4623,7 @@ div.briefing-pre {
   position: relative;
   border-radius: 3px;
   transition: background-color 0.2s, border-color 0.2s;
-  vertical-align: middle; /* <-- This aligns the box with the text */
+  margin: 0; /* Remove any default margins */
 }
 
 .deals-table-options input[type="checkbox"]:checked {
