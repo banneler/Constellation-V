@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 supabase.from("sequences").select("*").eq('is_abm', true), 
                 supabase.from("sequence_steps").select("*"), 
                 supabase.from("user_quotas").select("user_id, full_name"), 
-                supabase.from('social_hub_posts').select('*').eq('user_id', state.currentUser.id).order('created_at', { ascending: false }),
+                supabase.from('social_hub_posts').select('*').eq('type', 'marketing_post').order('created_at', { ascending: false }),
                 loadAbmData()
             ]);
 
