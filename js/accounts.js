@@ -1543,7 +1543,7 @@ let globalState = {};
             // --- MODIFIED: Pass globalState to user menu setup ---
             await setupUserMenuAndAuth(supabase, globalState);
             
-            await setupGlobalSearch(supabase);G
+            await setupGlobalSearch(supabase);
             await checkAndSetNotifications(supabase);
             setupPageEventListeners();
 
