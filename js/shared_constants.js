@@ -39,47 +39,55 @@ export function setEffectiveUser(userId, fullName) {
 }
 
 /**
- * Initializes the global state on application startup.
- * @param {SupabaseClient} supabase The Supabase client.
- * @returns {Promise<object>} The fully initialized state object.
- */
+ * Initializes the global state on application startup.
+ * @param {SupabaseClient} supabase The Supabase client.
+ * @returns {Promise<object>} The fully initialized state object.
+ */
 export async function initializeAppState(supabase) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        window.location.href = "index.html";
-        return;
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        window.location.href = "index.html";
+        return;
+    }
 
-    appState.currentUser = user;
-    appState.effectiveUserId = user.id;
+    appState.currentUser = user;
+    appState.effectiveUserId = user.id;
 
-    // Fetch user's full name for the default state
-    const { data: currentUserQuota, error: quotaError } = await supabase
-        .from('user_quotas')
-        .select('full_name')
-        .eq('user_id', user.id)
-        .single();
+    // Fetch user's full name for the default state
+    const { data: currentUserQuota, error: quotaError } = await supabase
+        .from('user_quotas')
+        .select('full_name')
+        .eq('user_id', user.id)
+        .single();
 
-    if (quotaError && quotaError.code !== 'PGRST116') console.error("Error fetching current user's name:", quotaError);
-    appState.effectiveUserFullName = currentUserQuota?.full_name || 'User';
+    if (quotaError && quotaError.code !== 'PGRST116') console.error("Error fetching current user's name:", quotaError);
+    appState.effectiveUserFullName = currentUserQuota?.full_name || 'User';
 
-    // Check if the current user is a manager and fetch their team
-    const { data: managedUsers, error } = await supabase
-        .from('managers')
-        .select('managed_user_id, users:user_quotas(full_name)')
-        .eq('manager_id', user.id);
+    // --- THIS IS THE FIX ---
+    // Check for manager status using the metadata, as hinted by deals.js
+    appState.isManager = user.user_metadata?.is_manager === true;
 
-    if (error) {
-        console.error("Error checking manager status:", error);
-    } else if (managedUsers && managedUsers.length > 0) {
-        appState.isManager = true;
-        appState.managedUsers = managedUsers.map(u => ({
-            id: u.managed_user_id,
-            full_name: u.users.full_name
-        }));
-    }
-    
-    return appState;
+    if (appState.isManager) {
+        // If they are a manager, fetch all users from user_quotas for the dropdown
+        const { data: allUsers, error } = await supabase
+            .from('user_quotas')
+            .select('user_id, full_name')
+            .neq('user_id', user.id) // Don't include the manager in their own list
+            .order('full_name'); 
+
+        if (error) {
+            console.error("Error fetching managed users from user_quotas:", error);
+        } else {
+            // Map directly to the format our dropdown function expects
+            appState.managedUsers = allUsers.map(u => ({
+                id: u.user_id,
+                full_name: u.full_name
+            }));
+        }
+    }
+    // --- END FIX ---
+    
+    return appState;
 }
 // --- END NEW SECTION ---
 /**
@@ -645,4 +653,5 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
+
 
