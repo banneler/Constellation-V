@@ -4644,3 +4644,10 @@ div.briefing-pre {
 .deals-table-options input[type="checkbox"]:focus {
   box-shadow: 0 0 0 2px var(--primary-blue);
 }
+/* --- Marketing Hub Post List --- */
+#my-posts-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2-column layout */
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+}
