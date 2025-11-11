@@ -4583,26 +4583,26 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-node:empty::after {
     display: none;
 }
-/* --- Deals Page Table Options --- */
+/* --- Deals Page Table Options (Non-Flex Fix) --- */
 
 .deals-table-options {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end; /* Keeps the group on the right */
-  gap: 0.1rem; /* <-- REDUCED THE GAP (was 0.625rem, this is 5px) */
+  /* REMOVED all flex properties */
+  text-align: right; /* Aligns all inline children to the right */
   margin-top: 1.25rem;
   padding-right: 0.9375rem; /* Aligns group with the table's right edge */
 }
 
 /* This makes the text "pop" */
 .deals-table-options label {
-  font-weight: bold; 
+  font-weight: bold;
   color: var(--text-light);
   font-size: 0.9rem;
   cursor: pointer;
+  margin-left: 0.3125rem; /* <-- This is our NEW gap (5px) */
+  vertical-align: middle; /* <-- This aligns the text with the box */
 }
 
-/* This styles the checkbox (NO CHANGES) */
+/* This styles the checkbox */
 .deals-table-options input[type="checkbox"] {
   outline: none;
   box-shadow: none;
@@ -4615,6 +4615,7 @@ div.briefing-pre {
   position: relative;
   border-radius: 3px;
   transition: background-color 0.2s, border-color 0.2s;
+  vertical-align: middle; /* <-- This aligns the box with the text */
 }
 
 .deals-table-options input[type="checkbox"]:checked {
