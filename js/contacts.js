@@ -921,11 +921,11 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         showModal("Error", "First Name and Last Name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         return false;
                     }
-
+globalState = getState(), // <-- ADD THIS
                     const { data: newContactArr, error } = await supabase.from("contacts").insert([{ 
                         first_name: firstName, 
                         last_name: lastName,
-                            globalState = getState(), // <-- ADD THIS
+                            
                         user_id: globalState.effectiveUserId, // <-- UPDATE THIS
                     }]).select();
 
@@ -981,6 +981,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         contactForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const id = contactForm.querySelector("#contact-id").value ? Number(contactForm.querySelector("#contact-id").value) : null;
+            globalState = getState(), // <-- ADD THIS
             const data = {
                 first_name: contactForm.querySelector("#contact-first-name").value.trim(),
                 last_name: contactForm.querySelector("#contact-last-name").value.trim(),
@@ -990,7 +991,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 account_id: contactForm.querySelector("#contact-account-name").value ? Number(contactForm.querySelector("#contact-account-name").value) : null,
                 notes: contactForm.querySelector("#contact-notes").value,
                 last_saved: new Date().toISOString(),
-                globalState = getState(), // <-- ADD THIS
+                
                 user_id: globalState.effectiveUserId, // <-- UPDATE THIS
             };
             if (!data.first_name || !data.last_name) {
@@ -1044,6 +1045,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             const r = new FileReader();
             r.onload = async function(e) {
                 const rows = e.target.result.split("\n").filter((r) => r.trim() !== "");
+                globalState = getState(), // <-- ADD THIS
                 const newRecords = rows.slice(1).map((row) => {
                     const c = parseCsvRow(row);
                     return {
@@ -1053,7 +1055,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         phone: c[3] || "",
                         title: c[4] || "",
                         company: c[5] || "",
-                            globalState = getState(), // <-- ADD THIS
+                            
                         user_id: globalState.effectiveUserId, // <-- UPDATE THIS
                     };
                 });
@@ -1303,12 +1305,13 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     showModal("Error", "Activity type and description are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return false;
                 }
+                globalState = getState(), // <-- ADD THIS
                 const { error } = await supabase.from('activities').insert({
                     contact_id: state.selectedContactId,
                     account_id: contact?.account_id,
                     type: type,
                     description: description,
-                    globalState = getState(), // <-- ADD THIS
+                    
                     user_id: globalState.effectiveUserId, // <-- UPDATE THIS
                     date: new Date().toISOString()
                 });
@@ -1364,13 +1367,14 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 showModal("Error", "Selected sequence has no steps.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return false;
             }
+           globalState = getState(), // <-- ADD THIS
             const { error } = await supabase.from('contact_sequences').insert({
                 contact_id: state.selectedContactId,
                 sequence_id: Number(sequenceId),
                 current_step_number: 1,
                status: 'Active',
                 next_step_due_date: addDays(new Date(), firstStep.delay_days).toISOString(),
-                globalState = getState(), // <-- ADD THIS
+                
                 user_id: globalState.effectiveUserId, // <-- UPDATE THIS
             });
             if (error) {
