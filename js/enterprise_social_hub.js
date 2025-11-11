@@ -48,23 +48,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- DATA FETCHING ---
- async function loadSocialContent() {
-    if (!state.currentUser) return;
-    try {
-        // Now only fetches the posts, not user interactions
-      const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').order('created_at', { ascending: false });
-        if (postsError) throw postsError;
-        state.allPosts = posts || [];
+    async function loadSocialContent() {
+        if (!state.currentUser) return;
+        try {
+            // 1. Calculate the cutoff date
+            const sixtyDaysAgo = new Date();
+            sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+            const isoDateString = sixtyDaysAgo.toISOString();
 
-        const { data: productData, error: productError } = await supabase.from('product_knowledge').select('product_name');
-        if (productError) throw productError;
-        state.products = [...new Set(productData.map(p => p.product_name))].sort();
+            // 2. Fetch all marketing posts (no age limit)
+            const { data: marketingPosts, error: marketingError } = await supabase
+                .from('social_hub_posts')
+                .select('*')
+                .eq('type', 'marketing_post')
+                .order('created_at', { ascending: false });
 
-        renderSocialContent();
-    } catch (error) {
-        console.error("Error fetching Social Hub content:", error);
+            // 3. Fetch only recent AI articles (created_at > 60 days ago)
+            const { data: aiArticles, error: aiError } = await supabase
+                .from('social_hub_posts')
+                .select('*')
+                .eq('type', 'ai_article')
+                .gt('created_at', isoDateString) // <-- This is the new filter
+                .order('created_at', { ascending: false });
+
+            if (marketingError || aiError) {
+                throw marketingError || aiError;
+            }
+
+            // 4. Combine the results
+            state.allPosts = (marketingPosts || []).concat(aiArticles || []);
+            
+            // 5. Sort the combined list by date
+            state.allPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            // 6. Fetch products (this stays the same)
+            const { data: productData, error: productError } = await supabase.from('product_knowledge').select('product_name');
+            if (productError) throw productError;
+            state.products = [...new Set(productData.map(p => p.product_name))].sort();
+
+            // 7. Render
+            renderSocialContent();
+        } catch (error) {
+            console.error("Error fetching Social Hub content:", error);
+        }
     }
-}
 
        // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
