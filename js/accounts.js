@@ -1,10 +1,9 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, setupGlobalSearch, checkAndSetNotifications } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, setupGlobalSearch, checkAndSetNotifications, initializeAppState, getState } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
-        currentUser: null,
         isFormDirty: false,
 
         // Master lists for the main account list view
@@ -27,7 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         contactViewMode: 'list' // 'list' or 'org'
     };
-
+let globalState = {};
+    
     let draggedContactId = null;
 
     // --- DOM Element Selectors ---
@@ -86,16 +86,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     // --- Data Fetching ---
-    async function loadInitialData() {
-        if (!state.currentUser) return;
-        
-        const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
-            supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
-            supabase.from("deals").select("id, account_id, stage").eq("user_id", state.currentUser.id),
-            supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", state.currentUser.id),
-            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", state.currentUser.id),
-            supabase.from("deal_stages").select("*").order('sort_order')
-        ]);
+   async function loadInitialData() {
+        globalState = getState(); // <-- ADD THIS
+        if (!globalState.currentUser) return; // <-- UPDATE THIS
+        
+        const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
+            supabase.from("accounts").select("*").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("deals").select("id, account_id, stage").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", globalState.effectiveUserId), // <-- UPDATE THIS
+            supabase.from("deal_stages").select("*").order('sort_order')
+        ]);
 
         if (accountsRes.error) throw accountsRes.error;
         if (dealsRes.error) throw dealsRes.error;
@@ -151,12 +152,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderAccountDetails();
     }
     
-    async function refreshData() {
-        await loadInitialData();
-        if (state.selectedAccountId) {
-            await loadDetailsForSelectedAccount();
-        }
-    }
+  async function refreshData() {
+        hideAccountDetails(true); // Clear selection and details
+        await loadInitialData(); // Reloads list based on effectiveUserId
+    }
 
         
     const hideAccountDetails = (clearSelection = false) => {
@@ -1103,9 +1102,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                             if (!name) {
                                 showModal("Error", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                                 return false;
-                            }
-                            const { data: newAccountArr, error } = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
-                            if (error) {
+                            }
+                            globalState = getState(); // <-- ADD THIS
+                            const { data: newAccountArr, error } = await supabase.from("accounts").insert([{ name, user_id: globalState.effectiveUserId }]).select(); // <-- UPDATE THIS
+                            if (error) {
                                 showModal("Error", "Error creating account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                                 return false;
                             }
@@ -1278,8 +1278,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 quantity_of_sites: (record.quantity_of_sites === 0) ? 0 : (parseInt(record.quantity_of_sites) || null),
                                 employee_count: (record.employee_count === 0) ? 0 : (parseInt(record.employee_count) || null),
                                 is_customer: record.is_customer === true,
-                                user_id: state.currentUser.id
-                            };
+                                globalState = getState(), // <-- ADD THIS
+                                user_id: globalState.effectiveUserId // <-- UPDATE THIS
+                            };
 
                             if (existingAccount) {
                                 let changes = {};
@@ -1401,6 +1402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <label>Close Month:</label><input type="month" id="modal-deal-close-month">
                     <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated"></textarea>
                 `, async () => {
+                   globalState = getState();
                     const newDeal = {
                         user_id: state.currentUser.id,
                         account_id: state.selectedAccountId,
@@ -1457,9 +1459,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                             showModal("Error", "Task description is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                             return false;
                         }
-                        const newTask = {
-                            user_id: state.currentUser.id,
-                            description,
+                            globalState = getState(); // <-- ADD THIS
+                        const newTask = {
+                            user_id: globalState.effectiveUserId, // <-- UPDATE THIS
+                            description,
                             due_date: document.getElementById('modal-task-due-date')?.value || null,
                             status: 'Pending',
                             account_id: state.selectedAccountId,
@@ -1502,53 +1505,66 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
     }
-    async function initializePage() {
-        await loadSVGs();
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+ async function initializePage() {
+        await loadSVGs();
+        
+        // --- MODIFIED: Use new global state initialization ---
+        globalState = await initializeAppState(supabase);
+        if (!globalState.currentUser) {
+            // initializeAppState handles the redirect, but we stop execution
+            return; 
+        }
 
-        if (sessionError || !session) {
-            console.error('Authentication failed or no session found. Redirecting to login.');
-            window.location.href = "index.html";
-            return;
-        }
-        state.currentUser = session.user;
+        // --- NEW: Add the listener for the impersonation event ---
+        window.addEventListener('effectiveUserChanged', async () => {
+            // When the user is changed in the menu, get the new state
+            globalState = getState();
+            // Reload all data using the new effectiveUserId
+            await refreshData();
+        });
+        // --- END NEW ---
 
-        try {
-            await loadInitialData();
+        try {
+            await loadInitialData();
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const accountIdFromUrl = urlParams.get('accountId');
-            
-            const savedView = localStorage.getItem('contact_view_mode') || 'list';
-            state.contactViewMode = savedView;
+            const urlParams = new URLSearchParams(window.location.search);
+            const accountIdFromUrl = urlParams.get('accountId');
+            
+            const savedView = localStorage.getItem('contact_view_mode') || 'list';
+            state.contactViewMode = savedView;
 
-            if (accountIdFromUrl) {
-                state.selectedAccountId = Number(accountIdFromUrl);
-                await loadDetailsForSelectedAccount();
-            } else {
-                hideAccountDetails(true);
-            }
-            
-            await setupUserMenuAndAuth(supabase, state);
-            
-            // --- THIS IS THE FIX ---
-            // Reverted to the "known working" call, as you pointed out.
-            await setupGlobalSearch(supabase); 
-            // --- END OF FIX ---
+            if (accountIdFromUrl) {
+                state.selectedAccountId = Number(accountIdFromUrl);
+                await loadDetailsForSelectedAccount();
+            } else {
+                hideAccountDetails(true);
+            }
+            
+            // --- MODIFIED: Pass globalState to user menu setup ---
+            await setupUserMenuAndAuth(supabase, globalState);
+            
+            await setupGlobalSearch(supabase);G
+            await checkAndSetNotifications(supabase);
+            setupPageEventListeners();
 
-            await checkAndSetNotifications(supabase);
-            setupPageEventListeners();
+        } catch (error) {
+            console.error("Critical error during page initialization:", error);
+            showModal(
+                "Loading Error",
+                "There was a problem loading account data. Please refresh the page to try again.",
+Error in llm-helper: 
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 
-        } catch (error) {
-            console.error("Critical error during page initialization:", error);
-            showModal(
-                "Loading Error",
-                "There was a problem loading account data. Please refresh the page to try again.",
-                null,
-                false,
-                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-            );
-        }
-    }
+During handling of the above exception, another exception occurred:
+
+google.api_core.exceptions.Unknown: None: Error building tool call:
+Could not find the end of the JSON block.
+```json
+                null,
+                false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
+        }
+    }
     initializePage();
 });
