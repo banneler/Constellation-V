@@ -137,6 +137,9 @@ function renderImpersonationDropdown() {
     // 6. Add the event listener
     const impersonationSelect = document.getElementById('impersonation-select');
     if (impersonationSelect) {
+        impersonationSelect.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
         impersonationSelect.addEventListener('change', (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
             const userId = selectedOption.value;
@@ -653,5 +656,6 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
+
 
 
