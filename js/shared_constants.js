@@ -82,7 +82,73 @@ export async function initializeAppState(supabase) {
     return appState;
 }
 // --- END NEW SECTION ---
+/**
+ * Renders the impersonation dropdown in the user menu if the user is a manager.
+ */
+function renderImpersonationDropdown() {
+    if (!appState.isManager || appState.managedUsers.length === 0) {
+        // Not a manager or has no one to manage, so do nothing.
+        return;
+    }
 
+    const userMenuPopup = document.getElementById('user-menu-popup');
+    if (!userMenuPopup) return;
+
+    // 1. Create the container
+    const container = document.createElement('div');
+    container.className = 'impersonation-container';
+
+    // 2. Create the "My View" option
+    // We add the current user's info to the list for the "My View" option
+    const currentUserOption = {
+        id: appState.currentUser.id,
+        full_name: appState.effectiveUserFullName.includes('(Viewing As)') 
+            ? 'My View' // If we're already viewing as someone, just show "My View"
+            : appState.effectiveUserFullName 
+    };
+    
+    const allUsers = [currentUserOption, ...appState.managedUsers];
+    
+    // 3. Create the options HTML
+    const optionsHtml = allUsers.map(user => {
+        const selected = (user.id === appState.effectiveUserId) ? 'selected' : '';
+        return `<option value="${user.id}" data-full-name="${user.full_name}" ${selected}>${user.full_name}</option>`;
+    }).join('');
+
+    // 4. Set the inner HTML for the dropdown
+    container.innerHTML = `
+        <label for="impersonation-select">View As:</label>
+        <select id="impersonation-select">
+            ${optionsHtml}
+        </select>
+    `;
+    
+    // 5. Add it to the top of the popup
+    userMenuPopup.prepend(container);
+
+    // 6. Add the event listener
+    const impersonationSelect = document.getElementById('impersonation-select');
+    if (impersonationSelect) {
+        impersonationSelect.addEventListener('change', (e) => {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const userId = selectedOption.value;
+            const fullName = selectedOption.dataset.fullName;
+            
+            // Call your new state function. This will trigger the 'effectiveUserChanged' event.
+            setEffectiveUser(userId, fullName); 
+            
+            // Update the main user name display to show who we are viewing as
+            const userNameDisplay = document.getElementById('user-name-display');
+            if (userNameDisplay) {
+                if (userId === appState.currentUser.id) {
+                    userNameDisplay.textContent = fullName; // Back to self
+                } else {
+                    userNameDisplay.textContent = `${fullName} (Viewing As)`;
+                }
+            }
+        });
+    }
+}
 
 // --- THEME MANAGEMENT ---
 let currentThemeIndex = 0;
@@ -380,6 +446,7 @@ export async function setupUserMenuAndAuth(supabase, state) {
     } else {
         userNameDisplay.textContent = userData.full_name || 'User';
         await setupTheme(supabase, state.currentUser);
+        renderImpersonationDropdown();
         attachUserMenuListeners();
     }
 
@@ -578,3 +645,4 @@ export async function checkAndSetNotifications(supabase) {
         }
     }
 }
+
