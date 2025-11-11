@@ -4589,7 +4589,7 @@ div.briefing-pre {
   display: flex;
   align-items: center;
   justify-content: flex-end; /* Keeps the group on the right */
-  gap: 0.3125rem; /* <-- REDUCED THE GAP (was 0.625rem, this is 5px) */
+  gap: 0.1rem; /* <-- REDUCED THE GAP (was 0.625rem, this is 5px) */
   margin-top: 1.25rem;
   padding-right: 0.9375rem; /* Aligns group with the table's right edge */
 }
