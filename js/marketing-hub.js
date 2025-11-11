@@ -265,13 +265,13 @@ async function loadAbmData() {
     } else if (isSocialView) {
         renderMyPosts(); // Call new render function
     }
-};
+
     } catch (error) {
         console.error("Error loading data:", error.message);
         alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
     }
 }
-
+};
     // --- Render Content Based on View ---
 const renderContent = () => {
     const isAbmView = state.currentView === 'abm-center';
