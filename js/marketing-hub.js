@@ -303,6 +303,9 @@ const renderContent = () => {
            // The details panel is now handled by the click handler, so we no longer render it here.
         }
     }
+    } else if (isSocialView) {
+        renderMyPosts(); // Call new render function
+    }
 };
     
    // --- NEW: ABM Center Render Functions ---
