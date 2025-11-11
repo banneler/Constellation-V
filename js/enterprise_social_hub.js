@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalTitle = document.getElementById('modal-title');
     const aiProductPostBtn = document.getElementById('ai-product-post-btn');
+    const aiContainer = document.getElementById('ai-articles-container');
 
     // --- MAIN APP LOGIC (runs after login) ---
     async function showAppContent(user) {
@@ -51,7 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!state.currentUser) return;
     try {
         // Now only fetches the posts, not user interactions
-        const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').eq('type', 'marketing_post').order('created_at', { ascending: false });
+      const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').order('created_at', { ascending: false });
         if (postsError) throw postsError;
         state.allPosts = posts || [];
 
@@ -65,40 +66,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 }
 
-    // --- RENDER FUNCTIONS ---
+       // --- RENDER FUNCTIONS ---
     function renderSocialContent() {
-        marketingContainer.innerHTML = '';
-        const visiblePosts = state.allPosts;
+        aiContainer.innerHTML = ''; // Clear AI container
+        marketingContainer.innerHTML = ''; // Clear Marketing container
         
-        if (visiblePosts.length === 0) {
+        // Filter posts into their respective types
+        const aiArticles = state.allPosts.filter(p => p.type === 'ai_article');
+        const marketingPosts = state.allPosts.filter(p => p.type === 'marketing_post');
+
+        // Render AI-Curated Content
+        if (aiArticles.length === 0) { 
+            aiContainer.innerHTML = `<p class="placeholder-text">Cognito is searching for relevant articles. Check back soon!</p>`; 
+        } else { 
+            aiArticles.forEach(item => aiContainer.appendChild(createSocialCard(item))); 
+        }
+
+        // Render Marketing Team Content
+        if (marketingPosts.length === 0) {
             marketingContainer.innerHTML = `<p class="placeholder-text">The marketing team is busy creating content. Stay tuned for new posts!</p>`;
         } else {
-            visiblePosts.forEach(item => marketingContainer.appendChild(createSocialCard(item)));
+            marketingPosts.forEach(item => marketingContainer.appendChild(createSocialCard(item)));
         }
     }
 
-   function createSocialCard(item) {
-    const card = document.createElement('div');
-    card.className = 'alert-card';
-    card.id = `post-card-${item.id}`;
+ function createSocialCard(item) {
+        const card = document.createElement('div');
+        card.className = 'alert-card';
+        card.id = `post-card-${item.id}`;
 
-    card.innerHTML = `
-        <div class="alert-header"><span class="alert-trigger-type">Campaign Asset</span></div>
-        <h5 class="alert-headline">${item.title} ${item.is_dynamic_link ? '<span class="dynamic-link-indicator" title="This link generates a rich preview on LinkedIn">✨</span>' : ''}</h5>
-        <p class="alert-summary">${(item.summary || item.approved_copy).replace(/\n/g, '<br>')}</p>
-        <div class="alert-footer">
-            <span class="alert-source">Source: <a href="${item.link}" target="_blank">Marketing Team</a></span>
-            <span class="alert-date">${formatDate(item.created_at)}</span>
-        </div>
-        <div class="alert-actions">
-            <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
-        </div>
-    `;
-    
-    // The dismiss button listener is now removed
-    card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
-    return card;
-}
+        // This logic dynamically handles both AI and Marketing post types
+        const headline = item.title;
+        const link = item.link;
+        const summary = item.summary || item.approved_copy;
+        const sourceName = item.source_name || 'Marketing Team';
+        const triggerType = item.type === 'marketing_post' ? 'Campaign Asset' : 'News Article';
+        const dynamicLinkIndicator = item.is_dynamic_link ? `<span class="dynamic-link-indicator" title="This link generates a rich preview on LinkedIn">✨</span>` : '';
+
+        card.innerHTML = `
+            <div class="alert-header"><span class="alert-trigger-type">${triggerType}</span></div>
+            <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
+            <p class="alert-summary">${(summary || '').replace(/\n/g, '<br>')}</p>
+            <div class="alert-footer">
+                <span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span>
+                <span class="alert-date">${formatDate(item.created_at)}</span>
+            </div>
+            <div class="alert-actions">
+                <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
+            </div>
+        `;
+        
+        card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
+        return card;
+    }
 
     async function showAIProductPostModal() {
         const productCheckboxes = state.products.map(product => `
