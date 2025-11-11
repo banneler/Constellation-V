@@ -4583,25 +4583,26 @@ div.briefing-pre {
 #contact-org-chart-view .org-chart-node:empty::after {
     display: none;
 }
-/* --- Deals Page Table Options (Aggressive Fix) --- */
+/* --- Deals Page Table Options --- */
 
 .deals-table-options {
   display: flex;
-  align-items: center; 
-  gap: 0.625rem; 
-  margin-top: 1.25rem; 
-  padding-left: 0.9375rem !important; /* <-- Added !important */
+  align-items: center;
+  justify-content: flex-end; /* <-- This is the new line */
+  gap: 0.625rem;
+  margin-top: 1.25rem;
+  padding-right: 0.9375rem; /* <-- Aligns it with the table cell content on the right */
 }
 
 /* This makes the text "pop" */
 .deals-table-options label {
-  font-weight: bold !important; /* <-- Changed to bold and added !important */
-  color: var(--text-light); 
+  font-weight: bold; /* <-- Kept this from our last fix */
+  color: var(--text-light);
   font-size: 0.9rem;
-  cursor: pointer; 
+  cursor: pointer;
 }
 
-/* This styles the checkbox to match your table's checkboxes */
+/* This styles the checkbox (NO CHANGES) */
 .deals-table-options input[type="checkbox"] {
   outline: none;
   box-shadow: none;
