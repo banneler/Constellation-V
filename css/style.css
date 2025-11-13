@@ -3784,8 +3784,15 @@ body.theme-green .marketing-indicator {
 #marketing-posts-container {
     display: grid
 ;
-       gap: 1.25rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
     margin-top: 1.25rem;
+}
+@media (max-width: 767px) {
+    /* ...then change the grid to 1 column. */
+    #marketing-posts-container {
+        grid-template-columns: 1fr;
+    }
 }
 /* --- Contact Display Toggle --- */
 .display-toggle-container {
