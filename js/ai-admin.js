@@ -8,16 +8,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ENGINES = [
-        { id: 'get-daily-briefing', name: 'Command Center Briefing', demoPersona: "Seasoned Sales VP", demoVoice: "Encouraging, high-energy", demoInstructions: "Greeting: 'Howdy, Partner!'", technicalPrompt: "Rank items by strategic priority. Output JSON array." },
-        { id: 'get-account-briefing', name: 'Account Recon (IRR)', demoPersona: "Enterprise Analyst", demoVoice: "Consultative", demoInstructions: "Focus on revenue thresholds.", technicalPrompt: "Summarize firmographics and pipeline health." },
-        { id: 'get-gemini-suggestion', name: 'Cognito: Outreach', demoPersona: "Expert Sales Exec", demoVoice: "Professional, non-robotic", demoInstructions: "Peer-to-peer tone.", technicalPrompt: "Draft outreach email based on alert headline." },
-        { id: 'generate-custom-suggestion', name: 'Cognito: Refiner', demoPersona: "Persuasive Coach", demoVoice: "Direct", demoInstructions: "Follow user instruction exactly.", technicalPrompt: "Refine draft based on user prompt." },
-        { id: 'generate-social-post', name: 'Social Hub: Article', demoPersona: "Tech Influencer", demoVoice: "Engaging", demoInstructions: "End with a question.", technicalPrompt: "Extract takeaways and draft LinkedIn post." },
-        { id: 'custom-user-social-post', name: 'Social Hub: Product', demoPersona: "Product Specialist", demoVoice: "Authoritative", demoInstructions: "Highlight local reliability.", technicalPrompt: "Combine topic with product data." },
-        { id: 'refine-social-post', name: 'Social Hub: Refiner', demoPersona: "Editor-in-Chief", demoVoice: "Polished", demoInstructions: "Simplify language.", technicalPrompt: "Refine draft based on feedback." },
-        { id: 'generate-prospect-email', name: 'Contacts: AI Email', demoPersona: "Strategic Lead", demoVoice: "Respectful", demoInstructions: "Keep under 3 paragraphs.", technicalPrompt: "Draft email using product selections." },
-        { id: 'get-activity-insight', name: 'Contacts: Insights', demoPersona: "Sales Strategist", demoVoice: "Action-oriented", demoInstructions: "Flag 30-day gaps.", technicalPrompt: "Summarize activities and suggest next steps." },
-        { id: 'generate-sequence-steps', name: 'Sequences: Builder', demoPersona: "SDR Manager", demoVoice: "Persistent", demoInstructions: "Vary touchpoints.", technicalPrompt: "Generate multi-channel sequence JSON." }
+        { id: 'get-daily-briefing', name: 'Daily Briefing', demoPersona: "Sales VP", demoVoice: "Nebraska-friendly", demoInstructions: "Greet with 'Howdy, Partner!'", technicalPrompt: "Rank JSON payload by priority." },
+        { id: 'get-account-briefing', name: 'Account Recon', demoPersona: "Analyst", demoVoice: "Consultative", demoInstructions: "Focus on $35M revenue marks.", technicalPrompt: "Summarize firmographics/org chart." },
+        { id: 'get-gemini-suggestion', name: 'Cognito Suggestion', demoPersona: "Sales Exec", demoVoice: "Concise", demoInstructions: "Reference the news alert naturally.", technicalPrompt: "Draft outreach for [FirstName]." },
+        { id: 'generate-custom-suggestion', name: 'Cognito Refiner', demoPersona: "Coach", demoVoice: "Direct", demoInstructions: "Prioritize user refinement prompt.", technicalPrompt: "Modify existing subject/body." },
+        { id: 'generate-social-post', name: 'Social Hub Drafter', demoPersona: "Influencer", demoVoice: "Engaging", demoInstructions: "Include 3 key takeaways.", technicalPrompt: "Summarize article into LinkedIn post." },
+        { id: 'custom-user-social-post', name: 'Product Poster', demoPersona: "Product Specialist", demoVoice: "Authoritative", demoInstructions: "Highlight Managed Wi-Fi benefits.", technicalPrompt: "Draft post using product data." },
+        { id: 'refine-social-post', name: 'Social Hub Refiner', demoPersona: "Editor", demoVoice: "Polished", demoInstructions: "Simplify complex language.", technicalPrompt: "Take draft + feedback to update." },
+        { id: 'generate-prospect-email', name: 'Contact AI Email', demoPersona: "Account Manager", demoVoice: "Respectful", demoInstructions: "Limit to 3 paragraphs.", technicalPrompt: "Draft email based on selections." },
+        { id: 'get-activity-insight', name: 'Activity Insights', demoPersona: "Strategist", demoVoice: "Action-oriented", demoInstructions: "Suggest follow-up cadences.", technicalPrompt: "Analyze log for trends/next steps." },
+        { id: 'generate-sequence-steps', name: 'Sequence Builder', demoPersona: "SDR Manager", demoVoice: "Persistent", demoInstructions: "Vary Email/Call/LinkedIn.", technicalPrompt: "Generate sequence JSON structure." }
     ];
 
     let state = { selectedEngineId: null, configs: [] };
@@ -29,20 +29,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function loadConfigs() {
         const { data, error } = await supabase.from('ai_configs').select('*');
-        if (error) return console.error("Error loading AI configs:", error);
+        if (error) return console.error("Error loading configs:", error);
         state.configs = data || [];
         renderTabs();
     }
 
     function renderTabs() {
-        tabContainer.innerHTML = ENGINES.map(e => {
-            const isSelected = state.selectedEngineId === e.id;
-            return `
-                <button class="irr-tab ${isSelected ? 'active' : ''}" data-id="${e.id}">
-                    ${e.name}
-                </button>
-            `;
-        }).join('');
+        // Using the exact 'irr-tab' class pattern from your IRR page
+        tabContainer.innerHTML = ENGINES.map(e => `
+            <button class="irr-tab ${state.selectedEngineId === e.id ? 'active' : ''}" data-id="${e.id}">
+                ${e.name}
+            </button>
+        `).join('');
     }
 
     function selectEngine(id) {
@@ -58,17 +56,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('selected-engine-name').textContent = engine.name;
         document.getElementById('ai-technical-foundation').value = engine.technicalPrompt;
 
-        const personaField = document.getElementById('ai-persona');
-        const voiceField = document.getElementById('ai-voice');
-        const instructionsField = document.getElementById('ai-custom-instructions');
+        const pField = document.getElementById('ai-persona');
+        const vField = document.getElementById('ai-voice');
+        const iField = document.getElementById('ai-custom-instructions');
 
-        personaField.value = config.persona || '';
-        voiceField.value = config.voice || '';
-        instructionsField.value = config.custom_instructions || '';
+        pField.value = config.persona || '';
+        vField.value = config.voice || '';
+        iField.value = config.custom_instructions || '';
 
-        personaField.placeholder = `Demo: ${engine.demoPersona}`;
-        voiceField.placeholder = `Demo: ${engine.demoVoice}`;
-        instructionsField.placeholder = `Demo: ${engine.demoInstructions}`;
+        pField.placeholder = `Demo: ${engine.demoPersona}`;
+        vField.placeholder = `Demo: ${engine.demoVoice}`;
+        iField.placeholder = `Demo: ${engine.demoInstructions}`;
     }
 
     async function initializePage() {
@@ -101,8 +99,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!error) {
                     showModal("Success", "AI Voice Layer updated.", null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
                     await loadConfigs();
-                } else {
-                    showModal("Error", "Could not save updates: " + error.message, null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
                 }
             });
         }
