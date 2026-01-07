@@ -200,51 +200,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- AI Briefing Logic ---
     async function handleGenerateBriefing() {
-    const briefingBtn = document.getElementById('ai-daily-briefing-btn');
-    const briefingContainer = document.getElementById('ai-briefing-container');
-    
-    briefingBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing Data...';
-    briefingBtn.disabled = true;
+        aiBriefingContainer.classList.remove('hidden');
+        aiBriefingContainer.innerHTML = `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Generating your daily briefing...</p>`;
 
-    try {
-        const payload = await gatherBriefingData(); // Your existing data gatherer
-        
-        const { data, error } = await supabase.functions.invoke('get-daily-briefing', {
-            body: { briefingPayload: payload }
-        });
-
-        if (error) throw error;
-
-        renderAIBriefing(data);
-        briefingContainer.classList.remove('hidden');
-    } catch (err) {
-        console.error("Briefing Error:", err);
-        alert("Failed to generate briefing. Check Edge Function logs.");
-    } finally {
-        briefingBtn.innerHTML = '<i class="fas fa-bolt-lightning"></i> &nbsp;Generate AI Daily Briefing';
-        briefingBtn.disabled = false;
+        try {
+            const briefingPayload = {
+                tasks: state.tasks.filter(t => t.status === 'Pending'),
+                sequenceSteps: state.contact_sequences.filter(cs => {
+                    if (!cs.next_step_due_date || cs.status !== "Active") return false;
+                    const dueDate = new Date(cs.next_step_due_date);
+                    const startOfToday = new Date();
+                    startOfToday.setHours(0, 0, 0, 0);
+                    return dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
+                }),
+                deals: state.deals,
+                cognitoAlerts: state.cognitoAlerts,
+                nurtureAccounts: state.nurtureAccounts,
+                contacts: state.contacts,
+                accounts: state.accounts,
+                sequences: state.sequences,
+                sequence_steps: state.sequence_steps
+            };
+            console.log("Payload being sent to Edge Function:", briefingPayload);
+            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
+                body: { briefingPayload }
+            });
+            if (error) throw error;
+            renderAIBriefing(briefing);
+        } catch (error) {
+            console.error("Error generating AI briefing:", error);
+            aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
+        }
     }
-}
-
-function renderAIBriefing(briefing) {
-    // The AI now controls the greeting through its persona/voice
-    const briefingHtml = `
-        <div class="card ai-briefing-card" style="border-left: 4px solid var(--primary-blue); background: var(--bg-light);">
-            <div style="padding: 20px;">
-                <h3 style="margin-bottom: 15px; color: var(--primary-blue); font-family: 'Orbitron', sans-serif; font-size: 0.9rem; letter-spacing: 1px;">STRATEGIC INTELLIGENCE BRIEF</h3>
-                <ol id="ai-briefing-list" style="padding-left: 20px;">
-                    ${briefing.priorities.map(item => `
-                        <li style="margin-bottom: 15px;">
-                            <strong style="display: block; color: var(--text-light); font-size: 1.05rem;">${item.title}</strong>
-                            <span style="color: var(--text-medium); font-size: 0.9rem; line-height: 1.4;">${item.reason}</span>
-                        </li>
-                    `).join('')}
-                </ol>
-            </div>
-        </div>
-    `;
-    document.getElementById('ai-briefing-container').innerHTML = briefingHtml;
-}
+        
+    function renderAIBriefing(briefing) {
+        const briefingHtml = `
+            ${greeting}
+            <ol id="ai-briefing-list">
+                ${briefing.priorities.map(item => `
+                    <li>
+                        <strong>${item.title}</strong>
+                        <em>Why: ${item.reason}</em>
+                    </li>
+                `).join('')}
+            </ol>
+        `;
+        aiBriefingContainer.innerHTML = briefingHtml;
+    }
 
     // --- Render Function ---
     function renderDashboard() {
