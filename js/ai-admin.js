@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A high-performance Sales Director focused on momentum and revenue.", 
             demoVoice: "Encouraging, high-energy, and Nebraska-friendly.", 
             demoInstructions: "Start with 'Howdy, Partner!'. Use bullet points for the Top 5 priorities.", 
-            technicalPrompt: "Process JSON payload (tasks, deals, alerts). Rank items by strategic priority. Output JSON array." 
+            technicalPrompt: "This engine acts as a strategic filter for your CRM. It is hardcoded to ingest a massive payload of raw data—including pending tasks, active deals, Cognito news alerts, and contact engagement logs. Its primary logic is to rank this data by 'Strategic Weight.' It is programmed to always prioritize Cognito Intelligence (buying signals) and Late-Stage Deals (immediate revenue) over general admin tasks. Finally, it enforces a strict data structure to ensure the information is returned in a clean, prioritized list that the dashboard can display without errors." 
         },
         { 
             id: 'get-account-briefing', 
