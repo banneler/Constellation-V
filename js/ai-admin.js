@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A senior GPC Product Marketing Specialist.", 
             demoVoice: "Authoritative yet approachable. Focus on outcomes, not features.", 
             demoInstructions: "Emphasize local reliability and GPC's deep roots in the Nebraska business community.", 
-            technicalPrompt: "Combine topic with product knowledge data. Draft post + 3 hashtags." 
+            technicalPrompt: "This engine functions as a Content Marketing Strategist. It is designed to bridge the gap between a raw user idea and a polished LinkedIn-ready post. It has a unique technical 'hook' that pulls in approved GPC Product Verbiage based on the products selected in the UI. Its core logic ensures that the output is always formatted for social media readability (using proper spacing and line breaks) and automatically generates a optimized string of niche hashtags to boost post visibility." 
         },
         { 
             id: 'refine-social-post', 
