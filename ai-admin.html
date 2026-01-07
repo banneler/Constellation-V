@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Admin | Constellation</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="theme-dark">
+    <div class="app-container">
+        <nav class="nav-sidebar">
+            <div class="sidebar-logo">
+                <img src="assets/logo.svg" alt="Constellation Logo">
+                <span>Constellation</span>
+            </div>
+            <a href="command-center.html" class="nav-button"><i class="fas fa-rocket"></i> Command Center</a>
+            <a href="accounts.html" class="nav-button"><i class="fas fa-building"></i> Accounts</a>
+            <a href="cognito.html" class="nav-button"><i class="fas fa-brain"></i> Cognito</a>
+            <div class="nav-divider"></div>
+            <a href="ai-admin.html" class="nav-button active"><i class="fas fa-robot"></i> AI Admin</a>
+            </nav>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h2><i class="fas fa-sliders-h"></i> AI Prompt Administration</h2>
+                <div class="header-actions">
+                    <button id="save-all-configs-btn" class="btn-primary">
+                        <i class="fas fa-save"></i> Save All Changes
+                    </button>
+                </div>
+            </header>
+
+            <div class="admin-grid">
+                <aside class="admin-selector-list">
+                    <div class="list-header">AI Functions</div>
+                    <div id="ai-function-list" class="list-container">
+                        </div>
+                </aside>
+
+                <section id="ai-editor-panel" class="details-panel hidden">
+                    <div class="panel-header">
+                        <h3 id="current-function-title">Select a Function</h3>
+                        <span class="badge" id="function-tag">Active</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Persona / Role</label>
+                        <p class="field-desc">Who is the AI pretending to be for this specific task?</p>
+                        <textarea id="ai-persona" rows="3" placeholder="e.g., You are a strategic telecom executive..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Voice & Tone</label>
+                        <p class="field-desc">How should the AI sound? (Professional, bullet points, etc.)</p>
+                        <input type="text" id="ai-voice" placeholder="e.g., Consultative, no-fluff, Nebraska-friendly">
+                    </div>
+
+                    <div class="form-group">
+                        <label>The Prompt Template</label>
+                        <p class="field-desc">The core instructions. Use {{brackets}} for dynamic data.</p>
+                        <textarea id="ai-template" rows="12" class="code-font"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Available Placeholders</label>
+                        <div id="placeholder-chips" class="chip-container">
+                            </div>
+                    </div>
+                </section>
+                
+                <div id="no-selection-placeholder" class="placeholder-view">
+                    <i class="fas fa-robot fa-4x"></i>
+                    <p>Select an AI function from the list to modify its behavior.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="js/ai-admin.js"></script>
+</body>
+</html>
