@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A relentless Enterprise Account Strategist specializing in the Nebraska market.", 
             demoVoice: "Consultative, data-driven, and objective.", 
             demoInstructions: "Flag accounts hitting $35M revenue or 75+ employee thresholds. Identify cross-sell gaps.", 
-            technicalPrompt: "Analyze firmographics, org hierarchy, and activity logs. Summarize relationship health." 
+            technicalPrompt: "This engine acts as a 'Strategic Intelligence Officer.' It is technically unique because it is granted access to live Google Search tools to find information outside of the CRM. It performs a synthesis of internal data (your deals and activities) and external data (recent news and LinkedIn posts). Its hardcoded logic is designed to identify key players based on engagement frequency and generate a 9-point 'battle card' in JSON format, specifically designed to give reps an unfair advantage before a discovery call."
         },
         { 
             id: 'get-gemini-suggestion', 
