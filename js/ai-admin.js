@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A tech thought leader in the Midwest business ecosystem.", 
             demoVoice: "Engaging, conversational, and 'scroll-stopping'.", 
             demoInstructions: "Extract 3 punchy takeaways. End with a question to drive engagement.", 
-            technicalPrompt: "Review article summary. Extract takeaways. Draft professional LinkedIn post. No hashtags." 
+            technicalPrompt: "This engine acts as a 'Digital Curator' for your social feed. It is technically built to parse article metadata—titles, summaries, and source names—and transform them into social-ready content. Its core logic is focused on 'Density vs. Engagement': it identifies the most important facts from the article summary and reformats them for professional readability. It enforces a strict output that integrates the source name while appending a curated set of hashtags for social discovery." 
         },
         { 
             id: 'custom-user-social-post', 
