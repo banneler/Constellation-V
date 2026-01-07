@@ -91,24 +91,27 @@
     <div class="form-group" style="margin-bottom: 20px;">
         <label>AI Persona / Role</label>
         <p class="modal-sub-text">Define who the AI is for this feature.</p>
-        <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;"></textarea>
+        <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;" 
+            placeholder="e.g., You are a highly analytical Strategic Markets Group director..."></textarea>
     </div>
 
     <div class="form-group" style="margin-bottom: 20px;">
         <label>Voice & Tone</label>
         <p class="modal-sub-text">How should the AI sound to the end user?</p>
-        <input type="text" id="ai-voice" class="form-control" style="width: 100%;">
+        <input type="text" id="ai-voice" class="form-control" style="width: 100%;" 
+            placeholder="e.g., Consultative, Nebraska-friendly, professional but informal.">
     </div>
 
     <div class="form-group" style="margin-bottom: 20px;">
         <label>Special Instructions / Evolution</label>
         <p class="modal-sub-text">Your custom guidance for this engine. This is added to the core logic below.</p>
-        <textarea id="ai-custom-instructions" rows="6" class="form-control" style="width: 100%;"></textarea>
+        <textarea id="ai-custom-instructions" rows="6" class="form-control" style="width: 100%;" 
+            placeholder="e.g., Focus heavily on 'Lines in the Sand' like $35M revenue or 75+ employees. Avoid jargon."></textarea>
     </div>
 
     <div class="form-section" style="margin-top: 30px; border-top: 1px dashed var(--border-color); padding-top: 20px;">
         <label style="color: var(--text-medium);"><i class="fas fa-microchip"></i> Technical System Prompt (Standard)</label>
-        <p class="modal-sub-text">This is the base logic that handles data processing and formatting. It cannot be edited directly.</p>
+        <p class="modal-sub-text">The base logic that handles data processing. It cannot be edited directly.</p>
         <textarea id="ai-technical-foundation" rows="8" class="form-control" 
             style="width: 100%; font-family: monospace; background-color: var(--bg-dark); color: var(--text-medium); cursor: not-allowed;" 
             readonly></textarea>
