@@ -7,11 +7,13 @@ import {
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Engine IDs that match your Edge Function invocations
     const ENGINES = [
-        { id: 'get-daily-briefing', name: 'Command Center Briefing', placeholders: ['tasks', 'deals', 'accounts', 'cognitoAlerts'] },
-        { id: 'get-account-briefing', name: 'Account Recon (IRR)', placeholders: ['accountName', 'orgChart', 'deals', 'activities'] },
-        { id: 'get-gemini-suggestion', name: 'Cognito: Initial Outreach', placeholders: ['FirstName', 'headline', 'summary', 'accountName'] },
-        { id: 'generate-social-post', name: 'Social: News Drafter', placeholders: ['title', 'summary', 'link'] }
+        { id: 'get-daily-briefing', name: 'Command Center Briefing' },
+        { id: 'get-account-briefing', name: 'Account Recon (IRR)' },
+        { id: 'get-gemini-suggestion', name: 'Cognito: Initial Outreach' },
+        { id: 'generate-social-post', name: 'Social Hub: Article Drafter' },
+        { id: 'custom-user-social-post', name: 'Social Hub: Product Post' }
     ];
 
     let state = { selectedEngineId: null, configs: [] };
@@ -20,11 +22,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const listBody = document.getElementById("ai-engine-list-body");
     const editorForm = document.getElementById("ai-editor-form");
     const placeholder = document.getElementById("no-selection-msg");
-    const saveBtn = document.getElementById("save-all-configs-btn");
+    const saveBtn = document.getElementById("save-config-btn");
 
     async function loadConfigs() {
         const { data, error } = await supabase.from('ai_configs').select('*');
-        if (error) { console.error("Error loading configs:", error); return; }
+        if (error) { 
+            console.error("Error loading configs:", error); 
+            // If the table doesn't exist, we should inform the user
+            if (error.code === '42P01') {
+                showModal("Table Missing", "The 'ai_configs' table has not been created in Supabase yet.");
+            }
+            return; 
+        }
         state.configs = data || [];
         renderList();
     }
@@ -32,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     function renderList() {
         listBody.innerHTML = ENGINES.map(e => `
             <tr class="list-item ${state.selectedEngineId === e.id ? 'selected' : ''}" data-id="${e.id}">
-                <td>${e.name}</td>
+                <td style="padding: 15px; cursor: pointer; border-bottom: 1px solid var(--border-color);">${e.name}</td>
             </tr>
         `).join('');
     }
@@ -50,19 +59,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('selected-engine-name').textContent = engine.name;
         document.getElementById('ai-persona').value = config.persona || '';
         document.getElementById('ai-voice').value = config.voice || '';
-        document.getElementById('ai-prompt-template').value = config.prompt_template || '';
-
-        document.getElementById('placeholder-chips').innerHTML = engine.placeholders.map(p => 
-            `<button class="btn-secondary merge-field-btn" data-tag="{{${p}}}">{{${p}}}</button>`
-        ).join('');
+        document.getElementById('ai-custom-instructions').value = config.custom_instructions || '';
     }
 
     async function initializePage() {
         await loadSVGs();
-        globalState = await initializeAppState(supabase); // Use the logic from shared_constants
+        globalState = await initializeAppState(supabase); 
         
         if (globalState.currentUser) {
-            await setupUserMenuAndAuth(supabase, globalState); // This now has all HTML elements it needs
+            await setupUserMenuAndAuth(supabase, globalState); 
             await setupGlobalSearch(supabase);
             updateActiveNavLink();
             setupModalListeners();
@@ -77,28 +82,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (row) selectEngine(row.dataset.id);
         });
 
-        document.getElementById('placeholder-chips').addEventListener('click', (e) => {
-            if (e.target.classList.contains('merge-field-btn')) {
-                const tag = e.target.dataset.tag;
-                const area = document.getElementById('ai-prompt-template');
-                area.setRangeText(tag, area.selectionStart, area.selectionEnd, 'end');
-                area.focus();
-            }
-        });
-
         saveBtn.addEventListener('click', async () => {
             const data = {
                 function_id: state.selectedEngineId,
                 persona: document.getElementById('ai-persona').value,
                 voice: document.getElementById('ai-voice').value,
-                prompt_template: document.getElementById('ai-prompt-template').value,
+                custom_instructions: document.getElementById('ai-custom-instructions').value,
                 updated_at: new Date().toISOString()
             };
+
             const { error } = await supabase.from('ai_configs').upsert(data, { onConflict: 'function_id' });
+            
             if (error) {
-                showModal("Error", error.message);
+                showModal("Error", "Could not save configuration: " + error.message);
             } else {
-                showModal("Success", "Configuration Saved!", null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
+                showModal("Success", "AI Voice Layer updated successfully.", null, false, 
+                    `<button class="btn-primary" onclick="hideModal()">OK</button>`);
                 await loadConfigs();
             }
         });
