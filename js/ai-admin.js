@@ -1,128 +1,112 @@
 import { 
     SUPABASE_URL, SUPABASE_ANON_KEY, setupUserMenuAndAuth, 
-    loadSVGs, updateActiveNavLink, initializeAppState, getState, 
-    showModal, hideModal 
+    loadSVGs, updateActiveNavLink, showModal, hideModal 
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    // Core Engine Definitions (Based on your repository)
+
+    // Definitions based on repository usage
     const ENGINES = [
-        { id: 'daily-briefing', name: 'Command Center Briefing', placeholders: ['tasks', 'deals', 'accounts', 'cognitoAlerts'] },
-        { id: 'account-recon', name: 'Account Recon (IRR)', placeholders: ['accountName', 'orgChart', 'deals', 'activities'] },
-        { id: 'cognito-outreach', name: 'Cognito: Outreach', placeholders: ['FirstName', 'headline', 'summary', 'accountName'] },
-        { id: 'social-news', name: 'Social: News Drafter', placeholders: ['title', 'summary', 'link'] },
-        { id: 'social-custom', name: 'Social: Product Post', placeholders: ['userPrompt', 'product_names', 'industry'] }
+        { id: 'get-daily-briefing', name: 'Command Center Briefing', placeholders: ['tasks', 'deals', 'accounts', 'cognitoAlerts'] },
+        { id: 'get-account-briefing', name: 'Account Recon (IRR)', placeholders: ['accountName', 'orgChart', 'deals', 'activities'] },
+        { id: 'get-gemini-suggestion', name: 'Cognito: Initial Outreach', placeholders: ['FirstName', 'headline', 'summary', 'accountName'] },
+        { id: 'generate-social-post', name: 'Social: News Drafter', placeholders: ['title', 'summary', 'link'] }
     ];
 
-    let globalState = {};
-    let localState = {
+    let state = {
+        currentUser: null,
         selectedEngineId: null,
-        configs: [],
-        isDirty: false
+        configs: []
     };
 
-    // --- DOM Elements ---
-    const engineList = document.getElementById('ai-function-list');
-    const editorPanel = document.getElementById('ai-editor-panel');
-    const placeholderView = document.getElementById('no-selection-placeholder');
-    const saveBtn = document.getElementById('save-config-btn');
+    const engineListBody = document.querySelector("#ai-engine-list tbody");
+    const editorForm = document.getElementById("ai-editor-form");
+    const noSelectionMsg = document.getElementById("no-selection-msg");
+    const saveBtn = document.getElementById("save-all-configs-btn");
 
-    async function initializePage() {
-        await loadSVGs();
-        globalState = await initializeAppState(supabase); //
-        
-        if (!globalState.currentUser) return;
-
-        updateActiveNavLink();
-        await loadAllConfigs();
-        renderEngineList();
-        setupEventListeners();
-    }
-
-    async function loadAllConfigs() {
+    async function loadConfigs() {
         const { data, error } = await supabase.from('ai_configs').select('*');
         if (error) console.error("Error loading configs:", error);
-        localState.configs = data || [];
+        state.configs = data || [];
+        renderEngineList();
     }
 
     function renderEngineList() {
-        engineList.innerHTML = ENGINES.map(engine => {
-            const isSelected = localState.selectedEngineId === engine.id;
-            return `
-                <div class="list-item ${isSelected ? 'selected' : ''}" data-id="${engine.id}">
-                    <div class="item-main">
-                        <span class="engine-name">${engine.name}</span>
-                        <small class="engine-id">${engine.id}</small>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        engineListBody.innerHTML = ENGINES.map(engine => `
+            <tr class="list-item ${state.selectedEngineId === engine.id ? 'selected' : ''}" data-id="${engine.id}">
+                <td>${engine.name}</td>
+            </tr>
+        `).join('');
     }
 
     function selectEngine(id) {
-        localState.selectedEngineId = id;
+        state.selectedEngineId = id;
         const engine = ENGINES.find(e => e.id === id);
-        const config = localState.configs.find(c => c.function_id === id) || { persona: '', voice: '', prompt_template: '' };
+        const config = state.configs.find(c => c.function_id === id) || {};
 
-        // UI Updates
         renderEngineList();
-        placeholderView.classList.add('hidden');
-        editorPanel.classList.remove('hidden');
+        noSelectionMsg.classList.add('hidden');
+        editorForm.classList.remove('hidden');
         saveBtn.classList.remove('hidden');
 
-        document.getElementById('current-function-title').textContent = engine.name;
-        document.getElementById('ai-persona').value = config.persona;
-        document.getElementById('ai-voice').value = config.voice;
-        document.getElementById('ai-template').value = config.prompt_template;
+        document.getElementById('selected-engine-name').textContent = engine.name;
+        document.getElementById('ai-persona').value = config.persona || '';
+        document.getElementById('ai-voice').value = config.voice || '';
+        document.getElementById('ai-prompt-template').value = config.prompt_template || '';
 
-        // Render Chip Placeholders
         const chipContainer = document.getElementById('placeholder-chips');
         chipContainer.innerHTML = engine.placeholders.map(p => 
-            `<button type="button" class="chip" data-tag="{{${p}}}">{{${p}}}</button>`
+            `<button class="btn-secondary merge-field-btn" data-tag="{{${p}}}">{{${p}}}</button>`
         ).join('');
+    }
 
-        localState.isDirty = false;
+    async function initializePage() {
+        await loadSVGs();
+        updateActiveNavLink();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+            state.currentUser = session.user;
+            await setupUserMenuAndAuth(supabase, state);
+            await loadConfigs();
+            setupEventListeners();
+        } else {
+            window.location.href = "index.html";
+        }
     }
 
     function setupEventListeners() {
-        engineList.addEventListener('click', (e) => {
-            const item = e.target.closest('.list-item');
-            if (item) selectEngine(item.dataset.id);
+        engineListBody.addEventListener('click', (e) => {
+            const row = e.target.closest('tr');
+            if (row) selectEngine(row.dataset.id);
         });
 
-        // Add "Click to insert" logic for chips
         document.getElementById('placeholder-chips').addEventListener('click', (e) => {
-            const chip = e.target.closest('.chip');
-            if (chip) {
-                const tag = chip.dataset.tag;
-                const templateArea = document.getElementById('ai-template');
-                const start = templateArea.selectionStart;
-                const end = templateArea.selectionEnd;
-                templateArea.value = templateArea.value.substring(0, start) + tag + templateArea.value.substring(end);
-                templateArea.focus();
+            if (e.target.classList.contains('merge-field-btn')) {
+                const tag = e.target.dataset.tag;
+                const template = document.getElementById('ai-prompt-template');
+                const start = template.selectionStart;
+                template.value = template.value.substring(0, start) + tag + template.value.substring(template.selectionEnd);
+                template.focus();
             }
         });
 
         saveBtn.addEventListener('click', async () => {
             const configData = {
-                function_id: localState.selectedEngineId,
+                function_id: state.selectedEngineId,
                 persona: document.getElementById('ai-persona').value,
                 voice: document.getElementById('ai-voice').value,
-                prompt_template: document.getElementById('ai-template').value,
+                prompt_template: document.getElementById('ai-prompt-template').value,
                 updated_at: new Date().toISOString()
             };
 
             const { error } = await supabase.from('ai_configs').upsert(configData, { onConflict: 'function_id' });
-
             if (error) {
-                showModal("Save Error", error.message);
+                showModal("Error", error.message, null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
             } else {
-                showModal("Success", "AI Logic Updated.", () => {
-                    hideModal();
-                    loadAllConfigs();
-                }, false, `<button class="btn-primary" id="modal-ok-btn">OK</button>`);
+                showModal("Success", "AI Configuration Saved.", null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
+                await loadConfigs();
             }
         });
     }
