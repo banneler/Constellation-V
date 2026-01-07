@@ -19,8 +19,9 @@
         #loading-screen video { width: 100%; max-width: 1200px; height: auto; }
     </style>
 </head>
+
 <body>
-    <div id="loading-screen" class="hidden">
+    <div id="loading-screen">
         <video autoplay muted playsinline>
             <source src="Constellation-Animation.mp4" type="video/mp4">
         </video>
@@ -29,16 +30,20 @@
     <div class="crm-container">
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
+
             <div class="global-search-container">
                 <input type="text" id="global-search-input" placeholder="Global Search...">
                 <div id="global-search-results" class="global-search-results hidden"></div>
             </div>
+
             <a href="command-center.html" class="nav-button">Command Center</a>
+            <a href="deals.html" class="nav-button">Deals</a>
+            <a href="contacts.html" class="nav-button">Contacts</a>
             <a href="accounts.html" class="nav-button">Accounts</a>
-            <a href="cognito.html" class="nav-button">Cognito</a>
+            <a href="irr.html" class="nav-button">IRR Calculator</a>
             <a href="marketing-hub.html" class="nav-button">Marketing Hub</a>
             <div class="nav-divider"></div>
-            <a href="ai-admin.html" class="nav-button active">AI Admin</a>
+            <a href="ai-admin.html" class="nav-button active"><i class="fas fa-robot"></i> AI Admin</a>
             
             <div class="nav-bottom-section">
                 <div class="user-menu" style="margin-top: auto;">
@@ -62,7 +67,7 @@
                 <div class="tasks-header">
                     <div class="tasks-header-left">
                         <h2>AI Voice Administration</h2>
-                        <p class="placeholder-text">Evolve how the AI speaks across the Constellation ecosystem.</p>
+                        <p class="placeholder-text">Manage how Gemini speaks and thinks across Constellation.</p>
                     </div>
                     <div class="tasks-header-right">
                         <button id="save-config-btn" class="btn-primary cognito-style-btn hidden">
@@ -71,52 +76,48 @@
                     </div>
                 </div>
 
-                <div class="dashboard-grid" style="display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-top: 20px;">
-                    <div class="table-container" style="height: fit-content;">
+                <div class="dashboard-grid" style="display: grid; grid-template-columns: 340px 1fr; gap: 20px; margin-top: 20px;">
+                    <div class="table-container" style="height: fit-content; max-height: 80vh; overflow-y: auto;">
                         <table id="ai-engine-table">
-                            <thead><tr><th>AI Engine / Feature</th></tr></thead>
+                            <thead><tr><th>Select AI Engine</th></tr></thead>
                             <tbody id="ai-engine-list-body"></tbody>
                         </table>
                     </div>
 
                     <div class="table-container" id="editor-container">
-                        <div id="no-selection-msg" style="padding: 60px 20px; text-align: center;">
+                        <div id="no-selection-msg" style="padding: 80px 20px; text-align: center;">
                             <i class="fas fa-microphone-lines fa-4x" style="color: var(--primary-blue); opacity: 0.5; margin-bottom: 20px;"></i>
-                            <p>Select an AI engine to adjust its persona and instructions.</p>
+                            <p>Select an engine to adjust its persona and instructions.</p>
                         </div>
 
-                       <div id="ai-editor-form" class="hidden" style="padding: 25px;">
-    <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 20px;"></h3>
-    
-    <div class="form-group" style="margin-bottom: 20px;">
-        <label>AI Persona / Role</label>
-        <p class="modal-sub-text">Define who the AI is for this feature.</p>
-        <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;" 
-            placeholder="e.g., You are a highly analytical Strategic Markets Group director..."></textarea>
-    </div>
+                        <div id="ai-editor-form" class="hidden" style="padding: 25px;">
+                            <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 20px;"></h3>
+                            
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label>AI Persona / Role</label>
+                                <p class="modal-sub-text">Define who the AI is pretending to be for this specific task.</p>
+                                <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;"></textarea>
+                            </div>
 
-    <div class="form-group" style="margin-bottom: 20px;">
-        <label>Voice & Tone</label>
-        <p class="modal-sub-text">How should the AI sound to the end user?</p>
-        <input type="text" id="ai-voice" class="form-control" style="width: 100%;" 
-            placeholder="e.g., Consultative, Nebraska-friendly, professional but informal.">
-    </div>
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label>Voice & Tone</label>
+                                <p class="modal-sub-text">How should the AI sound to your team?</p>
+                                <input type="text" id="ai-voice" class="form-control" style="width: 100%;">
+                            </div>
 
-    <div class="form-group" style="margin-bottom: 20px;">
-        <label>Special Instructions / Evolution</label>
-        <p class="modal-sub-text">Your custom guidance for this engine. This is added to the core logic below.</p>
-        <textarea id="ai-custom-instructions" rows="6" class="form-control" style="width: 100%;" 
-            placeholder="e.g., Focus heavily on 'Lines in the Sand' like $35M revenue or 75+ employees. Avoid jargon."></textarea>
-    </div>
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label>Special Instructions / Evolution</label>
+                                <p class="modal-sub-text">Your custom guidance for this engine. This is added to the technical logic below.</p>
+                                <textarea id="ai-custom-instructions" rows="8" class="form-control" style="width: 100%;"></textarea>
+                            </div>
 
-    <div class="form-section" style="margin-top: 30px; border-top: 1px dashed var(--border-color); padding-top: 20px;">
-        <label style="color: var(--text-medium);"><i class="fas fa-microchip"></i> Technical System Prompt (Standard)</label>
-        <p class="modal-sub-text">The base logic that handles data processing. It cannot be edited directly.</p>
-        <textarea id="ai-technical-foundation" rows="8" class="form-control" 
-            style="width: 100%; font-family: monospace; background-color: var(--bg-dark); color: var(--text-medium); cursor: not-allowed;" 
-            readonly></textarea>
-    </div>
-</div>
+                            <div class="form-section" style="margin-top: 30px; border-top: 1px dashed var(--border-color); padding-top: 20px;">
+                                <label style="color: var(--text-medium);"><i class="fas fa-microchip"></i> Technical System Prompt (Standard)</label>
+                                <p class="modal-sub-text">The base logic handling data processing. This cannot be edited directly.</p>
+                                <textarea id="ai-technical-foundation" rows="6" class="form-control" 
+                                    style="width: 100%; font-family: monospace; background-color: var(--bg-dark); color: var(--text-medium); cursor: not-allowed;" 
+                                    readonly></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -140,7 +141,7 @@
         })();
         window.addEventListener('load', () => {
             const loadingScreen = document.getElementById('loading-screen');
-            setTimeout(() => { loadingScreen.classList.add('hidden'); }, 3000);
+            setTimeout(() => { if(loadingScreen) loadingScreen.classList.add('hidden'); }, 3000);
         });
     </script>
 </body>
