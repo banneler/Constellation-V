@@ -17,26 +17,6 @@
         }
         #loading-screen.hidden { opacity: 0; pointer-events: none; }
         #loading-screen video { width: 100%; max-width: 1200px; height: auto; }
-        
-        /* Specific Tab Styling matching the IRR layout */
-        .ai-admin-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            margin-top: 20px;
-        }
-        
-        /* Reusing the site-tabs-container class for style consistency */
-        .ai-engine-tabs {
-            display: flex;
-            overflow-x: auto;
-            gap: 5px;
-            padding-bottom: 0;
-            border-bottom: 2px solid var(--border-color);
-            background-color: var(--bg-medium);
-            padding: 10px 10px 0 10px;
-            border-radius: 8px 8px 0 0;
-        }
     </style>
 </head>
 
@@ -93,47 +73,53 @@
             <div id="ai-admin-view" class="content-view active-view">
                 <div class="tasks-header">
                     <div class="tasks-header-left">
-                        <h2>AI Admin</h2>
-                        <p class="placeholder-text">Manage the voice and logic of Constellation's AI ecosystem.</p>
+                        <h2>AI Voice Administration</h2>
+                        <p class="placeholder-text">Evolve the persona and instructions for the Constellation-AI ecosystem.</p>
                     </div>
                     <div class="tasks-header-right">
                         <button id="save-config-btn" class="btn-primary cognito-style-btn hidden">
-                            <i class="fas fa-save"></i> &nbsp;Save Configuration
+                            <i class="fas fa-save"></i> &nbsp;Save Voice Updates
                         </button>
                     </div>
                 </div>
 
-                <div class="ai-admin-container card">
-                    <div id="ai-engine-tabs" class="ai-engine-tabs site-tabs-container">
+                <div class="card" style="margin-top: 20px; padding: 0; overflow: hidden;">
+                    <div id="ai-engine-tabs" class="site-tabs-container">
                         </div>
 
-                    <div id="editor-container" class="table-container" style="border-top: none; border-radius: 0 0 8px 8px;">
+                    <div id="editor-container" class="table-container" style="border: none; padding: 20px;">
                         <div id="no-selection-msg" style="padding: 60px 20px; text-align: center;">
-                            <i class="fas fa-robot fa-4x" style="color: var(--primary-blue); opacity: 0.5; margin-bottom: 20px;"></i>
-                            <p>Select an AI engine above to configure its logic.</p>
+                            <i class="fas fa-microphone-lines fa-4x" style="color: var(--primary-blue); opacity: 0.5; margin-bottom: 20px;"></i>
+                            <p>Select an engine above to adjust its persona and instructions.</p>
                         </div>
 
-                        <div id="ai-editor-form" class="hidden" style="padding: 25px;">
-                            <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 20px;"></h3>
+                        <div id="ai-editor-form" class="hidden">
+                            <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 25px; font-family: 'Orbitron', sans-serif;"></h3>
                             
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>AI Persona / Role</label>
-                                <textarea id="ai-persona" rows="2" class="form-control"></textarea>
-                            </div>
+                            <div class="form-grid">
+                                <div class="full-span-grid-item">
+                                    <label>AI Persona / Role</label>
+                                    <p class="modal-sub-text">Who is the AI pretending to be? (e.g., "A Relentless Strategic Analyst").</p>
+                                    <textarea id="ai-persona" rows="2" class="form-control"></textarea>
+                                </div>
 
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Voice & Tone</label>
-                                <input type="text" id="ai-voice" class="form-control">
-                            </div>
+                                <div class="full-span-grid-item" style="margin-top: 15px;">
+                                    <label>Voice & Tone</label>
+                                    <p class="modal-sub-text">How should the AI sound to the end user?</p>
+                                    <input type="text" id="ai-voice" class="form-control" placeholder="e.g., Professional, witty, and concise.">
+                                </div>
 
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Special Instructions / Evolution</label>
-                                <textarea id="ai-custom-instructions" rows="6" class="form-control"></textarea>
+                                <div class="full-span-grid-item" style="margin-top: 15px;">
+                                    <label>Special Instructions / Evolution</label>
+                                    <p class="modal-sub-text">Guidance specific to this feature. This is added to the technical prompt below.</p>
+                                    <textarea id="ai-custom-instructions" rows="6" class="form-control"></textarea>
+                                </div>
                             </div>
 
                             <div class="form-section" style="margin-top: 30px; border-top: 1px dashed var(--border-color); padding-top: 20px;">
                                 <label style="color: var(--text-medium);"><i class="fas fa-microchip"></i> Technical System Prompt (Standard)</label>
-                                <textarea id="ai-technical-foundation" rows="5" class="form-control" 
+                                <p class="modal-sub-text">The hardcoded base logic handling data processing. Cannot be edited directly.</p>
+                                <textarea id="ai-technical-foundation" rows="4" class="form-control" 
                                     style="font-family: monospace; background-color: var(--bg-dark); color: var(--text-medium); cursor: not-allowed;" 
                                     readonly></textarea>
                             </div>
@@ -153,5 +139,15 @@
     </div>
 
     <script type="module" src="js/ai-admin.js"></script>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+            document.body.className = `theme-${savedTheme}`;
+        })();
+        window.addEventListener('load', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            setTimeout(() => { if(loadingScreen) loadingScreen.classList.add('hidden'); }, 3000);
+        });
+    </script>
 </body>
 </html>
