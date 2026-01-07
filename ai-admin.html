@@ -85,26 +85,35 @@
                             <p>Select an AI engine to adjust its persona and instructions.</p>
                         </div>
 
-                        <div id="ai-editor-form" class="hidden" style="padding: 25px;">
-                            <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 20px;"></h3>
-                            
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>AI Persona / Role</label>
-                                <p class="modal-sub-text">Who is the AI pretending to be? (e.g., "A relentless strategic analyst").</p>
-                                <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;" placeholder="e.g., You are a highly consultative telecom advisor..."></textarea>
-                            </div>
+                       <div id="ai-editor-form" class="hidden" style="padding: 25px;">
+    <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 20px;"></h3>
+    
+    <div class="form-group" style="margin-bottom: 20px;">
+        <label>AI Persona / Role</label>
+        <p class="modal-sub-text">Define who the AI is for this feature.</p>
+        <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;"></textarea>
+    </div>
 
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Voice & Tone</label>
-                                <p class="modal-sub-text">How should the AI sound to the end user?</p>
-                                <input type="text" id="ai-voice" class="form-control" style="width: 100%;" placeholder="e.g., Professional yet witty, concise, bullet points only">
-                            </div>
+    <div class="form-group" style="margin-bottom: 20px;">
+        <label>Voice & Tone</label>
+        <p class="modal-sub-text">How should the AI sound to the end user?</p>
+        <input type="text" id="ai-voice" class="form-control" style="width: 100%;">
+    </div>
 
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Special Instructions / Evolution</label>
-                                <p class="modal-sub-text">Specific guidance for this function. This is added to the core technical prompt.</p>
-                                <textarea id="ai-custom-instructions" rows="10" class="form-control" style="width: 100%;" placeholder="e.g., Always emphasize local Nebraska values and avoid technical jargon."></textarea>
-                            </div>
+    <div class="form-group" style="margin-bottom: 20px;">
+        <label>Special Instructions / Evolution</label>
+        <p class="modal-sub-text">Your custom guidance for this engine. This is added to the core logic below.</p>
+        <textarea id="ai-custom-instructions" rows="6" class="form-control" style="width: 100%;"></textarea>
+    </div>
+
+    <div class="form-section" style="margin-top: 30px; border-top: 1px dashed var(--border-color); padding-top: 20px;">
+        <label style="color: var(--text-medium);"><i class="fas fa-microchip"></i> Technical System Prompt (Standard)</label>
+        <p class="modal-sub-text">This is the base logic that handles data processing and formatting. It cannot be edited directly.</p>
+        <textarea id="ai-technical-foundation" rows="8" class="form-control" 
+            style="width: 100%; font-family: monospace; background-color: var(--bg-dark); color: var(--text-medium); cursor: not-allowed;" 
+            readonly></textarea>
+    </div>
+</div>
                         </div>
                     </div>
                 </div>
