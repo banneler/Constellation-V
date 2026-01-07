@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A senior GPC Product Marketing Specialist.", 
             demoVoice: "Authoritative yet approachable. Focus on outcomes, not features.", 
             demoInstructions: "Emphasize local reliability and GPC's deep roots in the Nebraska business community.", 
-            technicalPrompt: "This engine functions as a Content Marketing Strategist. It is designed to bridge the gap between a raw user idea and a polished LinkedIn-ready post. It has a unique technical 'hook' that pulls in approved GPC Product Verbiage based on the products selected in the UI. Its core logic ensures that the output is always formatted for social media readability (using proper spacing and line breaks) and automatically generates a optimized string of niche hashtags to boost post visibility." 
+            technicalPrompt: "This engine is the 'Product Specialist' of the Social Hub. Unlike a general article summary, this tool is technically wired to reach out to the GPC Product database to pull in 'Verbiage Context.' It takes your raw topic, identifies the products you've selected, and blends them together. Its hardcoded foundation ensures that the output is formatted with LinkedIn-specific spacing and always includes a curated string of niche hashtags to ensure the post reaches the right business audience."
         },
         { 
             id: 'refine-social-post', 
