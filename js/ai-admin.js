@@ -8,16 +8,86 @@ document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ENGINES = [
-        { id: 'get-daily-briefing', name: 'Command Center', demoPersona: "Sales VP", demoVoice: "Encouraging", technicalPrompt: "Process JSON and output top 5 priorities." },
-        { id: 'get-account-briefing', name: 'Account Recon', demoPersona: "Analyst", demoVoice: "Consultative", technicalPrompt: "Summarize firmographics and health." },
-        { id: 'get-gemini-suggestion', name: 'Cognito Suggestion', demoPersona: "Sales Exec", demoVoice: "Professional", technicalPrompt: "Draft outreach email for [FirstName]." },
-        { id: 'generate-custom-suggestion', name: 'Cognito Refiner', demoPersona: "Coach", demoVoice: "Direct", technicalPrompt: "Modify draft based on user feedback." },
-        { id: 'generate-social-post', name: 'Social Article', demoPersona: "Influencer", demoVoice: "Engaging", technicalPrompt: "Draft LinkedIn post from article." },
-        { id: 'custom-user-social-post', name: 'Product Post', demoPersona: "Marketer", demoVoice: "Authoritative", technicalPrompt: "Draft post using product knowledge data." },
-        { id: 'refine-social-post', name: 'Post Refiner', demoPersona: "Editor", demoVoice: "Polished", technicalPrompt: "Update post based on specific prompts." },
-        { id: 'generate-prospect-email', name: 'Contact Email', demoPersona: "Manager", demoVoice: "Respectful", technicalPrompt: "Draft email using product selections." },
-        { id: 'get-activity-insight', name: 'Activity Insights', demoPersona: "Strategist", demoVoice: "Action-oriented", technicalPrompt: "Suggest next steps from logs." },
-        { id: 'generate-sequence-steps', name: 'Sequence Builder', demoPersona: "SDR Lead", demoVoice: "Persistent", technicalPrompt: "Generate multi-channel sequence JSON." }
+        { 
+            id: 'get-daily-briefing', 
+            name: 'Command Center', 
+            demoPersona: "A high-performance Sales Director focused on momentum and revenue.", 
+            demoVoice: "Encouraging, high-energy, and Nebraska-friendly.", 
+            demoInstructions: "Start with 'Howdy, Partner!'. Use bullet points for the Top 5 priorities. End with a motivating one-liner.", 
+            technicalPrompt: "Process JSON payload (tasks, deals, alerts). Rank items by strategic priority. Output JSON array with 'title' and 'reason'." 
+        },
+        { 
+            id: 'get-account-briefing', 
+            name: 'Account Recon', 
+            demoPersona: "A relentless Enterprise Account Strategist specializing in the Nebraska market.", 
+            demoVoice: "Consultative, data-driven, and objective.", 
+            demoInstructions: "Specifically flag accounts hitting the $35M revenue or 75+ employee thresholds. Identify cross-sell gaps.", 
+            technicalPrompt: "Analyze firmographics, org hierarchy, and activity logs. Summarize relationship health and potential product gaps." 
+        },
+        { 
+            id: 'get-gemini-suggestion', 
+            name: 'Cognito Suggestion', 
+            demoPersona: "A consultative telecom advisor who values the prospect's time.", 
+            demoVoice: "Professional, concise, and non-robotic.", 
+            demoInstructions: "Reference the news alert naturally. Focus on providing an insight rather than just asking for a meeting.", 
+            technicalPrompt: "Draft a concise outreach email based on news alert data. System handles [FirstName] and signatures." 
+        },
+        { 
+            id: 'generate-custom-suggestion', 
+            name: 'Cognito Refiner', 
+            demoPersona: "An expert communications and copywriting coach.", 
+            demoVoice: "Direct and instruction-led.", 
+            demoInstructions: "Strictly follow the user's refinement prompt to adjust the tone or focus of the previous draft.", 
+            technicalPrompt: "Modify the existing subject line and body based on specific user feedback and the original alert context." 
+        },
+        { 
+            id: 'generate-social-post', 
+            name: 'Social Article', 
+            demoPersona: "A tech thought leader in the Midwest business ecosystem.", 
+            demoVoice: "Engaging, conversational, and 'scroll-stopping'.", 
+            demoInstructions: "Extract 3 punchy takeaways. End with a question that encourages industry peers to leave a comment.", 
+            technicalPrompt: "Review article summary. Extract takeaways. Draft a professional LinkedIn post. No hashtags unless requested." 
+        },
+        { 
+            id: 'custom-user-social-post', 
+            name: 'Product Post', 
+            demoPersona: "A senior GPC Product Marketing Specialist.", 
+            demoVoice: "Authoritative yet approachable. Focus on outcomes, not features.", 
+            demoInstructions: "Emphasize local reliability and GPC's deep roots in the Nebraska business community.", 
+            technicalPrompt: "Combine user topic with product knowledge data. Draft a complete post and include 3 relevant hashtags." 
+        },
+        { 
+            id: 'refine-social-post', 
+            name: 'Post Refiner', 
+            demoPersona: "A professional business journal editor.", 
+            demoVoice: "Polished, sophisticated, and concise.", 
+            demoInstructions: "Clean up wordiness. Ensure the final draft is optimized for maximum readability on mobile devices.", 
+            technicalPrompt: "Produce an updated version of the social media draft based on the user's specific refinement instructions." 
+        },
+        { 
+            id: 'generate-prospect-email', 
+            name: 'Contact Email', 
+            demoPersona: "An experienced Strategic Markets Group sales lead.", 
+            demoVoice: "Value-first and peer-to-peer.", 
+            demoInstructions: "Keep it under 150 words. Anchor the email on a specific business outcome from the product selections.", 
+            technicalPrompt: "Draft an email based on the user's prompt, contact details, and current GPC product selections." 
+        },
+        { 
+            id: 'get-activity-insight', 
+            name: 'Activity Insights', 
+            demoPersona: "A sharp Strategic Sales Analyst.", 
+            demoVoice: "Insightful, analytical, and action-oriented.", 
+            demoInstructions: "Flag accounts with zero activity in the last 30 days. Suggest a 'pattern interrupt' outreach strategy.", 
+            technicalPrompt: "Summarize history of activities. Identify trends in engagement and suggest specific next action steps." 
+        },
+        { 
+            id: 'generate-sequence-steps', 
+            name: 'Sequence Builder', 
+            demoPersona: "A high-performance SDR Manager.", 
+            demoVoice: "Persistent, professional, and multi-channel focused.", 
+            demoInstructions: "Balance touchpoints across LinkedIn, Email, and Phone. Ensure delay cadences feel natural.", 
+            technicalPrompt: "Generate a multi-step sales sequence including subject lines and body copy based on goals and step types." 
+        }
     ];
 
     let state = { selectedEngineId: null, configs: [] };
@@ -55,16 +125,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('selected-engine-name').textContent = engine.name;
         document.getElementById('ai-technical-foundation').value = engine.technicalPrompt;
 
-        const personaField = document.getElementById('ai-persona');
-        const voiceField = document.getElementById('ai-voice');
-        const instructionsField = document.getElementById('ai-custom-instructions');
+        const pField = document.getElementById('ai-persona');
+        const vField = document.getElementById('ai-voice');
+        const iField = document.getElementById('ai-custom-instructions');
 
-        personaField.value = config.persona || '';
-        voiceField.value = config.voice || '';
-        instructionsField.value = config.custom_instructions || '';
+        pField.value = config.persona || '';
+        vField.value = config.voice || '';
+        iField.value = config.custom_instructions || '';
 
-        personaField.placeholder = `Demo: ${engine.demoPersona}`;
-        voiceField.placeholder = `Demo: ${engine.demoVoice}`;
+        pField.placeholder = `Demo: ${engine.demoPersona}`;
+        vField.placeholder = `Demo: ${engine.demoVoice}`;
+        iField.placeholder = `Demo: ${engine.demoInstructions}`;
     }
 
     async function initializePage() {
@@ -95,7 +166,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 const { error } = await supabase.from('ai_configs').upsert(data, { onConflict: 'function_id' });
                 if (!error) {
-                    showModal("Success", "AI Voice Layer updated.", null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
+                    showModal("Success", "AI Voice Layer updated successfully.", null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
                     await loadConfigs();
                 }
             });
