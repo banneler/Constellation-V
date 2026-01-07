@@ -1,7 +1,7 @@
 import { 
     SUPABASE_URL, SUPABASE_ANON_KEY, setupUserMenuAndAuth, 
     loadSVGs, updateActiveNavLink, initializeAppState, 
-    showModal, hideModal, setupModalListeners, setupGlobalSearch, checkAndSetNotifications 
+    setupModalListeners, setupGlobalSearch, checkAndSetNotifications 
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -14,79 +14,79 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A high-performance Sales Director focused on momentum and revenue.", 
             demoVoice: "Encouraging, high-energy, and Nebraska-friendly.", 
             demoInstructions: "Start with 'Howdy, Partner!'. Use bullet points for the Top 5 priorities.", 
-            technicalPrompt: "Process JSON payload. Rank items by strategic priority. Output JSON array." 
+            technicalPrompt: "Process JSON payload (tasks, deals, alerts). Rank items by strategic priority. Output JSON array." 
         },
         { 
             id: 'get-account-briefing', 
             name: 'Account Recon', 
-            demoPersona: "A relentless Enterprise Account Strategist.", 
+            demoPersona: "A relentless Enterprise Account Strategist specializing in the Nebraska market.", 
             demoVoice: "Consultative, data-driven, and objective.", 
-            demoInstructions: "Flag accounts hitting $35M revenue or 75+ employees. Identify cross-sell gaps.", 
-            technicalPrompt: "Analyze firmographics, org hierarchy, and activity logs." 
+            demoInstructions: "Flag accounts hitting $35M revenue or 75+ employee thresholds. Identify cross-sell gaps.", 
+            technicalPrompt: "Analyze firmographics, org hierarchy, and activity logs. Summarize relationship health." 
         },
         { 
             id: 'get-gemini-suggestion', 
             name: 'Cognito Suggestion', 
             demoPersona: "A consultative telecom advisor who values the prospect's time.", 
             demoVoice: "Professional, concise, and non-robotic.", 
-            demoInstructions: "Reference the news alert naturally. Provide an insight rather than just a pitch.", 
-            technicalPrompt: "Draft concise outreach email based on news alerts. Uses [FirstName]." 
+            demoInstructions: "Reference news alerts naturally. Focus on insights rather than just asking for a meeting.", 
+            technicalPrompt: "Draft outreach email based on news alerts. System handles [FirstName] and signatures." 
         },
         { 
             id: 'generate-custom-suggestion', 
             name: 'Cognito Refiner', 
             demoPersona: "An expert communications and copywriting coach.", 
             demoVoice: "Direct and instruction-led.", 
-            demoInstructions: "Strictly follow user refinement prompts to adjust tone or focus.", 
-            technicalPrompt: "Modify existing subject and body based on user feedback." 
+            demoInstructions: "Strictly follow user feedback to adjust the tone or focus of the previous draft.", 
+            technicalPrompt: "Modify existing subject and body based on user feedback and original alert context." 
         },
         { 
             id: 'generate-social-post', 
             name: 'Social Article', 
             demoPersona: "A tech thought leader in the Midwest business ecosystem.", 
             demoVoice: "Engaging, conversational, and 'scroll-stopping'.", 
-            demoInstructions: "Extract 3 punchy takeaways. End with a question for engagement.", 
-            technicalPrompt: "Summarize article into a professional LinkedIn post." 
+            demoInstructions: "Extract 3 punchy takeaways. End with a question to drive engagement.", 
+            technicalPrompt: "Review article summary. Extract takeaways. Draft professional LinkedIn post. No hashtags." 
         },
         { 
             id: 'custom-user-social-post', 
             name: 'Product Post', 
             demoPersona: "A senior GPC Product Marketing Specialist.", 
-            demoVoice: "Authoritative yet approachable.", 
-            demoInstructions: "Emphasize local reliability and GPC's deep roots in Nebraska.", 
-            technicalPrompt: "Combine user topic with product knowledge data for a post." 
+            demoVoice: "Authoritative yet approachable. Focus on outcomes, not features.", 
+            demoInstructions: "Emphasize local reliability and GPC's deep roots in the Nebraska business community.", 
+            technicalPrompt: "Combine topic with product knowledge data. Draft post + 3 hashtags." 
         },
         { 
             id: 'refine-social-post', 
             name: 'Post Refiner', 
             demoPersona: "A professional business journal editor.", 
             demoVoice: "Polished, sophisticated, and concise.", 
-            demoInstructions: "Optimize for mobile readability. Reduce wordiness.", 
-            technicalPrompt: "Update social media draft based on refinement instructions." 
+            demoInstructions: "Clean up wordiness. Optimize for mobile readability on LinkedIn.", 
+            technicalPrompt: "Update the social media draft based on the user's specific refinement instructions." 
         },
         { 
             id: 'generate-prospect-email', 
             name: 'Contact Email', 
             demoPersona: "An experienced Strategic Markets Group sales lead.", 
             demoVoice: "Value-first and peer-to-peer.", 
-            demoInstructions: "Keep under 150 words. Anchor on a specific business outcome.", 
-            technicalPrompt: "Draft email based on prompt and GPC product selections." 
+            demoInstructions: "Keep it under 150 words. Anchor on a specific business outcome from the product selections.", 
+            technicalPrompt: "Draft email based on user prompt, contact details, and product selections." 
         },
         { 
             id: 'get-activity-insight', 
             name: 'Activity Insights', 
             demoPersona: "A sharp Strategic Sales Analyst.", 
             demoVoice: "Insightful, analytical, and action-oriented.", 
-            demoInstructions: "Flag accounts with zero activity in 30 days. Suggest outreach strategy.", 
-            technicalPrompt: "Summarize history of activities and suggest next steps." 
+            demoInstructions: "Flag accounts with zero activity in 30 days. Suggest outreach pattern interrupts.", 
+            technicalPrompt: "Summarize activity history. Identify engagement trends and suggest next actions." 
         },
         { 
             id: 'generate-sequence-steps', 
             name: 'Sequence Builder', 
             demoPersona: "A high-performance SDR Manager.", 
-            demoVoice: "Persistent, professional, and multi-channel.", 
-            demoInstructions: "Balance touchpoints across LinkedIn, Email, and Phone.", 
-            technicalPrompt: "Generate multi-step sales sequence JSON structure." 
+            demoVoice: "Persistent, professional, and multi-channel focused.", 
+            demoInstructions: "Balance touches across LinkedIn, Email, and Phone. Cadences must feel natural.", 
+            technicalPrompt: "Generate multi-step sales sequence JSON based on goals and step types." 
         }
     ];
 
@@ -97,12 +97,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     const placeholder = document.getElementById("no-selection-msg");
     const saveBtn = document.getElementById("save-config-btn");
 
+    function showToast(message, type = 'success') {
+        const existingToast = document.querySelector('.constellation-toast');
+        if (existingToast) existingToast.remove();
+
+        const toast = document.createElement('div');
+        toast.className = `constellation-toast toast-${type}`;
+        toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 100);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+
     async function loadConfigs() {
         const { data, error } = await supabase.from('ai_configs').select('*');
-        if (error) {
-            console.error("Error loading configs:", error);
-            return;
-        }
+        if (error) return console.error("Error loading configs:", error);
         state.configs = data || [];
         renderTabs();
     }
@@ -136,7 +151,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         vField.value = config.voice || '';
         iField.value = config.custom_instructions || '';
 
-        // Strategic Placeholders
         pField.placeholder = `Demo: ${engine.demoPersona}`;
         vField.placeholder = `Demo: ${engine.demoVoice}`;
         iField.placeholder = `Demo: ${engine.demoInstructions}`;
@@ -159,7 +173,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (tab) selectEngine(tab.dataset.id);
             });
 
-            // FIXED: Added error catching to display feedback if save fails
             saveBtn.addEventListener('click', async () => {
                 const data = {
                     function_id: state.selectedEngineId,
@@ -172,10 +185,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { error } = await supabase.from('ai_configs').upsert(data, { onConflict: 'function_id' });
                 
                 if (error) {
-                    console.error("Save Error:", error);
-                    showModal("Save Failed", `Error: ${error.message}. Ensure function_id unique index exists.`);
+                    showToast(`Save Error: ${error.message}`, 'error');
                 } else {
-                    showModal("Success", "AI Voice Layer updated.", null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
+                    showToast("AI Voice Settings Updated Successfully!");
                     await loadConfigs();
                 }
             });
