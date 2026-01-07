@@ -8,16 +8,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ENGINES = [
-        { id: 'get-daily-briefing', name: 'Daily Briefing', demoPersona: "Sales VP", demoVoice: "Nebraska-friendly", demoInstructions: "Greet with 'Howdy, Partner!'", technicalPrompt: "Rank JSON payload by priority." },
-        { id: 'get-account-briefing', name: 'Account Recon', demoPersona: "Analyst", demoVoice: "Consultative", demoInstructions: "Focus on $35M revenue marks.", technicalPrompt: "Summarize firmographics/org chart." },
-        { id: 'get-gemini-suggestion', name: 'Cognito Suggestion', demoPersona: "Sales Exec", demoVoice: "Concise", demoInstructions: "Reference the news alert naturally.", technicalPrompt: "Draft outreach for [FirstName]." },
-        { id: 'generate-custom-suggestion', name: 'Cognito Refiner', demoPersona: "Coach", demoVoice: "Direct", demoInstructions: "Prioritize user refinement prompt.", technicalPrompt: "Modify existing subject/body." },
-        { id: 'generate-social-post', name: 'Social Hub Drafter', demoPersona: "Influencer", demoVoice: "Engaging", demoInstructions: "Include 3 key takeaways.", technicalPrompt: "Summarize article into LinkedIn post." },
-        { id: 'custom-user-social-post', name: 'Product Poster', demoPersona: "Product Specialist", demoVoice: "Authoritative", demoInstructions: "Highlight Managed Wi-Fi benefits.", technicalPrompt: "Draft post using product data." },
-        { id: 'refine-social-post', name: 'Social Hub Refiner', demoPersona: "Editor", demoVoice: "Polished", demoInstructions: "Simplify complex language.", technicalPrompt: "Take draft + feedback to update." },
-        { id: 'generate-prospect-email', name: 'Contact AI Email', demoPersona: "Account Manager", demoVoice: "Respectful", demoInstructions: "Limit to 3 paragraphs.", technicalPrompt: "Draft email based on selections." },
-        { id: 'get-activity-insight', name: 'Activity Insights', demoPersona: "Strategist", demoVoice: "Action-oriented", demoInstructions: "Suggest follow-up cadences.", technicalPrompt: "Analyze log for trends/next steps." },
-        { id: 'generate-sequence-steps', name: 'Sequence Builder', demoPersona: "SDR Manager", demoVoice: "Persistent", demoInstructions: "Vary Email/Call/LinkedIn.", technicalPrompt: "Generate sequence JSON structure." }
+        { id: 'get-daily-briefing', name: 'Command Center', demoPersona: "Sales VP", demoVoice: "Encouraging", technicalPrompt: "Process JSON and output top 5 priorities." },
+        { id: 'get-account-briefing', name: 'Account Recon', demoPersona: "Analyst", demoVoice: "Consultative", technicalPrompt: "Summarize firmographics and health." },
+        { id: 'get-gemini-suggestion', name: 'Cognito Suggestion', demoPersona: "Sales Exec", demoVoice: "Professional", technicalPrompt: "Draft outreach email for [FirstName]." },
+        { id: 'generate-custom-suggestion', name: 'Cognito Refiner', demoPersona: "Coach", demoVoice: "Direct", technicalPrompt: "Modify draft based on user feedback." },
+        { id: 'generate-social-post', name: 'Social Article', demoPersona: "Influencer", demoVoice: "Engaging", technicalPrompt: "Draft LinkedIn post from article." },
+        { id: 'custom-user-social-post', name: 'Product Post', demoPersona: "Marketer", demoVoice: "Authoritative", technicalPrompt: "Draft post using product knowledge data." },
+        { id: 'refine-social-post', name: 'Post Refiner', demoPersona: "Editor", demoVoice: "Polished", technicalPrompt: "Update post based on specific prompts." },
+        { id: 'generate-prospect-email', name: 'Contact Email', demoPersona: "Manager", demoVoice: "Respectful", technicalPrompt: "Draft email using product selections." },
+        { id: 'get-activity-insight', name: 'Activity Insights', demoPersona: "Strategist", demoVoice: "Action-oriented", technicalPrompt: "Suggest next steps from logs." },
+        { id: 'generate-sequence-steps', name: 'Sequence Builder', demoPersona: "SDR Lead", demoVoice: "Persistent", technicalPrompt: "Generate multi-channel sequence JSON." }
     ];
 
     let state = { selectedEngineId: null, configs: [] };
@@ -35,7 +35,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function renderTabs() {
-        // Using the exact 'irr-tab' class pattern from your IRR page
         tabContainer.innerHTML = ENGINES.map(e => `
             <button class="irr-tab ${state.selectedEngineId === e.id ? 'active' : ''}" data-id="${e.id}">
                 ${e.name}
@@ -56,17 +55,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('selected-engine-name').textContent = engine.name;
         document.getElementById('ai-technical-foundation').value = engine.technicalPrompt;
 
-        const pField = document.getElementById('ai-persona');
-        const vField = document.getElementById('ai-voice');
-        const iField = document.getElementById('ai-custom-instructions');
+        const personaField = document.getElementById('ai-persona');
+        const voiceField = document.getElementById('ai-voice');
+        const instructionsField = document.getElementById('ai-custom-instructions');
 
-        pField.value = config.persona || '';
-        vField.value = config.voice || '';
-        iField.value = config.custom_instructions || '';
+        personaField.value = config.persona || '';
+        voiceField.value = config.voice || '';
+        instructionsField.value = config.custom_instructions || '';
 
-        pField.placeholder = `Demo: ${engine.demoPersona}`;
-        vField.placeholder = `Demo: ${engine.demoVoice}`;
-        iField.placeholder = `Demo: ${engine.demoInstructions}`;
+        personaField.placeholder = `Demo: ${engine.demoPersona}`;
+        voiceField.placeholder = `Demo: ${engine.demoVoice}`;
     }
 
     async function initializePage() {
