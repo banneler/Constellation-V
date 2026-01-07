@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "An experienced Strategic Markets Group sales lead.", 
             demoVoice: "Value-first and peer-to-peer.", 
             demoInstructions: "Keep it under 150 words. Anchor on a specific business outcome from the product selections.", 
-            technicalPrompt: "Draft email based on user prompt, contact details, and product selections." 
+            technicalPrompt: "This engine acts as a 'Strategic Outreach Architect.' It is technically unique because it performs a 'triple-join' of data: it identifies the specific GPC user's name and title, it pulls in verified product verbiage context, and it analyzes the prospect's industry. Its hardcoded logic ensures that the email is structured for high-conversion sales standards—concise body, professional line breaks, and a clean handoff to the UI's signature system. It prevents the AI from over-explaining and forces it to focus on the user's specific outreach goal." 
         },
         { 
             id: 'get-activity-insight', 
