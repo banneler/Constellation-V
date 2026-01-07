@@ -235,8 +235,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
     function renderAIBriefing(briefing) {
         const briefingHtml = `
-            ${greeting}
-            <ol id="ai-briefing-list">
+           <ol id="ai-briefing-list">
                 ${briefing.priorities.map(item => `
                     <li>
                         <strong>${item.title}</strong>
