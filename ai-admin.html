@@ -3,101 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Admin | Constellation</title>
+    <title>Strategic - CRM - AI Admin</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
-<body class="theme-dark">
+<body>
     <div id="loading-screen" class="hidden">
         <div class="loader"></div>
-        <p>Loading AI Configurations...</p>
+        <p>Initializing AI Engines...</p>
     </div>
 
-    <div class="app-container">
+    <div class="crm-container">
         <nav class="nav-sidebar">
-            <div class="sidebar-logo">
-                <div id="logo-container"></div> <span>Constellation</span>
+            <div data-svg-loader="assets/logo.svg"></div>
+
+            <div class="global-search-container">
+                <input type="text" id="global-search-input" placeholder="Global Search...">
+                <div id="global-search-results" class="global-search-results hidden"></div>
             </div>
-            <a href="command-center.html" class="nav-button"><i class="fas fa-rocket"></i> Command Center</a>
-            <a href="accounts.html" class="nav-button"><i class="fas fa-building"></i> Accounts</a>
-            <a href="cognito.html" class="nav-button"><i class="fas fa-brain"></i> Cognito</a>
-            <a href="marketing-hub.html" class="nav-button"><i class="fas fa-bullhorn"></i> Marketing Hub</a>
+
+            <a href="command-center.html" class="nav-button">Command Center</a>
+            <a href="deals.html" class="nav-button">Deals</a>
+            <a href="contacts.html" class="nav-button">Contacts</a>
+            <a href="accounts.html" class="nav-button">Accounts</a>
+            <a href="irr.html" class="nav-button">IRR Calculator</a>
+            <a href="marketing-hub.html" class="nav-button">Marketing Hub</a>
             <div class="nav-divider"></div>
             <a href="ai-admin.html" class="nav-button active"><i class="fas fa-robot"></i> AI Admin</a>
             
-            <div class="sidebar-footer">
-                <div id="user-menu-container"></div> </div>
+            <div class="nav-bottom-section">
+                <div class="user-menu" style="margin-top: auto;">
+                    <div class="user-menu-header">
+                        <div data-svg-loader="assets/user-icon.svg"></div>
+                        <span id="user-name-display">Loading...</span>
+                    </div>
+                </div>
+            </div>
         </nav>
-
-        <main class="main-content">
-            <header class="content-header">
-                <div class="header-title-group">
-                    <h2><i class="fas fa-sliders-h"></i> AI Prompt Administration</h2>
-                    <p class="subtitle">Manage the voice and logic of Constellation's AI engines.</p>
-                </div>
-                <div class="header-actions">
-                    <button id="save-config-btn" class="btn-primary hidden">
-                        <i class="fas fa-save"></i> Save Configuration
-                    </button>
-                </div>
-            </header>
-
-            <div class="dashboard-grid admin-layout">
-                <section class="card list-card">
-                    <div class="card-header">
-                        <h4>AI Engines</h4>
+        
+        <main class="content-area">
+            <div id="ai-admin-view" class="content-view active-view">
+                <div class="tasks-header">
+                    <div class="tasks-header-left">
+                        <h2>AI Prompt Administration</h2>
+                        <p class="placeholder-text">Configure the persona and logic for the Constellation-AI ecosystem.</p>
                     </div>
-                    <div id="ai-function-list" class="list-container scrollable">
-                        </div>
-                </section>
+                    <div class="tasks-header-right">
+                        <button id="save-all-configs-btn" class="btn-primary cognito-style-btn hidden">
+                            <i class="fas fa-save"></i> &nbsp;Save Configuration
+                        </button>
+                    </div>
+                </div>
 
-                <section class="card details-card">
-                    <div id="no-selection-placeholder" class="placeholder-view">
-                        <i class="fas fa-robot fa-4x"></i>
-                        <p>Select an AI engine to adjust its persona, voice, and instructions.</p>
+                <div class="dashboard-grid" style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; margin-top: 20px;">
+                    <div class="table-container" style="height: fit-content;">
+                        <table id="ai-engine-list">
+                            <thead>
+                                <tr><th>AI Engines</th></tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
                     </div>
 
-                    <div id="ai-editor-panel" class="hidden">
-                        <div class="panel-header-sticky">
-                            <h3 id="current-function-title">Engine Name</h3>
-                            <span class="status-pill status-active">Active</span>
+                    <div class="table-container" id="editor-container">
+                        <div id="no-selection-msg" style="padding: 40px; text-align: center;">
+                            <i class="fas fa-robot fa-3x" style="color: var(--primary-blue); margin-bottom: 20px;"></i>
+                            <p>Select an AI Engine to modify its behavior.</p>
                         </div>
 
-                        <form id="ai-admin-form">
-                            <div class="form-section">
-                                <h5><i class="fas fa-user-tag"></i> Identity</h5>
-                                <div class="form-group">
-                                    <label>Persona / Role</label>
-                                    <textarea id="ai-persona" rows="3" placeholder="Who is the AI pretending to be?"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label>Voice & Tone</label>
-                                    <input type="text" id="ai-voice" placeholder="e.g., Consultative, Nebraska-friendly">
-                                </div>
+                        <div id="ai-editor-form" class="hidden" style="padding: 20px;">
+                            <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 20px;"></h3>
+                            
+                            <div class="form-group">
+                                <label>AI Persona & Role</label>
+                                <p class="modal-sub-text">Define who the AI is (e.g., "You are a strategic telecom consultant...").</p>
+                                <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;"></textarea>
                             </div>
 
-                            <div class="form-section">
-                                <h5><i class="fas fa-terminal"></i> Logic & Instructions</h5>
-                                <div class="form-group">
-                                    <label>Prompt Template</label>
-                                    <textarea id="ai-template" rows="12" class="code-font"></textarea>
-                                </div>
+                            <div class="form-group" style="margin-top: 20px;">
+                                <label>Voice & Tone</label>
+                                <input type="text" id="ai-voice" class="form-control" style="width: 100%;" placeholder="e.g., Consultative, Nebraska-friendly, Professional">
                             </div>
 
-                            <div class="form-section">
-                                <h5><i class="fas fa-tags"></i> Dynamic Data (Merge Fields)</h5>
-                                <p class="small-text">Click to copy a placeholder to your prompt.</p>
-                                <div id="placeholder-chips" class="chip-container">
+                            <div class="form-group" style="margin-top: 20px;">
+                                <label>Instructional Template</label>
+                                <p class="modal-sub-text">The core instructions. Click a placeholder below to insert it.</p>
+                                <textarea id="ai-prompt-template" rows="12" class="form-control" style="width: 100%; font-family: monospace;"></textarea>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 20px;">
+                                <label>Available Merge Fields</label>
+                                <div id="placeholder-chips" class="button-group-wrapper" style="flex-wrap: wrap; margin-top: 10px;">
                                     </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
-                </section>
+                </div>
             </div>
         </main>
     </div>
 
-    <div id="modal-backdrop" class="hidden"></div> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
+        </div>
+    </div>
+
     <script type="module" src="js/ai-admin.js"></script>
 </body>
 </html>
