@@ -80,15 +80,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoInstructions: "Flag accounts with zero activity in 30 days. Suggest outreach pattern interrupts.", 
             technicalPrompt: "Summarize activity history. Identify engagement trends and suggest next actions." 
         },
-        { 
-            id: 'generate-sequence-steps', 
-            name: 'Sequence Builder', 
-            demoPersona: "A high-performance SDR Manager.", 
-            demoVoice: "Persistent, professional, and multi-channel focused.", 
-            demoInstructions: "Balance touches across LinkedIn, Email, and Phone. Cadences must feel natural.", 
-            technicalPrompt: "Generate multi-step sales sequence JSON based on goals and step types." 
-        }
-    ];
+            ];
 
     let state = { selectedEngineId: null, configs: [] };
 
