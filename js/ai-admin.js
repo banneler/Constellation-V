@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         { id: 'get-daily-briefing', name: 'Command Center Briefing', demoPersona: "Seasoned Sales VP", demoVoice: "Encouraging, high-energy", demoInstructions: "Greeting: 'Howdy, Partner!'", technicalPrompt: "Rank items by strategic priority. Output JSON array." },
         { id: 'get-account-briefing', name: 'Account Recon (IRR)', demoPersona: "Enterprise Analyst", demoVoice: "Consultative", demoInstructions: "Focus on revenue thresholds.", technicalPrompt: "Summarize firmographics and pipeline health." },
         { id: 'get-gemini-suggestion', name: 'Cognito: Outreach', demoPersona: "Expert Sales Exec", demoVoice: "Professional, non-robotic", demoInstructions: "Peer-to-peer tone.", technicalPrompt: "Draft outreach email based on alert headline." },
-        { id: id: 'generate-custom-suggestion', name: 'Cognito: Refiner', demoPersona: "Persuasive Coach", demoVoice: "Direct", demoInstructions: "Follow user instruction exactly.", technicalPrompt: "Refine draft based on user prompt." },
+        { id: 'generate-custom-suggestion', name: 'Cognito: Refiner', demoPersona: "Persuasive Coach", demoVoice: "Direct", demoInstructions: "Follow user instruction exactly.", technicalPrompt: "Refine draft based on user prompt." },
         { id: 'generate-social-post', name: 'Social Hub: Article', demoPersona: "Tech Influencer", demoVoice: "Engaging", demoInstructions: "End with a question.", technicalPrompt: "Extract takeaways and draft LinkedIn post." },
         { id: 'custom-user-social-post', name: 'Social Hub: Product', demoPersona: "Product Specialist", demoVoice: "Authoritative", demoInstructions: "Highlight local reliability.", technicalPrompt: "Combine topic with product data." },
         { id: 'refine-social-post', name: 'Social Hub: Refiner', demoPersona: "Editor-in-Chief", demoVoice: "Polished", demoInstructions: "Simplify language.", technicalPrompt: "Refine draft based on feedback." },
@@ -34,7 +34,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderTabs();
     }
 
-    // Reusing the 'irr-tab' class pattern from irr.js for horizontal navigation
     function renderTabs() {
         tabContainer.innerHTML = ENGINES.map(e => {
             const isSelected = state.selectedEngineId === e.id;
@@ -102,6 +101,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!error) {
                     showModal("Success", "AI Voice Layer updated.", null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
                     await loadConfigs();
+                } else {
+                    showModal("Error", "Could not save updates: " + error.message, null, false, `<button class="btn-primary" onclick="hideModal()">OK</button>`);
                 }
             });
         }
