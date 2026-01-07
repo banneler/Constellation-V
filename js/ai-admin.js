@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "An expert communications and copywriting coach.", 
             demoVoice: "Direct and instruction-led.", 
             demoInstructions: "Strictly follow user feedback to adjust the tone or focus of the previous draft.", 
-            technicalPrompt: "Modify existing subject and body based on user feedback and original alert context." 
+            technicalPrompt: "This engine acts as a 'Professional Editor' and Revisionist. It is technically unique because it processes the current state of an outreach draft alongside a user's feedback. It has a 'Recursive Memory' logic—it looks at what was originally written, understands the strategic alert data, and then applies specific user corrections to the tone, length, or focus. It ensures that even after multiple edits, the output remains a structured JSON object compatible with the Cognito interface."
         },
         { 
             id: 'generate-social-post', 
