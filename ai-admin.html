@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
     <style>
-        /* Keep the loading screen styles identical to Command Center */
         #loading-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background-color: var(--bg-medium); display: flex;
@@ -20,7 +19,6 @@
         #loading-screen video { width: 100%; max-width: 1200px; height: auto; }
     </style>
 </head>
-
 <body>
     <div id="loading-screen" class="hidden">
         <video autoplay muted playsinline>
@@ -31,12 +29,10 @@
     <div class="crm-container">
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
-
             <div class="global-search-container">
                 <input type="text" id="global-search-input" placeholder="Global Search...">
                 <div id="global-search-results" class="global-search-results hidden"></div>
             </div>
-
             <a href="command-center.html" class="nav-button">Command Center</a>
             <a href="accounts.html" class="nav-button">Accounts</a>
             <a href="cognito.html" class="nav-button">Cognito</a>
@@ -65,46 +61,49 @@
             <div id="ai-admin-view" class="content-view active-view">
                 <div class="tasks-header">
                     <div class="tasks-header-left">
-                        <h2>AI Admin</h2>
-                        <button id="save-all-configs-btn" class="btn-primary hidden">Save Changes</button>
+                        <h2>AI Voice Administration</h2>
+                        <p class="placeholder-text">Evolve how the AI speaks across the Constellation ecosystem.</p>
+                    </div>
+                    <div class="tasks-header-right">
+                        <button id="save-config-btn" class="btn-primary cognito-style-btn hidden">
+                            <i class="fas fa-save"></i> &nbsp;Save Voice Updates
+                        </button>
                     </div>
                 </div>
 
-                <div class="dashboard-grid" style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; margin-top: 20px;">
+                <div class="dashboard-grid" style="display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-top: 20px;">
                     <div class="table-container" style="height: fit-content;">
                         <table id="ai-engine-table">
-                            <thead><tr><th>Select AI Engine</th></tr></thead>
+                            <thead><tr><th>AI Engine / Feature</th></tr></thead>
                             <tbody id="ai-engine-list-body"></tbody>
                         </table>
                     </div>
 
                     <div class="table-container" id="editor-container">
                         <div id="no-selection-msg" style="padding: 60px 20px; text-align: center;">
-                            <i class="fas fa-robot fa-4x" style="color: var(--primary-blue); opacity: 0.5; margin-bottom: 20px;"></i>
-                            <p>Select an engine from the left to configure its logic.</p>
+                            <i class="fas fa-microphone-lines fa-4x" style="color: var(--primary-blue); opacity: 0.5; margin-bottom: 20px;"></i>
+                            <p>Select an AI engine to adjust its persona and instructions.</p>
                         </div>
 
                         <div id="ai-editor-form" class="hidden" style="padding: 25px;">
                             <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 20px;"></h3>
                             
                             <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Persona & Role</label>
-                                <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;"></textarea>
+                                <label>AI Persona / Role</label>
+                                <p class="modal-sub-text">Who is the AI pretending to be? (e.g., "A relentless strategic analyst").</p>
+                                <textarea id="ai-persona" rows="3" class="form-control" style="width: 100%;" placeholder="e.g., You are a highly consultative telecom advisor..."></textarea>
                             </div>
 
                             <div class="form-group" style="margin-bottom: 20px;">
                                 <label>Voice & Tone</label>
-                                <input type="text" id="ai-voice" class="form-control" style="width: 100%;">
+                                <p class="modal-sub-text">How should the AI sound to the end user?</p>
+                                <input type="text" id="ai-voice" class="form-control" style="width: 100%;" placeholder="e.g., Professional yet witty, concise, bullet points only">
                             </div>
 
                             <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Prompt Instructions</label>
-                                <textarea id="ai-prompt-template" rows="12" class="form-control" style="width: 100%; font-family: monospace;"></textarea>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Merge Fields</label>
-                                <div id="placeholder-chips" class="button-group-wrapper" style="flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
+                                <label>Special Instructions / Evolution</label>
+                                <p class="modal-sub-text">Specific guidance for this function. This is added to the core technical prompt.</p>
+                                <textarea id="ai-custom-instructions" rows="10" class="form-control" style="width: 100%;" placeholder="e.g., Always emphasize local Nebraska values and avoid technical jargon."></textarea>
                             </div>
                         </div>
                     </div>
@@ -122,5 +121,15 @@
     </div>
 
     <script type="module" src="js/ai-admin.js"></script>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+            document.body.className = `theme-${savedTheme}`;
+        })();
+        window.addEventListener('load', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            setTimeout(() => { loadingScreen.classList.add('hidden'); }, 3000);
+        });
+    </script>
 </body>
 </html>
