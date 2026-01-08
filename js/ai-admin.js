@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A professional business journal editor.", 
             demoVoice: "Polished, sophisticated, and concise.", 
             demoInstructions: "Clean up wordiness. Optimize for mobile readability on LinkedIn.", 
-            technicalPrompt: "Update the social media draft based on the user's specific refinement instructions." 
+            technicalPrompt: "This engine acts as a 'Professional Content Editor.' It is technically designed to take an existing draft and apply iterative user feedback. Its core logic focuses on 'Preservation and Modification'—ensuring that the original intent of the post remains while specific shifts in tone, length, or focus are applied. It enforces a clean JSON output that contains only the updated suggestion, formatted for immediate use in the Social Hub interface."
         },
         { 
             id: 'generate-prospect-email', 
