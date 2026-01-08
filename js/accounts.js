@@ -960,8 +960,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
             if (error) throw error;
 
-            const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+           // --- UPDATED GLOBAL PROCESSING ---
+const keyPlayersHtml = flattenAIResponse(briefing.key_players)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+const icebreakersHtml = flattenAIResponse(briefing.icebreakers)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+const pipelineText = flattenAIResponse(briefing.pipeline);
+const activityHighlights = flattenAIResponse(briefing.activity_highlights);
+const newsText = flattenAIResponse(briefing.news);
+const newContactsText = flattenAIResponse(briefing.new_contacts);
+const recommendationText = flattenAIResponse(briefing.recommendation);
+const summaryText = flattenAIResponse(briefing.summary);
 
             let orgChartDisplayHtml = '';
 
@@ -1542,5 +1553,35 @@ document.addEventListener("DOMContentLoaded", async () => {
             );
         }
     }
+    /**
+ * Global Helper to prevent [object Object] errors.
+ * Flattens strings, arrays, and objects into clean, readable text.
+ */
+function flattenAIResponse(data) {
+    if (!data) return "";
+    
+    // If it's already a string, just return it
+    if (typeof data === 'string') return data;
+    
+    // If it's an array, process each item and join them
+    if (Array.isArray(data)) {
+        return data.map(item => {
+            if (typeof item === 'object' && item !== null) {
+                // If it's a contact-style object {name, title}
+                if (item.name) return `${item.name}${item.title ? ` (${item.title})` : ''}`;
+                // Otherwise, stringify the whole object values
+                return Object.values(item).join(': ');
+            }
+            return String(item);
+        }).join(', ');
+    }
+    
+    // If it's a single object (like a single pipeline item)
+    if (typeof data === 'object') {
+        return Object.values(data).join(': ');
+    }
+
+    return String(data);
+}
     initializePage();
 });
