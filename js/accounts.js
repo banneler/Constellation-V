@@ -831,32 +831,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         /* SECTION HEADERS: Prevent orphaned titles at bottom of page */
-        h4 {
-            font-size: 1.05rem;
-            color: #3b82f6 !important;
-            border-bottom: 2px solid #3b82f6 !important;
-            padding-bottom: 4px;
-            margin-top: 15px !important; /* Reduced from 30px */
-            margin-bottom: 10px !important;
-            page-break-after: avoid !important; 
-        }
+    h4 {
+    font-size: 1.05rem;
+    color: #3b82f6 !important;
+    border-bottom: 2px solid #3b82f6 !important;
+    padding-bottom: 4px;
+    margin-top: 20px !important;
+    margin-bottom: 10px !important;
+    
+    /* THE FIX: Force the header to stay with the following div */
+    display: block;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+}
 
-        /* THE FIX: Allow sections to break across pages, but keep internals together */
-        .briefing-section {
-            background-color: #f9f9f9 !important;
-            page-break-inside: auto !important; /* ALLOW internal breaks */
-            border: 1px solid #eee !important;
-            padding: 12px !important;
-            border-radius: 8px;
-            margin-bottom: 12px !important;
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-
-        /* Keep specific small blocks from splitting mid-paragraph */
-        .briefing-section p, .briefing-pre, .briefing-section img {
-            page-break-inside: avoid !important;
-        }
+/* --- SECTION CONTENT --- */
+.briefing-section {
+    background-color: #f9f9f9 !important;
+    border: 1px solid #eee !important;
+    padding: 12px !important;
+    border-radius: 8px;
+    margin-bottom: 12px !important;
+    
+    /* THE COMPLEMENTARY FIX: Ensure the section can still break internally 
+       if it is very long, but starts with its header */
+    break-before: avoid !important;
+    page-break-before: avoid !important;
+    page-break-inside: auto !important; 
+}
 
         .briefing-pre {
             background-color: #fff !important;
