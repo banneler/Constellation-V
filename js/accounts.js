@@ -800,105 +800,88 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <title>AI Briefing: ${accountName || 'Account'}</title>
                     <link rel="stylesheet" href="css/style.css">
                     
-                    <style>
-                        @media print {
+          <style>
+    @media print {
+        /* Force sans-serif and dark text for legibility */
+        body, p, li, h1, h2, h3, h4, h5, h6, strong, div {
+            font-family: system-ui, -apple-system, sans-serif !important;
+            color: #1a202c !important;
+        }
 
-                            /* --- FONT FIX: Force sans-serif on all text elements --- */
-                            body, p, li, h1, h2, h3, h4, h5, h6, strong, div {
-                                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-                                color: #2d3748 !important;
-                            }
+        body {
+            margin: 10mm; /* standard print margin */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
 
-                            body {
-                                margin: 20px;
-                                -webkit-print-color-adjust: exact;
-                                print-color-adjust: exact;
-                            }
-                            @page {
-                                size: auto;
-                                margin: 20px;
-                            }
+        /* HEADER: Compacted to save page 1 real estate */
+        .report-header {
+            background-color: #3b82f6 !important;
+            color: #ffffff !important;
+            padding: 10px 15px !important;
+            border-radius: 6px;
+            margin-bottom: 10px !important;
+            page-break-inside: avoid;
+        }
 
-                            /* --- HEADER FIX (YOUR SUGGESTION) --- */
-                            .report-header {
-                                background-color: #3b82f6 !important;
-                                color: #ffffff !important;
-                                padding: 12px 16px; /* Reduced padding */
-                                border-radius: 8px;
-                                margin-bottom: 20px; /* Reduced margin */
-                                page-break-inside: avoid;
-                            }
-                            /* H2 removed */
-                            .report-header h3 {
-                                font-size: 1.35rem; /* Make account name the title */
-                                font-weight: 600;
-                                color: #ffffff !important;
-                                margin: 0;
-                            }
+        .report-header h3 {
+            font-size: 1.25rem !important;
+            margin: 0 !important;
+            color: #ffffff !important;
+        }
 
-                            /* --- Section Headers (h4) (Your style) --- */
-                            h4 {
-                                font-size: 1.1rem;
-                                font-weight: 600;
-                                color: #3b82f6 !important;
-                                border-bottom: 2px solid #3b82f6 !important;
-                                padding-bottom: 6px;
-                                margin-top: 30px;
-                                margin-bottom: 16px;
-                                page-break-after: auto !important; /* FIX for orphaned headings */
-                            }
-                            
-                            /* --- BORDER FIX: Added !important --- */
-                            .briefing-section {
-                                background-color: #f9f9f9 !important;
-                                page-break-inside: avoid !important;
-                                border: 1px solid #eee !important;
-                                padding: 16px !important;
-                                border-radius: 8px !important;
-                                margin-bottom: 16px !important;
-                                font-size: 0.95rem;
-                                line-height: 1.6;
-                            }
+        /* SECTION HEADERS: Prevent orphaned titles at bottom of page */
+        h4 {
+            font-size: 1.05rem;
+            color: #3b82f6 !important;
+            border-bottom: 2px solid #3b82f6 !important;
+            padding-bottom: 4px;
+            margin-top: 15px !important; /* Reduced from 30px */
+            margin-bottom: 10px !important;
+            page-break-after: avoid !important; 
+        }
 
-                            /* Removed the useless .org-chart-print-container rule */
+        /* THE FIX: Allow sections to break across pages, but keep internals together */
+        .briefing-section {
+            background-color: #f9f9f9 !important;
+            page-break-inside: auto !important; /* ALLOW internal breaks */
+            border: 1px solid #eee !important;
+            padding: 12px !important;
+            border-radius: 8px;
+            margin-bottom: 12px !important;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
 
-                            /* --- AI Recommendation Box (Your style) --- */
-                            .briefing-section.recommendation {
-                                background-color: #eef5ff !important;
-                                border-color: #b0cfff !important;
-                            }
+        /* Keep specific small blocks from splitting mid-paragraph */
+        .briefing-section p, .briefing-pre, .briefing-section img {
+            page-break-inside: avoid !important;
+        }
 
-                            /* --- BORDER/FONT FIX: Added !important --- */
-                            div.briefing-pre {
-                                background-color: #fff !important;
-                                border: 1px solid #ddd !important;
-                                white-space: pre-wrap !important;
-                                word-wrap: break-word !important;
-                                padding: 12px !important;
-                                border-radius: 6px !important;
-                                font-family: inherit !important; /* <-- Use the body's sans-serif font */
-                                font-size: 0.9rem !important;
-                            }
-                            
-                            /* --- This ensures our new canvas image looks good --- */
-                            .briefing-section img {
-                                width: 100%;
-                                max-width: 100%;
-                                height: auto;
-                                border: 1px solid #ccc;
-                                border-radius: 4px;
-                            }
-                        }
-                    </style>
+        .briefing-pre {
+            background-color: #fff !important;
+            border: 1px solid #ddd !important;
+            white-space: pre-wrap !important;
+            padding: 8px !important;
+            border-radius: 4px;
+            font-size: 0.85rem !important;
+            margin-top: 5px;
+        }
+
+        .briefing-section.recommendation {
+            background-color: #eef5ff !important;
+            border-color: #b0cfff !important;
+        }
+    }
+</style>
                 </head>
-                <body>
-                    <div class="report-header">
-                        <h3>${accountName || 'Selected Account'}</h3>
-                    </div>
-                    
-                    <div class="ai-briefing-container">${briefingHtml}</div>
-                
-                </body>
+               <body>
+    <div class="report-header">
+        <h3>AI Account Briefing: ${accountName || 'Selected Account'}</h3>
+    </div>
+    
+    <div class="ai-briefing-container">${briefingHtml}</div>
+</body>
             </html>
         `);
         frameDoc.close();
