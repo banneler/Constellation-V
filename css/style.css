@@ -4657,3 +4657,15 @@ div.briefing-pre {
     gap: 1.25rem;
     margin-top: 1.25rem;
 }
+/* --- Dashboard AI Briefing Bullet Styles --- */
+.briefing-bullet-list {
+    margin: 12px 0;
+    padding-left: 25px;
+    list-style-type: disc;
+    color: var(--text-main); /* Or your primary text color variable */
+}
+
+.briefing-bullet-list li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
