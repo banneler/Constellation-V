@@ -874,6 +874,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             background-color: #eef5ff !important;
             border-color: #b0cfff !important;
         }
+        .briefing-bullet-list {
+            margin: 8px 0;
+            padding-left: 20px !important;
+            list-style-type: disc !important;
+        }
+
+        .briefing-bullet-list li {
+            margin-bottom: 6px;
+            line-height: 1.4;
+            page-break-inside: avoid; 
+        }
     }
 </style>
                 </head>
@@ -960,19 +971,23 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
             if (error) throw error;
 
-           // --- UPDATED GLOBAL PROCESSING ---
+    // --- UPDATED GLOBAL PROCESSING ---
+const summaryText = flattenAIResponse(briefing.summary);
+
 const keyPlayersHtml = flattenAIResponse(briefing.key_players)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+const pipelineText = flattenAIResponse(briefing.pipeline);
+
+const activityHighlightsHtml = flattenAIResponse(briefing.activity_highlights);
+
+const newsText = flattenAIResponse(briefing.news);
+const newContactsText = flattenAIResponse(briefing.new_contacts);
 
 const icebreakersHtml = flattenAIResponse(briefing.icebreakers)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-const pipelineText = flattenAIResponse(briefing.pipeline);
-const activityHighlights = flattenAIResponse(briefing.activity_highlights);
-const newsText = flattenAIResponse(briefing.news);
-const newContactsText = flattenAIResponse(briefing.new_contacts);
 const recommendationText = flattenAIResponse(briefing.recommendation);
-const summaryText = flattenAIResponse(briefing.summary);
 
             let orgChartDisplayHtml = '';
 
@@ -1554,34 +1569,39 @@ const summaryText = flattenAIResponse(briefing.summary);
         }
     }
     /**
+ /**
  * Global Helper to prevent [object Object] errors.
- * Flattens strings, arrays, and objects into clean, readable text.
+ * Also handles bullet point formatting for lists.
  */
 function flattenAIResponse(data) {
     if (!data) return "";
     
-    // If it's already a string, just return it
-    if (typeof data === 'string') return data;
-    
-    // If it's an array, process each item and join them
+    // If it's an array, join it into a string first
     if (Array.isArray(data)) {
-        return data.map(item => {
+        data = data.map(item => {
             if (typeof item === 'object' && item !== null) {
-                // If it's a contact-style object {name, title}
-                if (item.name) return `${item.name}${item.title ? ` (${item.title})` : ''}`;
-                // Otherwise, stringify the whole object values
-                return Object.values(item).join(': ');
+                return item.name ? `${item.name}${item.title ? ` (${item.title})` : ''}` : Object.values(item).join(': ');
             }
             return String(item);
-        }).join(', ');
+        }).join('\n'); 
     }
     
-    // If it's a single object (like a single pipeline item)
-    if (typeof data === 'object') {
-        return Object.values(data).join(': ');
+    // If it's a single object, flatten its values
+    if (typeof data === 'object' && data !== null) {
+        data = Object.values(data).join(': ');
     }
 
-    return String(data);
+    let text = String(data);
+
+    // Convert newlines or existing bullet characters into a standard HTML bulleted list
+    if (text.includes('•') || text.includes('\n')) {
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        return `<ul class="briefing-bullet-list">
+            ${lines.map(line => `<li>${line.replace(/^[•\-\*]\s*/, '')}</li>`).join('')}
+        </ul>`;
+    }
+
+    return text;
 }
     initializePage();
 });
