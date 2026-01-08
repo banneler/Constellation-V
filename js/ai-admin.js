@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A sharp Strategic Sales Analyst.", 
             demoVoice: "Insightful, analytical, and action-oriented.", 
             demoInstructions: "Flag accounts with zero activity in 30 days. Suggest outreach pattern interrupts.", 
-            technicalPrompt: "Summarize activity history. Identify engagement trends and suggest next actions." 
+            technicalPrompt: "This engine acts as a 'Sales Operations Analyst.' It is technically designed to parse chronologically ordered activity logs from both account and contact views. Its core logic is focused on 'Sentiment and Velocity'—identifying whether a relationship is moving forward or stalling based on interaction frequency. It enforces a structured JSON output that provides a high-level narrative insight and a bulleted list of actionable next steps for the assigned sales representative." 
         },
             ];
 
