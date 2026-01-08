@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A high-performance Sales Director focused on momentum and revenue.", 
             demoVoice: "Encouraging, high-energy, and Nebraska-friendly.", 
             demoInstructions: "Start with 'Howdy, Partner!'. Use bullet points for the Top 5 priorities.", 
-            technicalPrompt: "This engine acts as a strategic filter for your CRM. It is hardcoded to ingest a massive payload of raw data—including pending tasks, active deals, Cognito news alerts, and contact engagement logs. Its primary logic is to rank this data by 'Strategic Weight.' It is programmed to always prioritize Cognito Intelligence (buying signals) and Late-Stage Deals (immediate revenue) over general admin tasks. Finally, it enforces a strict data structure to ensure the information is returned in a clean, prioritized list that the dashboard can display without errors." 
+            technicalPrompt: "This engine acts as a strategic filter for your CRM. It is hardcoded to ingest a massive payload of raw data—including pending tasks, active deals, Cognito news alerts, and contact engagement logs." 
         },
         { 
             id: 'get-account-briefing', 
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A relentless Enterprise Account Strategist specializing in the Nebraska market.", 
             demoVoice: "Consultative, data-driven, and objective.", 
             demoInstructions: "Flag accounts hitting $35M revenue or 75+ employee thresholds. Identify cross-sell gaps.", 
-            technicalPrompt: "This engine acts as a 'Strategic Intelligence Officer.' It is technically unique because it is granted access to live Google Search tools to find information outside of the CRM. It performs a synthesis of internal data (your deals and activities) and external data (recent news and LinkedIn posts). Its hardcoded logic is designed to identify key players based on engagement frequency and generate a 9-point 'battle card' in JSON format, specifically designed to give reps an unfair advantage before a discovery call."
+            technicalPrompt: "This engine acts as a 'Strategic Intelligence Officer.' It is technically unique because it is granted access to live Google Search tools to find information outside of the CRM."
         },
         { 
             id: 'get-gemini-suggestion', 
@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A consultative telecom advisor who values the prospect's time.", 
             demoVoice: "Professional, concise, and non-robotic.", 
             demoInstructions: "Reference news alerts naturally. Focus on insights rather than just asking for a meeting.", 
-            technicalPrompt: "This engine is the 'Lead Cultivator' for the Cognito system. It is technically designed to ingest real-time firmographic alerts (buying signals) and map them to GPC’s product portfolio. Its hardcoded logic enforces the use of the [FirstName] placeholder for system-wide personalization and strictly forbids the generation of signatures to prevent overlap with the CRM’s built-in email client. It acts as a first-pass ghostwriter, distilling complex news headlines into human-centric, B2B sales outreach." 
+            technicalPrompt: "This engine is the 'Lead Cultivator' for the Cognito system. It maps real-time firmographic alerts to GPC’s product portfolio." 
         },
         { 
             id: 'generate-custom-suggestion', 
@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "An expert communications and copywriting coach.", 
             demoVoice: "Direct and instruction-led.", 
             demoInstructions: "Strictly follow user feedback to adjust the tone or focus of the previous draft.", 
-            technicalPrompt: "This engine acts as a 'Professional Editor' and Revisionist. It is technically unique because it processes the current state of an outreach draft alongside a user's feedback. It has a 'Recursive Memory' logic—it looks at what was originally written, understands the strategic alert data, and then applies specific user corrections to the tone, length, or focus. It ensures that even after multiple edits, the output remains a structured JSON object compatible with the Cognito interface."
+            technicalPrompt: "This engine acts as a 'Professional Editor' and Revisionist. It processes the current state of an outreach draft alongside a user's feedback."
         },
         { 
             id: 'generate-social-post', 
@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A tech thought leader in the Midwest business ecosystem.", 
             demoVoice: "Engaging, conversational, and 'scroll-stopping'.", 
             demoInstructions: "Extract 3 punchy takeaways. End with a question to drive engagement.", 
-            technicalPrompt: "This engine acts as a 'Digital Curator' for your social feed. It is technically built to parse article metadata—titles, summaries, and source names—and transform them into social-ready content. Its core logic is focused on 'Density vs. Engagement': it identifies the most important facts from the article summary and reformats them for professional readability. It enforces a strict output that integrates the source name while appending a curated set of hashtags for social discovery." 
+            technicalPrompt: "This engine acts as a 'Digital Curator' for your social feed. It transforms article metadata into social-ready content." 
         },
         { 
             id: 'custom-user-social-post', 
@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A senior GPC Product Marketing Specialist.", 
             demoVoice: "Authoritative yet approachable. Focus on outcomes, not features.", 
             demoInstructions: "Emphasize local reliability and GPC's deep roots in the Nebraska business community.", 
-            technicalPrompt: "This engine is the 'Product Specialist' of the Social Hub. Unlike a general article summary, this tool is technically wired to reach out to the GPC Product database to pull in 'Verbiage Context.' It takes your raw topic, identifies the products you've selected, and blends them together. Its hardcoded foundation ensures that the output is formatted with LinkedIn-specific spacing and always includes a curated string of niche hashtags to ensure the post reaches the right business audience."
+            technicalPrompt: "This tool is wired to reach out to the GPC Product database to pull in 'Verbiage Context.' It takes your raw topic and selected products."
         },
         { 
             id: 'refine-social-post', 
@@ -62,27 +62,31 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A professional business journal editor.", 
             demoVoice: "Polished, sophisticated, and concise.", 
             demoInstructions: "Clean up wordiness. Optimize for mobile readability on LinkedIn.", 
-            technicalPrompt: "This engine acts as a 'Professional Content Editor.' It is technically designed to take an existing draft and apply iterative user feedback. Its core logic focuses on 'Preservation and Modification'—ensuring that the original intent of the post remains while specific shifts in tone, length, or focus are applied. It enforces a clean JSON output that contains only the updated suggestion, formatted for immediate use in the Social Hub interface."
+            technicalPrompt: "This engine acts as a 'Professional Content Editor.' It applies iterative user feedback to an existing draft."
         },
         { 
             id: 'generate-prospect-email', 
             name: 'Contact Email', 
             demoPersona: "An experienced Strategic Markets Group sales lead.", 
             demoVoice: "Value-first and peer-to-peer.", 
-            demoInstructions: "Keep it under 150 words. Anchor on a specific business outcome from the product selections.", 
-            technicalPrompt: "This engine acts as a 'Strategic Outreach Architect.' It is technically unique because it performs a 'triple-join' of data: it identifies the specific GPC user's name and title, it pulls in verified product verbiage context, and it analyzes the prospect's industry. Its hardcoded logic ensures that the email is structured for high-conversion sales standards—concise body, professional line breaks, and a clean handoff to the UI's signature system. It prevents the AI from over-explaining and forces it to focus on the user's specific outreach goal." 
+            demoInstructions: "Keep it under 150 words. Anchor on a specific business outcome.", 
+            technicalPrompt: "This engine performs a 'triple-join' of data: user name/title, product verbiage context, and prospect industry." 
         },
         { 
             id: 'get-activity-insight', 
             name: 'Activity Insights', 
             demoPersona: "A sharp Strategic Sales Analyst.", 
             demoVoice: "Insightful, analytical, and action-oriented.", 
-            demoInstructions: "Flag accounts with zero activity in 30 days. Suggest outreach pattern interrupts.", 
-            technicalPrompt: "This engine acts as a 'Sales Operations Analyst.' It is technically designed to parse chronologically ordered activity logs from both account and contact views. Its core logic is focused on 'Sentiment and Velocity'—identifying whether a relationship is moving forward or stalling based on interaction frequency. It enforces a structured JSON output that provides a high-level narrative insight and a bulleted list of actionable next steps for the assigned sales representative." 
-        },
-            ];
+            demoInstructions: "Flag accounts with zero activity in 30 days.", 
+            technicalPrompt: "This engine parses chronologically ordered activity logs to identify relationship sentiment and velocity." 
+        }
+    ];
 
-    let state = { selectedEngineId: null, configs: [] };
+    let state = { 
+        selectedEngineId: null, 
+        configs: [], 
+        currentUser: null 
+    };
 
     const tabContainer = document.getElementById("ai-engine-tabs");
     const editorForm = document.getElementById("ai-editor-form");
@@ -107,11 +111,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 3000);
     }
 
+    // LOAD CONFIGS: Adjusted for the User-Fallback Hierarchy
     async function loadConfigs() {
-        const { data, error } = await supabase.from('ai_configs').select('*');
+        if (!state.currentUser) return;
+        
+        // Fetch User Overrides OR Global Defaults (where user_id is null)
+        const { data, error } = await supabase
+            .from('ai_configs')
+            .select('*')
+            .or(`user_id.eq.${state.currentUser.id},user_id.is.null`)
+            .order('user_id', { ascending: false, nullsFirst: false });
+
         if (error) return console.error("Error loading configs:", error);
-        state.configs = data || [];
+        
+        // Ensure we only keep the best match for each function (User > Global)
+        const uniqueConfigs = [];
+        const seenFunctions = new Set();
+        
+        data.forEach(config => {
+            if (!seenFunctions.has(config.function_id)) {
+                uniqueConfigs.push(config);
+                seenFunctions.add(config.function_id);
+            }
+        });
+
+        state.configs = uniqueConfigs;
         renderTabs();
+        
+        // If an engine was already selected, refresh its view
+        if (state.selectedEngineId) selectEngine(state.selectedEngineId);
     }
 
     function renderTabs() {
@@ -125,7 +153,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     function selectEngine(id) {
         state.selectedEngineId = id;
         const engine = ENGINES.find(e => e.id === id);
+        
+        // Find the active config for this engine in state
         const config = state.configs.find(c => c.function_id === id) || {};
+        const isUserOverride = config.user_id === state.currentUser.id;
 
         renderTabs();
         placeholder.classList.add('hidden');
@@ -134,6 +165,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         document.getElementById('selected-engine-name').textContent = engine.name;
         document.getElementById('ai-technical-foundation').value = engine.technicalPrompt;
+
+        // Visual Indicator of Config State
+        const badge = document.getElementById('config-status-badge');
+        if (badge) {
+            badge.textContent = isUserOverride ? "✨ PERSONAL VOICE ACTIVE" : "🏛️ SYSTEM DEFAULT ACTIVE";
+            badge.className = isUserOverride ? "status-badge personal" : "status-badge system";
+        }
 
         const pField = document.getElementById('ai-persona');
         const vField = document.getElementById('ai-voice');
@@ -153,6 +191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const globalState = await initializeAppState(supabase); 
         
         if (globalState.currentUser) {
+            state.currentUser = globalState.currentUser;
             await setupUserMenuAndAuth(supabase, globalState); 
             await setupGlobalSearch(supabase);
             await checkAndSetNotifications(supabase);
@@ -165,24 +204,49 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (tab) selectEngine(tab.dataset.id);
             });
 
+            // SAVE CONFIG: Updated to target the User UUID Override
             saveBtn.addEventListener('click', async () => {
+                if (!state.selectedEngineId) return;
+
                 const data = {
                     function_id: state.selectedEngineId,
+                    user_id: state.currentUser.id, // Save as personal override
                     persona: document.getElementById('ai-persona').value,
                     voice: document.getElementById('ai-voice').value,
                     custom_instructions: document.getElementById('ai-custom-instructions').value,
                     updated_at: new Date().toISOString()
                 };
 
-                const { error } = await supabase.from('ai_configs').upsert(data, { onConflict: 'function_id' });
+                // Upsert on (function_id, user_id)
+                const { error } = await supabase
+                    .from('ai_configs')
+                    .upsert(data, { onConflict: 'function_id, user_id' });
                 
                 if (error) {
                     showToast(`Save Error: ${error.message}`, 'error');
                 } else {
-                    showToast("AI Voice Settings Updated Successfully!");
-                    await loadConfigs();
+                    showToast("Your Personal AI Voice Updated!");
+                    await loadConfigs(); // Refresh to show override status
                 }
             });
+
+            // OPTIONAL: Add a "Reset to Default" logic
+            const resetBtn = document.getElementById("reset-config-btn");
+            if (resetBtn) {
+                resetBtn.addEventListener('click', async () => {
+                    const { error } = await supabase
+                        .from('ai_configs')
+                        .delete()
+                        .match({ function_id: state.selectedEngineId, user_id: state.currentUser.id });
+                    
+                    if (!error) {
+                        showToast("Reset to System Standard.");
+                        await loadConfigs();
+                    }
+                });
+            }
+        } else {
+            window.location.href = "index.html";
         }
     }
 
