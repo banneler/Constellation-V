@@ -697,11 +697,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (error) throw error;
             
-            const generatedSubject = data.subject || "No Subject";
-            const generatedBody = data.body || "Failed to generate email content.";
+            // Find the account context for scrubbing
+            const account = state.accounts.find(acc => acc.id === contact.account_id);
             
-            aiEmailSubject.value = generatedSubject;
-            aiEmailBody.value = generatedBody;
+            // --- SCRUBBING LOGIC APPLIED HERE ---
+            const scrubbedSubject = scrubAIMergeFields(data.subject || "No Subject", contact, account);
+            const scrubbedBody = scrubAIMergeFields(data.body || "Failed to generate content.", contact, account);
+            
+            aiEmailSubject.value = scrubbedSubject;
+            aiEmailBody.value = scrubbedBody;
             
             promptContainer.classList.add('hidden');
             responseContainer.classList.remove('hidden');
@@ -1593,5 +1597,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadAllData();
     }
 
+    // --- HELPER: Merge Field Scrubber ---
+    function scrubAIMergeFields(text, contact, account) {
+        if (!text) return "";
+        const replacements = {
+            '[FirstName]': contact.first_name || 'there',
+            '[LastName]': contact.last_name || '',
+            '[AccountName]': account?.name || 'your company'
+        };
+
+        let scrubbedText = text;
+        Object.keys(replacements).forEach(placeholder => {
+            // Escape special regex characters in the placeholder and use global flag
+            const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            scrubbedText = scrubbedText.replace(regex, replacements[placeholder]);
+        });
+        return scrubbedText;
+    }
     initializePage();
 });
