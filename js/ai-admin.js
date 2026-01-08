@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoPersona: "A consultative telecom advisor who values the prospect's time.", 
             demoVoice: "Professional, concise, and non-robotic.", 
             demoInstructions: "Reference news alerts naturally. Focus on insights rather than just asking for a meeting.", 
-            technicalPrompt: "Draft outreach email based on news alerts. System handles [FirstName] and signatures." 
+            technicalPrompt: "This engine is the 'Lead Cultivator' for the Cognito system. It is technically designed to ingest real-time firmographic alerts (buying signals) and map them to GPC’s product portfolio. Its hardcoded logic enforces the use of the [FirstName] placeholder for system-wide personalization and strictly forbids the generation of signatures to prevent overlap with the CRM’s built-in email client. It acts as a first-pass ghostwriter, distilling complex news headlines into human-centric, B2B sales outreach." 
         },
         { 
             id: 'generate-custom-suggestion', 
