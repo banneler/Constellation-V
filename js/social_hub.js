@@ -239,53 +239,36 @@ async function generateProductPostWithAI() {
     return false; // We handle all modal closing manually, so return false.
 }
     // --- MODAL & ACTION LOGIC ---
-   async function openPostModal(item) {
+async function openPostModal(item) {
     modalTitle.textContent = item.title;
     modalArticleLink.href = item.link;
     modalArticleLink.textContent = item.link;
     postToLinkedInBtn.dataset.url = item.link;
     modalBackdrop.classList.remove('hidden');
 
-    // --- THIS IS THE FIX ---
-    // If the content is already generated, display it immediately and stop.
-    if (item.isPreGenerated) {
+    // --- PRIORITIZE PRE-GENERATED CONTENT ---
+    // If we already have the copy (from your Python script or Marketing), show it immediately.
+    if (item.approved_copy && item.approved_copy.trim() !== "") {
         postTextArea.value = item.approved_copy;
+        console.log("✅ Using pre-generated copy from database.");
         return; 
     }
-    // --- END FIX ---
 
+    // --- FALLBACK TO EDGE FUNCTION ---
+    // This only runs for legacy posts or custom product posts without pre-baked copy.
     postTextArea.value = "Generating AI suggestion...";
 
-    if (item.type === 'marketing_post') {
-        postTextArea.value = item.approved_copy;
+    const { data, error } = await supabase.functions.invoke('generate-social-post', { 
+        body: { article: item } 
+    });
+
+    if (error) {
+        postTextArea.value = "Error generating suggestion. Please write your own or try again.";
+        console.error("Edge function error:", error);
     } else {
-        const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
-        if (error) {
-            postTextArea.value = "Error generating suggestion. Please write your own or try again.";
-            console.error("Edge function error:", error);
-        } else {
-            postTextArea.value = data.suggestion;
-        }
+        postTextArea.value = data.suggestion;
     }
 }
-
-    function hideModal() { modalBackdrop.classList.add('hidden'); }
-
-    async function handleDismissPost(postId) {
-        try {
-            await supabase.from('user_post_interactions').insert({ user_id: state.currentUser.id, post_id: postId, status: 'dismissed' });
-            const cardToRemove = document.getElementById(`post-card-${postId}`);
-            if (cardToRemove) {
-                cardToRemove.style.transition = 'opacity 0.5s';
-                cardToRemove.style.opacity = '0';
-                setTimeout(() => cardToRemove.remove(), 500);
-            }
-            state.userInteractions.add(postId);
-        } catch (error) {
-            console.error("Error dismissing post:", error);
-            alert("Could not dismiss the post. Please try again.");
-        }
-    }
 
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
@@ -307,30 +290,34 @@ if (aiProductPostBtn) {
         aiProductPostBtn.addEventListener('click', showAIProductPostModal);
     }
         // Event listener for the "Refine" button
-        generateCustomBtn.addEventListener('click', async () => {
-            const originalText = postTextArea.value;
-            const customPrompt = customPromptInput.value.trim();
-            if (!customPrompt) {
-                alert("Please enter a prompt to refine the text.");
-                return;
-            }
+    generateCustomBtn.addEventListener('click', async () => {
+    // This will now be the 'approved_copy' we just loaded into the box
+    const originalText = postTextArea.value; 
+    const customPrompt = customPromptInput.value.trim();
 
-            generateCustomBtn.textContent = 'Regenerating...';
-            generateCustomBtn.disabled = true;
-
-            const { data, error } = await supabase.functions.invoke('refine-social-post', { body: { originalText, customPrompt } });
-            
-            if (error) {
-                alert("Error refining post. Please check the console.");
-            } else {
-                postTextArea.value = data.suggestion;
-                customPromptInput.value = ''; // Clear prompt input
-            }
-
-            generateCustomBtn.textContent = 'Regenerate';
-            generateCustomBtn.disabled = false;
-        });
+    if (!customPrompt) {
+        alert("Please enter a prompt to refine the text.");
+        return;
     }
+
+    generateCustomBtn.textContent = 'Regenerating...';
+    generateCustomBtn.disabled = true;
+
+    // Pass the pre-baked copy to the refiner so the AI knows what to work with
+    const { data, error } = await supabase.functions.invoke('refine-social-post', { 
+        body: { originalText, customPrompt } 
+    });
+    
+    if (error) {
+        alert("Error refining post. Please check the console.");
+    } else {
+        postTextArea.value = data.suggestion;
+        customPromptInput.value = ''; 
+    }
+
+    generateCustomBtn.textContent = 'Regenerate';
+    generateCustomBtn.disabled = false;
+});
 
      // --- INITIALIZATION ---
 async function initializePage() {
