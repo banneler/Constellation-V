@@ -40,15 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             demoInstructions: "Strictly follow user feedback to adjust the tone or focus of the previous draft.", 
             technicalPrompt: "This engine acts as a 'Professional Editor' and Revisionist. It processes the current state of an outreach draft alongside a user's feedback."
         },
-       // { 
-            id: 'generate-social-post', 
-            name: 'Social Article', 
-            demoPersona: "A tech thought leader in the Midwest business ecosystem.", 
-            demoVoice: "Engaging, conversational, and 'scroll-stopping'.", 
-            demoInstructions: "Extract 3 punchy takeaways. End with a question to drive engagement.", 
-            technicalPrompt: "This engine acts as a 'Digital Curator' for your social feed. It transforms article metadata into social-ready content." 
-        },//
-        { 
+           { 
             id: 'custom-user-social-post', 
             name: 'Product Post', 
             demoPersona: "A senior GPC Product Marketing Specialist.", 
