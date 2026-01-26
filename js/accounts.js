@@ -740,11 +740,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
                 originalStyle = sourceChartElement.getAttribute('style');
                 // Force zoom: 1, add a background (which html2canvas needs), and keep padding
-                sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #2d3748); padding: 10px;');
+                sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #ffffff); padding: 10px;');
                 
                 // 5. "Screenshot" the live org chart element at high resolution
                 const canvas = await html2canvas(sourceChartElement, {
-                    backgroundColor: '#2d3748', // Explicitly set dark background
+                    backgroundColor: '#ffffff', // Explicitly set dark background
                     useCORS: true,
                     scale: 1.5 // Increase scale for better resolution
                 });
