@@ -735,19 +735,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         const sourceChartElement = briefingContainer.querySelector('#org-chart-render-target'); // <-- ORG CHART FIX 1: Target new ID
         let originalStyle = null; // Store original style here
 
-        if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
-            try {
-                // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
-                originalStyle = sourceChartElement.getAttribute('style');
-                // Force zoom: 1, add a background (which html2canvas needs), and keep padding
-                sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #ffffff); padding: 10px;');
-                
-                // 5. "Screenshot" the live org chart element at high resolution
-                const canvas = await html2canvas(sourceChartElement, {
-                    backgroundColor: '#ffffff', // Explicitly set dark background
-                    useCORS: true,
-                    scale: 1.5 // Increase scale for better resolution
-                });
+       if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
+    try {
+        // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
+        originalStyle = sourceChartElement.getAttribute('style');
+        
+        // UPDATED: Changed background to #ffffff (white) and added color: #000000 to attempt to force text color
+        sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: #ffffff; color: #000000; padding: 10px;');
+        
+        // 5. "Screenshot" the live org chart element at high resolution
+        const canvas = await html2canvas(sourceChartElement, {
+            backgroundColor: '#ffffff', // UPDATED: Changed from #2d3748 to #ffffff
+            useCORS: true,
+            scale: 1.5 
+        });
                 
                 // --- ORG CHART FIX 3: Restore original style to the live modal ---
                 if (originalStyle) sourceChartElement.setAttribute('style', originalStyle);
