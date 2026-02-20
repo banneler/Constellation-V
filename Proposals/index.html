@@ -6,8 +6,8 @@
     <title>GPC Proposal Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        /* Hide scrollbar for a cleaner look in the sidebar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -35,123 +35,109 @@
         <div class="flex-1 flex overflow-hidden">
             
             <div class="w-1/3 min-w-[350px] bg-white border-r border-slate-200 overflow-y-auto p-6 shadow-inner flex flex-col">
-                
                 <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">1. Global Variables</h2>
                 <div class="space-y-4 mb-8">
-                    <div><label class="block text-sm font-semibold text-slate-700">RFP Name</label><input type="text" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"></div>
-                    <div><label class="block text-sm font-semibold text-slate-700">Business Name</label><input type="text" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"></div>
-                    <div><label class="block text-sm font-semibold text-slate-700">Sales Rep</label><input type="text" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">RFP Name</label><input type="text" id="global-rfp" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">Business Name</label><input type="text" id="global-biz" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">Sales Rep</label><input type="text" id="global-rep" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"></div>
                 </div>
 
                 <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">2. Slide Selection</h2>
-                <p class="text-xs text-slate-500 mb-3">Check to include. Drag the grip (☰) to reorder the presentation flow.</p>
                 <ul id="module-list" class="space-y-2 flex-1 overflow-y-auto pb-4">
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">Title Page</span>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="01_Title_Page.pdf">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span>
+                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
+                        <span class="flex-1 font-medium text-sm text-slate-700 slide-name">Title Page</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group border-l-4 border-l-orange-400">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">Custom Cover Letter / Solution</span>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_FREEFLOW">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span>
+                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
+                        <span class="flex-1 font-medium text-sm text-slate-700 slide-name">Custom Cover Letter / Solution</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">Why GPC?</span>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span>
+                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
+                        <span class="flex-1 font-medium text-sm text-slate-700 slide-name">Why GPC?</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">About GPC</span>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="03_About_GPC.pdf">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span>
+                        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
+                        <span class="flex-1 font-medium text-sm text-slate-700 slide-name">About GPC</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">24-Hour NOC Monitoring</span>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="04_NOC_Monitoring.pdf">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span>
+                        <input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
+                        <span class="flex-1 font-medium text-sm text-slate-700 slide-name">24-Hour NOC Monitoring</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">Dedicated Internet Access (DIA)</span>
-                    </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">Boys Town Case Study</span>
-                    </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm hover:bg-white hover:shadow transition group">
-                        <span class="mr-3 text-slate-400 cursor-grab handle group-hover:text-orange-500 transition">☰</span>
-                        <input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 focus:ring-orange-500 rounded cursor-pointer">
-                        <span class="flex-1 font-medium select-none text-sm text-slate-700">Project Implementation Plan</span>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="05_DIA.pdf">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span>
+                        <input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
+                        <span class="flex-1 font-medium text-sm text-slate-700 slide-name">Dedicated Internet Access (DIA)</span>
                     </li>
                 </ul>
             </div>
 
-            <div class="flex-1 bg-slate-100 p-8 overflow-y-auto">
+            <div class="flex-1 bg-slate-100 p-8 overflow-y-auto" id="scroll-container">
                 <div class="max-w-5xl mx-auto">
                     
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 border-t-4 border-t-slate-800">
                         <h3 class="text-lg font-bold mb-2 text-slate-900">3. Custom Freeflow Content</h3>
-                        <p class="text-sm text-slate-500 mb-4">Input a custom cover letter or solution description. This text will be natively formatted onto a blank GPC-branded template slide.</p>
-                        <textarea id="freeflow-content" rows="6" class="w-full border border-slate-300 p-4 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition resize-y" placeholder="Dear [Client Name],&#10;&#10;Thank you for the opportunity to present this proposal..."></textarea>
+                        <textarea id="freeflow-content" rows="6" class="w-full border border-slate-300 p-4 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition resize-y" placeholder="Dear [Client Name],&#10;&#10;Thank you for the opportunity..."></textarea>
                     </div>
 
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8">
                         <h3 class="text-lg font-bold mb-2 text-slate-900">4. USAC Original RFP Upload</h3>
-                        <p class="text-sm text-slate-500 mb-4">Upload the original RFP document to ensure USAC compliance. It will be appended to the final output.</p>
-                        <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group">
+                        <input type="file" id="usac-upload" class="hidden" accept="application/pdf">
+                        <div id="usac-dropzone" class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="document.getElementById('usac-upload').click()">
                             <svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-orange-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                            <span class="mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop original RFP here, or click to browse</span>
+                            <span id="usac-filename" class="mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop original RFP PDF here, or click to browse</span>
                         </div>
                     </div>
 
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col mb-8 border-t-4 border-t-slate-800">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-200 pb-3">
                             <h3 class="text-lg font-bold text-slate-900">5. Dynamic Pricing Engine</h3>
-                            <button id="add-location-btn" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-slate-900 transition">
+                            <button id="add-location-btn" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-slate-900">
                                 + Add Location
                             </button>
                         </div>
-                        
                         <div class="mb-6 w-1/3 min-w-[200px]">
                             <label class="block text-sm font-semibold text-slate-700">Contract Term (Months)</label>
-                            <input type="number" id="contract-term" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="e.g. 36 or 60">
+                            <input type="number" id="contract-term" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500">
                         </div>
-
-                        <div id="locations-container" class="space-y-8">
-                            </div>
-
+                        <div id="locations-container" class="space-y-8"></div>
                         <div class="mt-8 border-t-4 border-slate-200 pt-6 flex justify-between items-center bg-slate-50 p-6 rounded-lg shadow-inner">
-                            <span class="text-xl font-bold text-slate-800 uppercase tracking-wide">Total Monthly Cost:</span>
+                            <span class="text-xl font-bold text-slate-800 uppercase">Total Monthly Cost:</span>
                             <span id="grand-total" class="text-3xl font-extrabold text-orange-600">$0.00</span>
                         </div>
                     </div>
 
                     <div class="text-right pb-10">
-                        <button class="bg-orange-500 text-white font-bold text-lg px-10 py-4 rounded shadow-lg hover:bg-orange-600 transition transform hover:-translate-y-1">
+                        <button id="generate-btn" class="bg-orange-500 text-white font-bold text-lg px-10 py-4 rounded shadow-lg hover:bg-orange-600 transition transform hover:-translate-y-1">
                             Generate Proposal
                         </button>
                     </div>
-
                 </div>
             </div>
         </div>
     </div>
 
+    <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900 bg-opacity-80 flex flex-col items-center justify-center z-50">
+        <svg class="animate-spin h-12 w-12 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <h2 class="text-xl font-bold text-white">Assembling Proposal...</h2>
+    </div>
+
     <script>
-        // --- Passcode Protection Logic ---
+        // --- 1. Passcode & UI Setup ---
         const TEAM_PASSCODE = 'GPC-ENTERPRISE'; 
-        
         document.getElementById('unlock-btn').addEventListener('click', attemptUnlock);
-        document.getElementById('passcode-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') attemptUnlock();
-        });
+        document.getElementById('passcode-input').addEventListener('keypress', e => { if (e.key === 'Enter') attemptUnlock(); });
 
         function attemptUnlock() {
-            const input = document.getElementById('passcode-input').value;
-            if(input === TEAM_PASSCODE) {
+            if(document.getElementById('passcode-input').value === TEAM_PASSCODE) {
                 document.getElementById('passcode-screen').classList.add('hidden');
                 document.getElementById('main-content').classList.remove('hidden');
             } else {
@@ -159,150 +145,196 @@
             }
         }
 
-        // --- Drag and Drop Logic (SortableJS) ---
-        const moduleList = document.getElementById('module-list');
-        new Sortable(moduleList, {
-            animation: 150,
-            handle: '.handle', 
-            ghostClass: 'bg-orange-50', 
-            onEnd: function (evt) {
-                console.log('Slide order updated.'); 
-            },
+        new Sortable(document.getElementById('module-list'), { animation: 150, handle: '.handle', ghostClass: 'bg-orange-50' });
+
+        // --- 2. USAC File UI Logic ---
+        document.getElementById('usac-upload').addEventListener('change', function(e) {
+            const fileName = e.target.files[0] ? e.target.files[0].name : "Drag and drop original RFP PDF here, or click to browse";
+            document.getElementById('usac-filename').textContent = fileName;
         });
 
-        // --- Dynamic Pricing Engine Logic ---
+        // --- 3. Dynamic Pricing Logic ---
         const locationsContainer = document.getElementById('locations-container');
-        const addLocationBtn = document.getElementById('add-location-btn');
-        const grandTotalDisplay = document.getElementById('grand-total');
-
         let locationCount = 0;
-
-        // Add initial location on load
         addLocationBlock();
-
-        addLocationBtn.addEventListener('click', () => addLocationBlock());
+        document.getElementById('add-location-btn').addEventListener('click', () => addLocationBlock());
 
         function addLocationBlock() {
             locationCount++;
-            const locationId = `location-${locationCount}`;
-            
-            const locationHTML = `
-                <div class="border border-slate-200 rounded-lg p-5 bg-white relative shadow-sm hover:shadow-md transition" id="${locationId}">
-                    <button class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm transition remove-location-btn" title="Remove Location">X</button>
-                    
-                    <div class="mb-5 pr-10">
-                        <input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 focus:outline-none focus:border-orange-500 placeholder-slate-400 bg-transparent transition" placeholder="Location Name or Address (e.g., 123 Main St)">
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse mb-4 min-w-[600px]">
-                            <thead>
-                                <tr class="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider">
-                                    <th class="p-3 rounded-tl-lg">PRODUCT</th>
-                                    <th class="p-3 w-32">LIST PRICE</th>
-                                    <th class="p-3 w-24">QTY</th>
-                                    <th class="p-3 w-32 text-right">TOTAL</th>
-                                    <th class="p-3 w-12 rounded-tr-lg"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="line-items-body">
-                                </tbody>
-                        </table>
-                    </div>
-                    
+            const locId = `location-${locationCount}`;
+            const html = `
+                <div class="border border-slate-200 rounded-lg p-5 bg-white relative" id="${locId}">
+                    <button class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 font-bold text-sm remove-location-btn">X</button>
+                    <div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location Name or Address"></div>
+                    <table class="w-full text-left border-collapse mb-4 min-w-[600px]">
+                        <thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase"><th class="p-3">PRODUCT</th><th class="p-3 w-32">LIST PRICE</th><th class="p-3 w-24">QTY</th><th class="p-3 w-32 text-right">TOTAL</th><th class="p-3 w-12"></th></tr></thead>
+                        <tbody class="line-items-body"></tbody>
+                    </table>
                     <div class="flex justify-between items-center mt-2 border-t border-slate-100 pt-4">
-                        <button class="text-orange-500 text-sm font-semibold hover:text-orange-600 hover:underline add-row-btn transition">+ Add Product Line</button>
-                        <div class="text-right font-bold text-slate-600 uppercase text-sm tracking-wide">
-                            Location Total: <span class="location-total text-slate-900 ml-2 text-lg font-extrabold">$0.00</span>
-                        </div>
+                        <button class="text-orange-500 text-sm font-semibold hover:text-orange-600 add-row-btn">+ Add Product Line</button>
+                        <div class="font-bold text-slate-600 text-sm tracking-wide">Location Total: <span class="location-total text-slate-900 ml-2 text-lg">$0.00</span></div>
                     </div>
-                </div>
-            `;
-            
-            locationsContainer.insertAdjacentHTML('beforeend', locationHTML);
-            const newLocationBlock = document.getElementById(locationId);
-            
-            // Add initial row
-            addRow(newLocationBlock);
-
-            // Event Listeners for the new block
-            newLocationBlock.querySelector('.add-row-btn').addEventListener('click', () => addRow(newLocationBlock));
-            newLocationBlock.querySelector('.remove-location-btn').addEventListener('click', function() {
-                if (locationsContainer.children.length > 1) {
-                    newLocationBlock.remove();
-                    calculateGrandTotal();
-                } else {
-                    alert("You must have at least one location in the proposal.");
-                }
+                </div>`;
+            locationsContainer.insertAdjacentHTML('beforeend', html);
+            const block = document.getElementById(locId);
+            addRow(block);
+            block.querySelector('.add-row-btn').addEventListener('click', () => addRow(block));
+            block.querySelector('.remove-location-btn').addEventListener('click', () => {
+                if (locationsContainer.children.length > 1) { block.remove(); calculateGrandTotal(); }
             });
         }
 
-        function addRow(locationBlock) {
-            const tbody = locationBlock.querySelector('.line-items-body');
-            const rowHTML = `
-                <tr class="border-b border-slate-100 hover:bg-slate-50 transition group">
-                    <td class="p-2"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition" placeholder="Product description"></td>
-                    <td class="p-2">
-                        <div class="relative">
-                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 font-medium">$</span>
-                            <input type="number" class="w-full border border-slate-200 pl-7 p-2 rounded text-sm price-input focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition" min="0" step="0.01" placeholder="0.00">
-                        </div>
-                    </td>
-                    <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm qty-input focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition text-center" min="1" value="1"></td>
+        function addRow(block) {
+            const tbody = block.querySelector('.line-items-body');
+            const html = `
+                <tr class="border-b border-slate-100 group">
+                    <td class="p-2"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name"></td>
+                    <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01"></td>
+                    <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="1"></td>
                     <td class="p-2 text-right font-semibold text-slate-700 row-total">$0.00</td>
-                    <td class="p-2 text-center">
-                        <button class="text-slate-300 hover:text-red-500 font-bold remove-row-btn transition opacity-0 group-hover:opacity-100" title="Remove Row">X</button>
-                    </td>
-                </tr>
-            `;
-            
-            tbody.insertAdjacentHTML('beforeend', rowHTML);
-            const newRow = tbody.lastElementChild;
-
-            // Event listeners for math
-            newRow.querySelector('.price-input').addEventListener('input', () => updateRowTotal(newRow, locationBlock));
-            newRow.querySelector('.qty-input').addEventListener('input', () => updateRowTotal(newRow, locationBlock));
-            newRow.querySelector('.remove-row-btn').addEventListener('click', () => {
-                if (tbody.children.length > 1) {
-                    newRow.remove();
-                    calculateLocationTotal(locationBlock);
-                }
-            });
+                    <td class="p-2 text-center"><button class="text-slate-300 hover:text-red-500 font-bold opacity-0 group-hover:opacity-100 remove-row-btn">X</button></td>
+                </tr>`;
+            tbody.insertAdjacentHTML('beforeend', html);
+            const row = tbody.lastElementChild;
+            row.querySelector('.price-input').addEventListener('input', () => updateMath(row, block));
+            row.querySelector('.qty-input').addEventListener('input', () => updateMath(row, block));
+            row.querySelector('.remove-row-btn').addEventListener('click', () => { if (tbody.children.length > 1) { row.remove(); updateMath(null, block); } });
         }
 
-        function updateRowTotal(row, locationBlock) {
-            const price = parseFloat(row.querySelector('.price-input').value) || 0;
-            const qty = parseInt(row.querySelector('.qty-input').value) || 0;
-            const total = price * qty;
-            
-            row.querySelector('.row-total').textContent = `$${total.toFixed(2)}`;
-            calculateLocationTotal(locationBlock);
-        }
-
-        function calculateLocationTotal(locationBlock) {
-            let locTotal = 0;
-            const rows = locationBlock.querySelectorAll('.line-items-body tr');
-            
-            rows.forEach(row => {
+        function updateMath(row, block) {
+            if(row) {
                 const price = parseFloat(row.querySelector('.price-input').value) || 0;
                 const qty = parseInt(row.querySelector('.qty-input').value) || 0;
-                locTotal += (price * qty);
+                row.querySelector('.row-total').textContent = `$${(price * qty).toFixed(2)}`;
+            }
+            let locTotal = 0;
+            block.querySelectorAll('.line-items-body tr').forEach(r => {
+                const p = parseFloat(r.querySelector('.price-input').value) || 0;
+                const q = parseInt(r.querySelector('.qty-input').value) || 0;
+                locTotal += (p * q);
             });
-
-            locationBlock.querySelector('.location-total').textContent = `$${locTotal.toFixed(2)}`;
+            block.querySelector('.location-total').textContent = `$${locTotal.toFixed(2)}`;
             calculateGrandTotal();
         }
 
         function calculateGrandTotal() {
-            let grandTotal = 0;
-            const locationTotals = document.querySelectorAll('.location-total');
+            let gt = 0;
+            document.querySelectorAll('.location-total').forEach(l => gt += parseFloat(l.textContent.replace('$', '')) || 0);
+            document.getElementById('grand-total').textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(gt);
+        }
+
+        // --- 4. Payload Compiler & PDF Generation Logic ---
+        document.getElementById('generate-btn').addEventListener('click', async () => {
             
-            locationTotals.forEach(loc => {
-                const val = parseFloat(loc.textContent.replace('$', '')) || 0;
-                grandTotal += val;
+            // 1. Compile the JSON Payload
+            const payload = {
+                globals: {
+                    rfpName: document.getElementById('global-rfp').value,
+                    businessName: document.getElementById('global-biz').value,
+                    salesRep: document.getElementById('global-rep').value
+                },
+                slides: [], // Ordered array of selected filenames
+                freeflowText: document.getElementById('freeflow-content').value,
+                pricing: {
+                    term: document.getElementById('contract-term').value,
+                    grandTotal: document.getElementById('grand-total').innerText,
+                    locations: []
+                },
+                usacFile: document.getElementById('usac-upload').files[0]
+            };
+
+            // Grab Ordered Slides
+            document.querySelectorAll('#module-list li').forEach(li => {
+                if(li.querySelector('.slide-toggle').checked) {
+                    payload.slides.push(li.getAttribute('data-filename'));
+                }
             });
 
-            grandTotalDisplay.textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(grandTotal);
+            // Grab Location Data
+            document.querySelectorAll('#locations-container > div').forEach(locBlock => {
+                const locData = {
+                    name: locBlock.querySelector('.loc-name-input').value,
+                    total: locBlock.querySelector('.location-total').innerText,
+                    items: []
+                };
+                locBlock.querySelectorAll('.line-items-body tr').forEach(tr => {
+                    locData.items.push({
+                        product: tr.querySelector('.prod-name').value,
+                        price: tr.querySelector('.price-input').value,
+                        qty: tr.querySelector('.qty-input').value,
+                        total: tr.querySelector('.row-total').innerText
+                    });
+                });
+                payload.pricing.locations.push(locData);
+            });
+
+            console.log("JSON Payload Generated:", payload);
+
+            // 2. Fire the PDF Engine
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            try {
+                await generatePDFDocument(payload);
+            } catch (error) {
+                console.error("PDF Generation Failed:", error);
+                alert("Error generating PDF. Check console for details. Ensure your Proposal_Assets folder has the right PDF names.");
+            } finally {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        });
+
+        // --- The pdf-lib Assembly Engine ---
+        async function generatePDFDocument(payload) {
+            const { PDFDocument, rgb, StandardFonts } = PDFLib;
+            const finalDoc = await PDFDocument.create();
+            const font = await finalDoc.embedFont(StandardFonts.Helvetica);
+
+            // Loop through selected slides in DOM order
+            for (const slideFile of payload.slides) {
+                
+                if (slideFile === 'CUSTOM_FREEFLOW') {
+                    // Create a blank 16:9 presentation slide (approx 960x540)
+                    const page = finalDoc.addPage([960, 540]);
+                    
+                    // Simple text wrapping logic would go here, drawing payload.freeflowText onto the page
+                    page.drawText(payload.globals.businessName + " Solution Overview", { x: 50, y: 480, size: 24, font: font, color: rgb(0.9, 0.4, 0) }); // Orange header
+                    page.drawText(payload.freeflowText, { x: 50, y: 430, size: 14, font: font, color: rgb(0.2, 0.2, 0.2), maxWidth: 860 });
+                
+                } else {
+                    // Fetch existing static PDFs from local directory
+                    try {
+                        const existingPdfBytes = await fetch(`Proposal_Assets/${slideFile}`).then(res => res.arrayBuffer());
+                        const existingPdf = await PDFDocument.load(existingPdfBytes);
+                        const copiedPages = await finalDoc.copyPages(existingPdf, existingPdf.getPageIndices());
+                        copiedPages.forEach(page => finalDoc.addPage(page));
+                    } catch (e) {
+                        console.warn(`Could not load ${slideFile}. Ensure it exists in /Proposal_Assets/`);
+                    }
+                }
+            }
+
+            // Generate Dynamic Pricing Page
+            // (Here you would map payload.pricing data onto a new slide or a pre-existing "Pricing Template" PDF)
+            const pricingPage = finalDoc.addPage([960, 540]);
+            pricingPage.drawText("Proposed Investment", { x: 50, y: 480, size: 28, font: font, color: rgb(0.9, 0.4, 0) });
+            pricingPage.drawText(`Term: ${payload.pricing.term} Months`, { x: 50, y: 440, size: 16, font: font });
+            pricingPage.drawText(`Grand Total: ${payload.pricing.grandTotal} /mo`, { x: 50, y: 400, size: 20, font: font, color: rgb(0, 0.5, 0) });
+            // Add table drawing logic here iterating over payload.pricing.locations
+
+            // Append USAC Upload if provided
+            if (payload.usacFile) {
+                const usacBytes = await payload.usacFile.arrayBuffer();
+                const usacPdf = await PDFDocument.load(usacBytes);
+                const usacPages = await finalDoc.copyPages(usacPdf, usacPdf.getPageIndices());
+                usacPages.forEach(page => finalDoc.addPage(page));
+            }
+
+            // Save and Trigger Download
+            const pdfBytes = await finalDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${payload.globals.businessName.replace(/ /g, '_')}_GPC_Proposal.pdf`;
+            link.click();
         }
     </script>
 </body>
