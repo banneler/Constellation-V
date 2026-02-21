@@ -537,120 +537,129 @@
                         finalDoc.addPage(page);
                     }
 
-               /// 2. PRICING STAMPING (Auto-Pagination Chunking!)
-                    else if (slideFile === 'CUSTOM_PRICING') {
-                        const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
-                        const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
-                        const bgDoc = await PDFDocument.load(existingPdfBytes);
-                        
-                        // Helper to spawn a new PDF page
-                        let pricingPage;
-                        const spawnPricingPage = async (isContinuation = false) => {
-                            const [newPage] = await finalDoc.copyPages(bgDoc, [0]);
-                            const headerText = isContinuation ? "PROPOSED INVESTMENT (CONT.)" : "PROPOSED INVESTMENT";
-                            newPage.drawText(headerText, { x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) });
-                            finalDoc.addPage(newPage);
-                            return newPage;
-                        };
+             /// 2. PRICING STAMPING (Repaired for Consistent Width & Readability)
+else if (slideFile === 'CUSTOM_PRICING') {
+    const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
+    const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
+    const bgDoc = await PDFDocument.load(existingPdfBytes);
+    
+    // Width configuration
+    const printWidth = PAGE_WIDTH - 72; // Exactly 540pt (7.5 inches)
+    const bottomMargin = 120; 
 
-                        pricingPage = await spawnPricingPage(false);
-                        let currentY = PAGE_HEIGHT - 100; // Starting Y below the header
-                        const bottomMargin = 120; // Safe zone above the bottom arcs
+    let pricingPage;
+    const spawnPricingPage = async (isContinuation = false) => {
+        const [newPage] = await finalDoc.copyPages(bgDoc, [0]);
+        const headerText = isContinuation ? "PROPOSED INVESTMENT (CONT.)" : "PROPOSED INVESTMENT";
+        newPage.drawText(headerText, { x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) });
+        finalDoc.addPage(newPage);
+        return newPage;
+    };
 
-                        const locations = document.querySelectorAll('.location-block');
-                        const hiddenTemplate = document.getElementById('hidden-pricing-template');
+    pricingPage = await spawnPricingPage(false);
+    let currentY = PAGE_HEIGHT - 100; 
 
-                        for (let i = 0; i < locations.length; i++) {
-                            const loc = locations[i];
-                            const locName = loc.querySelector('.location-name').value;
-                            const locTotalText = loc.querySelector('.location-total').innerText;
+    const locations = document.querySelectorAll('.location-block');
+    const hiddenTemplate = document.getElementById('hidden-pricing-template');
 
-                            // Build pure HTML table for JUST this location
-                            let locHTML = `
-                            <div class="w-[740px] border border-slate-300 rounded-lg shadow-sm bg-transparent mb-4 font-sans text-slate-800">
-                                <div class="bg-blue-800 text-white font-bold p-3 px-4 rounded-t-lg text-lg uppercase tracking-wider">${locName}</div>
-                                <div class="flex bg-blue-600 text-white font-bold text-sm uppercase tracking-wider p-2">
-                                    <div class="w-1/2 pl-2">Product / Service</div>
-                                    <div class="w-1/6 text-center">List Price</div>
-                                    <div class="w-1/6 text-center">Qty</div>
-                                    <div class="w-1/6 text-right pr-4">Total</div>
-                                </div>
-                                <div class="divide-y divide-slate-300 bg-transparent">
-                            `;
+    for (let i = 0; i < locations.length; i++) {
+        const loc = locations[i];
+        const locName = loc.querySelector('.location-name').value;
+        const locTotalText = loc.querySelector('.location-total').innerText;
 
-                            loc.querySelectorAll('.pricing-row').forEach(row => {
-                                const prod = row.querySelector('.row-product').value || 'TBD';
-                                const price = parseFloat(row.querySelector('.row-price').value) || 0;
-                                const qty = parseInt(row.querySelector('.row-qty').value) || 0;
-                                const lineTotal = price * qty;
-                                locHTML += `
-                                    <div class="flex p-3 text-sm text-slate-800 font-bold bg-transparent">
-                                        <div class="w-1/2 pl-2">${prod}</div>
-                                        <div class="w-1/6 text-center">$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                                        <div class="w-1/6 text-center">${qty}</div>
-                                        <div class="w-1/6 text-right pr-4">$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                                    </div>
-                                `;
-                            });
+        // Bumping font sizes here: text-sm -> text-base, text-xs -> text-sm
+        let locHTML = `
+        <div style="width: 740px;" class="border border-slate-300 rounded-lg shadow-sm bg-transparent mb-6 font-sans text-slate-800">
+            <div class="bg-blue-800 text-white font-bold p-4 rounded-t-lg text-xl uppercase tracking-wider">${locName}</div>
+            <div class="flex bg-blue-600 text-white font-bold text-sm uppercase tracking-wider p-3">
+                <div class="w-1/2 pl-2">Product / Service</div>
+                <div class="w-1/6 text-center">List Price</div>
+                <div class="w-1/6 text-center">Qty</div>
+                <div class="w-1/6 text-right pr-4">Total</div>
+            </div>
+            <div class="divide-y divide-slate-300 bg-transparent">
+        `;
 
-                            locHTML += `
-                                </div>
-                                <div class="flex bg-slate-200 text-slate-800 font-black p-3 rounded-b-lg items-center justify-between">
-                                    <div class="text-sm uppercase tracking-wider">Location Total</div>
-                                    <div class="text-xl pr-2">${locTotalText}</div>
-                                </div>
-                            </div>`;
+        loc.querySelectorAll('.pricing-row').forEach(row => {
+            const prod = row.querySelector('.row-product').value || 'TBD';
+            const price = parseFloat(row.querySelector('.row-price').value) || 0;
+            const qty = parseInt(row.querySelector('.row-qty').value) || 0;
+            const lineTotal = price * qty;
+            locHTML += `
+                <div class="flex p-4 text-base text-slate-800 font-bold bg-transparent">
+                    <div class="w-1/2 pl-2">${prod}</div>
+                    <div class="w-1/6 text-center">$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                    <div class="w-1/6 text-center">${qty}</div>
+                    <div class="w-1/6 text-right pr-4">$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                </div>
+            `;
+        });
 
-                            // Inject, Snap, Clean
-                            hiddenTemplate.innerHTML = locHTML;
-                            hiddenTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
-                            const canvas = await html2canvas(hiddenTemplate, { scale: 2, backgroundColor: null });
-                            hiddenTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
+        locHTML += `
+            </div>
+            <div class="flex bg-slate-100 text-slate-900 font-black p-4 rounded-b-lg items-center justify-between border-t border-slate-300">
+                <div class="text-sm uppercase tracking-widest text-slate-600">Location Total</div>
+                <div class="text-2xl pr-2">${locTotalText}</div>
+            </div>
+        </div>`;
 
-                            const pngImage = await finalDoc.embedPng(canvas.toDataURL('image/png'));
-                            const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 72, 9999); 
+        hiddenTemplate.innerHTML = locHTML;
+        hiddenTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
+        const canvas = await html2canvas(hiddenTemplate, { scale: 2, backgroundColor: null });
+        hiddenTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
 
-                            // PAGINATION CHECK! If this location pushes us past the bottom margin, spawn a new page!
-                            if (currentY - imgDims.height < bottomMargin) {
-                                pricingPage = await spawnPricingPage(true); 
-                                currentY = PAGE_HEIGHT - 100; // Reset Y to the top
-                            }
+        const pngImage = await finalDoc.embedPng(canvas.toDataURL('image/png'));
+        
+        // REPAIR: Manual aspect ratio calculation forces consistent width
+        const ratio = pngImage.height / pngImage.width;
+        const drawHeight = printWidth * ratio;
 
-                            pricingPage.drawImage(pngImage, {
-                                x: 36, y: currentY - imgDims.height,
-                                width: imgDims.width, height: imgDims.height
-                            });
+        if (currentY - drawHeight < bottomMargin) {
+            pricingPage = await spawnPricingPage(true); 
+            currentY = PAGE_HEIGHT - 100;
+        }
 
-                            currentY -= (imgDims.height + 20); // Move down for the next location block
-                        }
+        pricingPage.drawImage(pngImage, {
+            x: 36, 
+            y: currentY - drawHeight,
+            width: printWidth, // Forced to 540pt
+            height: drawHeight
+        });
 
-                        // FINALLY: Stamp the Grand Total Block
-                        const grandTotalText = document.getElementById('ui-grand-total').innerText;
-                        let totalHTML = `
-                        <div class="w-[740px] flex bg-slate-800 text-white font-black p-5 rounded-lg items-center justify-between font-sans mt-4 shadow-lg border-2 border-slate-700">
-                            <div class="text-xl uppercase tracking-wider">Grand Total Monthly Cost</div>
-                            <div class="text-3xl pr-2">${grandTotalText}</div>
-                        </div>
-                        <p class="w-[740px] text-center mt-6 text-slate-600 text-sm font-bold font-sans">Pricing based on standard 36-month term agreement.</p>
-                        `;
+        currentY -= (drawHeight + 25); 
+    }
 
-                        hiddenTemplate.innerHTML = totalHTML;
-                        hiddenTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
-                        const totalCanvas = await html2canvas(hiddenTemplate, { scale: 2, backgroundColor: null });
-                        hiddenTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
-                        const totalPng = await finalDoc.embedPng(totalCanvas.toDataURL('image/png'));
-                        const totalDims = totalPng.scaleToFit(PAGE_WIDTH - 72, 9999);
+    // GRAND TOTAL BLOCK (Also forced to full width)
+    const grandTotalText = document.getElementById('ui-grand-total').innerText;
+    let totalHTML = `
+    <div style="width: 740px;" class="flex bg-slate-900 text-white font-black p-6 rounded-lg items-center justify-between font-sans shadow-xl border-2 border-slate-700">
+        <div class="text-xl uppercase tracking-widest">Grand Total Monthly Investment</div>
+        <div class="text-4xl pr-2 text-blue-400">${grandTotalText}</div>
+    </div>
+    <p style="width: 740px;" class="text-center mt-8 text-slate-500 text-sm font-bold font-sans tracking-wide">Pricing based on standard 36-month term agreement.</p>
+    `;
 
-                        if (currentY - totalDims.height < bottomMargin) {
-                            pricingPage = await spawnPricingPage(true);
-                            currentY = PAGE_HEIGHT - 100;
-                        }
+    hiddenTemplate.innerHTML = totalHTML;
+    hiddenTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
+    const totalCanvas = await html2canvas(hiddenTemplate, { scale: 2, backgroundColor: null });
+    hiddenTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
+    
+    const totalPng = await finalDoc.embedPng(totalCanvas.toDataURL('image/png'));
+    const tRatio = totalPng.height / totalPng.width;
+    const tDrawHeight = printWidth * tRatio;
 
-                        pricingPage.drawImage(totalPng, {
-                            x: 36, y: currentY - totalDims.height,
-                            width: totalDims.width, height: totalDims.height
-                        });
-                    }
+    if (currentY - tDrawHeight < bottomMargin) {
+        pricingPage = await spawnPricingPage(true);
+        currentY = PAGE_HEIGHT - 100;
+    }
+
+    pricingPage.drawImage(totalPng, {
+        x: 36, 
+        y: currentY - tDrawHeight,
+        width: printWidth, 
+        height: tDrawHeight
+    });
+}
 
                     // 3. IMPACT & ROI ANALYSIS 
                     else if (slideFile === 'CUSTOM_IMPACT') {
