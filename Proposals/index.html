@@ -8,19 +8,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .gpc-pdf-font { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+        /* Clean up Quill editor border */
+        .ql-toolbar.ql-snow { border-color: #cbd5e1; border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; background: #f8fafc; }
+        .ql-container.ql-snow { border-color: #cbd5e1; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; font-family: inherit; font-size: 1rem; }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800 font-sans h-screen flex flex-col">
 
     <div id="passcode-screen" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
         <img src="Proposal_Assets/GPC-White-1-1.webp" alt="GPC Logo" class="h-24 mb-8 drop-shadow-md">
-        
         <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm w-full border-t-4 border-orange-500">
             <h2 class="text-2xl font-bold mb-4 text-slate-900">Proposal Engine</h2>
             <p class="text-slate-600 mb-6 text-sm">Enter the Enterprise Sales passcode to access the generator.</p>
@@ -44,9 +49,9 @@
             <div class="w-1/3 min-w-[350px] bg-white border-r border-slate-200 overflow-y-auto p-6 shadow-inner flex flex-col">
                 <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">1. Global Variables</h2>
                 <div class="space-y-4 mb-8">
-                    <div><label class="block text-sm font-semibold text-slate-700">RFP Name</label><input type="text" id="global-rfp" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500"></div>
-                    <div><label class="block text-sm font-semibold text-slate-700">Business Name</label><input type="text" id="global-biz" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500"></div>
-                    <div><label class="block text-sm font-semibold text-slate-700">Sales Rep</label><input type="text" id="global-rep" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white transition outline-none focus:border-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">RFP Name</label><input type="text" id="global-rfp" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">Business Name</label><input type="text" id="global-biz" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">Sales Rep</label><input type="text" id="global-rep" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
                 </div>
 
                 <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">2. Slide Selection</h2>
@@ -55,7 +60,7 @@
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Title Page</span>
                     </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_FREEFLOW">
-                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Cover Letter</span>
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Cover Letter</span>
                     </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Why GPC?</span>
@@ -78,9 +83,15 @@
             <div class="flex-1 bg-slate-100 p-8 overflow-y-auto" id="scroll-container">
                 <div class="max-w-5xl mx-auto">
                     
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 border-t-4 border-t-slate-800">
-                        <h3 class="text-lg font-bold mb-2 text-slate-900">3. Custom Freeflow Content</h3>
-                        <textarea id="freeflow-content" rows="4" class="w-full border border-slate-300 p-4 rounded-lg focus:outline-none focus:border-orange-500 transition resize-y" placeholder="Dear [Client Name]..."></textarea>
+                    <div id="cover-letter-section" class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 border-t-4 border-t-slate-800">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
+                                3. Custom Cover Letter 
+                                <span id="status-cover" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
+                            </h3>
+                            <button onclick="previewCoverLetter()" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
+                        </div>
+                        <div id="quill-editor" class="h-64 bg-white"></div>
                     </div>
 
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 border-t-4 border-t-slate-800">
@@ -150,16 +161,21 @@
         <h2 class="text-xl font-bold text-white">Assembling Proposal...</h2>
     </div>
 
-  <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
+    <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
         
+        <div id="cover-render-zone" class="w-full bg-white text-black p-8 ql-snow">
+            <h1 class="text-3xl font-bold mb-8 text-slate-900" id="render-cover-title">Solution Overview</h1>
+            <div id="render-cover-body" class="ql-editor" style="padding: 0; font-size: 16px; line-height: 1.5;"></div>
+        </div>
+
         <div id="pricing-render-zone" class="w-full bg-white text-black p-4">
             <table class="w-full text-left border-collapse" id="render-table" style="border: 2px solid #DE5A24;">
                 <thead>
                     <tr class="bg-[#DE5A24] text-white text-base uppercase tracking-wide">
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 55%; text-align: left; vertical-align: middle;">PRODUCT</th>
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 20%; text-align: center; vertical-align: middle;">LIST PRICE</th>
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 10%; text-align: center; vertical-align: middle;">QUANTITY</th>
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 15%; text-align: center; vertical-align: middle;">TOTAL</th>
+                        <th class="border border-[#DE5A24] w-[55%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: flex-start;">PRODUCT</div></th>
+                        <th class="border border-[#DE5A24] w-[15%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: center;">LIST PRICE</div></th>
+                        <th class="border border-[#DE5A24] w-[15%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: center;">QUANTITY</div></th>
+                        <th class="border border-[#DE5A24] w-[15%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: center;">TOTAL</div></th>
                     </tr>
                 </thead>
                 <tbody id="render-table-body" class="text-base text-black font-medium">
@@ -167,7 +183,7 @@
                 <tfoot>
                     <tr class="bg-[#12243D] text-white font-bold text-lg">
                         <td colspan="3" class="py-4 px-4 uppercase tracking-wide">TOTAL MONTHLY COST</td>
-                        <td class="py-4 px-4 text-left" id="render-grand-total"></td>
+                        <td class="py-4 px-4 text-center" id="render-grand-total"></td>
                     </tr>
                 </tfoot>
             </table>
@@ -178,16 +194,25 @@
             <div id="render-references-body" class="space-y-0">
                 </div>
         </div>
-
     </div>
 
     <script>
         // --- State Management ---
-        let committedAssets = {
-            pricing: null,
-            references: null
-        };
-        let currentPreviewTarget = null; // Tracks which section is currently in the modal
+        let committedAssets = { cover: null, pricing: null, references: null };
+        let currentPreviewTarget = null; 
+
+        // --- Quill RTE Setup ---
+        var quill = new Quill('#quill-editor', {
+            theme: 'snow',
+            modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] },
+            placeholder: 'Dear [Client Name]...'
+        });
+        quill.on('text-change', function() { resetCommit('cover'); });
+
+        // Toggle Cover Letter Section Logic
+        document.getElementById('toggle-cover-letter').addEventListener('change', function(e) {
+            document.getElementById('cover-letter-section').style.display = e.target.checked ? 'block' : 'none';
+        });
 
         // --- Passcode & UI ---
         const TEAM_PASSCODE = 'GPC-ENTERPRISE'; 
@@ -304,8 +329,31 @@
             badge.className = 'text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal';
         }
 
+        async function previewCoverLetter() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            // Force browser to acknowledge fonts and layout
+            await document.fonts.ready;
+            
+            const bizName = document.getElementById('global-biz').value;
+            document.getElementById('render-cover-title').innerText = bizName ? `${bizName} Solution Overview` : 'Solution Overview';
+            document.getElementById('render-cover-body').innerHTML = quill.root.innerHTML;
+
+            // Tiny delay to ensure layout repaints
+            await new Promise(r => setTimeout(r, 100));
+
+            const renderZone = document.getElementById('cover-render-zone');
+            const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
+            const imgData = canvas.toDataURL('image/png');
+            
+            document.getElementById('loading-overlay').classList.add('hidden');
+            openModal(imgData, 'cover', 'Preview Cover Letter');
+        }
+
         async function previewPricing() {
             document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            await document.fonts.ready;
             
             const renderBody = document.getElementById('render-table-body');
             renderBody.innerHTML = ''; 
@@ -318,43 +366,45 @@
                 }))
             }));
 
-           // Pixel-Perfect Multi-Location Formatting
+            // Using pure flexbox in the generated HTML to force vertical alignment for html2canvas
             if(locations.length > 1) {
                 locations.forEach(loc => {
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: #A6A6A6; color: white; text-transform: uppercase; font-weight: bold; font-size: 1rem;">
-                            <td colspan="4" class="py-2 px-4 border border-[#A6A6A6]" style="vertical-align: middle;">${loc.name || 'LOCATION NAME'}</td>
+                            <td colspan="4" class="p-0 border border-[#A6A6A6]"><div style="display: flex; align-items: center; justify-content: flex-start; padding: 0.5rem 1rem;">${loc.name || 'LOCATION NAME'}</div></td>
                         </tr>
                     `);
                     loc.items.forEach((item, index) => {
                         const bgColor = index % 2 === 0 ? '#ffffff' : '#E8E8E8';
                         renderBody.insertAdjacentHTML('beforeend', `
                             <tr style="background-color: ${bgColor};">
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: left; vertical-align: middle;">${item.prod}</td>
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">$${item.price}</td>
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.qty}</td>
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.total}</td>
+                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: flex-start; height: 100%; padding: 0.75rem 1rem;">${item.prod}</div></td>
+                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">$${item.price}</div></td>
+                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.qty}</div></td>
+                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.total}</div></td>
                             </tr>
                         `);
                     });
                 });
-            // Pixel-Perfect Single Location Formatting
             } else if (locations.length === 1) {
                 locations[0].items.forEach((item, index) => {
                     const bgColor = index % 2 === 0 ? '#E8E8E8' : '#ffffff';
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: ${bgColor};">
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: left; vertical-align: middle;">${item.prod}</td>
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">$${item.price}</td>
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.qty}</td>
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.total}</td>
+                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: flex-start; height: 100%; padding: 0.75rem 1rem;">${item.prod}</div></td>
+                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">$${item.price}</div></td>
+                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.qty}</div></td>
+                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.total}</div></td>
                         </tr>
                     `);
                 });
             }
+
             document.getElementById('render-grand-total').innerText = document.getElementById('grand-total').innerText;
             const term = document.getElementById('contract-term').value || 'XX';
             document.getElementById('render-term-text').innerText = `Pricing based off ${term}-month term`;
+
+            await new Promise(r => setTimeout(r, 100));
 
             const renderZone = document.getElementById('pricing-render-zone');
             const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
@@ -363,8 +413,11 @@
             document.getElementById('loading-overlay').classList.add('hidden');
             openModal(imgData, 'pricing', 'Preview Pricing Table');
         }
+
         async function previewReferences() {
             document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            await document.fonts.ready;
             
             const renderBody = document.getElementById('render-references-body');
             renderBody.innerHTML = '';
@@ -374,17 +427,18 @@
                 addr: b.querySelector('.ref-addr').value, phone: b.querySelector('.ref-phone').value, email: b.querySelector('.ref-email').value
             })).filter(r => r.name || r.org);
 
-            // Pixel-Perfect Reference Formatting
             refs.forEach(ref => {
                 renderBody.insertAdjacentHTML('beforeend', `
-                    <div class="mb-6 border-b-4 border-[#DE5A24] pb-6">
-                        <div class="text-2xl font-bold text-black">${ref.name}</div>
-                        <div class="text-xl font-bold text-black">${ref.org}</div>
-                        <div class="text-xl text-black mb-4">${ref.addr}</div>
-                        <div class="text-xl text-black">${ref.phone} &nbsp;|&nbsp; ${ref.email}</div>
+                    <div class="mb-6 border-b-4 border-[#DE5A24] pb-6" style="line-height: 1.2;">
+                        <div class="text-2xl font-bold text-black" style="line-height: 1.4;">${ref.name}</div>
+                        <div class="text-xl font-bold text-black" style="line-height: 1.4;">${ref.org}</div>
+                        <div class="text-xl text-black mb-4" style="line-height: 1.4;">${ref.addr}</div>
+                        <div class="text-xl text-black" style="line-height: 1.4;">${ref.phone} &nbsp;|&nbsp; ${ref.email}</div>
                     </div>
                 `);
             });
+
+            await new Promise(r => setTimeout(r, 100));
 
             const renderZone = document.getElementById('references-render-zone');
             const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
@@ -408,9 +462,7 @@
 
         function commitPreview() {
             if(currentPreviewTarget) {
-                // Save to memory
                 committedAssets[currentPreviewTarget] = document.getElementById('preview-image').src;
-                // Update UI Badge
                 const badge = document.getElementById(`status-${currentPreviewTarget}`);
                 badge.innerText = '✅ Committed';
                 badge.className = 'text-xs px-2 py-1 rounded bg-green-100 text-green-700 font-bold border border-green-300';
@@ -421,25 +473,24 @@
         // --- Final PDF Assembly ---
         document.getElementById('generate-btn').addEventListener('click', async () => {
             
-            // Check logic to see if they included slides but forgot to commit
             const activeSlides = [];
             document.querySelectorAll('#module-list li').forEach(li => {
                 if(li.querySelector('.slide-toggle').checked) activeSlides.push(li.getAttribute('data-filename'));
             });
 
+            if (activeSlides.includes('CUSTOM_FREEFLOW') && !committedAssets.cover) {
+                alert("Please Preview & Commit your Custom Cover Letter before generating."); return;
+            }
             if (activeSlides.includes('CUSTOM_REFERENCES') && !committedAssets.references) {
-                alert("Please Preview & Commit your References before generating the proposal.");
-                return;
+                alert("Please Preview & Commit your References before generating."); return;
             }
             if (!committedAssets.pricing) {
-                alert("Please Preview & Commit your Pricing Engine before generating the proposal.");
-                return;
+                alert("Please Preview & Commit your Pricing Engine before generating."); return;
             }
 
             const payload = {
                 globals: { biz: document.getElementById('global-biz').value, rfpName: document.getElementById('global-rfp').value, rep: document.getElementById('global-rep').value },
                 slides: activeSlides,
-                freeflow: document.getElementById('freeflow-content').value,
                 usacFile: document.getElementById('usac-upload').files[0]
             };
 
@@ -449,70 +500,64 @@
             finally { document.getElementById('loading-overlay').classList.add('hidden'); }
         });
 
-        // --- Assembly Engine ---
         async function generatePDFDocument(payload) {
-            const { PDFDocument, rgb, StandardFonts } = PDFLib;
+            const { PDFDocument, StandardFonts } = PDFLib;
             const finalDoc = await PDFDocument.create();
-            const font = await finalDoc.embedFont(StandardFonts.Helvetica);
-            const boldFont = await finalDoc.embedFont(StandardFonts.HelveticaBold);
 
-            // Standard 8.5x11 inch points (Portrait)
             const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
 
-            // 1. PRE-LOAD THE GPC BLANK LETTERHEAD
             let letterheadPdf;
             try {
                 const letterheadBytes = await fetch(`Proposal_Assets/GPC_Blank_Letterhead.pdf`).then(res => res.arrayBuffer());
                 letterheadPdf = await PDFDocument.load(letterheadBytes);
             } catch (e) {
-                console.warn("Could not load GPC_Blank_Letterhead.pdf. Ensure it is in the Proposal_Assets folder!");
+                console.warn("Could not load GPC_Blank_Letterhead.pdf. Falling back to blank page.");
             }
 
-            // Helper function to get a fresh letterhead page (or a blank one if it fails to load)
             async function getBasePage() {
                 if (letterheadPdf) {
                     const [copiedPage] = await finalDoc.copyPages(letterheadPdf, [0]);
                     finalDoc.addPage(copiedPage);
                     return copiedPage;
                 } else {
-                    return finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]); // Fallback to blank white
+                    return finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]); 
                 }
             }
 
-            // 2. LOOP THROUGH SELECTED SLIDES
             for (const slideFile of payload.slides) {
-                if (slideFile === 'CUSTOM_FREEFLOW') {
+                if (slideFile === 'CUSTOM_FREEFLOW' && committedAssets.cover) {
                     const page = await getBasePage();
-                    page.drawText(payload.globals.biz ? `${payload.globals.biz} Solution Overview` : "Solution Overview", { x: 50, y: PAGE_HEIGHT - 120, size: 28, font: boldFont, color: rgb(0.9, 0.4, 0) });
-                    page.drawText(payload.freeflow, { x: 50, y: PAGE_HEIGHT - 170, size: 12, font: font, color: rgb(0.2, 0.2, 0.2), maxWidth: 512, lineHeight: 18 });
+                    const pngImage = await finalDoc.embedPng(committedAssets.cover);
+                    const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
+                    page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
                 
                 } else if (slideFile === 'CUSTOM_REFERENCES' && committedAssets.references) {
                     const page = await getBasePage();
                     const pngImage = await finalDoc.embedPng(committedAssets.references);
                     const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
-                    // Adjust the Y coordinate so it doesn't cover your letterhead header/footer
                     page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
 
                 } else {
                     try {
                         const existingPdfBytes = await fetch(`Proposal_Assets/${slideFile}`).then(res => res.arrayBuffer());
                         const existingPdf = await PDFDocument.load(existingPdfBytes);
+                        
+                        // NOTE: If you ever want to inject the title variables, you'd do it here!
+                        // if (slideFile === '01_Title_Page.pdf') { ... }
+
                         const copiedPages = await finalDoc.copyPages(existingPdf, existingPdf.getPageIndices());
                         copiedPages.forEach(p => finalDoc.addPage(p));
                     } catch (e) { console.warn(`Could not load ${slideFile}`); }
                 }
             }
 
-            // 3. FAST RENDER PRICING FROM MEMORY
             if (committedAssets.pricing) {
                 const pricingPage = await getBasePage();
                 const pngImage = await finalDoc.embedPng(committedAssets.pricing);
                 const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150); 
-                // Adjust the Y coordinate so it doesn't cover your letterhead header/footer
                 pricingPage.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
             }
 
-            // 4. APPEND USAC
             if (payload.usacFile) {
                 const usacBytes = await payload.usacFile.arrayBuffer();
                 const usacPdf = await PDFDocument.load(usacBytes);
