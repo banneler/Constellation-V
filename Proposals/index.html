@@ -581,11 +581,24 @@
         }
     }
 
-    // Centralized Image Stamping & Header Injection
+// Centralized Image Stamping & Header Injection
     async function stampImagePage(base64Image, headerText) {
         const page = await getBasePage();
         
-        // 1. Inject the White Header Text at the specified coordinates
+        // 1. Stamp the HTML image FIRST (so it sits on the bottom layer)
+        const pngImage = await finalDoc.embedPng(base64Image);
+        
+        // Pushed the image down slightly (from 120 to 150) so the white canvas 
+        // doesn't overlap or clip the letterhead's colored top bar
+        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 170); 
+        page.drawImage(pngImage, { 
+            x: 50, 
+            y: PAGE_HEIGHT - imgDims.height - 150, 
+            width: imgDims.width, 
+            height: imgDims.height 
+        });
+
+        // 2. Inject the White Header Text ON TOP of everything
         if (headerText && headerText.trim() !== '') {
             page.drawText(headerText, { 
                 x: 44,      
@@ -595,16 +608,6 @@
                 color: rgb(1, 1, 1) 
             });
         }
-
-        // 2. Stamp the HTML image below the header area
-        const pngImage = await finalDoc.embedPng(base64Image);
-        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 160); 
-        page.drawImage(pngImage, { 
-            x: 50, 
-            y: PAGE_HEIGHT - imgDims.height - 120, 
-            width: imgDims.width, 
-            height: imgDims.height 
-        });
     }
 
     async function appendUploadedPdf(fileObj) {
