@@ -138,7 +138,7 @@
             </ul>
         </div>
 
-        <div class="flex-1 bg-slate-100 overflow-y-auto p-8" id="main-editor-area">
+       <div class="flex-1 bg-slate-100 overflow-y-auto p-8" id="main-editor-area">
             
             <div id="impact-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
                 <h2 class="text-2xl font-bold mb-6 text-blue-800 border-b border-blue-100 pb-2 flex items-center gap-3">
@@ -172,7 +172,7 @@
                 </div>
             </div>
 
-          <div id="pricing-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
+            <div id="pricing-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
                 <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-2">
                     <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                         <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -188,32 +188,12 @@
                     <span id="ui-grand-total" class="font-black text-4xl text-blue-800">$0.00</span>
                 </div>
             </div>
-                    <button onclick="addPricingRow()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded text-sm transition">+ Add Product</button>
-                </div>
-                <div class="bg-slate-50 p-4 rounded border border-slate-200">
-                    <div class="grid grid-cols-12 gap-2 mb-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        <div class="col-span-6">Product / Service</div>
-                        <div class="col-span-2 text-center">List Price</div>
-                        <div class="col-span-1 text-center">Qty</div>
-                        <div class="col-span-2 text-center">Total</div>
-                        <div class="col-span-1"></div>
-                    </div>
-                    <div id="pricing-rows-container" class="space-y-2"></div>
-                    <div class="mt-4 border-t border-slate-300 pt-4 flex justify-end items-center px-2">
-                        <span class="font-bold text-slate-700 mr-4 text-lg">Total Monthly Cost:</span>
-                        <span id="ui-pricing-total" class="font-black text-2xl text-blue-800">$0.00</span>
-                    </div>
-                </div>
-            </div>
 
             <div id="cover-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
-               <div id="cover-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
                 <div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2">
                     <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                     <input type="text" id="cover-letter-title" value="Cover Letter" class="text-2xl font-bold text-slate-800 bg-transparent border-none outline-none focus:ring-0 w-full" placeholder="e.g. Solution Recap">
                 </div>
-                <div id="quill-cover" class="bg-white"></div>
-            </div>
                 <div id="quill-cover" class="bg-white"></div>
             </div>
 
@@ -246,7 +226,7 @@
         </div>
     </div>
 
-   <div id="hidden-impact-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] p-6 font-sans text-slate-800 bg-transparent">
+    <div id="hidden-impact-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] p-6 font-sans text-slate-800 bg-transparent">
         <div class="flex justify-between gap-8 mb-10">
             <div class="w-1/2 p-6 rounded-lg border border-slate-300 shadow-sm bg-transparent">
                 <h2 class="text-lg font-bold text-slate-700 mb-4 uppercase tracking-widest border-b border-slate-300 pb-2">Current State</h2>
@@ -273,7 +253,8 @@
             </div>
         </div>
     </div>
-    <div id="hidden-pricing-template" class="absolute top-[-9999px] left-[-9999px] bg-transparent"></div>
+
+    <div id="hidden-pricing-template" class="absolute top-[-9999px] left-[-9999px] bg-transparent">
         <h1 class="text-3xl font-black text-blue-800 mb-8 border-b-4 border-blue-600 pb-2 uppercase tracking-wide">Proposed Investment</h1>
         <div class="w-full border border-slate-300 rounded shadow-sm bg-transparent">
             <div class="flex bg-blue-600 text-white font-bold text-sm uppercase tracking-wider p-3 rounded-t">
