@@ -627,32 +627,33 @@
                 const existingPdf = await PDFDocument.load(existingPdfBytes);
                 const [page] = await finalDoc.copyPages(existingPdf, [0]);
 
-// --- DATA INJECTION FOR TITLE PAGE (Direct Injection - No Canvas) ---
+// --- DATA INJECTION FOR TITLE PAGE (v1.2 - Fix for Missing Fields) ---
 if (slideFile === '01_Title_Page.pdf') {
-    const today = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', month: 'long', day: 'numeric' 
-    });
-    
-    // 1. Business Name (Large, Bold, White)
-    // Shifted X slightly to 320 to center better in the open dark space
-    page.drawText(payload.globals.biz || '', { 
-        x: 320, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
+    // 1. Force-sync variables from the sidebar to ensure they aren't empty
+    const rfpText = document.getElementById('global-rfp').value || "Request for Proposal";
+    const bizText = document.getElementById('global-biz').value || "";
+    const repText = document.getElementById('global-rep').value || "";
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // 2. Business Name (Large, Bold, White) - Shifted to X:300
+    page.drawText(bizText, { 
+        x: 300, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
     });
 
-    // 2. RFP Name (Standard, Bold, GPC Orange)
-    // Using the GPC Orange hex #DE5A24 converted to RGB
-    page.drawText(payload.globals.rfpName || '', { 
-        x: 320, y: 90, size: 18, font: boldFont, color: rgb(0.87, 0.35, 0.14) 
+    // 3. RFP Name (Bold, GPC Orange) - Shifted to X:300
+    // Using GPC Orange RGB (0.87, 0.35, 0.14)
+    page.drawText(rfpText, { 
+        x: 300, y: 90, size: 18, font: boldFont, color: rgb(0.87, 0.35, 0.14) 
     });
 
-    // 3. Sales Rep (Smaller, White/Light Grey)
-    page.drawText(`Presented by: ${payload.globals.rep || ''}`, { 
-        x: 320, y: 65, size: 12, font: font, color: rgb(0.9, 0.9, 0.9) 
+    // 4. Sales Rep (Smaller, White) - Shifted to X:300
+    page.drawText(`Presented by: ${repText}`, { 
+        x: 300, y: 65, size: 12, font: font, color: rgb(1, 1, 1) 
     });
 
-    // 4. Date (Smaller, White/Light Grey)
+    // 5. Date (Smaller, White) - Shifted to X:300
     page.drawText(today, { 
-        x: 320, y: 45, size: 10, font: font, color: rgb(0.9, 0.9, 0.9) 
+        x: 300, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
     });
 }
 
