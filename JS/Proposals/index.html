@@ -515,12 +515,17 @@
                         finalDoc.addPage(page);
                     }
 
-                    // 2. PRICING STAMPING 
+               // 2. PRICING STAMPING 
                     else if (slideFile === 'CUSTOM_PRICING') {
                         const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
                         const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
                         const bgDoc = await PDFDocument.load(existingPdfBytes);
                         const [pricingPage] = await finalDoc.copyPages(bgDoc, [0]);
+
+                        // STAMP VECTOR HEADER INTO THE NAVY BAR!
+                        pricingPage.drawText("PROPOSED INVESTMENT", { 
+                            x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) 
+                        });
 
                         const printContainer = document.getElementById('print-pricing-rows');
                         printContainer.innerHTML = ''; 
@@ -553,8 +558,9 @@
                         const pngImage = await finalDoc.embedPng(imgData);
                         const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
                         
+                        // Bumped margin to 100 so it sits nicely below the bar
                         pricingPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 80,
+                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 100,
                             width: imgDims.width, height: imgDims.height
                         });
                         finalDoc.addPage(pricingPage);
@@ -566,6 +572,11 @@
                         const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
                         const bgDoc = await PDFDocument.load(existingPdfBytes);
                         const [impactPage] = await finalDoc.copyPages(bgDoc, [0]);
+
+                        // STAMP VECTOR HEADER INTO THE NAVY BAR!
+                        impactPage.drawText("NETWORK IMPACT & ROI ANALYSIS", { 
+                            x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) 
+                        });
 
                         document.getElementById('print-impact-current').innerHTML = quillImpactCurrent.root.innerHTML;
                         document.getElementById('print-impact-proposed').innerHTML = quillImpactProposed.root.innerHTML;
@@ -589,8 +600,9 @@
                         const pngImage = await finalDoc.embedPng(imgData);
                         const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
                         
+                        // Bumped margin to 100
                         impactPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 80,
+                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 100,
                             width: imgDims.width, height: imgDims.height
                         });
                         finalDoc.addPage(impactPage);
@@ -603,6 +615,11 @@
                         const bgDoc = await PDFDocument.load(existingPdfBytes);
                         const [coverPage] = await finalDoc.copyPages(bgDoc, [0]);
 
+                        // STAMP VECTOR HEADER INTO THE NAVY BAR!
+                        coverPage.drawText("COVER LETTER", { 
+                            x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) 
+                        });
+
                         const template = document.getElementById('hidden-cover-template');
                         template.innerHTML = quillCover.root.innerHTML;
                         template.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
@@ -614,8 +631,9 @@
                         const pngImage = await finalDoc.embedPng(imgData);
                         const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
                         
+                        // Bumped margin to 100
                         coverPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 80,
+                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 100,
                             width: imgDims.width, height: imgDims.height
                         });
                         finalDoc.addPage(coverPage);
