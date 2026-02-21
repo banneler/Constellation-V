@@ -637,22 +637,22 @@ if (slideFile === '01_Title_Page.pdf') {
 
     // Business Name (Largest)
     page.drawText(bizText, { 
-        x: 280, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
+        x: 285, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
     });
 
     // RFP Name
     page.drawText(rfpText, { 
-        x: 280, y: 90, size: 18, font: boldFont, color: rgb(1, 1, 1) 
+        x: 285, y: 90, size: 18, font: boldFont, color: rgb(1, 1, 1) 
     });
 
     // Sales Rep
     page.drawText(`Presented by: ${repText}`, { 
-        x: 280, y: 65, size: 12, font: font, color: rgb(1, 1, 1) 
+        x: 285, y: 65, size: 12, font: font, color: rgb(1, 1, 1) 
     });
 
     // Date
     page.drawText(today, { 
-        x: 280, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
+        x: 285, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
     });
 }
                 finalDoc.addPage(page);
