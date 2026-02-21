@@ -585,27 +585,26 @@
     async function stampImagePage(base64Image, headerText) {
         const page = await getBasePage();
         
-        // 1. Stamp the HTML image FIRST (so it sits on the bottom layer)
-        const pngImage = await finalDoc.embedPng(base64Image);
-        
-        // Pushed the image down slightly (from 120 to 150) so the white canvas 
-        // doesn't overlap or clip the letterhead's colored top bar
-        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 170); 
-        page.drawImage(pngImage, { 
-            x: 50, 
-            y: PAGE_HEIGHT - imgDims.height - 150, 
-            width: imgDims.width, 
-            height: imgDims.height 
-        });
+        // 1. Stamp the HTML image FIRST
+        if (base64Image) {
+            const pngImage = await finalDoc.embedPng(base64Image);
+            const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 170); 
+            page.drawImage(pngImage, { 
+                x: 50, 
+                y: PAGE_HEIGHT - imgDims.height - 150, 
+                width: imgDims.width, 
+                height: imgDims.height 
+            });
+        }
 
-        // 2. Inject the White Header Text ON TOP of everything
+        // 2. Inject the White Header Text MOVED UP into the colored bar
         if (headerText && headerText.trim() !== '') {
             page.drawText(headerText, { 
                 x: 44,      
-                y: 662,     
+                y: 730,     // <-- Bumped up from 662 to hit the top banner!
                 size: 28,   
                 font: boldFont, 
-                color: rgb(1, 1, 1) 
+                color: rgb(1, 1, 1) // Pure White
             });
         }
     }
