@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectrum Enterprise Proposal Generator</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* Custom UI Tweaks */
+        body { background-color: #f8fafc; }
+        .slide-toggle { cursor: pointer; accent-color: #2563eb; } /* Spectrum Blue */
+        .ql-editor { min-height: 150px; font-family: 'Inter', sans-serif; font-size: 14px; }
+        .handle { cursor: grab; }
+        .handle:active { cursor: grabbing; }
+    </style>
+</head>
+<body class="text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-blue-800 text-white p-4 shadow-md flex justify-between items-center z-10 relative">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-blue-800 font-black text-xl">S</div>
+            <h1 class="text-2xl font-bold tracking-wide">Spectrum Enterprise <span class="font-light">Proposal Generator</span></h1>
+        </div>
+        <button onclick="generatePDFDocument()" class="bg-white text-blue-800 hover:bg-blue-50 font-bold py-2 px-6 rounded shadow-lg transition transform hover:scale-105">
+            Generate Proposal PDF
+        </button>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <div class="w-96 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.05)] border-r border-slate-200 p-6 flex flex-col h-full z-0 overflow-hidden">
+            
+            <div class="flex gap-2 mb-6 border-b border-slate-200 pb-6">
+                <button onclick="saveProject()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded shadow transition flex justify-center items-center gap-2 text-sm">
+                    💾 Save (.spec)
+                </button>
+                <label class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded border border-slate-300 shadow-sm transition cursor-pointer flex justify-center items-center gap-2 text-sm">
+                    📂 Load Project
+                    <input type="file" id="load-project" accept=".spec" class="hidden" onchange="loadProject(event)">
+                </label>
+            </div>
+
+            <h2 class="text-lg font-bold mb-4 text-slate-800">1. Proposal Properties</h2>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700">Client / Property Name</label>
+                    <input type="text" id="client-name" placeholder="e.g. Marriott Downtown" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700">Sales Representative</label>
+                    <input type="text" id="sales-rep" placeholder="e.g. Jenni B." class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition">
+                </div>
+                <div class="flex gap-4 border-t border-slate-100 pt-4">
+                    <div class="flex-1">
+                        <label class="block text-sm font-semibold text-slate-700">Start Date</label>
+                        <input type="text" id="global-start" placeholder="e.g. Q3 2026" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-semibold text-slate-700">Completion</label>
+                        <input type="text" id="global-end" placeholder="e.g. Q4 2026" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">2. Proposal Elements</h2>
+            <ul id="module-list" class="space-y-2 flex-1 overflow-y-auto pb-4 pr-2">
+                
+                <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm group" data-filename="01_Title_Page.pdf">
+                    <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
+                    <input type="checkbox" checked class="mr-3 w-4 h-4 slide-toggle">
+                    <span class="flex-1 font-medium text-sm text-slate-700">Title Page</span>
+                    <button onclick="previewStockPdf('01_Title_Page.pdf', 'Title Page')" class="text-slate-400 hover:text-blue-600 transition px-2" title="Preview PDF">👁️</button>
+                </li>
+                
+                <li class="flex items-center bg-white p-3 rounded border border-slate-200 shadow-sm group border-l-4 border-l-blue-500" data-filename="CUSTOM_COVER">
+                    <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
+                    <input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 slide-toggle">
+                    <span class="flex-1 font-medium text-sm text-slate-800">Cover Letter</span>
+                </li>
+                
+                <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm group" data-filename="02_Why_Spectrum.pdf">
+                    <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
+                    <input type="checkbox" checked class="mr-3 w-4 h-4 slide-toggle">
+                    <span class="flex-1 font-medium text-sm text-slate-700">Why Spectrum?</span>
+                    <button onclick="previewStockPdf('02_Why_Spectrum.pdf', 'Why Spectrum')" class="text-slate-400 hover:text-blue-600 transition px-2">👁️</button>
+                </li>
+                
+                <li class="flex items-center bg-white p-3 rounded border border-slate-200 shadow-sm group border-l-4 border-l-blue-500" data-filename="CUSTOM_PRICING">
+                    <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
+                    <input type="checkbox" checked id="toggle-pricing" class="mr-3 w-4 h-4 slide-toggle">
+                    <span class="flex-1 font-medium text-sm text-slate-800">Proposed Pricing</span>
+                </li>
+
+                <li class="flex items-center bg-white p-3 rounded border border-slate-200 shadow-sm group border-l-4 border-l-blue-500" data-filename="CUSTOM_IMPACT">
+                    <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
+                    <input type="checkbox" checked id="toggle-impact" class="mr-3 w-4 h-4 slide-toggle">
+                    <span class="flex-1 font-medium text-sm text-slate-800">Impact & ROI Analysis</span>
+                </li>
+
+                <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm group" data-filename="09_Project.pdf">
+                    <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
+                    <input type="checkbox" checked class="mr-3 w-4 h-4 slide-toggle">
+                    <span class="flex-1 font-medium text-sm text-slate-700">Implementation Plan</span>
+                    <button onclick="previewStockPdf('09_Project.pdf', 'Implementation Plan')" class="text-slate-400 hover:text-blue-600 transition px-2">👁️</button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="flex-1 bg-slate-100 overflow-y-auto p-8" id="main-editor-area">
+            
+            <div id="impact-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
+                <h2 class="text-2xl font-bold mb-4 text-blue-800 border-b border-blue-100 pb-2 flex items-center gap-2">
+                    📊 Impact & ROI Analysis
+                </h2>
+                
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wide">Current Environment</label>
+                        <div id="quill-impact-current" class="bg-white rounded border border-slate-300"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-blue-700 mb-2 uppercase tracking-wide">Proposed Spectrum Solution</label>
+                        <div id="quill-impact-proposed" class="bg-white rounded border border-slate-300 border-t-4 border-t-blue-500"></div>
+                    </div>
+                </div>
+
+                <div class="flex gap-6 items-end bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-inner">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wide">Current Monthly Spend ($)</label>
+                        <input type="number" id="impact-current-cost" placeholder="e.g. 2500" class="w-full border border-slate-300 p-3 rounded text-lg font-bold focus:border-blue-500 outline-none transition" oninput="calculateImpact()">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-blue-600 mb-1 uppercase tracking-wide">Spectrum Monthly Spend ($)</label>
+                        <input type="number" id="impact-proposed-cost" placeholder="e.g. 2100" class="w-full border border-blue-300 p-3 rounded text-lg font-bold text-blue-800 focus:border-blue-600 outline-none transition" oninput="calculateImpact()">
+                    </div>
+                    <div class="flex-1 flex items-center justify-center p-3 rounded-lg text-xl font-black border-2 border-slate-300 text-slate-500 shadow-sm bg-white transition-colors duration-300" id="impact-badge">
+                        Net Impact: $0.00
+                    </div>
+                </div>
+            </div>
+
+            <div id="cover-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
+                <h2 class="text-2xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-2">✉️ Cover Letter</h2>
+                <div id="quill-cover" class="bg-white rounded"></div>
+            </div>
+
+            <div id="pricing-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
+                <h2 class="text-2xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-2">💲 Proposed Pricing</h2>
+                <p class="text-sm text-slate-500 mb-4">Pricing module initialized. Ready for data entry.</p>
+                </div>
+
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="hidden absolute inset-0 bg-blue-900 bg-opacity-90 flex flex-col items-center justify-center z-[100]">
+        <div class="animate-spin rounded-full h-20 w-20 border-b-4 border-white mb-6"></div>
+        <p class="text-white text-2xl font-bold tracking-widest animate-pulse">GENERATING PROPOSAL...</p>
+    </div>
+
+    <div id="pdf-preview-modal" class="hidden absolute inset-0 bg-slate-900 bg-opacity-90 flex flex-col items-center justify-center z-[80] p-6">
+        <div class="flex flex-col h-[85vh] w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-4 w-full">
+                <h2 class="text-white text-2xl font-bold" id="pdf-preview-title">PDF Preview</h2>
+                <button onclick="closePdfModal()" class="text-white hover:text-red-500 font-bold text-3xl transition leading-none">✕</button>
+            </div>
+            <div class="bg-[#525659] rounded-xl shadow-2xl flex-1 overflow-hidden border-4 border-slate-700 w-full">
+                <iframe id="pdf-preview-iframe" class="w-full h-full border-0" src=""></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div id="hidden-impact-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-10 font-sans text-slate-800">
+        <h1 class="text-3xl font-black text-blue-800 mb-8 border-b-4 border-blue-600 pb-2 uppercase tracking-wide">Network Impact & ROI Analysis</h1>
+        
+        <div class="flex justify-between gap-8 mb-10">
+            <div class="w-1/2 bg-slate-50 p-6 rounded-lg border border-slate-300 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-500 mb-4 uppercase tracking-widest border-b border-slate-200 pb-2">Current State</h2>
+                <div id="print-impact-current" class="text-sm space-y-2 leading-relaxed"></div>
+            </div>
+            <div class="w-1/2 bg-blue-50 p-6 rounded-lg border-2 border-blue-300 shadow-md">
+                <h2 class="text-lg font-bold text-blue-800 mb-4 uppercase tracking-widest border-b border-blue-200 pb-2">Spectrum Solution</h2>
+                <div id="print-impact-proposed" class="text-sm space-y-2 leading-relaxed"></div>
+            </div>
+        </div>
+
+        <div class="bg-blue-800 text-white rounded-xl p-8 flex justify-between items-center shadow-lg">
+            <div class="text-center">
+                <p class="text-xs text-blue-200 uppercase tracking-widest mb-1">Current Spend</p>
+                <p class="text-3xl font-bold" id="print-current-cost">$0.00</p>
+            </div>
+            <div class="text-center opacity-50 text-2xl">➔</div>
+            <div class="text-center">
+                <p class="text-xs text-blue-200 uppercase tracking-widest mb-1">Spectrum Spend</p>
+                <p class="text-3xl font-bold" id="print-proposed-cost">$0.00</p>
+            </div>
+            <div class="text-center bg-white text-blue-800 py-4 px-8 rounded-lg shadow-inner border-2 border-blue-200">
+                <p class="text-xs uppercase tracking-widest font-bold mb-1">Net Impact</p>
+                <p class="text-4xl font-black" id="print-net-impact">$0.00</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="hidden-cover-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-10 font-sans text-slate-800 text-base leading-relaxed"></div>
+
+    <script>
+        // --- 1. INITIALIZE QUILL EDITORS ---
+        const quillImpactCurrent = new Quill('#quill-impact-current', { theme: 'snow' });
+        const quillImpactProposed = new Quill('#quill-impact-proposed', { theme: 'snow' });
+        const quillCover = new Quill('#quill-cover', { theme: 'snow' });
+
+        // Default content
+        quillImpactCurrent.root.innerHTML = "<p>Legacy infrastructure with unpredictable billing.</p>";
+        quillImpactProposed.root.innerHTML = "<p>Dedicated Fiber Internet with managed Wi-Fi.</p>";
+
+        // --- 2. UI TOGGLES (Show/Hide Cards) ---
+        function wireToggle(checkboxId, cardId) {
+            const checkbox = document.getElementById(checkboxId);
+            const card = document.getElementById(cardId);
+            if(checkbox && card) {
+                checkbox.addEventListener('change', () => { card.style.display = checkbox.checked ? 'block' : 'none'; });
+                card.style.display = checkbox.checked ? 'block' : 'none';
+            }
+        }
+        wireToggle('toggle-cover-letter', 'cover-card');
+        wireToggle('toggle-impact', 'impact-card');
+        wireToggle('toggle-pricing', 'pricing-card');
+
+        // --- 3. IMPACT CALCULATION LOGIC ---
+        function calculateImpact() {
+            const current = parseFloat(document.getElementById('impact-current-cost').value) || 0;
+            const proposed = parseFloat(document.getElementById('impact-proposed-cost').value) || 0;
+            const diff = current - proposed;
+            const badge = document.getElementById('impact-badge');
+            
+            if (diff > 0) {
+                badge.className = "flex-1 flex items-center justify-center p-3 rounded-lg text-xl font-black border-2 border-green-500 text-green-700 bg-green-50 shadow-sm transition-colors duration-300";
+                badge.innerText = `SAVINGS: $${diff.toFixed(2)} / mo`;
+            } else if (diff < 0) {
+                badge.className = "flex-1 flex items-center justify-center p-3 rounded-lg text-xl font-black border-2 border-blue-500 text-blue-700 bg-blue-50 shadow-sm transition-colors duration-300";
+                badge.innerText = `INVESTMENT: $${Math.abs(diff).toFixed(2)} / mo`;
+            } else {
+                badge.className = "flex-1 flex items-center justify-center p-3 rounded-lg text-xl font-black border-2 border-slate-300 text-slate-500 bg-white shadow-sm transition-colors duration-300";
+                badge.innerText = `Net Impact: $0.00`;
+            }
+        }
+
+        // --- 4. PREVIEW MODAL LOGIC ---
+        function previewStockPdf(filename, title) {
+            document.getElementById('pdf-preview-title').innerText = title;
+            document.getElementById('pdf-preview-iframe').src = `Proposal_Assets/${filename}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`;
+            document.getElementById('pdf-preview-modal').classList.remove('hidden');
+        }
+        function closePdfModal() {
+            document.getElementById('pdf-preview-modal').classList.add('hidden');
+            document.getElementById('pdf-preview-iframe').src = "";
+        }
+
+        // --- 5. SAVE / LOAD PROJECT (.spec files) ---
+        function saveProject() {
+            const projectData = {
+                clientName: document.getElementById('client-name').value,
+                repName: document.getElementById('sales-rep').value,
+                startDate: document.getElementById('global-start').value,
+                endDate: document.getElementById('global-end').value,
+                
+                impactCurrent: quillImpactCurrent.root.innerHTML,
+                impactProposed: quillImpactProposed.root.innerHTML,
+                impactCostCurrent: document.getElementById('impact-current-cost').value,
+                impactCostProposed: document.getElementById('impact-proposed-cost').value,
+                coverText: quillCover.root.innerHTML,
+                
+                modules: []
+            };
+
+            document.querySelectorAll('#module-list li').forEach(li => {
+                const checkbox = li.querySelector('input[type="checkbox"]');
+                projectData.modules.push({
+                    filename: li.getAttribute('data-filename'),
+                    checked: checkbox ? checkbox.checked : false
+                });
+            });
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", (projectData.clientName.replace(/\s+/g, '_') || "Spectrum_Proposal") + ".spec");
+            dlAnchorElem.click();
+        }
+
+        function loadProject(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if(data.clientName) document.getElementById('client-name').value = data.clientName;
+                    if(data.repName) document.getElementById('sales-rep').value = data.repName;
+                    if(data.startDate) document.getElementById('global-start').value = data.startDate;
+                    if(data.endDate) document.getElementById('global-end').value = data.endDate;
+                    
+                    if(data.impactCurrent) quillImpactCurrent.root.innerHTML = data.impactCurrent;
+                    if(data.impactProposed) quillImpactProposed.root.innerHTML = data.impactProposed;
+                    if(data.impactCostCurrent) document.getElementById('impact-current-cost').value = data.impactCostCurrent;
+                    if(data.impactCostProposed) document.getElementById('impact-proposed-cost').value = data.impactCostProposed;
+                    if(data.coverText) quillCover.root.innerHTML = data.coverText;
+                    
+                    calculateImpact();
+
+                    if(data.modules) {
+                        data.modules.forEach(mod => {
+                            const li = document.querySelector(`li[data-filename="${mod.filename}"]`);
+                            if(li) {
+                                const checkbox = li.querySelector('input[type="checkbox"]');
+                                if(checkbox) checkbox.checked = mod.checked;
+                            }
+                        });
+                        // Trigger UI refreshes
+                        document.getElementById('toggle-cover-letter').dispatchEvent(new Event('change'));
+                        document.getElementById('toggle-impact').dispatchEvent(new Event('change'));
+                        document.getElementById('toggle-pricing').dispatchEvent(new Event('change'));
+                    }
+                    alert("Project Loaded Successfully!");
+                } catch (err) {
+                    alert("Error loading project file. Make sure it's a valid .spec file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 6. MASTER PDF GENERATION ENGINE ---
+        async function generatePDFDocument() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+
+            try {
+                const { PDFDocument, rgb, StandardFonts } = PDFLib;
+                const finalDoc = await PDFDocument.create();
+                const boldFont = await finalDoc.embedFont(StandardFonts.HelveticaBold);
+                
+                const PAGE_WIDTH = 612; // 8.5 inches
+                const PAGE_HEIGHT = 792; // 11 inches
+
+                const listItems = document.querySelectorAll('#module-list li');
+                const checkedItems = Array.from(listItems).filter(li => li.querySelector('input').checked);
+
+                for (let li of checkedItems) {
+                    const slideFile = li.getAttribute('data-filename');
+
+                    // 1. TITLE PAGE LOGIC
+                    if (slideFile === '01_Title_Page.pdf') {
+                        const url = `Proposal_Assets/${slideFile}`;
+                        const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
+                        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+                        const [page] = await finalDoc.copyPages(pdfDoc, [0]);
+                        
+                        const clientName = document.getElementById('client-name').value.toUpperCase();
+                        if (clientName) {
+                            page.drawText(clientName, { 
+                                x: 44, y: 730, size: 28, font: boldFont, color: rgb(1, 1, 1) 
+                            });
+                        }
+                        finalDoc.addPage(page);
+                    }
+
+                    // 2. IMPACT & ROI ANALYSIS LOGIC
+                    else if (slideFile === 'CUSTOM_IMPACT') {
+                        document.getElementById('print-impact-current').innerHTML = quillImpactCurrent.root.innerHTML;
+                        document.getElementById('print-impact-proposed').innerHTML = quillImpactProposed.root.innerHTML;
+                        
+                        const cCost = parseFloat(document.getElementById('impact-current-cost').value) || 0;
+                        const pCost = parseFloat(document.getElementById('impact-proposed-cost').value) || 0;
+                        const diff = cCost - pCost;
+                        
+                        document.getElementById('print-current-cost').innerText = `$${cCost.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                        document.getElementById('print-proposed-cost').innerText = `$${pCost.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                        
+                        const impactLabel = diff >= 0 ? `SAVINGS: $${diff.toLocaleString(undefined, {minimumFractionDigits: 2})}` : `INVESTMENT: $${Math.abs(diff).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                        document.getElementById('print-net-impact').innerText = impactLabel;
+
+                        const impactTemplate = document.getElementById('hidden-impact-template');
+                        impactTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
+
+                        const canvas = await html2canvas(impactTemplate, { scale: 2 });
+                        const imgData = canvas.toDataURL('image/png');
+                        impactTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
+
+                        const impactPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                        const pngImage = await finalDoc.embedPng(imgData);
+                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 200);
+                        
+                        impactPage.drawImage(pngImage, {
+                            x: (PAGE_WIDTH - imgDims.width) / 2,
+                            y: PAGE_HEIGHT - imgDims.height - 120,
+                            width: imgDims.width,
+                            height: imgDims.height
+                        });
+                    }
+
+                    // 3. PROJECT IMPLEMENTATION PLAN LOGIC
+                    else if (slideFile === '09_Project.pdf') {
+                        const url = `Proposal_Assets/${slideFile}`;
+                        const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
+                        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+                        const [page] = await finalDoc.copyPages(pdfDoc, [0]);
+
+                        const startDate = document.getElementById('global-start').value || "";
+                        const endDate = document.getElementById('global-end').value || "";
+                        const fontSize = 12;
+
+                        const startCenterX = 207;
+                        const endCenterX = 406;   
+                        const yCoord = 534;       
+
+                        const startWidth = boldFont.widthOfTextAtSize(startDate, fontSize);
+                        const endWidth = boldFont.widthOfTextAtSize(endDate, fontSize);
+
+                        page.drawText(startDate, { 
+                            x: startCenterX - (startWidth / 2), y: yCoord, size: fontSize, font: boldFont, color: rgb(0.1, 0.1, 0.1) 
+                        });
+
+                        page.drawText(endDate, { 
+                            x: endCenterX - (endWidth / 2), y: yCoord, size: fontSize, font: boldFont, color: rgb(0.1, 0.1, 0.1) 
+                        });
+
+                        finalDoc.addPage(page);
+                    }
+
+                    // 4. COVER LETTER (Placeholder html2canvas hook)
+                    else if (slideFile === 'CUSTOM_COVER') {
+                        const template = document.getElementById('hidden-cover-template');
+                        template.innerHTML = quillCover.root.innerHTML;
+                        template.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
+                        
+                        const canvas = await html2canvas(template, { scale: 2 });
+                        const imgData = canvas.toDataURL('image/png');
+                        template.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
+
+                        const coverPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                        const pngImage = await finalDoc.embedPng(imgData);
+                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 200);
+                        
+                        coverPage.drawImage(pngImage, {
+                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 100,
+                            width: imgDims.width, height: imgDims.height
+                        });
+                    }
+
+                    // 5. STANDARD STOCK PDFS
+                    else if (slideFile.endsWith('.pdf')) {
+                        const url = `Proposal_Assets/${slideFile}`;
+                        const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
+                        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+                        const copiedPages = await finalDoc.copyPages(pdfDoc, pdfDoc.getPageIndices());
+                        copiedPages.forEach((page) => finalDoc.addPage(page));
+                    }
+                }
+
+                // SAVE & DOWNLOAD
+                const pdfBytes = await finalDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${document.getElementById('client-name').value.replace(/\s+/g, '_') || "Spectrum"}_Proposal.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+            } catch (error) {
+                console.error("PDF Generation Error:", error);
+                alert("An error occurred. Make sure all your stock PDFs are placed inside the 'Proposal_Assets' folder exactly as named in the list.");
+            } finally {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
