@@ -12,13 +12,16 @@
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
     <style>
         body { background-color: #f8fafc; }
-        .slide-toggle { cursor: pointer; accent-color: #2563eb; }
+        .slide-toggle { cursor: pointer; accent-color: #2563eb; } /* Spectrum Blue */
         .ql-editor { min-height: 150px; font-family: 'Inter', sans-serif; font-size: 14px; }
         .handle { cursor: grab; }
         .handle:active { cursor: grabbing; }
+        /* Sortable Drag Ghost Styling */
+        .sortable-ghost { opacity: 0.4; background-color: #eff6ff; border: 2px dashed #3b82f6; }
     </style>
 </head>
 <body class="text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
@@ -69,7 +72,7 @@
                 </div>
             </div>
 
-            <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">2. Proposal Elements</h2>
+            <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">2. Proposal Elements (Drag to Reorder)</h2>
             <ul id="module-list" class="space-y-2 flex-1 overflow-y-auto pb-4 pr-2">
                 <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm group" data-filename="01_Title_Page.pdf">
                     <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
@@ -103,6 +106,11 @@
                     <input type="checkbox" checked class="mr-3 w-4 h-4 slide-toggle">
                     <span class="flex-1 font-medium text-sm text-slate-700">Implementation Plan</span>
                     <button onclick="previewStockPdf('09_Project.pdf', 'Implementation Plan')" class="text-slate-400 hover:text-blue-600 transition px-2">👁️</button>
+                </li>
+                <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm group border-l-4 border-l-slate-400" data-filename="CUSTOM_PDF">
+                    <span class="mr-3 text-slate-400 handle group-hover:text-blue-500">☰</span>
+                    <input type="checkbox" id="toggle-custom-pdf" class="mr-3 w-4 h-4 slide-toggle text-slate-400">
+                    <span class="flex-1 font-medium text-sm text-slate-700">Attach Custom PDF</span>
                 </li>
             </ul>
         </div>
@@ -149,8 +157,7 @@
                         <div class="col-span-2 text-center">Total</div>
                         <div class="col-span-1"></div>
                     </div>
-                    <div id="pricing-rows-container" class="space-y-2">
-                        </div>
+                    <div id="pricing-rows-container" class="space-y-2"></div>
                     <div class="mt-4 border-t border-slate-300 pt-4 flex justify-end items-center px-2">
                         <span class="font-bold text-slate-700 mr-4 text-lg">Total Monthly Cost:</span>
                         <span id="ui-pricing-total" class="font-black text-2xl text-blue-800">$0.00</span>
@@ -161,6 +168,12 @@
             <div id="cover-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
                 <h2 class="text-2xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-2">✉️ Cover Letter</h2>
                 <div id="quill-cover" class="bg-white rounded"></div>
+            </div>
+
+            <div id="pdf-upload-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300 hidden">
+                <h2 class="text-2xl font-bold mb-2 text-slate-800 border-b border-slate-100 pb-2">📎 Attach Custom PDF</h2>
+                <p class="text-sm text-slate-500 mb-4">Upload a customer bill, product slick, or architecture diagram to dynamically merge into the proposal packet.</p>
+                <input type="file" id="custom-pdf-upload" accept="application/pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer">
             </div>
 
         </div>
@@ -233,7 +246,14 @@
     <div id="hidden-cover-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-10 font-sans text-slate-800 text-base leading-relaxed"></div>
 
     <script>
-        // --- 1. INITIALIZE QUILL EDITORS ---
+        // --- 1. INITIALIZE DRAG & DROP ---
+        new Sortable(document.getElementById('module-list'), {
+            handle: '.handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost'
+        });
+
+        // --- 2. INITIALIZE QUILL EDITORS ---
         const quillImpactCurrent = new Quill('#quill-impact-current', { theme: 'snow' });
         const quillImpactProposed = new Quill('#quill-impact-proposed', { theme: 'snow' });
         const quillCover = new Quill('#quill-cover', { theme: 'snow' });
@@ -241,7 +261,7 @@
         quillImpactCurrent.root.innerHTML = "<p>Legacy infrastructure with unpredictable billing.</p>";
         quillImpactProposed.root.innerHTML = "<p>Dedicated Fiber Internet with managed Wi-Fi.</p>";
 
-        // --- 2. UI TOGGLES ---
+        // --- 3. UI TOGGLES ---
         function wireToggle(checkboxId, cardId) {
             const checkbox = document.getElementById(checkboxId);
             const card = document.getElementById(cardId);
@@ -253,8 +273,9 @@
         wireToggle('toggle-cover-letter', 'cover-card');
         wireToggle('toggle-impact', 'impact-card');
         wireToggle('toggle-pricing', 'pricing-card');
+        wireToggle('toggle-custom-pdf', 'pdf-upload-card'); // Wired Custom PDF Toggle!
 
-        // --- 3. PRICING ENGINE LOGIC ---
+        // --- 4. PRICING ENGINE LOGIC ---
         function addPricingRow(product = '', price = '', qty = '1') {
             const container = document.getElementById('pricing-rows-container');
             const row = document.createElement('div');
@@ -285,7 +306,6 @@
         function updatePricingTotal() {
             let grandTotal = 0;
             const rows = document.querySelectorAll('.pricing-row');
-            
             rows.forEach(row => {
                 const price = parseFloat(row.querySelector('.row-price').value) || 0;
                 const qty = parseInt(row.querySelector('.row-qty').value) || 0;
@@ -293,15 +313,11 @@
                 grandTotal += lineTotal;
                 row.querySelector('.row-total').innerText = `$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             });
-            
             document.getElementById('ui-pricing-total').innerText = `$${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
+        addPricingRow(); // Start with one row
 
-        // Initialize with one empty row
-        addPricingRow();
-
-
-        // --- 4. IMPACT CALCULATION LOGIC ---
+        // --- 5. IMPACT CALCULATION LOGIC ---
         function calculateImpact() {
             const current = parseFloat(document.getElementById('impact-current-cost').value) || 0;
             const proposed = parseFloat(document.getElementById('impact-proposed-cost').value) || 0;
@@ -320,7 +336,7 @@
             }
         }
 
-        // --- 5. PREVIEW MODAL LOGIC ---
+        // --- 6. PREVIEW MODAL LOGIC ---
         function previewStockPdf(filename, title) {
             document.getElementById('pdf-preview-title').innerText = title;
             document.getElementById('pdf-preview-iframe').src = `Proposal_Assets/${filename}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`;
@@ -331,7 +347,7 @@
             document.getElementById('pdf-preview-iframe').src = "";
         }
 
-        // --- 6. SAVE / LOAD PROJECT (.spec files) ---
+        // --- 7. SAVE / LOAD PROJECT (.spec files) ---
         function saveProject() {
             const projectData = {
                 clientName: document.getElementById('client-name').value,
@@ -349,7 +365,6 @@
                 pricingRows: []
             };
 
-            // Save Modules
             document.querySelectorAll('#module-list li').forEach(li => {
                 const checkbox = li.querySelector('input[type="checkbox"]');
                 projectData.modules.push({
@@ -358,7 +373,6 @@
                 });
             });
 
-            // Save Pricing Rows
             document.querySelectorAll('.pricing-row').forEach(row => {
                 projectData.pricingRows.push({
                     product: row.querySelector('.row-product').value,
@@ -396,7 +410,6 @@
                     
                     calculateImpact();
 
-                    // Restore Modules
                     if(data.modules) {
                         data.modules.forEach(mod => {
                             const li = document.querySelector(`li[data-filename="${mod.filename}"]`);
@@ -408,15 +421,15 @@
                         document.getElementById('toggle-cover-letter').dispatchEvent(new Event('change'));
                         document.getElementById('toggle-impact').dispatchEvent(new Event('change'));
                         document.getElementById('toggle-pricing').dispatchEvent(new Event('change'));
+                        document.getElementById('toggle-custom-pdf').dispatchEvent(new Event('change'));
                     }
 
-                    // Restore Pricing Rows
                     if(data.pricingRows && data.pricingRows.length > 0) {
-                        document.getElementById('pricing-rows-container').innerHTML = ''; // Clear defaults
+                        document.getElementById('pricing-rows-container').innerHTML = '';
                         data.pricingRows.forEach(r => addPricingRow(r.product, r.price, r.qty));
                     }
 
-                    alert("Project Loaded Successfully!");
+                    alert("Project Loaded Successfully! \n\nNote: For security reasons, if you attached a Custom PDF before saving, you will need to re-upload the file in the Custom PDF Attachment card.");
                 } catch (err) {
                     alert("Error loading project file. Make sure it's a valid .spec file.");
                 }
@@ -424,7 +437,7 @@
             reader.readAsText(file);
         }
 
-        // --- 7. MASTER PDF GENERATION ENGINE ---
+        // --- 8. MASTER PDF GENERATION ENGINE ---
         async function generatePDFDocument() {
             document.getElementById('loading-overlay').classList.remove('hidden');
 
@@ -436,13 +449,14 @@
                 const PAGE_WIDTH = 612; 
                 const PAGE_HEIGHT = 792; 
 
+                // Master Loop respects the new Drag & Drop order!
                 const listItems = document.querySelectorAll('#module-list li');
                 const checkedItems = Array.from(listItems).filter(li => li.querySelector('input').checked);
 
                 for (let li of checkedItems) {
                     const slideFile = li.getAttribute('data-filename');
 
-                    // 1. TITLE PAGE LOGIC
+                    // 1. TITLE PAGE 
                     if (slideFile === '01_Title_Page.pdf') {
                         const url = `Proposal_Assets/${slideFile}`;
                         const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
@@ -458,10 +472,10 @@
                         finalDoc.addPage(page);
                     }
 
-                    // 2. PRICING STAMPING LOGIC
+                    // 2. PRICING STAMPING 
                     else if (slideFile === 'CUSTOM_PRICING') {
                         const printContainer = document.getElementById('print-pricing-rows');
-                        printContainer.innerHTML = ''; // Clear old runs
+                        printContainer.innerHTML = ''; 
                         
                         let total = 0;
                         document.querySelectorAll('.pricing-row').forEach(row => {
@@ -497,7 +511,7 @@
                         });
                     }
 
-                    // 3. IMPACT & ROI ANALYSIS LOGIC
+                    // 3. IMPACT & ROI ANALYSIS 
                     else if (slideFile === 'CUSTOM_IMPACT') {
                         document.getElementById('print-impact-current').innerHTML = quillImpactCurrent.root.innerHTML;
                         document.getElementById('print-impact-proposed').innerHTML = quillImpactProposed.root.innerHTML;
@@ -514,7 +528,6 @@
 
                         const impactTemplate = document.getElementById('hidden-impact-template');
                         impactTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
-
                         const canvas = await html2canvas(impactTemplate, { scale: 2 });
                         const imgData = canvas.toDataURL('image/png');
                         impactTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
@@ -524,14 +537,12 @@
                         const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 200);
                         
                         impactPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2,
-                            y: PAGE_HEIGHT - imgDims.height - 120,
-                            width: imgDims.width,
-                            height: imgDims.height
+                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 120,
+                            width: imgDims.width, height: imgDims.height
                         });
                     }
 
-                    // 4. PROJECT IMPLEMENTATION PLAN LOGIC
+                    // 4. PROJECT IMPLEMENTATION PLAN 
                     else if (slideFile === '09_Project.pdf') {
                         const url = `Proposal_Assets/${slideFile}`;
                         const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
@@ -540,22 +551,12 @@
 
                         const startDate = document.getElementById('global-start').value || "";
                         const endDate = document.getElementById('global-end').value || "";
-                        const fontSize = 12;
+                        
+                        const startWidth = boldFont.widthOfTextAtSize(startDate, 12);
+                        const endWidth = boldFont.widthOfTextAtSize(endDate, 12);
 
-                        const startCenterX = 207;
-                        const endCenterX = 406;   
-                        const yCoord = 534;       
-
-                        const startWidth = boldFont.widthOfTextAtSize(startDate, fontSize);
-                        const endWidth = boldFont.widthOfTextAtSize(endDate, fontSize);
-
-                        page.drawText(startDate, { 
-                            x: startCenterX - (startWidth / 2), y: yCoord, size: fontSize, font: boldFont, color: rgb(0.1, 0.1, 0.1) 
-                        });
-
-                        page.drawText(endDate, { 
-                            x: endCenterX - (endWidth / 2), y: yCoord, size: fontSize, font: boldFont, color: rgb(0.1, 0.1, 0.1) 
-                        });
+                        page.drawText(startDate, { x: 207 - (startWidth / 2), y: 534, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
+                        page.drawText(endDate, { x: 406 - (endWidth / 2), y: 534, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
 
                         finalDoc.addPage(page);
                     }
@@ -580,7 +581,19 @@
                         });
                     }
 
-                    // 6. STANDARD STOCK PDFS
+                    // 6. CUSTOM FILE UPLOAD (Bills, Slicks, Diagrams)
+                    else if (slideFile === 'CUSTOM_PDF') {
+                        const fileInput = document.getElementById('custom-pdf-upload');
+                        if (fileInput.files.length > 0) {
+                            const file = fileInput.files[0];
+                            const arrayBuffer = await file.arrayBuffer();
+                            const uploadedPdf = await PDFDocument.load(arrayBuffer);
+                            const copiedPages = await finalDoc.copyPages(uploadedPdf, uploadedPdf.getPageIndices());
+                            copiedPages.forEach((page) => finalDoc.addPage(page));
+                        }
+                    }
+
+                    // 7. STANDARD STOCK PDFS
                     else if (slideFile.endsWith('.pdf')) {
                         const url = `Proposal_Assets/${slideFile}`;
                         const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
