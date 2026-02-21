@@ -684,18 +684,42 @@ if (slideFile === '01_Title_Page.pdf') {
         x: 285, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
     });
 }
-                // --- DATA INJECTION FOR PROJECT PLAN ---
+// --- DATA INJECTION FOR PROJECT PLAN ---
 if (slideFile === '09_Project.pdf') {
+    // Pull the text from the new sidebar inputs
     const startDate = document.getElementById('global-start').value || "";
     const endDate = document.getElementById('global-end').value || "";
 
-    // Adjust X and Y to hit the lines on your PDF
+    const fontSize = 12; // Tweak this if it needs to match the stock font size better
+
+    // 1. Your exact center X and baseline Y coordinates
+    const startCenterX = 207;
+    const endCenterX = 406;   
+    const yCoord = 534;       
+
+    // 2. Measure the text width dynamically
+    const startWidth = boldFont.widthOfTextAtSize(startDate, fontSize);
+    const endWidth = boldFont.widthOfTextAtSize(endDate, fontSize);
+
+    // 3. Calculate the true starting X coordinate (Center minus half the width)
+    const actualStartX = startCenterX - (startWidth / 2);
+    const actualEndX = endCenterX - (endWidth / 2);
+
+    // 4. Draw the text perfectly centered
     page.drawText(startDate, { 
-        x: 100, y: 500, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.1) 
+        x: actualStartX, 
+        y: yCoord, 
+        size: fontSize, 
+        font: boldFont, 
+        color: rgb(0.1, 0.1, 0.1) // Dark grey/near black
     });
 
     page.drawText(endDate, { 
-        x: 300, y: 500, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.1) 
+        x: actualEndX, 
+        y: yCoord, 
+        size: fontSize, 
+        font: boldFont, 
+        color: rgb(0.1, 0.1, 0.1) 
     });
 }
                 finalDoc.addPage(page);
