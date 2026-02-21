@@ -150,36 +150,32 @@
         <h2 class="text-xl font-bold text-white">Assembling Proposal...</h2>
     </div>
 
-    <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
+  <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
         
-        <div id="pricing-render-zone" class="w-full bg-white text-slate-800 p-8">
-            <h1 class="text-3xl font-bold mb-6 text-slate-900">Proposed Pricing</h1>
-            <table class="w-full text-left border-collapse mb-8" id="render-table">
+        <div id="pricing-render-zone" class="w-full bg-white text-black p-4">
+            <table class="w-full text-left border-collapse" id="render-table" style="border: 2px solid #DE5A24;">
                 <thead>
-                    <tr class="text-xs uppercase border-b border-slate-400">
-                        <th class="py-2 px-2 font-bold w-1/2">PRODUCT</th>
-                        <th class="py-2 px-2 font-bold w-1/6">LIST PRICE</th>
-                        <th class="py-2 px-2 font-bold w-1/6 text-center">QUANTITY</th>
-                        <th class="py-2 px-2 font-bold w-1/6 text-right">TOTAL</th>
+                    <tr class="bg-[#DE5A24] text-white text-base uppercase tracking-wide">
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24] w-2/5">PRODUCT</th>
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24] w-1/5">LIST PRICE</th>
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24] w-1/5">QUANTITY</th>
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24] w-1/5">TOTAL</th>
                     </tr>
                 </thead>
-                <tbody id="render-table-body" class="text-sm">
+                <tbody id="render-table-body" class="text-base text-black font-medium">
                     </tbody>
                 <tfoot>
-                    <tr class="border-t-2 border-slate-800 font-bold text-base">
-                        <td class="py-4 px-2 uppercase">TOTAL MONTHLY COST</td>
-                        <td></td>
-                        <td></td>
-                        <td class="py-4 px-2 text-right" id="render-grand-total"></td>
+                    <tr class="bg-[#12243D] text-white font-bold text-lg">
+                        <td colspan="3" class="py-4 px-4 uppercase tracking-wide">TOTAL MONTHLY COST</td>
+                        <td class="py-4 px-4 text-left" id="render-grand-total"></td>
                     </tr>
                 </tfoot>
             </table>
-            <p class="text-sm text-slate-600" id="render-term-text">Pricing based off XX-month term</p>
+            <p class="text-center text-sm text-black mt-8" id="render-term-text">Pricing based off XX-month term</p>
         </div>
 
-        <div id="references-render-zone" class="w-full bg-white text-slate-800 p-8">
-            <h1 class="text-3xl font-bold mb-10 text-slate-900">References</h1>
-            <div id="render-references-body" class="space-y-12">
+        <div id="references-render-zone" class="w-full bg-white text-black p-8">
+            <div id="render-references-body" class="space-y-0">
                 </div>
         </div>
 
@@ -311,7 +307,6 @@
         async function previewPricing() {
             document.getElementById('loading-overlay').classList.remove('hidden');
             
-            // Map inputs to HTML render zone
             const renderBody = document.getElementById('render-table-body');
             renderBody.innerHTML = ''; 
             
@@ -323,16 +318,20 @@
                 }))
             }));
 
+            // Pixel-Perfect Multi-Location Formatting
             if(locations.length > 1) {
                 locations.forEach(loc => {
-                    renderBody.insertAdjacentHTML('beforeend', `<tr><td colspan="4" class="py-2 px-2 font-bold text-slate-800 uppercase">${loc.name || 'Location'}</td></tr>`);
-                    loc.items.forEach(item => {
-                        renderBody.insertAdjacentHTML('beforeend', `<tr class="border-b border-slate-100"><td class="py-2 px-2">${item.prod}</td><td class="py-2 px-2">$${item.price}</td><td class="py-2 px-2 text-center">${item.qty}</td><td class="py-2 px-2 text-right">${item.total}</td></tr>`);
+                    renderBody.insertAdjacentHTML('beforeend', `<tr class="bg-[#A6A6A6] text-white uppercase font-bold text-base"><td colspan="4" class="py-2 px-4 border border-[#A6A6A6]">${loc.name || 'LOCATION NAME'}</td></tr>`);
+                    loc.items.forEach((item, index) => {
+                        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-[#E8E8E8]';
+                        renderBody.insertAdjacentHTML('beforeend', `<tr class="${bgClass}"><td class="py-2 px-4 border border-[#DE5A24]">${item.prod}</td><td class="py-2 px-4 border border-[#DE5A24]">$${item.price}</td><td class="py-2 px-4 border border-[#DE5A24]">${item.qty}</td><td class="py-2 px-4 border border-[#DE5A24]">${item.total}</td></tr>`);
                     });
                 });
+            // Pixel-Perfect Single Location Formatting
             } else if (locations.length === 1) {
-                locations[0].items.forEach(item => {
-                    renderBody.insertAdjacentHTML('beforeend', `<tr class="border-b border-slate-100"><td class="py-3 px-2">${item.prod}</td><td class="py-3 px-2">$${item.price}</td><td class="py-3 px-2 text-center">${item.qty}</td><td class="py-3 px-2 text-right">${item.total}</td></tr>`);
+                locations[0].items.forEach((item, index) => {
+                    const bgClass = index % 2 === 0 ? 'bg-[#E8E8E8]' : 'bg-white';
+                    renderBody.insertAdjacentHTML('beforeend', `<tr class="${bgClass}"><td class="py-3 px-4 border border-[#DE5A24]">${item.prod}</td><td class="py-3 px-4 border border-[#DE5A24]">$${item.price}</td><td class="py-3 px-4 border border-[#DE5A24]">${item.qty}</td><td class="py-3 px-4 border border-[#DE5A24]">${item.total}</td></tr>`);
                 });
             }
 
@@ -340,7 +339,6 @@
             const term = document.getElementById('contract-term').value || 'XX';
             document.getElementById('render-term-text').innerText = `Pricing based off ${term}-month term`;
 
-            // Canvas Render
             const renderZone = document.getElementById('pricing-render-zone');
             const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
             const imgData = canvas.toDataURL('image/png');
@@ -348,7 +346,6 @@
             document.getElementById('loading-overlay').classList.add('hidden');
             openModal(imgData, 'pricing', 'Preview Pricing Table');
         }
-
         async function previewReferences() {
             document.getElementById('loading-overlay').classList.remove('hidden');
             
@@ -360,13 +357,14 @@
                 addr: b.querySelector('.ref-addr').value, phone: b.querySelector('.ref-phone').value, email: b.querySelector('.ref-email').value
             })).filter(r => r.name || r.org);
 
+            // Pixel-Perfect Reference Formatting
             refs.forEach(ref => {
                 renderBody.insertAdjacentHTML('beforeend', `
-                    <div class="leading-tight">
-                        <div class="text-lg font-bold text-orange-600">${ref.name}</div>
-                        <div class="text-base text-slate-700">${ref.org}</div>
-                        <div class="text-base text-slate-700">${ref.addr}</div>
-                        <div class="text-base text-slate-700">${ref.phone}  |  ${ref.email}</div>
+                    <div class="mb-6 border-b-4 border-[#DE5A24] pb-6">
+                        <div class="text-2xl font-bold text-black">${ref.name}</div>
+                        <div class="text-xl font-bold text-black">${ref.org}</div>
+                        <div class="text-xl text-black mb-4">${ref.addr}</div>
+                        <div class="text-xl text-black">${ref.phone} &nbsp;|&nbsp; ${ref.email}</div>
                     </div>
                 `);
             });
