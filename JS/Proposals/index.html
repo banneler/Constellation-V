@@ -172,12 +172,22 @@
                 </div>
             </div>
 
-            <div id="pricing-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+          <div id="pricing-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-2">
                     <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                         <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         Proposed Pricing
                     </h2>
+                    <button onclick="addLocationBlock()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-1 px-4 rounded text-sm transition shadow-sm">+ Add Location</button>
+                </div>
+                
+                <div id="locations-container" class="space-y-6"></div>
+                
+                <div class="mt-6 border-t border-slate-300 pt-6 flex justify-end items-center px-2">
+                    <span class="font-bold text-slate-500 mr-4 text-xl uppercase tracking-wider">Grand Total:</span>
+                    <span id="ui-grand-total" class="font-black text-4xl text-blue-800">$0.00</span>
+                </div>
+            </div>
                     <button onclick="addPricingRow()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-3 rounded text-sm transition">+ Add Product</button>
                 </div>
                 <div class="bg-slate-50 p-4 rounded border border-slate-200">
@@ -197,10 +207,13 @@
             </div>
 
             <div id="cover-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
-                <h2 class="text-2xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-2">
+               <div id="cover-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
+                <div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2">
                     <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    Cover Letter
-                </h2>
+                    <input type="text" id="cover-letter-title" value="Cover Letter" class="text-2xl font-bold text-slate-800 bg-transparent border-none outline-none focus:ring-0 w-full" placeholder="e.g. Solution Recap">
+                </div>
+                <div id="quill-cover" class="bg-white"></div>
+            </div>
                 <div id="quill-cover" class="bg-white"></div>
             </div>
 
@@ -233,8 +246,7 @@
         </div>
     </div>
 
-    <div id="hidden-impact-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] p-10 font-sans text-slate-800 bg-transparent">
-        <h1 class="text-3xl font-black text-blue-800 mb-8 border-b-4 border-blue-600 pb-2 uppercase tracking-wide">Network Impact & ROI Analysis</h1>
+   <div id="hidden-impact-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] p-6 font-sans text-slate-800 bg-transparent">
         <div class="flex justify-between gap-8 mb-10">
             <div class="w-1/2 p-6 rounded-lg border border-slate-300 shadow-sm bg-transparent">
                 <h2 class="text-lg font-bold text-slate-700 mb-4 uppercase tracking-widest border-b border-slate-300 pb-2">Current State</h2>
@@ -261,8 +273,7 @@
             </div>
         </div>
     </div>
-
-    <div id="hidden-pricing-template" class="absolute top-[-9999px] left-[-9999px] w-[800px] p-10 font-sans text-slate-800 bg-transparent">
+    <div id="hidden-pricing-template" class="absolute top-[-9999px] left-[-9999px] bg-transparent"></div>
         <h1 class="text-3xl font-black text-blue-800 mb-8 border-b-4 border-blue-600 pb-2 uppercase tracking-wide">Proposed Investment</h1>
         <div class="w-full border border-slate-300 rounded shadow-sm bg-transparent">
             <div class="flex bg-blue-600 text-white font-bold text-sm uppercase tracking-wider p-3 rounded-t">
@@ -312,29 +323,54 @@
         wireToggle('toggle-pricing', 'pricing-card');
         wireToggle('toggle-custom-pdf', 'pdf-upload-card');
 
-        // --- 4. PRICING ENGINE LOGIC ---
-        function addPricingRow(product = '', price = '', qty = '1') {
-            const container = document.getElementById('pricing-rows-container');
+      // --- 4. MULTI-LOCATION PRICING ENGINE ---
+        function addLocationBlock(locName = 'Main Location') {
+            const container = document.getElementById('locations-container');
+            const locId = 'loc-' + Date.now();
+            const block = document.createElement('div');
+            block.className = 'location-block bg-slate-50 p-5 rounded-lg border border-slate-200 shadow-sm relative';
+            block.id = locId;
+
+            block.innerHTML = `
+                <button onclick="this.parentElement.remove(); updatePricingTotal();" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition font-bold text-lg leading-none">✕</button>
+                <div class="flex justify-between items-end mb-4 border-b border-slate-200 pb-3 pr-8">
+                    <div class="flex-1 max-w-md">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Location Name / Identifier</label>
+                        <input type="text" class="location-name w-full bg-transparent text-xl font-black text-blue-800 outline-none border-b border-dashed border-slate-300 focus:border-blue-500 transition" value="${locName}">
+                    </div>
+                    <button onclick="addPricingRow('${locId}')" class="ml-4 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1.5 px-3 rounded text-sm transition shadow-sm">+ Add Product</button>
+                </div>
+                <div class="grid grid-cols-12 gap-2 mb-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <div class="col-span-6">Product / Service</div>
+                    <div class="col-span-2 text-center">List Price</div>
+                    <div class="col-span-1 text-center">Qty</div>
+                    <div class="col-span-2 text-center">Total</div>
+                    <div class="col-span-1"></div>
+                </div>
+                <div class="pricing-rows-container space-y-2"></div>
+                <div class="mt-4 pt-3 flex justify-end items-center bg-white p-3 rounded border border-slate-200">
+                    <span class="font-bold text-slate-500 mr-3 text-sm uppercase tracking-wider">Location Total:</span>
+                    <span class="location-total font-black text-xl text-slate-700">$0.00</span>
+                </div>
+            `;
+            container.appendChild(block);
+            addPricingRow(locId); // Add one blank row to start
+            updatePricingTotal();
+        }
+
+        function addPricingRow(locId, product = '', price = '', qty = '1') {
+            const locBlock = document.getElementById(locId);
+            if(!locBlock) return;
+            const container = locBlock.querySelector('.pricing-rows-container');
+
             const row = document.createElement('div');
             row.className = 'grid grid-cols-12 gap-2 items-center bg-white p-2 rounded shadow-sm border border-slate-200 pricing-row';
-            
             row.innerHTML = `
-                <div class="col-span-6">
-                    <input type="text" placeholder="e.g. Dedicated Internet 1Gbps" value="${product}" class="w-full border border-slate-300 p-2 rounded text-sm focus:border-blue-500 outline-none row-product">
-                </div>
-                <div class="col-span-2">
-                    <div class="flex items-center border border-slate-300 rounded bg-white focus-within:border-blue-500 overflow-hidden">
-                        <span class="pl-2 text-slate-400">$</span>
-                        <input type="number" placeholder="0.00" value="${price}" class="w-full p-2 text-sm outline-none row-price" oninput="updatePricingTotal()">
-                    </div>
-                </div>
-                <div class="col-span-1">
-                    <input type="number" min="1" value="${qty}" class="w-full border border-slate-300 p-2 rounded text-sm text-center focus:border-blue-500 outline-none row-qty" oninput="updatePricingTotal()">
-                </div>
+                <div class="col-span-6"><input type="text" placeholder="e.g. Dedicated Internet 1Gbps" value="${product}" class="w-full border border-slate-300 p-2 rounded text-sm focus:border-blue-500 outline-none row-product"></div>
+                <div class="col-span-2"><div class="flex items-center border border-slate-300 rounded focus-within:border-blue-500 overflow-hidden"><span class="pl-2 text-slate-400">$</span><input type="number" placeholder="0.00" value="${price}" class="w-full p-2 text-sm outline-none row-price" oninput="updatePricingTotal()"></div></div>
+                <div class="col-span-1"><input type="number" min="1" value="${qty}" class="w-full border border-slate-300 p-2 rounded text-sm text-center focus:border-blue-500 outline-none row-qty" oninput="updatePricingTotal()"></div>
                 <div class="col-span-2 text-center font-bold text-slate-700 row-total">$0.00</div>
-                <div class="col-span-1 text-right">
-                    <button onclick="this.parentElement.parentElement.remove(); updatePricingTotal();" class="text-slate-400 hover:text-red-500 transition font-bold text-lg">✕</button>
-                </div>
+                <div class="col-span-1 text-right"><button onclick="this.parentElement.parentElement.remove(); updatePricingTotal();" class="text-slate-400 hover:text-red-500 transition font-bold text-lg">✕</button></div>
             `;
             container.appendChild(row);
             updatePricingTotal();
@@ -342,18 +378,23 @@
 
         function updatePricingTotal() {
             let grandTotal = 0;
-            const rows = document.querySelectorAll('.pricing-row');
-            rows.forEach(row => {
-                const price = parseFloat(row.querySelector('.row-price').value) || 0;
-                const qty = parseInt(row.querySelector('.row-qty').value) || 0;
-                const lineTotal = price * qty;
-                grandTotal += lineTotal;
-                row.querySelector('.row-total').innerText = `$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.querySelectorAll('.location-block').forEach(loc => {
+                let locTotal = 0;
+                loc.querySelectorAll('.pricing-row').forEach(row => {
+                    const price = parseFloat(row.querySelector('.row-price').value) || 0;
+                    const qty = parseInt(row.querySelector('.row-qty').value) || 0;
+                    const lineTotal = price * qty;
+                    locTotal += lineTotal;
+                    row.querySelector('.row-total').innerText = '$' + lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+                });
+                loc.querySelector('.location-total').innerText = '$' + locTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+                grandTotal += locTotal;
             });
-            document.getElementById('ui-pricing-total').innerText = `$${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('ui-grand-total').innerText = '$' + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
         }
-        addPricingRow();
-
+        
+        // Initialize with one location
+        addLocationBlock();
         // --- 5. IMPACT CALCULATION LOGIC ---
         function calculateImpact() {
             const current = parseFloat(document.getElementById('impact-current-cost').value) || 0;
@@ -515,55 +556,119 @@
                         finalDoc.addPage(page);
                     }
 
-               // 2. PRICING STAMPING 
+               /// 2. PRICING STAMPING (Auto-Pagination Chunking!)
                     else if (slideFile === 'CUSTOM_PRICING') {
                         const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
                         const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
                         const bgDoc = await PDFDocument.load(existingPdfBytes);
-                        const [pricingPage] = await finalDoc.copyPages(bgDoc, [0]);
-
-                        // STAMP VECTOR HEADER INTO THE NAVY BAR!
-                        pricingPage.drawText("PROPOSED INVESTMENT", { 
-                            x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) 
-                        });
-
-                        const printContainer = document.getElementById('print-pricing-rows');
-                        printContainer.innerHTML = ''; 
                         
-                        let total = 0;
-                        document.querySelectorAll('.pricing-row').forEach(row => {
-                            const prod = row.querySelector('.row-product').value || 'TBD';
-                            const price = parseFloat(row.querySelector('.row-price').value) || 0;
-                            const qty = parseInt(row.querySelector('.row-qty').value) || 0;
-                            const lineTotal = price * qty;
-                            total += lineTotal;
-                            
-                            printContainer.innerHTML += `
-                                <div class="flex p-3 text-sm text-slate-800 font-bold bg-transparent border-b border-slate-300">
-                                    <div class="w-1/2 pl-2">${prod}</div>
-                                    <div class="w-1/6 text-center">$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                                    <div class="w-1/6 text-center">${qty}</div>
-                                    <div class="w-1/6 text-right pr-4">$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                        // Helper to spawn a new PDF page
+                        let pricingPage;
+                        const spawnPricingPage = async (isContinuation = false) => {
+                            const [newPage] = await finalDoc.copyPages(bgDoc, [0]);
+                            const headerText = isContinuation ? "PROPOSED INVESTMENT (CONT.)" : "PROPOSED INVESTMENT";
+                            newPage.drawText(headerText, { x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) });
+                            finalDoc.addPage(newPage);
+                            return newPage;
+                        };
+
+                        pricingPage = await spawnPricingPage(false);
+                        let currentY = PAGE_HEIGHT - 100; // Starting Y below the header
+                        const bottomMargin = 120; // Safe zone above the bottom arcs
+
+                        const locations = document.querySelectorAll('.location-block');
+                        const hiddenTemplate = document.getElementById('hidden-pricing-template');
+
+                        for (let i = 0; i < locations.length; i++) {
+                            const loc = locations[i];
+                            const locName = loc.querySelector('.location-name').value;
+                            const locTotalText = loc.querySelector('.location-total').innerText;
+
+                            // Build pure HTML table for JUST this location
+                            let locHTML = `
+                            <div class="w-[740px] border border-slate-300 rounded-lg shadow-sm bg-transparent mb-4 font-sans text-slate-800">
+                                <div class="bg-blue-800 text-white font-bold p-3 px-4 rounded-t-lg text-lg uppercase tracking-wider">${locName}</div>
+                                <div class="flex bg-blue-600 text-white font-bold text-sm uppercase tracking-wider p-2">
+                                    <div class="w-1/2 pl-2">Product / Service</div>
+                                    <div class="w-1/6 text-center">List Price</div>
+                                    <div class="w-1/6 text-center">Qty</div>
+                                    <div class="w-1/6 text-right pr-4">Total</div>
                                 </div>
+                                <div class="divide-y divide-slate-300 bg-transparent">
                             `;
-                        });
-                        document.getElementById('print-pricing-total').innerText = `$${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
 
-                        const template = document.getElementById('hidden-pricing-template');
-                        template.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
-                        const canvas = await html2canvas(template, { scale: 2, backgroundColor: null });
-                        const imgData = canvas.toDataURL('image/png');
-                        template.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
+                            loc.querySelectorAll('.pricing-row').forEach(row => {
+                                const prod = row.querySelector('.row-product').value || 'TBD';
+                                const price = parseFloat(row.querySelector('.row-price').value) || 0;
+                                const qty = parseInt(row.querySelector('.row-qty').value) || 0;
+                                const lineTotal = price * qty;
+                                locHTML += `
+                                    <div class="flex p-3 text-sm text-slate-800 font-bold bg-transparent">
+                                        <div class="w-1/2 pl-2">${prod}</div>
+                                        <div class="w-1/6 text-center">$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                        <div class="w-1/6 text-center">${qty}</div>
+                                        <div class="w-1/6 text-right pr-4">$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                    </div>
+                                `;
+                            });
 
-                        const pngImage = await finalDoc.embedPng(imgData);
-                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
-                        
-                        // Bumped margin to 100 so it sits nicely below the bar
-                        pricingPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 100,
-                            width: imgDims.width, height: imgDims.height
+                            locHTML += `
+                                </div>
+                                <div class="flex bg-slate-200 text-slate-800 font-black p-3 rounded-b-lg items-center justify-between">
+                                    <div class="text-sm uppercase tracking-wider">Location Total</div>
+                                    <div class="text-xl pr-2">${locTotalText}</div>
+                                </div>
+                            </div>`;
+
+                            // Inject, Snap, Clean
+                            hiddenTemplate.innerHTML = locHTML;
+                            hiddenTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
+                            const canvas = await html2canvas(hiddenTemplate, { scale: 2, backgroundColor: null });
+                            hiddenTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
+
+                            const pngImage = await finalDoc.embedPng(canvas.toDataURL('image/png'));
+                            const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 72, 9999); 
+
+                            // PAGINATION CHECK! If this location pushes us past the bottom margin, spawn a new page!
+                            if (currentY - imgDims.height < bottomMargin) {
+                                pricingPage = await spawnPricingPage(true); 
+                                currentY = PAGE_HEIGHT - 100; // Reset Y to the top
+                            }
+
+                            pricingPage.drawImage(pngImage, {
+                                x: 36, y: currentY - imgDims.height,
+                                width: imgDims.width, height: imgDims.height
+                            });
+
+                            currentY -= (imgDims.height + 20); // Move down for the next location block
+                        }
+
+                        // FINALLY: Stamp the Grand Total Block
+                        const grandTotalText = document.getElementById('ui-grand-total').innerText;
+                        let totalHTML = `
+                        <div class="w-[740px] flex bg-slate-800 text-white font-black p-5 rounded-lg items-center justify-between font-sans mt-4 shadow-lg border-2 border-slate-700">
+                            <div class="text-xl uppercase tracking-wider">Grand Total Monthly Cost</div>
+                            <div class="text-3xl pr-2">${grandTotalText}</div>
+                        </div>
+                        <p class="w-[740px] text-center mt-6 text-slate-600 text-sm font-bold font-sans">Pricing based on standard 36-month term agreement.</p>
+                        `;
+
+                        hiddenTemplate.innerHTML = totalHTML;
+                        hiddenTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
+                        const totalCanvas = await html2canvas(hiddenTemplate, { scale: 2, backgroundColor: null });
+                        hiddenTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
+                        const totalPng = await finalDoc.embedPng(totalCanvas.toDataURL('image/png'));
+                        const totalDims = totalPng.scaleToFit(PAGE_WIDTH - 72, 9999);
+
+                        if (currentY - totalDims.height < bottomMargin) {
+                            pricingPage = await spawnPricingPage(true);
+                            currentY = PAGE_HEIGHT - 100;
+                        }
+
+                        pricingPage.drawImage(totalPng, {
+                            x: 36, y: currentY - totalDims.height,
+                            width: totalDims.width, height: totalDims.height
                         });
-                        finalDoc.addPage(pricingPage);
                     }
 
                     // 3. IMPACT & ROI ANALYSIS 
@@ -608,15 +713,17 @@
                         finalDoc.addPage(impactPage);
                     }
 
-                    // 4. COVER LETTER 
+                    // 4. COVER LETTER (Dynamic Title!)
                     else if (slideFile === 'CUSTOM_COVER') {
                         const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
                         const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
                         const bgDoc = await PDFDocument.load(existingPdfBytes);
                         const [coverPage] = await finalDoc.copyPages(bgDoc, [0]);
 
-                        // STAMP VECTOR HEADER INTO THE NAVY BAR!
-                        coverPage.drawText("COVER LETTER", { 
+                        // Pull the dynamic title from the UI, default to COVER LETTER if blank
+                        const dynamicTitle = document.getElementById('cover-letter-title').value.toUpperCase() || "COVER LETTER";
+
+                        coverPage.drawText(dynamicTitle, { 
                             x: 36, y: 746, size: 22, font: boldFont, color: rgb(1, 1, 1) 
                         });
 
@@ -629,11 +736,10 @@
                         template.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
 
                         const pngImage = await finalDoc.embedPng(imgData);
-                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
+                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 72, PAGE_HEIGHT - 220);
                         
-                        // Bumped margin to 100
                         coverPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 100,
+                            x: 36, y: PAGE_HEIGHT - imgDims.height - 100,
                             width: imgDims.width, height: imgDims.height
                         });
                         finalDoc.addPage(coverPage);
