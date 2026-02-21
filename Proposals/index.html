@@ -434,26 +434,49 @@
             finally { document.getElementById('loading-overlay').classList.add('hidden'); }
         });
 
+        // --- Assembly Engine ---
         async function generatePDFDocument(payload) {
             const { PDFDocument, rgb, StandardFonts } = PDFLib;
             const finalDoc = await PDFDocument.create();
             const font = await finalDoc.embedFont(StandardFonts.Helvetica);
             const boldFont = await finalDoc.embedFont(StandardFonts.HelveticaBold);
 
+            // Standard 8.5x11 inch points (Portrait)
             const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
 
+            // 1. PRE-LOAD THE GPC BLANK LETTERHEAD
+            let letterheadPdf;
+            try {
+                const letterheadBytes = await fetch(`Proposal_Assets/GPC_Blank_Letterhead.pdf`).then(res => res.arrayBuffer());
+                letterheadPdf = await PDFDocument.load(letterheadBytes);
+            } catch (e) {
+                console.warn("Could not load GPC_Blank_Letterhead.pdf. Ensure it is in the Proposal_Assets folder!");
+            }
+
+            // Helper function to get a fresh letterhead page (or a blank one if it fails to load)
+            async function getBasePage() {
+                if (letterheadPdf) {
+                    const [copiedPage] = await finalDoc.copyPages(letterheadPdf, [0]);
+                    finalDoc.addPage(copiedPage);
+                    return copiedPage;
+                } else {
+                    return finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]); // Fallback to blank white
+                }
+            }
+
+            // 2. LOOP THROUGH SELECTED SLIDES
             for (const slideFile of payload.slides) {
                 if (slideFile === 'CUSTOM_FREEFLOW') {
-                    const page = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-                    page.drawText(payload.globals.biz ? `${payload.globals.biz} Solution Overview` : "Solution Overview", { x: 50, y: PAGE_HEIGHT - 80, size: 28, font: boldFont, color: rgb(0.9, 0.4, 0) });
-                    page.drawText(payload.freeflow, { x: 50, y: PAGE_HEIGHT - 130, size: 12, font: font, color: rgb(0.2, 0.2, 0.2), maxWidth: 512, lineHeight: 18 });
+                    const page = await getBasePage();
+                    page.drawText(payload.globals.biz ? `${payload.globals.biz} Solution Overview` : "Solution Overview", { x: 50, y: PAGE_HEIGHT - 120, size: 28, font: boldFont, color: rgb(0.9, 0.4, 0) });
+                    page.drawText(payload.freeflow, { x: 50, y: PAGE_HEIGHT - 170, size: 12, font: font, color: rgb(0.2, 0.2, 0.2), maxWidth: 512, lineHeight: 18 });
                 
                 } else if (slideFile === 'CUSTOM_REFERENCES' && committedAssets.references) {
-                    // FAST RENDER from Memory!
-                    const page = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                    const page = await getBasePage();
                     const pngImage = await finalDoc.embedPng(committedAssets.references);
-                    const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 100);
-                    page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 50, width: imgDims.width, height: imgDims.height });
+                    const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
+                    // Adjust the Y coordinate so it doesn't cover your letterhead header/footer
+                    page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
 
                 } else {
                     try {
@@ -465,14 +488,16 @@
                 }
             }
 
-            // FAST RENDER Pricing from Memory!
+            // 3. FAST RENDER PRICING FROM MEMORY
             if (committedAssets.pricing) {
-                const pricingPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                const pricingPage = await getBasePage();
                 const pngImage = await finalDoc.embedPng(committedAssets.pricing);
-                const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 100); 
-                pricingPage.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 50, width: imgDims.width, height: imgDims.height });
+                const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150); 
+                // Adjust the Y coordinate so it doesn't cover your letterhead header/footer
+                pricingPage.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
             }
 
+            // 4. APPEND USAC
             if (payload.usacFile) {
                 const usacBytes = await payload.usacFile.arrayBuffer();
                 const usacPdf = await PDFDocument.load(usacBytes);
