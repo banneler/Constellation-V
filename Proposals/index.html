@@ -62,7 +62,7 @@
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Cover Letter</span>
                     </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_TEXT">
-                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Freeflow Page</span>
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Page</span>
                     </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Why GPC?</span>
@@ -109,7 +109,7 @@
                     <div id="custom-text-section" class="hidden bg-white p-6 rounded-lg shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
-                                Custom Freeflow Page
+                                Custom Page
                                 <span id="status-customText" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
                             </h3>
                             <button onclick="previewFreeflow('customText')" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
@@ -198,25 +198,25 @@
         
         <div id="freeflow-render-zone" class="w-full bg-white text-black p-8 ql-snow">
             <h1 class="text-3xl font-bold mb-8 text-slate-900" id="render-freeflow-title"></h1>
-            <div id="render-freeflow-body" class="ql-editor" style="padding: 0; font-size: 16px; line-height: 1.5;"></div>
+            <div id="render-freeflow-body" class="ql-editor" style="overflow: visible !important; height: auto !important; max-height: none !important; padding: 0; font-size: 16px; line-height: 1.5;"></div>
         </div>
 
         <div id="pricing-render-zone" class="w-full bg-white text-black p-4">
             <table class="w-full text-left border-collapse" id="render-table" style="border: 2px solid #DE5A24;">
                 <thead>
                     <tr class="bg-[#DE5A24] text-white text-base uppercase tracking-wide">
-                        <th class="border border-[#DE5A24] w-[55%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: flex-start;">PRODUCT</div></th>
-                        <th class="border border-[#DE5A24] w-[15%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: center;">LIST PRICE</div></th>
-                        <th class="border border-[#DE5A24] w-[15%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: center;">QUANTITY</div></th>
-                        <th class="border border-[#DE5A24] w-[15%] p-0"><div style="display: flex; align-items: center; height: 100%; padding: 0.75rem 1rem; justify-content: center;">TOTAL</div></th>
+                        <th class="border border-[#DE5A24] w-[55%]" style="padding: 0.75rem 1rem; text-align: left; vertical-align: middle;">PRODUCT</th>
+                        <th class="border border-[#DE5A24] w-[15%]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">LIST PRICE</th>
+                        <th class="border border-[#DE5A24] w-[15%]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">QUANTITY</th>
+                        <th class="border border-[#DE5A24] w-[15%]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">TOTAL</th>
                     </tr>
                 </thead>
                 <tbody id="render-table-body" class="text-base text-black font-medium">
                     </tbody>
                 <tfoot>
                     <tr class="bg-[#12243D] text-white font-bold text-lg">
-                        <td colspan="3" class="py-4 px-4 uppercase tracking-wide">TOTAL MONTHLY COST</td>
-                        <td class="py-4 px-4 text-center" id="render-grand-total"></td>
+                        <td colspan="3" class="py-4 px-4 uppercase tracking-wide border border-[#12243D]">TOTAL MONTHLY COST</td>
+                        <td class="py-4 px-4 text-center border border-[#12243D]" id="render-grand-total"></td>
                     </tr>
                 </tfoot>
             </table>
@@ -380,7 +380,6 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
             await document.fonts.ready;
             
-            // Map either cover or customText to the unified freeflow render zone
             const titleInputId = type === 'cover' ? 'cover-title-input' : 'custom-text-title-input';
             const quillInstance = type === 'cover' ? quillCover : quillCustomText;
             
@@ -421,21 +420,22 @@
                 }))
             }));
 
+            // Direct vertical alignment on the td elements for pixel perfect rendering
             if(locations.length > 1) {
                 locations.forEach(loc => {
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: #A6A6A6; color: white; text-transform: uppercase; font-weight: bold; font-size: 1rem;">
-                            <td colspan="4" class="p-0 border border-[#A6A6A6]"><div style="display: flex; align-items: center; justify-content: flex-start; padding: 0.5rem 1rem;">${loc.name || 'LOCATION NAME'}</div></td>
+                            <td colspan="4" class="border border-[#A6A6A6]" style="padding: 0.5rem 1rem; vertical-align: middle;">${loc.name || 'LOCATION NAME'}</td>
                         </tr>
                     `);
                     loc.items.forEach((item, index) => {
                         const bgColor = index % 2 === 0 ? '#ffffff' : '#E8E8E8';
                         renderBody.insertAdjacentHTML('beforeend', `
                             <tr style="background-color: ${bgColor};">
-                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: flex-start; height: 100%; padding: 0.75rem 1rem;">${item.prod}</div></td>
-                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">$${item.price}</div></td>
-                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.qty}</div></td>
-                                <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.total}</div></td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: left; vertical-align: middle;">${item.prod}</td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">$${item.price}</td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">${item.qty}</td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">${item.total}</td>
                             </tr>
                         `);
                     });
@@ -445,10 +445,10 @@
                     const bgColor = index % 2 === 0 ? '#E8E8E8' : '#ffffff';
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: ${bgColor};">
-                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: flex-start; height: 100%; padding: 0.75rem 1rem;">${item.prod}</div></td>
-                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">$${item.price}</div></td>
-                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.qty}</div></td>
-                            <td class="p-0 border border-[#DE5A24]"><div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 0.75rem 1rem;">${item.total}</div></td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: left; vertical-align: middle;">${item.prod}</td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">$${item.price}</td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">${item.qty}</td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center; vertical-align: middle;">${item.total}</td>
                         </tr>
                     `);
                 });
@@ -533,7 +533,7 @@
 
             // Validation Checks
             if (activeSlides.includes('CUSTOM_COVER') && !committedAssets.cover) { alert("Please Preview & Commit your Cover Letter."); return; }
-            if (activeSlides.includes('CUSTOM_TEXT') && !committedAssets.customText) { alert("Please Preview & Commit your Custom Freeflow Page."); return; }
+            if (activeSlides.includes('CUSTOM_TEXT') && !committedAssets.customText) { alert("Please Preview & Commit your Custom Page."); return; }
             if (activeSlides.includes('CUSTOM_REFERENCES') && !committedAssets.references) { alert("Please Preview & Commit your References."); return; }
             if (activeSlides.includes('CUSTOM_PRICING') && !committedAssets.pricing) { alert("Please Preview & Commit your Pricing Engine."); return; }
             
@@ -580,7 +580,6 @@
                 }
             }
 
-            // Centralized Image Stamping Function
             async function stampImagePage(base64Image) {
                 const page = await getBasePage();
                 const pngImage = await finalDoc.embedPng(base64Image);
@@ -588,7 +587,6 @@
                 page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
             }
 
-            // Centralized Uploaded PDF Stamping Function
             async function appendUploadedPdf(fileObj) {
                 const bytes = await fileObj.arrayBuffer();
                 const pdf = await PDFDocument.load(bytes);
@@ -596,7 +594,6 @@
                 pages.forEach(p => finalDoc.addPage(p));
             }
 
-            // The Master Loop - Builds document exactly in picker order
             for (const slideFile of payload.slides) {
                 if (slideFile === 'CUSTOM_COVER') { await stampImagePage(committedAssets.cover); } 
                 else if (slideFile === 'CUSTOM_TEXT') { await stampImagePage(committedAssets.customText); } 
@@ -621,6 +618,17 @@
             link.download = `${(payload.globals.biz || 'GPC').replace(/ /g, '_')}_Proposal.pdf`;
             link.click();
         }
+
+        // --- Dirty Data Check before leaving page ---
+        window.addEventListener('beforeunload', function (e) {
+            const hasData = document.getElementById('global-rfp').value || 
+                            document.getElementById('global-biz').value ||
+                            quillCover.getText().trim().length > 0;
+            if (hasData) {
+                e.preventDefault();
+                e.returnValue = ''; // Triggers the native browser warning
+            }
+        });
     </script>
 </body>
 </html>
