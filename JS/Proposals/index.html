@@ -488,6 +488,8 @@
                 const { PDFDocument, rgb, StandardFonts } = PDFLib;
                 const finalDoc = await PDFDocument.create();
                 const boldFont = await finalDoc.embedFont(StandardFonts.HelveticaBold);
+                const regularFont = await finalDoc.embedFont(StandardFonts.Helvetica);
+                const spectrumNavy = rgb(0, 33/255, 57/255); // #002139
                 
                 const PAGE_WIDTH = 612; 
                 const PAGE_HEIGHT = 792; 
@@ -499,7 +501,7 @@
                 for (let li of checkedItems) {
                     const slideFile = li.getAttribute('data-filename');
 
-                    // 1. TITLE PAGE 
+                  // 1. TITLE PAGE LOGIC
                     if (slideFile === '01_Title_Page.pdf') {
                         const url = `Proposal_Assets/${slideFile}`;
                         const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
@@ -507,9 +509,33 @@
                         const [page] = await finalDoc.copyPages(pdfDoc, [0]);
                         
                         const clientName = document.getElementById('client-name').value.toUpperCase();
+                        const repName = document.getElementById('sales-rep').value || "Jenni B."; // Defaults to Jenni if left blank!
+                        
+                        // Text Anchor Coordinates
+                        const startX = 50;
+                        let currentY = 650; // Starting height from the bottom
+
                         if (clientName) {
+                            // Sub-header
+                            page.drawText("TECHNOLOGY ROADMAP & PROPOSAL", { 
+                                x: startX, y: currentY, size: 12, font: boldFont, color: spectrumNavy 
+                            });
+                            
+                            // Massive Client Name
+                            currentY -= 35;
                             page.drawText(clientName, { 
-                                x: 44, y: 730, size: 28, font: boldFont, color: rgb(1, 1, 1) 
+                                x: startX, y: currentY, size: 32, font: boldFont, color: spectrumNavy 
+                            });
+
+                            // Rep Info Block
+                            currentY -= 60;
+                            page.drawText(`Prepared by: ${repName}`, { 
+                                x: startX, y: currentY, size: 12, font: regularFont, color: spectrumNavy 
+                            });
+                            
+                            currentY -= 16;
+                            page.drawText("Major Account Manager, Hospitality", { 
+                                x: startX, y: currentY, size: 12, font: regularFont, color: spectrumNavy 
                             });
                         }
                         finalDoc.addPage(page);
