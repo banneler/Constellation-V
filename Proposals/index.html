@@ -156,10 +156,10 @@
             <table class="w-full text-left border-collapse" id="render-table" style="border: 2px solid #DE5A24;">
                 <thead>
                     <tr class="bg-[#DE5A24] text-white text-base uppercase tracking-wide">
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 55%; text-align: left;">PRODUCT</th>
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 15%; text-align: center;">LIST PRICE</th>
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 15%; text-align: center;">QUANTITY</th>
-                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 15%; text-align: center;">TOTAL</th>
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 55%; text-align: left; vertical-align: middle;">PRODUCT</th>
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 20%; text-align: center; vertical-align: middle;">LIST PRICE</th>
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 10%; text-align: center; vertical-align: middle;">QUANTITY</th>
+                        <th class="py-3 px-4 font-bold border border-[#DE5A24]" style="width: 15%; text-align: center; vertical-align: middle;">TOTAL</th>
                     </tr>
                 </thead>
                 <tbody id="render-table-body" class="text-base text-black font-medium">
@@ -323,18 +323,17 @@
                 locations.forEach(loc => {
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: #A6A6A6; color: white; text-transform: uppercase; font-weight: bold; font-size: 1rem;">
-                            <td colspan="4" class="py-2 px-4 border border-[#A6A6A6]">${loc.name || 'LOCATION NAME'}</td>
+                            <td colspan="4" class="py-2 px-4 border border-[#A6A6A6]" style="vertical-align: middle;">${loc.name || 'LOCATION NAME'}</td>
                         </tr>
                     `);
                     loc.items.forEach((item, index) => {
-                        // Multi-location starts with white, then grey
                         const bgColor = index % 2 === 0 ? '#ffffff' : '#E8E8E8';
                         renderBody.insertAdjacentHTML('beforeend', `
                             <tr style="background-color: ${bgColor};">
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: left;">${item.prod}</td>
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center;">$${item.price}</td>
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center;">${item.qty}</td>
-                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center;">${item.total}</td>
+                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: left; vertical-align: middle;">${item.prod}</td>
+                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">$${item.price}</td>
+                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.qty}</td>
+                                <td class="py-2 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.total}</td>
                             </tr>
                         `);
                     });
@@ -342,19 +341,17 @@
             // Pixel-Perfect Single Location Formatting
             } else if (locations.length === 1) {
                 locations[0].items.forEach((item, index) => {
-                    // Single location starts with grey, then white
                     const bgColor = index % 2 === 0 ? '#E8E8E8' : '#ffffff';
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: ${bgColor};">
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: left;">${item.prod}</td>
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center;">$${item.price}</td>
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center;">${item.qty}</td>
-                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center;">${item.total}</td>
+                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: left; vertical-align: middle;">${item.prod}</td>
+                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">$${item.price}</td>
+                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.qty}</td>
+                            <td class="py-3 px-4 border border-[#DE5A24]" style="text-align: center; vertical-align: middle;">${item.total}</td>
                         </tr>
                     `);
                 });
             }
-
             document.getElementById('render-grand-total').innerText = document.getElementById('grand-total').innerText;
             const term = document.getElementById('contract-term').value || 'XX';
             document.getElementById('render-term-text').innerText = `Pricing based off ${term}-month term`;
