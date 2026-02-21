@@ -203,27 +203,26 @@
             <div id="render-freeflow-body" class="ql-editor" style="overflow: visible !important; height: auto !important; max-height: none !important; padding: 0; font-size: 16px; line-height: 1.5;"></div>
         </div>
 
-        <div id="pricing-render-zone" class="w-full bg-white text-black p-4">
-            <table class="w-full text-left border-collapse" id="render-table" style="border: 2px solid #DE5A24;">
-                <thead>
-    <tr class="bg-[#DE5A24] text-white text-base uppercase tracking-wide">
-        <th class="border border-[#DE5A24]" style="width: 380px; padding: 12px 16px; text-align: left;">PRODUCT</th>
-        <th class="border border-[#DE5A24]" style="width: 140px; padding: 12px 0; text-align: center;">LIST PRICE</th>
-        <th class="border border-[#DE5A24]" style="width: 100px; padding: 12px 0; text-align: center;">QUANTITY</th>
-        <th class="border border-[#DE5A24]" style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</th>
-    </tr>
-</thead>
-                <tbody id="render-table-body" class="text-base text-black font-medium">
-                    </tbody>
-                <tfoot>
-                    <tr class="bg-[#12243D] text-white font-bold text-lg">
-                        <td colspan="3" class="py-4 px-4 uppercase tracking-wide border border-[#12243D]">TOTAL MONTHLY COST</td>
-                        <td class="py-4 px-4 text-center border border-[#12243D]" id="render-grand-total"></td>
-                    </tr>
-                </tfoot>
-            </table>
-            <p class="text-center text-sm text-black mt-8" id="render-term-text">Pricing based off XX-month term</p>
+     <div id="pricing-render-zone" class="w-full bg-white text-black p-4 gpc-pdf-font" style="width: 800px;">
+    <h1 class="text-3xl font-bold mb-6 text-slate-900">Proposed Pricing</h1>
+    
+    <div id="flex-table-container" style="border: 2px solid #DE5A24; width: 750px;">
+        <div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase;">
+            <div style="width: 380px; padding: 12px 16px; border-right: 1px solid #DE5A24;">PRODUCT</div>
+            <div style="width: 140px; padding: 12px 5px; text-align: center; border-right: 1px solid #DE5A24;">LIST PRICE</div>
+            <div style="width: 90px; padding: 12px 5px; text-align: center; border-right: 1px solid #DE5A24;">QTY</div>
+            <div style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</div>
         </div>
+
+        <div id="flex-table-body"></div>
+
+        <div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem;">
+            <div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div>
+            <div id="render-grand-total-flex" style="width: 140px; padding: 16px; text-align: center;">$0.00</div>
+        </div>
+    </div>
+    <p class="text-center text-sm text-black mt-8" id="render-term-text-flex">Pricing based off XX-month term</p>
+</div>
 
         <div id="references-render-zone" class="w-full bg-white text-black p-8">
             <div id="render-references-body" class="space-y-0">
@@ -417,69 +416,66 @@
         }
 
         async function previewPricing() {
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            await document.fonts.ready;
-            
-            const renderBody = document.getElementById('render-table-body');
-            renderBody.innerHTML = ''; 
-            
-            const locations = Array.from(document.querySelectorAll('#locations-container > div')).map(block => ({
-                name: block.querySelector('.loc-name-input').value,
-                items: Array.from(block.querySelectorAll('.line-items-body tr')).map(tr => ({
-                    prod: tr.querySelector('.prod-name').value, price: tr.querySelector('.price-input').value,
-                    qty: tr.querySelector('.qty-input').value, total: tr.querySelector('.row-total').innerText
-                }))
-            }));
+    document.getElementById('loading-overlay').classList.remove('hidden');
+    await document.fonts.ready;
+    
+    const flexBody = document.getElementById('flex-table-body');
+    flexBody.innerHTML = ''; 
+    
+    const locations = Array.from(document.querySelectorAll('#locations-container > div')).map(block => ({
+        name: block.querySelector('.loc-name-input').value,
+        items: Array.from(block.querySelectorAll('.line-items-body tr')).map(tr => ({
+            prod: tr.querySelector('.prod-name').value, 
+            price: tr.querySelector('.price-input').value,
+            qty: tr.querySelector('.qty-input').value, 
+            total: tr.querySelector('.row-total').innerText
+        }))
+    }));
 
-            // Replace the row generation loops inside previewPricing() with this:
-const paddingStyle = "padding: 14px 0; vertical-align: middle; line-height: 1.2;";
-
-if(locations.length > 1) {
     locations.forEach(loc => {
-        renderBody.insertAdjacentHTML('beforeend', `
-            <tr style="background-color: #A6A6A6; color: white; text-transform: uppercase; font-weight: bold;">
-                <td colspan="4" style="padding: 10px 16px; border: 1px solid #A6A6A6;">${loc.name || 'LOCATION NAME'}</td>
-            </tr>
-        `);
+        // Only show location header if there are multiple locations
+        if (locations.length > 1) {
+            flexBody.insertAdjacentHTML('beforeend', `
+                <div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #A6A6A6;">
+                    <div style="width: 100%; padding: 8px 16px;">${loc.name || 'LOCATION NAME'}</div>
+                </div>
+            `);
+        }
+
         loc.items.forEach((item, index) => {
-            const bgColor = index % 2 === 0 ? '#ffffff' : '#E8E8E8';
-            renderBody.insertAdjacentHTML('beforeend', `
-                <tr style="background-color: ${bgColor};">
-                    <td class="border border-[#DE5A24]" style="padding: 14px 16px; text-align: left; vertical-align: middle;">${item.prod}</td>
-                    <td class="border border-[#DE5A24]" style="${paddingStyle} text-align: center;">$${item.price}</td>
-                    <td class="border border-[#DE5A24]" style="${paddingStyle} text-align: center;">${item.qty}</td>
-                    <td class="border border-[#DE5A24]" style="${paddingStyle} text-align: center;">${item.total}</td>
-                </tr>
+            // Determine zebra stripe color
+            let bgColor = "#ffffff";
+            if (locations.length === 1) {
+                bgColor = (index % 2 === 0) ? "#E8E8E8" : "#ffffff";
+            } else {
+                bgColor = (index % 2 === 0) ? "#ffffff" : "#E8E8E8";
+            }
+
+            flexBody.insertAdjacentHTML('beforeend', `
+                <div style="display: flex; background-color: ${bgColor}; border-bottom: 1px solid #DE5A24;">
+                    <div style="width: 380px; padding: 14px 16px; border-right: 1px solid #DE5A24; display: flex; align-items: center;">${item.prod}</div>
+                    <div style="width: 140px; padding: 14px 5px; border-right: 1px solid #DE5A24; text-align: center; display: flex; align-items: center; justify-content: center;">$${item.price}</div>
+                    <div style="width: 90px; padding: 14px 5px; border-right: 1px solid #DE5A24; text-align: center; display: flex; align-items: center; justify-content: center;">${item.qty}</div>
+                    <div style="width: 140px; padding: 14px 16px; text-align: center; display: flex; align-items: center; justify-content: center;">${item.total}</div>
+                </div>
             `);
         });
     });
-} else if (locations.length === 1) {
-    locations[0].items.forEach((item, index) => {
-        const bgColor = index % 2 === 0 ? '#E8E8E8' : '#ffffff';
-        renderBody.insertAdjacentHTML('beforeend', `
-            <tr style="background-color: ${bgColor};">
-                <td class="border border-[#DE5A24]" style="padding: 14px 16px; text-align: left; vertical-align: middle;">${item.prod}</td>
-                <td class="border border-[#DE5A24]" style="${paddingStyle} text-align: center;">$${item.price}</td>
-                <td class="border border-[#DE5A24]" style="${paddingStyle} text-align: center;">${item.qty}</td>
-                <td class="border border-[#DE5A24]" style="${paddingStyle} text-align: center;">${item.total}</td>
-            </tr>
-        `);
-    });
+
+    // Update Totals
+    document.getElementById('render-grand-total-flex').innerText = document.getElementById('grand-total').innerText;
+    const term = document.getElementById('contract-term').value || 'XX';
+    document.getElementById('render-term-text-flex').innerText = `Pricing based off ${term}-month term`;
+
+    await new Promise(r => setTimeout(r, 150));
+
+    const renderZone = document.getElementById('pricing-render-zone');
+    const canvas = await html2canvas(renderZone, { scale: 2, logging: false, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+    
+    document.getElementById('loading-overlay').classList.add('hidden');
+    openModal(imgData, 'pricing', 'Preview Pricing Table');
 }
-
-            document.getElementById('render-grand-total').innerText = document.getElementById('grand-total').innerText;
-            const term = document.getElementById('contract-term').value || 'XX';
-            document.getElementById('render-term-text').innerText = `Pricing based off ${term}-month term`;
-
-            await new Promise(r => setTimeout(r, 100));
-
-            const renderZone = document.getElementById('pricing-render-zone');
-            const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
-            const imgData = canvas.toDataURL('image/png');
-            
-            document.getElementById('loading-overlay').classList.add('hidden');
-            openModal(imgData, 'pricing', 'Preview Pricing Table');
-        }
 
         async function previewReferences() {
             document.getElementById('loading-overlay').classList.remove('hidden');
