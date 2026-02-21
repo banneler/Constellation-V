@@ -376,9 +376,7 @@
             const projectData = {
                 clientName: document.getElementById('client-name').value,
                 repName: document.getElementById('sales-rep').value,
-                startDate: document.getElementById('global-start').value,
-                endDate: document.getElementById('global-end').value,
-                
+                               
                 impactCurrent: quillImpactCurrent.root.innerHTML,
                 impactProposed: quillImpactProposed.root.innerHTML,
                 impactCostCurrent: document.getElementById('impact-current-cost').value,
@@ -423,9 +421,7 @@
                     
                     if(data.clientName) document.getElementById('client-name').value = data.clientName;
                     if(data.repName) document.getElementById('sales-rep').value = data.repName;
-                    if(data.startDate) document.getElementById('global-start').value = data.startDate;
-                    if(data.endDate) document.getElementById('global-end').value = data.endDate;
-                    
+                                      
                     if(data.impactCurrent) quillImpactCurrent.root.innerHTML = data.impactCurrent;
                     if(data.impactProposed) quillImpactProposed.root.innerHTML = data.impactProposed;
                     if(data.impactCostCurrent) document.getElementById('impact-current-cost').value = data.impactCostCurrent;
@@ -566,24 +562,7 @@
                         });
                     }
 
-                    // 4. PROJECT IMPLEMENTATION PLAN 
-                    else if (slideFile === '09_Project.pdf') {
-                        const url = `Proposal_Assets/${slideFile}`;
-                        const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
-                        const pdfDoc = await PDFDocument.load(existingPdfBytes);
-                        const [page] = await finalDoc.copyPages(pdfDoc, [0]);
-
-                        const startDate = document.getElementById('global-start').value || "";
-                        const endDate = document.getElementById('global-end').value || "";
-                        
-                        const startWidth = boldFont.widthOfTextAtSize(startDate, 12);
-                        const endWidth = boldFont.widthOfTextAtSize(endDate, 12);
-
-                        page.drawText(startDate, { x: 207 - (startWidth / 2), y: 534, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
-                        page.drawText(endDate, { x: 406 - (endWidth / 2), y: 534, size: 12, font: boldFont, color: rgb(0.1, 0.1, 0.1) });
-
-                        finalDoc.addPage(page);
-                    }
+                   
 
                     // 5. COVER LETTER 
                     else if (slideFile === 'CUSTOM_COVER') {
