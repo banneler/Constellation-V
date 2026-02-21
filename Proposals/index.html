@@ -627,31 +627,31 @@
                 const existingPdf = await PDFDocument.load(existingPdfBytes);
                 const [page] = await finalDoc.copyPages(existingPdf, [0]);
 
-// --- DATA INJECTION FOR TITLE PAGE (v1.2 - Fix for Missing Fields) ---
+// --- DATA INJECTION FOR TITLE PAGE (v1.4 - All White Fix) ---
 if (slideFile === '01_Title_Page.pdf') {
-    // 1. Force-sync variables from the sidebar to ensure they aren't empty
-    const rfpText = document.getElementById('global-rfp').value || "Request for Proposal";
+    const rfpText = document.getElementById('global-rfp').value || "";
     const bizText = document.getElementById('global-biz').value || "";
     const repText = document.getElementById('global-rep').value || "";
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const today = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', month: 'long', day: 'numeric' 
+    });
 
-    // 2. Business Name (Large, Bold, White) - Shifted to X:300
+    // 1. Business Name (Large, Bold, White)
     page.drawText(bizText, { 
         x: 300, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
     });
 
-    // 3. RFP Name (Bold, GPC Orange) - Shifted to X:300
-    // Using GPC Orange RGB (0.87, 0.35, 0.14)
+    // 2. RFP Name (Bold, White)
     page.drawText(rfpText, { 
-        x: 300, y: 90, size: 18, font: boldFont, color: rgb(0.87, 0.35, 0.14) 
+        x: 300, y: 90, size: 18, font: boldFont, color: rgb(1, 1, 1) 
     });
 
-    // 4. Sales Rep (Smaller, White) - Shifted to X:300
+    // 3. Sales Rep (Smaller, White)
     page.drawText(`Presented by: ${repText}`, { 
         x: 300, y: 65, size: 12, font: font, color: rgb(1, 1, 1) 
     });
 
-    // 5. Date (Smaller, White) - Shifted to X:300
+    // 4. Date (Smaller, White)
     page.drawText(today, { 
         x: 300, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
     });
