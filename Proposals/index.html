@@ -627,34 +627,32 @@
                 const existingPdf = await PDFDocument.load(existingPdfBytes);
                 const [page] = await finalDoc.copyPages(existingPdf, [0]);
 
-               // --- DATA INJECTION FOR TITLE PAGE (v1.1) ---
+// --- DATA INJECTION FOR TITLE PAGE (Direct Injection - No Canvas) ---
 if (slideFile === '01_Title_Page.pdf') {
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const today = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', month: 'long', day: 'numeric' 
+    });
     
-    // Draw white rectangle to clear the area if needed
-    page.drawRectangle({
-        x: 300, y: 20, width: 300, height: 150,
-        color: rgb(1, 1, 1), opacity: 0.9 // High opacity white block
-    });
-
-    // RFP Name - Adjusted X slightly left to prevent clipping
-    page.drawText(payload.globals.rfpName || 'Request for Proposal', { 
-        x: 315, y: 120, size: 22, font: boldFont, color: rgb(0.07, 0.14, 0.24) 
-    });
-
-    // Business Name
+    // 1. Business Name (Large, Bold, White)
+    // Shifted X slightly to 320 to center better in the open dark space
     page.drawText(payload.globals.biz || '', { 
-        x: 315, y: 90, size: 22, font: boldFont, color: rgb(0.87, 0.35, 0.14) 
+        x: 320, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
     });
 
-    // Sales Rep (Smaller font)
+    // 2. RFP Name (Standard, Bold, GPC Orange)
+    // Using the GPC Orange hex #DE5A24 converted to RGB
+    page.drawText(payload.globals.rfpName || '', { 
+        x: 320, y: 90, size: 18, font: boldFont, color: rgb(0.87, 0.35, 0.14) 
+    });
+
+    // 3. Sales Rep (Smaller, White/Light Grey)
     page.drawText(`Presented by: ${payload.globals.rep || ''}`, { 
-        x: 315, y: 65, size: 12, font: font, color: rgb(0.2, 0.2, 0.2) 
+        x: 320, y: 65, size: 12, font: font, color: rgb(0.9, 0.9, 0.9) 
     });
 
-    // Date (Smaller font)
+    // 4. Date (Smaller, White/Light Grey)
     page.drawText(today, { 
-        x: 315, y: 45, size: 10, font: font, color: rgb(0.4, 0.4, 0.4) 
+        x: 320, y: 45, size: 10, font: font, color: rgb(0.9, 0.9, 0.9) 
     });
 }
 
