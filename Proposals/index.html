@@ -163,7 +163,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="09_Project.pdf">
         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span>
-        <input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle">
         <span class="flex-1 font-medium text-sm text-slate-700">Project Implementation Plan</span>
         <button onclick="previewStockPdf('09_Project.pdf', 'Project Implementation Plan')" class="text-slate-400 hover:text-orange-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -303,13 +303,15 @@
         </div>
     </div>
 
-    <div id="pdf-preview-modal" class="hidden absolute inset-0 bg-slate-900 bg-opacity-90 flex flex-col items-center justify-center z-[80] p-8">
-        <div class="flex justify-between w-full max-w-4xl mb-4 items-center">
-            <h2 class="text-white text-2xl font-bold" id="pdf-preview-title">PDF Preview</h2>
-            <button onclick="closePdfModal()" class="text-white hover:text-red-500 font-bold text-3xl transition">✕</button>
-        </div>
-        <div class="bg-white rounded shadow-2xl w-full max-w-4xl h-[75vh] flex justify-center overflow-hidden border-4 border-slate-700">
-            <iframe id="pdf-preview-iframe" class="w-full h-full border-0" src=""></iframe>
+  <div id="pdf-preview-modal" class="hidden absolute inset-0 bg-slate-900 bg-opacity-90 flex flex-col items-center justify-center z-[80] p-6">
+        <div class="flex flex-col h-[85vh] aspect-[8.5/11]">
+            <div class="flex justify-between items-center mb-4 w-full">
+                <h2 class="text-white text-2xl font-bold" id="pdf-preview-title">PDF Preview</h2>
+                <button onclick="closePdfModal()" class="text-white hover:text-red-500 font-bold text-3xl transition leading-none">✕</button>
+            </div>
+            <div class="bg-white rounded-lg shadow-2xl flex-1 overflow-hidden border-4 border-slate-700 w-full">
+                <iframe id="pdf-preview-iframe" class="w-full h-full border-0 bg-white" src=""></iframe>
+            </div>
         </div>
     </div>
 
