@@ -511,9 +511,8 @@
                         const clientName = document.getElementById('client-name').value;
                         const repName = document.getElementById('sales-rep').value || "Jennifer Stein"; 
                         
-                        // Text Anchor Coordinates
-                        const startX = 50;
-                        let currentY = 700; // Shifted up from 650 to 700
+                  const startX = 36; // Nudged left to align with the Spectrum logo
+let currentY = 736; // Nudged up exactly 0.5 inches
 
                         if (clientName) {
                             // Sub-header
@@ -541,8 +540,14 @@
                         finalDoc.addPage(page);
                     }
 
-                    // 2. PRICING STAMPING 
+                    // 2. PRICING STAMPING (Now using the custom background!)
                     else if (slideFile === 'CUSTOM_PRICING') {
+                        // Load the new blank background
+                        const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
+                        const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
+                        const bgDoc = await PDFDocument.load(existingPdfBytes);
+                        const [pricingPage] = await finalDoc.copyPages(bgDoc, [0]);
+
                         const printContainer = document.getElementById('print-pricing-rows');
                         printContainer.innerHTML = ''; 
                         
@@ -554,8 +559,9 @@
                             const lineTotal = price * qty;
                             total += lineTotal;
                             
+                            // Removed bg-white here so the watermark shines through!
                             printContainer.innerHTML += `
-                                <div class="flex p-3 text-sm text-slate-700 bg-white">
+                                <div class="flex p-3 text-sm text-slate-700 bg-transparent border-b border-slate-200">
                                     <div class="w-1/2 pl-2 font-semibold">${prod}</div>
                                     <div class="w-1/6 text-center">$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
                                     <div class="w-1/6 text-center">${qty}</div>
@@ -567,21 +573,35 @@
 
                         const template = document.getElementById('hidden-pricing-template');
                         template.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
-                        const canvas = await html2canvas(template, { scale: 2 });
+                        
+                        // Force a transparent background on the snapshot
+                        const canvas = await html2canvas(template, { scale: 2, backgroundColor: null });
                         const imgData = canvas.toDataURL('image/png');
                         template.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
 
-                        const page = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
                         const pngImage = await finalDoc.embedPng(imgData);
-                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 200);
-                        page.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 120,
-                            width: imgDims.width, height: imgDims.height
+                        
+                        // Scale to fit the Safe Zone
+                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
+                        
+                        pricingPage.drawImage(pngImage, {
+                            x: (PAGE_WIDTH - imgDims.width) / 2, 
+                            y: PAGE_HEIGHT - imgDims.height - 80, // Safe zone margin
+                            width: imgDims.width, 
+                            height: imgDims.height
                         });
+                        
+                        finalDoc.addPage(pricingPage);
                     }
 
-                    // 3. IMPACT & ROI ANALYSIS 
+                    // 3. IMPACT & ROI ANALYSIS (Now using the custom background!)
                     else if (slideFile === 'CUSTOM_IMPACT') {
+                        // Load the new blank background
+                        const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
+                        const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
+                        const bgDoc = await PDFDocument.load(existingPdfBytes);
+                        const [impactPage] = await finalDoc.copyPages(bgDoc, [0]);
+
                         document.getElementById('print-impact-current').innerHTML = quillImpactCurrent.root.innerHTML;
                         document.getElementById('print-impact-proposed').innerHTML = quillImpactProposed.root.innerHTML;
                         
@@ -597,40 +617,59 @@
 
                         const impactTemplate = document.getElementById('hidden-impact-template');
                         impactTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
-                        const canvas = await html2canvas(impactTemplate, { scale: 2 });
+                        
+                        // Force a transparent background on the snapshot
+                        const canvas = await html2canvas(impactTemplate, { scale: 2, backgroundColor: null });
                         const imgData = canvas.toDataURL('image/png');
                         impactTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
 
-                        const impactPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
                         const pngImage = await finalDoc.embedPng(imgData);
-                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 200);
+                        
+                        // Scale to fit the Safe Zone
+                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
                         
                         impactPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 120,
-                            width: imgDims.width, height: imgDims.height
+                            x: (PAGE_WIDTH - imgDims.width) / 2, 
+                            y: PAGE_HEIGHT - imgDims.height - 80, // Safe zone margin
+                            width: imgDims.width, 
+                            height: imgDims.height
                         });
+                        
+                        finalDoc.addPage(impactPage);
                     }
 
                    
 
-                    // 5. COVER LETTER 
+                   // 5. COVER LETTER (Now using the custom background!)
                     else if (slideFile === 'CUSTOM_COVER') {
+                        // Load the new blank background
+                        const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
+                        const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
+                        const bgDoc = await PDFDocument.load(existingPdfBytes);
+                        const [coverPage] = await finalDoc.copyPages(bgDoc, [0]);
+
                         const template = document.getElementById('hidden-cover-template');
                         template.innerHTML = quillCover.root.innerHTML;
                         template.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
                         
-                        const canvas = await html2canvas(template, { scale: 2 });
+                        // Force a transparent background on the snapshot
+                        const canvas = await html2canvas(template, { scale: 2, backgroundColor: null });
                         const imgData = canvas.toDataURL('image/png');
                         template.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
 
-                        const coverPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
                         const pngImage = await finalDoc.embedPng(imgData);
-                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 200);
+                        
+                        // Scale to fit the Safe Zone (leaving room for top header and bottom arcs)
+                        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 220);
                         
                         coverPage.drawImage(pngImage, {
-                            x: (PAGE_WIDTH - imgDims.width) / 2, y: PAGE_HEIGHT - imgDims.height - 100,
-                            width: imgDims.width, height: imgDims.height
+                            x: (PAGE_WIDTH - imgDims.width) / 2, 
+                            y: PAGE_HEIGHT - imgDims.height - 80, // Starts 80 points below the top edge
+                            width: imgDims.width, 
+                            height: imgDims.height
                         });
+                        
+                        finalDoc.addPage(coverPage);
                     }
 
                     // 6. CUSTOM FILE UPLOAD (Bills, Slicks, Diagrams)
