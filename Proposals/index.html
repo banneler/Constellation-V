@@ -303,14 +303,14 @@
         </div>
     </div>
 
-  <div id="pdf-preview-modal" class="hidden absolute inset-0 bg-slate-900 bg-opacity-90 flex flex-col items-center justify-center z-[80] p-6">
-        <div class="flex flex-col h-[85vh] aspect-[9/11]">
+ <div id="pdf-preview-modal" class="hidden absolute inset-0 bg-slate-900 bg-opacity-90 flex flex-col items-center justify-center z-[80] p-6">
+        <div class="flex flex-col h-[85vh] w-[calc(85vh*0.82)] max-w-full">
             <div class="flex justify-between items-center mb-4 w-full">
                 <h2 class="text-white text-2xl font-bold" id="pdf-preview-title">PDF Preview</h2>
                 <button onclick="closePdfModal()" class="text-white hover:text-red-500 font-bold text-3xl transition leading-none">✕</button>
             </div>
-            <div class="bg-white rounded-lg shadow-2xl flex-1 overflow-hidden border-4 border-slate-700 w-full">
-                <iframe id="pdf-preview-iframe" class="w-full h-full block border-0 bg-white" src="" scrolling="no"></iframe>
+            <div class="bg-[#525659] rounded-lg shadow-2xl flex-1 overflow-hidden border-4 border-slate-700 w-full">
+                <iframe id="pdf-preview-iframe" class="w-full h-full border-0" src=""></iframe>
             </div>
         </div>
     </div>
@@ -641,8 +641,8 @@
         // --- Stock PDF Preview Logic ---
         function previewStockPdf(filename, title) {
             document.getElementById('pdf-preview-title').innerText = title;
-            // #toolbar=0 hides the print/download buttons to make it look like a clean preview
-            document.getElementById('pdf-preview-iframe').src = `Proposal_Assets/${filename}#toolbar=0&navpanes=0&view=FitH`;
+            // Added scrollbar=0 to the engine parameters
+            document.getElementById('pdf-preview-iframe').src = `Proposal_Assets/${filename}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`;
             document.getElementById('pdf-preview-modal').classList.remove('hidden');
         }
 
