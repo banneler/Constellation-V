@@ -508,13 +508,12 @@
                         const pdfDoc = await PDFDocument.load(existingPdfBytes);
                         const [page] = await finalDoc.copyPages(pdfDoc, [0]);
                         
-                        // Removed .toUpperCase() - It now prints exactly as you type it in the UI!
                         const clientName = document.getElementById('client-name').value;
-                        const repName = document.getElementById('sales-rep').value || "Jenni B."; 
+                        const repName = document.getElementById('sales-rep').value || "Jennifer Stein"; 
                         
                         // Text Anchor Coordinates
                         const startX = 50;
-                        let currentY = 650; // Starting height from the bottom
+                        let currentY = 700; // Shifted up from 650 to 700
 
                         if (clientName) {
                             // Sub-header
@@ -529,7 +528,7 @@
                             });
 
                             // Rep Info Block
-                            currentY -= 60;
+                            currentY -= 40; // Tucked closer! (Reduced from 60 to 40)
                             page.drawText(`Prepared by: ${repName}`, { 
                                 x: startX, y: currentY, size: 12, font: regularFont, color: spectrumNavy 
                             });
