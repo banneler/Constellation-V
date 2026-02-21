@@ -406,20 +406,23 @@
             document.getElementById('pdf-preview-iframe').src = "";
         }
 
-        // --- 7. SAVE / LOAD PROJECT (.spec files) ---
+      // --- 7. SAVE / LOAD PROJECT (Updated for Multi-Location & Dynamic Titles) ---
         function saveProject() {
             const projectData = {
                 clientName: document.getElementById('client-name').value,
                 repName: document.getElementById('sales-rep').value,
+                // Captures the dynamic title (e.g., "Solution Recap")
+                coverLetterTitle: document.getElementById('cover-letter-title').value,
+                coverText: quillCover.root.innerHTML,
                 impactCurrent: quillImpactCurrent.root.innerHTML,
                 impactProposed: quillImpactProposed.root.innerHTML,
                 impactCostCurrent: document.getElementById('impact-current-cost').value,
                 impactCostProposed: document.getElementById('impact-proposed-cost').value,
-                coverText: quillCover.root.innerHTML,
                 modules: [],
-                pricingRows: []
+                locations: [] // New nested data structure
             };
 
+            // Save Module Order & Toggle State
             document.querySelectorAll('#module-list li').forEach(li => {
                 const checkbox = li.querySelector('input[type="checkbox"]');
                 projectData.modules.push({
@@ -428,12 +431,20 @@
                 });
             });
 
-            document.querySelectorAll('.pricing-row').forEach(row => {
-                projectData.pricingRows.push({
-                    product: row.querySelector('.row-product').value,
-                    price: row.querySelector('.row-price').value,
-                    qty: row.querySelector('.row-qty').value
+            // Save Nested Locations and Rows
+            document.querySelectorAll('.location-block').forEach(loc => {
+                const locData = {
+                    name: loc.querySelector('.location-name').value,
+                    rows: []
+                };
+                loc.querySelectorAll('.pricing-row').forEach(row => {
+                    locData.rows.push({
+                        product: row.querySelector('.row-product').value,
+                        price: row.querySelector('.row-price').value,
+                        qty: row.querySelector('.row-qty').value
+                    });
                 });
+                projectData.locations.push(locData);
             });
 
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData));
@@ -452,17 +463,33 @@
                 try {
                     const data = JSON.parse(e.target.result);
                     
+                    // Restore Basic Properties
                     if(data.clientName) document.getElementById('client-name').value = data.clientName;
                     if(data.repName) document.getElementById('sales-rep').value = data.repName;
+                    if(data.coverLetterTitle) document.getElementById('cover-letter-title').value = data.coverLetterTitle;
                     
+                    // Restore Quill Editors
+                    if(data.coverText) quillCover.root.innerHTML = data.coverText;
                     if(data.impactCurrent) quillImpactCurrent.root.innerHTML = data.impactCurrent;
                     if(data.impactProposed) quillImpactProposed.root.innerHTML = data.impactProposed;
+                    
+                    // Restore ROI Costs
                     if(data.impactCostCurrent) document.getElementById('impact-current-cost').value = data.impactCostCurrent;
                     if(data.impactCostProposed) document.getElementById('impact-proposed-cost').value = data.impactCostProposed;
-                    if(data.coverText) quillCover.root.innerHTML = data.coverText;
-                    
                     calculateImpact();
 
+                    // Restore Locations (This clears the current UI and rebuilds it)
+                    const container = document.getElementById('locations-container');
+                    container.innerHTML = ''; 
+                    if(data.locations && data.locations.length > 0) {
+                        data.locations.forEach(loc => {
+                            addLocationBlock(loc.name, loc.rows);
+                        });
+                    } else {
+                        addLocationBlock(); // Default to one if empty
+                    }
+
+                    // Restore Module State
                     if(data.modules) {
                         data.modules.forEach(mod => {
                             const li = document.querySelector(`li[data-filename="${mod.filename}"]`);
@@ -471,20 +498,16 @@
                                 if(checkbox) checkbox.checked = mod.checked;
                             }
                         });
+                        // Trigger UI refreshes
                         document.getElementById('toggle-cover-letter').dispatchEvent(new Event('change'));
                         document.getElementById('toggle-impact').dispatchEvent(new Event('change'));
                         document.getElementById('toggle-pricing').dispatchEvent(new Event('change'));
-                        document.getElementById('toggle-custom-pdf').dispatchEvent(new Event('change'));
-                    }
-
-                    if(data.pricingRows && data.pricingRows.length > 0) {
-                        document.getElementById('pricing-rows-container').innerHTML = '';
-                        data.pricingRows.forEach(r => addPricingRow(r.product, r.price, r.qty));
                     }
 
                     alert("Project Loaded Successfully!");
                 } catch (err) {
-                    alert("Error loading project file. Make sure it's a valid .spec file.");
+                    console.error("Load Error:", err);
+                    alert("Error loading project file. It might be an older .spec version.");
                 }
             };
             reader.readAsText(file);
