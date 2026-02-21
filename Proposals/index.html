@@ -54,8 +54,8 @@
             <div class="w-1/3 min-w-[350px] bg-white border-r border-slate-200 overflow-y-auto p-6 shadow-inner flex flex-col">
                 <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">1. Global Variables</h2>
                 <div class="space-y-4 mb-8">
-                    <div><label class="block text-sm font-semibold text-slate-700">RFP Name</label><input type="text" id="global-rfp" maxlength="30" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
-                    <div><label class="block text-sm font-semibold text-slate-700">Business Name</label><input type="text" id="global-biz" maxlength="30" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">RFP Name</label><input type="text" id="global-rfp" maxlength="33" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700">Business Name</label><input type="text" id="global-biz" maxlength="33" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
                     <div><label class="block text-sm font-semibold text-slate-700">Sales Rep</label><input type="text" id="global-rep" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
                 </div>
 
@@ -627,30 +627,32 @@
                 const existingPdf = await PDFDocument.load(existingPdfBytes);
                 const [page] = await finalDoc.copyPages(existingPdf, [0]);
 
-// --- DATA INJECTION FOR TITLE PAGE (v1.5 - With Safety Truncation) ---
+// --- DATA INJECTION FOR TITLE PAGE (v1.6 - Left Aligned @ 280x) ---
 if (slideFile === '01_Title_Page.pdf') {
-    // Pull and truncate to 30 chars just in case
-    const rfpText = (document.getElementById('global-rfp').value || "").substring(0, 30);
-    const bizText = (document.getElementById('global-biz').value || "").substring(0, 30);
-    const repText = (document.getElementById('global-rep').value || "").substring(0, 30);
+    // Sync and truncate to 33 characters
+    const rfpText = (document.getElementById('global-rfp').value || "").substring(0, 33);
+    const bizText = (document.getElementById('global-biz').value || "").substring(0, 33);
+    const repText = (document.getElementById('global-rep').value || "").substring(0, 33);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Business Name
+    // Business Name (Largest)
     page.drawText(bizText, { 
-        x: 300, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
+        x: 280, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
     });
 
     // RFP Name
     page.drawText(rfpText, { 
-        x: 300, y: 90, size: 18, font: boldFont, color: rgb(1, 1, 1) 
+        x: 280, y: 90, size: 18, font: boldFont, color: rgb(1, 1, 1) 
     });
 
-    // Sales Rep & Date
+    // Sales Rep
     page.drawText(`Presented by: ${repText}`, { 
-        x: 300, y: 65, size: 12, font: font, color: rgb(1, 1, 1) 
+        x: 280, y: 65, size: 12, font: font, color: rgb(1, 1, 1) 
     });
+
+    // Date
     page.drawText(today, { 
-        x: 300, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
+        x: 280, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
     });
 }
                 finalDoc.addPage(page);
