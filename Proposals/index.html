@@ -431,22 +431,22 @@
                 }))
             }));
 
-            // The Line-Height Hack: Forcing 40px height per row ensures perfect vertical centering in html2canvas
+            // The Symmetrical Padding Hack: Force vertical centering by adding equal top/bottom padding (0.75rem)
             if(locations.length > 1) {
                 locations.forEach(loc => {
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: #A6A6A6; color: white; text-transform: uppercase; font-weight: bold; font-size: 1rem;">
-                            <td colspan="4" class="border border-[#A6A6A6]" style="padding: 0.5rem 1rem;">${loc.name || 'LOCATION NAME'}</td>
+                            <td colspan="4" class="border border-[#A6A6A6]" style="padding: 0.75rem 1rem;">${loc.name || 'LOCATION NAME'}</td>
                         </tr>
                     `);
                     loc.items.forEach((item, index) => {
                         const bgColor = index % 2 === 0 ? '#ffffff' : '#E8E8E8';
                         renderBody.insertAdjacentHTML('beforeend', `
                             <tr style="background-color: ${bgColor};">
-                                <td class="border border-[#DE5A24]" style="padding: 0.5rem 1rem; text-align: left;">${item.prod}</td>
-                                <td class="border border-[#DE5A24]" style="height: 40px; line-height: 40px; padding: 0 1rem; text-align: center;">$${item.price}</td>
-                                <td class="border border-[#DE5A24]" style="height: 40px; line-height: 40px; padding: 0 1rem; text-align: center;">${item.qty}</td>
-                                <td class="border border-[#DE5A24]" style="height: 40px; line-height: 40px; padding: 0 1rem; text-align: center;">${item.total}</td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: left;">${item.prod}</td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center;">$${item.price}</td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center;">${item.qty}</td>
+                                <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center;">${item.total}</td>
                             </tr>
                         `);
                     });
@@ -456,10 +456,10 @@
                     const bgColor = index % 2 === 0 ? '#E8E8E8' : '#ffffff';
                     renderBody.insertAdjacentHTML('beforeend', `
                         <tr style="background-color: ${bgColor};">
-                            <td class="border border-[#DE5A24]" style="padding: 0.5rem 1rem; text-align: left;">${item.prod}</td>
-                            <td class="border border-[#DE5A24]" style="height: 40px; line-height: 40px; padding: 0 1rem; text-align: center;">$${item.price}</td>
-                            <td class="border border-[#DE5A24]" style="height: 40px; line-height: 40px; padding: 0 1rem; text-align: center;">${item.qty}</td>
-                            <td class="border border-[#DE5A24]" style="height: 40px; line-height: 40px; padding: 0 1rem; text-align: center;">${item.total}</td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: left;">${item.prod}</td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center;">$${item.price}</td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center;">${item.qty}</td>
+                            <td class="border border-[#DE5A24]" style="padding: 0.75rem 1rem; text-align: center;">${item.total}</td>
                         </tr>
                     `);
                 });
