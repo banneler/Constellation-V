@@ -16,7 +16,13 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .gpc-pdf-font { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+        .gpc-pdf-font { 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; 
+        -webkit-font-smoothing: antialiased;
+    }
+    #freeflow-render-zone, #pricing-render-zone, #references-render-zone {
+        background-color: #FFFFFF !important; /* Force pure white background */
+    }
         .ql-toolbar.ql-snow { border-color: #cbd5e1; border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; background: #f8fafc; }
         .ql-container.ql-snow { border-color: #cbd5e1; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; font-family: inherit; font-size: 1rem; }
     </style>
