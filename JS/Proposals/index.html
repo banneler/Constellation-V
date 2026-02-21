@@ -537,14 +537,16 @@
                         finalDoc.addPage(page);
                     }
 
-             /// 2. PRICING STAMPING (Repaired for Consistent Width & Readability)
+/// 2. PRICING STAMPING (Repaired for 2-Column Grid & Consistency)
 else if (slideFile === 'CUSTOM_PRICING') {
     const bgUrl = `Proposal_Assets/00_Blank_Page.pdf`;
     const existingPdfBytes = await fetch(bgUrl).then(res => res.arrayBuffer());
     const bgDoc = await PDFDocument.load(existingPdfBytes);
     
-    // Width configuration
-    const printWidth = PAGE_WIDTH - 72; // Exactly 540pt (7.5 inches)
+    // Grid Configuration
+    const fullWidth = PAGE_WIDTH - 72; // 540pt (7.5")
+    const colWidth = 260; // Slightly less than half for the gutter
+    const gutter = 20;
     const bottomMargin = 120; 
 
     let pricingPage;
@@ -557,49 +559,50 @@ else if (slideFile === 'CUSTOM_PRICING') {
     };
 
     pricingPage = await spawnPricingPage(false);
-    let currentY = PAGE_HEIGHT - 100; 
-
+    
     const locations = document.querySelectorAll('.location-block');
     const hiddenTemplate = document.getElementById('hidden-pricing-template');
+    
+    // TRACKING STATE
+    let currentY = 692; 
+    let colIndex = 0; // 0 = Left, 1 = Right
+    const colXs = [36, 36 + colWidth + gutter];
+    let colYs = [692, 692]; // Track Y independently for each column
 
     for (let i = 0; i < locations.length; i++) {
         const loc = locations[i];
         const locName = loc.querySelector('.location-name').value;
         const locTotalText = loc.querySelector('.location-total').innerText;
 
-        // Bumping font sizes here: text-sm -> text-base, text-xs -> text-sm
+        // BUMPED FONT SIZES & PADDING FOR "SIZING UP"
         let locHTML = `
-        <div style="width: 740px;" class="border border-slate-300 rounded-lg shadow-sm bg-transparent mb-6 font-sans text-slate-800">
-            <div class="bg-blue-800 text-white font-bold p-4 rounded-t-lg text-xl uppercase tracking-wider">${locName}</div>
-            <div class="flex bg-blue-600 text-white font-bold text-sm uppercase tracking-wider p-3">
-                <div class="w-1/2 pl-2">Product / Service</div>
-                <div class="w-1/6 text-center">List Price</div>
+        <div style="width: ${locations.length === 1 ? '740px' : '360px'};" class="border-2 border-slate-300 rounded-xl shadow-sm bg-transparent mb-6 font-sans text-slate-800">
+            <div class="bg-blue-800 text-white font-bold p-4 rounded-t-lg ${locations.length === 1 ? 'text-xl' : 'text-base'} uppercase tracking-wider">${locName}</div>
+            <div class="flex bg-blue-600 text-white font-bold text-xs uppercase tracking-wider p-2">
+                <div class="w-1/2 pl-2">Product</div>
+                <div class="w-1/6 text-center">Price</div>
                 <div class="w-1/6 text-center">Qty</div>
-                <div class="w-1/6 text-right pr-4">Total</div>
+                <div class="w-1/6 text-right pr-2">Total</div>
             </div>
             <div class="divide-y divide-slate-300 bg-transparent">
         `;
 
         loc.querySelectorAll('.pricing-row').forEach(row => {
-            const prod = row.querySelector('.row-product').value || 'TBD';
-            const price = parseFloat(row.querySelector('.row-price').value) || 0;
-            const qty = parseInt(row.querySelector('.row-qty').value) || 0;
-            const lineTotal = price * qty;
             locHTML += `
-                <div class="flex p-4 text-base text-slate-800 font-bold bg-transparent">
-                    <div class="w-1/2 pl-2">${prod}</div>
-                    <div class="w-1/6 text-center">$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                    <div class="w-1/6 text-center">${qty}</div>
-                    <div class="w-1/6 text-right pr-4">$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                <div class="flex p-3 ${locations.length === 1 ? 'text-base' : 'text-sm'} font-bold bg-transparent">
+                    <div class="w-1/2 pl-2">${row.querySelector('.row-product').value || 'TBD'}</div>
+                    <div class="w-1/6 text-center">$${parseFloat(row.querySelector('.row-price').value || 0).toLocaleString()}</div>
+                    <div class="w-1/6 text-center">${row.querySelector('.row-qty').value}</div>
+                    <div class="w-1/6 text-right pr-2">${row.querySelector('.row-total').innerText}</div>
                 </div>
             `;
         });
 
         locHTML += `
             </div>
-            <div class="flex bg-slate-100 text-slate-900 font-black p-4 rounded-b-lg items-center justify-between border-t border-slate-300">
-                <div class="text-sm uppercase tracking-widest text-slate-600">Location Total</div>
-                <div class="text-2xl pr-2">${locTotalText}</div>
+            <div class="flex bg-slate-100 text-slate-900 font-black p-3 rounded-b-lg items-center justify-between border-t border-slate-300">
+                <div class="text-[10px] uppercase tracking-widest text-slate-500">Location Total</div>
+                <div class="${locations.length === 1 ? 'text-2xl' : 'text-xl'} pr-1">${locTotalText}</div>
             </div>
         </div>`;
 
@@ -610,54 +613,69 @@ else if (slideFile === 'CUSTOM_PRICING') {
 
         const pngImage = await finalDoc.embedPng(canvas.toDataURL('image/png'));
         
-        // REPAIR: Manual aspect ratio calculation forces consistent width
+        // LOGIC: IF 1 LOCATION, DRAW FULL WIDTH. IF > 1, DRAW IN COLUMNS.
+        const drawWidth = (locations.length === 1) ? fullWidth : colWidth;
         const ratio = pngImage.height / pngImage.width;
-        const drawHeight = printWidth * ratio;
+        const drawHeight = drawWidth * ratio;
 
-        if (currentY - drawHeight < bottomMargin) {
-            pricingPage = await spawnPricingPage(true); 
-            currentY = PAGE_HEIGHT - 100;
+        // PAGINATION CHECK
+        const targetCol = (locations.length === 1) ? 0 : colIndex;
+        if (colYs[targetCol] - drawHeight < bottomMargin) {
+            pricingPage = await spawnPricingPage(true);
+            colYs = [692, 692];
+            currentY = 692;
         }
 
         pricingPage.drawImage(pngImage, {
-            x: 36, 
-            y: currentY - drawHeight,
-            width: printWidth, // Forced to 540pt
+            x: (locations.length === 1) ? 36 : colXs[colIndex], 
+            y: colYs[targetCol] - drawHeight,
+            width: drawWidth,
             height: drawHeight
         });
 
-        currentY -= (drawHeight + 25); 
+        // Advance Tracking
+        if (locations.length === 1) {
+            colYs[0] -= (drawHeight + 30);
+        } else {
+            colYs[colIndex] -= (drawHeight + 20);
+            colIndex = (colIndex === 0) ? 1 : 0; // Swap Left/Right
+            
+            // If we just filled the right column, sync both Ys to the lowest point
+            if (colIndex === 0) {
+                const lowestY = Math.min(colYs[0], colYs[1]);
+                colYs = [lowestY, lowestY];
+            }
+        }
     }
 
-    // GRAND TOTAL BLOCK (Also forced to full width)
+    // FINAL GRAND TOTAL BLOCK (Forced to bottom centered)
     const grandTotalText = document.getElementById('ui-grand-total').innerText;
     let totalHTML = `
-    <div style="width: 740px;" class="flex bg-slate-900 text-white font-black p-6 rounded-lg items-center justify-between font-sans shadow-xl border-2 border-slate-700">
-        <div class="text-xl uppercase tracking-widest">Grand Total Monthly Investment</div>
+    <div style="width: 740px;" class="flex bg-slate-900 text-white font-black p-6 rounded-xl items-center justify-between font-sans shadow-2xl border-2 border-slate-700">
+        <div class="text-xl uppercase tracking-widest text-blue-200">Grand Total Monthly Investment</div>
         <div class="text-4xl pr-2 text-blue-400">${grandTotalText}</div>
     </div>
-    <p style="width: 740px;" class="text-center mt-8 text-slate-500 text-sm font-bold font-sans tracking-wide">Pricing based on standard 36-month term agreement.</p>
+    <p style="width: 740px;" class="text-center mt-6 text-slate-500 text-xs font-bold font-sans">Pricing based on standard 36-month term agreement.</p>
     `;
 
     hiddenTemplate.innerHTML = totalHTML;
-    hiddenTemplate.classList.remove('top-[-9999px]', 'left-[-9999px]', 'absolute');
     const totalCanvas = await html2canvas(hiddenTemplate, { scale: 2, backgroundColor: null });
-    hiddenTemplate.classList.add('top-[-9999px]', 'left-[-9999px]', 'absolute');
-    
     const totalPng = await finalDoc.embedPng(totalCanvas.toDataURL('image/png'));
     const tRatio = totalPng.height / totalPng.width;
-    const tDrawHeight = printWidth * tRatio;
+    const tDrawHeight = fullWidth * tRatio;
 
-    if (currentY - tDrawHeight < bottomMargin) {
+    // Find the lowest Y between columns to stamp the total
+    const finalY = Math.min(colYs[0], colYs[1]);
+    if (finalY - tDrawHeight < bottomMargin) {
         pricingPage = await spawnPricingPage(true);
-        currentY = PAGE_HEIGHT - 100;
+        currentY = 692;
+    } else {
+        currentY = finalY;
     }
 
     pricingPage.drawImage(totalPng, {
-        x: 36, 
-        y: currentY - tDrawHeight,
-        width: printWidth, 
-        height: tDrawHeight
+        x: 36, y: currentY - tDrawHeight - 10,
+        width: fullWidth, height: tDrawHeight
     });
 }
 
