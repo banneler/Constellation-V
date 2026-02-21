@@ -13,6 +13,7 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .gpc-pdf-font { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
     </style>
 </head>
 <body class="bg-gray-100 text-slate-800 font-sans h-screen flex flex-col">
@@ -83,7 +84,13 @@
                     </div>
 
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 border-t-4 border-t-slate-800">
-                        <h3 class="text-lg font-bold mb-4 text-slate-900">4. References</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
+                                4. References 
+                                <span id="status-references" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
+                            </h3>
+                            <button onclick="previewReferences()" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
+                        </div>
                         <div class="grid grid-cols-2 gap-6" id="references-container">
                             </div>
                     </div>
@@ -99,8 +106,14 @@
 
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col mb-8 border-t-4 border-t-slate-800">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-200 pb-3">
-                            <h3 class="text-lg font-bold text-slate-900">6. Dynamic Pricing Engine</h3>
-                            <button id="add-location-btn" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-slate-900">+ Add Location</button>
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
+                                6. Dynamic Pricing Engine
+                                <span id="status-pricing" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
+                            </h3>
+                            <div class="flex gap-2">
+                                <button id="add-location-btn" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-slate-900">+ Add Location</button>
+                                <button onclick="previewPricing()" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
+                            </div>
                         </div>
                         <div class="mb-6 w-1/3 min-w-[200px]">
                             <label class="block text-sm font-semibold text-slate-700">Contract Term (Months)</label>
@@ -114,18 +127,33 @@
                     </div>
 
                     <div class="text-right pb-10">
-                        <button id="generate-btn" class="bg-orange-500 text-white font-bold text-lg px-10 py-4 rounded shadow-lg hover:bg-orange-600 transition transform hover:-translate-y-1">Generate Proposal</button>
+                        <button id="generate-btn" class="bg-green-600 text-white font-bold text-lg px-10 py-4 rounded shadow-lg hover:bg-green-700 transition transform hover:-translate-y-1">Generate Proposal PDF</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+    <div id="preview-modal" class="hidden absolute inset-0 bg-slate-900 bg-opacity-90 flex flex-col items-center justify-center z-[60] p-8">
+        <h2 class="text-white text-2xl font-bold mb-4" id="preview-title">Preview Rendering</h2>
+        <div class="bg-white rounded shadow-2xl overflow-auto max-h-[70vh] w-full max-w-4xl p-4 flex justify-center">
+            <img id="preview-image" src="" alt="Canvas Preview" class="border shadow-sm max-w-full">
+        </div>
+        <div class="mt-6 flex gap-4">
+            <button onclick="closeModal()" class="bg-slate-700 text-white px-6 py-2 rounded font-bold hover:bg-slate-600">Cancel / Edit</button>
+            <button onclick="commitPreview()" class="bg-green-500 text-white px-6 py-2 rounded font-bold hover:bg-green-600">Looks Good - Commit to Proposal</button>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900 bg-opacity-80 flex flex-col items-center justify-center z-[70]">
+        <svg class="animate-spin h-12 w-12 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <h2 class="text-xl font-bold text-white">Assembling Proposal...</h2>
+    </div>
+
+    <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
         
-        <div id="pricing-render-zone" class="w-full bg-white mb-20 text-slate-800">
+        <div id="pricing-render-zone" class="w-full bg-white text-slate-800 p-8">
             <h1 class="text-3xl font-bold mb-6 text-slate-900">Proposed Pricing</h1>
-            
             <table class="w-full text-left border-collapse mb-8" id="render-table">
                 <thead>
                     <tr class="text-xs uppercase border-b border-slate-400">
@@ -148,14 +176,23 @@
             </table>
             <p class="text-sm text-slate-600" id="render-term-text">Pricing based off XX-month term</p>
         </div>
-    </div>
 
-    <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-900 bg-opacity-80 flex flex-col items-center justify-center z-50">
-        <svg class="animate-spin h-12 w-12 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <h2 class="text-xl font-bold text-white">Assembling Proposal...</h2>
+        <div id="references-render-zone" class="w-full bg-white text-slate-800 p-8">
+            <h1 class="text-3xl font-bold mb-10 text-slate-900">References</h1>
+            <div id="render-references-body" class="space-y-12">
+                </div>
+        </div>
+
     </div>
 
     <script>
+        // --- State Management ---
+        let committedAssets = {
+            pricing: null,
+            references: null
+        };
+        let currentPreviewTarget = null; // Tracks which section is currently in the modal
+
         // --- Passcode & UI ---
         const TEAM_PASSCODE = 'GPC-ENTERPRISE'; 
         document.getElementById('unlock-btn').addEventListener('click', attemptUnlock);
@@ -168,29 +205,28 @@
         }
         new Sortable(document.getElementById('module-list'), { animation: 150, handle: '.handle', ghostClass: 'bg-orange-50' });
 
-        // --- References Generation ---
+        // --- Input Generation ---
         const refsContainer = document.getElementById('references-container');
         for(let i=1; i<=4; i++) {
             refsContainer.insertAdjacentHTML('beforeend', `
                 <div class="space-y-2 border p-4 rounded bg-slate-50 ref-block">
                     <h4 class="font-bold text-slate-700 text-sm uppercase">Reference ${i}</h4>
-                    <input type="text" placeholder="Reference Name" class="w-full border border-slate-300 p-2 rounded text-sm ref-name outline-none focus:border-orange-500">
-                    <input type="text" placeholder="Organization Name" class="w-full border border-slate-300 p-2 rounded text-sm ref-org outline-none focus:border-orange-500">
-                    <input type="text" placeholder="Organization Address" class="w-full border border-slate-300 p-2 rounded text-sm ref-addr outline-none focus:border-orange-500">
+                    <input type="text" placeholder="Reference Name" class="w-full border border-slate-300 p-2 rounded text-sm ref-name outline-none focus:border-orange-500" oninput="resetCommit('references')">
+                    <input type="text" placeholder="Organization Name" class="w-full border border-slate-300 p-2 rounded text-sm ref-org outline-none focus:border-orange-500" oninput="resetCommit('references')">
+                    <input type="text" placeholder="Organization Address" class="w-full border border-slate-300 p-2 rounded text-sm ref-addr outline-none focus:border-orange-500" oninput="resetCommit('references')">
                     <div class="flex gap-2">
-                        <input type="text" placeholder="Phone Number" class="w-1/2 border border-slate-300 p-2 rounded text-sm ref-phone outline-none focus:border-orange-500">
-                        <input type="text" placeholder="Email Address" class="w-1/2 border border-slate-300 p-2 rounded text-sm ref-email outline-none focus:border-orange-500">
+                        <input type="text" placeholder="Phone Number" class="w-1/2 border border-slate-300 p-2 rounded text-sm ref-phone outline-none focus:border-orange-500" oninput="resetCommit('references')">
+                        <input type="text" placeholder="Email Address" class="w-1/2 border border-slate-300 p-2 rounded text-sm ref-email outline-none focus:border-orange-500" oninput="resetCommit('references')">
                     </div>
                 </div>
             `);
         }
 
-        // --- USAC File ---
         document.getElementById('usac-upload').addEventListener('change', e => {
-            document.getElementById('usac-filename').textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop original RFP PDF here, or click to browse";
+            document.getElementById('usac-filename').textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop original RFP PDF here";
         });
 
-        // --- Dynamic Pricing UI Engine ---
+        // --- Dynamic Pricing UI ---
         const locationsContainer = document.getElementById('locations-container');
         let locationCount = 0;
         addLocationBlock();
@@ -202,7 +238,7 @@
             const html = `
                 <div class="border border-slate-200 rounded-lg p-5 bg-white relative" id="${locId}">
                     <button class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 font-bold text-sm remove-location-btn">X</button>
-                    <div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location Name or Address (e.g., 123 Main St)"></div>
+                    <div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location Name or Address (e.g., 123 Main St)" oninput="resetCommit('pricing')"></div>
                     <table class="w-full text-left border-collapse mb-4 min-w-[600px]">
                         <thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase"><th class="p-3">PRODUCT</th><th class="p-3 w-32">LIST PRICE</th><th class="p-3 w-24">QTY</th><th class="p-3 w-32 text-right">TOTAL</th><th class="p-3 w-12"></th></tr></thead>
                         <tbody class="line-items-body"></tbody>
@@ -217,17 +253,18 @@
             addRow(block);
             block.querySelector('.add-row-btn').addEventListener('click', () => addRow(block));
             block.querySelector('.remove-location-btn').addEventListener('click', () => {
-                if (locationsContainer.children.length > 1) { block.remove(); calculateGrandTotal(); }
+                if (locationsContainer.children.length > 1) { block.remove(); calculateGrandTotal(); resetCommit('pricing'); }
             });
+            resetCommit('pricing');
         }
 
         function addRow(block) {
             const tbody = block.querySelector('.line-items-body');
             const html = `
                 <tr class="border-b border-slate-100 group">
-                    <td class="p-2"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name"></td>
-                    <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01"></td>
-                    <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="1"></td>
+                    <td class="p-2"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" oninput="resetCommit('pricing')"></td>
+                    <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01" oninput="resetCommit('pricing')"></td>
+                    <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="1" oninput="resetCommit('pricing')"></td>
                     <td class="p-2 text-right font-semibold text-slate-700 row-total">$0.00</td>
                     <td class="p-2 text-center"><button class="text-slate-300 hover:text-red-500 font-bold opacity-0 group-hover:opacity-100 remove-row-btn">X</button></td>
                 </tr>`;
@@ -235,7 +272,8 @@
             const row = tbody.lastElementChild;
             row.querySelector('.price-input').addEventListener('input', () => updateMath(row, block));
             row.querySelector('.qty-input').addEventListener('input', () => updateMath(row, block));
-            row.querySelector('.remove-row-btn').addEventListener('click', () => { if (tbody.children.length > 1) { row.remove(); updateMath(null, block); } });
+            row.querySelector('.remove-row-btn').addEventListener('click', () => { if (tbody.children.length > 1) { row.remove(); updateMath(null, block); resetCommit('pricing'); } });
+            resetCommit('pricing');
         }
 
         function updateMath(row, block) {
@@ -260,33 +298,135 @@
             document.getElementById('grand-total').textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(gt);
         }
 
-        // --- Payload Compiler & PDF Generation ---
+        document.getElementById('contract-term').addEventListener('input', () => resetCommit('pricing'));
+
+        // --- Commit Workflow Logic ---
+        function resetCommit(type) {
+            committedAssets[type] = null;
+            const badge = document.getElementById(`status-${type}`);
+            badge.innerText = 'Not Committed';
+            badge.className = 'text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal';
+        }
+
+        async function previewPricing() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            // Map inputs to HTML render zone
+            const renderBody = document.getElementById('render-table-body');
+            renderBody.innerHTML = ''; 
+            
+            const locations = Array.from(document.querySelectorAll('#locations-container > div')).map(block => ({
+                name: block.querySelector('.loc-name-input').value,
+                items: Array.from(block.querySelectorAll('.line-items-body tr')).map(tr => ({
+                    prod: tr.querySelector('.prod-name').value, price: tr.querySelector('.price-input').value,
+                    qty: tr.querySelector('.qty-input').value, total: tr.querySelector('.row-total').innerText
+                }))
+            }));
+
+            if(locations.length > 1) {
+                locations.forEach(loc => {
+                    renderBody.insertAdjacentHTML('beforeend', `<tr><td colspan="4" class="py-2 px-2 font-bold text-slate-800 uppercase">${loc.name || 'Location'}</td></tr>`);
+                    loc.items.forEach(item => {
+                        renderBody.insertAdjacentHTML('beforeend', `<tr class="border-b border-slate-100"><td class="py-2 px-2">${item.prod}</td><td class="py-2 px-2">$${item.price}</td><td class="py-2 px-2 text-center">${item.qty}</td><td class="py-2 px-2 text-right">${item.total}</td></tr>`);
+                    });
+                });
+            } else if (locations.length === 1) {
+                locations[0].items.forEach(item => {
+                    renderBody.insertAdjacentHTML('beforeend', `<tr class="border-b border-slate-100"><td class="py-3 px-2">${item.prod}</td><td class="py-3 px-2">$${item.price}</td><td class="py-3 px-2 text-center">${item.qty}</td><td class="py-3 px-2 text-right">${item.total}</td></tr>`);
+                });
+            }
+
+            document.getElementById('render-grand-total').innerText = document.getElementById('grand-total').innerText;
+            const term = document.getElementById('contract-term').value || 'XX';
+            document.getElementById('render-term-text').innerText = `Pricing based off ${term}-month term`;
+
+            // Canvas Render
+            const renderZone = document.getElementById('pricing-render-zone');
+            const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
+            const imgData = canvas.toDataURL('image/png');
+            
+            document.getElementById('loading-overlay').classList.add('hidden');
+            openModal(imgData, 'pricing', 'Preview Pricing Table');
+        }
+
+        async function previewReferences() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            
+            const renderBody = document.getElementById('render-references-body');
+            renderBody.innerHTML = '';
+            
+            const refs = Array.from(document.querySelectorAll('.ref-block')).map(b => ({
+                name: b.querySelector('.ref-name').value, org: b.querySelector('.ref-org').value,
+                addr: b.querySelector('.ref-addr').value, phone: b.querySelector('.ref-phone').value, email: b.querySelector('.ref-email').value
+            })).filter(r => r.name || r.org);
+
+            refs.forEach(ref => {
+                renderBody.insertAdjacentHTML('beforeend', `
+                    <div class="leading-tight">
+                        <div class="text-lg font-bold text-orange-600">${ref.name}</div>
+                        <div class="text-base text-slate-700">${ref.org}</div>
+                        <div class="text-base text-slate-700">${ref.addr}</div>
+                        <div class="text-base text-slate-700">${ref.phone}  |  ${ref.email}</div>
+                    </div>
+                `);
+            });
+
+            const renderZone = document.getElementById('references-render-zone');
+            const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
+            const imgData = canvas.toDataURL('image/png');
+            
+            document.getElementById('loading-overlay').classList.add('hidden');
+            openModal(imgData, 'references', 'Preview References');
+        }
+
+        function openModal(imgSrc, type, title) {
+            currentPreviewTarget = type;
+            document.getElementById('preview-title').innerText = title;
+            document.getElementById('preview-image').src = imgSrc;
+            document.getElementById('preview-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('preview-modal').classList.add('hidden');
+            currentPreviewTarget = null;
+        }
+
+        function commitPreview() {
+            if(currentPreviewTarget) {
+                // Save to memory
+                committedAssets[currentPreviewTarget] = document.getElementById('preview-image').src;
+                // Update UI Badge
+                const badge = document.getElementById(`status-${currentPreviewTarget}`);
+                badge.innerText = '✅ Committed';
+                badge.className = 'text-xs px-2 py-1 rounded bg-green-100 text-green-700 font-bold border border-green-300';
+            }
+            closeModal();
+        }
+
+        // --- Final PDF Assembly ---
         document.getElementById('generate-btn').addEventListener('click', async () => {
+            
+            // Check logic to see if they included slides but forgot to commit
+            const activeSlides = [];
+            document.querySelectorAll('#module-list li').forEach(li => {
+                if(li.querySelector('.slide-toggle').checked) activeSlides.push(li.getAttribute('data-filename'));
+            });
+
+            if (activeSlides.includes('CUSTOM_REFERENCES') && !committedAssets.references) {
+                alert("Please Preview & Commit your References before generating the proposal.");
+                return;
+            }
+            if (!committedAssets.pricing) {
+                alert("Please Preview & Commit your Pricing Engine before generating the proposal.");
+                return;
+            }
+
             const payload = {
                 globals: { biz: document.getElementById('global-biz').value, rfpName: document.getElementById('global-rfp').value, rep: document.getElementById('global-rep').value },
-                slides: [],
+                slides: activeSlides,
                 freeflow: document.getElementById('freeflow-content').value,
-                refs: Array.from(document.querySelectorAll('.ref-block')).map(b => ({
-                    name: b.querySelector('.ref-name').value, org: b.querySelector('.ref-org').value,
-                    addr: b.querySelector('.ref-addr').value, phone: b.querySelector('.ref-phone').value, email: b.querySelector('.ref-email').value
-                })).filter(r => r.name || r.org),
-                pricing: {
-                    term: document.getElementById('contract-term').value,
-                    grandTotal: document.getElementById('grand-total').innerText,
-                    locations: Array.from(document.querySelectorAll('#locations-container > div')).map(block => ({
-                        name: block.querySelector('.loc-name-input').value,
-                        items: Array.from(block.querySelectorAll('.line-items-body tr')).map(tr => ({
-                            prod: tr.querySelector('.prod-name').value, price: tr.querySelector('.price-input').value,
-                            qty: tr.querySelector('.qty-input').value, total: tr.querySelector('.row-total').innerText
-                        }))
-                    }))
-                },
                 usacFile: document.getElementById('usac-upload').files[0]
             };
-
-            document.querySelectorAll('#module-list li').forEach(li => {
-                if(li.querySelector('.slide-toggle').checked) payload.slides.push(li.getAttribute('data-filename'));
-            });
 
             document.getElementById('loading-overlay').classList.remove('hidden');
             try { await generatePDFDocument(payload); } 
@@ -294,14 +434,12 @@
             finally { document.getElementById('loading-overlay').classList.add('hidden'); }
         });
 
-        // --- Assembly Engine ---
         async function generatePDFDocument(payload) {
             const { PDFDocument, rgb, StandardFonts } = PDFLib;
             const finalDoc = await PDFDocument.create();
             const font = await finalDoc.embedFont(StandardFonts.Helvetica);
             const boldFont = await finalDoc.embedFont(StandardFonts.HelveticaBold);
 
-            // Standard 8.5x11 inch points (Portrait)
             const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
 
             for (const slideFile of payload.slides) {
@@ -310,76 +448,30 @@
                     page.drawText(payload.globals.biz ? `${payload.globals.biz} Solution Overview` : "Solution Overview", { x: 50, y: PAGE_HEIGHT - 80, size: 28, font: boldFont, color: rgb(0.9, 0.4, 0) });
                     page.drawText(payload.freeflow, { x: 50, y: PAGE_HEIGHT - 130, size: 12, font: font, color: rgb(0.2, 0.2, 0.2), maxWidth: 512, lineHeight: 18 });
                 
-                } else if (slideFile === 'CUSTOM_REFERENCES') {
+                } else if (slideFile === 'CUSTOM_REFERENCES' && committedAssets.references) {
+                    // FAST RENDER from Memory!
                     const page = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-                    page.drawText("References", { x: 50, y: PAGE_HEIGHT - 80, size: 28, font: boldFont, color: rgb(0.2, 0.2, 0.3) });
-                    
-                    let yOffset = PAGE_HEIGHT - 140;
-                    payload.refs.forEach((ref) => {
-                        page.drawText(ref.name, { x: 50, y: yOffset, size: 14, font: boldFont, color: rgb(0.9, 0.4, 0) });
-                        page.drawText(ref.org, { x: 50, y: yOffset - 18, size: 12, font: font });
-                        page.drawText(ref.addr, { x: 50, y: yOffset - 36, size: 12, font: font });
-                        page.drawText(`${ref.phone} | ${ref.email}`, { x: 50, y: yOffset - 54, size: 12, font: font });
-                        yOffset -= 100; 
-                    });
+                    const pngImage = await finalDoc.embedPng(committedAssets.references);
+                    const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 100);
+                    page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 50, width: imgDims.width, height: imgDims.height });
 
                 } else {
                     try {
                         const existingPdfBytes = await fetch(`Proposal_Assets/${slideFile}`).then(res => res.arrayBuffer());
                         const existingPdf = await PDFDocument.load(existingPdfBytes);
-                        
-                        // Example data injection for Title Page (We'll map exact coordinates later!)
-                        // if (slideFile === '01_Title_Page.pdf') { ... }
-
                         const copiedPages = await finalDoc.copyPages(existingPdf, existingPdf.getPageIndices());
                         copiedPages.forEach(p => finalDoc.addPage(p));
                     } catch (e) { console.warn(`Could not load ${slideFile}`); }
                 }
             }
 
-            // --- Generate Image from HTML for Pricing Page ---
-            const renderBody = document.getElementById('render-table-body');
-            renderBody.innerHTML = ''; 
-            
-            if(payload.pricing.locations.length > 1) {
-                payload.pricing.locations.forEach(loc => {
-                    renderBody.insertAdjacentHTML('beforeend', `<tr><td colspan="4" class="py-2 px-2 font-bold text-slate-800 uppercase">${loc.name || 'Location'}</td></tr>`);
-                    loc.items.forEach(item => {
-                        renderBody.insertAdjacentHTML('beforeend', `
-                            <tr class="border-b border-slate-100">
-                                <td class="py-2 px-2">${item.prod}</td>
-                                <td class="py-2 px-2">$${item.price}</td>
-                                <td class="py-2 px-2 text-center">${item.qty}</td>
-                                <td class="py-2 px-2 text-right">${item.total}</td>
-                            </tr>`);
-                    });
-                });
-            } else if (payload.pricing.locations.length === 1) {
-                payload.pricing.locations[0].items.forEach(item => {
-                    renderBody.insertAdjacentHTML('beforeend', `
-                        <tr class="border-b border-slate-100">
-                            <td class="py-3 px-2">${item.prod}</td>
-                            <td class="py-3 px-2">$${item.price}</td>
-                            <td class="py-3 px-2 text-center">${item.qty}</td>
-                            <td class="py-3 px-2 text-right">${item.total}</td>
-                        </tr>`);
-                });
+            // FAST RENDER Pricing from Memory!
+            if (committedAssets.pricing) {
+                const pricingPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                const pngImage = await finalDoc.embedPng(committedAssets.pricing);
+                const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 100); 
+                pricingPage.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 50, width: imgDims.width, height: imgDims.height });
             }
-
-            document.getElementById('render-grand-total').innerText = payload.pricing.grandTotal;
-            document.getElementById('render-term-text').innerText = `Pricing based off ${payload.pricing.term || 'XX'}-month term`;
-
-            const renderZone = document.getElementById('pricing-render-zone');
-            const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
-            const imgData = canvas.toDataURL('image/png');
-            
-            const pricingPage = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-            const pngImage = await finalDoc.embedPng(imgData);
-            
-            // Fit image beautifully into an 8.5x11 portrait layout
-            const maxImgWidth = PAGE_WIDTH - 100; 
-            const imgDims = pngImage.scaleToFit(maxImgWidth, PAGE_HEIGHT - 200); 
-            pricingPage.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 80, width: imgDims.width, height: imgDims.height });
 
             if (payload.usacFile) {
                 const usacBytes = await payload.usacFile.arrayBuffer();
