@@ -205,13 +205,10 @@
     <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
         
         <div id="freeflow-render-zone" class="w-full bg-white text-black p-8 ql-snow">
-            <h1 class="text-3xl font-bold mb-8 text-slate-900" id="render-freeflow-title"></h1>
             <div id="render-freeflow-body" class="ql-editor" style="overflow: visible !important; height: auto !important; max-height: none !important; padding: 0; font-size: 16px; line-height: 1.5;"></div>
         </div>
 
      <div id="pricing-render-zone" class="w-full bg-white text-black p-4 gpc-pdf-font" style="width: 800px;">
-    <h1 class="text-3xl font-bold mb-6 text-slate-900">Proposed Pricing</h1>
-    
     <div id="flex-table-container" style="border: 2px solid #DE5A24; width: 750px;">
         <div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase;">
             <div style="width: 380px; padding: 12px 16px; border-right: 1px solid #DE5A24;">PRODUCT</div>
@@ -396,19 +393,7 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
             await document.fonts.ready;
             
-            const titleInputId = type === 'cover' ? 'cover-title-input' : 'custom-text-title-input';
             const quillInstance = type === 'cover' ? quillCover : quillCustomText;
-            
-            const titleVal = document.getElementById(titleInputId).value.trim();
-            const titleEl = document.getElementById('render-freeflow-title');
-            
-            if (titleVal === '') {
-                titleEl.style.display = 'none';
-            } else {
-                titleEl.style.display = 'block';
-                titleEl.innerText = titleVal;
-            }
-            
             document.getElementById('render-freeflow-body').innerHTML = quillInstance.root.innerHTML;
 
             await new Promise(r => setTimeout(r, 100));
@@ -439,7 +424,6 @@
     }));
 
     locations.forEach(loc => {
-        // Only show location header if there are multiple locations
         if (locations.length > 1) {
             flexBody.insertAdjacentHTML('beforeend', `
                 <div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #A6A6A6;">
@@ -449,7 +433,6 @@
         }
 
         loc.items.forEach((item, index) => {
-            // Determine zebra stripe color
             let bgColor = "#ffffff";
             if (locations.length === 1) {
                 bgColor = (index % 2 === 0) ? "#E8E8E8" : "#ffffff";
@@ -468,7 +451,6 @@
         });
     });
 
-    // Update Totals
     document.getElementById('render-grand-total-flex').innerText = document.getElementById('grand-total').innerText;
     const term = document.getElementById('contract-term').value || 'XX';
     document.getElementById('render-term-text-flex').innerText = `Pricing based off ${term}-month term`;
@@ -599,11 +581,30 @@
         }
     }
 
-    async function stampImagePage(base64Image) {
+    // Centralized Image Stamping & Header Injection
+    async function stampImagePage(base64Image, headerText) {
         const page = await getBasePage();
+        
+        // 1. Inject the White Header Text at the specified coordinates
+        if (headerText && headerText.trim() !== '') {
+            page.drawText(headerText, { 
+                x: 44,      
+                y: 662,     
+                size: 28,   
+                font: boldFont, 
+                color: rgb(1, 1, 1) 
+            });
+        }
+
+        // 2. Stamp the HTML image below the header area
         const pngImage = await finalDoc.embedPng(base64Image);
-        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
-        page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
+        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 160); 
+        page.drawImage(pngImage, { 
+            x: 50, 
+            y: PAGE_HEIGHT - imgDims.height - 120, 
+            width: imgDims.width, 
+            height: imgDims.height 
+        });
     }
 
     async function appendUploadedPdf(fileObj) {
@@ -615,10 +616,20 @@
 
     // Master Loop
     for (const slideFile of payload.slides) {
-        if (slideFile === 'CUSTOM_COVER') { await stampImagePage(committedAssets.cover); } 
-        else if (slideFile === 'CUSTOM_TEXT') { await stampImagePage(committedAssets.customText); } 
-        else if (slideFile === 'CUSTOM_REFERENCES') { await stampImagePage(committedAssets.references); } 
-        else if (slideFile === 'CUSTOM_PRICING') { await stampImagePage(committedAssets.pricing); }
+        if (slideFile === 'CUSTOM_COVER') { 
+            const title = document.getElementById('cover-title-input').value;
+            await stampImagePage(committedAssets.cover, title); 
+        } 
+        else if (slideFile === 'CUSTOM_TEXT') { 
+            const title = document.getElementById('custom-text-title-input').value;
+            await stampImagePage(committedAssets.customText, title); 
+        } 
+        else if (slideFile === 'CUSTOM_REFERENCES') { 
+            await stampImagePage(committedAssets.references, "References"); 
+        } 
+        else if (slideFile === 'CUSTOM_PRICING') { 
+            await stampImagePage(committedAssets.pricing, "Proposed Pricing"); 
+        }
         else if (slideFile === 'CUSTOM_PDF') { await appendUploadedPdf(payload.customPdfFile); }
         else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
         else {
@@ -629,28 +640,23 @@
 
 // --- DATA INJECTION FOR TITLE PAGE (v1.6 - Left Aligned @ 280x) ---
 if (slideFile === '01_Title_Page.pdf') {
-    // Sync and truncate to 33 characters
     const rfpText = (document.getElementById('global-rfp').value || "").substring(0, 33);
     const bizText = (document.getElementById('global-biz').value || "").substring(0, 33);
     const repText = (document.getElementById('global-rep').value || "").substring(0, 33);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Business Name (Largest)
     page.drawText(bizText, { 
         x: 285, y: 120, size: 26, font: boldFont, color: rgb(1, 1, 1) 
     });
 
-    // RFP Name
     page.drawText(rfpText, { 
         x: 285, y: 90, size: 18, font: boldFont, color: rgb(1, 1, 1) 
     });
 
-    // Sales Rep
     page.drawText(`Presented by: ${repText}`, { 
         x: 285, y: 65, size: 12, font: font, color: rgb(1, 1, 1) 
     });
 
-    // Date
     page.drawText(today, { 
         x: 285, y: 45, size: 10, font: font, color: rgb(1, 1, 1) 
     });
