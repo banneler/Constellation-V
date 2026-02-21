@@ -501,15 +501,16 @@
                 for (let li of checkedItems) {
                     const slideFile = li.getAttribute('data-filename');
 
-                  // 1. TITLE PAGE LOGIC
+                 // 1. TITLE PAGE LOGIC (Spectrum Navy & Title Case)
                     if (slideFile === '01_Title_Page.pdf') {
                         const url = `Proposal_Assets/${slideFile}`;
                         const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
                         const pdfDoc = await PDFDocument.load(existingPdfBytes);
                         const [page] = await finalDoc.copyPages(pdfDoc, [0]);
                         
-                        const clientName = document.getElementById('client-name').value.toUpperCase();
-                        const repName = document.getElementById('sales-rep').value || "Jenni B."; // Defaults to Jenni if left blank!
+                        // Removed .toUpperCase() - It now prints exactly as you type it in the UI!
+                        const clientName = document.getElementById('client-name').value;
+                        const repName = document.getElementById('sales-rep').value || "Jenni B."; 
                         
                         // Text Anchor Coordinates
                         const startX = 50;
@@ -521,7 +522,7 @@
                                 x: startX, y: currentY, size: 12, font: boldFont, color: spectrumNavy 
                             });
                             
-                            // Massive Client Name
+                            // Massive Client Name (Title Case)
                             currentY -= 35;
                             page.drawText(clientName, { 
                                 x: startX, y: currentY, size: 32, font: boldFont, color: spectrumNavy 
