@@ -565,68 +565,84 @@
             finally { document.getElementById('loading-overlay').classList.add('hidden'); }
         });
 
-        async function generatePDFDocument(payload) {
-            const { PDFDocument } = PDFLib;
-            const finalDoc = await PDFDocument.create();
+    async function generatePDFDocument(payload) {
+    const { PDFDocument, rgb, StandardFonts } = PDFLib;
+    const finalDoc = await PDFDocument.create();
+    
+    // Load Fonts
+    const font = await finalDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await finalDoc.embedFont(StandardFonts.HelveticaBold);
 
-            const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
+    const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
 
-            let letterheadPdf;
-            try {
-                const letterheadBytes = await fetch(`Proposal_Assets/GPC_Blank_Letterhead.pdf`).then(res => res.arrayBuffer());
-                letterheadPdf = await PDFDocument.load(letterheadBytes);
-            } catch (e) {
-                console.warn("Could not load GPC_Blank_Letterhead.pdf. Falling back to blank page.");
-            }
+    let letterheadPdf;
+    try {
+        const letterheadBytes = await fetch(`Proposal_Assets/GPC_Blank_Letterhead.pdf`).then(res => res.arrayBuffer());
+        letterheadPdf = await PDFDocument.load(letterheadBytes);
+    } catch (e) {
+        console.warn("Letterhead not found. Falling back to blank page.");
+    }
 
-            async function getBasePage() {
-                if (letterheadPdf) {
-                    const [copiedPage] = await finalDoc.copyPages(letterheadPdf, [0]);
-                    finalDoc.addPage(copiedPage);
-                    return copiedPage;
-                } else {
-                    return finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]); 
-                }
-            }
-
-            async function stampImagePage(base64Image) {
-                const page = await getBasePage();
-                const pngImage = await finalDoc.embedPng(base64Image);
-                const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
-                page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
-            }
-
-            async function appendUploadedPdf(fileObj) {
-                const bytes = await fileObj.arrayBuffer();
-                const pdf = await PDFDocument.load(bytes);
-                const pages = await finalDoc.copyPages(pdf, pdf.getPageIndices());
-                pages.forEach(p => finalDoc.addPage(p));
-            }
-
-            for (const slideFile of payload.slides) {
-                if (slideFile === 'CUSTOM_COVER') { await stampImagePage(committedAssets.cover); } 
-                else if (slideFile === 'CUSTOM_TEXT') { await stampImagePage(committedAssets.customText); } 
-                else if (slideFile === 'CUSTOM_REFERENCES') { await stampImagePage(committedAssets.references); } 
-                else if (slideFile === 'CUSTOM_PRICING') { await stampImagePage(committedAssets.pricing); }
-                else if (slideFile === 'CUSTOM_PDF') { await appendUploadedPdf(payload.customPdfFile); }
-                else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
-                else {
-                    try {
-                        const existingPdfBytes = await fetch(`Proposal_Assets/${slideFile}`).then(res => res.arrayBuffer());
-                        const existingPdf = await PDFDocument.load(existingPdfBytes);
-                        const copiedPages = await finalDoc.copyPages(existingPdf, existingPdf.getPageIndices());
-                        copiedPages.forEach(p => finalDoc.addPage(p));
-                    } catch (e) { console.warn(`Could not load ${slideFile}`); }
-                }
-            }
-
-            const pdfBytes = await finalDoc.save();
-            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `${(payload.globals.biz || 'GPC').replace(/ /g, '_')}_Proposal.pdf`;
-            link.click();
+    async function getBasePage() {
+        if (letterheadPdf) {
+            const [copiedPage] = await finalDoc.copyPages(letterheadPdf, [0]);
+            finalDoc.addPage(copiedPage);
+            return copiedPage;
+        } else {
+            return finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]); 
         }
+    }
+
+    async function stampImagePage(base64Image) {
+        const page = await getBasePage();
+        const pngImage = await finalDoc.embedPng(base64Image);
+        const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
+        page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
+    }
+
+    async function appendUploadedPdf(fileObj) {
+        const bytes = await fileObj.arrayBuffer();
+        const pdf = await PDFDocument.load(bytes);
+        const pages = await finalDoc.copyPages(pdf, pdf.getPageIndices());
+        pages.forEach(p => finalDoc.addPage(p));
+    }
+
+    // Master Loop
+    for (const slideFile of payload.slides) {
+        if (slideFile === 'CUSTOM_COVER') { await stampImagePage(committedAssets.cover); } 
+        else if (slideFile === 'CUSTOM_TEXT') { await stampImagePage(committedAssets.customText); } 
+        else if (slideFile === 'CUSTOM_REFERENCES') { await stampImagePage(committedAssets.references); } 
+        else if (slideFile === 'CUSTOM_PRICING') { await stampImagePage(committedAssets.pricing); }
+        else if (slideFile === 'CUSTOM_PDF') { await appendUploadedPdf(payload.customPdfFile); }
+        else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
+        else {
+            try {
+                const existingPdfBytes = await fetch(`Proposal_Assets/${slideFile}`).then(res => res.arrayBuffer());
+                const existingPdf = await PDFDocument.load(existingPdfBytes);
+                const [page] = await finalDoc.copyPages(existingPdf, [0]);
+
+                // --- DATA INJECTION FOR TITLE PAGE ---
+                if (slideFile === '01_Title_Page.pdf') {
+                    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                    
+                    page.drawText(payload.globals.rfpName || '', { x: 315, y: 120, size: 22, font: boldFont, color: rgb(0.07, 0.14, 0.24) });
+                    page.drawText(payload.globals.biz || '', { x: 315, y: 90, size: 22, font: boldFont, color: rgb(0.87, 0.35, 0.14) }); // GPC Orange
+                    page.drawText(`Presented by: ${payload.globals.rep || ''}`, { x: 315, y: 60, size: 12, font: font, color: rgb(0.3, 0.3, 0.3) });
+                    page.drawText(today, { x: 315, y: 40, size: 10, font: font, color: rgb(0.3, 0.3, 0.3) });
+                }
+
+                finalDoc.addPage(page);
+            } catch (e) { console.warn(`Could not load ${slideFile}`); }
+        }
+    }
+
+    const pdfBytes = await finalDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${(payload.globals.biz || 'GPC').replace(/ /g, '_')}_Proposal.pdf`;
+    link.click();
+}
 
         // --- Dirty Data Check before leaving page ---
         window.addEventListener('beforeunload', function (e) {
