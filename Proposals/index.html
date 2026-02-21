@@ -70,10 +70,7 @@
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_COVER">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Cover Letter</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_TEXT">
-                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Page</span>
-                    </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
+                   <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Why GPC?</span>
                     </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="03_About_GPC.pdf">
@@ -94,10 +91,7 @@
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="05_DIA.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Dedicated Internet Access (DIA)</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-slate-400" data-filename="USAC_RFP">
-                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-usac" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">USAC Original RFP</span>
-                    </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="06_SIA.pdf">
+                   <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="06_SIA.pdf">
     <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Standard Internet Access (SIA)</span>
 </li>
 <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="07_CaseStudy.pdf">
@@ -115,6 +109,12 @@
 <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="11_Escalation.pdf">
     <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Escalation Process</span>
 </li>
+                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_TEXT">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Page</span>
+                    </li>
+                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-slate-400" data-filename="USAC_RFP">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-usac" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">USAC Original RFP</span>
+                    </li>
                 </ul>
             </div>
 
@@ -695,7 +695,7 @@ if (slideFile === '09_Project.pdf') {
     // 1. Your exact center X and baseline Y coordinates
     const startCenterX = 207;
     const endCenterX = 406;   
-    const yCoord = 534;       
+    const yCoord = 537;       
 
     // 2. Measure the text width dynamically
     const startWidth = boldFont.widthOfTextAtSize(startDate, fontSize);
