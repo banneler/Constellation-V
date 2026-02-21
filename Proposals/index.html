@@ -17,7 +17,6 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .gpc-pdf-font { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
-        /* Clean up Quill editor border */
         .ql-toolbar.ql-snow { border-color: #cbd5e1; border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; background: #f8fafc; }
         .ql-container.ql-snow { border-color: #cbd5e1; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; font-family: inherit; font-size: 1rem; }
     </style>
@@ -54,13 +53,16 @@
                     <div><label class="block text-sm font-semibold text-slate-700">Sales Rep</label><input type="text" id="global-rep" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
                 </div>
 
-                <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">2. Slide Selection</h2>
+                <h2 class="text-lg font-bold mb-4 border-b border-slate-200 pb-2 text-slate-800">2. Document Flow (Drag to Reorder)</h2>
                 <ul id="module-list" class="space-y-2 flex-1 overflow-y-auto pb-4">
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="01_Title_Page.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Title Page</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_FREEFLOW">
-                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Cover Letter</span>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_COVER">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Cover Letter</span>
+                    </li>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_TEXT">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Custom Freeflow Page</span>
                     </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Why GPC?</span>
@@ -68,36 +70,67 @@
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="03_About_GPC.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">About GPC</span>
                     </li>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-slate-400" data-filename="CUSTOM_PDF">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-custom-pdf" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Upload Custom PDF</span>
+                    </li>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_REFERENCES">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked id="toggle-references" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">References</span>
+                    </li>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_PRICING">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked id="toggle-pricing" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Proposed Pricing</span>
+                    </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="04_NOC_Monitoring.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">24-Hour NOC Monitoring</span>
                     </li>
-                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-orange-400" data-filename="CUSTOM_REFERENCES">
-                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" checked class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">References</span>
-                    </li>
                     <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group" data-filename="05_DIA.pdf">
                         <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">Dedicated Internet Access (DIA)</span>
+                    </li>
+                    <li class="flex items-center bg-slate-50 p-3 rounded border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-slate-400" data-filename="USAC_RFP">
+                        <span class="mr-3 text-slate-400 handle group-hover:text-orange-500">☰</span><input type="checkbox" id="toggle-usac" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700">USAC Original RFP</span>
                     </li>
                 </ul>
             </div>
 
             <div class="flex-1 bg-slate-100 p-8 overflow-y-auto" id="scroll-container">
-                <div class="max-w-5xl mx-auto">
+                <div class="max-w-5xl mx-auto space-y-8">
                     
-                    <div id="cover-letter-section" class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 border-t-4 border-t-slate-800">
+                    <div id="cover-letter-section" class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
-                                3. Custom Cover Letter 
+                                Cover Letter
                                 <span id="status-cover" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
                             </h3>
-                            <button onclick="previewCoverLetter()" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
+                            <button onclick="previewFreeflow('cover')" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
                         </div>
-                        <div id="quill-editor" class="h-64 bg-white"></div>
+                        <input type="text" id="cover-title-input" class="w-full border border-slate-300 p-2 rounded mb-3 bg-slate-50 outline-none focus:border-orange-500 font-bold text-slate-700" placeholder="Document Title (Leave blank for cover pages)" oninput="resetCommit('cover')">
+                        <div id="quill-cover" class="h-64 bg-white"></div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8 border-t-4 border-t-slate-800">
+                    <div id="custom-text-section" class="hidden bg-white p-6 rounded-lg shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
-                                4. References 
+                                Custom Freeflow Page
+                                <span id="status-customText" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
+                            </h3>
+                            <button onclick="previewFreeflow('customText')" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
+                        </div>
+                        <input type="text" id="custom-text-title-input" class="w-full border border-slate-300 p-2 rounded mb-3 bg-slate-50 outline-none focus:border-orange-500 font-bold text-slate-700" placeholder="Document Title (Leave blank for no header)" oninput="resetCommit('customText')">
+                        <div id="quill-custom-text" class="h-64 bg-white"></div>
+                    </div>
+
+                    <div id="custom-pdf-section" class="hidden bg-white p-6 rounded-lg shadow-sm border border-slate-200 border-t-4 border-t-slate-400">
+                        <h3 class="text-lg font-bold mb-2 text-slate-900">Upload Custom PDF (Exec Summary, etc.)</h3>
+                        <input type="file" id="custom-pdf-upload" class="hidden" accept="application/pdf">
+                        <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="document.getElementById('custom-pdf-upload').click()">
+                            <svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-orange-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <span id="custom-pdf-filename" class="mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop Custom PDF here, or click to browse</span>
+                        </div>
+                    </div>
+
+                    <div id="references-section" class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
+                                References 
                                 <span id="status-references" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
                             </h3>
                             <button onclick="previewReferences()" class="bg-orange-500 text-white text-sm font-semibold px-4 py-2 rounded shadow hover:bg-orange-600">Preview & Commit</button>
@@ -106,19 +139,10 @@
                             </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-8">
-                        <h3 class="text-lg font-bold mb-2 text-slate-900">5. USAC Original RFP Upload</h3>
-                        <input type="file" id="usac-upload" class="hidden" accept="application/pdf">
-                        <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="document.getElementById('usac-upload').click()">
-                            <svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-orange-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                            <span id="usac-filename" class="mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop original RFP PDF here, or click to browse</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col mb-8 border-t-4 border-t-slate-800">
+                    <div id="pricing-section" class="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col border-t-4 border-t-slate-800">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-200 pb-3">
                             <h3 class="text-lg font-bold text-slate-900 flex items-center gap-3">
-                                6. Dynamic Pricing Engine
+                                Dynamic Pricing Engine
                                 <span id="status-pricing" class="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal">Not Committed</span>
                             </h3>
                             <div class="flex gap-2">
@@ -137,7 +161,16 @@
                         </div>
                     </div>
 
-                    <div class="text-right pb-10">
+                    <div id="usac-upload-section" class="hidden bg-white p-6 rounded-lg shadow-sm border border-slate-200 border-t-4 border-t-slate-400">
+                        <h3 class="text-lg font-bold mb-2 text-slate-900">USAC Original RFP Upload</h3>
+                        <input type="file" id="usac-upload" class="hidden" accept="application/pdf">
+                        <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="document.getElementById('usac-upload').click()">
+                            <svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-orange-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <span id="usac-filename" class="mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop USAC RFP PDF here, or click to browse</span>
+                        </div>
+                    </div>
+
+                    <div class="text-right pb-10 mt-8">
                         <button id="generate-btn" class="bg-green-600 text-white font-bold text-lg px-10 py-4 rounded shadow-lg hover:bg-green-700 transition transform hover:-translate-y-1">Generate Proposal PDF</button>
                     </div>
                 </div>
@@ -163,9 +196,9 @@
 
     <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
         
-        <div id="cover-render-zone" class="w-full bg-white text-black p-8 ql-snow">
-            <h1 class="text-3xl font-bold mb-8 text-slate-900" id="render-cover-title">Solution Overview</h1>
-            <div id="render-cover-body" class="ql-editor" style="padding: 0; font-size: 16px; line-height: 1.5;"></div>
+        <div id="freeflow-render-zone" class="w-full bg-white text-black p-8 ql-snow">
+            <h1 class="text-3xl font-bold mb-8 text-slate-900" id="render-freeflow-title"></h1>
+            <div id="render-freeflow-body" class="ql-editor" style="padding: 0; font-size: 16px; line-height: 1.5;"></div>
         </div>
 
         <div id="pricing-render-zone" class="w-full bg-white text-black p-4">
@@ -198,21 +231,29 @@
 
     <script>
         // --- State Management ---
-        let committedAssets = { cover: null, pricing: null, references: null };
+        let committedAssets = { cover: null, customText: null, pricing: null, references: null };
         let currentPreviewTarget = null; 
 
         // --- Quill RTE Setup ---
-        var quill = new Quill('#quill-editor', {
-            theme: 'snow',
-            modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] },
-            placeholder: 'Dear [Client Name]...'
-        });
-        quill.on('text-change', function() { resetCommit('cover'); });
+        var quillOptions = { theme: 'snow', modules: { toolbar: [ ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean'] ] } };
+        var quillCover = new Quill('#quill-cover', { ...quillOptions, placeholder: 'Dear [Client Name]...' });
+        var quillCustomText = new Quill('#quill-custom-text', { ...quillOptions, placeholder: 'Start typing custom content...' });
+        
+        quillCover.on('text-change', () => resetCommit('cover'));
+        quillCustomText.on('text-change', () => resetCommit('customText'));
 
-        // Toggle Cover Letter Section Logic
-        document.getElementById('toggle-cover-letter').addEventListener('change', function(e) {
-            document.getElementById('cover-letter-section').style.display = e.target.checked ? 'block' : 'none';
-        });
+        // --- UI Visibility Toggles based on Slide Selection ---
+        function toggleSection(checkboxId, sectionId) {
+            document.getElementById(checkboxId).addEventListener('change', function(e) {
+                document.getElementById(sectionId).style.display = e.target.checked ? 'block' : 'none';
+            });
+        }
+        toggleSection('toggle-cover-letter', 'cover-letter-section');
+        toggleSection('toggle-custom-text', 'custom-text-section');
+        toggleSection('toggle-custom-pdf', 'custom-pdf-section');
+        toggleSection('toggle-references', 'references-section');
+        toggleSection('toggle-pricing', 'pricing-section');
+        toggleSection('toggle-usac', 'usac-upload-section');
 
         // --- Passcode & UI ---
         const TEAM_PASSCODE = 'GPC-ENTERPRISE'; 
@@ -225,6 +266,14 @@
             } else { document.getElementById('error-msg').classList.remove('hidden'); }
         }
         new Sortable(document.getElementById('module-list'), { animation: 150, handle: '.handle', ghostClass: 'bg-orange-50' });
+
+        // --- File Upload Handlers ---
+        document.getElementById('usac-upload').addEventListener('change', e => {
+            document.getElementById('usac-filename').textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop USAC RFP PDF here";
+        });
+        document.getElementById('custom-pdf-upload').addEventListener('change', e => {
+            document.getElementById('custom-pdf-filename').textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop Custom PDF here";
+        });
 
         // --- Input Generation ---
         const refsContainer = document.getElementById('references-container');
@@ -242,10 +291,6 @@
                 </div>
             `);
         }
-
-        document.getElementById('usac-upload').addEventListener('change', e => {
-            document.getElementById('usac-filename').textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop original RFP PDF here";
-        });
 
         // --- Dynamic Pricing UI ---
         const locationsContainer = document.getElementById('locations-container');
@@ -325,34 +370,44 @@
         function resetCommit(type) {
             committedAssets[type] = null;
             const badge = document.getElementById(`status-${type}`);
-            badge.innerText = 'Not Committed';
-            badge.className = 'text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal';
+            if(badge) {
+                badge.innerText = 'Not Committed';
+                badge.className = 'text-xs px-2 py-1 rounded bg-slate-200 text-slate-600 font-normal';
+            }
         }
 
-        async function previewCoverLetter() {
+        async function previewFreeflow(type) {
             document.getElementById('loading-overlay').classList.remove('hidden');
-            
-            // Force browser to acknowledge fonts and layout
             await document.fonts.ready;
             
-            const bizName = document.getElementById('global-biz').value;
-            document.getElementById('render-cover-title').innerText = bizName ? `${bizName} Solution Overview` : 'Solution Overview';
-            document.getElementById('render-cover-body').innerHTML = quill.root.innerHTML;
+            // Map either cover or customText to the unified freeflow render zone
+            const titleInputId = type === 'cover' ? 'cover-title-input' : 'custom-text-title-input';
+            const quillInstance = type === 'cover' ? quillCover : quillCustomText;
+            
+            const titleVal = document.getElementById(titleInputId).value.trim();
+            const titleEl = document.getElementById('render-freeflow-title');
+            
+            if (titleVal === '') {
+                titleEl.style.display = 'none';
+            } else {
+                titleEl.style.display = 'block';
+                titleEl.innerText = titleVal;
+            }
+            
+            document.getElementById('render-freeflow-body').innerHTML = quillInstance.root.innerHTML;
 
-            // Tiny delay to ensure layout repaints
             await new Promise(r => setTimeout(r, 100));
 
-            const renderZone = document.getElementById('cover-render-zone');
+            const renderZone = document.getElementById('freeflow-render-zone');
             const canvas = await html2canvas(renderZone, { scale: 2, logging: false });
             const imgData = canvas.toDataURL('image/png');
             
             document.getElementById('loading-overlay').classList.add('hidden');
-            openModal(imgData, 'cover', 'Preview Cover Letter');
+            openModal(imgData, type, `Preview ${type === 'cover' ? 'Cover Letter' : 'Custom Page'}`);
         }
 
         async function previewPricing() {
             document.getElementById('loading-overlay').classList.remove('hidden');
-            
             await document.fonts.ready;
             
             const renderBody = document.getElementById('render-table-body');
@@ -366,7 +421,6 @@
                 }))
             }));
 
-            // Using pure flexbox in the generated HTML to force vertical alignment for html2canvas
             if(locations.length > 1) {
                 locations.forEach(loc => {
                     renderBody.insertAdjacentHTML('beforeend', `
@@ -416,7 +470,6 @@
 
         async function previewReferences() {
             document.getElementById('loading-overlay').classList.remove('hidden');
-            
             await document.fonts.ready;
             
             const renderBody = document.getElementById('render-references-body');
@@ -470,7 +523,7 @@
             closeModal();
         }
 
-        // --- Final PDF Assembly ---
+        // --- Final PDF Assembly Engine ---
         document.getElementById('generate-btn').addEventListener('click', async () => {
             
             const activeSlides = [];
@@ -478,20 +531,23 @@
                 if(li.querySelector('.slide-toggle').checked) activeSlides.push(li.getAttribute('data-filename'));
             });
 
-            if (activeSlides.includes('CUSTOM_FREEFLOW') && !committedAssets.cover) {
-                alert("Please Preview & Commit your Custom Cover Letter before generating."); return;
-            }
-            if (activeSlides.includes('CUSTOM_REFERENCES') && !committedAssets.references) {
-                alert("Please Preview & Commit your References before generating."); return;
-            }
-            if (!committedAssets.pricing) {
-                alert("Please Preview & Commit your Pricing Engine before generating."); return;
-            }
+            // Validation Checks
+            if (activeSlides.includes('CUSTOM_COVER') && !committedAssets.cover) { alert("Please Preview & Commit your Cover Letter."); return; }
+            if (activeSlides.includes('CUSTOM_TEXT') && !committedAssets.customText) { alert("Please Preview & Commit your Custom Freeflow Page."); return; }
+            if (activeSlides.includes('CUSTOM_REFERENCES') && !committedAssets.references) { alert("Please Preview & Commit your References."); return; }
+            if (activeSlides.includes('CUSTOM_PRICING') && !committedAssets.pricing) { alert("Please Preview & Commit your Pricing Engine."); return; }
+            
+            const customPdfFile = document.getElementById('custom-pdf-upload').files[0];
+            if (activeSlides.includes('CUSTOM_PDF') && !customPdfFile) { alert("Please select a file for the Custom PDF Upload."); return; }
+            
+            const usacFile = document.getElementById('usac-upload').files[0];
+            if (activeSlides.includes('USAC_RFP') && !usacFile) { alert("Please select a file for the USAC RFP Upload."); return; }
 
             const payload = {
-                globals: { biz: document.getElementById('global-biz').value, rfpName: document.getElementById('global-rfp').value, rep: document.getElementById('global-rep').value },
+                globals: { biz: document.getElementById('global-biz').value },
                 slides: activeSlides,
-                usacFile: document.getElementById('usac-upload').files[0]
+                customPdfFile: customPdfFile,
+                usacFile: usacFile
             };
 
             document.getElementById('loading-overlay').classList.remove('hidden');
@@ -501,7 +557,7 @@
         });
 
         async function generatePDFDocument(payload) {
-            const { PDFDocument, StandardFonts } = PDFLib;
+            const { PDFDocument } = PDFLib;
             const finalDoc = await PDFDocument.create();
 
             const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
@@ -524,45 +580,38 @@
                 }
             }
 
-            for (const slideFile of payload.slides) {
-                if (slideFile === 'CUSTOM_FREEFLOW' && committedAssets.cover) {
-                    const page = await getBasePage();
-                    const pngImage = await finalDoc.embedPng(committedAssets.cover);
-                    const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
-                    page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
-                
-                } else if (slideFile === 'CUSTOM_REFERENCES' && committedAssets.references) {
-                    const page = await getBasePage();
-                    const pngImage = await finalDoc.embedPng(committedAssets.references);
-                    const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
-                    page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
+            // Centralized Image Stamping Function
+            async function stampImagePage(base64Image) {
+                const page = await getBasePage();
+                const pngImage = await finalDoc.embedPng(base64Image);
+                const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150);
+                page.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
+            }
 
-                } else {
+            // Centralized Uploaded PDF Stamping Function
+            async function appendUploadedPdf(fileObj) {
+                const bytes = await fileObj.arrayBuffer();
+                const pdf = await PDFDocument.load(bytes);
+                const pages = await finalDoc.copyPages(pdf, pdf.getPageIndices());
+                pages.forEach(p => finalDoc.addPage(p));
+            }
+
+            // The Master Loop - Builds document exactly in picker order
+            for (const slideFile of payload.slides) {
+                if (slideFile === 'CUSTOM_COVER') { await stampImagePage(committedAssets.cover); } 
+                else if (slideFile === 'CUSTOM_TEXT') { await stampImagePage(committedAssets.customText); } 
+                else if (slideFile === 'CUSTOM_REFERENCES') { await stampImagePage(committedAssets.references); } 
+                else if (slideFile === 'CUSTOM_PRICING') { await stampImagePage(committedAssets.pricing); }
+                else if (slideFile === 'CUSTOM_PDF') { await appendUploadedPdf(payload.customPdfFile); }
+                else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
+                else {
                     try {
                         const existingPdfBytes = await fetch(`Proposal_Assets/${slideFile}`).then(res => res.arrayBuffer());
                         const existingPdf = await PDFDocument.load(existingPdfBytes);
-                        
-                        // NOTE: If you ever want to inject the title variables, you'd do it here!
-                        // if (slideFile === '01_Title_Page.pdf') { ... }
-
                         const copiedPages = await finalDoc.copyPages(existingPdf, existingPdf.getPageIndices());
                         copiedPages.forEach(p => finalDoc.addPage(p));
                     } catch (e) { console.warn(`Could not load ${slideFile}`); }
                 }
-            }
-
-            if (committedAssets.pricing) {
-                const pricingPage = await getBasePage();
-                const pngImage = await finalDoc.embedPng(committedAssets.pricing);
-                const imgDims = pngImage.scaleToFit(PAGE_WIDTH - 100, PAGE_HEIGHT - 150); 
-                pricingPage.drawImage(pngImage, { x: 50, y: PAGE_HEIGHT - imgDims.height - 120, width: imgDims.width, height: imgDims.height });
-            }
-
-            if (payload.usacFile) {
-                const usacBytes = await payload.usacFile.arrayBuffer();
-                const usacPdf = await PDFDocument.load(usacBytes);
-                const usacPages = await finalDoc.copyPages(usacPdf, usacPdf.getPageIndices());
-                usacPages.forEach(p => finalDoc.addPage(p));
             }
 
             const pdfBytes = await finalDoc.save();
