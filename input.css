@@ -1078,10 +1078,13 @@ body.theme-green {
         color: white;
     }
     .account-details-top-row {
-        @apply flex gap-5 flex-shrink-0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 1.25rem;
+        flex-shrink: 0;
     }
     .account-details-form-card {
-        @apply rounded-2xl overflow-hidden flex-1 min-w-0;
+        @apply rounded-2xl overflow-hidden min-w-0 min-h-0;
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
         box-shadow: var(--shadow-card);
@@ -1180,12 +1183,12 @@ body.theme-green {
         @apply mb-0 flex-1 min-w-0 min-h-[200px];
     }
     .account-deals-card {
-        @apply flex flex-col rounded-2xl overflow-hidden flex-shrink-0;
+        @apply flex flex-col rounded-2xl overflow-hidden min-h-0;
+        max-height: 500px;
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
         box-shadow: var(--shadow-card);
-        width: 320px;
-        min-width: 320px;
+        width: 100%;
     }
     .account-deals-card .section-card-header,
     .account-contacts-card .section-card-header,
@@ -1193,17 +1196,90 @@ body.theme-green {
         @apply px-5 pt-5 pb-2 flex-shrink-0;
     }
     .account-deals-card .account-deals-body {
-        @apply flex-1 min-h-0 overflow-y-auto px-4 pb-4;
+        @apply flex-1 min-h-0 overflow-y-auto px-4;
     }
     .account-deals-cards {
         @apply flex flex-col gap-3;
     }
     .deal-card {
-        @apply rounded-xl p-4 border-l-4 flex flex-col;
+        @apply rounded-xl p-4 border-l-4 flex flex-col relative;
         gap: 0.125rem;
         overflow: visible;
         border-color: var(--primary-blue);
         background-color: var(--bg-dark);
+    }
+    .deal-card-flippable {
+        cursor: pointer;
+        overflow: hidden;
+        perspective: 1000px;
+    }
+    .deal-card-flip-inner {
+        @apply relative flex flex-col flex-1 min-h-0;
+        transform-style: preserve-3d;
+        transition: transform 0.5s ease;
+    }
+    .deal-card-front,
+    .deal-card-back {
+        @apply flex flex-col overflow-hidden;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+    }
+    .deal-card-front {
+        @apply min-h-0;
+        z-index: 0;
+    }
+    .deal-card-back {
+        @apply absolute inset-0 rounded-xl flex flex-col overflow-hidden;
+        padding: 0.5px;
+        transform: rotateY(180deg) translateZ(1px);
+        background-color: var(--bg-dark);
+        z-index: 1;
+    }
+    .deal-card-flipped .deal-card-flip-inner {
+        transform: rotateY(180deg);
+    }
+    .deal-card-back-content {
+        @apply flex flex-col flex-1 min-h-0 overflow-hidden relative;
+    }
+    .deal-card-back-body {
+        @apply flex-1 min-h-0 overflow-y-auto text-sm;
+        padding: 0.5px;
+        color: var(--text-light);
+    }
+    .deal-card-back-edit {
+        @apply absolute w-7 h-7 rounded flex items-center justify-center border cursor-pointer;
+        bottom: 2px;
+        right: 2px;
+        background-color: var(--bg-medium);
+        border-color: var(--border-color);
+        color: var(--text-medium);
+        transition: background-color 0.2s, color 0.2s;
+    }
+    .deal-card-back-edit:hover {
+        background-color: var(--bg-dark);
+        color: var(--primary-blue);
+    }
+    .deal-card-notes-textarea {
+        @apply w-full min-h-0 text-sm resize-none border rounded-lg box-border;
+        padding: 4px;
+        background-color: var(--input-bg);
+        border-color: var(--border-color);
+        color: var(--text-light);
+    }
+    .deal-card-notes-edit-actions {
+        @apply absolute flex gap-0.5;
+        bottom: 2px;
+        right: 2px;
+    }
+    .deal-card-notes-edit-actions .deal-card-notes-save {
+        background-color: var(--completed-color);
+        border-color: var(--completed-color);
+        color: white;
+    }
+    .deal-card-notes-edit-actions .deal-card-notes-cancel {
+        background-color: var(--bg-medium);
+        border-color: var(--border-color);
+        color: var(--text-medium);
     }
     .deal-card-editing {
         /* Card keeps base tight layout; no size change on edit */
@@ -1453,6 +1529,10 @@ body.theme-green {
     .account-activities-card .account-activities-body {
         @apply flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 pb-4;
     }
+    .account-contacts-card .account-contacts-body {
+        @apply flex flex-col;
+        overflow: hidden;
+    }
     .account-deals-header-actions {
         @apply flex gap-2 flex-shrink-0;
     }
@@ -1478,7 +1558,7 @@ body.theme-green {
     }
     .account-contacts-card #contact-list-view,
     .account-contacts-card #contact-org-chart-view {
-        @apply min-h-0;
+        @apply min-h-0 flex-1 overflow-auto;
     }
     .account-contacts-card #contact-list-view.hidden,
     .account-contacts-card #contact-org-chart-view.hidden {
@@ -1535,6 +1615,18 @@ body.theme-green {
         color: var(--text-light);
         font-weight: bold;
         box-shadow: inset 3px 0 0 0 var(--primary-blue);
+    }
+    #account-list .list-item {
+        @apply flex items-stretch gap-0;
+    }
+    #account-list .account-list-item-row {
+        @apply flex flex-row flex-nowrap items-center gap-2 min-w-0 w-full;
+    }
+    #account-list .account-list-name {
+        @apply flex-1 min-w-0 font-semibold text-sm;
+    }
+    #account-list .list-item-icons {
+        @apply flex flex-shrink-0 items-center gap-2;
     }
     .contact-info {
         @apply flex flex-col flex-grow;
@@ -2855,30 +2947,89 @@ body:not(.theme-green) .list-item.selected {
         @apply relative;
     }
     #contact-org-chart-view {
-        @apply p-4 rounded-xl flex-1 min-h-0 overflow-auto;
+        @apply p-4 rounded-xl flex-1 min-h-0 flex flex-col relative;
         background-color: var(--bg-dark);
         border: 1px solid var(--border-color);
+        min-width: 0;
+        overflow: hidden;
     }
     .account-contacts-card #contact-org-chart-view {
-        @apply flex flex-col items-center justify-start;
+        @apply flex-1 min-h-0;
         max-height: 100%;
+        overflow: hidden;
+    }
+    .org-chart-render-target {
+        @apply flex-1 min-h-0 relative;
+        min-width: 0;
+    }
+    .org-chart-zoom-controls {
+        @apply absolute bottom-3 right-3 flex gap-1.5 z-10;
+    }
+    .org-chart-zoom-btn {
+        @apply w-9 h-9 rounded-lg flex items-center justify-center text-sm font-semibold cursor-pointer border shadow;
+        background-color: var(--bg-light);
+        border-color: var(--border-color);
+        color: var(--text-light);
+        transition: background-color 0.2s, transform 0.1s;
+    }
+    .org-chart-zoom-btn:hover {
+        background-color: var(--bg-medium);
+        transform: scale(1.05);
+    }
+    .org-chart-viewport {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        overflow: hidden;
+        width: 100%;
+    }
+    .org-chart-scalable {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: fit-content;
+        height: fit-content;
+        transform-origin: center;
+        transform: translate(-50%, -50%);
+    }
+    /* Org chart modal: glassmorphism + extra-large view + pizzazz */
+    #org-chart-modal-backdrop {
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        opacity: 0;
+        transition: opacity 0.25s ease-out;
+    }
+    #org-chart-modal-backdrop:not(.hidden) {
+        opacity: 1;
     }
     .org-chart-modal {
         @apply rounded-2xl overflow-hidden flex flex-col;
-        background-color: var(--bg-light);
-        border: 1px solid var(--border-color);
-        box-shadow: var(--shadow-card);
-        width: 90vw;
-        max-width: 1200px;
-        height: 85vh;
+        width: 92vw;
+        max-width: 1400px;
+        height: 88vh;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1) inset, 0 0 80px -20px rgba(59, 130, 246, 0.25);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        opacity: 0;
+        transform: scale(0.96) translateY(10px);
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    }
+    #org-chart-modal-backdrop:not(.hidden) .org-chart-modal {
+        opacity: 1;
+        transform: scale(1) translateY(0);
     }
     .org-chart-modal-header {
         @apply flex justify-between items-center px-5 py-4 flex-shrink-0;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%);
     }
     .org-chart-modal-title {
         @apply m-0 text-lg font-semibold;
-        color: var(--text-light);
+        color: #ffffff;
     }
     .org-chart-modal-close {
         @apply w-10 h-10 rounded-lg flex items-center justify-center text-xl cursor-pointer border-0;
@@ -2891,8 +3042,33 @@ body:not(.theme-green) .list-item.selected {
         color: var(--text-light);
     }
     .org-chart-modal-content {
-        @apply flex-1 min-h-0 overflow-auto p-6;
-        background-color: var(--bg-dark);
+        @apply flex-1 min-h-0 flex flex-col p-6;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.12) 100%);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .org-chart-modal-content .org-chart-viewport {
+        flex: 1;
+        min-height: 0;
+    }
+    body.theme-green #org-chart-modal-backdrop {
+        background: rgba(0, 5, 0, 0.5);
+    }
+    body.theme-green .org-chart-modal {
+        background: linear-gradient(135deg, rgba(0, 50, 10, 0.35) 0%, rgba(0, 20, 5, 0.15) 100%);
+        border-color: rgba(0, 255, 65, 0.22);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 255, 65, 0.1) inset, 0 0 60px -15px rgba(0, 255, 65, 0.2);
+    }
+    body.theme-green .org-chart-modal-header {
+        border-bottom-color: rgba(0, 255, 65, 0.18);
+        background: linear-gradient(180deg, rgba(0, 255, 65, 0.08) 0%, rgba(0, 255, 65, 0.02) 100%);
+    }
+    body.theme-green .org-chart-modal-title {
+        color: #ffffff;
+    }
+    body.theme-green .org-chart-modal-content {
+        background: linear-gradient(180deg, rgba(0, 15, 2, 0.3) 0%, rgba(0, 25, 5, 0.5) 100%);
     }
     .contact-card {
         @apply rounded-lg py-2.5 px-4 min-w-[180px] text-center cursor-grab relative z-10;
@@ -2956,6 +3132,51 @@ body:not(.theme-green) .list-item.selected {
         content: '';
         @apply absolute -top-5 h-5 w-0.5;
         background-color: var(--border-color);
+    }
+    /* Modal connector lines: black, 4px */
+    .org-chart-modal .org-chart-node::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        height: 1.25rem;
+        width: 4px;
+        left: 50%;
+        margin-left: -2px;
+        background-color: #000;
+    }
+    .org-chart-modal .org-chart-node::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 100%;
+        height: 4px;
+        background-color: #000;
+    }
+    .org-chart-modal .org-chart-root > .org-chart-node::before,
+    .org-chart-modal .org-chart-root > .org-chart-node::after {
+        display: none;
+    }
+    .org-chart-modal .org-chart-node:first-child::after {
+        width: 50%;
+        left: 50%;
+    }
+    .org-chart-modal .org-chart-node:last-child::after {
+        left: 0;
+        width: 50%;
+    }
+    .org-chart-modal .org-chart-node:only-child::after {
+        display: none;
+    }
+    .org-chart-modal .org-chart-children::before {
+        content: '';
+        position: absolute;
+        top: -1.25rem;
+        height: 1.25rem;
+        width: 4px;
+        left: 50%;
+        margin-left: -2px;
+        background-color: #000;
     }
     .settings-list {
         @apply list-none p-0 mb-6 max-h-[300px] overflow-y-auto border border-[var(--border-color)] rounded-md;
@@ -3151,6 +3372,12 @@ body:not(.theme-green) .list-item.selected {
         flex-direction: row;
         text-align: left;
         justify-content: flex-start;
+    }
+    #account-list .list-item {
+        flex-direction: row;
+        text-align: left;
+        justify-content: flex-start;
+        align-items: flex-start;
     }
     .details-panel {
         padding: 1.25rem;

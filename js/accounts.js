@@ -288,7 +288,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
                 const hotIcon = isHot ? '<span class="hot-contact-icon">🔥</span>' : '';
 
-                i.innerHTML = `<div class="account-list-name">${account.name}</div> <div class="list-item-icons">${hotIcon}${dealIcon}</div>`;
+                i.innerHTML = `<div class="account-list-item-row"><span class="account-list-name">${account.name}</span><div class="list-item-icons">${hotIcon}${dealIcon}</div></div>`;
 
                 if (account.id === state.selectedAccountId) {
                     i.classList.add("selected");
@@ -349,20 +349,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             deals.forEach((deal) => {
                 const stageClass = getDealStageColorClass(deal.stage);
-                const card = document.createElement("div");
-                card.className = `deal-card ${stageClass}`;
-                card.dataset.dealId = deal.id;
-                card.innerHTML = `
+                const notes = (deal.notes || "").trim();
+                const notesEscaped = notes ? notes.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br>") : "";
+                const dealId = deal.id;
+                const frontContent = `
                     <div class="deal-card-header">
                         <div class="deal-card-commit-row">
-                            <label class="deal-card-commit-toggle" for="deal-commit-${deal.id}">
-                                <input type="checkbox" id="deal-commit-${deal.id}" class="deal-card-commit-input commit-deal-checkbox sr-only" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}>
+                            <label class="deal-card-commit-toggle" for="deal-commit-${dealId}">
+                                <input type="checkbox" id="deal-commit-${dealId}" class="deal-card-commit-input commit-deal-checkbox sr-only" data-deal-id="${dealId}" ${deal.is_committed ? "checked" : ""}>
                                 <span class="deal-card-commit-slider"></span>
                                 <span class="deal-card-commit-label">Committed</span>
                             </label>
                             <span class="deal-card-stage">${deal.stage}</span>
                         </div>
-                        <button class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${deal.id}" title="Edit Deal"><i class="fas fa-pen"></i></button>
+                        <button class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${dealId}" title="Edit Deal"><i class="fas fa-pen"></i></button>
                     </div>
                     <div class="deal-card-value">$${deal.mrc || 0}/mo</div>
                     <div class="deal-card-name">${deal.name}</div>
@@ -372,7 +372,55 @@ document.addEventListener("DOMContentLoaded", async () => {
                         ${deal.term ? `<span class="deal-card-term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty"></span>'}
                     </div>
                 `;
+                const backContent = notes
+                    ? `
+                    <div class="deal-card-back-content">
+                        <div class="deal-card-back-body">${notesEscaped}</div>
+                        <button type="button" class="btn-icon btn-icon-sm deal-card-back-edit" data-deal-id="${dealId}" title="Edit notes"><i class="fas fa-pen"></i></button>
+                    </div>
+                    `
+                    : "";
+                const card = document.createElement("div");
+                card.className = `deal-card ${stageClass}${notes ? " deal-card-flippable" : ""}`;
+                card.dataset.dealId = dealId;
+                if (notes) {
+                    card.innerHTML = `
+                        <div class="deal-card-flip-inner">
+                            <div class="deal-card-front">${frontContent}</div>
+                            <div class="deal-card-back">${backContent}</div>
+                        </div>
+                    `;
+                } else {
+                    card.innerHTML = `<div class="deal-card-flip-inner"><div class="deal-card-front">${frontContent}</div></div>`;
+                }
                 accountDealsCards.appendChild(card);
+                if (notes) {
+                    const flipInner = card.querySelector(".deal-card-flip-inner");
+                    const backContentEl = card.querySelector(".deal-card-back-content");
+                    const backBody = card.querySelector(".deal-card-back-body");
+                    const backEditBtn = card.querySelector(".deal-card-back-edit");
+                    const flipToBack = () => card.classList.add("deal-card-flipped");
+                    const flipToFront = () => card.classList.remove("deal-card-flipped");
+                    flipInner.addEventListener("click", (e) => {
+                        if (card.classList.contains("deal-card-editing") || card.classList.contains("deal-card-notes-editing")) return;
+                        const isEdit = e.target.closest(".edit-deal-btn");
+                        const isCommit = e.target.closest(".deal-card-commit-toggle");
+                        const isBackEdit = e.target.closest(".deal-card-back-edit");
+                        const isNotesSave = e.target.closest(".deal-card-notes-save");
+                        const isNotesCancel = e.target.closest(".deal-card-notes-cancel");
+                        if (isBackEdit) { e.stopPropagation(); enterNotesEditMode(card, dealId, deal.notes || ""); return; }
+                        if (isNotesSave || isNotesCancel) return;
+                        if (card.classList.contains("deal-card-flipped")) { flipToFront(); return; }
+                        if (isEdit || isCommit) return;
+                        flipToBack();
+                    });
+                    if (backEditBtn) {
+                        backEditBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            enterNotesEditMode(card, dealId, deal.notes || "");
+                        });
+                    }
+                }
             });
         }
 
@@ -470,15 +518,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
     };
 
+    const ZOOM_CONTROLS_HTML = `<div class="org-chart-zoom-controls">
+        <button type="button" id="org-chart-zoom-out-btn" class="org-chart-zoom-btn" title="Zoom out"><i class="fas fa-minus"></i></button>
+        <button type="button" id="org-chart-zoom-in-btn" class="org-chart-zoom-btn" title="Zoom in"><i class="fas fa-plus"></i></button>
+    </div>`;
+
     const renderOrgChart = (container = null) => {
         const target = container || contactOrgChartView;
         if (!target) return;
 
-        const { contacts } = state.selectedAccountDetails;
-        target.innerHTML = "";
-
+        const contacts = state.selectedAccountDetails?.contacts ?? [];
         const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
-        
         const tree = [];
         contactMap.forEach(contact => {
             if (contact.reports_to && contactMap.has(Number(contact.reports_to))) {
@@ -490,14 +540,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const createNodeHtml = (contact) => {
             const sortedChildren = contact.children.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
-            
             let childrenHtml = '';
             if (sortedChildren && sortedChildren.length > 0) {
                 childrenHtml = `<ul class="org-chart-children">
                     ${sortedChildren.map(child => createNodeHtml(child)).join('')}
                 </ul>`;
             }
-
             return `<li class="org-chart-node">
                 <div class="contact-card" draggable="true" data-contact-id="${contact.id}">
                     <div class="contact-card-name">${contact.first_name} ${contact.last_name}</div>
@@ -512,13 +560,50 @@ document.addEventListener("DOMContentLoaded", async () => {
             const chartHtml = `<ul class="org-chart-root">
                 ${sortedTree.map(topLevelNode => createNodeHtml(topLevelNode)).join('')}
             </ul>`;
-            target.innerHTML = chartHtml;
+            const viewportContent = `<div class="org-chart-viewport"><div class="org-chart-scalable">${chartHtml}</div></div>`;
+            if (target === contactOrgChartView) {
+                target.innerHTML = `<div class="org-chart-render-target">${viewportContent}</div>${ZOOM_CONTROLS_HTML}`;
+            } else {
+                target.innerHTML = viewportContent;
+            }
+            const viewport = target.querySelector('.org-chart-viewport');
+            if (viewport) fitOrgChartInViewport(viewport);
         } else {
-            target.innerHTML = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
+            const placeholder = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
+            if (target === contactOrgChartView) {
+                target.innerHTML = `<div class="org-chart-render-target">${placeholder}</div>${ZOOM_CONTROLS_HTML}`;
+            } else {
+                target.innerHTML = placeholder;
+            }
         }
 
         setupOrgChartDragDrop(target);
     };
+
+    function fitOrgChartInViewport(viewport, zoomFactor) {
+        if (!viewport) return;
+        const scalable = viewport.querySelector('.org-chart-scalable');
+        if (!scalable) return;
+        if (zoomFactor !== undefined) viewport.dataset.zoomFactor = String(zoomFactor);
+        const apply = () => {
+            const vw = viewport.clientWidth;
+            const vh = viewport.clientHeight;
+            const cw = scalable.scrollWidth;
+            const ch = scalable.scrollHeight;
+            if (cw <= 0 || ch <= 0) return;
+            const fitScale = Math.min(vw / cw, vh / ch, 1);
+            const zoom = Math.max(0.5, Math.min(2, parseFloat(viewport.dataset.zoomFactor || '1')));
+            const scale = fitScale * zoom;
+            scalable.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        };
+        apply();
+        requestAnimationFrame(() => requestAnimationFrame(apply));
+        if (typeof ResizeObserver !== 'undefined' && !viewport._orgChartResizeObserver) {
+            const ro = new ResizeObserver(() => requestAnimationFrame(apply));
+            ro.observe(viewport);
+            viewport._orgChartResizeObserver = ro;
+        }
+    }
 
     const setupOrgChartDragDrop = (container = null) => {
         const chartContainer = container || contactOrgChartView;
@@ -686,6 +771,55 @@ document.addEventListener("DOMContentLoaded", async () => {
             const dealDetails = state.selectedAccountDetails.deals.find(d => d.id === dealId);
             if (dealDetails) dealDetails.is_committed = isCommitted;
         }
+    }
+
+    function enterNotesEditMode(card, dealId, currentNotes) {
+        if (dealId === 'new') return;
+        const backContent = card.querySelector(".deal-card-back-content");
+        const backBody = card.querySelector(".deal-card-back-body");
+        const backEditBtn = card.querySelector(".deal-card-back-edit");
+        if (!backContent || !backBody || !backEditBtn) return;
+        card.classList.add("deal-card-notes-editing");
+        backBody.dataset.originalNotes = currentNotes;
+        const textarea = document.createElement("textarea");
+        textarea.className = "deal-card-notes-textarea";
+        textarea.value = currentNotes;
+        textarea.rows = 4;
+        backBody.innerHTML = "";
+        backBody.appendChild(textarea);
+        const wrap = document.createElement("div");
+        wrap.className = "deal-card-notes-edit-actions";
+        wrap.innerHTML = `<button type="button" class="btn-icon btn-icon-sm deal-card-notes-cancel" title="Cancel"><i class="fas fa-times"></i></button><button type="button" class="btn-icon btn-icon-sm deal-card-notes-save" title="Save notes"><i class="fas fa-check"></i></button>`;
+        backEditBtn.replaceWith(wrap);
+        const saveBtn = wrap.querySelector(".deal-card-notes-save");
+        const cancelBtn = wrap.querySelector(".deal-card-notes-cancel");
+        const exitNotesEdit = () => {
+            card.classList.remove("deal-card-notes-editing");
+            const orig = backBody.dataset.originalNotes || "";
+            const escaped = orig.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br>");
+            backBody.removeAttribute("data-original-notes");
+            backBody.innerHTML = escaped;
+            const newEditBtn = document.createElement("button");
+            newEditBtn.type = "button";
+            newEditBtn.className = "btn-icon btn-icon-sm deal-card-back-edit";
+            newEditBtn.dataset.dealId = dealId;
+            newEditBtn.title = "Edit notes";
+            newEditBtn.innerHTML = "<i class=\"fas fa-pen\"></i>";
+            wrap.replaceWith(newEditBtn);
+        };
+        saveBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const value = textarea.value.trim();
+            const { error } = await supabase.from("deals").update({ notes: value }).eq("id", dealId);
+            if (error) return;
+            const deal = state.deals.find(d => d.id === dealId);
+            if (deal) deal.notes = value;
+            const dealDetails = state.selectedAccountDetails.deals.find(d => d.id === dealId);
+            if (dealDetails) dealDetails.notes = value;
+            backBody.dataset.originalNotes = value;
+            exitNotesEdit();
+        });
+        cancelBtn.addEventListener("click", (e) => { e.stopPropagation(); exitNotesEdit(); });
     }
 
     function enterDealEditMode(dealId) {
@@ -1251,7 +1385,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
                 const chartClone = contactOrgChartView.cloneNode(true);
                 chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
-                
+                chartClone.querySelectorAll('.org-chart-zoom-controls').forEach(el => el.remove());
                 orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
                     <div class="briefing-section org-chart-print-container"
@@ -1749,6 +1883,45 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.contactViewMode = 'org';
                 localStorage.setItem('contact_view_mode', 'org');
                 renderContactView();
+            });
+        }
+        if (contactOrgChartView) {
+            contactOrgChartView.addEventListener('click', (e) => {
+                const zoomOut = e.target.closest('#org-chart-zoom-out-btn');
+                const zoomIn = e.target.closest('#org-chart-zoom-in-btn');
+                const viewport = contactOrgChartView.querySelector('.org-chart-viewport');
+                if (!viewport) return;
+                if (zoomOut) {
+                    const current = parseFloat(viewport.dataset.zoomFactor || '1');
+                    fitOrgChartInViewport(viewport, Math.max(0.5, current - 0.25));
+                } else if (zoomIn) {
+                    const current = parseFloat(viewport.dataset.zoomFactor || '1');
+                    fitOrgChartInViewport(viewport, Math.min(2, current + 0.25));
+                }
+            });
+        }
+        if (orgChartMaximizeBtn) {
+            orgChartMaximizeBtn.addEventListener('click', () => {
+                if (!orgChartModalBackdrop || !orgChartModalContent) return;
+                orgChartModalBackdrop.classList.remove('hidden');
+                renderOrgChart(orgChartModalContent);
+                setupOrgChartDragDrop(orgChartModalContent);
+                requestAnimationFrame(() => {
+                    const modalViewport = orgChartModalContent.querySelector('.org-chart-viewport');
+                    if (modalViewport) fitOrgChartInViewport(modalViewport);
+                });
+            });
+        }
+        if (orgChartModalCloseBtn && orgChartModalBackdrop) {
+            orgChartModalCloseBtn.addEventListener('click', () => {
+                orgChartModalBackdrop.classList.add('hidden');
+            });
+        }
+        if (orgChartModalBackdrop) {
+            orgChartModalBackdrop.addEventListener('click', (e) => {
+                if (e.target === orgChartModalBackdrop) {
+                    orgChartModalBackdrop.classList.add('hidden');
+                }
             });
         }
     }
