@@ -537,6 +537,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 tree.push(contact);
             }
         });
+        console.log("Org Chart Debug -> Contacts:", contacts.length, "Tree Nodes:", tree.length);
 
         const createNodeHtml = (contact) => {
             const sortedChildren = contact.children.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
@@ -580,29 +581,65 @@ document.addEventListener("DOMContentLoaded", async () => {
         setupOrgChartDragDrop(target);
     };
 
+    // --- FIXED: Population & Baller Panning ---
     function fitOrgChartInViewport(viewport, zoomFactor) {
         if (!viewport) return;
         const scalable = viewport.querySelector('.org-chart-scalable');
         if (!scalable) return;
+        
+        // Initialize persistent state
         if (zoomFactor !== undefined) viewport.dataset.zoomFactor = String(zoomFactor);
+        if (!viewport.dataset.panX) viewport.dataset.panX = '0';
+        if (!viewport.dataset.panY) viewport.dataset.panY = '0';
+
         const apply = () => {
-            const vw = viewport.clientWidth;
-            const vh = viewport.clientHeight;
-            const cw = scalable.scrollWidth;
-            const ch = scalable.scrollHeight;
-            if (cw <= 0 || ch <= 0) return;
-            const fitScale = Math.min(vw / cw, vh / ch, 1);
-            const zoom = Math.max(0.5, Math.min(2, parseFloat(viewport.dataset.zoomFactor || '1')));
-            const scale = fitScale * zoom;
-            scalable.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            // Base scale for "V8" logic (0.7 is a good safe start)
+            const baseScale = 0.7; 
+            const zoom = parseFloat(viewport.dataset.zoomFactor || '1');
+            const px = viewport.dataset.panX;
+            const py = viewport.dataset.panY;
+
+            // Force centering + manual pan + zoom
+            scalable.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px)) scale(${baseScale * zoom})`;
         };
-        apply();
+
+        // Force a render cycle wait
         requestAnimationFrame(() => requestAnimationFrame(apply));
-        if (typeof ResizeObserver !== 'undefined' && !viewport._orgChartResizeObserver) {
-            const ro = new ResizeObserver(() => requestAnimationFrame(apply));
-            ro.observe(viewport);
-            viewport._orgChartResizeObserver = ro;
-        }
+        
+        // Bind the click-to-drag repositioning
+        setupOrgChartPanning(viewport, apply);
+    }
+
+    function setupOrgChartPanning(viewport, updateFn) {
+        if (viewport._panInitialized) return;
+        viewport._panInitialized = true;
+
+        let isPanning = false;
+        let startX, startY;
+
+        viewport.addEventListener('mousedown', (e) => {
+            // Prevent panning if clicking a contact card
+            if (e.target.closest('.contact-card') || e.target.closest('button')) return;
+            
+            isPanning = true;
+            viewport.style.cursor = 'grabbing';
+            
+            // Use the stored pan coordinates as the baseline
+            startX = e.clientX - (parseInt(viewport.dataset.panX) || 0);
+            startY = e.clientY - (parseInt(viewport.dataset.panY) || 0);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            viewport.dataset.panX = String(e.clientX - startX);
+            viewport.dataset.panY = String(e.clientY - startY);
+            updateFn();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isPanning = false;
+            viewport.style.cursor = 'grab';
+        });
     }
 
     const setupOrgChartDragDrop = (container = null) => {

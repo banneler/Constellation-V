@@ -1081,6 +1081,7 @@ body.theme-green {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 320px;
         gap: 1.25rem;
+        align-items: stretch;
         flex-shrink: 0;
     }
     .account-details-form-card {
@@ -1182,9 +1183,11 @@ body.theme-green {
     .account-cards-row .section-card {
         @apply mb-0 flex-1 min-w-0 min-h-[200px];
     }
+    /* --- FIX 3: Bottom Alignment --- */
     .account-deals-card {
         @apply flex flex-col rounded-2xl overflow-hidden min-h-0;
-        max-height: 500px;
+        max-height: none !important;
+        height: 100%;
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
         box-shadow: var(--shadow-card);
@@ -2984,12 +2987,14 @@ body:not(.theme-green) .list-item.selected {
         overflow: hidden;
         width: 100%;
     }
+    /* Add padding so the top-level node doesn't hug the roof */
     .org-chart-scalable {
         position: absolute;
         left: 50%;
         top: 50%;
         width: fit-content;
         height: fit-content;
+        padding: 60px;
         transform-origin: center;
         transform: translate(-50%, -50%);
     }
@@ -3099,84 +3104,79 @@ body:not(.theme-green) .list-item.selected {
     .org-chart-root {
         @apply flex justify-center gap-5 p-0 m-0 list-none;
     }
+    /* --- ORG CHART LINE ARCHITECTURE --- */
     .org-chart-node {
-        @apply flex flex-col items-center pt-5 relative list-none;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 2.5rem; /* Space for the vertical line */
     }
+
+    /* Vertical line above the node */
     .org-chart-node::before {
-        content: '';
-        @apply absolute top-0 h-5 w-0.5;
-        background-color: var(--border-color);
-    }
-    .org-chart-node::after {
-        content: '';
-        @apply absolute top-0 left-1/2 w-full h-0.5;
-        background-color: var(--border-color);
-    }
-    .org-chart-root > .org-chart-node::before,
-    .org-chart-root > .org-chart-node::after {
-        @apply hidden;
-    }
-    .org-chart-node:first-child::after {
-        @apply left-1/2 w-1/2;
-    }
-    .org-chart-node:last-child::after {
-        @apply left-0 w-1/2;
-    }
-    .org-chart-node:only-child::after {
-        @apply hidden;
-    }
-    .org-chart-children {
-        @apply flex justify-center gap-5 p-0 m-0 relative list-none;
-    }
-    .org-chart-children::before {
-        content: '';
-        @apply absolute -top-5 h-5 w-0.5;
-        background-color: var(--border-color);
-    }
-    /* Modal connector lines: black, 4px */
-    .org-chart-modal .org-chart-node::before {
         content: '';
         position: absolute;
         top: 0;
-        height: 1.25rem;
-        width: 4px;
+        height: 2.5rem;
+        width: 2px; /* 2px digital spine */
         left: 50%;
-        margin-left: -2px;
-        background-color: #000;
+        transform: translateX(-50%);
+        background-color: var(--border-color);
     }
-    .org-chart-modal .org-chart-node::after {
+
+    /* Horizontal line connecting siblings */
+    .org-chart-node::after {
         content: '';
         position: absolute;
         top: 0;
         left: 50%;
         width: 100%;
-        height: 4px;
-        background-color: #000;
+        height: 2px;
+        background-color: var(--border-color);
     }
-    .org-chart-modal .org-chart-root > .org-chart-node::before,
-    .org-chart-modal .org-chart-root > .org-chart-node::after {
+
+    /* Remove lines for root and edges */
+    .org-chart-root > .org-chart-node::before,
+    .org-chart-root > .org-chart-node::after {
         display: none;
     }
-    .org-chart-modal .org-chart-node:first-child::after {
-        width: 50%;
+    .org-chart-node:first-child::after {
         left: 50%;
+        width: 50%;
     }
-    .org-chart-modal .org-chart-node:last-child::after {
+    .org-chart-node:last-child::after {
         left: 0;
         width: 50%;
     }
-    .org-chart-modal .org-chart-node:only-child::after {
+    .org-chart-node:only-child::after {
         display: none;
     }
-    .org-chart-modal .org-chart-children::before {
+
+    .org-chart-children {
+        @apply flex justify-center gap-5 p-0 m-0 relative list-none;
+    }
+    /* Vertical line from horizontal bar down to children row */
+    .org-chart-children::before {
         content: '';
         position: absolute;
-        top: -1.25rem;
-        height: 1.25rem;
-        width: 4px;
+        top: -2.5rem;
+        height: 2.5rem;
+        width: 2px;
         left: 50%;
-        margin-left: -2px;
-        background-color: #000;
+        transform: translateX(-50%);
+        background-color: var(--border-color);
+    }
+
+    /* Modal specific (Black heavy lines) */
+    .org-chart-modal .org-chart-node::before,
+    .org-chart-modal .org-chart-children::before {
+        background-color: #000 !important;
+        width: 2px !important;
+    }
+    .org-chart-modal .org-chart-node::after {
+        background-color: #000 !important;
+        height: 2px !important;
     }
     .settings-list {
         @apply list-none p-0 mb-6 max-h-[300px] overflow-y-auto border border-[var(--border-color)] rounded-md;

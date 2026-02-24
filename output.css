@@ -2272,6 +2272,7 @@ body.theme-green {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
     gap: 1.25rem;
+    align-items: stretch;
     flex-shrink: 0;
   }
   .account-details-form-card {
@@ -2446,7 +2447,8 @@ body.theme-green {
     flex-direction: column;
     overflow: hidden;
     border-radius: var(--radius-2xl);
-    max-height: 500px;
+    max-height: none !important;
+    height: 100%;
     background-color: var(--bg-light);
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-card);
@@ -5077,6 +5079,7 @@ body:not(.theme-green) .list-item.selected {
     top: 50%;
     width: fit-content;
     height: fit-content;
+    padding: 60px;
     transform-origin: center;
     transform: translate(-50%, -50%);
   }
@@ -5232,38 +5235,39 @@ body:not(.theme-green) .list-item.selected {
   .org-chart-node {
     position: relative;
     display: flex;
-    list-style-type: none;
     flex-direction: column;
     align-items: center;
-    padding-top: calc(var(--spacing) * 5);
+    padding-top: 2.5rem;
   }
   .org-chart-node::before {
     content: '';
     position: absolute;
-    top: calc(var(--spacing) * 0);
-    height: calc(var(--spacing) * 5);
-    width: calc(var(--spacing) * 0.5);
+    top: 0;
+    height: 2.5rem;
+    width: 2px;
+    left: 50%;
+    transform: translateX(-50%);
     background-color: var(--border-color);
   }
   .org-chart-node::after {
     content: '';
     position: absolute;
-    top: calc(var(--spacing) * 0);
-    left: calc(1 / 2 * 100%);
-    height: calc(var(--spacing) * 0.5);
+    top: 0;
+    left: 50%;
     width: 100%;
+    height: 2px;
     background-color: var(--border-color);
   }
   .org-chart-root > .org-chart-node::before, .org-chart-root > .org-chart-node::after {
     display: none;
   }
   .org-chart-node:first-child::after {
-    left: calc(1 / 2 * 100%);
-    width: calc(1 / 2 * 100%);
+    left: 50%;
+    width: 50%;
   }
   .org-chart-node:last-child::after {
-    left: calc(var(--spacing) * 0);
-    width: calc(1 / 2 * 100%);
+    left: 0;
+    width: 50%;
   }
   .org-chart-node:only-child::after {
     display: none;
@@ -5280,53 +5284,20 @@ body:not(.theme-green) .list-item.selected {
   .org-chart-children::before {
     content: '';
     position: absolute;
-    top: calc(var(--spacing) * -5);
-    height: calc(var(--spacing) * 5);
-    width: calc(var(--spacing) * 0.5);
+    top: -2.5rem;
+    height: 2.5rem;
+    width: 2px;
+    left: 50%;
+    transform: translateX(-50%);
     background-color: var(--border-color);
   }
-  .org-chart-modal .org-chart-node::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    height: 1.25rem;
-    width: 4px;
-    left: 50%;
-    margin-left: -2px;
-    background-color: #000;
+  .org-chart-modal .org-chart-node::before, .org-chart-modal .org-chart-children::before {
+    background-color: #000 !important;
+    width: 2px !important;
   }
   .org-chart-modal .org-chart-node::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 100%;
-    height: 4px;
-    background-color: #000;
-  }
-  .org-chart-modal .org-chart-root > .org-chart-node::before, .org-chart-modal .org-chart-root > .org-chart-node::after {
-    display: none;
-  }
-  .org-chart-modal .org-chart-node:first-child::after {
-    width: 50%;
-    left: 50%;
-  }
-  .org-chart-modal .org-chart-node:last-child::after {
-    left: 0;
-    width: 50%;
-  }
-  .org-chart-modal .org-chart-node:only-child::after {
-    display: none;
-  }
-  .org-chart-modal .org-chart-children::before {
-    content: '';
-    position: absolute;
-    top: -1.25rem;
-    height: 1.25rem;
-    width: 4px;
-    left: 50%;
-    margin-left: -2px;
-    background-color: #000;
+    background-color: #000 !important;
+    height: 2px !important;
   }
   .settings-list {
     margin-bottom: calc(var(--spacing) * 6);
