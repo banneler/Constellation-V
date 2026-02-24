@@ -330,16 +330,47 @@ export function showToast(message, type = 'success') {
 
 // ... (keep all other functions like SUPABASE_URL, formatDate, initializeAppState, etc., the same)
 
+/**
+ * Returns first name only from a full name (e.g. "John Doe" -> "John").
+ * @param {string} fullName - Full name
+ * @returns {string}
+ */
+function getFirstName(fullName) {
+    if (!fullName || typeof fullName !== 'string') return 'User';
+    const trimmed = fullName.trim();
+    if (!trimmed) return 'User';
+    const first = trimmed.split(/\s+/)[0];
+    return first || 'User';
+}
+
+/**
+ * Scales the user name font size down until it fits within its container.
+ * @param {HTMLElement} el - The #user-name-display element
+ */
+function fitUserNameToContainer(el) {
+    if (!el || !el.parentElement) return;
+    const MIN_FONT_PX = 12;
+    const MAX_FONT_PX = 18;
+    el.style.fontSize = '';
+    el.style.fontSize = `${MAX_FONT_PX}px`;
+    const parent = el.parentElement;
+    const icon = parent.querySelector('.user-icon, [data-svg-loader]');
+    const iconWidth = icon ? icon.offsetWidth : 80;
+    const gap = 10;
+    const maxWidth = parent.clientWidth - iconWidth - gap;
+    if (maxWidth <= 0) return;
+    while (el.scrollWidth > maxWidth && parseInt(getComputedStyle(el).fontSize) > MIN_FONT_PX) {
+        const current = parseInt(getComputedStyle(el).fontSize);
+        el.style.fontSize = `${Math.max(MIN_FONT_PX, current - 1)}px`;
+    }
+}
+
 // --- USER MENU & AUTH LOGIC (UPDATED FOR IMPERSONATION) ---
 export async function setupUserMenuAndAuth(supabase, appState) { // Takes the global appState now
-    const userMenuHeader = document.querySelector('.user-menu-header');
-    if (!userMenuHeader) return;
-
-    const userNameDisplay = document.getElementById('user-name-display');
     const userMenuPopup = document.getElementById('user-menu-popup');
     const logoutBtn = document.getElementById("logout-btn");
 
-    if (!userMenuPopup || !userNameDisplay || !logoutBtn) {
+    if (!userMenuPopup || !logoutBtn) {
         console.error("One or more user menu elements are missing.");
         return;
     }
@@ -392,7 +423,6 @@ export async function setupUserMenuAndAuth(supabase, appState) { // Takes the gl
 
     if (userError && userError.code !== 'PGRST116') {
         console.error('Error fetching user data:', userError);
-        userNameDisplay.textContent = "Error";
         return;
     }
     
@@ -447,31 +477,22 @@ export async function setupUserMenuAndAuth(supabase, appState) { // Takes the gl
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
     
     } else {
-        userNameDisplay.textContent = appState.effectiveUserFullName || 'User';
         await setupTheme(supabase, appState.currentUser);
         attachUserMenuListeners();
     }
 
     function attachUserMenuListeners() {
-       if (userMenuHeader.dataset.listenerAttached === 'true') return;
-
-        userMenuHeader.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userMenuPopup.classList.toggle('show');
-        });
-
-        window.addEventListener('click', () => {
-            if (userMenuPopup.classList.contains('show')) {
-                userMenuPopup.classList.remove('show');
-            }
-        });
+        const userMenu = document.querySelector('.user-menu');
+        if (userMenu?.dataset.listenerAttached === 'true') return;
 
         logoutBtn.addEventListener("click", async () => {
+            sessionStorage.removeItem('crm-briefing-generated');
+            sessionStorage.removeItem('crm-briefing-html');
             await supabase.auth.signOut();
             window.location.href = "index.html";
         });
-        
-        userMenuHeader.dataset.listenerAttached = 'true';
+
+        if (userMenu) userMenu.dataset.listenerAttached = 'true';
     }
 }
 export async function loadSVGs() {
@@ -495,7 +516,7 @@ export async function loadSVGs() {
                 }
                 
                 if (svgUrl.includes('logo.svg')) {
-                    svgElement.classList.add('nav-logo');
+                    svgElement.classList.add(placeholder.closest('#auth-container') ? 'auth-logo' : 'nav-logo');
                 } else if (svgUrl.includes('user-icon.svg')) {
                     svgElement.classList.add('user-icon');
                 }
@@ -510,6 +531,81 @@ export async function loadSVGs() {
     }
 }
 
+let matrixProtocolActive = false;
+
+// --- GLOBAL NAVIGATION (central template, no theme picker) ---
+const GLOBAL_NAV_TEMPLATE = `
+<div class="nav-top-section">
+    <div data-svg-loader="assets/logo.svg"></div>
+    <div class="global-search-container">
+        <div class="global-search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass global-search-icon"></i>
+            <input type="text" id="global-search-input" placeholder="Search...">
+        </div>
+        <div id="global-search-results" class="global-search-results hidden"></div>
+    </div>
+</div>
+<div class="nav-links-section">
+    <a href="command-center.html" class="nav-button"><i class="fa-solid fa-gauge-high nav-icon"></i>Command Center</a>
+    <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i>Deals</a>
+    <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i>Contacts</a>
+    <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i>Accounts</a>
+    <a href="campaigns.html" class="nav-button"><i class="fa-solid fa-bullhorn nav-icon"></i>Campaigns</a>
+    <a href="sequences.html" class="nav-button"><i class="fa-solid fa-arrows-rotate nav-icon"></i>Sequences</a>
+    <a href="social_hub.html" class="nav-button"><i class="fa-solid fa-share-nodes nav-icon"></i>Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
+</div>
+<div class="nav-bottom-section">
+    <div style="position: relative;">
+        <a href="cognito.html" class="nav-button cognito-nav-link">
+            <h1>
+                C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#60a5fa;"></stop>
+                            <stop offset="100%" style="stop-color:#3b82f6;"></stop>
+                        </linearGradient>
+                    </defs>
+                    <g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round">
+                        <path d="M32.2,32.2 L45,45"></path>
+                        <circle cx="20" cy="20" r="15"></circle>
+                    </g>
+                </svg>gnito
+            </h1>
+        </a>
+        <i class="fa-solid fa-bell nav-notification-dot hidden" id="cognito-notification"></i>
+    </div>
+    <div class="user-menu">
+        <div id="user-menu-popup" class="user-menu-content">
+            <a href="user-guide.html" class="nav-button"><i class="fa-solid fa-book nav-icon"></i>User Guide</a>
+            <div class="user-menu-downloads">
+                <span class="user-menu-downloads-label">CSV Templates</span>
+                <a href="contacts_template.csv" class="user-menu-download-link" download>Contacts</a>
+                <a href="accounts_template.csv" class="user-menu-download-link" download>Accounts</a>
+                <a href="sequence_steps_template.csv" class="user-menu-download-link" download>Sequence Steps</a>
+            </div>
+            <button id="logout-btn" class="nav-button nav-button-logout"><i class="fa-solid fa-right-from-bracket nav-icon"></i>Logout</button>
+        </div>
+    </div>
+</div>
+`;
+
+export function injectGlobalNavigation() {
+    const container = document.getElementById('global-nav-container');
+    if (!container) return;
+
+    container.innerHTML = GLOBAL_NAV_TEMPLATE;
+
+    const currentPage = (window.location.pathname || '').split('/').pop() || window.location.href;
+    container.querySelectorAll('a.nav-button[href]').forEach((a) => {
+        const href = a.getAttribute('href') || '';
+        const linkPage = href.split('/').pop();
+        if (linkPage && (currentPage === linkPage || currentPage.endsWith(linkPage))) {
+            a.classList.add('active');
+        }
+    });
+
+}
+
 // --- GLOBAL SEARCH FUNCTION ---
 export async function setupGlobalSearch(supabase) {
     const searchInput = document.getElementById('global-search-input');
@@ -520,6 +616,17 @@ export async function setupGlobalSearch(supabase) {
         console.warn("Global search elements not found on this page.");
         return;
     }
+
+    // Easter egg trigger: \"matrix\" => Matrix Protocol
+    searchInput.addEventListener('input', (event) => {
+        const value = event.target.value.trim().toLowerCase();
+        if (value === 'matrix' && !matrixProtocolActive) {
+            // Clear, blur, and trigger the protocol
+            event.target.value = '';
+            event.target.blur();
+            triggerMatrixProtocol();
+        }
+    });
 
     searchInput.addEventListener('keyup', (e) => {
         clearTimeout(searchTimeout);
@@ -579,6 +686,85 @@ export async function setupGlobalSearch(supabase) {
     });
 }
 
+// --- MATRIX PROTOCOL (Easter Egg) ---
+function triggerMatrixProtocol() {
+    matrixProtocolActive = true;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.style.position = 'fixed';
+    canvas.style.inset = '0';
+    canvas.style.zIndex = '9999';
+    canvas.style.backgroundColor = 'black';
+    canvas.style.pointerEvents = 'none';
+
+    document.body.appendChild(canvas);
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    resizeCanvas();
+
+    // Simple Matrix rain setup
+    const fontSize = 16;
+    const letters = 'アァカサタナハマヤャラワ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let columns = Math.floor(canvas.width / fontSize);
+    let drops = Array.from({ length: columns }, () => 0);
+
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        columns = Math.floor(canvas.width / fontSize);
+        drops = Array.from({ length: columns }, () => 0);
+    }, { once: true });
+
+    function drawFrame() {
+        // Fading trail
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#0F0';
+        ctx.font = `${fontSize}px monospace`;
+
+        for (let i = 0; i < drops.length; i++) {
+            const text = letters.charAt(Math.floor(Math.random() * letters.length));
+            const x = i * fontSize;
+            const y = drops[i] * fontSize;
+            ctx.fillText(text, x, y);
+
+            if (y > canvas.height && Math.random() > 0.975) {
+                drops[i] = 0;
+            } else {
+                drops[i]++;
+            }
+        }
+    }
+
+    let animationFrameId;
+    function loop() {
+        drawFrame();
+        animationFrameId = requestAnimationFrame(loop);
+    }
+
+    loop();
+
+    // After 3 seconds, switch to theme-green and fade out
+    setTimeout(() => {
+        cancelAnimationFrame(animationFrameId);
+        document.body.classList.add('theme-green');
+
+        canvas.style.transition = 'opacity 0.5s ease';
+        canvas.style.opacity = '0';
+
+        setTimeout(() => {
+            if (canvas.parentNode) {
+                canvas.parentNode.removeChild(canvas);
+            }
+            matrixProtocolActive = false;
+        }, 550);
+    }, 3000);
+}
 
 // --- NOTIFICATION FUNCTIONS (FINAL) ---
 

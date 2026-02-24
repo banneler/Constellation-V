@@ -1,6 +1,7 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    injectGlobalNavigation();
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
@@ -15,6 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sequence_steps: [],
         email_log: [],
         activityTypes: [],
+        products: [],
         selectedContactId: null,
         isFormDirty: false, // Comma was missing here
         nameDisplayFormat: 'lastFirst'
@@ -31,16 +33,79 @@ document.addEventListener("DOMContentLoaded", async () => {
     const addContactBtn = document.getElementById("add-contact-btn");
     const deleteContactBtn = document.getElementById("delete-contact-btn");
     const logActivityBtn = document.getElementById("log-activity-btn");
-    const assignSequenceBtn = document.getElementById("assign-sequence-btn");
+    const assignSequenceSelect = document.getElementById("assign-sequence-select");
+    let tomSelectAccount = null;
+    let tomSelectSequence = null;
+    let tomSelectIndustry = null;
+
+    function initTomSelect(el, opts = {}) {
+        if (typeof window.TomSelect === 'undefined') return null;
+        try {
+            return new window.TomSelect(el, { create: false, ...opts });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function populateAssignSequenceDropdown() {
+        if (!assignSequenceSelect) return;
+        if (tomSelectSequence) {
+            tomSelectSequence.destroy();
+            tomSelectSequence = null;
+        }
+        const currentContactSequence = state.selectedContactId
+            ? state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active')
+            : null;
+        const showDropdown = state.selectedContactId && !currentContactSequence;
+
+        assignSequenceSelect.innerHTML = '<option value="">Assign Sequence</option>' +
+            state.sequences.map(s => `<option value="${s.id}">${s.is_abm ? '[ABM] ' : ''}${s.name}</option>`).join('');
+        assignSequenceSelect.value = '';
+        if (showDropdown) {
+            assignSequenceSelect.classList.remove('hidden');
+            tomSelectSequence = initTomSelect(assignSequenceSelect, {
+                placeholder: 'Assign Sequence',
+                searchField: [],
+                dropdownParent: 'body',
+                render: {
+                    dropdown: function() {
+                        const d = document.createElement('div');
+                        d.className = 'ts-dropdown tom-select-no-search';
+                        return d;
+                    }
+                }
+            });
+        } else {
+            assignSequenceSelect.classList.add('hidden');
+        }
+    }
+
+    function populateAccountDropdown() {
+        const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
+        if (!contactAccountNameSelect) return;
+        if (tomSelectAccount) {
+            tomSelectAccount.destroy();
+            tomSelectAccount = null;
+        }
+        contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
+        state.accounts
+            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+            .forEach((acc) => {
+                const o = document.createElement("option");
+                o.value = acc.id;
+                o.textContent = acc.name;
+                contactAccountNameSelect.appendChild(o);
+            });
+        tomSelectAccount = initTomSelect(contactAccountNameSelect, { placeholder: '-- No Account --' });
+    }
+
     const addTaskContactBtn = document.getElementById("add-task-contact-btn");
     const contactActivitiesList = document.getElementById("contact-activities-list");
-    const contactSequenceInfoText = document.getElementById("contact-sequence-info-text");
     const removeFromSequenceBtn = document.getElementById("remove-from-sequence-btn");
     const completeSequenceBtn = document.getElementById("complete-sequence-btn");
-    const noSequenceText = document.getElementById("no-sequence-text");
-    const sequenceStatusContent = document.getElementById("sequence-status-content");
+    const sequenceEnrollmentText = document.getElementById("sequence-enrollment-text");
     const ringChartText = document.getElementById("ring-chart-text");
-    const contactEmailsTableBody = document.getElementById("contact-emails-table-body");
+    const contactEmailsList = document.getElementById("contact-emails-list");
     const emailViewModalBackdrop = document.getElementById("email-view-modal-backdrop");
     const emailViewCloseBtn = document.getElementById("email-view-close-btn");
     const emailViewSubject = document.getElementById("email-view-subject");
@@ -53,11 +118,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const takePictureBtn = document.getElementById("take-picture-btn");
     const cameraInput = document.getElementById("camera-input");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
+    const aiClearInsightBtn = document.getElementById("ai-clear-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
-    const writeEmailAIButton = document.getElementById("ai-write-email-btn");
+    const aiAssistantContent = document.getElementById("ai-assistant-content");
+    const aiToastContainer = document.getElementById("ai-toast-container");
     const sortFirstLastBtn = document.getElementById("sort-first-last-btn");
     const sortLastFirstBtn = document.getElementById("sort-last-first-btn");
-    
+
+    function showAIToast(message, type = 'success') {
+        if (!aiToastContainer) return;
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<span>${message}</span>`;
+        aiToastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('hide');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, 4000);
+    }
+
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
@@ -100,7 +179,8 @@ async function loadAllData() {
             tasksRes,
             sequenceStepsRes,
             emailLogRes,
-            activityTypesRes
+            activityTypesRes,
+            productsRes
         ] = await Promise.all([
             supabase.from('contacts').select('*').eq('user_id', state.currentUser.id),
             supabase.from('accounts').select('*').eq('user_id', state.currentUser.id),
@@ -111,7 +191,8 @@ async function loadAllData() {
             supabase.from('tasks').select('*').eq('user_id', state.currentUser.id),
             supabase.from('sequence_steps').select('*'),
             supabase.from('email_log').select('*'),
-            supabase.from('activity_types').select('*')
+            supabase.from('activity_types').select('*'),
+            supabase.from('product_knowledge').select('product_name')
         ]);
 
         // Helper to check for errors and assign data
@@ -130,6 +211,8 @@ async function loadAllData() {
         state.email_log = processResponse(emailLogRes, 'email_log');
         state.activityTypes = [...new Map(processResponse(activityTypesRes, 'activity_types').map(item => [item.type_name, item])).values()];
         state.sequences = processResponse(sequencesRes, 'sequences'); // Assign all of your sequences
+        const productData = processResponse(productsRes, 'product_knowledge');
+        state.products = [...new Set(productData.map(p => p?.product_name).filter(Boolean))].sort();
 
     } catch (error) {
         console.error("Critical error in loadAllData:", error);
@@ -192,7 +275,9 @@ async function loadAllData() {
 
             item.innerHTML = `
                 <div class="contact-info">
-                    <div class="contact-name">${organicIcon}${displayName}${sequenceIcon}${hotIcon}</div>
+                    <div class="contact-picker-item-icons${!contact.is_organic ? ' contact-picker-item-icons-empty' : ''}">${organicIcon}</div>
+                    <div class="contact-name">${displayName}</div>
+                    <div class="contact-picker-row-icons">${sequenceIcon}${hotIcon}</div>
                     <small class="account-name">${state.accounts.find(a => a.id === contact.account_id)?.name || 'No Account'}</small>
                 </div>
             `;
@@ -200,21 +285,6 @@ async function loadAllData() {
             if (contact.id === state.selectedContactId) item.classList.add("selected");
             contactList.appendChild(item);
         });
-    };
-
-    const populateAccountDropdown = () => {
-        const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
-        if (!contactAccountNameSelect) return;
-        
-        contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
-        state.accounts
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-            .forEach((acc) => {
-                const o = document.createElement("option");
-                o.value = acc.id;
-                o.textContent = acc.name;
-                contactAccountNameSelect.appendChild(o);
-            });
     };
 
     const renderContactDetails = () => {
@@ -233,10 +303,11 @@ async function loadAllData() {
         } else if (contactPendingTaskReminder) {
             contactPendingTaskReminder.classList.add('hidden');
         }
-        
-        populateAccountDropdown();
 
         if (contact) {
+            const accountRow = document.getElementById("contact-account-row");
+            if (accountRow) accountRow.classList.remove("hidden");
+            populateAccountDropdown();
             contactForm.classList.remove('hidden');
 
             if (organicStarIndicator) {
@@ -251,30 +322,47 @@ async function loadAllData() {
             contactForm.querySelector("#contact-title").value = contact.title || "";
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
-            contactForm.querySelector("#contact-account-name").value = contact.account_id || "";
+            const accountVal = contact.account_id || "";
+            contactForm.querySelector("#contact-account-name").value = accountVal;
+            if (tomSelectAccount) tomSelectAccount.setValue(accountVal);
 
             state.isFormDirty = false;
 
             contactActivitiesList.innerHTML = "";
-            state.activities
+            const activities = state.activities
                 .filter((act) => act.contact_id === contact.id)
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .forEach((act) => {
-                    const li = document.createElement("li");
-                    li.textContent = `[${formatDate(act.date)}] ${act.type}: ${act.description}`;
-                    let borderColor = "var(--primary-blue)";
-                    const activityTypeLower = act.type.toLowerCase();
-                    if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-                    else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-                    else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-                    li.style.borderLeftColor = borderColor;
-                    contactActivitiesList.appendChild(li);
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            if (activities.length === 0) {
+                contactActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No activities yet.</p>';
+            } else {
+                activities.forEach((act) => {
+                    const typeLower = act.type.toLowerCase();
+                    let iconClass = "icon-default", icon = "fa-circle-info";
+                    if (typeLower.includes("cognito") || typeLower.includes("intelligence")) { icon = "fa-magnifying-glass"; }
+                    else if (typeLower.includes("email")) { iconClass = "icon-email"; icon = "fa-envelope"; }
+                    else if (typeLower.includes("call")) { iconClass = "icon-call"; icon = "fa-phone"; }
+                    else if (typeLower.includes("meeting")) { iconClass = "icon-meeting"; icon = "fa-video"; }
+                    const item = document.createElement("div");
+                    item.className = "recent-activity-item";
+                    item.innerHTML = `
+                        <div class="activity-icon-wrap ${iconClass}"><i class="fas ${icon}"></i></div>
+                        <div class="activity-body">
+                            <div class="activity-description">${act.type}: ${act.description}</div>
+                            <div class="activity-date">${formatDate(act.date)}</div>
+                        </div>
+                    `;
+                    contactActivitiesList.appendChild(item);
                 });
+            }
             
             renderContactEmails(contact.email);
+            renderAIAssistant(contact);
 
             const activeSequence = state.contact_sequences.find(cs => cs.contact_id === contact.id && cs.status === "Active");
-            if (sequenceStatusContent && noSequenceText && contactSequenceInfoText) {
+            const ringChart = document.getElementById('ring-chart');
+            const ringProgress = document.getElementById('ring-chart-progress');
+            if (ringChart) ringChart.classList.remove('ring-chart-inactive');
+            if (sequenceEnrollmentText && ringChartText) {
                 if (activeSequence) {
                     const sequence = state.sequences.find((s) => s.id === activeSequence.sequence_id);
                     const allSequenceSteps = state.sequence_steps.filter((s) => s.sequence_id === activeSequence.sequence_id);
@@ -282,58 +370,179 @@ async function loadAllData() {
                     const currentStep = activeSequence.current_step_number;
                     const lastCompleted = currentStep - 1;
                     const percentage = totalSteps > 0 ? Math.round((lastCompleted / totalSteps) * 100) : 0;
-                    const ringProgress = document.getElementById('ring-chart-progress');
-                    if (ringProgress) {
-                        ringProgress.style.setProperty('--p', percentage);
-                    }
-                    if(ringChartText) ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
-                    contactSequenceInfoText.textContent = `Enrolled in "${sequence ? sequence.name : 'Unknown'}" (On Step ${currentStep} of ${totalSteps}).`;
-                    sequenceStatusContent.classList.remove("hidden");
-                    noSequenceText.classList.add("hidden");
-                    removeFromSequenceBtn.classList.remove('hidden');
-                    completeSequenceBtn.classList.remove('hidden');
+                    if (ringProgress) ringProgress.style.setProperty('--p', percentage);
+                    ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
+                    sequenceEnrollmentText.textContent = sequence ? sequence.name : 'Unknown';
+                    sequenceEnrollmentText.classList.remove('sequence-enrollment-empty');
+                    if (removeFromSequenceBtn) removeFromSequenceBtn.classList.remove('hidden');
+                    if (completeSequenceBtn) completeSequenceBtn.classList.remove('hidden');
                 } else {
-                    sequenceStatusContent.classList.add("hidden");
-                    noSequenceText.textContent = "Not in a sequence.";
-                    noSequenceText.classList.remove("hidden");
-                    removeFromSequenceBtn.classList.add('hidden');
-                    completeSequenceBtn.classList.add('hidden');
+                    if (ringChart) ringChart.classList.add('ring-chart-inactive');
+                    if (ringProgress) ringProgress.style.setProperty('--p', 0);
+                    ringChartText.textContent = '—';
+                    sequenceEnrollmentText.textContent = 'Not in a sequence';
+                    sequenceEnrollmentText.classList.add('sequence-enrollment-empty');
+                    if (removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
+                    if (completeSequenceBtn) completeSequenceBtn.classList.add('hidden');
                 }
             }
+            populateAssignSequenceDropdown();
         } else {
             hideContactDetails(true, true);
         }
     };
     
+    const PRODUCT_LABELS = {
+        'Dedicated Internet Access': 'DIA',
+        'Managed Network Security': 'Managed Security',
+        'Network Monitoring Portal': 'Network Monitoring',
+        'Standard Internet Access': 'SIA',
+        'Unified Communications': 'UC',
+        'Wavelength Services': 'Wave Circuits'
+    };
+
+    function renderAIProductPickers() {
+        const container = document.getElementById("ai-product-pickers");
+        if (!container) return;
+        const products = state.products || [];
+        const industries = ['General', 'Healthcare', 'Financial', 'Retail', 'Manufacturing', 'K-12 Education'];
+        const getDisplayLabel = (name) => PRODUCT_LABELS[name] ?? name;
+        const displayLabels = products.map(p => getDisplayLabel(p || ''));
+        const maxDisplayLen = displayLabels.length > 0
+            ? Math.max(...displayLabels.map(l => l.length), 10)
+            : 10;
+        const productPills = products.length > 0
+            ? products.map((p) => {
+                const name = p || '';
+                const displayLabel = getDisplayLabel(name);
+                const attrEscaped = name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                const displayEscaped = displayLabel.replace(/</g, '&lt;');
+                return `<button type="button" class="ai-product-pill" data-value="${attrEscaped}" style="min-width: ${maxDisplayLen}ch">${displayEscaped}</button>`;
+            }).join('')
+            : '';
+        const industryOptions = industries.map(ind => `<option value="${ind}">${ind}</option>`).join('');
+        const pillsContent = products.length > 0 ? productPills : '<span class="text-xs text-[var(--text-muted)] col-span-2">No products in product knowledge.</span>';
+        const pillsAndButton = pillsContent + `<button id="ai-generate-email-btn" class="ai-generate-pill-btn btn-primary text-sm py-2 flex items-center justify-center gap-2" title="Generate email"><i class="fas fa-wand-magic-sparkles"></i>Generate</button>`;
+        if (tomSelectIndustry) {
+            tomSelectIndustry.destroy();
+            tomSelectIndustry = null;
+        }
+        container.innerHTML = `
+            <select id="ai-industry-select" class="ai-industry-select w-full py-2 px-3 rounded-lg text-sm bg-[var(--bg-medium)] border border-[var(--border-color)]">
+                <option value="" disabled selected>Industry</option>
+                ${industryOptions}
+            </select>
+            <div class="ai-product-pills mt-2">${pillsAndButton}</div>
+        `;
+        const industrySelect = document.getElementById("ai-industry-select");
+        if (industrySelect) {
+            tomSelectIndustry = initTomSelect(industrySelect, {
+                placeholder: 'Industry',
+                searchField: [],
+                dropdownParent: 'body',
+                render: {
+                    dropdown: function() {
+                        const d = document.createElement('div');
+                        d.className = 'ts-dropdown tom-select-no-search';
+                        return d;
+                    }
+                }
+            });
+        }
+    }
+
+    function renderAIAssistant(contact) {
+        const aiWriteForm = document.getElementById("ai-write-form");
+        const aiEmailResponse = document.getElementById("ai-email-response");
+        const aiInsightView = document.getElementById("ai-insight-view");
+        const aiPromptInput = document.getElementById("ai-email-prompt");
+        const aiEmailSubject = document.getElementById("ai-email-subject");
+        const aiEmailBody = document.getElementById("ai-email-body");
+        if (!aiWriteForm) return;
+
+        if (aiClearInsightBtn) aiClearInsightBtn.classList.add("hidden");
+        aiWriteForm.classList.remove("hidden");
+        aiEmailResponse?.classList.add("hidden");
+        aiInsightView?.classList.add("hidden");
+        if (aiPromptInput) {
+            aiPromptInput.value = "";
+            aiPromptInput.placeholder = contact
+                ? "e.g., 'Write a follow-up email after our meeting.'"
+                : "Select a contact to write an email.";
+        }
+        if (aiEmailSubject) aiEmailSubject.value = "";
+        if (aiEmailBody) aiEmailBody.value = "";
+
+        renderAIProductPickers();
+    }
+
+    function showAIInsightView(summary, nextSteps) {
+        const aiWriteForm = document.getElementById("ai-write-form");
+        const aiEmailResponse = document.getElementById("ai-email-response");
+        const aiInsightView = document.getElementById("ai-insight-view");
+        const aiInsightSummary = document.getElementById("ai-insight-summary");
+        const aiInsightNextSteps = document.getElementById("ai-insight-next-steps");
+        if (!aiInsightView) return;
+        aiWriteForm?.classList.add("hidden");
+        aiEmailResponse?.classList.add("hidden");
+        aiInsightView.classList.remove("hidden");
+        if (aiInsightSummary) aiInsightSummary.innerHTML = summary;
+        if (aiInsightNextSteps) aiInsightNextSteps.textContent = nextSteps;
+        if (aiClearInsightBtn) aiClearInsightBtn.classList.remove("hidden");
+    }
+
+    function showAIWriteForm() {
+        const aiWriteForm = document.getElementById("ai-write-form");
+        const aiEmailResponse = document.getElementById("ai-email-response");
+        const aiInsightView = document.getElementById("ai-insight-view");
+        aiWriteForm?.classList.remove("hidden");
+        aiEmailResponse?.classList.add("hidden");
+        aiInsightView?.classList.add("hidden");
+        if (aiClearInsightBtn) aiClearInsightBtn.classList.add("hidden");
+    }
+
+    function showAIEmailResponse() {
+        const aiWriteForm = document.getElementById("ai-write-form");
+        const aiEmailResponse = document.getElementById("ai-email-response");
+        const aiInsightView = document.getElementById("ai-insight-view");
+        aiWriteForm?.classList.add("hidden");
+        aiEmailResponse?.classList.remove("hidden");
+        aiInsightView?.classList.add("hidden");
+    }
+
     function renderContactEmails(contactEmail) {
-        if (!contactEmailsTableBody) return;
-        contactEmailsTableBody.innerHTML = ''; 
+        if (!contactEmailsList) return;
+        contactEmailsList.innerHTML = '';
 
         if (!contactEmail) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Contact has no email address.</td></tr>';
+            contactEmailsList.innerHTML = '<p class="logged-emails-empty text-sm text-[var(--text-medium)] py-6">Contact has no email address.</p>';
             return;
         }
 
         const loggedEmails = state.email_log
             .filter(email => (email.recipient || '').toLowerCase() === (contactEmail || '').toLowerCase())
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
+
         if (loggedEmails.length === 0) {
-            contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No logged emails for this contact.</td></tr>';
+            contactEmailsList.innerHTML = '<p class="logged-emails-empty text-sm text-[var(--text-medium)] py-6">No logged emails for this contact.</p>';
             return;
         }
-        
+
         loggedEmails.forEach(email => {
-            const row = contactEmailsTableBody.insertRow();
-            row.dataset.emailId = email.id;
             const hasAttachment = email.attachments && email.attachments.length > 0;
-            const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paperclip" title="${email.attachments.length} attachment(s)"></i>` : '';
-            
-            row.innerHTML = `
-                <td>${formatDate(email.created_at)}</td>
-                <td>${email.subject || '(No Subject)'}${attachmentIndicator}</td>
-                <td><button class="btn-secondary btn-view-email" data-email-id="${email.id}">View</button></td>
+            const attachmentIndicator = hasAttachment ? ` <i class="fas fa-paperclip text-xs" title="${email.attachments.length} attachment(s)"></i>` : '';
+            const item = document.createElement('div');
+            item.className = 'email-item';
+            item.innerHTML = `
+                <div class="email-item-inner">
+                    <div class="email-item-content">
+                        <div class="email-date">${formatDate(email.created_at)}</div>
+                        <div class="email-subject">${(email.subject || '(No Subject)') + attachmentIndicator}</div>
+                    </div>
+                    <button class="btn-view-email btn-icon-logged-email" data-email-id="${email.id}" title="View email"><i class="fas fa-envelope"></i></button>
+                </div>
             `;
+            contactEmailsList.appendChild(item);
         });
     }
 
@@ -438,24 +647,37 @@ async function loadAllData() {
     }
 
     const hideContactDetails = (hideForm = true, clearSelection = false) => {
+        if (tomSelectAccount) {
+            tomSelectAccount.destroy();
+            tomSelectAccount = null;
+        }
+        const accountRow = document.getElementById("contact-account-row");
+        if (accountRow) accountRow.classList.add("hidden");
         if (contactForm && hideForm) contactForm.classList.add('hidden');
         if (contactForm) {
             contactForm.reset();
             contactForm.querySelector("#contact-id").value = "";
             contactForm.querySelector("#contact-last-saved").textContent = "Not yet saved.";
-            const contactAccountNameSelect = contactForm.querySelector("#contact-account-name");
-            if (contactAccountNameSelect) contactAccountNameSelect.innerHTML = '<option value="">-- No Account --</option>';
+            const contactAccountInput = document.getElementById("contact-account-name");
+            if (contactAccountInput) contactAccountInput.value = "";
         }
-        if(contactActivitiesList) contactActivitiesList.innerHTML = "";
-        if(sequenceStatusContent) sequenceStatusContent.classList.add('hidden');
-        if(noSequenceText) {
-            noSequenceText.textContent = "Select a contact to see details.";
-            noSequenceText.classList.remove("hidden");
+        if(contactActivitiesList) contactActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select a contact to see activities.</p>';
+        if(sequenceEnrollmentText) {
+            sequenceEnrollmentText.textContent = "Select a contact to see details.";
+            sequenceEnrollmentText.classList.add('sequence-enrollment-empty');
         }
+        const ringChart = document.getElementById('ring-chart');
+        const ringProgress = document.getElementById('ring-chart-progress');
+        if (ringChart) ringChart.classList.add('ring-chart-inactive');
+        if (ringProgress) ringProgress.style.setProperty('--p', 0);
+        const ringChartTextEl = document.getElementById('ring-chart-text');
+        if (ringChartTextEl) ringChartTextEl.textContent = '—';
         if(removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
         if(completeSequenceBtn) completeSequenceBtn.classList.add('hidden');
-        if (contactEmailsTableBody) contactEmailsTableBody.innerHTML = '<tr><td colspan="3" class="placeholder-text">Select a contact to see logged emails.</td></tr>';
+        if (contactEmailsList) contactEmailsList.innerHTML = '<p class="logged-emails-empty text-sm text-[var(--text-medium)] py-6">Select a contact to see logged emails.</p>';
         if(contactPendingTaskReminder) contactPendingTaskReminder.classList.add('hidden');
+        populateAssignSequenceDropdown();
+        renderAIAssistant(null);
 
         if (clearSelection) {
             state.selectedContactId = null;
@@ -575,75 +797,41 @@ async function loadAllData() {
         }
     }
 
-    // --- AI EMAIL GENERATION ---
-    async function showAIEmailModal() {
-        if (!state.selectedContactId) {
-            showModal("Error", "Please select a contact to write an email for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-
-        const contact = state.contacts.find(c => c.id === state.selectedContactId);
-        if (!contact?.email) {
-            showModal("Error", "The selected contact does not have an email address.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-
-        // Updated modal body to include a container for the prompt and make the subject editable
-        const initialModalBody = `
-            <p><strong>To:</strong> ${contact.first_name} ${contact.last_name} &lt;${contact.email}&gt;</p>
-            <div id="ai-prompt-container">
-                <label>Prompt:</label>
-                <textarea id="ai-email-prompt" rows="4" placeholder="e.g., 'Write a follow-up email after our meeting about the new project.'"></textarea>
-            </div>
-            <div class="email-response-container hidden">
-                <hr>
-                <label>AI-Generated Subject:</label>
-                <input type="text" id="ai-email-subject" />
-                <label>AI-Generated Draft:</label>
-                <textarea id="ai-email-body" rows="10"></textarea>
-                <div class="flex-end-buttons">
-                    <button id="open-email-client-btn" class="btn-primary">Open Email Client</button>
-                </div>
-            </div>
-        `;
-        showModal(
-            `Write Email with AI for ${contact.first_name}`,
-            initialModalBody,
-            null,
-            true,
-            `<button id="ai-generate-email-btn" class="btn-primary">Generate</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
-        );
-
-        document.getElementById('ai-generate-email-btn').addEventListener('click', () => generateEmailWithAI(contact));
-        document.getElementById('open-email-client-btn')?.addEventListener('click', () => openEmailClient(contact));
-    }
-
+    // --- AI EMAIL GENERATION (inline in AI container) ---
     async function generateEmailWithAI(contact) {
-        const userPrompt = document.getElementById('ai-email-prompt').value;
-        const promptContainer = document.getElementById('ai-prompt-container');
-        const responseContainer = document.querySelector('.email-response-container');
+        if (!contact?.email) {
+            showAIToast("Contact has no email address.", "error");
+            return;
+        }
+        const userPrompt = document.getElementById('ai-email-prompt')?.value;
         const aiEmailSubject = document.getElementById('ai-email-subject');
         const aiEmailBody = document.getElementById('ai-email-body');
         const generateButton = document.getElementById('ai-generate-email-btn');
 
         if (!userPrompt) {
-            showToast("Please enter a prompt.", "error");
+            showAIToast("Please enter a prompt.", "error");
             return;
         }
 
-        const originalButtonText = generateButton.textContent;
-        generateButton.disabled = true;
-        generateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating...`;
+        const originalButtonText = generateButton?.innerHTML;
+        if (generateButton) {
+            generateButton.disabled = true;
+            generateButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating...`;
+        }
 
         const contactName = `${contact.first_name} ${contact.last_name}`;
         const accountName = state.accounts.find(acc => acc.id === contact.account_id)?.name || '';
+        const selectedProducts = Array.from(document.querySelectorAll('.ai-product-pill.active')).map(pill => pill.dataset.value);
+        const selectedIndustry = document.getElementById('ai-industry-select')?.value || 'General';
 
         try {
             const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
                 body: {
                     userPrompt: userPrompt,
                     contactName: contactName,
-                    accountName: accountName
+                    accountName: accountName,
+                    product_names: selectedProducts,
+                    industry: selectedIndustry
                 }
             });
 
@@ -652,34 +840,33 @@ async function loadAllData() {
             const generatedSubject = data.subject || "No Subject";
             const generatedBody = data.body || "Failed to generate email content.";
             
-            aiEmailSubject.value = generatedSubject;
-            aiEmailBody.value = generatedBody;
+            if (aiEmailSubject) aiEmailSubject.value = generatedSubject;
+            if (aiEmailBody) aiEmailBody.value = generatedBody;
             
-            // Hide the prompt container and show the response container after generation
-            promptContainer.classList.add('hidden');
-            responseContainer.classList.remove('hidden');
-            
-            showToast("Email generated successfully!", "success");
+            showAIEmailResponse();
+            showAIToast("Email generated successfully!", "success");
 
         } catch (e) {
             console.error("Error generating email:", e);
-            aiEmailSubject.value = "Error";
-            aiEmailBody.value = "An error occurred while generating the email. Please try again.";
-            
-            // Still hide the prompt and show the response container with the error
-            promptContainer.classList.add('hidden');
-            responseContainer.classList.remove('hidden');
-            
-            showToast("Failed to generate email.", "error");
+            if (aiEmailSubject) aiEmailSubject.value = "Error";
+            if (aiEmailBody) aiEmailBody.value = "An error occurred while generating the email. Please try again.";
+            showAIEmailResponse();
+            showAIToast("Failed to generate email.", "error");
         } finally {
-            generateButton.disabled = false;
-            generateButton.textContent = originalButtonText;
+            if (generateButton) {
+                generateButton.disabled = false;
+                generateButton.innerHTML = originalButtonText || '<i class="fas fa-wand-magic-sparkles"></i>Generate';
+            }
         }
     }
 
 async function openEmailClient(contact) {
-    const emailSubject = document.getElementById('ai-email-subject').value;
-    const emailBody = document.getElementById('ai-email-body').value;
+    if (!contact?.email) {
+        showAIToast("Contact has no email address.", "error");
+        return;
+    }
+    const emailSubject = document.getElementById('ai-email-subject')?.value || '';
+    const emailBody = document.getElementById('ai-email-body')?.value || '';
 
     // CORRECTED: Let encodeURIComponent handle the newlines automatically.
     const encodedBody = encodeURIComponent(emailBody); 
@@ -697,16 +884,15 @@ async function openEmailClient(contact) {
             date: new Date().toISOString()
         });
 
-        if (error) {
-            console.error("Error logging AI email activity:", error);
-            showToast("Email activity logged with errors.", "warning");
-        } else {
-            showToast("Email activity successfully logged!", "success");
-        }
+        if (error) {
+            console.error("Error logging AI email activity:", error);
+            showToast("Email activity logged with errors.", "warning");
+        } else {
+            showToast("Email activity successfully logged!", "success");
+        }
 
-        await loadAllData();
-        hideModal();
-    } catch (e) {
+        await loadAllData();
+    } catch (e) {
         console.error("Error logging activity:", e);
     }
 }
@@ -719,7 +905,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         .order('step_number');
 
     if (stepsError || !steps || steps.length === 0) {
-        showModal("Error", "Could not find steps for this sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        showToast("Could not find steps for this sequence.", "error");
         return false;
     }
 
@@ -742,7 +928,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         .single();
 
     if (csError) {
-        showModal("Error", 'Failed to enroll contact in sequence: ' + csError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        showToast('Failed to enroll contact in sequence: ' + csError.message, "error");
         return false;
     }
 
@@ -775,7 +961,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         .insert(contactStepRecords);
         
     if (cssError) {
-        showModal("Error", 'Failed to create individual step tasks: ' + cssError.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        showToast('Failed to create individual step tasks: ' + cssError.message, "error");
         await supabase.from('contact_sequences').delete().eq('id', contactSequence.id); // Roll back
         return false;
     }
@@ -1264,46 +1450,27 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 return true;
             }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Activity</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         });
-        
-  assignSequenceBtn.addEventListener("click", () => {
-    if (!state.selectedContactId) return showModal("Error", "Please select a contact to assign a sequence to.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-    
-    const currentContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
-    if (currentContactSequence) {
-        const sequenceName = state.sequences.find(s => s.id === currentContactSequence.sequence_id)?.name || 'Unknown';
-        showModal("Error", `Contact is already in an active sequence: "${sequenceName}". Remove them first.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        return;
-    }
 
-    // Show ALL sequences, marking ABM ones
-    const sequenceOptions = state.sequences.map(s => `<option value="${s.id}">${s.is_abm ? '[ABM] ' : ''}${s.name}</option>`).join('');
-
-    showModal("Assign Sequence", `
-        <label>Select Sequence:</label>
-        <select id="modal-sequence-select" required><option value="">-- Select --</option>${sequenceOptions}</select>
-    `, async () => {
-        const sequenceId = document.getElementById('modal-sequence-select').value;
-        if (!sequenceId) {
-            showModal("Error", "Please select a sequence.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return false;
-        }
+    assignSequenceSelect?.addEventListener("change", async () => {
+        const sequenceId = assignSequenceSelect.value;
+        if (!sequenceId || !state.selectedContactId) return;
 
         const selectedSequence = state.sequences.find(s => s.id === Number(sequenceId));
         if (!selectedSequence) {
-            showModal("Error", "Selected sequence not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return false;
+            showToast("Selected sequence not found.", "error");
+            assignSequenceSelect.value = '';
+            return;
         }
 
         let success = false;
-        // Check if it's an ABM sequence and use the correct logic
         if (selectedSequence.is_abm) {
             success = await handleAssignSequenceToContact(state.selectedContactId, Number(sequenceId), state.currentUser.id);
         } else {
-            // Use the ORIGINAL, simple logic for regular sales sequences
             const firstStep = state.sequence_steps.find(s => s.sequence_id === selectedSequence.id && s.step_number === 1);
             if (!firstStep) {
-                showModal("Error", "Selected sequence has no steps.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                return false;
+                showToast("Selected sequence has no steps.", "error");
+                assignSequenceSelect.value = '';
+                return;
             }
             const { error } = await supabase.from('contact_sequences').insert({
                 contact_id: state.selectedContactId,
@@ -1314,7 +1481,8 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 user_id: state.currentUser.id
             });
             if (error) {
-                showModal("Error", "Error assigning sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                showToast("Error assigning sequence: " + error.message, "error");
+                assignSequenceSelect.value = '';
             } else {
                 success = true;
             }
@@ -1322,15 +1490,11 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
 
         if (success) {
             await loadAllData();
-            hideModal();
-            showModal("Success", "Sequence assigned successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            showToast("Sequence assigned successfully!", "success");
         }
-        return success;
+    });
 
-    }, true, `<button id="modal-confirm-btn" class="btn-primary">Assign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-});
-
-     if (completeSequenceBtn) {
+    if (completeSequenceBtn) {
     completeSequenceBtn.addEventListener("click", async () => {
         if (!state.selectedContactId) return;
         const activeContactSequence = state.contact_sequences.find(cs => cs.contact_id === state.selectedContactId && cs.status === 'Active');
@@ -1434,13 +1598,13 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         if (aiActivityInsightBtn) {
             aiActivityInsightBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) {
-                    showModal("Error", "Please select a contact to get AI insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    showAIToast("Please select a contact to get AI insights.", "error");
                     return;
                 }
 
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) {
-                    showModal("Error", "Selected contact not found.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    showAIToast("Selected contact not found.", "error");
                     return;
                 }
 
@@ -1449,7 +1613,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 if (relevantActivities.length === 0) {
-                    showModal("Info", "No activities found for this contact to generate insights.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    showAIToast("No activities found for this contact to generate insights.", "info");
                     return;
                 }
 
@@ -1457,7 +1621,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     `[${formatDate(act.date)}] Type: ${act.type}, Description: ${act.description}`
                 ).join('\n');
 
-                showModal("Generating AI Insight", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Analyzing activities and generating insights...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                showAIInsightView('<i class="fas fa-spinner fa-spin"></i> Analyzing...', '');
 
                 try {
                     const { data, error } = await supabase.functions.invoke('get-activity-insight', {
@@ -1471,23 +1635,48 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
 
                     const insight = data.insight || "No insight generated.";
                     const nextSteps = data.next_steps || "No specific next steps suggested.";
-
-                    showModal("AI Activity Insight", `
-                        <h4>Summary:</h4>
-                        <p>${insight}</p>
-                        <h4>Suggested Next Steps:</h4>
-                        <p>${nextSteps}</p>
-                    `, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    showAIInsightView(insight, nextSteps);
 
                 } catch (error) {
                     console.error("Error invoking AI insight Edge Function:", error);
-                    showModal("Error", `Failed to generate AI insight: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    showAIInsightView("", `Failed to generate insight: ${error.message}. Please try again.`);
                 }
             });
         }
-        
-        if (writeEmailAIButton) {
-            writeEmailAIButton.addEventListener("click", showAIEmailModal);
+
+        if (aiClearInsightBtn) {
+            aiClearInsightBtn.addEventListener("click", () => {
+                const contact = state.contacts.find(c => c.id === state.selectedContactId);
+                showAIWriteForm();
+                renderAIAssistant(contact);
+            });
+        }
+
+        if (aiAssistantContent) {
+            aiAssistantContent.addEventListener("click", (e) => {
+                const pill = e.target.closest(".ai-product-pill");
+                const generateBtn = e.target.closest("#ai-generate-email-btn");
+                const regenerateBtn = e.target.closest("#ai-regenerate-email-btn");
+                const openClientBtn = e.target.closest("#open-email-client-btn");
+                const newEmailBtn = e.target.closest("#ai-new-email-btn");
+                if (pill) {
+                    e.preventDefault();
+                    pill.classList.toggle("active");
+                } else if ((generateBtn || regenerateBtn) && state.selectedContactId) {
+                    e.preventDefault();
+                    const contact = state.contacts.find(c => c.id === state.selectedContactId);
+                    if (contact) generateEmailWithAI(contact);
+                } else if (openClientBtn && state.selectedContactId) {
+                    e.preventDefault();
+                    const contact = state.contacts.find(c => c.id === state.selectedContactId);
+                    if (contact) openEmailClient(contact);
+                } else if (newEmailBtn) {
+                    e.preventDefault();
+                    const contact = state.contacts.find(c => c.id === state.selectedContactId);
+                    showAIWriteForm();
+                    renderAIAssistant(contact);
+                }
+            });
         }
     }
 

@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategic - CRM - Campaigns</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
@@ -15,78 +15,32 @@
 <body>
     <div class="crm-container">
         <nav class="nav-sidebar">
-            <div data-svg-loader="assets/logo.svg"></div>
-
-            <div class="global-search-container">
-                <input type="text" id="global-search-input" placeholder="Global Search...">
-                <div id="global-search-results" class="global-search-results hidden"></div>
-            </div>
-
-            <a href="command-center.html" class="nav-button">Command Center</a>
-            <a href="deals.html" class="nav-button">Deals</a>
-            <a href="contacts.html" class="nav-button">Contacts</a>
-            <a href="accounts.html" class="nav-button">Accounts</a>
-            <a href="campaigns.html" class="nav-button active">Campaigns</a>
-            <a href="sequences.html" class="nav-button">Sequences</a>
-            <a href="social_hub.html" class="nav-button">Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
-            
-            <div class="nav-bottom-section">
-                <div style="position: relative;">
-                    <a href="cognito.html" class="nav-button cognito-nav-link">
-                        <h1>
-                            C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" style="stop-color:#60a5fa;"></stop>
-                                        <stop offset="100%" style="stop-color:#3b82f6;"></stop>
-                                    </linearGradient>
-                                </defs>
-                                <g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round">
-                                    <path d="M32.2,32.2 L45,45"></path>
-                                    <circle cx="20" cy="20" r="15"></circle>
-                                </g>
-                            </svg>gnito
-                        </h1>
-                    </a>
-                    <i class="fa-solid fa-bell nav-notification-dot hidden" id="cognito-notification"></i>
-                </div>
-
-                <div class="user-menu" style="margin-top: auto;">
-                    <div class="user-menu-header">
-                        <div data-svg-loader="assets/user-icon.svg"></div>
-                        <span id="user-name-display">Loading...</span>
-                    </div>
-                    <div id="user-menu-popup" class="user-menu-popup">
-                        <button id="theme-toggle-btn" class="nav-button">
-                            Theme: <span id="theme-name">Dark</span>
-                        </button>
-                        <a href="user-guide.html" class="nav-button">User Guide</a>
-                        <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
-                    </div>
-                </div>
-            </div>
+            <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
 
         <main class="content-area">
             <div id="campaigns-view" class="content-view active-view">
-                <h2>Campaigns</h2>
-               <div class="split-view">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="page-title">Campaigns</h2>
+                    </div>
+                    <div class="split-view px-5 pb-5">
                     <div class="item-list-container">
                         <button id="new-campaign-btn" class="btn-primary full-width">Create New Campaign</button>
                         <button id="manage-templates-btn" class="btn-secondary full-width">Manage Email Templates</button>
                         
-                        <button id="delete-campaign-btn" class="btn-danger full-width" style="margin-top: 10px;">Delete Selected Campaign</button>
+                        <button id="delete-campaign-btn" class="btn-danger full-width mt-2.5">Delete Selected Campaign</button>
 
-                        <h4>Active Campaigns</h4>
+                        <h4 class="subsection-title">Active Campaigns</h4>
                         <div id="campaign-list-active" class="item-list">
                             </div>
 
-                        <h4 style="margin-top: 1.5rem;">Past Campaigns</h4>
+                        <h4 class="subsection-title" style="margin-top: 1.5rem;">Past Campaigns</h4>
                         <div id="campaign-list-past" class="item-list">
                             </div>
                     </div>
                     <div id="campaign-details" class="details-panel">
-                        <h3>Campaign Details</h3>
+                        <h3 class="details-panel-title">Campaign Details</h3>
                         <div id="campaign-details-content">
                             <p>Select a campaign to see its details or create a new one.</p>
                         </div>
@@ -142,6 +96,7 @@
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
         </main>
     </div>
@@ -150,10 +105,7 @@
         <div class="modal-content">
             <h3 id="modal-title"></h3>
             <div id="modal-body"></div>
-           <div class="modal-actions" id="modal-actions">
-                <button id="modal-confirm-btn" class="btn-primary">Confirm</button>
-                <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>
-            </div>
+            <div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
     <script>

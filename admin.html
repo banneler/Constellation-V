@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="description" content="Constellation CRM: A powerful and intuitive tool for managing your sales pipeline, contacts, and deals.">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constellation - Admin Portal</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Strategic - CRM - Admin</title>
+    <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="crm-container">
@@ -26,11 +28,15 @@
         
         <main class="content-area">
             <div id="user-management-view" class="content-view active-view">
-                <h2>User Management</h2>
-                <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Last Login</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Exclude from Reporting?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="page-title">User Management</h2>
+                    </div>
+                    <div class="px-5 pb-5">
+                        <div class="table-container"><table id="user-management-table"><thead><tr><th>Full Name</th><th>Email</th><th>Last Login</th><th>Monthly Quota ($)</th><th>Is Manager?</th><th>Exclude from Reporting?</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
                 
                 <div id="reassignment-section" class="hidden" style="margin-top: 2rem;">
-                    <h3>Bulk Data Reassignment</h3>
+                    <h3 class="section-title">Bulk Data Reassignment</h3>
                     <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
                       Quickly reassign all open deals, contacts, and accounts from one user to another. This is useful when a team member's role changes or they leave the company.
                     </p>
@@ -42,22 +48,34 @@
                         <button id="reassign-btn" class="btn-primary">Reassign</button>
                     </div>
                 </div>
+                    </div>
+                </div>
             </div>
 
             <div id="content-management-view" class="content-view hidden">
-                <h2>Content Management</h2>
-                <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
-                  Manage which templates and sequences are shared across the organization.
-                </p>
-                <div class="deals-view-toggle" style="margin-bottom: 1.5rem;">
-                    <button id="view-templates-btn" class="btn-secondary content-view-btn active">Email Templates</button>
-                    <button id="view-sequences-btn" class="btn-secondary content-view-btn">Marketing Sequences</button>
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="page-title">Content Management</h2>
+                    </div>
+                    <div class="px-5 pb-5">
+                        <p class="placeholder-text mb-6">
+                          Manage which templates and sequences are shared across the organization.
+                        </p>
+                        <div class="deals-view-toggle mb-6">
+                            <button id="view-templates-btn" class="btn-secondary content-view-btn active">Email Templates</button>
+                            <button id="view-sequences-btn" class="btn-secondary content-view-btn">Marketing Sequences</button>
+                        </div>
+                        <div class="table-container"><table id="content-management-table"><thead></thead><tbody></tbody></table></div>
+                    </div>
                 </div>
-                <div class="table-container"><table id="content-management-table"><thead></thead><tbody></tbody></table></div>
             </div>
 
             <div id="analytics-view" class="content-view hidden">
-                <h2>System Analytics</h2>
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="page-title">System Analytics</h2>
+                    </div>
+                    <div class="px-5 pb-5">
                 <div class="filter-bar">
                     <select id="analytics-rep-filter"></select>
                     <select id="analytics-date-filter">
@@ -109,21 +127,27 @@
                         <div class="chart-wrapper hidden"><canvas id="closed-won-chart"></canvas><div class="chart-table-view hidden"></div></div>
                     </div>
                 </div>
-                 <h2 style="margin-top: 2rem;">System Activity Log</h2>
+                 <h2 class="section-title">System Activity Log</h2>
                 <div class="table-container">
                     <table id="activity-log-table">
                         <thead><tr><th>Date</th><th>User</th><th>Type</th><th>Description</th><th>Related Contact</th><th>Related Account</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
+                    </div>
+                </div>
             </div>
             
             <div id="script-logs-view" class="content-view hidden">
-                <h2>Script Logs</h2>
-                <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
-                  View the run history for automated scripts that feed data into Constellation.
-                </p>
-                <div class="table-container">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="page-title">Script Logs</h2>
+                    </div>
+                    <div class="px-5 pb-5">
+                        <p class="placeholder-text mb-6">
+                          View the run history for automated scripts that feed data into Constellation.
+                        </p>
+                        <div class="table-container">
                     <table id="script-logs-table">
                         <thead>
                             <tr>
@@ -136,13 +160,18 @@
                         <tbody></tbody>
                     </table>
                 </div>
+                    </div>
+                </div>
             </div>
 
             <div id="settings-view" class="content-view hidden">
-                <h2>System Settings</h2>
-                <div class="split-view">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="page-title">System Settings</h2>
+                    </div>
+                    <div class="split-view px-5 pb-5">
                     <div class="details-panel">
-                        <h3>Deal Stages</h3>
+                        <h3 class="details-panel-title">Deal Stages</h3>
                         <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">Define the stages of your sales pipeline. The order can be rearranged by dragging and dropping.</p>
                         <ul id="deal-stages-list" class="settings-list"></ul>
                         <div class="settings-add-form">
@@ -151,7 +180,7 @@
                         </div>
                     </div>
                     <div class="details-panel">
-                        <h3>Activity Types</h3>
+                        <h3 class="details-panel-title">Activity Types</h3>
                         <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">Define the types of activities your team can log (e.g., Call, Email, Demo).</p>
                         <ul id="activity-types-list" class="settings-list"></ul>
                         <div class="settings-add-form">
@@ -159,6 +188,7 @@
                             <button id="add-activity-type-btn" class="btn-primary">Add Type</button>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </main>

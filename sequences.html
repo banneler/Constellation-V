@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategic - CRM - Sequences</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
@@ -15,62 +15,16 @@
 <body>
     <div class="crm-container">
         <nav class="nav-sidebar">
-            <div data-svg-loader="assets/logo.svg"></div>
-
-            <div class="global-search-container">
-                <input type="text" id="global-search-input" placeholder="Global Search...">
-                <div id="global-search-results" class="global-search-results hidden"></div>
-            </div>
-
-            <a href="command-center.html" class="nav-button">Command Center</a>
-            <a href="deals.html" class="nav-button">Deals</a>
-            <a href="contacts.html" class="nav-button">Contacts</a>
-            <a href="accounts.html" class="nav-button">Accounts</a>
-            <a href="campaigns.html" class="nav-button">Campaigns</a>
-            <a href="sequences.html" class="nav-button active">Sequences</a>
-            <a href="social_hub.html" class="nav-button">Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
-            
-            <div class="nav-bottom-section">
-                <div style="position: relative;">
-                    <a href="cognito.html" class="nav-button cognito-nav-link">
-                        <h1>
-                            C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" style="stop-color:#60a5fa;"></stop>
-                                        <stop offset="100%" style="stop-color:#3b82f6;"></stop>
-                                    </linearGradient>
-                                </defs>
-                                <g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round">
-                                    <path d="M32.2,32.2 L45,45"></path>
-                                    <circle cx="20" cy="20" r="15"></circle>
-                                </g>
-                            </svg>gnito
-                        </h1>
-                    </a>
-                    <i class="fa-solid fa-bell nav-notification-dot hidden" id="cognito-notification"></i>
-                </div>
-
-                <div class="user-menu" style="margin-top: auto;">
-                    <div class="user-menu-header">
-                        <div data-svg-loader="assets/user-icon.svg"></div>
-                        <span id="user-name-display">Loading...</span>
-                    </div>
-                    <div id="user-menu-popup" class="user-menu-popup">
-                        <button id="theme-toggle-btn" class="nav-button">
-                            Theme: <span id="theme-name">Dark</span>
-                        </button>
-                        <a href="user-guide.html" class="nav-button">User Guide</a>
-                        <button id="logout-btn" class="nav-button" style="background-color: #773030;">Logout</button>
-                    </div>
-                </div>
-            </div>
+            <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
 
         <main class="content-area">
             <div id="sequences" class="content-view active-view">
-                <h2>Sequences</h2>
-                <div class="split-view">
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="page-title">Sequences</h2>
+                    </div>
+                    <div class="split-view px-5 pb-5">
                    <div class="item-list-container">
     <button id="add-sequence-btn" class="btn-primary full-width">Add New Sequence</button>
     <button id="import-marketing-sequence-btn" class="btn-secondary full-width">Import Marketing Sequence</button>
@@ -80,7 +34,7 @@
     <div id="sequence-list" class="item-list"></div>
 </div>
                     <div id="sequence-details" class="details-panel">
-                        <h3>Sequence Details</h3>
+                        <h3 class="details-panel-title">Sequence Details</h3>
                         <form id="sequence-form">
                             <input type="hidden" id="sequence-id">
                             <label for="sequence-name">Sequence Name</label>
@@ -96,7 +50,7 @@
                         </form>
                         <hr>
                         <div class="related-info">
-                            <h4>Sequence Steps</h4>
+                            <h4 class="subsection-title">Sequence Steps</h4>
                             <div class="table-container">
                                 <table id="sequence-steps-table">
                                     <thead>
@@ -118,12 +72,15 @@
                         </div>
                     </div>
                 </div>
+                </div>
 
-                <hr> <!-- Separator for AI Generation section -->
-
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h2 class="section-title">AI Generate New Sequence</h2>
+                    </div>
+                    <div class="px-5 pb-5">
                 <!-- AI Sequence Generation Section -->
                 <div class="ai-generation-section">
-                    <h3>AI Generate New Sequence</h3>
                     <div class="form-grid">
                         <!-- NEW: Sequence Goal/Topic -->
                         <div class="full-span-grid-item">
@@ -162,7 +119,7 @@
                     </div>
 
                     <div id="ai-generated-sequence-preview" class="ai-generated-preview hidden">
-                        <h4>AI Generated Sequence Preview:</h4>
+                        <h4 class="subsection-title">AI Generated Sequence Preview:</h4>
                         <p class="placeholder-text">Review the generated steps below. You can edit them before saving.</p>
                         <form id="ai-generated-sequence-form">
                             <!-- AI generated steps will be dynamically inserted here -->
@@ -173,7 +130,8 @@
                         </div>
                     </div>
                 </div>
-                <!-- END AI Sequence Generation Section -->
+                </div>
+                </div>
 
             </div>
         </main>

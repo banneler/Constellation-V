@@ -5,33 +5,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategic - CRM - Login</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-    <div id="auth-container" class="auth-container">
-        <div class="auth-box">
+    <div id="auth-container" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#12243D] to-slate-900 p-4">
+        <div class="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-8 w-full max-w-md flex flex-col items-center relative z-10">
             <div data-svg-loader="assets/logo.svg"></div>
-            <p id="auth-error" class="auth-error"></p>
+            <p id="auth-error" class="min-h-[0.8rem] mt-0.5 mb-0.5 text-sm text-red-400"></p>
             
-            <form id="auth-form">
-                <input type="email" id="auth-email" placeholder="Email" required>
-                <input type="password" id="auth-password" placeholder="Password" required>
+            <form id="auth-form" class="w-full">
+                <input type="email" id="auth-email" placeholder="Email" required
+                    class="w-full bg-white/5 border border-white/10 text-white placeholder-slate-300 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/10 transition-all">
+                <input type="password" id="auth-password" placeholder="Password" required
+                    class="w-full bg-white/5 border border-white/10 text-white placeholder-slate-300 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/10 transition-all">
                 <div id="signup-fields" class="hidden">
-                    <input type="password" id="auth-confirm-password" placeholder="Confirm Password" >
+                    <input type="password" id="auth-confirm-password" placeholder="Confirm Password"
+                        class="w-full bg-white/5 border border-white/10 text-white placeholder-slate-300 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/10 transition-all">
                 </div>
-                <button type="submit" id="auth-submit-btn" class="btn-primary full-width">Login</button>
+                <button type="submit" id="auth-submit-btn" class="btn-primary w-full mb-4">Login</button>
             </form>
 
-            <form id="reset-form" class="hidden">
-                <input type="email" id="reset-email" placeholder="Email" required>
-                <button type="submit" id="reset-submit-btn" class="btn-primary full-width">Send Reset Link</button>
+            <form id="reset-form" class="hidden w-full">
+                <input type="email" id="reset-email" placeholder="Email" required
+                    class="w-full bg-white/5 border border-white/10 text-white placeholder-slate-300 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white/10 transition-all">
+                <button type="submit" id="reset-submit-btn" class="btn-primary w-full mb-4">Send Reset Link</button>
             </form>
 
-            <a href="#" id="auth-toggle-link">Need an account? Sign Up</a>
-            <a href="#" id="forgot-password-link">Forgot Password?</a>
-            <a href="#" id="return-to-login-link" class="hidden">Return to Login</a>
+            <a href="#" id="auth-toggle-link" class="block mt-2 text-sm text-blue-400 hover:text-blue-300 no-underline hover:underline">Need an account? Sign Up</a>
+            <a href="#" id="forgot-password-link" class="block mt-1 text-sm text-blue-400 hover:text-blue-300 no-underline hover:underline">Forgot Password?</a>
+            <a href="#" id="return-to-login-link" class="hidden block mt-2 text-sm text-blue-400 hover:text-blue-300 no-underline hover:underline">Return to Login</a>
         </div>
     </div>
 

@@ -15,10 +15,12 @@ import {
     setupGlobalSearch,
     checkAndSetNotifications,
     initializeAppState,
-    getState
+    getState,
+    injectGlobalNavigation
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    injectGlobalNavigation();
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // --- STATE MANAGEMENT ---
@@ -38,13 +40,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- DOM Element Selectors ---
     const logoutBtn = document.getElementById("logout-btn");
-    const dashboardTable = document.querySelector("#dashboard-table tbody");
-    const recentActivitiesTable = document.querySelector("#recent-activities-table tbody");
-    const allTasksTable = document.querySelector("#all-tasks-table tbody");
-    const myTasksTable = document.querySelector("#my-tasks-table tbody");
-    const addNewTaskBtn = document.getElementById("add-new-task-btn");
-    const aiDailyBriefingBtn = document.getElementById("ai-daily-briefing-btn");
+    const sequenceStepsList = document.getElementById("sequence-steps-list");
+    const recentActivitiesList = document.getElementById("recent-activities-list");
+    const myTasksList = document.getElementById("my-tasks-list");
+    const sequenceToggleDue = document.getElementById("sequence-toggle-due");
+    const sequenceToggleUpcoming = document.getElementById("sequence-toggle-upcoming");
+    const myTasksHamburger = document.getElementById("my-tasks-hamburger");
     const aiBriefingContainer = document.getElementById("ai-briefing-container");
+    const aiBriefingRefreshBtn = document.getElementById("ai-briefing-refresh-btn");
 
     // --- Utility ---
     function getStartOfLocalDayISO() {
@@ -75,7 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const appState = getState();
         if (!appState.effectiveUserId) return;
 
-        if(myTasksTable) myTasksTable.innerHTML = '<tr><td colspan="4">Loading tasks...</td></tr>';
+        if (myTasksList) myTasksList.innerHTML = '<p class="my-tasks-empty text-sm text-[var(--text-medium)] px-4 py-6">Loading tasks...</p>';
         
         const tableMap = {
             "contacts": "contacts", "accounts": "accounts", "sequences": "sequences",
@@ -128,6 +131,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.nurtureAccounts = state.accounts.filter(account => !activeAccountIds.has(account.id));
         
         renderDashboard();
+        populateQuickAddSelect();
+    }
+
+    function populateQuickAddSelect() {
+        const contactSelect = document.getElementById('quick-add-contact');
+        const accountSelect = document.getElementById('quick-add-account');
+        if (!contactSelect || !accountSelect) return;
+        const sortedContacts = [...state.contacts].sort((a, b) => {
+            const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+            const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+        const sortedAccounts = [...state.accounts].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+        const contactsOptions = sortedContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name}</option>`).join('');
+        const accountsOptions = sortedAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        contactSelect.innerHTML = `<option value="">Link to Contact</option>${contactsOptions}`;
+        accountSelect.innerHTML = `<option value="">Link to Account</option>${accountsOptions}`;
     }
         
     // --- Core Logic ---
@@ -221,29 +241,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
         
     function renderAIBriefing(briefing) {
-        const appState = getState();
-        const greeting = `<h3>Howdy, ${appState.effectiveUserFullName}! Here are your top priorities:</h3>`;
-        const briefingHtml = `
-            ${greeting}
-            <ol id="ai-briefing-list">
-                ${briefing.priorities.map(item => `
-                    <li>
-                        <strong>${item.title}</strong>
-                        <em>Why: ${item.reason}</em>
-                    </li>
-                `).join('')}
-            </ol>
-        `;
-        aiBriefingContainer.innerHTML = briefingHtml;
+        const cardsHtml = briefing.priorities.map(item => `
+            <div class="ai-briefing-priority-card">
+                <div class="priority-title">${item.title}</div>
+                <div class="priority-reason">${item.reason}</div>
+            </div>
+        `).join('');
+        aiBriefingContainer.innerHTML = cardsHtml || '<p class="text-xs text-[var(--text-medium)]">No priorities for today.</p>';
+        aiBriefingContainer.classList.remove('hidden');
+        sessionStorage.setItem('crm-briefing-generated', 'true');
+        sessionStorage.setItem('crm-briefing-html', aiBriefingContainer.innerHTML);
     }
+
+    // --- Sequence Steps View Mode ---
+    let sequenceViewMode = 'due';
 
     // --- Render Function ---
     function renderDashboard() {
-        if (!myTasksTable || !dashboardTable || !allTasksTable || !recentActivitiesTable) return;
-        myTasksTable.innerHTML = "";
-        dashboardTable.innerHTML = "";
-        allTasksTable.innerHTML = "";
-        recentActivitiesTable.innerHTML = "";
+        if (!myTasksList || !sequenceStepsList || !recentActivitiesList) return;
+        myTasksList.innerHTML = "";
+        sequenceStepsList.innerHTML = "";
+        recentActivitiesList.innerHTML = "";
 
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
@@ -301,13 +319,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const pendingTasks = state.tasks.filter(task => task.status === 'Pending').sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
         if (pendingTasks.length > 0) {
             pendingTasks.forEach(task => {
-                const row = myTasksTable.insertRow();
-                if (task.due_date) {
-                    const taskDueDate = new Date(task.due_date);
-                    if (taskDueDate.setHours(0,0,0,0) < startOfToday.getTime()) {
-                        row.classList.add('past-due');
-                    }
-                }
+                const taskDueDate = task.due_date ? new Date(task.due_date) : null;
+                const isPastDue = taskDueDate && taskDueDate.setHours(0, 0, 0, 0) < startOfToday.getTime();
                 let linkedEntity = 'N/A';
                 if (task.contact_id) {
                     const contact = state.contacts.find(c => c.id === task.contact_id);
@@ -316,107 +329,201 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const account = state.accounts.find(a => a.id === task.account_id);
                     if (account) linkedEntity = `<a href="accounts.html?accountId=${account.id}" class="contact-name-link">${account.name}</a> (Account)`;
                 }
-                row.innerHTML = `<td>${formatSimpleDate(task.due_date)}</td><td>${task.description}</td><td>${linkedEntity}</td>
-                    <td>
-                        <div class="button-group-wrapper">
-                            <button class="btn-primary mark-task-complete-btn" data-task-id="${task.id}">Complete</button>
-                            <button class="btn-secondary edit-task-btn" data-task-id="${task.id}">Edit</button>
-                            <button class="btn-danger delete-task-btn" data-task-id="${task.id}">Delete</button>
-                        </div>
-                    </td>`;
+                const actionsHtml = `
+                    <button class="btn-primary btn-icon-only mark-task-complete-btn" data-task-id="${task.id}" title="Complete"><i class="fa-solid fa-square-check"></i></button>
+                    <button class="btn-secondary btn-icon-only edit-task-btn" data-task-id="${task.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-danger btn-icon-only delete-task-btn" data-task-id="${task.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                `;
+                const item = document.createElement("div");
+                item.className = `task-item ${isPastDue ? 'past-due' : ''}`;
+                item.innerHTML = `
+                    <div class="task-left">
+                        <div class="task-due">${formatSimpleDate(task.due_date)}</div>
+                    </div>
+                    <div class="task-content">
+                        <div class="task-linked">${linkedEntity}</div>
+                        <div class="task-description">${task.description}</div>
+                    </div>
+                    <div class="task-actions">${actionsHtml}</div>
+                `;
+                myTasksList.appendChild(item);
             });
         } else {
-            myTasksTable.innerHTML = '<tr><td colspan="4">No pending tasks. Great job!</td></tr>';
+            myTasksList.innerHTML = '<p class="my-tasks-empty text-sm text-[var(--text-medium)] px-4 py-6">No pending tasks. Great job!</p>';
+        }
+
+        const myTasksCard = document.getElementById('my-tasks-card');
+        const hamburgerBtn = document.getElementById('my-tasks-hamburger');
+        if (myTasksCard && hamburgerBtn) {
+            const taskCount = pendingTasks.length;
+            const TASK_THRESHOLD = 3;
+            if (taskCount > TASK_THRESHOLD) {
+                myTasksCard.classList.add('quick-add-hidden');
+            } else {
+                myTasksCard.classList.remove('quick-add-hidden', 'hamburger-expanded');
+                const icon = hamburgerBtn.querySelector('i');
+                if (icon) icon.className = 'fa-solid fa-bars';
+                hamburgerBtn.setAttribute('title', 'Add task');
+                hamburgerBtn.setAttribute('aria-label', 'Add task');
+            }
         }
 
         salesSequenceTasks.sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date));
-        
-        if (salesSequenceTasks.length > 0) {
-            salesSequenceTasks.forEach(task => {
-                const row = dashboardTable.insertRow();
-                const dueDate = new Date(task.next_step_due_date);
-                if (dueDate < startOfToday) {
-                    row.classList.add('past-due');
-                }
-                
-                const contactName = `${task.contact.first_name || ''} ${task.contact.last_name || ''}`;
-                const description = task.step.subject || task.step.message || '';
+        upcomingSalesTasks.sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date));
 
-                let btnHtml;
-                if (task.step.type.toLowerCase().includes("linkedin")) {
-                    btnHtml = `<button class="btn-primary send-linkedin-message-btn" data-cs-id="${task.id}">Go to LinkedIn</button>`;
-                } else if (task.step.type.toLowerCase().includes("email") && task.contact.email) {
-                    btnHtml = `<button class="btn-primary send-email-btn" data-cs-id="${task.id}">Send Email</button>`;
-                } else {
-                    btnHtml = `<button class="btn-primary complete-step-btn" data-cs-id="${task.id}">Complete</button>`;
-                }
+        function renderSequenceStepsList() {
+            sequenceStepsList.innerHTML = "";
+            const tasks = sequenceViewMode === 'due' ? salesSequenceTasks : upcomingSalesTasks;
 
-                row.innerHTML = `
-                    <td>${formatSimpleDate(task.next_step_due_date)}</td>
-                    <td>${contactName}</td>
-                    <td>${task.sequence.name}</td>
-                    <td>${task.step.type}</td>
-                    <td>${description}</td>
-                    <td><div class="button-group-wrapper">${btnHtml}</div></td>
-                `;
-            });
-        } else {
-            dashboardTable.innerHTML = '<tr><td colspan="6">No sequence steps due today.</td></tr>';
+            if (tasks.length > 0) {
+                tasks.forEach(task => {
+                    const dueDate = new Date(task.next_step_due_date);
+                    const isPastDue = sequenceViewMode === 'due' && dueDate < startOfToday;
+                    const contactName = `${task.contact.first_name || ''} ${task.contact.last_name || ''}`.trim();
+                    const description = task.step.subject || task.step.message || '';
+
+                    const stepType = (task.step.type || '').toLowerCase();
+                    const getStepIcon = () => {
+                        if (stepType.includes('linkedin')) return { icon: 'fa-paper-plane', title: 'Go to LinkedIn' };
+                        if (stepType.includes('email')) return { icon: 'fa-envelope', title: 'Send Email' };
+                        if (stepType.includes('call')) return { icon: 'fa-phone', title: 'Complete' };
+                        if (stepType.includes('gift')) return { icon: 'fa-gift', title: 'Complete' };
+                        return { icon: 'fa-square-check', title: 'Complete' };
+                    };
+                    let btnHtml;
+                    if (sequenceViewMode === 'due') {
+                        const { icon, title } = getStepIcon();
+                        if (stepType.includes('linkedin')) {
+                            btnHtml = `<button class="btn-primary btn-icon-only send-linkedin-message-btn" data-cs-id="${task.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
+                        } else if (stepType.includes('email') && task.contact.email) {
+                            btnHtml = `<button class="btn-primary btn-icon-only send-email-btn" data-cs-id="${task.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
+                        } else {
+                            btnHtml = `<button class="btn-primary btn-icon-only complete-step-btn" data-cs-id="${task.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
+                        }
+                    } else {
+                        btnHtml = `<button class="btn-secondary btn-icon-only revisit-step-btn" data-cs-id="${task.id}" title="Revisit Last Step"><i class="fa-solid fa-rotate-left"></i></button>`;
+                    }
+
+                    const item = document.createElement("div");
+                    item.className = `sequence-step-item ${isPastDue ? 'past-due' : ''}`;
+                    item.innerHTML = `
+                        <div class="sequence-step-left">
+                            <div class="sequence-step-due">${formatSimpleDate(task.next_step_due_date)}</div>
+                            <div class="sequence-step-actions">${btnHtml}</div>
+                        </div>
+                        <div class="sequence-step-content">
+                            <div class="sequence-step-meta">${contactName} · ${task.step.type}</div>
+                            <div class="sequence-step-description">${description}</div>
+                            <div class="sequence-step-sequence">${task.sequence.name}</div>
+                        </div>
+                    `;
+                    sequenceStepsList.appendChild(item);
+                });
+            } else {
+                const emptyMsg = sequenceViewMode === 'due' ? 'No sequence steps due today.' : 'No upcoming sequence steps.';
+                sequenceStepsList.innerHTML = `<p class="sequence-steps-empty text-sm text-[var(--text-medium)] px-4 py-6">${emptyMsg}</p>`;
+            }
         }
 
-        upcomingSalesTasks.sort((a, b) => new Date(a.next_step_due_date) - new Date(b.next_step_due_date));
-        
-        upcomingSalesTasks.forEach(task => {
-            const row = allTasksTable.insertRow();
-            row.innerHTML = `<td>${formatSimpleDate(task.next_step_due_date)}</td><td>${task.contact.first_name} ${task.contact.last_name}</td><td>${task.account ? task.account.name : "N/A"}</td><td><div class="button-group-wrapper"><button class="btn-secondary revisit-step-btn" data-cs-id="${task.id}">Revisit Last Step</button></div></td>`;
-        });
-        
-        state.activities
+        renderSequenceStepsList();
+
+        const sortedActivities = state.activities
             .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 20)
-            .forEach(act => {
+            .slice(0, 20);
+        if (sortedActivities.length === 0) {
+            recentActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No recent activities yet.</p>';
+        } else {
+            sortedActivities.forEach(act => {
                 const contact = state.contacts.find(c => c.id === act.contact_id);
                 const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
-                const row = recentActivitiesTable.insertRow();
-                row.innerHTML = `<td>${formatDate(act.date)}</td><td>${account ? account.name : "N/A"}</td><td>${contact ? `${contact.first_name} ${contact.last_name}` : "N/A"}</td><td>${act.type}: ${act.description}</td>`;
+                const accountName = account ? account.name : "N/A";
+                const contactName = contact ? `${contact.first_name} ${contact.last_name}` : "N/A";
+                const meta = `${accountName} · ${contactName}`;
+                const typeLower = act.type.toLowerCase();
+                let iconClass = "icon-default", icon = "fa-circle-info";
+                if (typeLower.includes("cognito") || typeLower.includes("intelligence")) { icon = "fa-magnifying-glass"; }
+                else if (typeLower.includes("email")) { iconClass = "icon-email"; icon = "fa-envelope"; }
+                else if (typeLower.includes("call")) { iconClass = "icon-call"; icon = "fa-phone"; }
+                else if (typeLower.includes("meeting")) { iconClass = "icon-meeting"; icon = "fa-video"; }
+                const item = document.createElement("div");
+                item.className = "recent-activity-item";
+                item.innerHTML = `
+                    <div class="activity-icon-wrap ${iconClass}"><i class="fas ${icon}"></i></div>
+                    <div class="activity-body">
+                        <div class="activity-meta">${meta}</div>
+                        <div class="activity-description">${act.type}: ${act.description}</div>
+                        <div class="activity-date">${formatDate(act.date)}</div>
+                    </div>
+                `;
+                recentActivitiesList.appendChild(item);
             });
+        }
     }
 
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
+
+        if (aiBriefingRefreshBtn) {
+            aiBriefingRefreshBtn.addEventListener('click', handleGenerateBriefing);
+        }
+
+        if (sequenceToggleDue && sequenceToggleUpcoming) {
+            sequenceToggleDue.addEventListener('click', () => {
+                if (sequenceViewMode === 'due') return;
+                sequenceViewMode = 'due';
+                sequenceToggleDue.classList.add('active');
+                sequenceToggleUpcoming.classList.remove('active');
+                renderDashboard();
+            });
+            sequenceToggleUpcoming.addEventListener('click', () => {
+                if (sequenceViewMode === 'upcoming') return;
+                sequenceViewMode = 'upcoming';
+                sequenceToggleUpcoming.classList.add('active');
+                sequenceToggleDue.classList.remove('active');
+                renderDashboard();
+            });
+        }
         if (logoutBtn) {
             logoutBtn.addEventListener("click", async () => {
+                sessionStorage.removeItem('crm-briefing-generated');
+                sessionStorage.removeItem('crm-briefing-html');
                 await supabase.auth.signOut();
                 window.location.href = "index.html";
             });
         }
-        if (addNewTaskBtn) {
-            addNewTaskBtn.addEventListener('click', () => {
+        if (myTasksHamburger) {
+            myTasksHamburger.addEventListener('click', () => {
+                const card = document.getElementById('my-tasks-card');
+                if (!card) return;
+                const isExpanded = card.classList.toggle('hamburger-expanded');
+                const icon = myTasksHamburger.querySelector('i');
+                if (icon) {
+                    icon.className = isExpanded ? 'fa-solid fa-times' : 'fa-solid fa-bars';
+                }
+                myTasksHamburger.setAttribute('title', isExpanded ? 'Close' : 'Add task');
+                myTasksHamburger.setAttribute('aria-label', isExpanded ? 'Close' : 'Add task');
+            });
+        }
+        const quickAddForm = document.getElementById('quick-add-task-form');
+        if (quickAddForm) {
+            quickAddForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
                 const appState = getState();
-                const contactsOptions = state.contacts.map(c => `<option value="c-${c.id}">${c.first_name} ${c.last_name} (Contact)</option>`).join('');
-                const accountsOptions = state.accounts.map(a => `<option value="a-${a.id}">${a.name} (Account)</option>`).join('');
-                showModal('Add New Task', `
-                    <label>Description:</label><input type="text" id="modal-task-description" required>
-                    <label>Due Date:</label><input type="date" id="modal-task-due-date">
-                    <label>Link To (Optional):</label>
-                    <select id="modal-task-linked-entity">
-                        <option value="">-- None --</option>
-                        <optgroup label="Contacts">${contactsOptions}</optgroup>
-                        <optgroup label="Accounts">${accountsOptions}</optgroup>
-                    </select>
-                `, async () => {
-                    const description = document.getElementById('modal-task-description').value.trim();
-                    const dueDate = document.getElementById('modal-task-due-date').value;
-                    const linkedEntityValue = document.getElementById('modal-task-linked-entity').value;
-                    if (!description) { alert('Description is required.'); return; }
-                    const taskData = { description, due_date: dueDate || null, user_id: appState.effectiveUserId, status: 'Pending' };
-                    if (linkedEntityValue.startsWith('c-')) { taskData.contact_id = Number(linkedEntityValue.substring(2)); }
-                    else if (linkedEntityValue.startsWith('a-')) { taskData.account_id = Number(linkedEntityValue.substring(2)); }
-                    const { error } = await supabase.from('tasks').insert(taskData);
-                    if (error) { alert('Error adding task: ' + error.message); }
-                    else { await loadAllData(); }
-                });
+                const description = document.getElementById('quick-add-description').value.trim();
+                const dueDate = document.getElementById('quick-add-due-date').value;
+                const contactId = document.getElementById('quick-add-contact').value;
+                const accountId = document.getElementById('quick-add-account').value;
+                if (!description) { alert('Description is required.'); return; }
+                const taskData = { description, due_date: dueDate || null, user_id: appState.effectiveUserId, status: 'Pending' };
+                if (contactId) taskData.contact_id = Number(contactId);
+                if (accountId) taskData.account_id = Number(accountId);
+                const { error } = await supabase.from('tasks').insert(taskData);
+                if (error) { alert('Error adding task: ' + error.message); }
+                else {
+                    quickAddForm.reset();
+                    await loadAllData();
+                }
             });
         }
         document.body.addEventListener('click', async (e) => {
@@ -560,19 +667,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // --- App Initialization (UPDATED) ---
     async function initializePage() {
-        // --- UPDATED LOADING SCREEN LOGIC ---
-        const loadingScreen = document.getElementById('loading-screen');
-        if (sessionStorage.getItem('showLoadingScreen') === 'true') {
-            if (loadingScreen) {
-                loadingScreen.classList.remove('hidden');
-                setTimeout(() => {
-                    loadingScreen.classList.add('hidden');
-                }, 7000); // 7 seconds
-            }
-            sessionStorage.removeItem('showLoadingScreen');
-        }
-        // --- END OF UPDATED LOGIC ---
-        
         await loadSVGs();
         updateActiveNavLink();
         
@@ -590,13 +684,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Initial data load for the effective user (which is the current user by default)
             await loadAllData();
             
-            // Add event listener for the AI briefing button
-            if (aiDailyBriefingBtn) {
-                aiDailyBriefingBtn.addEventListener('click', handleGenerateBriefing);
-            }
-            
-            // Setup all other page-specific event listeners
+            // Setup event listeners (including Refresh button)
             setupPageEventListeners();
+
+            // Auto-run briefing once per login (session)
+            if (!sessionStorage.getItem('crm-briefing-generated')) {
+                handleGenerateBriefing();
+            } else {
+                const savedHtml = sessionStorage.getItem('crm-briefing-html');
+                if (savedHtml) {
+                    aiBriefingContainer.innerHTML = savedHtml;
+                    aiBriefingContainer.classList.remove('hidden');
+                } else {
+                    const placeholder = document.getElementById('ai-briefing-placeholder');
+                    if (placeholder) placeholder.textContent = 'Refresh to generate a new briefing.';
+                }
+            }
 
             // Listen for the custom event to reload data when a manager impersonates another user
             window.addEventListener('effectiveUserChanged', loadAllData);

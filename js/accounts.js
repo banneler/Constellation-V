@@ -1,6 +1,7 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, setupGlobalSearch, checkAndSetNotifications } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    injectGlobalNavigation();
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
@@ -48,12 +49,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountContactsList = document.getElementById("account-contacts-list");
     const contactListBtn = document.getElementById("contact-list-btn");
     const contactOrgChartBtn = document.getElementById("contact-org-chart-btn");
+    const orgChartMaximizeBtn = document.getElementById("org-chart-maximize-btn");
+    const orgChartModalBackdrop = document.getElementById("org-chart-modal-backdrop");
+    const orgChartModalContent = document.getElementById("org-chart-modal-content");
+    const orgChartModalCloseBtn = document.getElementById("org-chart-modal-close-btn");
     
     const accountActivitiesList = document.getElementById("account-activities-list");
-    const accountDealsTableBody = document.querySelector("#account-deals-table tbody");
+    const accountDealsCards = document.getElementById("account-deals-cards");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
     const aiBriefingBtn = document.getElementById("ai-briefing-btn");
-    const accountStatusFilter = document.getElementById("account-status-filter");
+    const accountFilterIcons = document.getElementById("account-filter-icons");
+    const accountIndustrySelect = document.getElementById("account-industry");
+
+    let tomSelectIndustry = null;
+
+    function initTomSelect(el, opts = {}) {
+        if (typeof window.TomSelect === 'undefined') return null;
+        try {
+            return new window.TomSelect(el, { create: true, ...opts });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getDealStageColorClass(stageName) {
+        if (!stageName) return "deal-stage-default";
+        const s = (stageName || "").toLowerCase();
+        if (s.includes("closed won") || s.includes("won")) return "deal-stage-won";
+        if (s.includes("closed lost") || s.includes("lost")) return "deal-stage-lost";
+        if (s.includes("discovery") || s.includes("qualification")) return "deal-stage-discovery";
+        if (s.includes("proposal") || s.includes("quote")) return "deal-stage-proposal";
+        if (s.includes("negotiation") || s.includes("contract")) return "deal-stage-negotiation";
+        return "deal-stage-default";
+    }
 
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
@@ -117,8 +145,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (contactListView) contactListView.innerHTML = '<ul id="account-contacts-list"><li>Loading...</li></ul>';
         if (contactOrgChartView) contactOrgChartView.innerHTML = '<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">Loading...</p>';
-        if (accountActivitiesList) accountActivitiesList.innerHTML = '<li>Loading...</li>';
-        if (accountDealsTableBody) accountDealsTableBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+        if (accountActivitiesList) accountActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Loading...</p>';
+        if (accountDealsCards) accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Loading...</p>';
         
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
@@ -161,20 +189,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         
     const hideAccountDetails = (clearSelection = false) => {
         if (accountForm) {
-            // --- LOGIC ERROR FIXED ---
-            // Was .remove('hidden'), which showed the form. Changed to .add('hidden').
-            accountForm.classList.add('hidden');
             accountForm.reset();
             accountForm.querySelector("#account-id").value = '';
             document.getElementById("account-last-saved").textContent = "";
+            if (tomSelectIndustry) tomSelectIndustry.clear();
         }
         
-        if (contactListView) contactListView.innerHTML = '<ul id="account-contacts-list"></ul>';
+        if (contactListView) contactListView.innerHTML = '<p id="account-contacts-empty" class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see contacts.</p><ul id="account-contacts-list" class="hidden"></ul>';
         if (contactOrgChartView) contactOrgChartView.innerHTML = "";
-        if (accountActivitiesList) accountActivitiesList.innerHTML = "";
-        if (accountDealsTableBody) accountDealsTableBody.innerHTML = "";
+        if (accountActivitiesList) accountActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see related activities.</p>';
+        if (accountDealsCards) accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see deals.</p>';
         if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
-        
+
         if (clearSelection) {
             state.selectedAccountId = null;
             state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [] };
@@ -184,14 +210,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     // --- Render Functions ---
+    const getAccountFilter = () => {
+        const active = accountFilterIcons?.querySelector(".account-filter-icon.active");
+        return active?.dataset.filter || "all";
+    };
+
     const renderAccountList = () => {
-        if (!accountList || !accountSearch || !accountStatusFilter) {
+        if (!accountList || !accountSearch || !accountFilterIcons) {
             console.error("Render failed: A required DOM element is missing.");
             return;
         }
 
         const searchTerm = accountSearch.value.toLowerCase();
-        const statusFilter = accountStatusFilter.value;
+        const statusFilter = getAccountFilter();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -285,7 +316,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
 
-        accountForm.classList.remove('hidden');
         accountForm.querySelector("#account-id").value = account.id;
         accountForm.querySelector("#account-name").value = account.name || "";
         
@@ -300,7 +330,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (websiteLink) { websiteLink.href = fullUrl; websiteLink.classList.remove('hidden'); }
         };
         updateWebsiteLink(account.website);
-        accountForm.querySelector("#account-industry").value = account.industry || "";
+        if (tomSelectIndustry) {
+            tomSelectIndustry.setValue(account.industry || "");
+        } else {
+            accountForm.querySelector("#account-industry").value = account.industry || "";
+        }
         accountForm.querySelector("#account-phone").value = account.phone || "";
         accountForm.querySelector("#account-address").value = account.address || "";
         accountForm.querySelector("#account-notes").value = account.notes || "";
@@ -309,27 +343,66 @@ document.addEventListener("DOMContentLoaded", async () => {
         accountForm.querySelector("#account-employees").value = account.employee_count || "";
         accountForm.querySelector("#account-is-customer").checked = account.is_customer;
 
-        accountDealsTableBody.innerHTML = "";
-        deals.forEach((deal) => {
-            const row = accountDealsTableBody.insertRow();
-            row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td>${deal.name}</td><td>${deal.term || ""}</td><td>${deal.stage}</td><td>$${deal.mrc || 0}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></td>`;
-        });
+        accountDealsCards.innerHTML = "";
+        if (deals.length === 0) {
+            accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No deals yet.</p>';
+        } else {
+            deals.forEach((deal) => {
+                const stageClass = getDealStageColorClass(deal.stage);
+                const card = document.createElement("div");
+                card.className = `deal-card ${stageClass}`;
+                card.dataset.dealId = deal.id;
+                card.innerHTML = `
+                    <div class="deal-card-header">
+                        <div class="deal-card-commit-row">
+                            <label class="deal-card-commit-toggle" for="deal-commit-${deal.id}">
+                                <input type="checkbox" id="deal-commit-${deal.id}" class="deal-card-commit-input commit-deal-checkbox sr-only" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}>
+                                <span class="deal-card-commit-slider"></span>
+                                <span class="deal-card-commit-label">Committed</span>
+                            </label>
+                            <span class="deal-card-stage">${deal.stage}</span>
+                        </div>
+                        <button class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${deal.id}" title="Edit Deal"><i class="fas fa-pen"></i></button>
+                    </div>
+                    <div class="deal-card-value">$${deal.mrc || 0}/mo</div>
+                    <div class="deal-card-name">${deal.name}</div>
+                    <div class="deal-card-products">${deal.products || ""}</div>
+                    <div class="deal-card-footer">
+                        ${deal.close_month ? `<span class="deal-card-close">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty"></span>'}
+                        ${deal.term ? `<span class="deal-card-term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty"></span>'}
+                    </div>
+                `;
+                accountDealsCards.appendChild(card);
+            });
+        }
 
         renderContactView();
 
         accountActivitiesList.innerHTML = "";
-        activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
-            const c = contacts.find((c) => c.id === act.contact_id);
-            const li = document.createElement("li");
-            li.textContent = `[${formatDate(act.date)}] ${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}: ${act.description}`;
-            let borderColor = "var(--primary-blue)";
-            const activityTypeLower = act.type.toLowerCase();
-            if (activityTypeLower.includes("email")) borderColor = "var(--warning-yellow)";
-            else if (activityTypeLower.includes("call")) borderColor = "var(--completed-color)";
-            else if (activityTypeLower.includes("meeting")) borderColor = "var(--meeting-purple)";
-            li.style.borderLeftColor = borderColor;
-            accountActivitiesList.appendChild(li);
-        });
+        if (activities.length === 0) {
+            accountActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No activities yet.</p>';
+        } else {
+            activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
+                const c = contacts.find((c) => c.id === act.contact_id);
+                const typeLower = act.type.toLowerCase();
+                let iconClass = "icon-default", icon = "fa-circle-info";
+                if (typeLower.includes("cognito") || typeLower.includes("intelligence")) { icon = "fa-magnifying-glass"; }
+                else if (typeLower.includes("email")) { iconClass = "icon-email"; icon = "fa-envelope"; }
+                else if (typeLower.includes("call")) { iconClass = "icon-call"; icon = "fa-phone"; }
+                else if (typeLower.includes("meeting")) { iconClass = "icon-meeting"; icon = "fa-video"; }
+                const item = document.createElement("div");
+                item.className = "recent-activity-item";
+                item.innerHTML = `
+                    <div class="activity-icon-wrap ${iconClass}"><i class="fas ${icon}"></i></div>
+                    <div class="activity-body">
+                        <div class="activity-meta">${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}</div>
+                        <div class="activity-description">${act.description}</div>
+                        <div class="activity-date">${formatDate(act.date)}</div>
+                    </div>
+                `;
+                accountActivitiesList.appendChild(item);
+            });
+        }
 
         state.isFormDirty = false;
     };
@@ -345,12 +418,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             contactOrgChartView.classList.remove('hidden');
             contactListBtn.classList.remove('active');
             contactOrgChartBtn.classList.add('active');
+            if (orgChartMaximizeBtn) orgChartMaximizeBtn.classList.remove('hidden');
             renderOrgChart();
         } else {
             contactListView.classList.remove('hidden');
             contactOrgChartView.classList.add('hidden');
             contactListBtn.classList.add('active');
             contactOrgChartBtn.classList.remove('active');
+            if (orgChartMaximizeBtn) orgChartMaximizeBtn.classList.add('hidden');
             renderContactList();
         }
     };
@@ -358,28 +433,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     const renderContactList = () => {
         const { contacts, contact_sequences } = state.selectedAccountDetails;
         const listElement = document.getElementById('account-contacts-list');
+        const contactsEmptyEl = document.getElementById('account-contacts-empty');
         if (!listElement) return;
 
+        if (contactsEmptyEl) contactsEmptyEl.classList.add('hidden');
+        listElement.classList.remove('hidden');
         listElement.innerHTML = "";
+        if (contacts.length === 0) {
+            contactListView.innerHTML = '<p id="account-contacts-empty-msg" class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No contacts yet.</p><ul id="account-contacts-list" class="hidden"></ul>';
+            return;
+        }
+        const emptyMsg = document.getElementById('account-contacts-empty-msg');
+        if (emptyMsg) emptyMsg.remove();
         contacts
             .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
             .forEach((c) => {
-                const li = document.createElement("li");
                 const inSeq = contact_sequences.some((cs) => cs.contact_id === c.id && cs.status === "Active");
+                const emailIcon = c.email ? '<i class="fas fa-envelope contact-attribute-icon email-icon" title="Has email"></i>' : '';
+                const phoneIcon = c.phone ? '<i class="fas fa-phone contact-attribute-icon phone-icon" title="Has phone"></i>' : '';
+                const sequenceIcon = inSeq ? '<span class="sequence-status-icon"><i class="fa-solid fa-paper-plane"></i></span>' : '';
 
-                const emailIcon = c.email ? `<i class="fas fa-envelope contact-attribute-icon email-icon"></i>` : '';
-                const phoneIcon = c.phone ? `<i class="fas fa-phone contact-attribute-icon phone-icon"></i>` : '';
-
-                li.innerHTML = `${phoneIcon}${emailIcon}<a href="contacts.html?contactId=${c.id}" class="contact-name-link" data-contact-id="${c.id}">${c.first_name} ${c.last_name}</a> (${c.title || "No Title"}) ${inSeq ? '<span class="sequence-status-icon"></span>' : ""}`;
+                const li = document.createElement("li");
+                li.className = "account-contact-item";
+                li.innerHTML = `
+                    <a href="contacts.html?contactId=${c.id}" class="account-contact-link" data-contact-id="${c.id}">
+                        <div class="account-contact-info">
+                            <div class="account-contact-name-row">
+                                <span class="account-contact-name">${c.first_name} ${c.last_name}</span>
+                                <div class="account-contact-icons">${emailIcon}${phoneIcon}${sequenceIcon}</div>
+                            </div>
+                            <small class="account-contact-title">${c.title || "No Title"}</small>
+                        </div>
+                    </a>
+                `;
                 listElement.appendChild(li);
             });
     };
 
-    const renderOrgChart = () => {
-        const { contacts } = state.selectedAccountDetails;
-        if (!contactOrgChartView) return;
+    const renderOrgChart = (container = null) => {
+        const target = container || contactOrgChartView;
+        if (!target) return;
 
-        contactOrgChartView.innerHTML = "";
+        const { contacts } = state.selectedAccountDetails;
+        target.innerHTML = "";
 
         const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
         
@@ -416,16 +512,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             const chartHtml = `<ul class="org-chart-root">
                 ${sortedTree.map(topLevelNode => createNodeHtml(topLevelNode)).join('')}
             </ul>`;
-            contactOrgChartView.innerHTML = chartHtml;
+            target.innerHTML = chartHtml;
         } else {
-            contactOrgChartView.innerHTML = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
+            target.innerHTML = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
         }
 
-        setupOrgChartDragDrop();
+        setupOrgChartDragDrop(target);
     };
 
-    const setupOrgChartDragDrop = () => {
-        
+    const setupOrgChartDragDrop = (container = null) => {
+        const chartContainer = container || contactOrgChartView;
+        if (!chartContainer) return;
+
         const isCircular = (targetId, draggedId) => {
             const contacts = state.selectedAccountDetails.contacts;
             const contactMap = new Map(contacts.map(c => [c.id, c]));
@@ -441,7 +539,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         };
 
-        contactOrgChartView.querySelectorAll('.contact-card').forEach(card => {
+        chartContainer.querySelectorAll('.contact-card').forEach(card => {
             card.addEventListener('dragstart', (e) => {
                 const targetCard = e.target.closest('.contact-card');
                 if (!targetCard) return;
@@ -505,30 +603,30 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 : contact
                         );
                         
-                        renderOrgChart();
+                        refreshOrgChartViews();
                     }
                 }
             });
         });
 
-        contactOrgChartView.addEventListener('dragover', (e) => {
+        chartContainer.addEventListener('dragover', (e) => {
             e.preventDefault();
             const targetCard = e.target.closest('.contact-card');
             if (!targetCard) {
                 e.dataTransfer.dropEffect = 'move';
-                contactOrgChartView.classList.add('drop-target-background');
+                chartContainer.classList.add('drop-target-background');
             }
         });
         
-        contactOrgChartView.addEventListener('dragleave', (e) => {
-             if (e.target === contactOrgChartView) {
-                 contactOrgChartView.classList.remove('drop-target-background');
+        chartContainer.addEventListener('dragleave', (e) => {
+             if (e.target === chartContainer) {
+                 chartContainer.classList.remove('drop-target-background');
              }
         });
 
-        contactOrgChartView.addEventListener('drop', async (e) => {
+        chartContainer.addEventListener('drop', async (e) => {
             e.preventDefault();
-            contactOrgChartView.classList.remove('drop-target-background');
+            chartContainer.classList.remove('drop-target-background');
             
             const localDraggedContactId = draggedContactId;
 
@@ -556,16 +654,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                         : contact
                 );
                 
-                renderOrgChart();
+                refreshOrgChartViews();
             }
         });
+    };
+
+    const refreshOrgChartViews = () => {
+        renderOrgChart();
+        if (orgChartModalBackdrop && !orgChartModalBackdrop.classList.contains('hidden') && orgChartModalContent) {
+            renderOrgChart(orgChartModalContent);
+            setupOrgChartDragDrop(orgChartModalContent);
+        }
     };
 
 
     // --- Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
+        if (dealId === 'new') {
+            const deal = state.selectedAccountDetails.deals.find(d => d.id === 'new');
+            if (deal) deal.is_committed = isCommitted;
+            return;
+        }
         const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
         if (error) {
+            const checkbox = document.querySelector(`.commit-deal-checkbox[data-deal-id="${dealId}"]`);
+            if (checkbox) checkbox.checked = !isCommitted;
             showModal("Error", 'Error updating commit status: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         } else {
             const dealMaster = state.deals.find(d => d.id === dealId);
@@ -575,36 +688,300 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function handleEditDeal(dealId) {
+    function enterDealEditMode(dealId) {
         const deal = state.selectedAccountDetails.deals.find(d => d.id === dealId);
-        if (!deal) return showModal("Error", "Deal not found!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        if (!deal) return;
+        const card = accountDealsCards?.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
+        if (!card) return;
+        if (card.classList.contains('deal-card-editing')) return;
 
-        const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}" ${deal.stage === s.stage_name ? 'selected' : ''}>${s.stage_name}</option>`).join('');
+        card.classList.add('deal-card-editing');
 
-        showModal("Edit Deal", `
-            <label>Deal Name:</label><input type="text" id="modal-deal-name" value="${deal.name || ''}" required>
-            <label>Term:</label><input type="text" id="modal-deal-term" value="${deal.term || ''}" placeholder="e.g., 12 months">
-            <label>Stage:</label><select id="modal-deal-stage" required>${stageOptions}</select>
-            <label>Monthly Recurring Revenue (MRC):</label><input type="number" id="modal-deal-mrc" min="0" value="${deal.mrc || 0}">
-            <label>Close Month:</label><input type="month" id="modal-deal-close-month" value="${deal.close_month || ''}">
-            <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated">${deal.products || ''}</textarea>
-        `, async () => {
-            const updatedDealData = {
-                name: document.getElementById('modal-deal-name').value.trim(),
-                term: document.getElementById('modal-deal-term').value.trim(),
-                stage: document.getElementById('modal-deal-stage').value,
-                mrc: parseFloat(document.getElementById('modal-deal-mrc').value) || 0,
-                close_month: document.getElementById('modal-deal-close-month').value || null,
-                products: document.getElementById('modal-deal-products').value.trim(),
+        const valueEl = card.querySelector('.deal-card-value');
+        if (valueEl) {
+            valueEl.textContent = '';
+            valueEl.appendChild(document.createTextNode('$'));
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'deal-card-inline-input deal-card-value-input';
+            input.dataset.field = 'mrc';
+            input.value = deal.mrc || 0;
+            input.min = 0;
+            input.step = 0.01;
+            input.placeholder = '0';
+            valueEl.appendChild(input);
+            valueEl.appendChild(document.createTextNode('/mo'));
+        }
+
+        const nameEl = card.querySelector('.deal-card-name');
+        if (nameEl) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'deal-card-inline-input deal-card-name-input';
+            input.dataset.field = 'name';
+            input.value = deal.name || '';
+            input.placeholder = 'Deal name';
+            nameEl.textContent = '';
+            nameEl.appendChild(input);
+        }
+
+        const stageEl = card.querySelector('.deal-card-stage');
+        if (stageEl) {
+            const stages = state.dealStages.sort((a, b) => a.sort_order - b.sort_order);
+            const currentStage = deal.stage || '';
+            const wrap = document.createElement('div');
+            wrap.className = 'deal-card-stage-fan-wrap';
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.className = 'deal-card-stage-input';
+            hiddenInput.dataset.field = 'stage';
+            hiddenInput.value = currentStage;
+            wrap.appendChild(hiddenInput);
+
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = `deal-card-stage-trigger ${getDealStageColorClass(currentStage)}`;
+            trigger.textContent = currentStage || 'Stage';
+            trigger.innerHTML = `${currentStage || 'Stage'} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+            wrap.appendChild(trigger);
+
+            const fan = document.createElement('div');
+            fan.className = 'deal-card-stage-fan';
+            const total = stages.length;
+            const spread = Math.min(120, Math.max(60, (total - 1) * 25));
+            const startAngle = 90 + spread / 2;
+            stages.forEach((s, i) => {
+                const angle = total <= 1 ? 90 : startAngle - (spread * i) / (total - 1);
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `deal-card-stage-pill ${getDealStageColorClass(s.stage_name)}`;
+                pill.textContent = s.stage_name;
+                pill.dataset.stage = s.stage_name;
+                pill.style.setProperty('--fan-angle', `${angle}deg`);
+                pill.style.setProperty('--fan-i', `${i}`);
+                pill.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    hiddenInput.value = s.stage_name;
+                    trigger.innerHTML = `${s.stage_name} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+                    trigger.className = `deal-card-stage-trigger ${getDealStageColorClass(s.stage_name)}`;
+                });
+                fan.appendChild(pill);
+            });
+            wrap.appendChild(fan);
+
+            const closeFan = () => {
+                wrap.classList.remove('open');
+                document.removeEventListener('click', closeFan);
             };
-            if (!updatedDealData.name) {
-                showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                return false;
-            }
-            const { error } = await supabase.from('deals').update(updatedDealData).eq('id', dealId);
-            if (error) { showModal("Error", 'Error updating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
-            else { await refreshData(); hideModal(); showModal("Success", "Deal updated successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); }
-        }, true, `<button id="modal-confirm-btn" class="btn-primary">Save Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (wrap.classList.contains('open')) {
+                    closeFan();
+                } else {
+                    wrap.classList.add('open');
+                    setTimeout(() => document.addEventListener('click', closeFan), 0);
+                }
+            });
+            wrap.addEventListener('click', (e) => e.stopPropagation());
+            fan.querySelectorAll('.deal-card-stage-pill').forEach((p) => {
+                p.addEventListener('click', () => closeFan());
+            });
+            stageEl.replaceWith(wrap);
+        }
+
+        const footerEl = card.querySelector('.deal-card-footer');
+        if (footerEl) {
+            const closeEl = footerEl.querySelector('.deal-card-close');
+            const closeWrap = document.createElement('div');
+            closeWrap.className = 'deal-card-close-picker';
+            const [year, month] = (deal.close_month || '').split('-');
+            const hiddenClose = document.createElement('input');
+            hiddenClose.type = 'hidden';
+            hiddenClose.className = 'deal-card-close-input';
+            hiddenClose.dataset.field = 'close_month';
+            hiddenClose.value = deal.close_month || '';
+
+            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const monthOptions = monthNames.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }));
+            const currentYear = new Date().getFullYear();
+            const yearOptions = [currentYear, currentYear + 1, currentYear + 2].map(y => ({ value: String(y), label: String(y) }));
+
+            let selectedMonth = month || '';
+            let selectedYear = year || '';
+
+            const createCloseFan = (options, currentVal, placeholder, onSelect) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'deal-card-stage-fan-wrap deal-card-close-fan';
+                const trigger = document.createElement('button');
+                trigger.type = 'button';
+                trigger.className = 'deal-card-stage-trigger deal-card-close-fan-trigger';
+                const currentLabel = options.find(o => o.value === currentVal)?.label || placeholder;
+                trigger.innerHTML = `${currentLabel} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+                wrap.appendChild(trigger);
+                const fan = document.createElement('div');
+                fan.className = 'deal-card-stage-fan';
+                options.forEach((opt, i) => {
+                    const pill = document.createElement('button');
+                    pill.type = 'button';
+                    pill.className = 'deal-card-stage-pill deal-stage-default';
+                    pill.textContent = opt.label;
+                    pill.dataset.value = opt.value;
+                    pill.style.setProperty('--fan-i', `${i}`);
+                    pill.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        onSelect(opt.value, opt.label);
+                        trigger.innerHTML = `${opt.label} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+                    });
+                    fan.appendChild(pill);
+                });
+                wrap.appendChild(fan);
+                const closeFan = () => {
+                    wrap.classList.remove('open');
+                    document.removeEventListener('click', closeFan);
+                };
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (wrap.classList.contains('open')) closeFan();
+                    else {
+                        wrap.classList.add('open');
+                        setTimeout(() => document.addEventListener('click', closeFan), 0);
+                    }
+                });
+                wrap.addEventListener('click', (e) => e.stopPropagation());
+                fan.querySelectorAll('.deal-card-stage-pill').forEach((p) => p.addEventListener('click', () => closeFan()));
+                return wrap;
+            };
+
+            const syncHidden = () => {
+                hiddenClose.value = (selectedYear && selectedMonth) ? `${selectedYear}-${selectedMonth}` : '';
+            };
+
+            const monthFan = createCloseFan(monthOptions, month, 'Mo', (val) => {
+                selectedMonth = val;
+                syncHidden();
+            });
+            monthFan.classList.add('deal-card-close-month-fan');
+            const yearFan = createCloseFan(yearOptions, year, 'Yr', (val) => {
+                selectedYear = val;
+                syncHidden();
+            });
+            yearFan.classList.add('deal-card-close-year-fan');
+
+            closeWrap.appendChild(monthFan);
+            closeWrap.appendChild(yearFan);
+            closeWrap.appendChild(hiddenClose);
+            closeEl.replaceWith(closeWrap);
+
+            const termEl = footerEl.querySelector('.deal-card-term');
+            const termOptions = [
+                { value: '12', label: '12' },
+                { value: '24', label: '24' },
+                { value: '36', label: '36' },
+                { value: '48', label: '48' },
+                { value: '60', label: '60' }
+            ];
+            const termValue = (deal.term || '').replace(/\D/g, '') || '';
+            const termHidden = document.createElement('input');
+            termHidden.type = 'hidden';
+            termHidden.className = 'deal-card-term-input';
+            termHidden.dataset.field = 'term';
+            termHidden.value = deal.term || '';
+            const termFan = createCloseFan(termOptions, termValue, 'Term', (val) => {
+                termHidden.value = val;
+            });
+            termFan.classList.add('deal-card-close-term-fan');
+            const termWrap = document.createElement('div');
+            termWrap.className = 'deal-card-term-fan-wrap';
+            termWrap.appendChild(termFan);
+            termWrap.appendChild(termHidden);
+            termEl.replaceWith(termWrap);
+        }
+
+        const productsEl = card.querySelector('.deal-card-products');
+        if (productsEl) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'deal-card-inline-input deal-card-products-input';
+            input.dataset.field = 'products';
+            input.value = deal.products || '';
+            input.placeholder = 'Products';
+            productsEl.textContent = '';
+            productsEl.appendChild(input);
+        }
+
+        const editBtn = card.querySelector('.edit-deal-btn');
+        if (editBtn) {
+            editBtn.classList.remove('edit-deal-btn');
+            editBtn.classList.add('deal-card-save-btn');
+            editBtn.dataset.dealId = dealId;
+            editBtn.title = 'Save';
+            editBtn.innerHTML = '<i class="fas fa-check"></i>';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'btn-icon btn-icon-sm deal-card-cancel-btn';
+            cancelBtn.dataset.dealId = dealId;
+            cancelBtn.title = 'Cancel';
+            cancelBtn.innerHTML = '<i class="fas fa-times"></i>';
+            editBtn.parentNode.insertBefore(cancelBtn, editBtn);
+        }
+    }
+
+    function exitDealEditMode(dealId, refresh = false) {
+        if (refresh) {
+            renderAccountDetails();
+            return;
+        }
+        if (dealId === 'new') {
+            state.selectedAccountDetails.deals = state.selectedAccountDetails.deals.filter(d => d.id !== 'new');
+            renderAccountDetails();
+            return;
+        }
+        const card = accountDealsCards?.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
+        if (!card) return;
+        card.classList.remove('deal-card-editing');
+        renderAccountDetails();
+    }
+
+    async function handleSaveDeal(dealId) {
+        const card = accountDealsCards?.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
+        if (!card) return;
+        const getVal = (field) => {
+            const el = card.querySelector(`[data-field="${field}"]`);
+            return el ? el.value.trim() : '';
+        };
+        const name = getVal('name');
+        if (!name) return;
+        const dealData = {
+            name,
+            term: getVal('term'),
+            stage: getVal('stage'),
+            mrc: parseFloat(getVal('mrc')) || 0,
+            close_month: getVal('close_month') || null,
+            products: getVal('products'),
+            is_committed: false
+        };
+        if (dealId === 'new') {
+            const newDeal = state.selectedAccountDetails.deals.find(d => d.id === 'new');
+            const insertData = {
+                ...dealData,
+                is_committed: newDeal?.is_committed ?? false,
+                user_id: state.currentUser.id,
+                account_id: state.selectedAccountId
+            };
+            const { data: inserted, error } = await supabase.from('deals').insert([insertData]).select('id').single();
+            if (error) return;
+            state.selectedAccountDetails.deals = state.selectedAccountDetails.deals.filter(d => d.id !== 'new');
+            await refreshData();
+            renderAccountDetails();
+        } else {
+            const { error } = await supabase.from('deals').update(dealData).eq('id', dealId);
+            if (error) return;
+            const dealMaster = state.deals.find(d => d.id === dealId);
+            if (dealMaster) Object.assign(dealMaster, dealData);
+            const dealDetails = state.selectedAccountDetails.deals.find(d => d.id === dealId);
+            if (dealDetails) Object.assign(dealDetails, dealData);
+            exitDealEditMode(dealId, true);
+        }
     }
 
     // MODIFIED: This function is now async to await the canvas generation
@@ -938,6 +1315,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     function setupPageEventListeners() {
         setupModalListeners();
 
+        if (accountIndustrySelect && !tomSelectIndustry) {
+            tomSelectIndustry = initTomSelect(accountIndustrySelect, {
+                placeholder: '-- Select Industry --',
+                searchField: ['text'],
+                dropdownParent: 'body'
+            });
+        }
+
         if (accountForm) {
             accountForm.addEventListener('input', () => {
                 state.isFormDirty = true;
@@ -962,7 +1347,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (accountSearch) accountSearch.addEventListener("input", renderAccountList);
-        if (accountStatusFilter) accountStatusFilter.addEventListener("change", renderAccountList);
+        if (accountFilterIcons) {
+            accountFilterIcons.addEventListener("click", (e) => {
+                const btn = e.target.closest(".account-filter-icon");
+                if (btn) {
+                    accountFilterIcons.querySelectorAll(".account-filter-icon").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    renderAccountList();
+                }
+            });
+        }
 
         if (addAccountBtn) {
             addAccountBtn.addEventListener("click", () => {
@@ -1013,12 +1407,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
-        if (accountDealsTableBody) {
-            accountDealsTableBody.addEventListener('click', (e) => {
+        if (accountDealsCards) {
+            accountDealsCards.addEventListener('click', (e) => {
                 const editBtn = e.target.closest('.edit-deal-btn');
-                const commitCheck = e.target.closest('.commit-deal-checkbox');
-                if (editBtn) handleEditDeal(Number(editBtn.dataset.dealId));
-                if (commitCheck) handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
+                const saveBtn = e.target.closest('.deal-card-save-btn');
+                const cancelBtn = e.target.closest('.deal-card-cancel-btn');
+                const commitToggle = e.target.closest('.deal-card-commit-toggle');
+                const commitCheck = commitToggle?.querySelector('.commit-deal-checkbox') || e.target.closest('.commit-deal-checkbox');
+                if (editBtn) enterDealEditMode(editBtn.dataset.dealId === 'new' ? 'new' : Number(editBtn.dataset.dealId));
+                if (saveBtn) handleSaveDeal(saveBtn.dataset.dealId === 'new' ? 'new' : Number(saveBtn.dataset.dealId));
+                if (cancelBtn) exitDealEditMode(cancelBtn.dataset.dealId === 'new' ? 'new' : Number(cancelBtn.dataset.dealId));
+                if (commitCheck) {
+                    handleCommitDeal(commitCheck.dataset.dealId === 'new' ? 'new' : Number(commitCheck.dataset.dealId), commitCheck.checked);
+                }
             });
         }
 
@@ -1027,10 +1428,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 e.preventDefault();
                 const id = Number(accountForm.querySelector("#account-id")?.value);
                 if (!id) return;
+                const industryValue = tomSelectIndustry ? (tomSelectIndustry.getValue() || "").trim() : (accountForm.querySelector("#account-industry")?.value || "").trim();
                 const data = {
                     name: accountForm.querySelector("#account-name")?.value.trim(),
                     website: accountForm.querySelector("#account-website")?.value.trim(),
-                    industry: accountForm.querySelector("#account-industry")?.value.trim(),
+                    industry: industryValue,
                     phone: accountForm.querySelector("#account-phone")?.value.trim(),
                     address: accountForm.querySelector("#account-address")?.value.trim(),
                     notes: accountForm.querySelector("#account-notes")?.value,
@@ -1256,56 +1658,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (addDealBtn) {
             addDealBtn.addEventListener("click", () => {
                 if (!state.selectedAccountId) return showModal("Error", "Please select an account first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-
                 if (state.dealStages.length === 0) {
                     showModal("No Deal Stages Defined", "Please contact your administrator to define deal stages before creating a deal.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
-
-                const stageOptions = state.dealStages.sort((a, b) => a.sort_order - b.sort_order).map(s => `<option value="${s.stage_name}">${s.stage_name}</option>`).join('');
-
-                showModal("Create New Deal", `
-                    <label>Deal Name:</label><input type="text" id="modal-deal-name" required>
-                    <label>Term:</label><input type="text" id="modal-deal-term" placeholder="e.g., 12 months">
-                    <label>Stage:</label><select id="modal-deal-stage" required>${stageOptions}</select>
-                    <label>Monthly Recurring Revenue (MRC):</label><input type="number" id="modal-deal-mrc" min="0" value="0">
-                    <label>Close Month:</label><input type="month" id="modal-deal-close-month">
-                    <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated"></textarea>
-                `, async () => {
-                    const newDeal = {
-                        user_id: state.currentUser.id,
-                        account_id: state.selectedAccountId,
-                        name: document.getElementById('modal-deal-name')?.value.trim(),
-                        term: document.getElementById('modal-deal-term')?.value.trim(),
-                        stage: document.getElementById('modal-deal-stage')?.value,
-                        mrc: parseFloat(document.getElementById('modal-deal-mrc')?.value) || 0,
-                        close_month: document.getElementById('modal-deal-close-month')?.value || null,
-                        products: document.getElementById('modal-deal-products')?.value.trim(),
-                        is_committed: false
-                    };
-
-                    if (!newDeal.name) {
-                        showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                        return false;
-                    }
-
-                    const { error } = await supabase.from('deals').insert([newDeal]);
-                    if (error) {
-                        showModal("Error", 'Error creating deal: ' + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                        return false;
-                    }
-
-                    await refreshData();
-                    hideModal();
-                    showModal("Success", 'Deal created successfully!', null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return true;
-                }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Deal</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                const firstStage = state.dealStages.sort((a, b) => a.sort_order - b.sort_order)[0]?.stage_name || '';
+                const newDeal = {
+                    id: 'new',
+                    user_id: state.currentUser.id,
+                    account_id: state.selectedAccountId,
+                    name: '',
+                    term: '',
+                    stage: firstStage,
+                    mrc: 0,
+                    close_month: null,
+                    products: '',
+                    is_committed: false
+                };
+                state.selectedAccountDetails.deals.unshift(newDeal);
+                renderAccountDetails();
+                const card = accountDealsCards?.querySelector('.deal-card[data-deal-id="new"]');
+                if (card) enterDealEditMode('new');
             });
         }
 
         if (contactListView) {
             contactListView.addEventListener("click", (e) => {
-                const targetLink = e.target.closest(".contact-name-link");
+                const targetLink = e.target.closest(".account-contact-link");
                 if (targetLink) {
                     e.preventDefault();
                     handleNavigation(targetLink.href);

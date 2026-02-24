@@ -1059,32 +1059,28 @@ table input[type="checkbox"]:focus {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
+    background-color: rgb(15 23 42 / 0.6);
+    backdrop-filter: blur(4px);
 }
 
 .modal-content {
-    background-color: var(--bg-medium);
     padding: 1.25rem;
     width: 90%;
-    max-width: 70rem; /* Changed this from 31.25rem to a wider value */
-    box-shadow: 0 8px 25px var(--shadow-strong);
+    max-width: 70rem;
     position: relative;
     z-index: 10000;
     display: flex;
     flex-direction: column;
     max-height: 90vh;
-}
-
-body:not(.theme-green) .modal-content {
-    border-radius: 10px;
-}
-
-body.theme-dark .modal-content {
-    background: linear-gradient(160deg, var(--bg-medium), var(--bg-dark));
+    backdrop-filter: blur(24px);
+    background-color: rgb(30 41 59 / 0.7);
+    border: 1px solid rgb(71 85 105 / 0.5);
+    box-shadow: 0 8px 30px rgb(0 0 0 / 0.5);
+    border-radius: 1rem;
 }
 
 .modal-actions {
@@ -1393,11 +1389,12 @@ body:not(.theme-green) .table-container-scrollable {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 10000;
+    background-color: rgb(15 23 42 / 0.6);
+    backdrop-filter: blur(4px);
 }
 
 .email-view-modal {
@@ -1406,25 +1403,19 @@ body:not(.theme-green) .table-container-scrollable {
     max-height: 80vh;
     display: flex;
     flex-direction: column;
-    /* The following styles were duplicated from .modal-content, kept here to ensure no HTML changes are needed for now */
-    background-color: var(--bg-medium);
     padding: 1.25rem;
-    box-shadow: 0 8px 25px var(--shadow-strong);
-}
-
-body:not(.theme-green) .email-view-modal {
-    border-radius: 10px;
-}
-
-body.theme-dark .email-view-modal {
-    background: linear-gradient(160deg, var(--bg-medium), var(--bg-dark));
+    backdrop-filter: blur(24px);
+    background-color: rgb(30 41 59 / 0.7);
+    border: 1px solid rgb(71 85 105 / 0.5);
+    box-shadow: 0 8px 30px rgb(0 0 0 / 0.5);
+    border-radius: 1rem;
 }
 
 .email-view-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid rgb(71 85 105 / 0.5);
     padding-bottom: 10px;
     margin-bottom: 10px;
     flex-shrink: 0;
@@ -2767,7 +2758,6 @@ body.theme-blue {
 .theme-blue .details-panel,
 .theme-blue .chart-container,
 .theme-blue .metric-card,
-.theme-blue .modal-content,
 .theme-blue .auth-box,
 .theme-blue .nav-button.active {
     box-shadow: 0 0 5px var(--primary-blue), 0 0 10px var(--primary-blue), inset 0 0 3px var(--primary-blue);
@@ -2793,10 +2783,9 @@ body.theme-corporate .crm-container {
     background: transparent !important;
 }
 
-/* Main rule for all containers */
+/* Main rule for all containers (modals excluded for glassmorphism) */
 body.theme-corporate .nav-sidebar,
 body.theme-corporate .details-panel,
-body.theme-corporate .modal-content,
 body.theme-corporate .auth-box,
 body.theme-corporate .chart-container,
 body.theme-corporate .metric-card,
@@ -4057,32 +4046,6 @@ body.theme-dark .metric-card-won {
     border: none;
     border-top: 1px solid var(--border-color);
     margin: 24px 0;
-}
-/* --- Loading Screen Styles --- */
-#loading-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--bg-medium);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-    opacity: 1;
-    transition: opacity 0.75s ease-out;
-}
-
-#loading-screen video {
-    width: 100%;
-    max-width: 400px;
-    height: auto;
-}
-
-#loading-screen.hidden {
-    opacity: 0;
-    pointer-events: none;
 }
 /* === Kanban Board Styles === */
 

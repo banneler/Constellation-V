@@ -2,12 +2,14 @@
 <html lang="en">
 
 <head>
+    <meta name="description" content="Constellation CRM: A powerful and intuitive tool for managing your sales pipeline, contacts, and deals.">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constellation CRM - Marketing Hub</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Strategic - CRM - Marketing Hub</title>
+    <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -32,7 +34,7 @@
     <div id="marketing-hub-container" class="crm-container hidden">
         <nav class="nav-sidebar">
             <div data-svg-loader="assets/logo.svg"></div>
-            <h2 class="text-xl font-bold text-center mb-4">MARKETING HUB</h2>
+            <h2 class="page-title text-center">MARKETING HUB</h2>
             
             <a href="#abm-center" class="nav-button">ABM Command Center</a>
             <a href="#email-templates" class="nav-button">Email Templates</a>
@@ -58,12 +60,12 @@
             <div id="marketing-hub-content" class="content-view active-view">
                 
                 <div id="abm-center-view" class="hidden">
-                    <h2>ABM Command Center</h2>
+                    <h2 class="page-title">ABM Command Center</h2>
                     <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
                         This is your hub for all marketing tasks assigned within collaborative ABM sequences. Mark tasks as complete to advance the sequence.
                     </p>
                     
-                    <h3 style="margin-top: 2rem;">Marketing ABM Tasks Due</h3>
+                    <h3 class="section-title">Marketing ABM Tasks Due</h3>
                     <div class="table-container">
                         <table>
                             <thead>
@@ -80,7 +82,7 @@
                         </table>
                     </div>
 
-                    <h3 style="margin-top: 2rem;">Upcoming Marketing Tasks</h3>
+                    <h3 class="section-title">Upcoming Marketing Tasks</h3>
                     <div class="table-container">
                         <table>
                             <thead>
@@ -97,7 +99,7 @@
                         </table>
                     </div>
 
-                    <h3 style="margin-top: 2rem;">Recently Completed</h3>
+                    <h3 class="section-title">Recently Completed</h3>
                     <div class="table-container">
                         <table>
                             <thead>
@@ -122,19 +124,19 @@
                             <button id="download-sequence-template-btn" class="btn-secondary full-width hidden">Download Sequence Template</button>
                             <input type="file" id="item-csv-input" accept=".csv" class="hidden">
                             <button id="delete-selected-item-btn" class="btn-danger full-width" style="margin-top: 10px;">Delete Selected Item</button>
-                            <h4 id="list-header">Email Templates</h4>
+                            <h4 id="list-header" class="subsection-title">Email Templates</h4>
                             <div id="item-list" class="item-list">
                                 </div>
                         </div>
                         <div id="dynamic-details-panel" class="details-panel">
-                            <h3>Select an item to view details</h3>
+                            <h3 class="details-panel-title">Select an item to view details</h3>
                             <p>Choose an email template or sequence from the list on the left.</p>
                         </div>
                     </div>
                 </div>
 
                 <div id="social-post-view" class="hidden">
-                    <h2>Create a Shared Social Post</h2>
+                    <h2 class="page-title">Create a Shared Social Post</h2>
                     <p class="placeholder-text" style="text-align: left; margin-top: 0; margin-bottom: 1.5rem;">
                       Use this form to create pre-approved posts that will appear in the "Social Hub" for team members to share on LinkedIn.
                     </p>

@@ -14,10 +14,12 @@ import {
     setupUserMenuAndAuth,
     loadSVGs,
     setupGlobalSearch,
-    checkAndSetNotifications
+    checkAndSetNotifications,
+    injectGlobalNavigation
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    injectGlobalNavigation();
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {
