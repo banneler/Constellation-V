@@ -231,7 +231,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         <tbody class="line-items-body"></tbody>
                     </table>
                     <div class="flex justify-between items-center mt-2 border-t border-slate-100 pt-4">
-                        <button class="text-orange-500 text-sm font-semibold hover:text-orange-600 add-row-btn">+ Add Product Line</button>
+                        <button class="text-blue-500 text-sm font-semibold hover:text-blue-600 add-row-btn">+ Add Product Line</button>
                         <div class="font-bold text-slate-600 text-sm tracking-wide">Location Total: <span class="location-total text-slate-900 ml-2 text-lg">$0.00</span></div>
                     </div>
                 </div>`;
@@ -797,7 +797,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             });
             var grandTotalNoDecimals = grandTotalText.replace(/\.(\d{2})$/, '') || grandTotalText;
             const totalBlockHtml = '<div style="margin-top: 20px;">' + '<div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalNoDecimals) + '</div></div>' + '</div>';
-            const termLineHtml = '<p style="text-align: center; font-size: 11px; color: #475569; margin-top: 1rem;">Pricing based off ' + escapeHtml(contractTerm) + '-month term</p>';
+            const termLineHtml = '<p style="text-align: center; font-size: 11px; color: #DE5A24; margin-top: 1rem;">Pricing based off ' + escapeHtml(contractTerm) + '-month term</p>';
             if (allRows.length === 0) {
                 const html = totalBlockHtml + termLineHtml;
                 const canvas = await captureInteriorPageGPC('Proposed Pricing', html, { extraPaddingTop: 46 });

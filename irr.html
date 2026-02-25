@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="description" content="Constellation CRM: Multi-site IRR Calculator for fiber projects.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic - CRM - Multi-Site IRR Calculator</title>
+
+    <link rel="stylesheet" href="output.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/@zumer/snapdom/dist/snapdom.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        .irr-tab-scroll-wrapper {
+            display: flex;
+            align-items: stretch;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .irr-tab-bar {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex: 1;
+            min-width: 0;
+            scrollbar-width: none;
+        }
+        .irr-tab-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .irr-tab-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            color: var(--text-medium);
+            cursor: pointer;
+            padding: 0 0.5rem;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            transition: color 0.2s;
+        }
+        .irr-tab-arrow:hover {
+            color: var(--primary-blue);
+        }
+
+        .irr-tab {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-medium);
+            font-size: 1rem;
+            font-weight: 500;
+            position: relative;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .irr-tab.active {
+            color: var(--primary-blue);
+            border-bottom-color: var(--primary-blue);
+            font-weight: 700;
+        }
+
+        .irr-tab:hover:not(.active) {
+            background-color: var(--list-item-hover);
+            color: var(--text-light);
+        }
+        
+        #site-forms-container .site-form-wrapper {
+            display: none; /* Hidden by default */
+        }
+
+        #site-forms-container .site-form-wrapper.active {
+            display: block;
+        }
+
+        .irr-tab-results {
+            font-size: 0.8rem;
+            font-weight: 400;
+            display: block;
+            margin-top: 4px;
+        }
+        
+        .irr-tab-results .go { color: var(--completed-color); }
+        .irr-tab-results .nogo { color: var(--danger-red); }
+        .irr-tab-results .error { color: var(--text-medium); }
+
+        .delete-site-btn {
+            background: none;
+            border: none;
+            color: var(--text-medium);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0 0 0 0.5rem;
+        }
+        .delete-site-btn:hover {
+            color: var(--danger-red);
+        }
+
+        .irr-results-title {
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin: 0 0 1rem 0;
+        }
+
+        /* Header row: title+toolbar left, dial right */
+        .irr-header-row {
+            display: flex;
+            align-items: stretch;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .irr-header-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.75rem;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .irr-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .irr-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+        .irr-toolbar-divider {
+            width: 2px;
+            height: 25px;
+            background: var(--border-color);
+            margin: 0 0.25rem;
+        }
+        .irr-project-name-input {
+            flex: 1;
+            min-width: 0;
+            text-align: left;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 0.4rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--bg-medium);
+            color: var(--text-light);
+        }
+        .irr-project-name-input::placeholder {
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+
+        /* Target IRR dial (spans title + toolbar height) */
+        .irr-dial-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 90px;
+        }
+        .irr-dial-svg {
+            width: 90px;
+            height: 90px;
+            transform: rotate(-90deg);
+        }
+        .irr-dial-track {
+            fill: none;
+            stroke: var(--border-color);
+            stroke-width: 8;
+        }
+        .irr-dial-fill {
+            fill: none;
+            stroke: var(--primary-blue);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 326.73;
+            stroke-dashoffset: 326.73;
+            transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;
+        }
+        .irr-dial-value-wrap {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 90px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+        }
+        .irr-dial-input {
+            width: 2rem;
+            text-align: right;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            padding: 0;
+            outline: none;
+        }
+        .irr-dial-unit {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            margin-top: 0.1rem;
+        }
+        .irr-dial-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-top: 2px;
+            white-space: nowrap;
+        }
+
+        /* Styles for the Global Results box */
+        #global-results-container {
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-light);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-card);
+        }
+
+        .global-results-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            text-align: center;
+        }
+        .global-results-grid > div {
+            white-space: nowrap;
+        }
+        
+        #global-decision {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            line-height: 1;
+            margin: 0;
+        }
+
+        /* MODIFIED: Added #global-capital-investment */
+        #global-annual-irr, #global-tcv, #global-payback, #global-capital-investment {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0.5rem 0 0 0;
+            line-height: 1;
+        }
+        
+        #global-tcv {
+             color: var(--primary-blue);
+        }
+
+        #global-error-message {
+            color: var(--danger-red);
+            margin-top: 1rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* Styles for the *Individual Site* Results */
+        .individual-results-container {
+            text-align: center;
+            padding: 1.5rem;
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            box-shadow: var(--shadow-card);
+        }
+        
+        .individual-results-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            text-align: center;
+        }
+        .individual-results-grid > div {
+            white-space: nowrap;
+        }
+
+        .individual-decision {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            line-height: 1;
+            margin: 0;
+        }
+
+        /* MODIFIED: Added .individual-payback */
+        .individual-annual-irr, .individual-tcv, .individual-payback {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0.5rem 0 0 0;
+            line-height: 1;
+        }
+        
+        .individual-tcv {
+            color: var(--primary-blue);
+        }
+
+        .individual-error-message {
+            color: var(--danger-red);
+            margin-top: 1rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* Payback color styles */
+        .payback-green { color: var(--completed-color); }
+        .payback-yellow { color: var(--warning-yellow); }
+        .payback-red { color: var(--danger-red); }
+        
+        /* Style for the load project modal (unchanged) */
+        #load-project-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        #load-project-list li {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #load-project-list li:last-child {
+            border-bottom: none;
+        }
+        #load-project-list li:hover {
+            background-color: var(--list-item-hover);
+        }
+        #load-project-list li .project-name {
+            font-weight: 600;
+        }
+        #load-project-list li .project-date {
+            font-size: 0.85rem;
+            color: var(--text-medium);
+        }
+
+        /* 2-Column Layout for Calculator vs Chart/Insights */
+        .irr-layout-grid {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1200px) {
+            .irr-layout-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 3D Flip Card Container */
+        .flip-card-container {
+            perspective: 1000px;
+            position: sticky;
+            top: 1.5rem;
+            /* Adjust height based on content or give min-height */
+            height: 600px;
+            margin-bottom: 1.5rem;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card-inner.flipped {
+            transform: rotateY(-180deg);
+        }
+
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: var(--shadow-card);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            overflow: auto;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .flip-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-medium);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .flip-btn:hover {
+            color: var(--primary-blue);
+            background-color: var(--list-item-hover);
+        }
+
+        .chart-container-wrapper {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            min-height: 350px;
+            margin-top: 1rem;
+        }
+
+        /* Timeline settings table on flip card back */
+        .timeline-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .timeline-table th {
+            text-align: left;
+            padding: 0.5rem 0.5rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            font-size: 0.8rem;
+        }
+        .timeline-table td {
+            padding: 0.4rem 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        .timeline-table .site-name-cell {
+            font-weight: 600;
+            color: var(--text-light);
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .timeline-table input[type="number"] {
+            width: 70px;
+            padding: 0.35rem 0.5rem;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="crm-container">
+        <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
+            <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
+        </nav>
+        
+        <main class="content-area">
+            <div id="irr-calculator" class="content-view active-view">
+                <div class="irr-layout-grid">
+                <div class="section-card">
+                    <div class="section-card-body p-5">
+                        <div class="irr-header-row">
+                            <div class="irr-header-left">
+                                <h2 class="page-title" style="margin: 0;">Multi-Site IRR Calculator</h2>
+                                <div class="irr-toolbar">
+                                    <div class="irr-toolbar-left">
+                                        <button type="button" id="new-project-btn" class="btn-secondary" title="New Project"><i class="fas fa-file"></i></button>
+                                        <button type="button" id="load-project-btn" class="btn-secondary" title="Load Project"><i class="fas fa-folder-open"></i></button>
+                                        <button type="button" id="save-project-btn" class="btn-primary cognito-style-btn" title="Save Project"><i class="fas fa-save"></i></button>
+                                        <div class="irr-toolbar-divider"></div>
+                                        <button type="button" id="add-site-btn" class="btn-secondary" title="Add Site"><i class="fas fa-plus"></i></button>
+                                        <button type="button" id="print-report-btn" class="btn-secondary" title="Print Report"><i class="fas fa-print"></i></button>
+                                        <button type="button" id="export-csv-btn" class="btn-secondary" title="Export to CSV"><i class="fas fa-file-csv"></i></button>
+                                    </div>
+                                    <input type="text" id="project-name" placeholder="Project Name..." class="irr-project-name-input">
+                                </div>
+                            </div>
+                            <div class="irr-dial-container">
+                                <svg class="irr-dial-svg" viewBox="0 0 120 120">
+                                    <circle class="irr-dial-track" cx="60" cy="60" r="52" />
+                                    <circle class="irr-dial-fill" cx="60" cy="60" r="52" />
+                                </svg>
+                                <div class="irr-dial-value-wrap">
+                                    <input type="number" id="global-target-irr" value="15" min="0" max="100" class="irr-dial-input">
+                                    <span class="irr-dial-unit">%</span>
+                                </div>
+                                <span class="irr-dial-label">Target IRR</span>
+                            </div>
+                        </div>
+
+                <div id="global-results-container">
+                    <h3 class="irr-results-title">Global Project Results (All Sites)</h3>
+                    <div class="global-results-grid">
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global Decision</span>
+                            <p id="global-decision" class="pending">--</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global Annual IRR</span>
+                            <p id="global-annual-irr" class="pending">--%</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Total Capital Invest.</span>
+                            <p id="global-capital-investment" class="pending">$0</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global TCV ($)</span>
+                            <p id="global-tcv" class="pending">$0</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global Payback / Term</span>
+                            <p id="global-payback" class="pending">-- / --</p>
+                        </div>
+                    </div>
+                    <div id="global-error-message" class="hidden">
+                        </div>
+                </div>
+
+                <div class="irr-tab-scroll-wrapper">
+                    <button type="button" class="irr-tab-arrow irr-tab-arrow-left" id="tab-scroll-left" title="Scroll left"><i class="fas fa-chevron-left"></i></button>
+                    <div id="site-tabs-container" class="irr-tab-bar"></div>
+                    <button type="button" class="irr-tab-arrow irr-tab-arrow-right" id="tab-scroll-right" title="Scroll right"><i class="fas fa-chevron-right"></i></button>
+                </div>
+
+                <div id="site-forms-container">
+                    </div>
+
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: Cash Flow Chart / Advanced Settings Flip Card -->
+                <div class="flip-card-container">
+                    <div class="flip-card-inner" id="cashflow-flip-card">
+                        
+                        <!-- FRONT: Chart -->
+                        <div class="flip-card-front">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-light);">Cash Flow Projection</h3>
+                                <button type="button" class="flip-btn" id="flip-to-settings-btn" title="Advanced Timeline Settings">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-medium); margin-bottom: 0.5rem;">
+                                Cumulative cash flow over project term.
+                            </p>
+                            <div class="chart-container-wrapper">
+                                <canvas id="cashflow-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- BACK: Per-Site Timeline Settings -->
+                        <div class="flip-card-back">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-light);">Site Timeline Settings</h3>
+                                <button type="button" class="flip-btn" id="flip-to-chart-btn" title="Back to Chart">
+                                    <i class="fas fa-chart-line"></i>
+                                </button>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--text-medium); margin-bottom: 1rem;">
+                                Set per-site construction and billing start months to model staggered rollouts.
+                            </p>
+                            
+                            <div id="timeline-table-container" style="flex: 1; overflow: auto;"></div>
+
+                            <button type="button" id="save-settings-flip-btn" class="btn-primary cognito-style-btn" style="width: 100%; margin-top: 1rem; flex-shrink: 0;">
+                                Save & View Chart
+                            </button>
+                        </div>
+                        
+                    </div>
+                </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <template id="site-form-template">
+        <div class="site-form-wrapper" data-site-id="">
+            <div class="details-panel" style="margin-top: 0;">
+                <form class="irr-form">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex-grow: 1;">
+                            <label for="site-name">Site Name</label>
+                            <input type="text" class="site-name-input" placeholder="e.g., Downtown Business Park" value="Site 1">
+                        </div>
+                        <div style="margin-left: 1rem; flex-basis: 150px; flex-shrink: 0;">
+                            <label>Project Term (Months)</label>
+                            <input type="number" class="term-input" placeholder="e.g., 60" value="60">
+                        </div>
+                        <button type="button" class="btn-danger delete-site-btn" title="Delete this site" style="margin-left: 1rem; margin-top: 1.25rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 1.5rem;">
+                        <div>
+                            <label>Construction Cost ($)</label>
+                            <input type="number" class="construction-cost-input" placeholder="e.g., 100000" value="100000">
+                        </div>
+                        <div>
+                            <label>Engineering Cost ($)</label>
+                            <input type="number" class="engineering-cost-input" placeholder="e.g., 20000" value="20000">
+                        </div>
+                        <div>
+                            <label>Product Cost ($)</label>
+                            <input type="number" class="product-cost-input" placeholder="e.g., 10000" value="0">
+                        </div>
+                        <div>
+                            <label>Monthly Costs ($)</label>
+                            <input type="number" class="monthly-cost-input" placeholder="e.g., 500" value="500">
+                        </div>
+                        <div>
+                            <label>Non-Recurring Revenue (Upfront) ($)</label>
+                            <input type="number" class="nrr-input" placeholder="e.g., 5000" value="5000">
+                        </div>
+                        <div>
+                            <label>Monthly Recurring Revenue ($)</label>
+                            <input type="number" class="mrr-input" placeholder="e.g., 3000" value="3000">
+                        </div>
+                    </div>
+                    
+                </form>
+
+                <div class="individual-results-container">
+                    <h3 class="irr-results-title">Site Project Results</h3>
+                    <div class="individual-results-grid">
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Site Decision</span>
+                            <p class="individual-decision pending">--</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Site Annual IRR</span>
+                            <p class="individual-annual-irr pending">--%</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Site TCV ($)</span>
+                            <p class="individual-tcv pending">$0</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Site Payback / Term</span>
+                            <p class="individual-payback pending">-- / --</p>
+                        </div>
+                    </div>
+                    <div class="individual-error-message hidden">
+                        </div>
+                </div>
+
+            </div>
+        </div>
+    </template>
+
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions">
+            </div>
+        </div>
+    </div>
+    <div id="email-view-modal-backdrop" class="modal-backdrop hidden">
+        </div>
+    
+    <div id="load-project-modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 id="load-project-modal-title">Load Project</h3>
+            <div id="load-project-modal-body">
+                <p>Select a project to load. This will replace your current, unsaved project.</p>
+                <ul id="load-project-list">
+                    <li class="placeholder-text">Loading...</li>
+                </ul>
+            </div>
+            <div id="load-project-modal-actions" class="modal-actions">
+                 <button id="load-project-cancel-btn" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('crm-theme') || 'light';
+            document.body.className = 'theme-' + savedTheme;
+        })();
+    </script>
+    
+    <script type="module" src="js/irr.js"></script>
+</body>
+</html>

@@ -8,6 +8,8 @@ import {
     hideModal,
     updateActiveNavLink,
     setupUserMenuAndAuth,
+    initializeAppState,
+    getState,
     loadSVGs,
     setupGlobalSearch,
     updateLastVisited,
@@ -122,9 +124,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             { data: accounts, error: accountsError },
             { data: contacts, error: contactsError }
         ] = await Promise.all([
-            supabase.from("cognito_alerts").select("*").eq("user_id", state.currentUser.id),
-            supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
-            supabase.from("contacts").select("*").eq("user_id", state.currentUser.id)
+            supabase.from("cognito_alerts").select("*").eq("user_id", getState().effectiveUserId),
+            supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
+            supabase.from("contacts").select("*").eq("user_id", getState().effectiveUserId)
         ]);
         
         if (alertsError) console.error("Error fetching Cognito alerts:", alertsError);
@@ -588,7 +590,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             contact_id: Number(selectedContactId),
             type: 'Cognito Intelligence',
             description: `[${state.selectedAlert.trigger_type}] ${state.selectedAlert.headline} - Notes: ${notes}`,
-            user_id: state.currentUser.id,
+            user_id: getState().effectiveUserId,
             date: new Date().toISOString()
         });
 
@@ -620,7 +622,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             description: `Cognito: ${description}`,
             due_date: dueDate || null,
             status: 'Pending',
-            user_id: state.currentUser.id
+            user_id: getState().effectiveUserId
         });
 
         if (error) {
@@ -705,23 +707,19 @@ document.addEventListener("DOMContentLoaded", async () => {
  // --- INITIALIZATION ---
 async function initializePage() {
     await loadSVGs();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        state.currentUser = session.user;
-        await setupUserMenuAndAuth(supabase, state);
-        updateActiveNavLink();
-        renderViewModeToggle();
-        initCognitoTomSelects();
-        setupPageEventListeners();
-        await setupGlobalSearch(supabase, state.currentUser);
-        await loadAllData(); 
-
-        // NUKE-LEVEL FIX: Await the check, THEN update the visit time.
-        await checkAndSetNotifications(supabase);
-        updateLastVisited(supabase, 'cognito');
-    } else {
-        window.location.href = "index.html";
-    }
+    const appState = await initializeAppState(supabase);
+    if (!appState.currentUser) return;
+    state.currentUser = appState.currentUser;
+    await setupUserMenuAndAuth(supabase, getState());
+    updateActiveNavLink();
+    renderViewModeToggle();
+    initCognitoTomSelects();
+    setupPageEventListeners();
+    await setupGlobalSearch(supabase, state.currentUser);
+    await loadAllData();
+    window.addEventListener('effectiveUserChanged', loadAllData);
+    await checkAndSetNotifications(supabase);
+    updateLastVisited(supabase, 'cognito');
 }
 initializePage();
 });

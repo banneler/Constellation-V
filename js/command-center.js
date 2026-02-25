@@ -73,10 +73,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return result;
     }
 
-    // --- DATA FETCHING (UPDATED FOR IMPERSONATION) ---
+    // --- DATA FETCHING ---
     async function loadAllData() {
         const appState = getState();
-        if (!appState.effectiveUserId) return;
+        if (!appState.currentUser?.id) return;
 
         if (myTasksList) myTasksList.innerHTML = '<p class="my-tasks-empty text-sm text-[var(--text-medium)] px-4 py-6">Loading tasks...</p>';
         
@@ -88,14 +88,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const userSpecificTables = Object.keys(tableMap);
         const publicTables = ["sequence_steps"];
 
-        // --- THIS IS THE KEY CHANGE ---
-        // All data is now fetched based on the 'effectiveUserId', which could be the manager's own ID
-        // or the ID of the user they are impersonating. RLS policies on the Supabase side
-        // will ensure a manager can only see data they are permitted to see.
         const userPromises = userSpecificTables.map(table =>
-            supabase.from(table).select("*").eq("user_id", appState.effectiveUserId)
+            supabase.from(table).select("*").eq("user_id", appState.currentUser.id)
         );
-        // --- END CHANGE ---
 
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...publicPromises];
@@ -183,7 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 date: new Date().toISOString(),
                 type: `Sequence: ${currentStepInfo.type}`,
                 description: descriptionForLog,
-                user_id: appState.effectiveUserId // Log activity for the user being viewed
+                user_id: appState.currentUser.id
             }]);
         }
         
@@ -270,29 +265,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         const upcomingSalesTasks = [];
         
         const appState = getState();
-        const isManagerViewingOwnData = appState.isManager && appState.effectiveUserId === appState.currentUser.id;
 
         for (const cs of state.contact_sequences) {
-            if (cs.status !== 'Active' || !cs.current_step_number) {
-                continue;
-            }
+            if (cs.status !== 'Active' || !cs.current_step_number) continue;
+            if (cs.user_id !== appState.currentUser?.id) continue;
 
             const currentStep = state.sequence_steps.find(
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
             );
             
-            // Logic to determine if a task should be shown
             let shouldShowTask = false;
             if (currentStep) {
-                // Always show tasks assigned to the specific user being viewed
-                if (cs.user_id === appState.effectiveUserId) {
-                    // Standard user sees their "Sales" tasks, Manager sees their "Sales Manager" tasks
-                    if (appState.isManager && currentStep.assigned_to === 'Sales Manager') {
-                        shouldShowTask = true;
-                    } else if (!appState.isManager && (currentStep.assigned_to === 'Sales' || !currentStep.assigned_to)) {
-                        shouldShowTask = true;
-                    }
-                }
+                const assignedTo = currentStep.assigned_to || 'Sales';
+                if (assignedTo === 'Marketing') continue;
+                // Show both Sales and Sales Manager steps (most default to Sales)
+                shouldShowTask = assignedTo === 'Sales' || assignedTo === 'Sales Manager';
             }
 
             if (shouldShowTask) {
@@ -516,7 +503,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contactId = document.getElementById('quick-add-contact').value;
                 const accountId = document.getElementById('quick-add-account').value;
                 if (!description) { alert('Description is required.'); return; }
-                const taskData = { description, due_date: dueDate || null, user_id: appState.effectiveUserId, status: 'Pending' };
+                const taskData = { description, due_date: dueDate || null, user_id: appState.currentUser.id, status: 'Pending' };
                 if (contactId) taskData.contact_id = Number(contactId);
                 if (accountId) taskData.account_id = Number(accountId);
                 const { error } = await supabase.from('tasks').insert(taskData);
@@ -676,7 +663,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         if (appState.currentUser) {
             // Pass the whole appState object to setup the user menu
-            await setupUserMenuAndAuth(supabase, appState); 
+            await setupUserMenuAndAuth(supabase, appState, { skipImpersonation: true }); 
             
             // Setup other shared features
             await setupGlobalSearch(supabase);
@@ -702,8 +689,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            // Listen for the custom event to reload data when a manager impersonates another user
-            window.addEventListener('effectiveUserChanged', loadAllData);
             
         } else {
             // This case is handled by initializeAppState, but serves as a fallback

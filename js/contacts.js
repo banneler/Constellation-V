@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -182,13 +182,13 @@ async function loadAllData() {
             activityTypesRes,
             productsRes
         ] = await Promise.all([
-            supabase.from('contacts').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('accounts').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('activities').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('contact_sequences').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('sequences').select('*').eq('user_id', state.currentUser.id), // Fetches ALL sequences you own
-            supabase.from('deals').select('*').eq('user_id', state.currentUser.id),
-            supabase.from('tasks').select('*').eq('user_id', state.currentUser.id),
+            supabase.from('contacts').select('*').eq('user_id', getState().effectiveUserId),
+            supabase.from('accounts').select('*').eq('user_id', getState().effectiveUserId),
+            supabase.from('activities').select('*').eq('user_id', getState().effectiveUserId),
+            supabase.from('contact_sequences').select('*').eq('user_id', getState().effectiveUserId),
+            supabase.from('sequences').select('*').eq('user_id', getState().effectiveUserId),
+            supabase.from('deals').select('*').eq('user_id', getState().effectiveUserId),
+            supabase.from('tasks').select('*').eq('user_id', getState().effectiveUserId),
             supabase.from('sequence_steps').select('*'),
             supabase.from('email_log').select('*'),
             supabase.from('activity_types').select('*'),
@@ -735,7 +735,7 @@ async function loadAllData() {
                         phone: contactData.phone || '',
                         title: contactData.title || '',
                         account_id: accountIdToLink,
-                        user_id: state.currentUser.id
+                        user_id: getState().effectiveUserId
                     }
                 ]).select();
                 if (insertError) throw insertError;
@@ -881,7 +881,7 @@ async function openEmailClient(contact) {
             account_id: contact?.account_id,
             type: 'AI-Generated Email',
             description: `AI-generated email draft opened in mail client. Subject: "${emailSubject}".`,
-            user_id: state.currentUser.id,
+            user_id: getState().effectiveUserId,
             date: new Date().toISOString()
         });
 
@@ -1058,7 +1058,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     const { data: newContactArr, error } = await supabase.from("contacts").insert([{ 
                         first_name: firstName, 
                         last_name: lastName, 
-                        user_id: state.currentUser.id 
+                        user_id: getState().effectiveUserId 
                     }]).select();
 
                     if (error) {
@@ -1122,7 +1122,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 account_id: contactForm.querySelector("#contact-account-name").value ? Number(contactForm.querySelector("#contact-account-name").value) : null,
                 notes: contactForm.querySelector("#contact-notes").value,
                 last_saved: new Date().toISOString(),
-                user_id: state.currentUser.id
+                user_id: getState().effectiveUserId
             };
             if (!data.first_name || !data.last_name) {
                 showModal("Error", "First and Last name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -1184,7 +1184,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         phone: c[3] || "",
                         title: c[4] || "",
                         company: c[5] || "",
-                        user_id: state.currentUser.id
+                        user_id: getState().effectiveUserId
                     };
                 });
 
@@ -1438,7 +1438,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     account_id: contact?.account_id,
                     type: type,
                     description: description,
-                    user_id: state.currentUser.id,
+                    user_id: getState().effectiveUserId,
                     date: new Date().toISOString()
                 });
                 if (error) {
@@ -1465,7 +1465,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
 
         let success = false;
         if (selectedSequence.is_abm) {
-            success = await handleAssignSequenceToContact(state.selectedContactId, Number(sequenceId), state.currentUser.id);
+            success = await handleAssignSequenceToContact(state.selectedContactId, Number(sequenceId), getState().effectiveUserId);
         } else {
             const firstStep = state.sequence_steps.find(s => s.sequence_id === selectedSequence.id && s.step_number === 1);
             if (!firstStep) {
@@ -1479,7 +1479,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 current_step_number: 1,
                 status: 'Active',
                 next_step_due_date: addDays(new Date(), firstStep.delay_days).toISOString(),
-                user_id: state.currentUser.id
+                user_id: getState().effectiveUserId
             });
             if (error) {
                 showToast("Error assigning sequence: " + error.message, "error");
@@ -1550,7 +1550,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         return false;
                     }
                     const newTask = {
-                        user_id: state.currentUser.id,
+                        user_id: getState().effectiveUserId,
                         description,
                         due_date: dueDate || null,
                         status: 'Pending',
@@ -1684,22 +1684,20 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
     // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = { ...session.user };
-            state.nameDisplayFormat = localStorage.getItem('contactNameDisplayFormat') || 'lastFirst';
-            updateSortToggleUI();
-            setupPageEventListeners();
-            await setupUserMenuAndAuth(supabase, state);
-            const urlParams = new URLSearchParams(window.location.search);
-            const contactIdFromUrl = urlParams.get('contactId');
-            if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await checkAndSetNotifications(supabase);
-            await loadAllData();
-        } else {
-            window.location.href = "index.html";
-        }
+        const appState = await initializeAppState(supabase);
+        if (!appState.currentUser) return;
+        state.currentUser = appState.currentUser;
+        state.nameDisplayFormat = localStorage.getItem('contactNameDisplayFormat') || 'lastFirst';
+        updateSortToggleUI();
+        setupPageEventListeners();
+        await setupUserMenuAndAuth(supabase, getState());
+        const urlParams = new URLSearchParams(window.location.search);
+        const contactIdFromUrl = urlParams.get('contactId');
+        if (contactIdFromUrl) state.selectedContactId = Number(contactIdFromUrl);
+        await setupGlobalSearch(supabase, state.currentUser);
+        await checkAndSetNotifications(supabase);
+        await loadAllData();
+        window.addEventListener('effectiveUserChanged', loadAllData);
     }
 
     initializePage();

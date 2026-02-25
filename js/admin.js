@@ -7,7 +7,9 @@ import {
     showModal,
     hideModal,
     loadSVGs,
-    setupUserMenuAndAuth
+    setupUserMenuAndAuth,
+    initializeAppState,
+    getState
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -694,15 +696,15 @@ function setupPageEventListeners() {
 async function initializePage() {
     setupModalListeners();
     await loadSVGs();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = "index.html"; return; }
-    state.currentUser = session.user;
+    const appState = await initializeAppState(supabase);
+    if (!appState.currentUser) { window.location.href = "index.html"; return; }
+    state.currentUser = appState.currentUser;
     if (state.currentUser.user_metadata?.is_admin !== true) {
         alert("Access Denied: You must be an admin to view this page.");
         window.location.href = "command-center.html";
         return;
     }
-    await setupUserMenuAndAuth(supabase, state);
+    await setupUserMenuAndAuth(supabase, getState());
     setupPageEventListeners();
     handleNavigation();
 }

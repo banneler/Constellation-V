@@ -31,9 +31,10 @@
                     <input type="file" id="contact-csv-input" accept=".csv" class="hidden">
                     <div class="contact-picker-body">
                         <input type="text" id="contact-search" placeholder="Search by name, email...">
-                        <div class="display-toggle-container">
-                            <button id="sort-first-last-btn" class="btn-secondary">First Name</button>
-                            <button id="sort-last-first-btn" class="btn-secondary">Last Name</button>
+                        <div class="sort-pill">
+                            <button id="sort-first-last-btn" class="sort-pill-btn active">First</button>
+                            <div class="sort-pill-divider"></div>
+                            <button id="sort-last-first-btn" class="sort-pill-btn">Last</button>
                         </div>
                         <div id="contact-list" class="contact-picker-list"></div>
                     </div>

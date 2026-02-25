@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/@zumer/snapdom/dist/snapdom.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
@@ -50,7 +50,15 @@
                             <div class="account-details-form-card">
                                 <div class="account-details-form-header flex justify-between items-center gap-2">
                                     <h3 class="details-panel-title">Account Details</h3>
-                                    <button id="ai-briefing-btn" class="btn-icon-header" title="Generate AI Briefing"><i class="fas fa-bolt-lightning"></i></button>
+                                    <div class="flex items-center gap-2">
+                                        <span class="sf-locator-inline" id="sf-locator-inline-wrap">
+                                            <span class="sf-locator-text" id="sf-locator-display">Salesforce ID</span>
+                                            <button type="button" class="sf-locator-edit-btn" id="sf-locator-edit-btn" title="Edit Salesforce ID" aria-label="Edit Salesforce ID"><i class="fas fa-pencil"></i></button>
+                                            <input type="text" class="sf-locator-input" id="sf-locator-input" placeholder="e.g. 001XXXXXXXXXXXX" maxlength="18" />
+                                        </span>
+                                        <button id="salesforce-account-btn" class="btn-icon-header" title="Open in Salesforce"><i class="fa-brands fa-salesforce"></i></button>
+                                        <button id="ai-briefing-btn" class="btn-icon-header" title="Generate AI Briefing"><i class="fas fa-bolt-lightning"></i></button>
+                                    </div>
                                 </div>
                                 <div id="account-pending-task-reminder" class="pending-task-reminder hidden"></div>
                                 <form id="account-form">

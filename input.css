@@ -79,12 +79,16 @@ body.theme-green {
     }
     html {
         font-size: 87.5%;
+        height: 100%;
+        overflow: hidden;
     }
     body {
         margin: 0;
+        height: 100%;
+        overflow: hidden;
+        overflow-x: hidden;
         background-color: var(--bg-dark);
         color: var(--text-light);
-        overflow-x: hidden;
         transition: background-color 0.3s, color 0.3s;
     }
     body.theme-green {
@@ -106,6 +110,16 @@ body.theme-green {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.95; }
     }
+
+    /* Remove number input spinners globally */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
 }
 
 /* ==========================================================================
@@ -113,19 +127,33 @@ body.theme-green {
    ========================================================================== */
 @layer components {
     .crm-container {
-        @apply flex h-screen gap-5;
+        @apply flex gap-5 overflow-hidden;
+        height: 100%;
+        min-height: 0;
         background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
         transition: background 0.3s;
     }
     .nav-sidebar {
-        @apply w-[200px] flex flex-col flex-shrink-0 overflow-x-hidden py-5 px-2.5 rounded-r-lg;
+        @apply w-[200px] flex flex-col flex-shrink-0 overflow-x-hidden overflow-y-auto py-5 px-2.5 rounded-r-lg;
         background-color: var(--bg-light);
         box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
         border-right: 1px solid var(--border-color);
         transition: width 0.25s ease, background-color 0.3s, box-shadow 0.3s;
     }
     .nav-collapse-toggle {
-        @apply mt-2;
+        @apply absolute top-0 right-0 p-1 cursor-pointer;
+        background: none;
+        border: none;
+        color: var(--text-medium);
+        font-size: 0.85rem;
+        line-height: 1;
+        z-index: 2;
+    }
+    .nav-collapse-toggle:hover {
+        color: var(--primary-blue);
+    }
+    .nav-collapse-icon {
+        transition: transform 0.25s ease;
     }
     @media (min-width: 769px) {
         .nav-sidebar-collapsed {
@@ -177,8 +205,9 @@ body.theme-green {
         .nav-sidebar-collapsed .nav-logo-wrap .nav-logo-collapsed {
             display: block !important;
         }
-        .nav-sidebar-collapsed .nav-collapse-toggle .nav-label-text {
-            display: none !important;
+        .nav-sidebar-collapsed .nav-collapse-toggle {
+            @apply right-auto left-1/2;
+            transform: translateX(-50%);
         }
         /* Match full logo height (180px × 1390/2048 ≈ 122px) so search stays in same position */
         .nav-sidebar-collapsed .nav-logo-wrap {
@@ -231,7 +260,7 @@ body.theme-green {
         @apply min-w-0 overflow-x-hidden;
     }
     .nav-top-section {
-        @apply flex flex-col gap-4 pb-4 mb-4 min-w-0 flex-shrink-0;
+        @apply relative flex flex-col gap-4 pb-4 mb-4 min-w-0 flex-shrink-0;
         border-bottom: 1px solid var(--border-color);
         min-height: 5.5rem;
     }
@@ -284,7 +313,7 @@ body.theme-green {
         box-shadow: 0 0 12px rgba(0, 255, 65, 0.2), inset 0 1px 0 rgba(0, 255, 65, 0.1);
     }
     .content-area {
-        @apply flex-grow p-5 overflow-y-auto;
+        @apply flex-grow p-5 overflow-y-auto min-h-0;
         background: linear-gradient(180deg, var(--bg-dark) 0%, #f8fafc 100%);
     }
     .nav-cognito-wrap {
@@ -316,6 +345,24 @@ body.theme-green {
     .nav-briefing-pill .nav-button {
         @apply text-sm;
     }
+    /* Deal Product Pills */
+    .product-pill {
+        @apply px-1 py-0.5 rounded text-[0.65rem] font-semibold border inline-block whitespace-nowrap leading-none;
+        margin-right: 2px;
+        margin-bottom: 2px;
+    }
+    /* Product pills – match stage color palette */
+    .product-internet { background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium)); color: var(--primary-blue); border-color: var(--primary-blue); }
+    .product-ethernet { background-color: color-mix(in srgb, var(--secondary-gray) 18%, var(--bg-medium)); color: var(--secondary-gray); border-color: var(--secondary-gray); }
+    .product-uc { background-color: color-mix(in srgb, var(--meeting-purple) 18%, var(--bg-medium)); color: var(--meeting-purple); border-color: var(--meeting-purple); }
+    .product-pri-sip { background-color: color-mix(in srgb, var(--meeting-purple) 18%, var(--bg-medium)); color: var(--meeting-purple); border-color: var(--meeting-purple); }
+    .product-sdwan { background-color: color-mix(in srgb, var(--warning-yellow) 22%, var(--bg-medium)); color: var(--warning-yellow); border-color: var(--warning-yellow); }
+    .product-firewall { background-color: color-mix(in srgb, var(--danger-red) 18%, var(--bg-medium)); color: var(--danger-red); border-color: var(--danger-red); }
+    .product-5g { background-color: color-mix(in srgb, var(--warning-yellow) 22%, var(--bg-medium)); color: var(--warning-yellow); border-color: var(--warning-yellow); }
+    .product-cloud { background-color: color-mix(in srgb, white 22%, var(--bg-medium)); color: var(--text-medium); border-color: rgba(255,255,255,0.4); }
+    .product-waves { background-color: color-mix(in srgb, var(--completed-color) 18%, var(--bg-medium)); color: var(--completed-color); border-color: var(--completed-color); }
+    .product-default { background-color: color-mix(in srgb, #60a5fa 18%, var(--bg-medium)); color: #2563eb; border-color: #60a5fa; }
+
     .deals-header {
         @apply flex-shrink-0;
     }
@@ -839,8 +886,23 @@ body.theme-green {
         @apply absolute inset-0 w-full h-full;
     }
     .chart-empty-message {
-        @apply w-full min-h-[11.25rem] flex justify-center items-center italic;
-        color: var(--text-medium);
+        @apply w-full min-h-[11.25rem] flex justify-center items-center italic text-sm;
+        color: var(--text-muted);
+    }
+    .deals-charts-section .chart-container {
+        @apply p-4 min-h-[14rem];
+    }
+    .deals-charts-section .chart-wrapper {
+        height: 12rem;
+        background: rgba(255,255,255,0.06);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+    .deals-charts-section .chart-empty-message {
+        min-height: 12rem;
     }
     .chart-header {
         @apply flex justify-between items-center mb-6;
@@ -873,36 +935,87 @@ body.theme-green {
     .deals-view-toggle {
         @apply mb-3.5;
     }
+    .deals-view-toggle .view-mode-btn {
+        @apply inline-flex items-center gap-1.5;
+    }
+    .deals-view-toggle .view-mode-btn i {
+        @apply text-sm;
+    }
+    .deals-filter-pill {
+        color: var(--text-medium);
+        background: transparent;
+        border: none;
+    }
+    .deals-filter-pill:hover {
+        color: var(--text-light);
+    }
+    .deals-filter-pill.active {
+        color: white;
+        background-color: var(--primary-blue);
+    }
+    .deals-close-month-scroll {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .deals-close-month-scroll::-webkit-scrollbar {
+        display: none;
+    }
+    .deals-filter-toggle-switch {
+        flex-shrink: 0;
+    }
+    .deals-filter-toggle-switch .deals-filter-toggle-knob {
+        transition: transform 0.2s, background-color 0.2s;
+    }
+    .deals-filter-toggle:has(input:checked) .deals-filter-toggle-switch {
+        background-color: color-mix(in srgb, var(--primary-blue) 30%, var(--bg-medium));
+        border-color: var(--primary-blue);
+    }
+    .deals-filter-toggle:has(input:checked) .deals-filter-toggle-knob {
+        transform: translateX(1rem);
+        background-color: white;
+    }
     .deals-metrics-container {
         @apply flex justify-around gap-3.5 mb-5 flex-wrap;
     }
     .metric-card {
-        @apply flex flex-col justify-center relative text-center flex-1 min-w-40 min-h-[4.375rem] p-2.5 px-3.5;
-        background-color: var(--bg-medium);
+        @apply flex flex-col justify-center relative flex-1 min-w-[10rem] min-h-[5rem] p-4 rounded-2xl;
+        background-color: var(--bg-light);
         border: 1px solid var(--border-color);
-        box-shadow: var(--shadow-card);
-        transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--border-color) 40%, transparent);
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        text-align: left;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--border-color) 50%, transparent);
     }
     body:not(.theme-green) .metric-card {
-        @apply rounded-xl;
+        @apply rounded-2xl;
     }
     .metric-card-won {
-        background-color: var(--completed-color) !important;
-        border-color: #2a9d8f !important;
+        background-color: color-mix(in srgb, var(--completed-color) 10%, var(--bg-light)) !important;
+        border-color: color-mix(in srgb, var(--completed-color) 30%, transparent) !important;
+        box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--completed-color) 20%, transparent);
+    }
+    .metric-card-won:hover {
+        box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--completed-color) 30%, transparent);
     }
     .metric-card-won .metric-title {
-        @apply font-bold text-black;
+        @apply font-bold;
+        color: var(--text-medium);
     }
     .metric-card-won .metric-value {
-        @apply text-white;
+        @apply font-bold;
+        color: var(--completed-color);
     }
     .metric-title {
-        @apply text-xs mb-0.5;
+        @apply text-xs font-semibold uppercase tracking-wider mb-1;
         color: var(--text-medium);
     }
     .metric-value {
-        @apply text-[1.4rem] font-bold pb-2.5;
-        color: var(--completed-color);
+        @apply text-[1.4rem] font-bold pb-2.5 tracking-tight;
+        font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+        color: var(--text-light);
     }
     .metric-quota-percent {
         @apply text-[0.8rem] absolute bottom-1.5 right-2 whitespace-nowrap;
@@ -967,7 +1080,8 @@ body.theme-green {
     }
     .contact-picker-body > button,
     .contact-picker-body > input[type="text"],
-    .contact-picker-body > .display-toggle-container {
+    .contact-picker-body > .display-toggle-container,
+    .contact-picker-body > .sort-pill {
         @apply flex-shrink-0;
     }
     .contact-picker-list {
@@ -1354,6 +1468,50 @@ body.theme-green {
     .account-details-form-card .form-buttons .customer-toggle-label {
         @apply text-sm;
         color: var(--text-medium);
+    }
+    .account-details-form-header .sf-locator-inline {
+        @apply flex items-center gap-1.5 flex-shrink-0;
+    }
+    .account-details-form-header .sf-locator-text {
+        font-size: 0.7rem;
+        font-weight: 200;
+        color: var(--text-muted);
+        opacity: 0.6;
+        font-style: italic;
+    }
+    .account-details-form-header .sf-locator-text.has-value {
+        font-style: normal;
+        color: var(--text-medium);
+        opacity: 0.65;
+    }
+    .account-details-form-header .sf-locator-edit-btn {
+        @apply p-0.5 rounded bg-transparent border-0 cursor-pointer;
+        color: var(--text-muted);
+        font-size: 0.6rem;
+        opacity: 0.6;
+    }
+    .account-details-form-header .sf-locator-edit-btn:hover {
+        color: var(--primary-blue);
+        opacity: 1;
+    }
+    .account-details-form-header .sf-locator-input {
+        display: none;
+        font-size: 0.7rem;
+        font-weight: 200;
+        color: var(--text-light);
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0 2px 2px;
+        width: 10rem;
+        outline: none;
+    }
+    .account-details-form-header .sf-locator-inline.edit-mode .sf-locator-text,
+    .account-details-form-header .sf-locator-inline.edit-mode .sf-locator-edit-btn {
+        display: none;
+    }
+    .account-details-form-header .sf-locator-inline.edit-mode .sf-locator-input {
+        display: inline-block;
     }
     .account-cards-row {
         @apply flex gap-5 mt-5 min-h-0;
@@ -2041,8 +2199,8 @@ body.theme-green {
         min-height: 2.8rem;
         font-size: 0.95rem;
         letter-spacing: 0.02em;
-        border: 1px solid color-mix(in srgb, var(--primary-blue) 70%, transparent);
-        box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-blue) 22%, transparent);
+        border: 1px solid color-mix(in srgb, #f97316 70%, transparent);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
     }
     .proposals-picker-body > #generate-btn span {
         display: inline-block;
@@ -2052,10 +2210,10 @@ body.theme-green {
     }
     .proposals-picker-body > #generate-btn:hover {
         transform: translateY(-1px);
-        box-shadow: 0 6px 16px color-mix(in srgb, var(--primary-blue) 26%, transparent);
+        box-shadow: 0 6px 16px rgba(249, 115, 22, 0.2);
     }
     .proposals-picker-body > #generate-btn[data-state="ready"] {
-        background-color: color-mix(in srgb, var(--primary-blue) 88%, #ffffff);
+        background-color: color-mix(in srgb, #f97316 88%, #ffffff);
     }
     .proposals-picker-body > #generate-btn[data-state="compiling"] {
         border-color: var(--secondary-gray);
@@ -2086,34 +2244,12 @@ body.theme-green {
     #main-content.proposals-details-content {
         @apply min-w-0 flex-1;
     }
+    /* Proposals: use slate/orange styling to match rest of site (no blue overrides) */
     #proposals-view input:focus,
     #proposals-view textarea:focus,
     #proposals-view select:focus {
-        border-color: var(--primary-blue) !important;
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-blue) 35%, transparent);
-    }
-    #proposals-view [class*="text-orange-"],
-    #proposals-view [class~="text-orange-500"],
-    #proposals-view [class~="text-orange-600"] {
-        color: var(--primary-blue) !important;
-    }
-    #proposals-view [class*="bg-orange-"],
-    #proposals-view [class~="bg-orange-500"],
-    #proposals-view [class~="bg-orange-600"],
-    #proposals-view [class~="hover:bg-orange-50"] {
-        background-color: color-mix(in srgb, var(--primary-blue) 10%, var(--bg-light)) !important;
-    }
-    #proposals-view [class*="border-l-orange-"],
-    #proposals-view [class*="border-orange-"],
-    #proposals-view [class~="hover:border-orange-400"] {
-        border-color: var(--primary-blue) !important;
-    }
-    #proposals-view #save-project-btn {
-        background-color: var(--primary-blue) !important;
-        border: 1px solid var(--primary-blue) !important;
-    }
-    #proposals-view #save-project-btn:hover {
-        filter: brightness(0.92);
+        border-color: #f97316 !important; /* orange-500 */
+        box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.25);
     }
     /* Proposal Readiness checklist – prevent weird wrapping in narrow sidebar */
     #proposal-readiness-checklist {
@@ -2122,36 +2258,39 @@ body.theme-green {
     #proposal-readiness-checklist .proposal-readiness-pill {
         width: 100%;
         display: block;
-        border: 1px solid color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+        border: 1px solid rgba(59, 130, 246, 0.35);
         border-radius: 9999px;
-        background-color: color-mix(in srgb, var(--primary-blue) 8%, var(--bg-light));
+        background: rgba(59, 130, 246, 0.12);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         color: var(--text-light);
         text-align: left;
         font-size: 0.75rem;
         line-height: 1.35;
         font-weight: 700;
         padding: 0.62rem 0.85rem;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 2px var(--shadow-light);
-        transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.12s;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 3px rgba(59, 130, 246, 0.08);
+        transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.12s;
     }
     #proposal-readiness-checklist .proposal-readiness-pill:hover {
-        border-color: var(--primary-blue);
-        background-color: color-mix(in srgb, var(--primary-blue) 14%, var(--bg-light));
+        border-color: rgba(59, 130, 246, 0.5);
+        background: rgba(59, 130, 246, 0.18);
         color: var(--text-light);
         transform: translateY(-1px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 6px rgba(59, 130, 246, 0.12);
     }
     #proposal-readiness-checklist .proposal-readiness-pill.is-active {
-        border-color: var(--primary-blue);
+        border-color: var(--completed-color);
         background: linear-gradient(
             180deg,
-            color-mix(in srgb, var(--primary-blue) 30%, #ffffff) 0%,
-            color-mix(in srgb, var(--primary-blue) 18%, var(--bg-light)) 100%
+            color-mix(in srgb, var(--completed-color) 18%, #ffffff) 0%,
+            color-mix(in srgb, var(--completed-color) 10%, var(--bg-light)) 100%
         );
         color: var(--text-light);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-blue) 30%, transparent), 0 3px 10px color-mix(in srgb, var(--primary-blue) 22%, transparent);
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25), 0 3px 10px rgba(34, 197, 94, 0.12);
     }
     #proposal-readiness-checklist .proposal-readiness-pill:focus-visible {
-        outline: 2px solid color-mix(in srgb, var(--primary-blue) 55%, transparent);
+        outline: 2px solid rgba(59, 130, 246, 0.5);
         outline-offset: 1px;
     }
     #proposal-readiness-checklist .proposal-readiness-text {
@@ -2166,6 +2305,48 @@ body.theme-green {
         line-height: 1.25;
         font-weight: 600;
         color: var(--text-medium);
+    }
+
+    /* AI Admin form styling */
+    #ai-admin-view .form-group label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--text-light);
+        margin-bottom: 0.5rem;
+    }
+    #ai-admin-view .form-control {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        background-color: var(--bg-light);
+        color: var(--text-light);
+    }
+    #ai-admin-view .form-control:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    /* IRR page form styling */
+    #irr-calculator .form-grid label,
+    #irr-calculator .irr-form label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-light);
+        margin-bottom: 0.25rem;
+    }
+    #irr-calculator .form-grid input,
+    #irr-calculator .irr-form input {
+        width: 100%;
+    }
+    #irr-calculator .details-panel {
+        background-color: transparent;
+        box-shadow: none;
+        border: none;
     }
 
     .sequence-details-content.details-panel {
@@ -2646,7 +2827,13 @@ body.theme-green {
         gap: 0.125rem;
         overflow: visible;
         border-color: var(--primary-blue);
-        background-color: var(--bg-dark);
+        background-color: var(--bg-light);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .deal-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
     .deal-card-flippable {
         cursor: pointer;
@@ -2682,9 +2869,11 @@ body.theme-green {
         @apply flex flex-col flex-1 min-h-0 overflow-hidden relative;
     }
     .deal-card-back-body {
-        @apply flex-1 min-h-0 overflow-y-auto text-sm;
+        @apply flex-1 min-h-0 overflow-y-auto text-[0.8rem];
         padding: 0.5px;
-        color: var(--text-light);
+        color: var(--text-medium);
+        line-height: 1.5;
+        white-space: pre-wrap;
     }
     .deal-card-back-edit {
         @apply absolute w-7 h-7 rounded flex items-center justify-center border cursor-pointer;
@@ -2700,11 +2889,12 @@ body.theme-green {
         color: var(--primary-blue);
     }
     .deal-card-notes-textarea {
-        @apply w-full min-h-0 text-sm resize-none border rounded-lg box-border;
+        @apply w-full min-h-0 text-[0.8rem] resize-none border rounded-lg box-border;
         padding: 4px;
         background-color: var(--input-bg);
         border-color: var(--border-color);
-        color: var(--text-light);
+        color: var(--text-medium);
+        line-height: 1.5;
     }
     .deal-card-notes-edit-actions {
         @apply absolute flex gap-0.5;
@@ -3359,15 +3549,138 @@ body.theme-green {
     .table-container {
         @apply overflow-x-auto overflow-y-hidden rounded-xl;
     }
+    #deals,
+    .deals-table-container {
+        font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    }
+    .deals-table-container table tbody tr:hover td {
+        background-color: var(--bg-medium);
+    }
+    .deals-table-container .deal-cell-editable {
+        cursor: text;
+        min-width: 4rem;
+    }
+    .deals-table-container .deal-cell-editable[contenteditable="true"]:focus {
+        outline: 1px solid var(--primary-blue);
+        outline-offset: -1px;
+    }
+    .deals-table-container .deal-cell-select {
+        cursor: pointer;
+    }
+    .deals-table-container #deals-table thead th {
+        vertical-align: middle;
+        line-height: 1.25;
+    }
+    .deal-list-stage-pill {
+        @apply inline-block border;
+        border-color: inherit;
+    }
+    .deal-list-stage-pill.deal-stage-won {
+        background-color: color-mix(in srgb, var(--completed-color) 18%, var(--bg-medium));
+        border-color: var(--completed-color);
+        color: var(--completed-color);
+    }
+    .deal-list-stage-pill.deal-stage-lost {
+        background-color: color-mix(in srgb, var(--danger-red) 18%, var(--bg-medium));
+        border-color: var(--danger-red);
+        color: var(--danger-red);
+    }
+    .deal-list-stage-pill.deal-stage-discovery {
+        background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+        border-color: var(--primary-blue);
+        color: var(--primary-blue);
+    }
+    .deal-list-stage-pill.deal-stage-proposal {
+        background-color: color-mix(in srgb, var(--warning-yellow) 22%, var(--bg-medium));
+        border-color: var(--warning-yellow);
+        color: var(--warning-yellow);
+    }
+    .deal-list-stage-pill.deal-stage-negotiation {
+        background-color: color-mix(in srgb, var(--meeting-purple) 18%, var(--bg-medium));
+        border-color: var(--meeting-purple);
+        color: var(--meeting-purple);
+    }
+    .deal-list-stage-pill.deal-stage-default {
+        background-color: color-mix(in srgb, var(--secondary-gray) 18%, var(--bg-medium));
+        border-color: var(--secondary-gray);
+        color: var(--text-medium);
+    }
+    .deals-table-container .deal-inline-select,
+    .deals-table-container .deal-inline-input {
+        @apply w-full text-sm rounded px-2 py-1;
+        background-color: var(--bg-light);
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
+    /* Deal Details cell: explicit background to match table body */
+    .deals-table-container #deals-table tbody td.deal-cell-details {
+        background-color: var(--bg-medium);
+    }
+    .deals-table-container #deals-table tbody tr:hover td.deal-cell-details {
+        background-color: var(--bg-medium) !important;
+    }
+    /* Single content block: account + deal name on two lines via <br>, no stacked blocks = no duplicate container */
+    .deal-cell-details {
+        min-width: 20rem;
+        word-break: break-word;
+    }
+    .deal-cell-details .deal-list-account,
+    .deal-cell-details .deal-list-name {
+        display: inline;
+        background: none !important;
+        background-color: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        outline: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    .deal-cell-details .deal-list-account::before,
+    .deal-cell-details .deal-list-name::before {
+        background: none !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .deal-cell-details [contenteditable="true"] {
+        outline: none !important;
+    }
+    .deal-cell-details [contenteditable="true"]:focus {
+        outline: 1px solid var(--primary-blue) !important;
+        outline-offset: 1px;
+    }
+    .deal-list-account {
+        @apply text-[0.7rem] font-medium mb-0.5;
+        color: var(--text-medium);
+    }
+    .deal-list-name {
+        @apply text-[0.95rem] font-bold leading-snug mb-0.5;
+        color: var(--primary-blue);
+    }
+    .deal-cell-products {
+        @apply text-center;
+        min-width: 20rem;
+    }
+    .deal-list-products {
+        @apply text-xs mt-0 flex flex-wrap justify-center gap-1;
+        color: var(--text-muted);
+    }
+    .deal-list-account:empty::before,
+    .deal-list-name:empty::before,
+    .deal-list-products:empty::before {
+        content: attr(data-placeholder);
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
     table {
-        @apply w-full border-collapse box-border rounded-xl overflow-hidden;
+        @apply w-full border-collapse box-border rounded-xl;
         background-color: var(--bg-medium);
         box-shadow: var(--shadow-card);
         transition: background-color 0.3s, box-shadow 0.3s;
     }
     th,
     td {
-        @apply py-3.5 px-3.5 text-left border border-[var(--border-color)];
+        @apply py-2 px-3.5 text-left border border-[var(--border-color)];
         transition: border-color 0.3s, background-color 0.15s ease;
     }
     th {
@@ -3647,6 +3960,30 @@ body.theme-green {
     #modal-body select {
         @apply mt-2.5;
     }
+    /* Modal form (Edit Deal, etc.) - matches campaign-create-card pattern */
+    .modal-form {
+        @apply flex flex-col gap-3;
+    }
+    .modal-form label {
+        @apply text-sm font-semibold block mb-1;
+        color: var(--text-light);
+    }
+    .modal-form label:first-child {
+        @apply mt-0;
+    }
+    .modal-form input[type="text"],
+    .modal-form input[type="number"],
+    .modal-form input[type="month"],
+    .modal-form select,
+    .modal-form textarea {
+        @apply text-sm w-full rounded-lg px-3 py-2;
+        background-color: var(--bg-medium);
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
+    .modal-form textarea {
+        @apply min-h-[4rem];
+    }
     .email-view-modal {
         @apply flex flex-col w-[90%] max-w-[700px] max-h-[80vh] p-5 flex-shrink-0 rounded-2xl;
         background-color: var(--bg-light);
@@ -3850,7 +4187,7 @@ body.theme-green {
         @apply flex flex-col items-stretch;
         position: fixed;
         left: 64px;
-        top: 5.5rem;
+        bottom: auto;
         width: 320px;
         max-width: calc(100vw - 100px);
         padding: 0;
@@ -4084,13 +4421,19 @@ body:not(.theme-green) #contact-activities-list li {
     }
     .kanban-board-container {
         @apply flex gap-4 overflow-x-auto py-4 min-h-[400px];
+        padding-bottom: 2rem; /* Give room for shadows */
+        justify-content: center;
     }
     .kanban-column {
-        @apply flex flex-col flex-[0_0_300px] rounded-xl;
-        background-color: var(--bg-light);
+        @apply flex flex-col flex-[0_0_300px] rounded-xl border border-[var(--border-color)];
+        background-color: var(--bg-medium);
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
     }
     .kanban-column-header {
         @apply flex justify-between items-center py-3 px-4 border-b border-[var(--border-color)];
+        background-color: var(--bg-medium);
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
     }
     .kanban-column-header h4 {
         @apply m-0 text-base;
@@ -4104,19 +4447,43 @@ body:not(.theme-green) #contact-activities-list li {
         @apply flex-grow py-3 px-3 overflow-y-auto flex flex-col gap-3;
     }
     .kanban-card {
-        @apply rounded-xl p-4 cursor-grab border-l-4 border-[var(--primary-blue)];
-        background-color: var(--bg-dark);
-        transition: box-shadow 0.2s;
+        @apply rounded-xl cursor-grab border-l-4 border-[var(--primary-blue)];
+        background-color: var(--bg-light);
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .kanban-card:hover {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
     .kanban-card.dragging {
         @apply opacity-50;
-        transform: rotate(2deg);
+        transform: rotate(2deg) scale(1.02);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        cursor: grabbing;
+    }
+    .kanban-card.deal-stage-won { border-left-color: var(--completed-color); }
+    .kanban-card.deal-stage-lost { border-left-color: var(--danger-red); }
+    .kanban-card.deal-stage-discovery { border-left-color: var(--primary-blue); }
+    .kanban-card.deal-stage-proposal { border-left-color: var(--warning-yellow); }
+    .kanban-card.deal-stage-negotiation { border-left-color: var(--meeting-purple); }
+    .kanban-card.deal-stage-default { border-left-color: var(--secondary-gray); }
+    .kanban-card.deal-card-flippable .deal-card-flip-inner { min-height: 5rem; }
+    .kanban-card.deal-card-flippable .deal-card-back { @apply rounded-xl; }
+    .kanban-column-empty {
+        @apply py-6 px-4 text-center text-sm italic;
+        color: var(--text-muted);
+        border: 1px dashed var(--border-color);
+        border-radius: var(--radius-lg);
+        margin: 0.5rem;
     }
     .kanban-card-header {
-        @apply flex justify-between items-start mb-1;
+        @apply flex justify-between items-start mb-1 gap-2;
+    }
+    .kanban-card-actions {
+        @apply flex items-center gap-1 flex-shrink-0;
+    }
+    .kanban-card-actions .btn-icon-sm {
+        @apply w-6 h-6 min-w-6 min-h-6 p-0 text-xs;
     }
     .kanban-card-title {
         @apply m-0 text-[0.95rem] font-semibold;
@@ -4230,17 +4597,32 @@ body:not(.theme-green) #contact-activities-list li {
    COMPONENTS – Display toggles, organic star, toasts, misc
    ========================================================================== */
 @layer components {
-    .display-toggle-container {
-        @apply flex mb-2.5;
+    .sort-pill {
+        @apply flex items-center justify-center mb-2.5 rounded-full overflow-hidden self-center;
+        border: 1px solid var(--border-color);
+        background-color: var(--bg-medium);
     }
-    .display-toggle-container button {
-        @apply flex-1 py-2 text-[0.8rem] rounded-none;
+    .sort-pill-btn {
+        @apply px-4 py-1.5 text-xs font-medium cursor-pointer text-center;
+        background: transparent;
+        color: var(--text-medium);
+        border: none;
+        transition: background-color 0.2s, color 0.2s;
     }
-    .display-toggle-container button:first-child {
-        @apply rounded-l-md;
+    .sort-pill-btn:hover:not(.active) {
+        color: var(--text-dark);
     }
-    .display-toggle-container button:last-child {
-        @apply rounded-r-md;
+    .sort-pill-btn.active {
+        background-color: var(--primary-blue);
+        color: white;
+    }
+    .sort-pill-divider {
+        @apply w-px self-stretch;
+        background-color: var(--border-color);
+    }
+    .sort-pill-btn.active + .sort-pill-divider,
+    .sort-pill-divider:has(+ .sort-pill-btn.active) {
+        background-color: transparent;
     }
     .organic-star {
         @apply absolute top-4 right-5 text-4xl cursor-pointer;
@@ -5044,7 +5426,7 @@ body:not(.theme-green) .list-item.selected {
         overflow: hidden;
     }
     .org-chart-render-target {
-        @apply flex-1 min-h-0 relative;
+        @apply flex flex-col flex-1 min-h-0 relative;
         min-width: 0;
     }
     .org-chart-zoom-controls {
@@ -5082,9 +5464,9 @@ body:not(.theme-green) .list-item.selected {
     }
     /* Org chart modal: glassmorphism + extra-large view + pizzazz */
     #org-chart-modal-backdrop {
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         opacity: 0;
         transition: opacity 0.25s ease-out;
     }
@@ -5092,17 +5474,15 @@ body:not(.theme-green) .list-item.selected {
         opacity: 1;
     }
     .org-chart-modal {
-        @apply rounded-2xl overflow-hidden flex flex-col;
-        width: 92vw;
-        max-width: 1400px;
-        height: 88vh;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1) inset, 0 0 80px -20px rgba(59, 130, 246, 0.25);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        @apply rounded-xl overflow-hidden flex flex-col;
+        width: 95vw;
+        max-width: 1600px;
+        height: 92vh;
+        background-color: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         opacity: 0;
-        transform: scale(0.96) translateY(10px);
+        transform: scale(0.98) translateY(10px);
         transition: opacity 0.3s ease-out, transform 0.3s ease-out;
     }
     #org-chart-modal-backdrop:not(.hidden) .org-chart-modal {
@@ -5110,52 +5490,50 @@ body:not(.theme-green) .list-item.selected {
         transform: scale(1) translateY(0);
     }
     .org-chart-modal-header {
-        @apply flex justify-between items-center px-5 py-4 flex-shrink-0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%);
+        @apply flex justify-between items-center px-6 py-4 flex-shrink-0;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--bg-medium);
     }
     .org-chart-modal-title {
-        @apply m-0 text-lg font-semibold;
-        color: #ffffff;
+        @apply m-0 text-xl font-semibold;
+        color: var(--text-light);
     }
     .org-chart-modal-close {
-        @apply w-10 h-10 rounded-lg flex items-center justify-center text-xl cursor-pointer border-0;
-        background-color: var(--bg-dark);
+        @apply w-8 h-8 rounded flex items-center justify-center text-lg cursor-pointer border-0;
+        background-color: transparent;
         color: var(--text-medium);
         transition: background-color 0.2s, color 0.2s;
     }
     .org-chart-modal-close:hover {
-        background-color: var(--bg-medium);
+        background-color: var(--bg-light);
         color: var(--text-light);
     }
     .org-chart-modal-content {
-        @apply flex-1 min-h-0 flex flex-col p-6;
+        @apply flex-1 min-h-0 flex flex-col p-0;
         overflow: hidden;
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.12) 100%);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background-color: var(--bg-dark);
     }
     .org-chart-modal-content .org-chart-viewport {
         flex: 1;
         min-height: 0;
     }
     body.theme-green #org-chart-modal-backdrop {
-        background: rgba(0, 5, 0, 0.5);
+        background: rgba(0, 5, 0, 0.6);
     }
     body.theme-green .org-chart-modal {
-        background: linear-gradient(135deg, rgba(0, 50, 10, 0.35) 0%, rgba(0, 20, 5, 0.15) 100%);
-        border-color: rgba(0, 255, 65, 0.22);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 255, 65, 0.1) inset, 0 0 60px -15px rgba(0, 255, 65, 0.2);
+        background-color: var(--bg-dark);
+        border-color: var(--border-color);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
     body.theme-green .org-chart-modal-header {
-        border-bottom-color: rgba(0, 255, 65, 0.18);
-        background: linear-gradient(180deg, rgba(0, 255, 65, 0.08) 0%, rgba(0, 255, 65, 0.02) 100%);
+        border-bottom-color: var(--border-color);
+        background-color: var(--bg-medium);
     }
     body.theme-green .org-chart-modal-title {
-        color: #ffffff;
+        color: var(--text-light);
     }
     body.theme-green .org-chart-modal-content {
-        background: linear-gradient(180deg, rgba(0, 15, 2, 0.3) 0%, rgba(0, 25, 5, 0.5) 100%);
+        background-color: var(--bg-dark);
     }
     .contact-card {
         @apply rounded-lg py-2.5 px-4 min-w-[180px] text-center cursor-grab relative z-10;
@@ -5184,7 +5562,7 @@ body:not(.theme-green) .list-item.selected {
         color: var(--text-medium);
     }
     .org-chart-root {
-        @apply flex justify-center gap-5 p-0 m-0 list-none;
+        @apply flex justify-center p-0 m-0 list-none;
     }
     /* --- ORG CHART LINE ARCHITECTURE --- */
     .org-chart-node {
@@ -5192,7 +5570,7 @@ body:not(.theme-green) .list-item.selected {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-top: 2.5rem; /* Space for the vertical line */
+        padding: 2.5rem 1.25rem 0; /* Space for the vertical line and horizontal gaps */
     }
 
     /* Vertical line above the node */
@@ -5212,7 +5590,7 @@ body:not(.theme-green) .list-item.selected {
         content: '';
         position: absolute;
         top: 0;
-        left: 50%;
+        left: 0;
         width: 100%;
         height: 2px;
         background-color: var(--border-color);
@@ -5236,7 +5614,8 @@ body:not(.theme-green) .list-item.selected {
     }
 
     .org-chart-children {
-        @apply flex justify-center gap-5 p-0 m-0 relative list-none;
+        @apply flex justify-center p-0 m-0 relative list-none;
+        margin-top: 2.5rem; /* Space for the vertical line from parent down to children */
     }
     /* Vertical line from horizontal bar down to children row */
     .org-chart-children::before {
@@ -5560,24 +5939,25 @@ body:not(.theme-green) .list-item.selected {
 @media (max-width: 768px) {
     body {
         font-size: 80%;
-        padding-bottom: 60px;
+        padding-bottom: 0;
     }
     .crm-container {
         flex-direction: column;
-        height: auto;
-        min-height: 100vh;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
         gap: 0;
     }
     .nav-sidebar {
         width: 100%;
+        flex-shrink: 0;
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
         padding: 10px 15px;
         box-shadow: 0 4px 6px -1px var(--shadow-medium);
         border-radius: 0 !important;
-        position: sticky;
-        top: 0;
+        position: relative;
         z-index: 100;
         background-color: var(--bg-light);
     }
@@ -5638,7 +6018,7 @@ body:not(.theme-green) .list-item.selected {
         from { transform: translateX(-100%); }
         to { transform: translateX(0); }
     }
-    .nav-sidebar .nav-collapse-toggle {
+    .nav-collapse-toggle {
         display: none !important;
     }
     .nav-sidebar .nav-logo {
@@ -5742,5 +6122,11 @@ body:not(.theme-green) .list-item.selected {
     }
     .mobile-only {
         display: block;
+    }
+}
+
+@media (min-width: 769px) {
+    .nav-collapse-toggle {
+        display: flex !important;
     }
 }

@@ -80,8 +80,10 @@ export async function initializeAppState(supabase) {
     }
 
 
-    // Check if the user is a manager
-    if (currentUserProfile && currentUserProfile.is_manager === true) {
+    // Check if the user is a manager (user_quotas or user_metadata fallback - deals uses user_metadata)
+    const isManagerFromQuotas = currentUserProfile?.is_manager === true;
+    const isManagerFromMetadata = user.user_metadata?.is_manager === true;
+    if (isManagerFromQuotas || isManagerFromMetadata) {
         appState.isManager = true;
         
         // If they are a manager, fetch all other users to populate the impersonation dropdown
@@ -307,6 +309,7 @@ function handleEscapeKey(e) { if (e.key === "Escape") hideModal(); }
 
 export function setupModalListeners() {
     window.addEventListener("keydown", handleEscapeKey);
+    if (modalBackdrop) modalBackdrop.addEventListener("click", handleBackdropClick);
 }
 
 // --- TOAST NOTIFICATIONS ---
@@ -366,7 +369,12 @@ function fitUserNameToContainer(el) {
 }
 
 // --- USER MENU & AUTH LOGIC (UPDATED FOR IMPERSONATION) ---
-export async function setupUserMenuAndAuth(supabase, appState) { // Takes the global appState now
+/**
+ * @param {object} supabase - Supabase client
+ * @param {object} appState - App state (use getState() for full manager/impersonation support)
+ * @param {{ skipImpersonation?: boolean }} options - skipImpersonation: true to hide the View As dropdown (e.g. on Deals which has its own team toggle)
+ */
+export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
     const userMenuPopup = document.getElementById('user-menu-popup');
     const logoutBtn = document.getElementById("logout-btn");
 
@@ -375,43 +383,89 @@ export async function setupUserMenuAndAuth(supabase, appState) { // Takes the gl
         return;
     }
 
-    // --- NEW: Manager Impersonation Dropdown Logic ---
-    // Remove any existing impersonation dropdown before adding a new one
-    const existingDropdown = document.getElementById('manager-view-select');
-    if (existingDropdown) {
-        existingDropdown.parentElement.removeChild(existingDropdown);
+    // --- Manager Impersonation Dropdown Logic ---
+    // Use getState() when passed state lacks manager fields (ensures dropdown shows if any page initialized it)
+    const stateForMenu = appState?.isManager !== undefined ? appState : getState();
+    const debugOverride = typeof URLSearchParams !== 'undefined' && new URLSearchParams(window.location.search).get('impersonation') === '1';
+    const showImpersonation = !options.skipImpersonation && (stateForMenu.isManager || debugOverride);
+    if (stateForMenu.currentUser && !options.skipImpersonation) {
+        console.log('[Impersonation] isManager:', stateForMenu.isManager, 'managedUsers:', stateForMenu.managedUsers?.length ?? 0, 'showDropdown:', showImpersonation);
     }
 
-    if (appState.isManager) {
+    const existingWrap = document.getElementById('manager-view-select-wrap');
+    const existingDropdown = document.getElementById('manager-view-select');
+    if (existingWrap) existingWrap.remove();
+    else if (existingDropdown) existingDropdown.parentElement?.removeChild(existingDropdown);
+
+    if (showImpersonation) {
+        const wrap = document.createElement('div');
+        wrap.id = 'manager-view-select-wrap';
+        wrap.className = 'impersonation-dropdown-wrap';
+        wrap.style.marginBottom = '8px';
+        const label = document.createElement('label');
+        label.textContent = 'View as:';
+        label.style.display = 'block';
+        label.style.fontSize = '0.75rem';
+        label.style.color = 'var(--text-medium)';
+        label.style.marginBottom = '4px';
         const viewSelect = document.createElement('select');
         viewSelect.id = 'manager-view-select';
-        viewSelect.className = 'nav-button'; // Style it like other nav buttons
-        viewSelect.style.marginBottom = '5px';
+        viewSelect.className = 'nav-button';
+        viewSelect.setAttribute('aria-label', 'View as user');
 
-        // Add the manager themself to the list
-        let options = `<option value="${appState.currentUser.id}">${appState.currentUser.user_metadata.full_name} (My View)</option>`;
-
-        // Add managed users
-        options += appState.managedUsers.map(user =>
+        const managerName = stateForMenu.currentUser.user_metadata?.full_name || 'Me';
+        let options = `<option value="${stateForMenu.currentUser.id}">${managerName}</option>`;
+        options += (stateForMenu.managedUsers || []).map(user =>
             `<option value="${user.id}">${user.full_name}</option>`
         ).join('');
 
         viewSelect.innerHTML = options;
-        viewSelect.value = appState.effectiveUserId; // Set the current view
+        viewSelect.value = stateForMenu.effectiveUserId || stateForMenu.currentUser.id;
 
-        // Insert the dropdown at the top of the popup menu
-        userMenuPopup.insertBefore(viewSelect, userMenuPopup.firstChild);
+        wrap.appendChild(label);
+        wrap.appendChild(viewSelect);
+        userMenuPopup.insertBefore(wrap, userMenuPopup.firstChild);
 
-        // Add event listener to trigger impersonation
-        viewSelect.addEventListener('change', (e) => {
-            const selectedUserId = e.target.value;
-            const selectedUser = appState.managedUsers.find(u => u.id === selectedUserId) || {
-                id: appState.currentUser.id,
-                full_name: appState.currentUser.user_metadata.full_name
+        const handleChange = (selectedUserId) => {
+            const selectedUser = (stateForMenu.managedUsers || []).find(u => u.id === selectedUserId) || {
+                id: stateForMenu.currentUser.id,
+                full_name: managerName
             };
-            // This function from shared_constants triggers the 'effectiveUserChanged' event
             setEffectiveUser(selectedUserId, selectedUser.full_name);
-        });
+        };
+
+        if (typeof window.TomSelect !== 'undefined') {
+            try {
+                const ts = viewSelect.tomselect;
+                if (ts) ts.destroy();
+                const tom = new window.TomSelect(viewSelect, {
+                    create: false,
+                    placeholder: 'View as...',
+                    dropdownParent: 'body',
+                    controlInput: null,
+                    searchField: [],
+                    plugins: ['input_autogrow'],
+                    onDropdownOpen() {
+                        const d = this.dropdown;
+                        if (d) d.className = 'ts-dropdown tom-select-no-search';
+                    },
+                    render: {
+                        dropdown: () => {
+                            const d = document.createElement('div');
+                            d.className = 'ts-dropdown tom-select-no-search';
+                            return d;
+                        }
+                    },
+                    onChange: (val) => handleChange(val)
+                });
+                tom.setValue(stateForMenu.effectiveUserId || stateForMenu.currentUser.id, true);
+            } catch (err) {
+                console.warn('[Impersonation] Tom Select init failed, using native select:', err);
+                viewSelect.addEventListener('change', (e) => handleChange(e.target.value));
+            }
+        } else {
+            viewSelect.addEventListener('change', (e) => handleChange(e.target.value));
+        }
     }
     // --- END NEW LOGIC ---
 
@@ -554,6 +608,9 @@ const GLOBAL_NAV_TEMPLATE = `
 </div>
 <div class="nav-drawer-content" id="nav-drawer-content">
 <div class="nav-top-section">
+    <button type="button" id="nav-collapse-toggle" class="nav-collapse-toggle" title="Collapse sidebar" aria-label="Collapse sidebar">
+        <i class="fa-solid fa-chevron-left nav-collapse-icon"></i>
+    </button>
     <div class="nav-logo-wrap">
         <div class="nav-logo-expanded" data-svg-loader="assets/logo.svg"></div>
         <div class="nav-logo-collapsed" data-svg-loader="assets/c-logo.svg"></div>
@@ -573,6 +630,7 @@ const GLOBAL_NAV_TEMPLATE = `
     <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i><span class="nav-label-text">Contacts</span></a>
     <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i><span class="nav-label-text">Accounts</span></a>
     <a href="proposals.html" class="nav-button"><i class="fa-solid fa-file-lines nav-icon"></i><span class="nav-label-text">Proposals</span></a>
+    <a href="irr.html" class="nav-button"><i class="fa-solid fa-calculator nav-icon"></i><span class="nav-label-text">IRR</span></a>
     <a href="campaigns.html" class="nav-button"><i class="fa-solid fa-bullhorn nav-icon"></i><span class="nav-label-text">Campaigns</span></a>
     <a href="sequences.html" class="nav-button"><i class="fa-solid fa-arrows-rotate nav-icon"></i><span class="nav-label-text">Sequences</span></a>
     <a href="social_hub.html" class="nav-button"><i class="fa-solid fa-share-nodes nav-icon"></i><span class="nav-label-text">Social Hub</span> <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
@@ -593,6 +651,7 @@ const GLOBAL_NAV_TEMPLATE = `
         </button>
         <div id="user-menu-popup" class="user-menu-content user-menu-collapsed">
             <a href="user-guide.html" class="nav-button"><i class="fa-solid fa-book nav-icon"></i><span class="nav-label-text">User Guide</span></a>
+            <a href="ai-admin.html" class="nav-button"><i class="fa-solid fa-robot nav-icon"></i><span class="nav-label-text">AI Admin</span></a>
             <div class="user-menu-downloads">
                 <span class="user-menu-downloads-label">CSV Templates</span>
                 <a href="contacts_template.csv" class="user-menu-download-link" download>Contacts</a>
@@ -602,10 +661,6 @@ const GLOBAL_NAV_TEMPLATE = `
             <button id="logout-btn" class="nav-button nav-button-logout"><i class="fa-solid fa-right-from-bracket nav-icon"></i><span class="nav-label-text">Logout</span></button>
         </div>
     </div>
-    <button type="button" id="nav-collapse-toggle" class="nav-button nav-collapse-toggle" title="Collapse sidebar" aria-label="Collapse sidebar">
-        <i class="fa-solid fa-chevron-left nav-icon nav-collapse-icon"></i>
-        <span class="nav-label-text">Collapse</span>
-    </button>
 </div>
 </div>
 `;
@@ -632,7 +687,7 @@ export function injectGlobalNavigation() {
         }
         if (toggleBtn) {
             const icon = toggleBtn.querySelector('.nav-collapse-icon');
-            if (icon) icon.className = `fa-solid ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'} nav-icon nav-collapse-icon`;
+            if (icon) icon.className = `fa-solid ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'} nav-collapse-icon`;
             toggleBtn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
             toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
         }
@@ -657,10 +712,22 @@ export function injectGlobalNavigation() {
     const openSearchFanout = () => {
         if (searchFanout) { searchFanout.classList.remove('hidden'); searchFanout.setAttribute('aria-hidden', 'false'); }
         if (searchFanoutInput) { searchFanoutInput.value = ''; searchFanoutInput.focus(); }
-        if (navSidebar?.classList.contains('nav-sidebar-collapsed')) navSidebar.classList.add('search-fanout-open');
+        if (navSidebar?.classList.contains('nav-sidebar-collapsed')) {
+            navSidebar.classList.add('search-fanout-open');
+            if (searchTrigger && searchFanout) {
+                const rect = searchTrigger.getBoundingClientRect();
+                searchFanout.style.top = `${rect.top}px`;
+                searchFanout.style.bottom = 'auto';
+            }
+        }
     };
     const closeSearchFanout = () => {
-        if (searchFanout) { searchFanout.classList.add('hidden'); searchFanout.setAttribute('aria-hidden', 'true'); }
+        if (searchFanout) {
+            searchFanout.classList.add('hidden');
+            searchFanout.setAttribute('aria-hidden', 'true');
+            searchFanout.style.top = '';
+            searchFanout.style.bottom = '';
+        }
         if (searchFanoutInput) searchFanoutInput.value = '';
         const fanoutResults = document.getElementById('global-search-fanout-results');
         if (fanoutResults) fanoutResults.classList.add('hidden');

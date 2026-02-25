@@ -12,6 +12,8 @@ import {
     hideModal,
     updateActiveNavLink,
     setupUserMenuAndAuth,
+    initializeAppState,
+    getState,
     loadSVGs,
     setupGlobalSearch,
     checkAndSetNotifications,
@@ -651,7 +653,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             account_id: contact.account_id,
             type: 'Call',
             description: `Campaign Call: "${campaign.name}". Notes: ${notes}`,
-            user_id: state.currentUser.id,
+            user_id: getState().effectiveUserId,
             date: new Date().toISOString()
         });
         if (activityError) {
@@ -674,7 +676,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         currentMember.status = 'Completed'; // Update local state immediately
-        state.activities.push({ contact_id: contact.id, account_id: contact.account_id, type: 'Call', description: `Campaign Call: "${campaign.name}". Notes: ${notes}`, user_id: state.currentUser.id, date: new Date().toISOString() });
+        state.activities.push({ contact_id: contact.id, account_id: contact.account_id, type: 'Call', description: `Campaign Call: "${campaign.name}". Notes: ${notes}`, user_id: getState().effectiveUserId, date: new Date().toISOString() });
         displayCurrentCall(); // Refresh UI for next call
         await checkForCampaignCompletion(currentMember.campaign_id);
     };
@@ -810,7 +812,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             account_id: contact.account_id,
             type: 'Email',
             description: `Sent guided email for campaign: "${campaign.name}". Subject: ${subject || '(No Subject)'}`,
-            user_id: state.currentUser.id,
+            user_id: getState().effectiveUserId,
             date: new Date().toISOString()
         });
         if (activityError) console.error("Error logging guided email activity:", activityError);
@@ -825,7 +827,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (memberUpdateError) console.error("Error updating campaign member status (email):", memberUpdateError);
 
         currentMember.status = 'Completed'; // Update local state immediately
-        const newAct = { contact_id: currentMember.contact_id, account_id: contact.account_id, type: 'Email', description: `Sent guided email for campaign: "${campaign.name}". Subject: ${subject || '(No Subject)'}`, user_id: state.currentUser.id, date: new Date().toISOString() };
+        const newAct = { contact_id: currentMember.contact_id, account_id: contact.account_id, type: 'Email', description: `Sent guided email for campaign: "${campaign.name}". Subject: ${subject || '(No Subject)'}`, user_id: getState().effectiveUserId, date: new Date().toISOString() };
         state.activities.push(newAct);
 
         // Delay to allow the mail client to open before processing the next item
@@ -925,7 +927,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const filter_criteria = { industry, status, starred_only: starredOnly };
         const { data: newCampaign, error: campaignError } = await supabase.from('campaigns').insert({
-            name, type, filter_criteria, email_subject, email_body, user_id: state.currentUser.id
+            name, type, filter_criteria, email_subject, email_body, user_id: getState().effectiveUserId
         }).select().single();
         if (campaignError) {
             alert('Error saving campaign: ' + campaignError.message);
@@ -935,7 +937,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const membersToInsert = matchingContacts.map(c => ({
             campaign_id: newCampaign.id,
             contact_id: c.id,
-            user_id: state.currentUser.id,
+            user_id: getState().effectiveUserId,
             status: 'Pending'
         }));
         const { error: membersError } = await supabase.from('campaign_members').insert(membersToInsert);
@@ -957,10 +959,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         destroyCampaignTomSelects();
 
         const visibleTemplates = state.emailTemplates.filter(t =>
-            !t.is_cloned || t.user_id === state.currentUser.id
+            !t.is_cloned || t.user_id === getState().effectiveUserId
         );
-        const myTemplates = visibleTemplates.filter(t => t.user_id === state.currentUser.id).sort((a, b) => a.name.localeCompare(b.name));
-        const sharedTemplates = visibleTemplates.filter(t => t.user_id !== state.currentUser.id).sort((a, b) => a.name.localeCompare(b.name));
+        const myTemplates = visibleTemplates.filter(t => t.user_id === getState().effectiveUserId).sort((a, b) => a.name.localeCompare(b.name));
+        const sharedTemplates = visibleTemplates.filter(t => t.user_id !== getState().effectiveUserId).sort((a, b) => a.name.localeCompare(b.name));
 
         let myTemplatesOptions = myTemplates.length > 0
             ? `<optgroup label="My Templates">${myTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</optgroup>`
@@ -1290,7 +1292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 account_id: contact?.account_id,
                 type: 'Email',
                 description: `Included in mail merge export for campaign: "${campaignName}".`,
-                user_id: state.currentUser.id,
+                user_id: getState().effectiveUserId,
                 date: new Date().toISOString()
             };
         });
@@ -1308,7 +1310,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function renderTemplateManager() {
         const visibleTemplates = state.emailTemplates.filter(template =>
-            !template.is_cloned || template.user_id === state.currentUser.id
+            !template.is_cloned || template.user_id === getState().effectiveUserId
         );
 
         let templateListHtml = visibleTemplates.map(template => {
@@ -1319,7 +1321,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const cloneButton = `<button class="btn-secondary btn-icon-header btn-clone-template" data-id="${templateId}" title="Clone"><i class="fas fa-copy"></i></button>`;
 
-            if (template.user_id === state.currentUser.id) {
+            if (template.user_id === getState().effectiveUserId) {
                 actionButtonsHtml = `
                     <button class="btn-secondary btn-icon-header btn-edit-template" data-id="${templateId}" title="Edit"><i class="fas fa-pencil-alt"></i></button>
                     <button class="btn-danger btn-icon-header btn-delete-template" data-id="${templateId}" title="Delete"><i class="fas fa-trash"></i></button>
@@ -1396,7 +1398,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             name: newName,
             subject: originalTemplate.subject,
             body: originalTemplate.body,
-            user_id: state.currentUser.id,
+            user_id: getState().effectiveUserId,
             is_cloned: true
         }).select().single();
 
@@ -1470,7 +1472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 name,
                 subject: document.getElementById('template-subject')?.value.trim(),
                 body: document.getElementById('template-body')?.value,
-                user_id: state.currentUser.id
+                user_id: getState().effectiveUserId
             };
             let error;
             if (templateFormEditing) {
@@ -1572,10 +1574,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                  { data: emailTemplates, error: templatesError },
                  { data: userQuotas, error: userQuotasError }
             ] = await Promise.all([
-                supabase.from("campaigns").select("*").eq("user_id", state.currentUser.id),
-                supabase.from("contacts").select("*").eq("user_id", state.currentUser.id),
-                supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
-                supabase.from("activities").select("*").eq("user_id", state.currentUser.id),
+                supabase.from("campaigns").select("*").eq("user_id", getState().effectiveUserId),
+                supabase.from("contacts").select("*").eq("user_id", getState().effectiveUserId),
+                supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
+                supabase.from("activities").select("*").eq("user_id", getState().effectiveUserId),
                 supabase.from("email_templates").select("*"),
                 supabase.from("user_quotas").select("user_id, full_name")
             ]);
@@ -1723,30 +1725,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function initializePage() {
         await loadSVGs();
-
-        const {
-            data: {
-                session
-            },
-            error: sessionError
-        } = await supabase.auth.getSession();
-        if (sessionError) {
-            console.error("Error getting session:", sessionError);
-            window.location.href = "index.html";
-            return;
-        }
-
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await checkAndSetNotifications(supabase);
-            await loadAllData();
-        } else {
-            console.log("No active session, redirecting to index.html");
-            window.location.href = "index.html";
-        }
+        const appState = await initializeAppState(supabase);
+        if (!appState.currentUser) return;
+        state.currentUser = appState.currentUser;
+        await setupUserMenuAndAuth(supabase, getState());
+        setupPageEventListeners();
+        await setupGlobalSearch(supabase, state.currentUser);
+        await checkAndSetNotifications(supabase);
+        await loadAllData();
+        window.addEventListener('effectiveUserChanged', loadAllData);
     }
 
     initializePage();

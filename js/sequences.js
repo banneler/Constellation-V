@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, addDays, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Add "accounts" to the tables being fetched
         const userSpecificTables = ["sequences", "contacts", "accounts", "contact_sequences", "sequence_steps", "activities"];
         const promises = userSpecificTables.map((table) =>
-            supabase.from(table).select("*").eq("user_id", state.currentUser.id)
+            supabase.from(table).select("*").eq("user_id", getState().effectiveUserId)
         );
         
         try {
@@ -607,7 +607,7 @@ async function processBulkAssignment() {
         current_step_number: 1,
         status: 'Active',
         next_step_due_date: addDays(new Date(), firstStep.delay_days).toISOString(),
-        user_id: state.currentUser.id
+        user_id: getState().effectiveUserId
     }));
 
     const { error } = await supabase.from('contact_sequences').insert(newContactSequences);
@@ -685,7 +685,7 @@ async function processBulkAssignment() {
         showModal("New Personal Sequence", `<label>Sequence Name</label><input type="text" id="modal-sequence-name" required>`, async () => {
             const name = document.getElementById("modal-sequence-name").value.trim();
             if (name) {
-                const { data: newSeq, error } = await supabase.from("sequences").insert([{ name, source: 'Personal', user_id: state.currentUser.id }]).select().single();
+                const { data: newSeq, error } = await supabase.from("sequences").insert([{ name, source: 'Personal', user_id: getState().effectiveUserId }]).select().single();
                 if (error) { showModal("Error", "Error adding sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
                 state.selectedSequenceId = newSeq.id;
                 await loadAllData();
@@ -756,7 +756,7 @@ async function processBulkAssignment() {
                 subject: document.getElementById("modal-step-subject").value.trim(),
                 message: document.getElementById("modal-step-message").value.trim(),
                 delay_days: parseInt(document.getElementById("modal-step-delay").value),
-                user_id: state.currentUser.id
+                user_id: getState().effectiveUserId
             };
             if (!newStep.type) { showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`); return false; }
             await supabase.from("sequence_steps").insert([newStep]);
@@ -1093,7 +1093,7 @@ async function processBulkAssignment() {
                     subject: c[2] || "",
                     message: c[3] || "",
                     delay_days: delayDays,
-                    user_id: state.currentUser.id
+                    user_id: getState().effectiveUserId
                 };
             }).filter(record => record !== null);
             
@@ -1196,7 +1196,7 @@ async function importMarketingSequence() {
         description: originalSequence.description,
         source: 'Marketing', // We still label the source as 'Marketing' for the user's view
         is_abm: sourceSeqType === 'abm', // Carry over the ABM flag
-        user_id: state.currentUser.id
+        user_id: getState().effectiveUserId
     }).select().single();
 
     if (insertSeqError) {
@@ -1214,7 +1214,7 @@ async function importMarketingSequence() {
             message: step.message,
             delay_days: step.delay_days,
             assigned_to: step.assigned_to || 'Sales', // Default to Sales if not specified
-            user_id: state.currentUser.id
+            user_id: getState().effectiveUserId
         }));
         const { error: insertStepsError } = await supabase.from('sequence_steps').insert(newSteps);
         if (insertStepsError) {
@@ -1400,7 +1400,7 @@ async function importMarketingSequence() {
 
             try {
                 const { data: newSeqArr, error: seqError } = await supabase.from("sequences").insert([
-                    { name: newSequenceName, description: "AI Generated Sequence", source: "AI", user_id: state.currentUser.id }
+                    { name: newSequenceName, description: "AI Generated Sequence", source: "AI", user_id: getState().effectiveUserId }
                 ]).select();
 
                 if (seqError) throw seqError;
@@ -1413,7 +1413,7 @@ async function importMarketingSequence() {
                     subject: step.subject,
                     message: step.message,
                     delay_days: step.delay_days,
-                    user_id: state.currentUser.id
+                    user_id: getState().effectiveUserId
                 }));
 
                 if (stepsToInsert.length > 0) {
@@ -1451,17 +1451,15 @@ async function importMarketingSequence() {
         await loadSVGs();
         updateActiveNavLink();
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            await setupUserMenuAndAuth(supabase, state);
-            setupPageEventListeners();
-            await setupGlobalSearch(supabase, state.currentUser); // <-- ADD THIS LINE
-            await checkAndSetNotifications(supabase);
-            await loadAllData();
-        } else {
-            window.location.href = "index.html";
-        }
+        const appState = await initializeAppState(supabase);
+        if (!appState.currentUser) return;
+        state.currentUser = appState.currentUser;
+        await setupUserMenuAndAuth(supabase, getState());
+        setupPageEventListeners();
+        await setupGlobalSearch(supabase, state.currentUser);
+        await checkAndSetNotifications(supabase);
+        await loadAllData();
+        window.addEventListener('effectiveUserChanged', loadAllData);
     }
 
     initializePage();

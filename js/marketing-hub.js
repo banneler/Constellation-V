@@ -9,6 +9,8 @@ import {
     showModal,
     hideModal,
     setupUserMenuAndAuth,
+    initializeAppState,
+    getState,
     loadSVGs,
     updateActiveNavLink
 } from './shared_constants.js';
@@ -436,8 +438,8 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
         if (!itemList) return;
         itemList.innerHTML = "";
 
-        const myTemplates = state.emailTemplates.filter(t => t.user_id === state.currentUser.id);
-        const sharedTemplates = state.emailTemplates.filter(t => t.user_id !== state.currentUser.id);
+        const myTemplates = state.emailTemplates.filter(t => t.user_id === getState().effectiveUserId);
+        const sharedTemplates = state.emailTemplates.filter(t => t.user_id !== getState().effectiveUserId);
 
         myTemplates.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         sharedTemplates.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -448,7 +450,7 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
             item.dataset.id = template.id;
             item.dataset.type = 'template';
 
-            if (template.user_id !== state.currentUser.id) {
+            if (template.user_id !== getState().effectiveUserId) {
                 const creator = state.user_quotas.find(u => u && u.user_id === template.user_id);
                 const creatorName = creator ? creator.full_name : 'an unknown user';
                 item.innerHTML = `
@@ -561,7 +563,7 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
             return;
         }
 
-        const templateData = { name, subject, body, user_id: state.currentUser.id };
+        const templateData = { name, subject, body, user_id: getState().effectiveUserId };
         let error = null;
 
         if (id) {
@@ -850,7 +852,7 @@ const renderSequenceList = () => {
                     subject: document.getElementById("modal-step-subject").value.trim(),
                     message: document.getElementById("modal-step-message").value.trim(),
                     delay_days: parseInt(document.getElementById("modal-step-delay").value),
-                    user_id: state.currentUser.id
+                    user_id: getState().effectiveUserId
                 };
                 if (!newStep.type) {
                     alert("Step Type is required.");
@@ -963,7 +965,7 @@ const renderSequenceList = () => {
 
             const { data: newSeq, error } = await supabase
                 .from("marketing_sequences")
-                .insert([{ name: name, description: "", user_id: state.currentUser.id, type: "Marketing" }])
+                .insert([{ name: name, description: "", user_id: getState().effectiveUserId, type: "Marketing" }])
                 .select();
             if (error) {
                 alert("Error adding sequence: " + error.message);
@@ -1084,10 +1086,10 @@ function handleCreateNewItem() {
             
             let error;
             if (type === 'ABM') {
-                const { error: abmError } = await supabase.from('sequences').insert([{ name, is_abm: true, user_id: state.currentUser.id }]);
+                const { error: abmError } = await supabase.from('sequences').insert([{ name, is_abm: true, user_id: getState().effectiveUserId }]);
                 error = abmError;
             } else {
-                const { error: marketingError } = await supabase.from('marketing_sequences').insert([{ name, user_id: state.currentUser.id }]);
+                const { error: marketingError } = await supabase.from('marketing_sequences').insert([{ name, user_id: getState().effectiveUserId }]);
                 error = marketingError;
             }
 
@@ -1332,7 +1334,7 @@ async function handleDeleteSelectedItem() {
                    is_dynamic_link: document.getElementById('is-dynamic-link').checked,
                    source_name: 'Marketing Team',
                    status: 'new',
-                   user_id: state.currentUser.id
+                   user_id: getState().effectiveUserId
                };
 
                try {
@@ -1390,7 +1392,7 @@ async function handleDeleteSelectedItem() {
                                 subject: c[2] || "",
                                 message: c[3] || "",
                                 delay_days: delayDays,
-                                user_id: state.currentUser.id
+                                user_id: getState().effectiveUserId
                             };
                         })
                         .filter(record => record !== null);
@@ -1416,23 +1418,21 @@ async function handleDeleteSelectedItem() {
   // --- App Initialization ---
 async function initializePage() {
     await loadSVGs();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (session) {
-        // User is logged in, show the main content
-        state.currentUser = session.user;
+    const appState = await initializeAppState(supabase);
+    if (appState.currentUser) {
+        state.currentUser = appState.currentUser;
         if (authContainer) authContainer.classList.add('hidden');
         if (marketingHubContainer) marketingHubContainer.classList.remove('hidden');
         
-        await setupUserMenuAndAuth(supabase, state);
-        setupPageEventListeners(); // Sets up listeners for the marketing hub
+        await setupUserMenuAndAuth(supabase, getState());
+        setupPageEventListeners();
 
         const hash = window.location.hash.substring(1);
         state.currentView = ['abm-center', 'email-templates', 'sequences', 'social-posts'].includes(hash) ? hash : 'abm-center';
         
         await loadAllData();
+        window.addEventListener('effectiveUserChanged', loadAllData);
     } else {
-        // If no session, redirect to the main login page, just like other pages
         window.location.href = "index.html";
     }
 }

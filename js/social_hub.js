@@ -2,9 +2,11 @@
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
-    formatDate, // Import formatDate
+    formatDate,
     updateActiveNavLink,
     setupUserMenuAndAuth,
+    initializeAppState,
+    getState,
     loadSVGs,
     setupGlobalSearch,
     updateLastVisited,
@@ -43,7 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (postsError) throw postsError;
             state.allPosts = posts || [];
 
-            const { data: interactions, error: interactionsError } = await supabase.from('user_post_interactions').select('post_id').eq('user_id', state.currentUser.id);
+            const { data: interactions, error: interactionsError } = await supabase.from('user_post_interactions').select('post_id').eq('user_id', getState().effectiveUserId);
             if (interactionsError) throw interactionsError;
             
             state.userInteractions = new Set(interactions.map(i => i.post_id));
@@ -168,7 +170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function handleDismissPost(postId) {
         try {
-            await supabase.from('user_post_interactions').insert({ user_id: state.currentUser.id, post_id: postId, status: 'dismissed' });
+            await supabase.from('user_post_interactions').insert({ user_id: getState().effectiveUserId, post_id: postId, status: 'dismissed' });
             const cardToRemove = document.getElementById(`post-card-${postId}`);
             if (cardToRemove) {
                 cardToRemove.style.transition = 'opacity 0.5s';
@@ -232,21 +234,17 @@ document.addEventListener("DOMContentLoaded", async () => {
      // --- INITIALIZATION ---
 async function initializePage() {
     await loadSVGs();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        state.currentUser = session.user;
-        await setupUserMenuAndAuth(supabase, state);
-        updateActiveNavLink();
-        setupPageEventListeners();
-        await setupGlobalSearch(supabase, state.currentUser);
-        await loadSocialContent(); 
-
-        // NUKE-LEVEL FIX: Await the check, THEN update the visit time.
-        await checkAndSetNotifications(supabase); 
-        updateLastVisited(supabase, 'social_hub'); 
-    } else {
-        window.location.href = "index.html";
-    }
+    const appState = await initializeAppState(supabase);
+    if (!appState.currentUser) return;
+    state.currentUser = appState.currentUser;
+    await setupUserMenuAndAuth(supabase, getState());
+    updateActiveNavLink();
+    setupPageEventListeners();
+    await setupGlobalSearch(supabase, state.currentUser);
+    await loadSocialContent();
+    window.addEventListener('effectiveUserChanged', loadSocialContent);
+    await checkAndSetNotifications(supabase);
+    updateLastVisited(supabase, 'social_hub');
 }
 initializePage();
 });

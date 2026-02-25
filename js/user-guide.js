@@ -4,6 +4,8 @@ import {
     SUPABASE_ANON_KEY,
     setupModalListeners,
     setupUserMenuAndAuth,
+    initializeAppState,
+    getState,
     loadSVGs
 } from './shared_constants.js';
 
@@ -524,10 +526,11 @@ async function initializePage() {
     await loadSVGs();
     supabase.auth.onAuthStateChange(async (event, session) => {
         if (session) {
-            state.currentUser = session.user;
+            const appState = await initializeAppState(supabase);
+            state.currentUser = appState.currentUser;
             if (authContainer) authContainer.classList.add('hidden');
             if (mainAppContainer) mainAppContainer.classList.remove('hidden');
-            await setupUserMenuAndAuth(supabase, state);
+            await setupUserMenuAndAuth(supabase, getState());
             const initialSection = navList?.querySelector('.nav-button.active');
             if (initialSection) {
                 loadContent(initialSection.dataset.section);

@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountDealsCards = document.getElementById("account-deals-cards");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
     const aiBriefingBtn = document.getElementById("ai-briefing-btn");
+    const salesforceAccountBtn = document.getElementById("salesforce-account-btn");
     const accountFilterIcons = document.getElementById("account-filter-icons");
     const accountIndustrySelect = document.getElementById("account-industry");
 
@@ -118,10 +119,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!state.currentUser) return;
         
         const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
-            supabase.from("accounts").select("*").eq("user_id", state.currentUser.id),
-            supabase.from("deals").select("id, account_id, stage").eq("user_id", state.currentUser.id),
-            supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", state.currentUser.id),
-            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", state.currentUser.id),
+            supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
+            supabase.from("deals").select("id, account_id, stage").eq("user_id", getState().effectiveUserId),
+            supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", getState().effectiveUserId),
+            supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", getState().effectiveUserId),
             supabase.from("deal_stages").select("*").order('sort_order')
         ]);
 
@@ -200,6 +201,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (accountActivitiesList) accountActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see related activities.</p>';
         if (accountDealsCards) accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see deals.</p>';
         if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+
+        const sfLocatorDisplay = document.getElementById("sf-locator-display");
+        const sfLocatorInput = document.getElementById("sf-locator-input");
+        const sfLocatorWrap = document.getElementById("sf-locator-inline-wrap");
+        if (sfLocatorDisplay) sfLocatorDisplay.textContent = "Salesforce ID";
+        if (sfLocatorDisplay) sfLocatorDisplay.classList.remove("has-value");
+        if (sfLocatorInput) sfLocatorInput.value = "";
+        if (sfLocatorWrap) sfLocatorWrap.classList.remove("edit-mode");
 
         if (clearSelection) {
             state.selectedAccountId = null;
@@ -343,6 +352,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         accountForm.querySelector("#account-employees").value = account.employee_count || "";
         accountForm.querySelector("#account-is-customer").checked = account.is_customer;
 
+        const sfLocatorDisplay = document.getElementById("sf-locator-display");
+        const sfLocatorInput = document.getElementById("sf-locator-input");
+        const sfLocatorWrap = document.getElementById("sf-locator-inline-wrap");
+        if (sfLocatorDisplay) {
+            const val = (account.sf_account_locator || "").trim();
+            sfLocatorDisplay.textContent = val || "Salesforce ID";
+            sfLocatorDisplay.classList.toggle("has-value", !!val);
+        }
+        if (sfLocatorInput) {
+            sfLocatorInput.value = (account.sf_account_locator || "").trim();
+        }
+        if (sfLocatorWrap) {
+            sfLocatorWrap.classList.remove("edit-mode");
+        }
+
         accountDealsCards.innerHTML = "";
         if (deals.length === 0) {
             accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No deals yet.</p>';
@@ -352,6 +376,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const notes = (deal.notes || "").trim();
                 const notesEscaped = notes ? notes.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br>") : "";
                 const dealId = deal.id;
+                const truncate = (str, max = 30) => {
+                    if (!str) return '';
+                    return str.length > max ? str.substring(0, max) + '...' : str;
+                };
+                const safeName = (deal.name || "").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const safeProducts = (deal.products || "").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
                 const frontContent = `
                     <div class="deal-card-header">
                         <div class="deal-card-commit-row">
@@ -365,8 +396,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <button class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${dealId}" title="Edit Deal"><i class="fas fa-pen"></i></button>
                     </div>
                     <div class="deal-card-value">$${deal.mrc || 0}/mo</div>
-                    <div class="deal-card-name">${deal.name}</div>
-                    <div class="deal-card-products">${deal.products || ""}</div>
+                    <div class="deal-card-name" title="${safeName}">${truncate(safeName, 30)}</div>
+                    <div class="deal-card-products" title="${safeProducts}">${truncate(safeProducts, 30)}</div>
                     <div class="deal-card-footer">
                         ${deal.close_month ? `<span class="deal-card-close">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty"></span>'}
                         ${deal.term ? `<span class="deal-card-term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty"></span>'}
@@ -1137,7 +1168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const insertData = {
                 ...dealData,
                 is_committed: newDeal?.is_committed ?? false,
-                user_id: state.currentUser.id,
+                user_id: getState().effectiveUserId,
                 account_id: state.selectedAccountId
             };
             const { data: inserted, error } = await supabase.from('deals').insert([insertData]).select('id').single();
@@ -1167,7 +1198,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        // --- html2canvas Logic ---
+        // --- snapdom Logic ---
         
         // 2. Clone the container to work on it
         const printClone = briefingContainer.cloneNode(true);
@@ -1183,22 +1214,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             try {
                 // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
                 originalStyle = sourceChartElement.getAttribute('style');
-                // Force zoom: 1, add a background (which html2canvas needs), and keep padding
+                // Force zoom: 1, add a background (which snapdom needs), and keep padding
                 sourceChartElement.setAttribute('style', 'transform-origin: top left; zoom: 1; background: var(--bg-dark, #2d3748); padding: 10px;');
                 
-                // 5. "Screenshot" the live org chart element at high resolution
-                const canvas = await html2canvas(sourceChartElement, {
+                // 5. "Screenshot" the live org chart element at high resolution using snapdom
+                const result = await snapdom(sourceChartElement, {
                     backgroundColor: '#2d3748', // Explicitly set dark background
-                    useCORS: true,
                     scale: 1.5 // Increase scale for better resolution
                 });
+                const canvas = await result.toCanvas();
+                const imgDataUrl = canvas.toDataURL('image/png');
                 
                 // --- ORG CHART FIX 3: Restore original style to the live modal ---
                 if (originalStyle) sourceChartElement.setAttribute('style', originalStyle);
 
-                // 6. Convert the canvas "screenshot" to a PNG image URL
-                const imgDataUrl = canvas.toDataURL('image/png');
-                
                 // 7. Create new, simple HTML for the image
                 const orgChartImageHtml = `
                     <div class="briefing-section">
@@ -1213,7 +1242,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 );
                 
             } catch (err) {
-                console.error("html2canvas failed:", err);
+                console.error("snapdom failed:", err);
                 // If it fails, restore original style
                 if (sourceChartElement && originalStyle) {
                     sourceChartElement.setAttribute('style', originalStyle);
@@ -1224,7 +1253,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // 9. Get the *entire* inner HTML of our modified clone
         const briefingHtml = printClone.innerHTML;
         
-        // --- End of html2canvas Logic ---
+        // --- End of snapdom Logic ---
 
         // 10. Create the iframe
         const printFrame = document.createElement('iframe');
@@ -1361,6 +1390,44 @@ document.addEventListener("DOMContentLoaded", async () => {
                 document.title = originalTitle;
             }
         }, 250); // This timeout helps the iframe's content render
+    }
+
+    const SALESFORCE_ACCOUNT_BASE = "https://gpcom.lightning.force.com/lightning/r/Account";
+
+    function handleOpenSalesforce() {
+        if (!state.selectedAccountId) {
+            showModal("Error", "Please select an account first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+        const account = state.selectedAccountDetails.account;
+        if (!account) return;
+        const locator = (account.sf_account_locator || "").trim();
+        if (locator) {
+            window.open(`${SALESFORCE_ACCOUNT_BASE}/${encodeURIComponent(locator)}/view`, "_blank");
+            return;
+        }
+        showModal(
+            "Salesforce Account ID",
+            `<p class="text-sm text-[var(--text-medium)] mb-2">No Salesforce Account ID is stored for this account. Enter the ID to open the account in Salesforce.</p><label for="modal-sf-account-locator" class="block text-sm font-medium mb-1">Salesforce Account ID</label><input type="text" id="modal-sf-account-locator" placeholder="e.g. 001XXXXXXXXXXXX" class="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg">`,
+            async () => {
+                const input = document.getElementById("modal-sf-account-locator");
+                const value = (input?.value || "").trim();
+                if (!value) {
+                    showModal("Error", "Please enter a Salesforce Account ID.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+                window.open(`${SALESFORCE_ACCOUNT_BASE}/${encodeURIComponent(value)}/view`, "_blank");
+                const { error } = await supabase.from("accounts").update({ sf_account_locator: value }).eq("id", account.id);
+                if (!error) {
+                    state.selectedAccountDetails.account = { ...account, sf_account_locator: value };
+                    const idx = state.accounts.findIndex(a => a.id === account.id);
+                    if (idx !== -1) state.accounts[idx] = { ...state.accounts[idx], sf_account_locator: value };
+                }
+                hideModal();
+            },
+            true,
+            `<button id="modal-confirm-btn" class="btn-primary">Open</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+        );
     }
 
     // --- AI Briefing Handler ---
@@ -1541,7 +1608,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 showModal("Error", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                                 return false;
                             }
-                            const { data: newAccountArr, error } = await supabase.from("accounts").insert([{ name, user_id: state.currentUser.id }]).select();
+                            const { data: newAccountArr, error } = await supabase.from("accounts").insert([{ name, user_id: getState().effectiveUserId }]).select();
                             if (error) {
                                 showModal("Error", "Error creating account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                                 return false;
@@ -1723,7 +1790,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 quantity_of_sites: (record.quantity_of_sites === 0) ? 0 : (parseInt(record.quantity_of_sites) || null),
                                 employee_count: (record.employee_count === 0) ? 0 : (parseInt(record.employee_count) || null),
                                 is_customer: record.is_customer === true,
-                                user_id: state.currentUser.id
+                                user_id: getState().effectiveUserId
                             };
 
                             if (existingAccount) {
@@ -1837,7 +1904,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const firstStage = state.dealStages.sort((a, b) => a.sort_order - b.sort_order)[0]?.stage_name || '';
                 const newDeal = {
                     id: 'new',
-                    user_id: state.currentUser.id,
+                    user_id: getState().effectiveUserId,
                     account_id: state.selectedAccountId,
                     name: '',
                     term: '',
@@ -1880,7 +1947,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             return false;
                         }
                         const newTask = {
-                            user_id: state.currentUser.id,
+                            user_id: getState().effectiveUserId,
                             description,
                             due_date: document.getElementById('modal-task-due-date')?.value || null,
                             status: 'Pending',
@@ -1901,6 +1968,45 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (aiBriefingBtn) {
             aiBriefingBtn.addEventListener("click", handleGenerateBriefing);
+        }
+        if (salesforceAccountBtn) {
+            salesforceAccountBtn.addEventListener("click", handleOpenSalesforce);
+        }
+
+        const sfLocatorEditBtn = document.getElementById("sf-locator-edit-btn");
+        const sfLocatorInputEl = document.getElementById("sf-locator-input");
+        const sfLocatorWrapEl = document.getElementById("sf-locator-inline-wrap");
+        if (sfLocatorEditBtn && sfLocatorInputEl && sfLocatorWrapEl) {
+            sfLocatorEditBtn.addEventListener("click", () => {
+                if (!state.selectedAccountId || !state.selectedAccountDetails.account) return;
+                sfLocatorInputEl.value = (state.selectedAccountDetails.account.sf_account_locator || "").trim();
+                sfLocatorWrapEl.classList.add("edit-mode");
+                sfLocatorInputEl.focus();
+            });
+            const commitSfLocatorEdit = async () => {
+                const value = sfLocatorInputEl.value.trim();
+                const account = state.selectedAccountDetails.account;
+                if (!account) return;
+                sfLocatorWrapEl.classList.remove("edit-mode");
+                const { error } = await supabase.from("accounts").update({ sf_account_locator: value || null }).eq("id", account.id);
+                if (!error) {
+                    state.selectedAccountDetails.account = { ...account, sf_account_locator: value || null };
+                    const idx = state.accounts.findIndex(a => a.id === account.id);
+                    if (idx !== -1) state.accounts[idx] = { ...state.accounts[idx], sf_account_locator: value || null };
+                }
+                const display = document.getElementById("sf-locator-display");
+                if (display) {
+                    display.textContent = value || "Salesforce ID";
+                    display.classList.toggle("has-value", !!value);
+                }
+            };
+            sfLocatorInputEl.addEventListener("blur", commitSfLocatorEdit);
+            sfLocatorInputEl.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    sfLocatorInputEl.blur();
+                }
+            });
         }
         
         document.body.addEventListener('click', (e) => {
@@ -1965,14 +2071,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     async function initializePage() {
         await loadSVGs();
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError || !session) {
-            console.error('Authentication failed or no session found. Redirecting to login.');
-            window.location.href = "index.html";
-            return;
-        }
-        state.currentUser = session.user;
+        const appState = await initializeAppState(supabase);
+        if (!appState.currentUser) return;
+        state.currentUser = appState.currentUser;
 
         try {
             await loadInitialData();
@@ -1990,7 +2091,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 hideAccountDetails(true);
             }
             
-            await setupUserMenuAndAuth(supabase, state);
+            await setupUserMenuAndAuth(supabase, getState());
+            window.addEventListener('effectiveUserChanged', loadInitialData);
             
             // --- THIS IS THE FIX ---
             // Reverted to the "known working" call, as you pointed out.
