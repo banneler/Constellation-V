@@ -421,8 +421,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             <label>Term:</label><input type="text" id="modal-deal-term" value="${deal.term || ''}" placeholder="e.g., 12 months">
             <label>Stage:</label><select id="modal-deal-stage" required>${stageOptions}</select>
             <label>Monthly Recurring Revenue (MRC):</label><input type="number" id="modal-deal-mrc" min="0" value="${deal.mrc || 0}">
-            <label>Close Month:</label><input type="month" id="modal-deal-close-month" value="${deal.close_month || ''}">
+           <label>Close Month:</label><input type="month" id="modal-deal-close-month" value="${deal.close_month || ''}">
             <label>Products:</label><textarea id="modal-deal-products" placeholder="List products, comma-separated">${deal.products || ''}</textarea>
+            <label>Notes:</label><textarea id="modal-deal-notes" placeholder="Deal notes...">${deal.notes || ''}</textarea>
         `, async () => {
             const updatedDeal = {
                 name: document.getElementById('modal-deal-name').value.trim(),
@@ -432,6 +433,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 mrc: parseFloat(document.getElementById('modal-deal-mrc').value) || 0,
                 close_month: document.getElementById('modal-deal-close-month').value || null,
                 products: document.getElementById('modal-deal-products').value.trim(),
+                notes: document.getElementById('modal-deal-notes').value.trim(),
             };
             if (!updatedDeal.name) return alert('Deal name is required.');
             const { error } = await supabase.from("deals").update(updatedDeal).eq("id", deal.id);
