@@ -271,7 +271,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    const renderDealsPage = () => {
+const renderDealsPage = () => {
         if (!dealsTableBody) return;
 
         // UPDATED: Use getFunnelDeals() to respect the toggle
@@ -283,10 +283,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             let comparison = (typeof valA === "string") ? (valA || "").localeCompare(b[state.dealsSortBy] || "") : (valA > valB ? 1 : -1);
             return state.dealsSortDir === "desc" ? comparison * -1 : comparison;
         });
+        
         dealsTableBody.innerHTML = "";
         dealsWithAccount.forEach((deal) => {
             const row = dealsTableBody.insertRow();
             row.innerHTML = `<td><input type="checkbox" class="commit-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_committed ? "checked" : ""}></td><td class="deal-name-link" data-deal-id="${deal.id}">${deal.name}</td><td>${deal.term || ""}</td><td>${deal.account_name}</td><td>${deal.stage}</td><td>${formatCurrency(deal.mrc || 0)}</td><td>${deal.close_month ? formatMonthYear(deal.close_month) : ""}</td><td>${deal.products || ""}</td><td>${deal.notes || ""}</td><td><div class="button-group-wrapper"><button class="btn-secondary edit-deal-btn" data-deal-id="${deal.id}">Edit</button></div></td>`;
+        }); // <-- THIS WAS MISSING!
+
         document.querySelectorAll("#deals-table th.sortable").forEach((th) => {
             th.classList.remove("asc", "desc");
             if (th.dataset.sort === state.dealsSortBy) th.classList.add(state.dealsSortDir);
