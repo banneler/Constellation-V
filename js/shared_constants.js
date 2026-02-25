@@ -230,6 +230,33 @@ export function addDays(date, days) {
     return result;
 }
 
+/**
+ * Opens a pre-filled Salesforce Task create page in a new tab (Single Exhaust / manual log).
+ * @param {object} activity - Activity object with subject, notes (or body), type, created_at (or date), and optional sf_account_locator (Salesforce Account Id for WhatId).
+ */
+export function logToSalesforce(activity) {
+    if (!activity) return;
+    // TODO: should eventually come from user settings
+    const sfBaseUrl = "https://gpcom.lightning.force.com";
+    const subjectRaw = activity.subject || activity.description || activity.type || "Activity";
+    const typeLower = (activity.type || "").toLowerCase();
+    const subjectPrefix = typeLower.includes("email") ? "Email: " : "Call: ";
+    const subject = subjectPrefix + subjectRaw;
+    const description = activity.notes || activity.body || activity.description || "";
+    const status = "Completed";
+    const dateVal = activity.created_at || activity.date;
+    const d = dateVal ? new Date(dateVal) : new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const activityDate = `${year}-${month}-${day}`;
+    let inner = "Subject=" + encodeURIComponent(subject) + ",Description=" + encodeURIComponent(description) + ",Status=" + encodeURIComponent(status) + ",ActivityDate=" + encodeURIComponent(activityDate);
+    const locator = (activity.sf_account_locator || "").trim();
+    if (locator) inner += ",WhatId=" + encodeURIComponent(locator);
+    const finalUrl = sfBaseUrl + "/lightning/o/Task/new?defaultFieldValues=" + encodeURIComponent(inner);
+    window.open(finalUrl, "_blank");
+}
+
 export function updateActiveNavLink() {
     const currentPage = window.location.pathname.split("/").pop();
     document.querySelectorAll(".nav-sidebar .nav-button").forEach(link => {

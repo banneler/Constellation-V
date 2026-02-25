@@ -51,7 +51,10 @@
                             <div class="contact-details-form-card">
                                 <div class="contact-details-form-header">
                                     <h3 class="details-panel-title">Contact Details</h3>
-                                    <span id="organic-star-indicator" class="organic-star" title="Mark as organic contact">★</span>
+                                    <div class="contact-details-header-actions">
+                                        <span id="organic-star-indicator" class="organic-star" title="Mark as organic contact">★</span>
+                                        <button type="button" id="zoominfo-contact-btn" class="btn-icon-header zoominfo-btn" title="Search in ZoomInfo" aria-label="Search in ZoomInfo"><img src="assets/zoominfo-logo-2024.svg" alt="ZoomInfo" class="zoominfo-logo" /></button>
+                                    </div>
                                 </div>
                                 <div id="contact-pending-task-reminder" class="pending-task-reminder hidden"></div>
                                 <form id="contact-form">
@@ -88,7 +91,8 @@
                                         <div id="ring-chart-progress"></div>
                                         <div id="ring-chart-text" class="ring-chart-text"></div>
                                     </div>
-                                    <p id="sequence-enrollment-text" class="sequence-enrollment-text">Select a contact to see details.</p>
+                                    <div id="sequence-enrollment-text" class="sequence-enrollment-text">Select a contact to see details.</div>
+                                    <div id="sequence-next-step-wrapper"></div>
                                     <div class="sequence-status-actions">
                                         <select id="assign-sequence-select" class="assign-sequence-select">
                                             <option value="">Assign Sequence</option>

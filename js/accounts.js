@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -58,9 +58,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountDealsCards = document.getElementById("account-deals-cards");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
     const aiBriefingBtn = document.getElementById("ai-briefing-btn");
+    const zoominfoAccountBtn = document.getElementById("zoominfo-account-btn");
     const salesforceAccountBtn = document.getElementById("salesforce-account-btn");
     const accountFilterIcons = document.getElementById("account-filter-icons");
     const accountIndustrySelect = document.getElementById("account-industry");
+
+    if (accountActivitiesList) {
+        accountActivitiesList.addEventListener("click", async (e) => {
+            const btn = e.target.closest(".btn-log-sf");
+            if (!btn) return;
+            const id = btn.getAttribute("data-activity-id");
+            if (!id) return;
+            const act = state.selectedAccountDetails.activities.find((a) => String(a.id) === String(id));
+            if (act) {
+                const account = state.selectedAccountDetails.account;
+                logToSalesforce({ subject: act.description, notes: act.description, type: act.type, created_at: act.date, sf_account_locator: account?.sf_account_locator });
+                const { error } = await supabase.from("activities").update({ logged_to_sf: true }).eq("id", act.id);
+                if (!error) {
+                    act.logged_to_sf = true;
+                    btn.style.display = "none";
+                }
+            }
+        });
+    }
 
     let tomSelectIndustry = null;
 
@@ -209,6 +229,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (sfLocatorDisplay) sfLocatorDisplay.classList.remove("has-value");
         if (sfLocatorInput) sfLocatorInput.value = "";
         if (sfLocatorWrap) sfLocatorWrap.classList.remove("edit-mode");
+        const zoominfoLocatorDisplay = document.getElementById("zoominfo-locator-display");
+        const zoominfoLocatorInput = document.getElementById("zoominfo-locator-input");
+        const zoominfoLocatorWrap = document.getElementById("zoominfo-locator-inline-wrap");
+        if (zoominfoLocatorDisplay) zoominfoLocatorDisplay.textContent = "Zoom Info Company Id";
+        if (zoominfoLocatorDisplay) zoominfoLocatorDisplay.classList.remove("has-value");
+        if (zoominfoLocatorInput) zoominfoLocatorInput.value = "";
+        if (zoominfoLocatorWrap) zoominfoLocatorWrap.classList.remove("edit-mode");
 
         if (clearSelection) {
             state.selectedAccountId = null;
@@ -321,6 +348,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
                 accountPendingTaskReminder.classList.remove('hidden');
             } else {
+                accountPendingTaskReminder.textContent = '';
                 accountPendingTaskReminder.classList.add('hidden');
             }
         }
@@ -365,6 +393,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (sfLocatorWrap) {
             sfLocatorWrap.classList.remove("edit-mode");
+        }
+        const zoominfoLocatorDisplayZi = document.getElementById("zoominfo-locator-display");
+        const zoominfoLocatorInputZi = document.getElementById("zoominfo-locator-input");
+        const zoominfoLocatorWrapZi = document.getElementById("zoominfo-locator-inline-wrap");
+        if (zoominfoLocatorDisplayZi) {
+            const ziVal = (account.zoominfo_company_id || "").trim();
+            zoominfoLocatorDisplayZi.textContent = ziVal || "Zoom Info Company Id";
+            zoominfoLocatorDisplayZi.classList.toggle("has-value", !!ziVal);
+        }
+        if (zoominfoLocatorInputZi) {
+            zoominfoLocatorInputZi.value = (account.zoominfo_company_id || "").trim();
+        }
+        if (zoominfoLocatorWrapZi) {
+            zoominfoLocatorWrapZi.classList.remove("edit-mode");
         }
 
         accountDealsCards.innerHTML = "";
@@ -472,6 +514,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 else if (typeLower.includes("linkedin")) { iconClass = "icon-linkedin"; icon = "fa-linkedin-in"; iconPrefix = "fa-brands"; }
                 const item = document.createElement("div");
                 item.className = "recent-activity-item";
+                const logSfBtnHtml = act.logged_to_sf ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
                 item.innerHTML = `
                     <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                     <div class="activity-body">
@@ -479,6 +522,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <div class="activity-description">${act.description}</div>
                         <div class="activity-date">${formatDate(act.date)}</div>
                     </div>
+                    <div class="activity-actions">${logSfBtnHtml}</div>
                 `;
                 accountActivitiesList.appendChild(item);
             });
@@ -1393,6 +1437,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const SALESFORCE_ACCOUNT_BASE = "https://gpcom.lightning.force.com/lightning/r/Account";
+    const ZOOMINFO_COMPANY_BASE = "https://app.zoominfo.com/#/apps/profile/company";
+
+    function handleOpenZoomInfo() {
+        if (!state.selectedAccountId) {
+            showModal("Error", "Please select an account first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+        const account = state.selectedAccountDetails.account;
+        if (!account) return;
+        const companyId = (account.zoominfo_company_id || "").trim();
+        if (companyId) {
+            window.open(`${ZOOMINFO_COMPANY_BASE}/${encodeURIComponent(companyId)}`, "_blank");
+            return;
+        }
+        showModal(
+            "Zoom Info Company Id",
+            `<p class="text-sm text-[var(--text-medium)] mb-2">No Zoom Info Company Id is stored for this account. Enter the Company Id to open the account in ZoomInfo.</p><label for="modal-zoominfo-company-id" class="block text-sm font-medium mb-1">Zoom Info Company Id</label><input type="text" id="modal-zoominfo-company-id" placeholder="e.g. 123456789" class="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg">`,
+            async () => {
+                const input = document.getElementById("modal-zoominfo-company-id");
+                const value = (input?.value || "").trim();
+                if (!value) {
+                    showModal("Error", "Please enter a Zoom Info Company Id.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                    return;
+                }
+                window.open(`${ZOOMINFO_COMPANY_BASE}/${encodeURIComponent(value)}`, "_blank");
+                const { error } = await supabase.from("accounts").update({ zoominfo_company_id: value }).eq("id", account.id);
+                if (!error) {
+                    state.selectedAccountDetails.account = { ...account, zoominfo_company_id: value };
+                    const idx = state.accounts.findIndex(a => a.id === account.id);
+                    if (idx !== -1) state.accounts[idx] = { ...state.accounts[idx], zoominfo_company_id: value };
+                }
+                const display = document.getElementById("zoominfo-locator-display");
+                if (display) {
+                    display.textContent = value || "Zoom Info Company Id";
+                    display.classList.toggle("has-value", !!value);
+                }
+                hideModal();
+            },
+            true,
+            `<button id="modal-confirm-btn" class="btn-primary">Open</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+        );
+    }
 
     function handleOpenSalesforce() {
         if (!state.selectedAccountId) {
@@ -1969,6 +2055,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (aiBriefingBtn) {
             aiBriefingBtn.addEventListener("click", handleGenerateBriefing);
         }
+        if (zoominfoAccountBtn) {
+            zoominfoAccountBtn.addEventListener("click", handleOpenZoomInfo);
+        }
         if (salesforceAccountBtn) {
             salesforceAccountBtn.addEventListener("click", handleOpenSalesforce);
         }
@@ -2008,7 +2097,42 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
         }
-        
+        const zoominfoLocatorEditBtn = document.getElementById("zoominfo-locator-edit-btn");
+        const zoominfoLocatorInputEl = document.getElementById("zoominfo-locator-input");
+        const zoominfoLocatorWrapEl = document.getElementById("zoominfo-locator-inline-wrap");
+        if (zoominfoLocatorEditBtn && zoominfoLocatorInputEl && zoominfoLocatorWrapEl) {
+            zoominfoLocatorEditBtn.addEventListener("click", () => {
+                if (!state.selectedAccountId || !state.selectedAccountDetails.account) return;
+                zoominfoLocatorInputEl.value = (state.selectedAccountDetails.account.zoominfo_company_id || "").trim();
+                zoominfoLocatorWrapEl.classList.add("edit-mode");
+                zoominfoLocatorInputEl.focus();
+            });
+            const commitZoominfoLocatorEdit = async () => {
+                const value = zoominfoLocatorInputEl.value.trim();
+                const account = state.selectedAccountDetails.account;
+                if (!account) return;
+                zoominfoLocatorWrapEl.classList.remove("edit-mode");
+                const { error } = await supabase.from("accounts").update({ zoominfo_company_id: value || null }).eq("id", account.id);
+                if (!error) {
+                    state.selectedAccountDetails.account = { ...account, zoominfo_company_id: value || null };
+                    const idx = state.accounts.findIndex(a => a.id === account.id);
+                    if (idx !== -1) state.accounts[idx] = { ...state.accounts[idx], zoominfo_company_id: value || null };
+                }
+                const display = document.getElementById("zoominfo-locator-display");
+                if (display) {
+                    display.textContent = value || "Zoom Info Company Id";
+                    display.classList.toggle("has-value", !!value);
+                }
+            };
+            zoominfoLocatorInputEl.addEventListener("blur", commitZoominfoLocatorEdit);
+            zoominfoLocatorInputEl.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    zoominfoLocatorInputEl.blur();
+                }
+            });
+        }
+
         document.body.addEventListener('click', (e) => {
             if (e.target.id === 'print-briefing-btn') {
                 handlePrintBriefing();

@@ -90,7 +90,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error("Critical error in loadAllData:", error);
         } finally {
             renderSequenceList();
-            if (state.selectedSequenceId && state.sequences.some(s => s.id === state.selectedSequenceId)) {
+            const urlSeqId = typeof URLSearchParams !== 'undefined' && new URLSearchParams(window.location.search).get('sequenceId');
+            const sequenceIdFromUrl = urlSeqId ? Number(urlSeqId) : null;
+            if (sequenceIdFromUrl && state.sequences.some(s => s.id === sequenceIdFromUrl)) {
+                state.selectedSequenceId = sequenceIdFromUrl;
+                renderSequenceDetails(sequenceIdFromUrl);
+                document.querySelectorAll("#sequence-list .selected").forEach(i => i.classList.remove("selected"));
+                const listItem = document.querySelector(`#sequence-list .list-item[data-id="${sequenceIdFromUrl}"]`);
+                if (listItem) listItem.classList.add("selected");
+            } else if (state.selectedSequenceId && state.sequences.some(s => s.id === state.selectedSequenceId)) {
                 renderSequenceDetails(state.selectedSequenceId);
             } else {
                 clearSequenceDetailsPanel(false);

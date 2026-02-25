@@ -80,9 +80,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const flipToSettingsBtn = document.getElementById('flip-to-settings-btn');
     const flipToChartBtn = document.getElementById('flip-to-chart-btn');
     const saveSettingsFlipBtn = document.getElementById('save-settings-flip-btn');
+    const stressFlipCard = document.getElementById('stress-flip-card');
+    const flipToAnnualTableBtn = document.getElementById('flip-to-annual-table-btn');
+    const flipToStressBtn = document.getElementById('flip-to-stress-btn');
     const timelineTableContainer = document.getElementById('timeline-table-container');
+    const annualCashflowTableContainer = document.getElementById('annual-cashflow-table-container');
+    const stressCapexSlider = document.getElementById('stress-capex');
+    const stressMrrSlider = document.getElementById('stress-mrr');
+    const stressCapexValueEl = document.getElementById('stress-capex-value');
+    const stressMrrValueEl = document.getElementById('stress-mrr-value');
+    const stressResetBtn = document.getElementById('stress-reset-btn');
     const cashflowChartCanvas = document.getElementById('cashflow-chart');
     let cashflowChartInstance = null;
+
+    /** Stress test modifiers: applied only during chart/table render; do not mutate state.sites */
+    let stressModifiers = { capex: 1.0, mrr: 1.0 };
 
     // Dial elements
     const dialFill = document.querySelector('.irr-dial-fill');
@@ -457,6 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
 
         renderCashflowChart();
+        renderAnnualTable();
     }
 
     /**
@@ -512,7 +525,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const siteFlows = [];
 
         state.sites.forEach(site => {
-            const { cashFlows, error } = getCashFlowsForSite(site.inputs);
+            const { cashFlows, error } = getStressedCashFlowsForSite(site.inputs);
             if (error || cashFlows.length === 0) return;
 
             const tl = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1 };
@@ -617,6 +630,120 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             cashflowChartInstance = new Chart(cashflowChartCanvas, { type: 'line', data: chartData, options: chartOptions });
         }
+    }
+
+    /**
+     * Builds annual cash flow table from stressed monthly flows; injects into #annual-cashflow-table-container.
+     */
+    function renderAnnualTable() {
+        if (!annualCashflowTableContainer) return;
+        if (state.sites.length === 0) {
+            annualCashflowTableContainer.innerHTML = '';
+            return;
+        }
+
+        let maxMonth = 0;
+        const siteFlows = [];
+        state.sites.forEach(site => {
+            const { cashFlows, error } = getStressedCashFlowsForSite(site.inputs);
+            if (error || cashFlows.length === 0) return;
+            const tl = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1 };
+            const term = site.inputs.term;
+            const stressedInputs = {
+                ...site.inputs,
+                constructionCost: (site.inputs.constructionCost || 0) * stressModifiers.capex,
+                engineeringCost: (site.inputs.engineeringCost || 0) * stressModifiers.capex,
+                productCost: (site.inputs.productCost || 0) * stressModifiers.capex,
+                mrr: (site.inputs.mrr || 0) * stressModifiers.mrr
+            };
+            const nrr = site.inputs.nrr;
+            const mrr = stressedInputs.mrr;
+            const monthlyCost = site.inputs.monthlyCost || 0;
+            const capex = stressedInputs.constructionCost + stressedInputs.engineeringCost + stressedInputs.productCost;
+            const sg_and_a = (mrr * 1) + (nrr * 0.03);
+            const monthZeroOut = capex + sg_and_a;
+            const lastMonth = Math.max(tl.constructionStartMonth, tl.billingStartMonth + term);
+            if (lastMonth > maxMonth) maxMonth = lastMonth;
+            siteFlows.push({
+                constructionStart: tl.constructionStartMonth,
+                billingStart: tl.billingStartMonth,
+                term,
+                initialOutflow: cashFlows[0],
+                monthlyNet: cashFlows.length > 1 ? cashFlows[1] : 0,
+                monthZeroIn: nrr,
+                monthZeroOut,
+                monthlyIn: mrr,
+                monthlyOut: monthlyCost
+            });
+        });
+
+        if (siteFlows.length === 0) {
+            annualCashflowTableContainer.innerHTML = '';
+            return;
+        }
+
+        const monthlyIn = new Array(maxMonth + 1).fill(0);
+        const monthlyOut = new Array(maxMonth + 1).fill(0);
+        const monthlyNet = new Array(maxMonth + 1).fill(0);
+
+        for (let m = 0; m <= maxMonth; m++) {
+            siteFlows.forEach(sf => {
+                if (m === sf.constructionStart) {
+                    monthlyIn[m] += sf.monthZeroIn;
+                    monthlyOut[m] += sf.monthZeroOut;
+                    monthlyNet[m] += sf.initialOutflow;
+                }
+                if (m >= sf.billingStart && m < sf.billingStart + sf.term) {
+                    monthlyIn[m] += sf.monthlyIn;
+                    monthlyOut[m] += sf.monthlyOut;
+                    monthlyNet[m] += sf.monthlyNet;
+                }
+            });
+        }
+
+        const numYears = maxMonth === 0 ? 1 : Math.ceil(maxMonth / 12) + 1;
+        const rows = [];
+        let cumulative = 0;
+        for (let y = 0; y < numYears; y++) {
+            const startMonth = y === 0 ? 0 : (y - 1) * 12 + 1;
+            const endMonth = y === 0 ? 0 : Math.min(y * 12, maxMonth);
+            let yearIn = 0, yearOut = 0, yearNet = 0;
+            if (y === 0) {
+                yearIn = monthlyIn[0];
+                yearOut = monthlyOut[0];
+                yearNet = monthlyNet[0];
+            } else {
+                for (let m = startMonth; m <= endMonth; m++) {
+                    yearIn += monthlyIn[m] || 0;
+                    yearOut += monthlyOut[m] || 0;
+                    yearNet += monthlyNet[m] || 0;
+                }
+            }
+            cumulative += yearNet;
+            rows.push({ year: y, cashIn: yearIn, cashOut: yearOut, net: yearNet, cumulative });
+        }
+
+        let html = '<table class="annual-telemetry-table"><thead><tr><th>Year</th><th>Total Cash In</th><th>Total Cash Out</th><th>Net Position</th><th>Cumulative Cash</th></tr></thead><tbody>';
+        rows.forEach(r => {
+            const netClass = r.net >= 0 ? 'annual-net-positive' : 'annual-net-negative';
+            html += `<tr><td>${r.year}</td><td class="annual-currency">$${r.cashIn.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td><td class="annual-currency">$${r.cashOut.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td><td class="annual-currency ${netClass}">$${r.net.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td><td class="annual-currency">$${r.cumulative.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        annualCashflowTableContainer.innerHTML = html;
+    }
+
+    /**
+     * Returns cash flows with stress modifiers applied. Does not mutate state; builds a copy of inputs.
+     */
+    function getStressedCashFlowsForSite(siteInputs) {
+        const stressedInputs = {
+            ...siteInputs,
+            constructionCost: (siteInputs.constructionCost || 0) * stressModifiers.capex,
+            engineeringCost: (siteInputs.engineeringCost || 0) * stressModifiers.capex,
+            productCost: (siteInputs.productCost || 0) * stressModifiers.capex,
+            mrr: (siteInputs.mrr || 0) * stressModifiers.mrr
+        };
+        return getCashFlowsForSite(stressedInputs);
     }
 
     /**
@@ -1451,6 +1578,42 @@ document.addEventListener('DOMContentLoaded', async () => {
                 cashflowFlipCard.classList.remove('flipped');
                 renderCashflowChart();
             });
+        }
+
+        // Stress test sliders: -20..20 → multiplier 0.8..1.2; apply at render only
+        function applyStressFromSliders() {
+            const capexVal = stressCapexSlider ? parseInt(stressCapexSlider.value, 10) : 0;
+            const mrrVal = stressMrrSlider ? parseInt(stressMrrSlider.value, 10) : 0;
+            stressModifiers.capex = 1 + capexVal / 100;
+            stressModifiers.mrr = 1 + mrrVal / 100;
+            if (stressCapexValueEl) stressCapexValueEl.textContent = capexVal + '%';
+            if (stressMrrValueEl) stressMrrValueEl.textContent = mrrVal + '%';
+            renderCashflowChart();
+            renderAnnualTable();
+        }
+        if (stressCapexSlider) {
+            stressCapexSlider.addEventListener('input', applyStressFromSliders);
+        }
+        if (stressMrrSlider) {
+            stressMrrSlider.addEventListener('input', applyStressFromSliders);
+        }
+        if (stressResetBtn) {
+            stressResetBtn.addEventListener('click', () => {
+                stressModifiers = { capex: 1.0, mrr: 1.0 };
+                if (stressCapexSlider) { stressCapexSlider.value = 0; }
+                if (stressMrrSlider) { stressMrrSlider.value = 0; }
+                if (stressCapexValueEl) stressCapexValueEl.textContent = '0%';
+                if (stressMrrValueEl) stressMrrValueEl.textContent = '0%';
+                renderCashflowChart();
+                renderAnnualTable();
+            });
+        }
+
+        if (flipToAnnualTableBtn && stressFlipCard) {
+            flipToAnnualTableBtn.addEventListener('click', () => stressFlipCard.classList.add('flipped'));
+        }
+        if (flipToStressBtn && stressFlipCard) {
+            flipToStressBtn.addEventListener('click', () => stressFlipCard.classList.remove('flipped'));
         }
 
         // Load Modal Listeners

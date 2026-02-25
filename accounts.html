@@ -48,19 +48,28 @@
                 <div id="account-details" class="details-panel account-details-content">
                         <div class="account-details-top-row">
                             <div class="account-details-form-card">
-                                <div class="account-details-form-header flex justify-between items-center gap-2">
-                                    <h3 class="details-panel-title">Account Details</h3>
-                                    <div class="flex items-center gap-2">
-                                        <span class="sf-locator-inline" id="sf-locator-inline-wrap">
-                                            <span class="sf-locator-text" id="sf-locator-display">Salesforce ID</span>
-                                            <button type="button" class="sf-locator-edit-btn" id="sf-locator-edit-btn" title="Edit Salesforce ID" aria-label="Edit Salesforce ID"><i class="fas fa-pencil"></i></button>
-                                            <input type="text" class="sf-locator-input" id="sf-locator-input" placeholder="e.g. 001XXXXXXXXXXXX" maxlength="18" />
-                                        </span>
-                                        <button id="salesforce-account-btn" class="btn-icon-header" title="Open in Salesforce"><i class="fa-brands fa-salesforce"></i></button>
-                                        <button id="ai-briefing-btn" class="btn-icon-header" title="Generate AI Briefing"><i class="fas fa-bolt-lightning"></i></button>
+                                <div class="account-details-form-header">
+                                    <div class="account-details-form-header-row">
+                                        <h3 class="details-panel-title">Account Details</h3>
+                                        <div class="flex items-center gap-2">
+                                            <div class="header-locators-stack">
+                                                <span class="sf-locator-inline" id="sf-locator-inline-wrap">
+                                                    <span class="sf-locator-text" id="sf-locator-display">Salesforce ID</span>
+                                                    <button type="button" class="sf-locator-edit-btn" id="sf-locator-edit-btn" title="Edit Salesforce ID" aria-label="Edit Salesforce ID"><i class="fas fa-pencil"></i></button>
+                                                    <input type="text" class="sf-locator-input" id="sf-locator-input" placeholder="e.g. 001XXXXXXXXXXXX" maxlength="18" />
+                                                </span>
+                                                <span class="sf-locator-inline zoominfo-locator-inline" id="zoominfo-locator-inline-wrap">
+                                                    <span class="sf-locator-text" id="zoominfo-locator-display">Zoom Info Company Id</span>
+                                                    <button type="button" class="sf-locator-edit-btn" id="zoominfo-locator-edit-btn" title="Edit Zoom Info Company Id" aria-label="Edit Zoom Info Company Id"><i class="fas fa-pencil"></i></button>
+                                                    <input type="text" class="sf-locator-input" id="zoominfo-locator-input" placeholder="e.g. 123456789" />
+                                                </span>
+                                            </div>
+                                            <button id="zoominfo-account-btn" class="btn-icon-header zoominfo-btn" title="Open in ZoomInfo" aria-label="Open in ZoomInfo"><img src="assets/zoominfo-logo-2024.svg" alt="ZoomInfo" class="zoominfo-logo" /></button>
+                                            <button id="salesforce-account-btn" class="btn-icon-header salesforce-btn" title="Open in Salesforce"><i class="fa-brands fa-salesforce"></i></button>
+                                            <button id="ai-briefing-btn" class="btn-icon-header" title="Generate AI Briefing"><i class="fas fa-bolt-lightning"></i></button>
+                                        </div>
                                     </div>
                                 </div>
-                                <div id="account-pending-task-reminder" class="pending-task-reminder hidden"></div>
                                 <form id="account-form">
                             <input type="hidden" id="account-id">
                             <div class="form-grid form-grid-account">
@@ -97,6 +106,7 @@
                             <div class="form-buttons">
                                 <button type="submit" class="btn-icon btn-icon-save" title="Save Changes"><i class="fas fa-floppy-disk"></i></button>
                                 <button type="button" id="delete-account-btn" class="btn-icon btn-icon-danger" title="Delete Account"><i class="fas fa-trash"></i></button>
+                                <div id="account-pending-task-reminder" class="pending-task-reminder pending-task-reminder-pill hidden"></div>
                                 <label class="customer-toggle" for="account-is-customer">
                                     <input type="checkbox" id="account-is-customer" class="customer-toggle-input">
                                     <span class="customer-toggle-slider"></span>

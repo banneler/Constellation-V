@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -101,9 +101,129 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const addTaskContactBtn = document.getElementById("add-task-contact-btn");
     const contactActivitiesList = document.getElementById("contact-activities-list");
+    if (contactActivitiesList) {
+        contactActivitiesList.addEventListener("click", async (e) => {
+            const btn = e.target.closest(".btn-log-sf");
+            if (!btn) return;
+            const id = btn.getAttribute("data-activity-id");
+            if (!id) return;
+            const act = state.activities.find((a) => String(a.id) === String(id));
+            if (act) {
+                const account = act.account_id ? state.accounts.find(a => a.id === act.account_id) : null;
+                logToSalesforce({ subject: act.description, notes: act.description, type: act.type, created_at: act.date, sf_account_locator: account?.sf_account_locator });
+                const { error } = await supabase.from("activities").update({ logged_to_sf: true }).eq("id", act.id);
+                if (!error) {
+                    act.logged_to_sf = true;
+                    btn.style.display = "none";
+                }
+            }
+        });
+    }
     const removeFromSequenceBtn = document.getElementById("remove-from-sequence-btn");
     const completeSequenceBtn = document.getElementById("complete-sequence-btn");
     const sequenceEnrollmentText = document.getElementById("sequence-enrollment-text");
+    const sequenceNextStepWrapper = document.getElementById("sequence-next-step-wrapper");
+
+    function replacePlaceholders(template, contact, account) {
+        if (!template) return '';
+        let result = String(template);
+        if (contact) {
+            const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
+            result = result.replace(/\[FirstName\]/gi, contact.first_name || '');
+            result = result.replace(/\[LastName\]/gi, contact.last_name || '');
+            result = result.replace(/\[FullName\]/gi, fullName);
+            result = result.replace(/\[Name\]/gi, fullName);
+        }
+        if (account) {
+            result = result.replace(/\[AccountName\]/gi, account.name || '');
+            result = result.replace(/\[Account\]/gi, account.name || '');
+        }
+        return result;
+    }
+
+    async function completeStep(csId, processedDescription = null) {
+        const appState = getState();
+        const cs = state.contact_sequences.find((c) => c.id === csId);
+        if (!cs) return;
+        const contact = state.contacts.find((c) => c.id === cs.contact_id);
+        const currentStepInfo = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+        if (contact && currentStepInfo) {
+            const { error: updateStepError } = await supabase
+                .from('contact_sequence_steps')
+                .update({ status: 'completed', completed_at: new Date().toISOString() })
+                .eq('contact_sequence_id', cs.id)
+                .eq('sequence_step_id', currentStepInfo.id);
+            if (updateStepError) {
+                console.error("Error updating contact_sequence_step:", updateStepError);
+                return;
+            }
+            const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+            const rawDescription = currentStepInfo.subject || currentStepInfo.message || "Completed step";
+            const finalDescription = replacePlaceholders(rawDescription, contact, account);
+            const descriptionForLog = processedDescription || finalDescription;
+            await supabase.from("activities").insert([{
+                contact_id: contact.id,
+                account_id: contact.account_id,
+                date: new Date().toISOString(),
+                type: `Sequence: ${currentStepInfo.type}`,
+                description: descriptionForLog,
+                user_id: appState.currentUser.id
+            }]);
+        }
+        const allStepsInSequence = state.sequence_steps
+            .filter(s => s.sequence_id === cs.sequence_id)
+            .sort((a, b) => a.step_number - b.step_number);
+        const nextStep = allStepsInSequence.find(s => s.step_number > cs.current_step_number);
+        if (nextStep) {
+            await supabase.from("contact_sequences").update({
+                current_step_number: nextStep.step_number,
+                last_completed_date: new Date().toISOString(),
+                next_step_due_date: addDays(new Date(), nextStep.delay_days).toISOString()
+            }).eq("id", cs.id);
+        } else {
+            await supabase.from("contact_sequences").update({ status: "Completed" }).eq("id", cs.id);
+        }
+        await loadAllData();
+    }
+
+    function getActivityIconInfo(act) {
+        const typeLower = (act.type || '').toLowerCase();
+        if (typeLower.includes("cognito") || typeLower.includes("intelligence")) return { iconClass: "icon-default", icon: "fa-magnifying-glass", iconPrefix: "fas" };
+        if (typeLower.includes("email")) return { iconClass: "icon-email", icon: "fa-envelope", iconPrefix: "fas" };
+        if (typeLower.includes("call")) return { iconClass: "icon-call", icon: "fa-phone", iconPrefix: "fas" };
+        if (typeLower.includes("meeting")) return { iconClass: "icon-meeting", icon: "fa-video", iconPrefix: "fas" };
+        if (typeLower.includes("linkedin")) return { iconClass: "icon-linkedin", icon: "fa-linkedin-in", iconPrefix: "fa-brands" };
+        return { iconClass: "icon-default", icon: "fa-circle-info", iconPrefix: "fas" };
+    }
+
+    function openLogCallModal(csId) {
+        const cs = state.contact_sequences.find(c => c.id === csId);
+        if (!cs) return;
+        const contact = state.contacts.find(c => c.id === cs.contact_id);
+        if (!contact) return;
+        const sequence = state.sequences.find(s => s.id === cs.sequence_id);
+        const currentStep = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+        if (!sequence || !currentStep) return;
+        const task = { id: cs.id, contact, sequence, step: currentStep };
+        const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown';
+        const phone = (contact.phone || '').trim();
+        const telHref = phone ? `tel:${phone.replace(/\D/g, '')}` : '';
+        const phoneDisplay = phone || 'No phone number';
+        const phoneHtml = telHref ? `<a href="${telHref}" class="log-call-phone-link">${phoneDisplay}</a>` : `<span class="text-[var(--text-medium)]">${phoneDisplay}</span>`;
+        const contactActivities = state.activities.filter(a => a.contact_id === contact.id).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
+        let activitiesHtml = contactActivities.map(act => {
+            const account = act.account_id ? state.accounts.find(a => a.id === act.account_id) : null;
+            const meta = account ? account.name : 'N/A';
+            const { iconClass, icon, iconPrefix } = getActivityIconInfo(act);
+            return `<div class="recent-activity-item"><div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix} ${icon}"></i></div><div class="activity-body"><div class="activity-meta">${meta}</div><div class="activity-description">${act.type}: ${(act.description || '').replace(/</g, '&lt;')}</div><div class="activity-date">${formatDate(act.date)}</div></div></div>`;
+        }).join('');
+        if (!activitiesHtml) activitiesHtml = '<p class="text-sm text-[var(--text-medium)] py-2">No recent activities for this contact.</p>';
+        const bodyHtml = `<div class="log-call-modal-body"><p class="mb-3"><strong>${contactName.replace(/</g, '&lt;')}</strong></p><p class="mb-3">${phoneHtml}</p><label class="block text-sm font-medium mb-1">Call notes (optional)</label><textarea id="modal-call-notes" class="w-full rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm bg-[var(--bg-light)] min-h-[80px] mb-3" placeholder="Notes from the call..."></textarea><div class="log-call-recent-activities"><div class="text-xs font-semibold text-[var(--text-medium)] mb-2">Recent activities</div><div class="log-call-activities-list max-h-[200px] overflow-y-auto space-y-2">${activitiesHtml}</div></div></div>`;
+        showModal('Log a call', bodyHtml, async () => {
+            const notes = (document.getElementById('modal-call-notes')?.value || '').trim();
+            await completeStep(csId, notes || 'Call completed');
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Log</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+    }
     const ringChartText = document.getElementById("ring-chart-text");
     const contactEmailsList = document.getElementById("contact-emails-list");
     const emailViewModalBackdrop = document.getElementById("email-view-modal-backdrop");
@@ -287,6 +407,96 @@ async function loadAllData() {
         });
     };
 
+    function renderContactNextStep(contact, activeSequence, sequence) {
+        const currentStep = state.sequence_steps.find(s => s.sequence_id === activeSequence.sequence_id && s.step_number === activeSequence.current_step_number);
+        if (!currentStep) return '';
+        const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+        const description = replacePlaceholders(currentStep.subject || currentStep.message || '', contact, account);
+        const stepType = (currentStep.type || '').toLowerCase();
+        const dueDate = new Date(activeSequence.next_step_due_date);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const isDue = dueDate.setHours(0, 0, 0, 0) <= startOfToday.getTime();
+        const isPastDue = isDue && dueDate < startOfToday;
+
+        const getStepIcon = () => {
+            if (stepType.includes('linkedin')) return { icon: 'fa-paper-plane', title: 'Go to LinkedIn' };
+            if (stepType.includes('email')) return { icon: 'fa-envelope', title: 'Send Email' };
+            if (stepType.includes('call')) return { icon: 'fa-phone', title: 'Log a call' };
+            if (stepType.includes('gift')) return { icon: 'fa-gift', title: 'Complete' };
+            return { icon: 'fa-square-check', title: 'Complete' };
+        };
+        let btnHtml;
+        if (isDue) {
+            const { icon, title } = getStepIcon();
+            if (stepType.includes('linkedin')) {
+                btnHtml = `<button type="button" class="btn-primary btn-icon-only send-linkedin-message-btn" data-cs-id="${activeSequence.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
+            } else if (stepType.includes('email') && contact.email) {
+                btnHtml = `<button type="button" class="btn-primary btn-icon-only send-email-btn" data-cs-id="${activeSequence.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
+            } else if (stepType.includes('call')) {
+                btnHtml = `<button type="button" class="btn-primary btn-icon-only log-call-btn" data-cs-id="${activeSequence.id}" title="Log a call"><i class="fa-solid ${icon}"></i></button>`;
+            } else {
+                btnHtml = `<button type="button" class="btn-primary btn-icon-only complete-step-btn" data-cs-id="${activeSequence.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
+            }
+        } else {
+            btnHtml = `<div class="sequence-step-due-overlay" title="Due ${formatSimpleDate(activeSequence.next_step_due_date)}">Due ${formatSimpleDate(activeSequence.next_step_due_date)}</div>`;
+        }
+
+        const itemClass = `sequence-step-item ${isPastDue ? 'past-due' : ''}`;
+        const safeDesc = (description || '').replace(/</g, '&lt;');
+        const safeType = (currentStep.type || 'Step').replace(/</g, '&lt;');
+        const safeSeqName = (sequence?.name || '').replace(/</g, '&lt;');
+        return `
+            <div id="sequence-next-step-container" class="sequence-next-step-container">
+                <div id="sequence-next-step" class="sequence-steps-list">
+                    <div class="${itemClass}">
+                        <div class="sequence-step-left">
+                            <div class="sequence-step-due">${formatSimpleDate(activeSequence.next_step_due_date)}</div>
+                            <div class="sequence-step-actions">${btnHtml}</div>
+                        </div>
+                        <div class="sequence-step-content">
+                            <div class="sequence-step-meta">${safeType}</div>
+                            <div class="sequence-step-description sequence-step-description-truncate">${safeDesc}</div>
+                            <div class="sequence-step-sequence">${safeSeqName}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function renderRingChartSegments(container, totalSteps, currentStepNum) {
+        if (!totalSteps || totalSteps < 1) {
+            container.innerHTML = '';
+            return;
+        }
+        const cx = 50, cy = 50, outerR = 48, innerR = 35;
+        const gapDeg = 2;
+        const stepDeg = (360 - totalSteps * gapDeg) / totalSteps;
+        const paths = [];
+        for (let i = 0; i < totalSteps; i++) {
+            const startDeg = -90 + i * (stepDeg + gapDeg) + gapDeg / 2;
+            const endDeg = startDeg + stepDeg;
+            const startRad = (startDeg * Math.PI) / 180;
+            const endRad = (endDeg * Math.PI) / 180;
+            const x1 = cx + outerR * Math.cos(startRad);
+            const y1 = cy + outerR * Math.sin(startRad);
+            const x2 = cx + outerR * Math.cos(endRad);
+            const y2 = cy + outerR * Math.sin(endRad);
+            const x3 = cx + innerR * Math.cos(endRad);
+            const y3 = cy + innerR * Math.sin(endRad);
+            const x4 = cx + innerR * Math.cos(startRad);
+            const y4 = cy + innerR * Math.sin(startRad);
+            const pathD = `M ${x1} ${y1} A ${outerR} ${outerR} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 0 0 ${x4} ${y4} Z`;
+            const stepNumber = i + 1;
+            let fill;
+            if (stepNumber < currentStepNum) fill = 'var(--completed-color)';
+            else if (stepNumber === currentStepNum) fill = 'var(--primary-blue)';
+            else fill = 'var(--bg-medium)';
+            paths.push(`<path d="${pathD}" fill="${fill}" stroke="var(--bg-light)" stroke-width="0.8" stroke-linejoin="round" class="ring-chart-segment"/>`);
+        }
+        container.innerHTML = `<svg class="ring-chart-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${paths.join('')}</svg>`;
+    }
+
     const renderContactDetails = () => {
         const contact = state.contacts.find((c) => c.id === state.selectedContactId);
         if (!contactForm) return;
@@ -345,12 +555,14 @@ async function loadAllData() {
                     else if (typeLower.includes("linkedin")) { iconClass = "icon-linkedin"; icon = "fa-linkedin-in"; iconPrefix = "fa-brands"; }
                     const item = document.createElement("div");
                     item.className = "recent-activity-item";
+                    const logSfBtnHtml = act.logged_to_sf ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
                     item.innerHTML = `
                         <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                         <div class="activity-body">
                             <div class="activity-description">${act.type}: ${act.description}</div>
                             <div class="activity-date">${formatDate(act.date)}</div>
                         </div>
+                        <div class="activity-actions">${logSfBtnHtml}</div>
                     `;
                     contactActivitiesList.appendChild(item);
                 });
@@ -366,23 +578,29 @@ async function loadAllData() {
             if (sequenceEnrollmentText && ringChartText) {
                 if (activeSequence) {
                     const sequence = state.sequences.find((s) => s.id === activeSequence.sequence_id);
-                    const allSequenceSteps = state.sequence_steps.filter((s) => s.sequence_id === activeSequence.sequence_id);
+                    const allSequenceSteps = state.sequence_steps.filter((s) => s.sequence_id === activeSequence.sequence_id).sort((a, b) => a.step_number - b.step_number);
                     const totalSteps = allSequenceSteps.length;
-                    const currentStep = activeSequence.current_step_number;
-                    const lastCompleted = currentStep - 1;
-                    const percentage = totalSteps > 0 ? Math.round((lastCompleted / totalSteps) * 100) : 0;
-                    if (ringProgress) ringProgress.style.setProperty('--p', percentage);
+                    const currentStepNum = activeSequence.current_step_number;
+                    const lastCompleted = currentStepNum - 1;
+                    if (ringProgress) renderRingChartSegments(ringProgress, totalSteps, currentStepNum);
                     ringChartText.textContent = `${lastCompleted}/${totalSteps}`;
-                    sequenceEnrollmentText.textContent = sequence ? sequence.name : 'Unknown';
                     sequenceEnrollmentText.classList.remove('sequence-enrollment-empty');
                     if (removeFromSequenceBtn) removeFromSequenceBtn.classList.remove('hidden');
                     if (completeSequenceBtn) completeSequenceBtn.classList.remove('hidden');
+
+                    const sequenceName = sequence ? sequence.name : 'Unknown';
+                    const seqId = sequence ? sequence.id : activeSequence.sequence_id;
+                    sequenceEnrollmentText.innerHTML = `<a href="sequences.html?sequenceId=${seqId}" class="sequence-name-link">${sequenceName.replace(/</g, '&lt;')}</a>`;
+                    if (sequenceNextStepWrapper) {
+                        sequenceNextStepWrapper.innerHTML = renderContactNextStep(contact, activeSequence, sequence);
+                    }
                 } else {
                     if (ringChart) ringChart.classList.add('ring-chart-inactive');
-                    if (ringProgress) ringProgress.style.setProperty('--p', 0);
+                    if (ringProgress) ringProgress.innerHTML = '';
                     ringChartText.textContent = '—';
                     sequenceEnrollmentText.textContent = 'Not in a sequence';
                     sequenceEnrollmentText.classList.add('sequence-enrollment-empty');
+                    if (sequenceNextStepWrapper) sequenceNextStepWrapper.innerHTML = '';
                     if (removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
                     if (completeSequenceBtn) completeSequenceBtn.classList.add('hidden');
                 }
@@ -663,14 +881,15 @@ async function loadAllData() {
             if (contactAccountInput) contactAccountInput.value = "";
         }
         if(contactActivitiesList) contactActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select a contact to see activities.</p>';
-        if(sequenceEnrollmentText) {
+        if (sequenceEnrollmentText) {
             sequenceEnrollmentText.textContent = "Select a contact to see details.";
             sequenceEnrollmentText.classList.add('sequence-enrollment-empty');
         }
+        if (sequenceNextStepWrapper) sequenceNextStepWrapper.innerHTML = '';
         const ringChart = document.getElementById('ring-chart');
         const ringProgress = document.getElementById('ring-chart-progress');
         if (ringChart) ringChart.classList.add('ring-chart-inactive');
-        if (ringProgress) ringProgress.style.setProperty('--p', 0);
+        if (ringProgress) ringProgress.innerHTML = '';
         const ringChartTextEl = document.getElementById('ring-chart-text');
         if (ringChartTextEl) ringChartTextEl.textContent = '—';
         if(removeFromSequenceBtn) removeFromSequenceBtn.classList.add('hidden');
@@ -1025,6 +1244,29 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     contact.is_organic = !newOrganicState;
                     showModal("Error", "Could not save organic status.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 }
+            });
+        }
+
+        const zoominfoContactBtn = document.getElementById("zoominfo-contact-btn");
+        if (zoominfoContactBtn) {
+            const ZOOMINFO_BASE = "https://app.zoominfo.com";
+            const ZOOMINFO_HASH_VARIANTS = [
+                "#/apps/search?q={q}",            // 0
+                "#/apps/search?query={q}",        // 1
+                "#/apps/advanced-search?q={q}",   // 2
+                "#/search?q={q}",                 // 3
+                "#/apps/search/query/{q}",        // 4
+            ];
+            zoominfoContactBtn.addEventListener("click", () => {
+                if (!state.selectedContactId) return;
+                const contact = state.contacts.find(c => c.id === state.selectedContactId);
+                if (!contact) return;
+                const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ").trim() || "Contact";
+                const encoded = encodeURIComponent(name);
+                ZOOMINFO_HASH_VARIANTS.forEach((template, i) => {
+                    const url = `${ZOOMINFO_BASE}${template.replace("{q}", encoded)}`;
+                    setTimeout(() => window.open(url, "_blank"), i * 200);
+                });
             });
         }
         
@@ -1536,6 +1778,55 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         }
     }, true, `<button id="modal-confirm-btn" class="btn-danger">Remove</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 });
+
+    document.body.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button');
+        const enrollmentEl = document.getElementById('sequence-enrollment-text');
+        const stepWrapperEl = document.getElementById('sequence-next-step-wrapper');
+        if (!btn || (!enrollmentEl?.contains(btn) && !stepWrapperEl?.contains(btn))) return;
+        const csId = Number(btn.dataset?.csId);
+        if (!csId) return;
+        const cs = state.contact_sequences.find(c => c.id === csId);
+        const contact = cs ? state.contacts.find(c => c.id === cs.contact_id) : null;
+        const sequence = cs ? state.sequences.find(s => s.id === cs.sequence_id) : null;
+        const step = cs ? state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number) : null;
+        if (!cs || !contact || !sequence || !step) return;
+
+        if (btn.matches('.log-call-btn')) {
+            openLogCallModal(csId);
+        } else if (btn.matches('.complete-step-btn')) {
+            showModal('Confirm', 'Mark this step as complete?', async () => await completeStep(csId), true, `<button id="modal-confirm-btn" class="btn-primary">Complete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        } else if (btn.matches('.send-email-btn')) {
+            const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+            const subject = replacePlaceholders(step.subject, contact, account);
+            const message = replacePlaceholders(step.message, contact, account);
+            showModal('Compose Email', `
+                <div class="form-group"><label for="modal-email-subject">Subject:</label><input type="text" id="modal-email-subject" class="form-control" value="${(subject || '').replace(/"/g, '&quot;')}"></div>
+                <div class="form-group"><label for="modal-email-body">Message:</label><textarea id="modal-email-body" class="form-control" rows="10">${(message || '')}</textarea></div>
+            `, async () => {
+                const finalSubject = document.getElementById('modal-email-subject').value;
+                const finalMessage = document.getElementById('modal-email-body').value;
+                window.open(`mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`, '_blank');
+                await completeStep(csId, `Email Sent: ${finalSubject}`);
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        } else if (btn.matches('.send-linkedin-message-btn')) {
+            const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
+            const message = replacePlaceholders(step.message, contact, account);
+            const linkedinUrl = contact.linkedin_profile_url || 'https://www.linkedin.com/feed/';
+            showModal('Compose LinkedIn Message', `
+                <div class="form-group"><p><strong>To:</strong> ${contact.first_name} ${contact.last_name}</p><p class="modal-sub-text">The message will be copied. Paste it into LinkedIn.</p></div>
+                <div class="form-group"><label for="modal-linkedin-body">Message:</label><textarea id="modal-linkedin-body" class="form-control" rows="10">${(message || '')}</textarea></div>
+            `, async () => {
+                const text = document.getElementById('modal-linkedin-body').value;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showToast('Message copied to clipboard.', 'success');
+                } catch (_) {}
+                window.open(linkedinUrl, '_blank');
+                await completeStep(csId, 'LinkedIn message sent');
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Copy & Open LinkedIn</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        }
+    });
 
         if (addTaskContactBtn) addTaskContactBtn.addEventListener("click", async () => {
             if (!state.selectedContactId) return showModal("Error", "Please select a contact to add a task for.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);

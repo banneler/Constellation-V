@@ -474,7 +474,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </td>
                 <td class="deal-cell-editable align-middle text-center w-20" contenteditable="true" data-deal-id="${deal.id}" data-field="term">${esc(deal.term)}</td>
                 <td class="deal-cell-editable deal-cell-number align-middle text-center font-bold text-[var(--primary-blue)] w-28" data-deal-id="${deal.id}" data-field="mrc">${formatCurrency(deal.mrc || 0)}</td>
-                <td class="deal-cell-editable align-middle text-[0.8rem] min-w-[16rem] w-full" contenteditable="true" data-deal-id="${deal.id}" data-field="notes" style="line-height: 1.5; color: var(--text-medium); padding-top: 0.5rem; padding-bottom: 0.5rem;">${esc(deal.notes)}</td>`;
+                <td class="deal-cell-notes align-middle min-w-[16rem] w-full p-0"><div class="deal-notes-cell-inner deal-cell-editable text-[0.8rem]" contenteditable="true" data-deal-id="${deal.id}" data-field="notes" data-placeholder="Notes">${esc(deal.notes)}</div></td>`;
         });
         document.querySelectorAll("#deals-table th.sortable").forEach((th) => {
             th.classList.remove("asc", "desc");

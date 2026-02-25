@@ -411,9 +411,9 @@
             backface-visibility: hidden;
             background-color: var(--bg-light);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 0.75rem;
             box-shadow: var(--shadow-card);
-            padding: 1.5rem;
+            padding: 1.25rem;
             display: flex;
             flex-direction: column;
             overflow: auto;
@@ -500,7 +500,7 @@
                     <div class="section-card-body p-5">
                         <div class="irr-header-row">
                             <div class="irr-header-left">
-                                <h2 class="page-title" style="margin: 0;">Multi-Site IRR Calculator</h2>
+                                <h2 class="page-title">Multi-Site IRR Calculator</h2>
                                 <div class="irr-toolbar">
                                     <div class="irr-toolbar-left">
                                         <button type="button" id="new-project-btn" class="btn-secondary" title="New Project"><i class="fas fa-file"></i></button>
@@ -567,45 +567,92 @@
                     </div>
                 </div>
 
-                <!-- RIGHT COLUMN: Cash Flow Chart / Advanced Settings Flip Card -->
-                <div class="flip-card-container">
-                    <div class="flip-card-inner" id="cashflow-flip-card">
-                        
-                        <!-- FRONT: Chart -->
-                        <div class="flip-card-front">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-light);">Cash Flow Projection</h3>
-                                <button type="button" class="flip-btn" id="flip-to-settings-btn" title="Advanced Timeline Settings">
-                                    <i class="fas fa-cog"></i>
-                                </button>
-                            </div>
-                            <p style="font-size: 0.85rem; color: var(--text-medium); margin-bottom: 0.5rem;">
-                                Cumulative cash flow over project term.
-                            </p>
-                            <div class="chart-container-wrapper">
-                                <canvas id="cashflow-chart"></canvas>
-                            </div>
-                        </div>
-
-                        <!-- BACK: Per-Site Timeline Settings -->
-                        <div class="flip-card-back">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-light);">Site Timeline Settings</h3>
-                                <button type="button" class="flip-btn" id="flip-to-chart-btn" title="Back to Chart">
-                                    <i class="fas fa-chart-line"></i>
-                                </button>
-                            </div>
-                            <p style="font-size: 0.85rem; color: var(--text-medium); margin-bottom: 1rem;">
-                                Set per-site construction and billing start months to model staggered rollouts.
-                            </p>
+                <!-- RIGHT COLUMN: Chart + Stress Test + Annual Table -->
+                <div class="irr-right-column">
+                    <div class="flip-card-container">
+                        <div class="flip-card-inner" id="cashflow-flip-card">
                             
-                            <div id="timeline-table-container" style="flex: 1; overflow: auto;"></div>
+                            <!-- FRONT: Chart -->
+                            <div class="flip-card-front">
+                                <div class="card-header-row">
+                                    <h3 class="card-header-title">Cash Flow Projection</h3>
+                                    <button type="button" class="flip-btn" id="flip-to-settings-btn" title="Advanced Timeline Settings">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                                <p class="card-subtitle">
+                                    Cumulative cash flow over project term.
+                                </p>
+                                <div class="chart-container-wrapper">
+                                    <canvas id="cashflow-chart"></canvas>
+                                </div>
+                            </div>
 
-                            <button type="button" id="save-settings-flip-btn" class="btn-primary cognito-style-btn" style="width: 100%; margin-top: 1rem; flex-shrink: 0;">
-                                Save & View Chart
-                            </button>
+                            <!-- BACK: Per-Site Timeline Settings -->
+                            <div class="flip-card-back">
+                                <div class="card-header-row">
+                                    <h3 class="card-header-title">Site Timeline Settings</h3>
+                                    <button type="button" class="flip-btn" id="flip-to-chart-btn" title="Back to Chart">
+                                        <i class="fas fa-chart-line"></i>
+                                    </button>
+                                </div>
+                                <p class="card-subtitle">
+                                    Set per-site construction and billing start months to model staggered rollouts.
+                                </p>
+                                <div id="timeline-table-container" style="flex: 1; overflow: auto;"></div>
+
+                                <button type="button" id="save-settings-flip-btn" class="btn-primary cognito-style-btn btn-block">
+                                    Save & View Chart
+                                </button>
+                            </div>
+                            
                         </div>
-                        
+                    </div>
+
+                    <div class="cashflow-stress-container">
+                        <div class="stress-flip-card-container">
+                            <div class="stress-flip-card-inner" id="stress-flip-card">
+                                <!-- Front: Stress Test (default view) -->
+                                <div class="stress-flip-card-front">
+                                    <div class="card-header-row">
+                                        <h3 class="card-header-title">Stress Test</h3>
+                                        <button type="button" class="flip-btn" id="flip-to-annual-table-btn" title="View annual cash flow table">
+                                            <i class="fas fa-table"></i>
+                                        </button>
+                                    </div>
+                                    <p class="card-subtitle">
+                                        Adjust CapEx and MRR by ±20% to see impact on the chart. Values are applied at render only.
+                                    </p>
+                                    <div class="stress-test-panel">
+                                        <div class="stress-slider-block">
+                                            <label class="stress-slider-label">CapEx Stress</label>
+                                            <span class="stress-slider-range-caption">−20%</span>
+                                            <input type="range" id="stress-capex" class="stress-slider" min="-20" max="20" value="0" step="1">
+                                            <span class="stress-slider-range-caption">+20%</span>
+                                            <span id="stress-capex-value" class="stress-slider-value">0%</span>
+                                        </div>
+                                        <div class="stress-slider-block">
+                                            <label class="stress-slider-label">MRR Stress</label>
+                                            <span class="stress-slider-range-caption">−20%</span>
+                                            <input type="range" id="stress-mrr" class="stress-slider" min="-20" max="20" value="0" step="1">
+                                            <span class="stress-slider-range-caption">+20%</span>
+                                            <span id="stress-mrr-value" class="stress-slider-value">0%</span>
+                                        </div>
+                                        <button type="button" id="stress-reset-btn" class="stress-reset-btn">Reset</button>
+                                    </div>
+                                </div>
+                                <!-- Back: Annual Cash Flow Table -->
+                                <div class="stress-flip-card-back">
+                                    <div class="card-header-row">
+                                        <h3 class="card-header-title">Annual Cash Flow</h3>
+                                        <button type="button" class="flip-btn" id="flip-to-stress-btn" title="Back to stress test">
+                                            <i class="fas fa-sliders-h"></i>
+                                        </button>
+                                    </div>
+                                    <div id="annual-cashflow-table-container" class="stress-annual-table-wrap"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

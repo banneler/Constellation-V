@@ -16,7 +16,8 @@ import {
     checkAndSetNotifications,
     initializeAppState,
     getState,
-    injectGlobalNavigation
+    injectGlobalNavigation,
+    logToSalesforce
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -88,9 +89,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const userSpecificTables = Object.keys(tableMap);
         const publicTables = ["sequence_steps"];
 
-        const userPromises = userSpecificTables.map(table =>
-            supabase.from(table).select("*").eq("user_id", appState.currentUser.id)
-        );
+        // Command center always shows only the current (or effective) user's data, never all users
+        const userId = appState.effectiveUserId || appState.currentUser.id;
+        const userPromises = userSpecificTables.map(table => supabase.from(table).select("*").eq("user_id", userId));
 
         const publicPromises = publicTables.map(table => supabase.from(table).select("*"));
         const allPromises = [...userPromises, ...publicPromises];
@@ -268,7 +269,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         for (const cs of state.contact_sequences) {
             if (cs.status !== 'Active' || !cs.current_step_number) continue;
-            if (cs.user_id !== appState.currentUser?.id) continue;
+            const effectiveId = appState.effectiveUserId || appState.currentUser?.id;
+            if (cs.user_id !== effectiveId) continue;
 
             const currentStep = state.sequence_steps.find(
                 s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number
@@ -384,6 +386,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                             btnHtml = `<button class="btn-primary btn-icon-only send-linkedin-message-btn" data-cs-id="${task.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
                         } else if (stepType.includes('email') && task.contact.email) {
                             btnHtml = `<button class="btn-primary btn-icon-only send-email-btn" data-cs-id="${task.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
+                        } else if (stepType.includes('call')) {
+                            btnHtml = `<button class="btn-primary btn-icon-only log-call-btn" data-cs-id="${task.id}" title="Log a call"><i class="fa-solid ${icon}"></i></button>`;
                         } else {
                             btnHtml = `<button class="btn-primary btn-icon-only complete-step-btn" data-cs-id="${task.id}" title="${title}"><i class="fa-solid ${icon}"></i></button>`;
                         }
@@ -435,6 +439,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 else if (typeLower.includes("linkedin")) { iconClass = "icon-linkedin"; icon = "fa-linkedin-in"; iconPrefix = "fa-brands"; }
                 const item = document.createElement("div");
                 item.className = "recent-activity-item";
+                const logSfBtnHtml = act.logged_to_sf ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
                 item.innerHTML = `
                     <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                     <div class="activity-body">
@@ -442,15 +447,95 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <div class="activity-description">${act.type}: ${act.description}</div>
                         <div class="activity-date">${formatDate(act.date)}</div>
                     </div>
+                    <div class="activity-actions">${logSfBtnHtml}</div>
                 `;
                 recentActivitiesList.appendChild(item);
             });
         }
     }
 
+    function getActivityIconInfo(act) {
+        const typeLower = (act.type || '').toLowerCase();
+        if (typeLower.includes("cognito") || typeLower.includes("intelligence")) return { iconClass: "icon-default", icon: "fa-magnifying-glass", iconPrefix: "fas" };
+        if (typeLower.includes("email")) return { iconClass: "icon-email", icon: "fa-envelope", iconPrefix: "fas" };
+        if (typeLower.includes("call")) return { iconClass: "icon-call", icon: "fa-phone", iconPrefix: "fas" };
+        if (typeLower.includes("meeting")) return { iconClass: "icon-meeting", icon: "fa-video", iconPrefix: "fas" };
+        if (typeLower.includes("linkedin")) return { iconClass: "icon-linkedin", icon: "fa-linkedin-in", iconPrefix: "fa-brands" };
+        return { iconClass: "icon-default", icon: "fa-circle-info", iconPrefix: "fas" };
+    }
+
+    function openLogCallModal(task) {
+        const contact = task.contact;
+        const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown';
+        const phone = (contact.phone || '').trim();
+        const telHref = phone ? `tel:${phone.replace(/\D/g, '')}` : '';
+        const phoneDisplay = phone || 'No phone number';
+        const phoneHtml = telHref
+            ? `<a href="${telHref}" class="log-call-phone-link">${phoneDisplay}</a>`
+            : `<span class="text-[var(--text-medium)]">${phoneDisplay}</span>`;
+
+        const contactActivities = state.activities
+            .filter(a => a.contact_id === contact.id)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 15);
+        let activitiesHtml = '';
+        contactActivities.forEach(act => {
+            const account = act.account_id ? state.accounts.find(a => a.id === act.account_id) : null;
+            const meta = account ? account.name : 'N/A';
+            const { iconClass, icon, iconPrefix } = getActivityIconInfo(act);
+            activitiesHtml += `
+                <div class="recent-activity-item">
+                    <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix} ${icon}"></i></div>
+                    <div class="activity-body">
+                        <div class="activity-meta">${meta}</div>
+                        <div class="activity-description">${act.type}: ${(act.description || '').replace(/</g, '&lt;')}</div>
+                        <div class="activity-date">${formatDate(act.date)}</div>
+                    </div>
+                </div>`;
+        });
+        if (!activitiesHtml) activitiesHtml = '<p class="text-sm text-[var(--text-medium)] py-2">No recent activities for this contact.</p>';
+
+        const bodyHtml = `
+            <div class="log-call-modal-body">
+                <p class="mb-3"><strong>${contactName.replace(/</g, '&lt;')}</strong></p>
+                <p class="mb-3">${phoneHtml}</p>
+                <label class="block text-sm font-medium mb-1">Call notes (optional)</label>
+                <textarea id="modal-call-notes" class="w-full rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm bg-[var(--bg-light)] min-h-[80px] mb-3" placeholder="Notes from the call..."></textarea>
+                <div class="log-call-recent-activities">
+                    <div class="text-xs font-semibold text-[var(--text-medium)] mb-2">Recent activities</div>
+                    <div class="log-call-activities-list max-h-[200px] overflow-y-auto space-y-2">${activitiesHtml}</div>
+                </div>
+            </div>`;
+
+        showModal('Log a call', bodyHtml, async () => {
+            const notes = (document.getElementById('modal-call-notes')?.value || '').trim();
+            const description = notes || 'Call completed';
+            await completeStep(task.id, description);
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Log</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+    }
+
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
+
+        if (recentActivitiesList) {
+            recentActivitiesList.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.btn-log-sf');
+                if (!btn) return;
+                const id = btn.getAttribute('data-activity-id');
+                if (!id) return;
+                const act = state.activities.find(a => String(a.id) === String(id));
+                if (act) {
+                    const account = act.account_id ? state.accounts.find(a => a.id === act.account_id) : null;
+                    logToSalesforce({ subject: act.description, notes: act.description, type: act.type, created_at: act.date, sf_account_locator: account?.sf_account_locator });
+                    const { error } = await supabase.from('activities').update({ logged_to_sf: true }).eq('id', act.id);
+                    if (!error) {
+                        act.logged_to_sf = true;
+                        btn.style.display = 'none';
+                    }
+                }
+            });
+        }
 
         if (aiBriefingRefreshBtn) {
             aiBriefingRefreshBtn.addEventListener('click', handleGenerateBriefing);
@@ -556,6 +641,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await supabase.from('tasks').update(updateData).eq('id', taskId);
                     await loadAllData();
                 });
+            } else if (button.matches('.log-call-btn')) {
+                const csId = Number(button.dataset.csId);
+                const cs = state.contact_sequences.find(c => c.id === csId);
+                if (!cs) return alert("Contact sequence not found.");
+                const contact = state.contacts.find(c => c.id === cs.contact_id);
+                if (!contact) return alert("Contact not found.");
+                const sequence = state.sequences.find(s => s.id === cs.sequence_id);
+                const currentStep = state.sequence_steps.find(s => s.sequence_id === cs.sequence_id && s.step_number === cs.current_step_number);
+                if (!sequence || !currentStep) return alert("Sequence step not found.");
+                const task = { id: cs.id, contact, sequence, step: currentStep };
+                openLogCallModal(task);
             } else if (button.matches('.send-email-btn')) {
                 const csId = Number(button.dataset.csId);
                 const cs = state.contact_sequences.find(c => c.id === csId);
