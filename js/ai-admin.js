@@ -2,7 +2,7 @@ import {
     SUPABASE_URL, SUPABASE_ANON_KEY, setupUserMenuAndAuth, 
     loadSVGs, updateActiveNavLink, initializeAppState, 
     setupModalListeners, setupGlobalSearch, checkAndSetNotifications,
-    injectGlobalNavigation
+    injectGlobalNavigation, hideGlobalLoader
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -192,6 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupModalListeners();
             await loadConfigs();
+            hideGlobalLoader();
 
             tabContainer.addEventListener('click', (e) => {
                 const tab = e.target.closest('.irr-tab');
@@ -240,6 +241,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             }
         } else {
+            hideGlobalLoader();
             window.location.href = "index.html";
         }
     }

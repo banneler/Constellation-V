@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -137,7 +137,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadInitialData() {
         if (!state.currentUser) return;
-        
+        showGlobalLoader();
+        try {
         const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
             supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
             supabase.from("deals").select("id, account_id, stage").eq("user_id", getState().effectiveUserId),
@@ -159,6 +160,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.dealStages = dealStagesRes.data || [];
 
         renderAccountList();
+        } finally {
+            hideGlobalLoader();
+        }
     }
 
     async function loadDetailsForSelectedAccount() {
@@ -2196,7 +2200,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         const appState = await initializeAppState(supabase);
-        if (!appState.currentUser) return;
+        if (!appState.currentUser) {
+            hideGlobalLoader();
+            return;
+        }
         state.currentUser = appState.currentUser;
 
         try {

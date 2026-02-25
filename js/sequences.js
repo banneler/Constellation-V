@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadAllData() {
         if (!state.currentUser) return;
+        showGlobalLoader();
         // Add "accounts" to the tables being fetched
         const userSpecificTables = ["sequences", "contacts", "accounts", "contact_sequences", "sequence_steps", "activities"];
         const promises = userSpecificTables.map((table) =>
@@ -89,6 +90,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {
+            hideGlobalLoader();
             renderSequenceList();
             const urlSeqId = typeof URLSearchParams !== 'undefined' && new URLSearchParams(window.location.search).get('sequenceId');
             const sequenceIdFromUrl = urlSeqId ? Number(urlSeqId) : null;
@@ -1460,7 +1462,10 @@ async function importMarketingSequence() {
         updateActiveNavLink();
 
         const appState = await initializeAppState(supabase);
-        if (!appState.currentUser) return;
+        if (!appState.currentUser) {
+            hideGlobalLoader();
+            return;
+        }
         state.currentUser = appState.currentUser;
         await setupUserMenuAndAuth(supabase, getState());
         setupPageEventListeners();

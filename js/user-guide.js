@@ -6,7 +6,8 @@ import {
     setupUserMenuAndAuth,
     initializeAppState,
     getState,
-    loadSVGs
+    loadSVGs,
+    hideGlobalLoader
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -535,6 +536,7 @@ async function initializePage() {
             if (initialSection) {
                 loadContent(initialSection.dataset.section);
             }
+            hideGlobalLoader();
         } else {
             state.currentUser = null;
             if (authContainer) authContainer.classList.remove('hidden');
@@ -545,6 +547,7 @@ async function initializePage() {
     if (!session) {
         if (authContainer) authContainer.classList.remove('hidden');
         if (mainAppContainer) mainAppContainer.classList.add('hidden');
+        hideGlobalLoader();
     }
     setupPageEventListeners();
 }

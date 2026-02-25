@@ -10,6 +10,8 @@ import {
     showModal,
     hideModal,
     showToast,
+    showGlobalLoader,
+    hideGlobalLoader,
     updateActiveNavLink,
     setupUserMenuAndAuth,
     loadSVGs,
@@ -84,6 +86,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function loadAllData() {
         if (!state.currentUser) return;
 
+        showGlobalLoader();
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isTeamView = state.dealsViewMode === 'all' && isManager;
 
@@ -119,6 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {
+            hideGlobalLoader();
             populateDealsFilters();
             render(); 
             renderDealsMetrics();
@@ -1493,6 +1497,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             await loadAllData();
         } else {
+            hideGlobalLoader();
             window.location.href = "index.html";
         }
     }

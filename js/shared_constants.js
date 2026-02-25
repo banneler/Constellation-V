@@ -339,6 +339,25 @@ export function setupModalListeners() {
     if (modalBackdrop) modalBackdrop.addEventListener("click", handleBackdropClick);
 }
 
+// --- GLOBAL LOADING OVERLAY ---
+const GLOBAL_LOADER_ID = 'global-loader-overlay';
+
+export function showGlobalLoader() {
+    const el = document.getElementById(GLOBAL_LOADER_ID);
+    if (el) {
+        el.classList.add('active');
+        el.setAttribute('aria-busy', 'true');
+    }
+}
+
+export function hideGlobalLoader() {
+    const el = document.getElementById(GLOBAL_LOADER_ID);
+    if (el) {
+        el.classList.remove('active');
+        el.setAttribute('aria-busy', 'false');
+    }
+}
+
 // --- TOAST NOTIFICATIONS ---
 export function showToast(message, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
@@ -596,10 +615,11 @@ export async function loadSVGs() {
                     continue;
                 }
                 
-                if (svgUrl.includes('logo.svg') || svgUrl.includes('c-logo.svg')) {
+                if (svgUrl.includes('logo.svg') || svgUrl.includes('c-logo.svg') || svgUrl.includes('constellation-logo')) {
                     svgElement.classList.add(placeholder.closest('#auth-container') ? 'auth-logo' : 'nav-logo');
                     if (placeholder.classList.contains('nav-logo-expanded')) svgElement.classList.add('nav-logo-expanded');
                     if (placeholder.classList.contains('nav-logo-collapsed')) svgElement.classList.add('nav-logo-collapsed');
+                    if (placeholder.classList.contains('constellation-main-logo')) svgElement.classList.add('constellation-main-logo');
                 } else if (svgUrl.includes('user-icon.svg')) {
                     svgElement.classList.add('user-icon');
                 }
@@ -619,7 +639,7 @@ let matrixProtocolActive = false;
 // --- GLOBAL NAVIGATION (central template, no theme picker) ---
 const GLOBAL_NAV_TEMPLATE = `
 <div class="nav-mobile-bar">
-    <a href="command-center.html" class="nav-mobile-logo" aria-label="Home"><div data-svg-loader="assets/logo.svg"></div></a>
+    <a href="command-center.html" class="nav-mobile-logo" aria-label="Home"><div data-svg-loader="assets/constellation-logo-full.svg" class="constellation-main-logo"></div></a>
     <button type="button" id="nav-mobile-menu-btn" class="nav-mobile-menu-btn" aria-label="Open menu" title="Menu">
         <i class="fa-solid fa-bars"></i>
     </button>
@@ -639,8 +659,8 @@ const GLOBAL_NAV_TEMPLATE = `
         <i class="fa-solid fa-chevron-left nav-collapse-icon"></i>
     </button>
     <div class="nav-logo-wrap">
-        <div class="nav-logo-expanded" data-svg-loader="assets/logo.svg"></div>
-        <div class="nav-logo-collapsed" data-svg-loader="assets/c-logo.svg"></div>
+        <div class="nav-logo-expanded constellation-main-logo" data-svg-loader="assets/constellation-logo-full.svg"></div>
+        <div class="nav-logo-collapsed constellation-main-logo" data-svg-loader="assets/constellation-logo-c.svg"></div>
     </div>
     <div class="global-search-container">
         <button type="button" id="nav-search-trigger" class="nav-search-trigger" title="Search" aria-label="Search"><i class="fa-solid fa-search global-search-trigger-icon"></i></button>

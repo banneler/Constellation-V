@@ -25,7 +25,9 @@ import {
     checkAndSetNotifications,
     formatDate,
     injectGlobalNavigation,
-    updateActiveNavLink
+    updateActiveNavLink,
+    showGlobalLoader,
+    hideGlobalLoader
 } from './shared_constants.js';
 
 // Wait for the DOM to be fully loaded before initializing
@@ -1634,11 +1636,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 10. Main Page Initialization ---
     async function initializePage() {
+        showGlobalLoader();
         injectGlobalNavigation();
         await loadSVGs();
         
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session) {
+            hideGlobalLoader();
             console.error('Authentication failed or no session found. Redirecting to login.');
             window.location.href = "index.html";
             return;
@@ -1655,8 +1659,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Start the user with one site
             handleNewProject();
             state.isFormDirty = false;
+            hideGlobalLoader();
 
         } catch (error) {
+            hideGlobalLoader();
             console.error("Critical error during page initialization:", error);
             showModal(
                 "Loading Error",

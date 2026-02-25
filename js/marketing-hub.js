@@ -12,6 +12,8 @@ import {
     initializeAppState,
     getState,
     loadSVGs,
+    showGlobalLoader,
+    hideGlobalLoader,
     updateActiveNavLink
 } from './shared_constants.js';
 import { initializeAbmSequenceEditor } from './abm-sequences.js';
@@ -203,6 +205,7 @@ async function loadAbmData() {
 
  async function loadAllData() {
     if (!state.currentUser) return;
+    showGlobalLoader();
     try {
         const [
             { data: emailTemplates, error: templatesError }, 
@@ -260,6 +263,8 @@ async function loadAbmData() {
     } catch (error) {
         console.error("Error loading data:", error.message);
         alert("Failed to load data. Please try refreshing the page. Error: " + error.message);
+    } finally {
+        hideGlobalLoader();
     }
 }
 
@@ -1433,6 +1438,7 @@ async function initializePage() {
         await loadAllData();
         window.addEventListener('effectiveUserChanged', loadAllData);
     } else {
+        hideGlobalLoader();
         window.location.href = "index.html";
     }
 }

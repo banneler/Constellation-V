@@ -9,7 +9,8 @@ import {
     loadSVGs,
     setupUserMenuAndAuth,
     initializeAppState,
-    getState
+    getState,
+    hideGlobalLoader
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -697,9 +698,10 @@ async function initializePage() {
     setupModalListeners();
     await loadSVGs();
     const appState = await initializeAppState(supabase);
-    if (!appState.currentUser) { window.location.href = "index.html"; return; }
+    if (!appState.currentUser) { hideGlobalLoader(); window.location.href = "index.html"; return; }
     state.currentUser = appState.currentUser;
     if (state.currentUser.user_metadata?.is_admin !== true) {
+        hideGlobalLoader();
         alert("Access Denied: You must be an admin to view this page.");
         window.location.href = "command-center.html";
         return;
@@ -707,6 +709,7 @@ async function initializePage() {
     await setupUserMenuAndAuth(supabase, getState());
     setupPageEventListeners();
     handleNavigation();
+    hideGlobalLoader();
 }
 
 initializePage();

@@ -17,7 +17,9 @@ import {
     initializeAppState,
     getState,
     injectGlobalNavigation,
-    logToSalesforce
+    logToSalesforce,
+    showGlobalLoader,
+    hideGlobalLoader
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -110,6 +112,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
+        } finally {
+            hideGlobalLoader();
         }
         
         const sixtyDaysAgo = new Date();
@@ -787,7 +791,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             
         } else {
-            // This case is handled by initializeAppState, but serves as a fallback
+            hideGlobalLoader();
             window.location.href = "index.html";
         }
     }

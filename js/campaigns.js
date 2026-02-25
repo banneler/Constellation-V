@@ -5,7 +5,6 @@ import {
     SUPABASE_ANON_KEY,
     formatDate,
     setupModalListeners,
-    // _rebindModalActionListeners, // This is no longer needed
     getCurrentModalCallbacks,
     setCurrentModalCallbacks,
     showModal,
@@ -15,6 +14,8 @@ import {
     initializeAppState,
     getState,
     loadSVGs,
+    showGlobalLoader,
+    hideGlobalLoader,
     setupGlobalSearch,
     checkAndSetNotifications,
     injectGlobalNavigation
@@ -1565,6 +1566,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.warn("loadAllData called without a current user. Skipping data fetch.");
             return;
         }
+        showGlobalLoader();
         try {
             const [
                  { data: campaigns, error: campaignsError },
@@ -1603,6 +1605,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch (error) {
             console.error("Error loading data:", error.message);
             alert("Failed to load page data. Please try refreshing. Error: " + error.message);
+        } finally {
+            hideGlobalLoader();
         }
     }
 
@@ -1726,7 +1730,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function initializePage() {
         await loadSVGs();
         const appState = await initializeAppState(supabase);
-        if (!appState.currentUser) return;
+        if (!appState.currentUser) {
+            hideGlobalLoader();
+            return;
+        }
         state.currentUser = appState.currentUser;
         await setupUserMenuAndAuth(supabase, getState());
         setupPageEventListeners();

@@ -8,6 +8,8 @@ import {
     initializeAppState,
     getState,
     loadSVGs,
+    showGlobalLoader,
+    hideGlobalLoader,
     setupGlobalSearch,
     updateLastVisited,
     checkAndSetNotifications,
@@ -40,6 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- DATA FETCHING ---
     async function loadSocialContent() {
         if (!state.currentUser) return;
+        showGlobalLoader();
         try {
             const { data: posts, error: postsError } = await supabase.from('social_hub_posts').select('*').order('created_at', { ascending: false });
             if (postsError) throw postsError;
@@ -52,6 +55,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderSocialContent();
         } catch (error) {
             console.error("Error fetching Social Hub content:", error);
+        } finally {
+            hideGlobalLoader();
         }
     }
 
@@ -235,7 +240,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function initializePage() {
     await loadSVGs();
     const appState = await initializeAppState(supabase);
-    if (!appState.currentUser) return;
+    if (!appState.currentUser) {
+        hideGlobalLoader();
+        return;
+    }
     state.currentUser = appState.currentUser;
     await setupUserMenuAndAuth(supabase, getState());
     updateActiveNavLink();

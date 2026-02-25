@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -288,6 +288,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
 async function loadAllData() {
     if (!state.currentUser) return;
+    showGlobalLoader();
     try {
         const [
             contactsRes,
@@ -337,6 +338,7 @@ async function loadAllData() {
     } catch (error) {
         console.error("Critical error in loadAllData:", error);
     } finally {
+        hideGlobalLoader();
         renderContactList();
         if (state.selectedContactId) {
             const updatedContact = state.contacts.find(c => c.id === state.selectedContactId);
@@ -444,8 +446,6 @@ async function loadAllData() {
 
         const itemClass = `sequence-step-item ${isPastDue ? 'past-due' : ''}`;
         const safeDesc = (description || '').replace(/</g, '&lt;');
-        const safeType = (currentStep.type || 'Step').replace(/</g, '&lt;');
-        const safeSeqName = (sequence?.name || '').replace(/</g, '&lt;');
         return `
             <div id="sequence-next-step-container" class="sequence-next-step-container">
                 <div id="sequence-next-step" class="sequence-steps-list">
@@ -455,9 +455,7 @@ async function loadAllData() {
                             <div class="sequence-step-actions">${btnHtml}</div>
                         </div>
                         <div class="sequence-step-content">
-                            <div class="sequence-step-meta">${safeType}</div>
                             <div class="sequence-step-description sequence-step-description-truncate">${safeDesc}</div>
-                            <div class="sequence-step-sequence">${safeSeqName}</div>
                         </div>
                     </div>
                 </div>
@@ -1249,24 +1247,34 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
 
         const zoominfoContactBtn = document.getElementById("zoominfo-contact-btn");
         if (zoominfoContactBtn) {
-            const ZOOMINFO_BASE = "https://app.zoominfo.com";
-            const ZOOMINFO_HASH_VARIANTS = [
-                "#/apps/search?q={q}",            // 0
-                "#/apps/search?query={q}",        // 1
-                "#/apps/advanced-search?q={q}",   // 2
-                "#/search?q={q}",                 // 3
-                "#/apps/search/query/{q}",        // 4
-            ];
-            zoominfoContactBtn.addEventListener("click", () => {
+            const ZOOMINFO_HOME = "https://app.zoominfo.com";
+            const ZOOMINFO_OPEN_DELAY_MS = 1200;
+            zoominfoContactBtn.addEventListener("click", async (e) => {
                 if (!state.selectedContactId) return;
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) return;
                 const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ").trim() || "Contact";
-                const encoded = encodeURIComponent(name);
-                ZOOMINFO_HASH_VARIANTS.forEach((template, i) => {
-                    const url = `${ZOOMINFO_BASE}${template.replace("{q}", encoded)}`;
-                    setTimeout(() => window.open(url, "_blank"), i * 200);
-                });
+                const msg = `${name} copied to clipboard... Opening ZoomInfo`;
+                try {
+                    await navigator.clipboard.writeText(name);
+                } catch (_) {}
+                const btn = e.currentTarget;
+                const rect = btn.getBoundingClientRect();
+                const toast = document.createElement("div");
+                toast.className = "toast toast-info toast-near-button";
+                toast.innerHTML = `<span>${msg}</span>`;
+                toast.style.position = "fixed";
+                toast.style.right = `${window.innerWidth - rect.left}px`;
+                toast.style.top = `${rect.bottom + 8}px`;
+                toast.style.zIndex = "1001";
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.classList.add("hide");
+                    toast.addEventListener("transitionend", () => toast.remove());
+                }, 4000);
+                setTimeout(() => {
+                    window.open(ZOOMINFO_HOME, "_blank");
+                }, ZOOMINFO_OPEN_DELAY_MS);
             });
         }
         

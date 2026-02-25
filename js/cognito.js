@@ -11,6 +11,8 @@ import {
     initializeAppState,
     getState,
     loadSVGs,
+    showGlobalLoader,
+    hideGlobalLoader,
     setupGlobalSearch,
     updateLastVisited,
     checkAndSetNotifications,
@@ -118,7 +120,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- DATA FETCHING ---
     async function loadAllData() {
         if (!state.currentUser) return;
-
+        showGlobalLoader();
+        try {
         const [
             { data: alerts, error: alertsError },
             { data: accounts, error: accountsError },
@@ -139,6 +142,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         populateAccountFilter();
         renderAlerts();
+        } finally {
+            hideGlobalLoader();
+        }
     }
 
     function populateAccountFilter() {
@@ -708,7 +714,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function initializePage() {
     await loadSVGs();
     const appState = await initializeAppState(supabase);
-    if (!appState.currentUser) return;
+    if (!appState.currentUser) {
+        hideGlobalLoader();
+        return;
+    }
     state.currentUser = appState.currentUser;
     await setupUserMenuAndAuth(supabase, getState());
     updateActiveNavLink();
