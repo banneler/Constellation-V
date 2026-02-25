@@ -13,6 +13,7 @@
 <body>
     <div class="crm-container">
         <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
             <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
         
@@ -55,13 +56,13 @@
                 <div id="refine-prompt-section" style="margin-top: 20px;">
                     <label for="custom-prompt-input">Refine with Custom Prompt:</label>
                     <input type="text" id="custom-prompt-input" placeholder="e.g., 'Make it more casual' or 'Add a question at the end'">
-                    <button class="btn-primary" id="generate-custom-btn" style="width: 100%; margin-top: 10px;">Regenerate</button>
+                    <button class="btn-primary" id="generate-custom-btn" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Regenerate</span></button>
                 </div>
             </div>
             <div id="modal-actions" class="modal-actions">
-                 <button id="copy-text-btn" class="btn-secondary">Copy Text</button>
-                 <button id="post-to-linkedin-btn" class="btn-primary">Post to LinkedIn</button>
-                 <button id="modal-close-btn" class="btn-secondary">Close</button>
+                 <button id="copy-text-btn" class="btn-secondary icon-only-btn" title="Copy Text"><i class="fa-regular fa-copy"></i></button>
+                 <button id="post-to-linkedin-btn" class="btn-primary icon-only-btn" title="Post to LinkedIn"><i class="fa-regular fa-paper-plane"></i></button>
+                 <button id="modal-close-btn" class="btn-secondary icon-only-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
     </div>

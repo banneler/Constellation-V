@@ -515,8 +515,10 @@ export async function loadSVGs() {
                     continue;
                 }
                 
-                if (svgUrl.includes('logo.svg')) {
+                if (svgUrl.includes('logo.svg') || svgUrl.includes('c-logo.svg')) {
                     svgElement.classList.add(placeholder.closest('#auth-container') ? 'auth-logo' : 'nav-logo');
+                    if (placeholder.classList.contains('nav-logo-expanded')) svgElement.classList.add('nav-logo-expanded');
+                    if (placeholder.classList.contains('nav-logo-collapsed')) svgElement.classList.add('nav-logo-collapsed');
                 } else if (svgUrl.includes('user-icon.svg')) {
                     svgElement.classList.add('user-icon');
                 }
@@ -535,65 +537,202 @@ let matrixProtocolActive = false;
 
 // --- GLOBAL NAVIGATION (central template, no theme picker) ---
 const GLOBAL_NAV_TEMPLATE = `
+<div class="nav-mobile-bar">
+    <a href="command-center.html" class="nav-mobile-logo" aria-label="Home"><div data-svg-loader="assets/logo.svg"></div></a>
+    <button type="button" id="nav-mobile-menu-btn" class="nav-mobile-menu-btn" aria-label="Open menu" title="Menu">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+</div>
+<div class="nav-mobile-overlay hidden" id="nav-mobile-overlay" aria-hidden="true"></div>
+<div id="nav-search-fanout" class="nav-search-fanout hidden" aria-hidden="true">
+    <div class="nav-search-fanout-inner">
+        <i class="fa-solid fa-search nav-search-fanout-icon"></i>
+        <input type="text" id="global-search-fanout-input" placeholder="Search..." class="nav-search-fanout-input" aria-label="Search">
+        <button type="button" id="nav-search-fanout-close" class="nav-search-fanout-close" aria-label="Close"><i class="fa-solid fa-times"></i></button>
+    </div>
+    <div id="global-search-fanout-results" class="global-search-results hidden"></div>
+</div>
+<div class="nav-drawer-content" id="nav-drawer-content">
 <div class="nav-top-section">
-    <div data-svg-loader="assets/logo.svg"></div>
+    <div class="nav-logo-wrap">
+        <div class="nav-logo-expanded" data-svg-loader="assets/logo.svg"></div>
+        <div class="nav-logo-collapsed" data-svg-loader="assets/c-logo.svg"></div>
+    </div>
     <div class="global-search-container">
+        <button type="button" id="nav-search-trigger" class="nav-search-trigger" title="Search" aria-label="Search"><i class="fa-solid fa-search global-search-trigger-icon"></i></button>
         <div class="global-search-input-wrapper">
-            <i class="fa-solid fa-magnifying-glass global-search-icon"></i>
-            <input type="text" id="global-search-input" placeholder="Search...">
+            <i class="fa-solid fa-search global-search-icon"></i>
+            <input type="text" id="global-search-input" placeholder="Search..." class="nav-search-input">
         </div>
         <div id="global-search-results" class="global-search-results hidden"></div>
     </div>
 </div>
 <div class="nav-links-section">
-    <a href="command-center.html" class="nav-button"><i class="fa-solid fa-gauge-high nav-icon"></i>Command Center</a>
-    <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i>Deals</a>
-    <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i>Contacts</a>
-    <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i>Accounts</a>
-    <a href="campaigns.html" class="nav-button"><i class="fa-solid fa-bullhorn nav-icon"></i>Campaigns</a>
-    <a href="sequences.html" class="nav-button"><i class="fa-solid fa-arrows-rotate nav-icon"></i>Sequences</a>
-    <a href="social_hub.html" class="nav-button"><i class="fa-solid fa-share-nodes nav-icon"></i>Social Hub <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
+    <a href="command-center.html" class="nav-button"><i class="fa-solid fa-gauge-high nav-icon"></i><span class="nav-label-text">Command Center</span></a>
+    <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i><span class="nav-label-text">Deals</span></a>
+    <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i><span class="nav-label-text">Contacts</span></a>
+    <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i><span class="nav-label-text">Accounts</span></a>
+    <a href="proposals.html" class="nav-button"><i class="fa-solid fa-file-lines nav-icon"></i><span class="nav-label-text">Proposals</span></a>
+    <a href="campaigns.html" class="nav-button"><i class="fa-solid fa-bullhorn nav-icon"></i><span class="nav-label-text">Campaigns</span></a>
+    <a href="sequences.html" class="nav-button"><i class="fa-solid fa-arrows-rotate nav-icon"></i><span class="nav-label-text">Sequences</span></a>
+    <a href="social_hub.html" class="nav-button"><i class="fa-solid fa-share-nodes nav-icon"></i><span class="nav-label-text">Social Hub</span> <i class="fa-solid fa-bell nav-notification-dot hidden" id="social_hub-notification"></i></a>
+</div>
+<div class="nav-cognito-wrap">
+    <a href="cognito.html" class="nav-button cognito-nav-btn" title="Cognito">
+        <span class="cognito-icon-collapsed"><i class="fa-solid fa-magnifying-glass nav-icon"></i></span>
+        <span class="nav-label-text cognito-text"><h1>C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#60a5fa;"></stop><stop offset="100%" style="stop-color:#3b82f6;"></stop></linearGradient></defs><g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round"><path d="M32.2,32.2 L45,45"></path><circle cx="20" cy="20" r="15"></circle></g></svg>gnito</h1></span>
+    </a>
+    <i class="fa-solid fa-bell nav-notification-dot hidden" id="cognito-notification"></i>
 </div>
 <div class="nav-bottom-section">
-    <div style="position: relative;">
-        <a href="cognito.html" class="nav-button cognito-nav-link">
-            <h1>
-                C<svg class="cognito-logo-magnifying-glass" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" style="stop-color:#60a5fa;"></stop>
-                            <stop offset="100%" style="stop-color:#3b82f6;"></stop>
-                        </linearGradient>
-                    </defs>
-                    <g fill="none" stroke="url(#glassGradient)" stroke-width="5" stroke-linecap="round">
-                        <path d="M32.2,32.2 L45,45"></path>
-                        <circle cx="20" cy="20" r="15"></circle>
-                    </g>
-                </svg>gnito
-            </h1>
-        </a>
-        <i class="fa-solid fa-bell nav-notification-dot hidden" id="cognito-notification"></i>
-    </div>
     <div class="user-menu">
-        <div id="user-menu-popup" class="user-menu-content">
-            <a href="user-guide.html" class="nav-button"><i class="fa-solid fa-book nav-icon"></i>User Guide</a>
+        <button type="button" id="nav-menu-toggle" class="nav-button nav-menu-toggle" title="Menu" aria-label="Menu" aria-expanded="false">
+            <i class="fa-solid fa-bars nav-icon"></i>
+            <span class="nav-label-text">Menu</span>
+            <i class="fa-solid fa-chevron-down nav-menu-chevron"></i>
+        </button>
+        <div id="user-menu-popup" class="user-menu-content user-menu-collapsed">
+            <a href="user-guide.html" class="nav-button"><i class="fa-solid fa-book nav-icon"></i><span class="nav-label-text">User Guide</span></a>
             <div class="user-menu-downloads">
                 <span class="user-menu-downloads-label">CSV Templates</span>
                 <a href="contacts_template.csv" class="user-menu-download-link" download>Contacts</a>
                 <a href="accounts_template.csv" class="user-menu-download-link" download>Accounts</a>
                 <a href="sequence_steps_template.csv" class="user-menu-download-link" download>Sequence Steps</a>
             </div>
-            <button id="logout-btn" class="nav-button nav-button-logout"><i class="fa-solid fa-right-from-bracket nav-icon"></i>Logout</button>
+            <button id="logout-btn" class="nav-button nav-button-logout"><i class="fa-solid fa-right-from-bracket nav-icon"></i><span class="nav-label-text">Logout</span></button>
         </div>
     </div>
+    <button type="button" id="nav-collapse-toggle" class="nav-button nav-collapse-toggle" title="Collapse sidebar" aria-label="Collapse sidebar">
+        <i class="fa-solid fa-chevron-left nav-icon nav-collapse-icon"></i>
+        <span class="nav-label-text">Collapse</span>
+    </button>
+</div>
 </div>
 `;
+
+const NAV_COLLAPSED_KEY = 'crm-nav-collapsed';
 
 export function injectGlobalNavigation() {
     const container = document.getElementById('global-nav-container');
     if (!container) return;
 
     container.innerHTML = GLOBAL_NAV_TEMPLATE;
+
+    const navSidebar = container.closest('.nav-sidebar');
+    const toggleBtn = document.getElementById('nav-collapse-toggle');
+
+    const setCollapsed = (collapsed) => {
+        if (!navSidebar) return;
+        if (collapsed) {
+            navSidebar.classList.add('nav-sidebar-collapsed');
+            try { localStorage.setItem(NAV_COLLAPSED_KEY, '1'); } catch (_) {}
+        } else {
+            navSidebar.classList.remove('nav-sidebar-collapsed');
+            try { localStorage.removeItem(NAV_COLLAPSED_KEY); } catch (_) {}
+        }
+        if (toggleBtn) {
+            const icon = toggleBtn.querySelector('.nav-collapse-icon');
+            if (icon) icon.className = `fa-solid ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'} nav-icon nav-collapse-icon`;
+            toggleBtn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        }
+    };
+
+    const isCollapsed = () => {
+        try { return localStorage.getItem(NAV_COLLAPSED_KEY) === '1'; } catch (_) { return false; }
+    };
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => setCollapsed(!navSidebar?.classList.contains('nav-sidebar-collapsed')));
+    }
+
+    if (navSidebar && isCollapsed()) {
+        setCollapsed(true);
+    }
+
+    const searchTrigger = document.getElementById('nav-search-trigger');
+    const searchFanout = document.getElementById('nav-search-fanout');
+    const searchFanoutInput = document.getElementById('global-search-fanout-input');
+    const searchFanoutClose = document.getElementById('nav-search-fanout-close');
+    const openSearchFanout = () => {
+        if (searchFanout) { searchFanout.classList.remove('hidden'); searchFanout.setAttribute('aria-hidden', 'false'); }
+        if (searchFanoutInput) { searchFanoutInput.value = ''; searchFanoutInput.focus(); }
+        if (navSidebar?.classList.contains('nav-sidebar-collapsed')) navSidebar.classList.add('search-fanout-open');
+    };
+    const closeSearchFanout = () => {
+        if (searchFanout) { searchFanout.classList.add('hidden'); searchFanout.setAttribute('aria-hidden', 'true'); }
+        if (searchFanoutInput) searchFanoutInput.value = '';
+        const fanoutResults = document.getElementById('global-search-fanout-results');
+        if (fanoutResults) fanoutResults.classList.add('hidden');
+        navSidebar?.classList.remove('search-fanout-open');
+    };
+    const menuToggle = document.getElementById('nav-menu-toggle');
+    const userMenuContent = document.getElementById('user-menu-popup');
+    const userMenu = document.querySelector('.user-menu');
+    const closeUserMenu = () => {
+        if (userMenuContent && !userMenuContent.classList.contains('user-menu-collapsed')) {
+            userMenuContent.classList.add('user-menu-collapsed');
+            menuToggle?.setAttribute('aria-expanded', 'false');
+            const chevron = menuToggle?.querySelector('.nav-menu-chevron');
+            if (chevron) chevron.className = 'fa-solid fa-chevron-down nav-menu-chevron';
+            navSidebar?.classList.remove('user-menu-open');
+        }
+    };
+    if (menuToggle && userMenuContent) {
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userMenuContent.classList.toggle('user-menu-collapsed');
+            const isOpen = !userMenuContent.classList.contains('user-menu-collapsed');
+            menuToggle.setAttribute('aria-expanded', isOpen);
+            const chevron = menuToggle.querySelector('.nav-menu-chevron');
+            if (chevron) chevron.className = `fa-solid fa-chevron-${isOpen ? 'up' : 'down'} nav-menu-chevron`;
+            navSidebar?.classList.toggle('user-menu-open', isOpen);
+        });
+        document.addEventListener('click', (e) => {
+            if (userMenu && !userMenu.contains(e.target)) closeUserMenu();
+        });
+    }
+
+    if (searchTrigger) searchTrigger.addEventListener('click', (e) => { e.stopPropagation(); openSearchFanout(); });
+    if (searchFanoutClose) searchFanoutClose.addEventListener('click', closeSearchFanout);
+    if (searchFanout) {
+        searchFanout.addEventListener('click', (e) => { if (e.target === searchFanout) closeSearchFanout(); });
+        document.addEventListener('click', (e) => {
+            if (navSidebar?.classList.contains('search-fanout-open') && !searchFanout?.contains(e.target) && !searchTrigger?.contains(e.target)) closeSearchFanout();
+        });
+        const fanoutResultsEl = document.getElementById('global-search-fanout-results');
+        if (fanoutResultsEl) fanoutResultsEl.addEventListener('click', (e) => { if (e.target.closest('a')) closeSearchFanout(); });
+        searchFanoutInput?.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSearchFanout(); });
+    }
+
+    const mobileMenuBtn = document.getElementById('nav-mobile-menu-btn');
+    const mobileOverlay = document.getElementById('nav-mobile-overlay');
+    const navDrawer = document.getElementById('nav-drawer-content');
+    const openMobileMenu = () => {
+        navSidebar?.classList.add('nav-mobile-open');
+        if (mobileOverlay) { mobileOverlay.classList.remove('hidden'); mobileOverlay.setAttribute('aria-hidden', 'false'); }
+        if (mobileMenuBtn) {
+            const icon = mobileMenuBtn.querySelector('i');
+            if (icon) icon.className = 'fa-solid fa-times';
+            mobileMenuBtn.setAttribute('aria-label', 'Close menu');
+        }
+    };
+    const closeMobileMenu = () => {
+        navSidebar?.classList.remove('nav-mobile-open');
+        if (mobileOverlay) { mobileOverlay.classList.add('hidden'); mobileOverlay.setAttribute('aria-hidden', 'true'); }
+        if (mobileMenuBtn) {
+            const icon = mobileMenuBtn.querySelector('i');
+            if (icon) icon.className = 'fa-solid fa-bars';
+            mobileMenuBtn.setAttribute('aria-label', 'Open menu');
+        }
+    };
+    if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', () => navSidebar?.classList.contains('nav-mobile-open') ? closeMobileMenu() : openMobileMenu());
+    if (mobileOverlay) mobileOverlay.addEventListener('click', closeMobileMenu);
+    if (navDrawer) {
+        navDrawer.querySelectorAll('a.nav-button[href]').forEach((a) => a.addEventListener('click', closeMobileMenu));
+        const logoutBtn = navDrawer.querySelector('#logout-btn');
+        if (logoutBtn) logoutBtn.addEventListener('click', closeMobileMenu);
+    }
 
     const currentPage = (window.location.pathname || '').split('/').pop() || window.location.href;
     container.querySelectorAll('a.nav-button[href]').forEach((a) => {
@@ -603,85 +742,71 @@ export function injectGlobalNavigation() {
             a.classList.add('active');
         }
     });
-
 }
 
 // --- GLOBAL SEARCH FUNCTION ---
 export async function setupGlobalSearch(supabase) {
     const searchInput = document.getElementById('global-search-input');
     const searchResultsContainer = document.getElementById('global-search-results');
+    const fanoutInput = document.getElementById('global-search-fanout-input');
+    const fanoutResults = document.getElementById('global-search-fanout-results');
     let searchTimeout;
 
-    if (!searchInput || !searchResultsContainer) {
+    const inputs = [searchInput, fanoutInput].filter(Boolean);
+    const resultContainers = [searchResultsContainer, fanoutResults].filter(Boolean);
+
+    if (inputs.length === 0 || !searchResultsContainer) {
         console.warn("Global search elements not found on this page.");
         return;
     }
 
-    // Easter egg trigger: \"matrix\" => Matrix Protocol
-    searchInput.addEventListener('input', (event) => {
-        const value = event.target.value.trim().toLowerCase();
-        if (value === 'matrix' && !matrixProtocolActive) {
-            // Clear, blur, and trigger the protocol
-            event.target.value = '';
-            event.target.blur();
-            triggerMatrixProtocol();
-        }
-    });
-
-    searchInput.addEventListener('keyup', (e) => {
-        clearTimeout(searchTimeout);
-        const searchTerm = e.target.value.trim();
-
-        if (searchTerm.length < 2) {
-            searchResultsContainer.classList.add('hidden');
-            return;
-        }
-
-        searchTimeout = setTimeout(() => {
-            performSearch(searchTerm);
-        }, 300);
-    });
-
-    async function performSearch(term) {
-        searchResultsContainer.innerHTML = '<div class="search-result-item">Searching...</div>';
-        searchResultsContainer.classList.remove('hidden');
-
-        try {
-            const { data: results, error } = await supabase.functions.invoke('global-search', {
-                body: { searchTerm: term }
-            });
-
-            if (error) {
-                throw error;
+    function attachSearchListeners(inputEl, resultsEl) {
+        if (!inputEl || !resultsEl) return;
+        inputEl.addEventListener('input', (event) => {
+            const value = event.target.value.trim().toLowerCase();
+            if (value === 'matrix' && !matrixProtocolActive) {
+                event.target.value = '';
+                event.target.blur();
+                triggerMatrixProtocol();
             }
+        });
+        inputEl.addEventListener('keyup', (e) => {
+            clearTimeout(searchTimeout);
+            const searchTerm = e.target.value.trim();
+            if (searchTerm.length < 2) {
+                resultsEl.classList.add('hidden');
+                return;
+            }
+            searchTimeout = setTimeout(() => performSearch(searchTerm, resultsEl), 300);
+        });
+    }
 
-            renderResults(results || []);
-
+    async function performSearch(term, resultsContainer) {
+        const target = resultsContainer || searchResultsContainer;
+        target.innerHTML = '<div class="search-result-item">Searching...</div>';
+        target.classList.remove('hidden');
+        try {
+            const { data: results, error } = await supabase.functions.invoke('global-search', { body: { searchTerm: term } });
+            if (error) throw error;
+            if (results.length === 0) {
+                target.innerHTML = '<div class="search-result-item">No results found.</div>';
+            } else {
+                target.innerHTML = results.map(r => `<a href="${r.url}" class="search-result-item"><span class="result-type">${r.type}</span><span class="result-name">${r.name}</span></a>`).join('');
+            }
         } catch (error) {
             console.error("Error invoking global-search function:", error);
-            searchResultsContainer.innerHTML = `<div class="search-result-item">Error: ${error.message}</div>`;
+            target.innerHTML = `<div class="search-result-item">Error: ${error.message}</div>`;
         }
     }
 
-    function renderResults(results) {
-        if (results.length === 0) {
-            searchResultsContainer.innerHTML = '<div class="search-result-item">No results found.</div>';
-            return;
-        }
+    attachSearchListeners(searchInput, searchResultsContainer);
+    if (fanoutInput && fanoutResults) attachSearchListeners(fanoutInput, fanoutResults);
 
-        searchResultsContainer.innerHTML = results.map(result => `
-            <a href="${result.url}" class="search-result-item">
-                <span class="result-type">${result.type}</span>
-                <span class="result-name">${result.name}</span>
-            </a>
-        `).join('');
-    }
-
-    // This is the corrected event listener.
     document.addEventListener('click', (e) => {
         const searchContainer = document.querySelector('.global-search-container');
-        if (searchContainer && !searchContainer.contains(e.target)) {
-            searchResultsContainer.classList.add('hidden');
+        const fanout = document.getElementById('nav-search-fanout');
+        if (searchContainer && !searchContainer.contains(e.target) && !fanout?.contains(e.target)) {
+            resultContainers.forEach(rc => rc?.classList.add('hidden'));
         }
     });
 }

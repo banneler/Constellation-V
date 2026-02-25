@@ -500,9 +500,9 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
                     <label for="template-subject">Subject:</label><input type="text" id="template-subject" value="${template.subject || ''}">
                     <label for="template-body">Email Body:</label>
                     <div class="merge-fields-buttons">
-                        <button type="button" class="btn-secondary" data-field="[FirstName]">First Name</button>
-                        <button type="button" class="btn-secondary" data-field="[LastName]">Last Name</button>
-                        <button type="button" class="btn-secondary" data-field="[AccountName]">Account Name</button>
+                        <button type="button" class="btn-secondary" data-field="[FirstName]">First</button>
+                        <button type="button" class="btn-secondary" data-field="[LastName]">Last</button>
+                        <button type="button" class="btn-secondary" data-field="[AccountName]">Account</button>
                     </div>
                     <textarea id="template-body" rows="10">${template.body || ''}</textarea>
                     <div class="form-buttons">
@@ -521,9 +521,9 @@ async function handleCompleteAbmTask(contactSequenceStepId) {
                     <label for="template-subject">Subject:</label><input type="text" id="template-subject" value="">
                     <label for="template-body">Email Body:</label>
                     <div class="merge-fields-buttons">
-                        <button type="button" class="btn-secondary" data-field="[FirstName]">First Name</button>
-                        <button type="button" class="btn-secondary" data-field="[LastName]">Last Name</button>
-                        <button type="button" class="btn-secondary" data-field="[AccountName]">Account Name</button>
+                        <button type="button" class="btn-secondary" data-field="[FirstName]">First</button>
+                        <button type="button" class="btn-secondary" data-field="[LastName]">Last</button>
+                        <button type="button" class="btn-secondary" data-field="[AccountName]">Account</button>
                     </div>
                     <textarea id="template-body" rows="10"></textarea>
                     <div class="form-buttons">

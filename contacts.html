@@ -16,6 +16,7 @@
 <body>
     <div class="crm-container">
         <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
             <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
 
@@ -26,20 +27,22 @@
                     <div class="contact-picker-header">
                         <h2 class="section-title">Contacts</h2>
                     </div>
+                    <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+                    <input type="file" id="contact-csv-input" accept=".csv" class="hidden">
                     <div class="contact-picker-body">
-                        <button id="add-contact-btn" class="btn-primary full-width">Add New Contact</button>
-                        <button id="import-contact-screenshot-btn" class="btn-secondary full-width">Import Contact Screenshot</button>
-                        <button id="take-picture-btn" class="btn-secondary full-width mobile-only">Take Picture of Signature</button>
-                        <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
-                        <button id="bulk-import-contacts-btn" class="btn-secondary full-width">Bulk Import from CSV</button>
-                        <input type="file" id="contact-csv-input" accept=".csv" class="hidden">
-                        <button id="bulk-export-contacts-btn" class="btn-secondary full-width">Download Contacts CSV</button>
                         <input type="text" id="contact-search" placeholder="Search by name, email...">
                         <div class="display-toggle-container">
                             <button id="sort-first-last-btn" class="btn-secondary">First Name</button>
                             <button id="sort-last-first-btn" class="btn-secondary">Last Name</button>
                         </div>
                         <div id="contact-list" class="contact-picker-list"></div>
+                    </div>
+                    <div class="contact-picker-actions">
+                        <button id="add-contact-btn" class="btn-icon contact-picker-icon" title="Add New Contact"><i class="fas fa-plus"></i></button>
+                        <button id="import-contact-screenshot-btn" class="btn-icon contact-picker-icon" title="Import Contact Screenshot"><i class="fas fa-image"></i></button>
+                        <button id="bulk-import-contacts-btn" class="btn-icon contact-picker-icon" title="Bulk Import from CSV"><i class="fas fa-file-import"></i></button>
+                        <button id="take-picture-btn" class="btn-icon contact-picker-icon mobile-only" title="Take Picture of Signature"><i class="fas fa-camera"></i></button>
+                        <button id="bulk-export-contacts-btn" class="btn-icon contact-picker-icon" title="Download Contacts CSV"><i class="fas fa-file-export"></i></button>
                     </div>
                 </div>
                 <div id="contact-details" class="details-panel contact-details-content">

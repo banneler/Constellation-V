@@ -15,6 +15,7 @@
 <body>
     <div class="crm-container">
        <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
             <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
         
@@ -27,7 +28,7 @@
                     <div class="section-card ai-briefing-card">
                         <div class="section-card-header flex justify-between items-center gap-3">
                             <h2 class="section-title">AI Daily Briefing</h2>
-                            <button type="button" id="ai-briefing-refresh-btn" class="btn-secondary text-xs py-1.5 px-2.5">Refresh</button>
+                            <button type="button" id="ai-briefing-refresh-btn" class="btn-primary btn-icon-header" title="Refresh Briefing"><i class="fas fa-rotate-right"></i></button>
                         </div>
                         <div id="ai-briefing-container" class="ai-briefing-content hidden"></div>
                         <div id="ai-briefing-placeholder" class="ai-briefing-placeholder px-4 pb-4 text-sm text-[var(--text-medium)]">Loading your briefing...</div>
@@ -35,8 +36,8 @@
                     <div class="section-card my-tasks-card" id="my-tasks-card">
                         <div class="section-card-header flex justify-between items-center gap-3">
                             <h2 class="section-title">My Tasks</h2>
-                            <button type="button" id="my-tasks-hamburger" class="my-tasks-hamburger btn-secondary text-xs py-1.5 px-2.5" title="Add task" aria-label="Add task">
-                                <i class="fa-solid fa-bars"></i>
+                            <button type="button" id="my-tasks-hamburger" class="my-tasks-hamburger btn-primary btn-icon-header" title="Add task" aria-label="Add task">
+                                <i class="fa-solid fa-plus"></i>
                             </button>
                         </div>
                         <div class="my-tasks-body">

@@ -362,7 +362,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 myTasksCard.classList.remove('quick-add-hidden', 'hamburger-expanded');
                 const icon = hamburgerBtn.querySelector('i');
-                if (icon) icon.className = 'fa-solid fa-bars';
+                if (icon) icon.className = 'fa-solid fa-plus';
                 hamburgerBtn.setAttribute('title', 'Add task');
                 hamburgerBtn.setAttribute('aria-label', 'Add task');
             }
@@ -440,15 +440,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const contactName = contact ? `${contact.first_name} ${contact.last_name}` : "N/A";
                 const meta = `${accountName} · ${contactName}`;
                 const typeLower = act.type.toLowerCase();
-                let iconClass = "icon-default", icon = "fa-circle-info";
+                let iconClass = "icon-default", icon = "fa-circle-info", iconPrefix;
                 if (typeLower.includes("cognito") || typeLower.includes("intelligence")) { icon = "fa-magnifying-glass"; }
                 else if (typeLower.includes("email")) { iconClass = "icon-email"; icon = "fa-envelope"; }
                 else if (typeLower.includes("call")) { iconClass = "icon-call"; icon = "fa-phone"; }
                 else if (typeLower.includes("meeting")) { iconClass = "icon-meeting"; icon = "fa-video"; }
+                else if (typeLower.includes("linkedin")) { iconClass = "icon-linkedin"; icon = "fa-linkedin-in"; iconPrefix = "fa-brands"; }
                 const item = document.createElement("div");
                 item.className = "recent-activity-item";
                 item.innerHTML = `
-                    <div class="activity-icon-wrap ${iconClass}"><i class="fas ${icon}"></i></div>
+                    <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                     <div class="activity-body">
                         <div class="activity-meta">${meta}</div>
                         <div class="activity-description">${act.type}: ${act.description}</div>
@@ -499,7 +500,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const isExpanded = card.classList.toggle('hamburger-expanded');
                 const icon = myTasksHamburger.querySelector('i');
                 if (icon) {
-                    icon.className = isExpanded ? 'fa-solid fa-times' : 'fa-solid fa-bars';
+                    icon.className = isExpanded ? 'fa-solid fa-times' : 'fa-solid fa-plus';
                 }
                 myTasksHamburger.setAttribute('title', isExpanded ? 'Close' : 'Add task');
                 myTasksHamburger.setAttribute('aria-label', isExpanded ? 'Close' : 'Add task');

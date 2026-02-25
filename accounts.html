@@ -18,6 +18,7 @@
 <body>
     <div class="crm-container">
         <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
             <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
         <main class="content-area">
@@ -26,11 +27,8 @@
                     <div class="account-picker-header">
                         <h2 class="section-title">Accounts</h2>
                     </div>
+                    <input type="file" id="account-csv-input" accept=".csv" class="hidden">
                     <div class="account-picker-body">
-                        <button id="add-account-btn" class="btn-primary full-width">Add New Account</button>
-                        <button id="bulk-import-accounts-btn" class="btn-secondary full-width">Bulk Import from CSV</button>
-                        <button id="bulk-export-accounts-btn" class="btn-secondary full-width">Bulk Export to CSV</button>
-                        <input type="file" id="account-csv-input" accept=".csv" class="hidden">
                         <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
                         <div id="account-filter-icons" class="account-filter-icons" role="group" aria-label="Filter accounts">
                             <button type="button" class="account-filter-icon active" data-filter="all" title="All Accounts"><i class="fas fa-layer-group"></i></button>
@@ -40,6 +38,11 @@
                             <button type="button" class="account-filter-icon" data-filter="prospect" title="Prospects"><i class="fas fa-user-plus"></i></button>
                         </div>
                         <div id="account-list" class="item-list"></div>
+                    </div>
+                    <div class="account-picker-actions">
+                        <button id="add-account-btn" class="btn-icon account-picker-icon" title="Add New Account"><i class="fas fa-plus"></i></button>
+                        <button id="bulk-import-accounts-btn" class="btn-icon account-picker-icon" title="Bulk Import from CSV"><i class="fas fa-file-import"></i></button>
+                        <button id="bulk-export-accounts-btn" class="btn-icon account-picker-icon" title="Bulk Export to CSV"><i class="fas fa-file-export"></i></button>
                     </div>
                 </div>
                 <div id="account-details" class="details-panel account-details-content">

@@ -433,15 +433,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             activities.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((act) => {
                 const c = contacts.find((c) => c.id === act.contact_id);
                 const typeLower = act.type.toLowerCase();
-                let iconClass = "icon-default", icon = "fa-circle-info";
+                let iconClass = "icon-default", icon = "fa-circle-info", iconPrefix;
                 if (typeLower.includes("cognito") || typeLower.includes("intelligence")) { icon = "fa-magnifying-glass"; }
                 else if (typeLower.includes("email")) { iconClass = "icon-email"; icon = "fa-envelope"; }
                 else if (typeLower.includes("call")) { iconClass = "icon-call"; icon = "fa-phone"; }
                 else if (typeLower.includes("meeting")) { iconClass = "icon-meeting"; icon = "fa-video"; }
+                else if (typeLower.includes("linkedin")) { iconClass = "icon-linkedin"; icon = "fa-linkedin-in"; iconPrefix = "fa-brands"; }
                 const item = document.createElement("div");
                 item.className = "recent-activity-item";
                 item.innerHTML = `
-                    <div class="activity-icon-wrap ${iconClass}"><i class="fas ${icon}"></i></div>
+                    <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                     <div class="activity-body">
                         <div class="activity-meta">${act.type} with ${c ? `${c.first_name} ${c.last_name}` : "Unknown"}</div>
                         <div class="activity-description">${act.description}</div>

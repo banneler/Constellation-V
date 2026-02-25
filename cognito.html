@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategic - CRM - Cognito</title>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/css/tom-select.css" rel="stylesheet">
     <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,6 +14,7 @@
 <body>
     <div class="crm-container">
         <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
             <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
         
@@ -22,8 +24,7 @@
                     <div class="section-card-header flex justify-between items-center gap-3">
                         <h2 class="page-title">Cognito Intelligence</h2>
                         <div class="deals-view-toggle">
-                    <button id="view-dashboard-btn" class="btn-secondary active">New Alerts</button>
-                    <button id="view-archive-btn" class="btn-secondary">Intelligence Archive</button>
+                    <button id="view-mode-toggle-btn" class="btn-secondary cognito-view-toggle-btn" data-target-mode="archive"><i class="fa-solid fa-box-archive"></i><span>View Archive</span></button>
                         </div>
                     </div>
                     <div class="px-5 pb-5">
@@ -131,6 +132,7 @@
         document.body.className = `theme-${savedTheme}`;
     })();
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>
     <script type="module" src="js/cognito.js"></script>
 </body>
 </html>

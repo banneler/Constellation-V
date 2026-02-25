@@ -68,6 +68,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         else { marketingPosts.forEach(item => marketingContainer.appendChild(createSocialCard(item))); }
     }
 
+    async function fetchSuggestedPost(item) {
+        if (item.type === 'marketing_post') return item.approved_copy || '';
+        const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
+        if (error) {
+            console.error("Edge function error:", error);
+            return "Error generating suggestion. Please write your own or try again.";
+        }
+        return data?.suggestion || "No suggestion returned. Please write your own.";
+    }
+
+    function setCardLoadingState(card, isLoading, message = 'Generating AI post suggestion...') {
+        if (!card) return;
+        if (isLoading) {
+            card.dataset.originalHtml = card.innerHTML;
+            card.classList.add('social-card-loading');
+            card.innerHTML = `
+                <div class="social-card-loading-state">
+                    <div class="social-card-loading-spinner" aria-hidden="true"></div>
+                    <p class="social-card-loading-title">Preparing Post</p>
+                    <p class="social-card-loading-subtitle">${message}</p>
+                </div>
+            `;
+            return;
+        }
+        if (card.dataset.originalHtml) {
+            card.innerHTML = card.dataset.originalHtml;
+            delete card.dataset.originalHtml;
+        }
+        card.classList.remove('social-card-loading');
+    }
+
     function createSocialCard(item) {
         const headline = item.title;
         const link = item.link;
@@ -80,55 +111,55 @@ document.addEventListener("DOMContentLoaded", async () => {
         card.className = 'alert-card';
         card.id = `post-card-${item.id}`;
 
-        // Create the card structure but leave the summary paragraph empty for now
         card.innerHTML = `
             <div class="alert-header"><span class="alert-trigger-type">${triggerType}</span></div>
             <h5 class="alert-headline">${headline} ${dynamicLinkIndicator}</h5>
-            <p class="alert-summary"></p> 
+            <p class="alert-summary"></p>
             <div class="alert-footer">
                 <span class="alert-source">Source: <a href="${link}" target="_blank">${sourceName}</a></span>
                 <span class="alert-date">${formatDate(item.created_at)}</span>
             </div>
             <div class="alert-actions">
-                <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}">Dismiss</button>
-                <button class="btn-primary prepare-post-btn" data-post-id="${item.id}">Prepare Post</button>
+                <button class="btn-primary prepare-post-btn" data-post-id="${item.id}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Prepare Post</span></button>
+                <button class="btn-secondary dismiss-post-btn" data-post-id="${item.id}"><i class="fa-solid fa-xmark"></i><span>Dismiss</span></button>
             </div>
         `;
 
-        // --- THIS IS THE FIX ---
-        // Find the empty summary paragraph.
         const summaryP = card.querySelector('.alert-summary');
-        // Replace newline characters (\n) with HTML line break tags (<br>)
         const formattedSummary = summary.replace(/\n/g, '<br>');
-        // Set the innerHTML with the formatted text.
         summaryP.innerHTML = formattedSummary;
 
-        // Re-attach event listeners
-        card.querySelector('.prepare-post-btn').addEventListener('click', () => openPostModal(item));
-        card.querySelector('.dismiss-post-btn').addEventListener('click', () => handleDismissPost(item.id));
+        const prepareBtn = card.querySelector('.prepare-post-btn');
+        const dismissBtn = card.querySelector('.dismiss-post-btn');
+
+        prepareBtn.addEventListener('click', async () => {
+            setCardLoadingState(card, true);
+            const suggestion = await fetchSuggestedPost(item);
+            setCardLoadingState(card, false);
+            openPostModal(item, suggestion, '');
+        });
+
+        dismissBtn.addEventListener('click', () => handleDismissPost(item.id));
         return card;
     }
 
     // --- MODAL & ACTION LOGIC ---
-    async function openPostModal(item) {
+    async function openPostModal(item, prefetchedText = null, prefetchedPrompt = '') {
         modalTitle.textContent = item.title;
         modalArticleLink.href = item.link;
         modalArticleLink.textContent = item.link;
         postToLinkedInBtn.dataset.url = item.link;
+        customPromptInput.value = prefetchedPrompt || '';
 
-        postTextArea.value = "Generating AI suggestion...";
+        postTextArea.value = prefetchedText || "Generating AI suggestion...";
         modalBackdrop.classList.remove('hidden');
 
         if (item.type === 'marketing_post') {
-            postTextArea.value = item.approved_copy; // Use pre-approved copy directly
+            postTextArea.value = prefetchedText || item.approved_copy; // Use pre-approved copy directly
         } else {
-            // Call the Edge Function to get an initial suggestion
-            const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
-            if (error) {
-                postTextArea.value = "Error generating suggestion. Please write your own or try again.";
-                console.error("Edge function error:", error);
-            } else {
-                postTextArea.value = data.suggestion;
+            if (!prefetchedText || prefetchedText === 'Generating AI suggestion...') {
+                const suggestion = await fetchSuggestedPost(item);
+                postTextArea.value = suggestion;
             }
         }
     }
@@ -157,8 +188,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     
         copyTextBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(postTextArea.value).then(() => {
-                copyTextBtn.textContent = 'Copied!';
-                setTimeout(() => { copyTextBtn.textContent = 'Copy Text'; }, 2000);
+                copyTextBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                copyTextBtn.title = 'Copied';
+                setTimeout(() => {
+                    copyTextBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+                    copyTextBtn.title = 'Copy Text';
+                }, 2000);
             });
         });
 
@@ -177,7 +212,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            generateCustomBtn.textContent = 'Regenerating...';
+            generateCustomBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Regenerating...</span>';
             generateCustomBtn.disabled = true;
 
             const { data, error } = await supabase.functions.invoke('refine-social-post', { body: { originalText, customPrompt } });
@@ -189,7 +224,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 customPromptInput.value = ''; // Clear prompt input
             }
 
-            generateCustomBtn.textContent = 'Regenerate';
+            generateCustomBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i><span>Regenerate</span>';
             generateCustomBtn.disabled = false;
         });
     }
