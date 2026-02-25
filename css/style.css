@@ -184,8 +184,11 @@ body.theme-green::before {
 .nav-logo {
     height: auto;
     margin-bottom: 0.75rem;
-    filter: drop-shadow(0 0 7px var(--primary-blue));
     transition: filter 0.3s;
+}
+.nav-logo:not(.constellation-main-logo):not(.nav-logo-collapsed),
+.auth-logo {
+    filter: drop-shadow(0 0 7px var(--primary-blue));
 }
 
 /* Width for the larger logo on the Login/Auth page */
@@ -199,19 +202,29 @@ body.theme-green::before {
     margin: 0 auto 0.625rem auto;
     display: block;
 }
-.nav-logo path[fill="#FEFEFE"],
+
+/* Constellation main logo in sidebar: scale to fit; no glow, keep SVG colors */
+.constellation-main-logo {
+    max-width: 180px;
+    height: auto;
+    display: block;
+    margin: 0 auto 0.625rem auto;
+    filter: none !important;
+}
+/* Legacy logo path overrides (do not apply to Constellation logos) */
+.nav-logo:not(.constellation-main-logo) path[fill="#FEFEFE"],
 .auth-logo path[fill="#FEFEFE"] {
     fill: var(--logo-primary-color);
     transition: fill 0.3s;
 }
 
-.nav-logo path[fill="#010101"],
+.nav-logo:not(.constellation-main-logo) path[fill="#010101"],
 .auth-logo path[fill="#010101"] {
     fill: #FFFFFF !important;
     transition: fill 0.3s;
 }
 
-body.theme-green .nav-logo path[fill="#010101"],
+body.theme-green .nav-logo:not(.constellation-main-logo) path[fill="#010101"],
 body.theme-green .auth-logo path[fill="#010101"] {
     fill: var(--logo-secondary-color) !important;
 }
@@ -2957,7 +2970,7 @@ body.theme-corporate .auth-logo,
 body.theme-corporate .nav-logo {
     filter: none !important;
 }
-body.theme-corporate .nav-logo path[fill="#FEFEFE"],
+body.theme-corporate .nav-logo:not(.constellation-main-logo) path[fill="#FEFEFE"],
 body.theme-corporate .auth-logo path[fill="#FEFEFE"] {
     fill: #008080 !important; 
 }
@@ -4464,4 +4477,84 @@ div.briefing-pre {
     color: var(--text-medium);
     white-space: nowrap;
     font-style: italic;
+}
+
+/* --- Global glass blur loading overlay --- */
+.global-loader-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease-out;
+}
+
+.global-loader-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.global-loader-overlay.active[aria-busy="true"] {
+    cursor: wait;
+}
+
+.global-loader-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.global-loader-spinner {
+    width: 96px;
+    height: 96px;
+    color: var(--primary-blue, #4a90e2);
+}
+
+.global-loader-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Constellation: line draws connecting the stars, then resets */
+.global-loader-constellation-line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: global-loader-draw 2.2s ease-in-out infinite;
+}
+
+@keyframes global-loader-draw {
+    0% { stroke-dashoffset: 1; }
+    65% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 1; }
+}
+
+.global-loader-star {
+    fill: currentColor;
+    animation: global-loader-twinkle 2.2s ease-in-out infinite;
+}
+
+.global-loader-star:nth-child(2) { animation-delay: 0s; }
+.global-loader-star:nth-child(3) { animation-delay: 0.2s; }
+.global-loader-star:nth-child(4) { animation-delay: 0.4s; }
+.global-loader-star:nth-child(5) { animation-delay: 0.6s; }
+.global-loader-star:nth-child(6) { animation-delay: 0.8s; }
+
+@keyframes global-loader-twinkle {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+.global-loader-text {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-light, #fff);
+    opacity: 0.95;
 }

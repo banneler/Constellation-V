@@ -1320,10 +1320,10 @@ body.theme-green {
         @apply flex flex-col items-center justify-center p-5 pt-0 gap-4 flex-1;
     }
     .sequence-status-hero.ring-chart-container {
-        @apply w-56 h-56;
+        @apply w-40 h-40;
     }
     .sequence-status-hero .ring-chart-text {
-        @apply text-2xl;
+        @apply text-3xl font-bold;
     }
     .ring-chart-inactive.ring-chart-container {
         opacity: 0.4;
@@ -1360,11 +1360,14 @@ body.theme-green {
         text-decoration: underline;
     }
     .sequence-next-step-container {
-        @apply w-full mt-3 rounded-lg border border-[var(--border-color)] overflow-hidden;
+        @apply w-full mt-3 rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col justify-center;
         background-color: var(--bg-medium);
     }
     .sequence-next-step-container .sequence-steps-list {
-        @apply flex flex-col min-h-0 px-4 pb-4 pt-0;
+        @apply flex flex-col min-h-0 px-3 py-2 justify-center;
+    }
+    .sequence-next-step-container .sequence-step-item {
+        @apply items-center py-2;
     }
     .sequence-next-step-container .sequence-step-description-truncate {
         @apply min-w-0 overflow-hidden;
@@ -5207,6 +5210,12 @@ body:not(.theme-green) #contact-activities-list li {
     .toast.hide {
         @apply opacity-0 -translate-y-2;
     }
+    .toast-near-button {
+        @apply py-2 px-3 rounded-lg shadow-lg;
+        max-width: min(320px, calc(100vw - 1rem));
+        background-color: var(--bg-medium);
+        border: 1px solid var(--border-color);
+    }
     .item-list-container h4 {
         @apply mt-6 mb-2 pb-2 border-b border-[var(--border-color)] text-[0.9rem];
         color: var(--text-medium);
@@ -5663,11 +5672,14 @@ table input[type="checkbox"]:focus {
     transition: filter 0.3s;
 }
 .auth-logo,
-.nav-logo:not(.nav-logo-collapsed) {
+.nav-logo:not(.nav-logo-collapsed):not(.constellation-main-logo) {
     filter: drop-shadow(0 0 7px var(--primary-blue));
 }
-.nav-logo-collapsed {
+.nav-logo-collapsed:not(.constellation-main-logo) {
     filter: drop-shadow(0 0 2px var(--primary-blue)) !important;
+}
+.constellation-main-logo {
+    filter: none !important;
 }
 .auth-logo {
     width: 250px;
@@ -5677,20 +5689,20 @@ table input[type="checkbox"]:focus {
     margin: 0 auto 0.625rem auto;
     display: block;
 }
-.nav-logo path[fill="#FEFEFE"],
-.nav-logo .st1,
+.nav-logo:not(.constellation-main-logo) path[fill="#FEFEFE"],
+.nav-logo:not(.constellation-main-logo) .st1,
 .auth-logo path[fill="#FEFEFE"] {
     fill: var(--logo-primary-color);
     transition: fill 0.3s;
 }
-.nav-logo path[fill="#010101"],
-.nav-logo .st0,
+.nav-logo:not(.constellation-main-logo) path[fill="#010101"],
+.nav-logo:not(.constellation-main-logo) .st0,
 .auth-logo path[fill="#010101"] {
     fill: #ffffff !important;
     transition: fill 0.3s;
 }
-body.theme-green .nav-logo path[fill="#010101"],
-body.theme-green .nav-logo .st0,
+body.theme-green .nav-logo:not(.constellation-main-logo) path[fill="#010101"],
+body.theme-green .nav-logo:not(.constellation-main-logo) .st0,
 body.theme-green .auth-logo path[fill="#010101"] {
     fill: var(--logo-secondary-color) !important;
 }
@@ -6639,4 +6651,98 @@ body:not(.theme-green) .list-item.selected {
     .nav-collapse-toggle {
         display: flex !important;
     }
+}
+
+/* ==========================================================================
+   HUD – Heads-Up Display (floating glass pills)
+   ========================================================================== */
+.hud-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.hud-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+.hud-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: var(--text-medium);
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.hud-close-btn:hover {
+    color: var(--text-light);
+}
+
+.hud-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: center;
+    align-items: center;
+    max-width: 900px;
+    padding: 2rem;
+}
+
+.hud-pill {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: var(--shadow-card);
+    transform: translateY(20px);
+    opacity: 0;
+    animation: floatUp 0.4s ease forwards;
+}
+
+@keyframes floatUp {
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.hud-pill:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.hud-pill:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.hud-pill:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+.hud-pill-icon {
+    font-size: 1.25rem;
+    color: var(--primary-blue);
+    flex-shrink: 0;
+}
+
+.hud-pill-text {
+    color: var(--text-light);
+    font-size: 0.95rem;
+    font-weight: 500;
 }

@@ -83,10 +83,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
     // --- Data Fetching ---
-    async function loadAllData() {
+    async function loadAllData(opts = {}) {
         if (!state.currentUser) return;
 
-        showGlobalLoader();
+        const skipLoader = opts.skipLoader === true;
+        if (!skipLoader) showGlobalLoader();
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isTeamView = state.dealsViewMode === 'all' && isManager;
 
@@ -1404,7 +1405,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.dealsViewMode = 'mine';
                 viewMyDealsBtn.classList.add('active');
                 viewAllDealsBtn.classList.remove('active');
-                await loadAllData();
+                await loadAllData({ skipLoader: true });
             });
         }
         if (viewAllDealsBtn) {
@@ -1414,7 +1415,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.dealsViewMode = 'all';
                 viewAllDealsBtn.classList.add('active');
                 viewMyDealsBtn.classList.remove('active');
-                await loadAllData();
+                await loadAllData({ skipLoader: true });
             });
         }
         
