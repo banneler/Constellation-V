@@ -211,21 +211,37 @@ body.theme-green::before {
     margin: 0 auto 0.625rem auto;
     filter: none !important;
 }
+/* Auth and Nav: same Constellation main logo treatment (match index.html) */
+#auth-container .constellation-main-logo,
+.nav-logo-wrap .constellation-main-logo,
+.nav-sidebar .constellation-main-logo { filter: none !important; }
+#auth-container .constellation-main-logo .st0,
+.nav-logo-wrap .constellation-main-logo .st0,
+.nav-sidebar .constellation-main-logo .st0 { fill: #377fed !important; }
+#auth-container .constellation-main-logo .st1,
+.nav-logo-wrap .constellation-main-logo .st1,
+.nav-sidebar .constellation-main-logo .st1 { fill: #3880ee !important; }
+#auth-container .constellation-main-logo .st2,
+.nav-logo-wrap .constellation-main-logo .st2,
+.nav-sidebar .constellation-main-logo .st2 { fill: #fff !important; }
+#auth-container .constellation-main-logo .st3,
+.nav-logo-wrap .constellation-main-logo .st3,
+.nav-sidebar .constellation-main-logo .st3 { fill: #3d4e60 !important; }
 /* Legacy logo path overrides (do not apply to Constellation logos) */
 .nav-logo:not(.constellation-main-logo) path[fill="#FEFEFE"],
-.auth-logo path[fill="#FEFEFE"] {
+.auth-logo:not(.constellation-main-logo) path[fill="#FEFEFE"] {
     fill: var(--logo-primary-color);
     transition: fill 0.3s;
 }
 
 .nav-logo:not(.constellation-main-logo) path[fill="#010101"],
-.auth-logo path[fill="#010101"] {
+.auth-logo:not(.constellation-main-logo) path[fill="#010101"] {
     fill: #FFFFFF !important;
     transition: fill 0.3s;
 }
 
 body.theme-green .nav-logo:not(.constellation-main-logo) path[fill="#010101"],
-body.theme-green .auth-logo path[fill="#010101"] {
+body.theme-green .auth-logo:not(.constellation-main-logo) path[fill="#010101"] {
     fill: var(--logo-secondary-color) !important;
 }
 

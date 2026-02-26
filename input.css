@@ -5681,6 +5681,24 @@ table input[type="checkbox"]:focus {
 .constellation-main-logo {
     filter: none !important;
 }
+/* Auth page and Nav bar: same Constellation main logo treatment (no theme overrides, brand colors only) */
+#auth-container .constellation-main-logo,
+.nav-logo-wrap .constellation-main-logo,
+.nav-sidebar .constellation-main-logo {
+    filter: none !important;
+}
+#auth-container .constellation-main-logo .st0,
+.nav-logo-wrap .constellation-main-logo .st0,
+.nav-sidebar .constellation-main-logo .st0 { fill: #377fed !important; }
+#auth-container .constellation-main-logo .st1,
+.nav-logo-wrap .constellation-main-logo .st1,
+.nav-sidebar .constellation-main-logo .st1 { fill: #3880ee !important; }
+#auth-container .constellation-main-logo .st2,
+.nav-logo-wrap .constellation-main-logo .st2,
+.nav-sidebar .constellation-main-logo .st2 { fill: #fff !important; }
+#auth-container .constellation-main-logo .st3,
+.nav-logo-wrap .constellation-main-logo .st3,
+.nav-sidebar .constellation-main-logo .st3 { fill: #3d4e60 !important; }
 .auth-logo {
     width: 250px;
 }
@@ -5691,19 +5709,19 @@ table input[type="checkbox"]:focus {
 }
 .nav-logo:not(.constellation-main-logo) path[fill="#FEFEFE"],
 .nav-logo:not(.constellation-main-logo) .st1,
-.auth-logo path[fill="#FEFEFE"] {
+.auth-logo:not(.constellation-main-logo) path[fill="#FEFEFE"] {
     fill: var(--logo-primary-color);
     transition: fill 0.3s;
 }
 .nav-logo:not(.constellation-main-logo) path[fill="#010101"],
 .nav-logo:not(.constellation-main-logo) .st0,
-.auth-logo path[fill="#010101"] {
+.auth-logo:not(.constellation-main-logo) path[fill="#010101"] {
     fill: #ffffff !important;
     transition: fill 0.3s;
 }
 body.theme-green .nav-logo:not(.constellation-main-logo) path[fill="#010101"],
 body.theme-green .nav-logo:not(.constellation-main-logo) .st0,
-body.theme-green .auth-logo path[fill="#010101"] {
+body.theme-green .auth-logo:not(.constellation-main-logo) path[fill="#010101"] {
     fill: var(--logo-secondary-color) !important;
 }
 

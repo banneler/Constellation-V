@@ -622,7 +622,7 @@ export async function loadSVGs() {
                     svgElement.classList.add(placeholder.closest('#auth-container') ? 'auth-logo' : 'nav-logo');
                     if (placeholder.classList.contains('nav-logo-expanded')) svgElement.classList.add('nav-logo-expanded');
                     if (placeholder.classList.contains('nav-logo-collapsed')) svgElement.classList.add('nav-logo-collapsed');
-                    if (placeholder.classList.contains('constellation-main-logo')) svgElement.classList.add('constellation-main-logo');
+                    if (placeholder.classList.contains('constellation-main-logo') || svgUrl.includes('constellation-logo-full')) svgElement.classList.add('constellation-main-logo');
                 } else if (svgUrl.includes('user-icon.svg')) {
                     svgElement.classList.add('user-icon');
                 }
