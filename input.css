@@ -2412,32 +2412,38 @@ body.theme-green {
         color: var(--text-light);
     }
     .proposals-picker-body {
-        @apply flex flex-col flex-1 min-h-0 overflow-hidden p-4 pt-0;
+        @apply flex flex-col flex-1 min-h-0 overflow-hidden;
     }
-    .proposals-picker-body > #generate-btn {
-        @apply w-full mb-6;
+    .proposals-picker-actions {
+        @apply px-4 pt-0 pb-4 flex flex-col flex-shrink-0;
+    }
+    .proposals-picker-actions #generate-btn {
+        @apply w-full mb-0;
         min-height: 2.8rem;
         font-size: 0.95rem;
         letter-spacing: 0.02em;
         border: 1px solid color-mix(in srgb, #f97316 70%, transparent);
         box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
     }
-    .proposals-picker-body > #generate-btn span {
+    .proposals-picker-actions #generate-btn span {
         display: inline-block;
     }
-    .proposals-picker-body .proposals-file-actions {
+    .proposals-picker-actions .proposals-file-actions {
         margin-top: 0.85rem;
     }
-    .proposals-picker-body > #generate-btn:hover {
+    .proposals-picker-actions #generate-btn:hover {
         transform: translateY(-1px);
         box-shadow: 0 6px 16px rgba(249, 115, 22, 0.2);
     }
-    .proposals-picker-body > #generate-btn[data-state="ready"] {
+    .proposals-picker-actions #generate-btn[data-state="ready"] {
         background-color: color-mix(in srgb, #f97316 88%, #ffffff);
     }
-    .proposals-picker-body > #generate-btn[data-state="compiling"] {
+    .proposals-picker-actions #generate-btn[data-state="compiling"] {
         border-color: var(--secondary-gray);
         box-shadow: none;
+    }
+    .proposals-picker-scroll {
+        @apply px-4 pb-4;
     }
     .proposals-generate-btn {
         @apply rounded-lg font-bold flex justify-center items-center gap-2 transition;

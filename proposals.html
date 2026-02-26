@@ -50,7 +50,7 @@
                         <h2 class="section-title">Proposals</h2>
                     </div>
                     <div class="proposals-picker-body">
-                <div id="proposals-properties-section">
+                        <div class="proposals-picker-actions flex-shrink-0">
                 <button id="generate-btn" data-state="initial" class="btn-primary full-width proposals-generate-btn disabled:opacity-70 disabled:cursor-not-allowed"><svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16l4-4 4 4m0-8H8"></path></svg><span>Compile Proposal</span></button>
 <div class="proposals-file-actions flex gap-2 mb-6 pb-6">
                     <button type="button" id="save-project-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-lg border border-slate-300 shadow-sm transition text-sm flex justify-center items-center gap-2" title="Save (.spec)">
@@ -61,6 +61,9 @@
                         <input type="file" id="load-project-input" accept=".spec" class="hidden">
                     </label>
                 </div>
+                        </div>
+                        <div class="proposals-picker-scroll flex-1 min-h-0 overflow-y-auto">
+                <div id="proposals-properties-section">
                 <h2 class="text-lg font-bold mb-4 border-b border-slate-100 pb-2 text-slate-800">1. Proposal Properties</h2>
                 <div class="space-y-4 mb-8">
                     <div><label class="block text-sm font-semibold text-slate-700">RFP Name / Proposal Name</label><input type="text" id="global-rfp" maxlength="33" class="w-full border border-slate-300 p-2 rounded mt-1 bg-slate-50 focus:bg-white outline-none focus:border-orange-500"></div>
@@ -75,7 +78,7 @@
                 <div id="proposals-elements-section">
                 <h2 class="text-lg font-bold mb-1 border-b border-slate-100 pb-2 text-slate-800">2. Proposal Elements</h2>
                 <p class="proposal-elements-help mb-4">Drag to reorder</p>
-<ul id="module-list" class="space-y-2 flex-1 overflow-y-auto pb-4">
+<ul id="module-list" class="space-y-2 pb-4">
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="01_Title_Page.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
@@ -220,6 +223,7 @@
     
 </ul>
                 </div>
+                        </div>
             </div>
                     </div>
                 <div id="main-content" class="flex-1 overflow-hidden flex flex-col proposals-details-content details-panel min-w-0 min-h-0">
