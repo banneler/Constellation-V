@@ -264,7 +264,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             kanbanBoardView.classList.add('hidden');
             if (dealsChartsSection) dealsChartsSection.classList.remove('hidden');
             if (typeof addDealInsightsWireframe === 'function') addDealInsightsWireframe();
-            if (typeof reloadHUDWireframes === 'function') reloadHUDWireframes();
+            if (typeof reloadHUDWireframes === 'function') {
+                requestAnimationFrame(() => reloadHUDWireframes());
+            }
         } else {
             renderKanbanBoard();
             listViewContainer.classList.add('hidden');

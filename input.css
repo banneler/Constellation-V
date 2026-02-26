@@ -6692,11 +6692,42 @@ body:not(.theme-green) .list-item.selected {
     transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
-/* Wireframes in their own layer with no transform so position:fixed uses viewport */
+/* ==========================================================
+   JARVIS HUD – Independent sibling layers (strict stacking)
+   ========================================================== */
+
+/* 1. The Blur Backdrop (Sits just above page content) */
+.hud-backdrop-blur {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    display: none;
+}
+.hud-backdrop-blur.active {
+    display: block;
+    opacity: 1;
+}
+
+/* 2. Highlighted Buttons (Punches through blur, sits under wireframes) */
+.hud-action-node {
+    position: relative !important;
+    z-index: 9500 !important;
+    pointer-events: auto !important;
+    border-radius: 6px !important;
+    overflow: visible !important;
+}
+
+/* 3. Wireframes & Section Cards (Sits over the buttons) */
 .hud-wireframes-layer {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: 10000;
     pointer-events: none;
     display: none;
 }
@@ -6704,70 +6735,10 @@ body:not(.theme-green) .list-item.selected {
     display: block;
 }
 
-.hud-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10000;
-    background: rgba(15, 23, 42, 0.06);
-    backdrop-filter: blur(1px);
-    -webkit-backdrop-filter: blur(1px);
-    display: none;
-    align-items: stretch;
-    justify-content: stretch;
-    opacity: 0;
-    transform: scale(0.98);
-    transform-origin: 50% 50%;
-    pointer-events: none;
-}
-
-.hud-overlay.active {
-    display: flex;
-    pointer-events: none;
-    animation: hud-pop-in 0.35s ease-out forwards;
-}
-
-@keyframes hud-pop-in {
-    from {
-        opacity: 0;
-        transform: scale(0.96);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.hud-close-btn {
-    position: absolute;
-    bottom: 1.5rem;
-    right: 1.5rem;
-    background: rgba(30, 41, 59, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #f8fafc;
-    font-size: 1.25rem;
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    z-index: 10002;
-    pointer-events: auto;
-}
-
-.hud-close-btn:hover {
-    background: rgba(239, 68, 68, 0.8);
-    transform: rotate(90deg);
-}
-
-/* Wireframe layer: holds all section wireframes */
 .hud-wireframes {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    z-index: 10000;
 }
 
 /* Slight internal glow/pulse on section wireframes (::before so JS-set box-shadow is preserved) */
@@ -6782,8 +6753,7 @@ body:not(.theme-green) .list-item.selected {
 
 .hud-wireframe {
     position: fixed;
-    z-index: 10101;
-    /* border set in JS per section color; default fallback */
+    z-index: 10000;
     border: 2px solid rgba(0, 161, 224, 0.6);
     box-shadow: 0 0 15px rgba(0, 161, 224, 0.3);
     pointer-events: none;
@@ -6802,7 +6772,8 @@ body:not(.theme-green) .list-item.selected {
 
 .hud-text-plate {
     position: absolute;
-    z-index: 10102;
+    z-index: 10001;
+    pointer-events: auto;
     top: 10%;
     left: 5%;
     padding: 1.5rem 2rem;
@@ -6830,9 +6801,22 @@ body:not(.theme-green) .list-item.selected {
     font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
-/* Micro-tooltip pill (shown on node hover) */
+/* 4. Controls & Hover Tooltips (Top layer – covers everything) */
+.hud-controls-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    pointer-events: none;
+    display: none;
+}
+.hud-controls-layer.active {
+    display: block;
+}
+
 .hud-pill {
     position: fixed;
+    z-index: 11001;
+    pointer-events: none;
     display: none;
     align-items: center;
     gap: 0.5rem;
@@ -6843,8 +6827,6 @@ body:not(.theme-green) .list-item.selected {
     color: white;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    z-index: 10010;
-    pointer-events: auto;
     max-width: 320px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
@@ -6875,12 +6857,6 @@ body:not(.theme-green) .list-item.selected {
     }
 }
 
-.hud-action-node {
-    border-radius: 6px !important;
-    position: relative !important;
-    z-index: 10001 !important;
-    overflow: visible !important;
-}
 
 .hud-action-node::after {
     content: "";
@@ -6906,7 +6882,7 @@ body:not(.theme-green) .list-item.selected {
     box-shadow: 0 0 28px rgba(0, 161, 224, 0.6), 0 0 56px rgba(0, 161, 224, 0.25) !important;
     border-radius: 6px !important;
     position: relative !important;
-    z-index: 10001 !important;
+    z-index: 9500 !important;
     transition: outline-offset 0.2s ease, background 0.2s ease, box-shadow 0.2s ease !important;
     animation: none !important;
     background: rgba(0, 161, 224, 0.12) !important;
@@ -6918,4 +6894,33 @@ body:not(.theme-green) .list-item.selected {
     outline-offset: 2px !important;
     box-shadow: inset 0 0 20px rgba(0, 161, 224, 0.35), inset 0 0 40px rgba(0, 161, 224, 0.15), 0 0 16px rgba(0, 161, 224, 0.4) !important;
     background: rgba(0, 161, 224, 0.08) !important;
+}
+
+.hud-close-btn {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 11002;
+    pointer-events: auto;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+    font-size: 1.25rem;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+.hud-close-btn:hover {
+    background: rgba(239, 68, 68, 0.8);
+    transform: rotate(90deg);
+}
+.hud-node-lock {
+    outline: 2px solid var(--primary-blue, #00A1E0) !important;
+    outline-offset: 4px !important;
+    background: rgba(0, 161, 224, 0.1) !important;
 }

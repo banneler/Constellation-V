@@ -63,6 +63,13 @@ const jarvisData = {
         { container: '#analytics-view', macro: 'Analytics. Rep and date filters; charts and activity log.', nodes: [{ anchor: '#analytics-rep-filter', text: 'Filter by rep.' }, { anchor: '#analytics-date-filter', text: 'Filter by date range.' }, { anchor: '#view-combined-btn', text: 'Combined chart view.' }, { anchor: '#view-individual-btn', text: 'Individual chart view.' }, { anchor: '.chart-toggle-btn', text: 'Toggle chart vs table for metric.' }] },
         { container: '#script-logs-view', macro: 'Script Logs. Run history for automated data scripts.', nodes: [] },
         { container: '#settings-view', macro: 'System Settings. Deal stages and activity types.', nodes: [{ anchor: '#new-deal-stage-name', text: 'New deal stage name.' }, { anchor: '#add-deal-stage-btn', text: 'Add deal stage.' }, { anchor: '#new-activity-type-name', text: 'New activity type name.' }, { anchor: '#add-activity-type-btn', text: 'Add activity type.' }] }
+    ],
+    'proposals.html': [
+        { 
+            container: 'body', // Anchors to the main view since it's an embed
+            macro: 'Strategic Proposal Engineering. High-fidelity document generation and version control for enterprise-grade service agreements.', 
+            nodes: [] // Embedded iframe buttons are shielded by browser security, so we use a macro-only overlay here
+        }
     ]
 };
 
@@ -77,22 +84,25 @@ function getCurrentPageKey() {
 }
 
 /**
- * Build the HUD HTML. Wireframes live in a separate layer with no transform so position:fixed
- * uses the viewport; overlay (dim, close, pill) can use transform for animation.
+ * Build the HUD HTML. Three sibling layers (no nesting) so stacking context is independent.
  */
 function buildHUDHTML() {
     return `
+<div id="hud-backdrop-blur" class="hud-backdrop-blur" aria-hidden="true"></div>
+
 <div id="hud-wireframes-layer" class="hud-wireframes-layer" aria-hidden="true">
     <div class="hud-wireframes"></div>
 </div>
-<div id="hud-overlay" class="hud-overlay" aria-hidden="true">
+
+<div id="hud-controls-layer" class="hud-controls-layer" aria-hidden="true">
     <button type="button" class="hud-close-btn" title="Close" aria-label="Close"><i class="fa-solid fa-times"></i></button>
     <div class="hud-pill" aria-hidden="true"><span class="hud-pill-text"></span></div>
 </div>`;
 }
 
-let hudOverlay = null;
+let hudBackdropBlur = null;
 let hudWireframesLayer = null;
+let hudControlsLayer = null;
 
 /** Cleanup refs from last openHUD (wireframes, listeners) so closeHUD can tear down. */
 let hudOpenState = {
@@ -148,11 +158,14 @@ function updateAllWireframeRects() {
         const el = resolveContainer(container);
         if (!el) continue;
         let rect = el.getBoundingClientRect();
-        if (pageKey === "deals.html" && !isDealsBoard && entry && entry.container === ".section-card:has(#list-view-container)") {
+            if (pageKey === "deals.html" && !isDealsBoard && entry && entry.container === ".section-card:has(#list-view-container)") {
             const chartsEl = document.querySelector(".deals-charts-section");
-            if (chartsEl) {
+            if (chartsEl && chartsEl.offsetParent !== null) {
                 const chartsTop = chartsEl.getBoundingClientRect().top;
-                if (chartsTop > rect.top) rect = { ...rect, height: chartsTop - rect.top };
+                if (chartsTop > rect.top) {
+                    const clampedHeight = Math.min(rect.height, Math.max(2, chartsTop - rect.top));
+                    rect = { top: rect.top, left: rect.left, width: rect.width, height: clampedHeight };
+                }
             }
         }
         const w = Math.max(rect.width || 0, 2);
@@ -194,12 +207,12 @@ function positionPill(pillEl, targetRect) {
  * Open the HUD: draw wireframes, macro labels, and attach node hover → micro-pill.
  */
 export function openHUD() {
-    if (!hudOverlay) return;
+    if (!hudBackdropBlur || !hudControlsLayer) return;
 
     const pageKey = getCurrentPageKey();
     const pageEntries = pageKey ? jarvisData[pageKey] : null;
-    const wireframesWrap = (hudWireframesLayer || hudOverlay).querySelector(".hud-wireframes");
-    const pillEl = hudOverlay.querySelector(".hud-pill");
+    const wireframesWrap = hudWireframesLayer?.querySelector(".hud-wireframes");
+    const pillEl = hudControlsLayer.querySelector(".hud-pill");
     const pillText = pillEl && pillEl.querySelector(".hud-pill-text");
 
     if (!wireframesWrap || !pillEl) return;
@@ -223,10 +236,11 @@ export function openHUD() {
             let rect = el.getBoundingClientRect();
             if (pageKey === "deals.html" && entry.container === ".section-card:has(#list-view-container)") {
                 const chartsEl = document.querySelector(".deals-charts-section");
-                if (chartsEl) {
+                if (chartsEl && chartsEl.offsetParent !== null) {
                     const chartsTop = chartsEl.getBoundingClientRect().top;
                     if (chartsTop > rect.top) {
-                        rect = { top: rect.top, left: rect.left, width: rect.width, height: chartsTop - rect.top };
+                        const clampedHeight = Math.min(rect.height, Math.max(2, chartsTop - rect.top));
+                        rect = { top: rect.top, left: rect.left, width: rect.width, height: clampedHeight };
                     }
                 }
             }
@@ -313,12 +327,14 @@ export function openHUD() {
     hudOpenState.pageKey = pageKey;
     hudOpenState.pageEntries = pageEntries;
 
-    hudOverlay.classList.add("active");
-    hudOverlay.setAttribute("aria-hidden", "false");
+    hudBackdropBlur.classList.add("active");
+    hudBackdropBlur.setAttribute("aria-hidden", "false");
     if (hudWireframesLayer) {
         hudWireframesLayer.classList.add("active");
         hudWireframesLayer.setAttribute("aria-hidden", "false");
     }
+    hudControlsLayer.classList.add("active");
+    hudControlsLayer.setAttribute("aria-hidden", "false");
     document.querySelector(".hud-trigger-fab")?.classList.add("hud-trigger-fab-hidden");
     // Defer rect update so overlay is laid out and containers have correct dimensions
     requestAnimationFrame(() => {
@@ -331,7 +347,7 @@ export function openHUD() {
  * list/board view toggle) so wireframes match the active view.
  */
 export function reloadHUDWireframes() {
-    if (!hudOverlay || !hudOverlay.classList.contains("active")) return;
+    if (!hudControlsLayer || !hudControlsLayer.classList.contains("active")) return;
     if (typeof hudOpenState.updateAllWireframeRects === "function") hudOpenState.updateAllWireframeRects();
 }
 
@@ -340,7 +356,7 @@ export function reloadHUDWireframes() {
  * page switched to Kanban and cards were just rendered) so new elements get the pulse and pill.
  */
 export function refreshHUDNodes() {
-    if (!hudOverlay || !hudOverlay.classList.contains("active")) return;
+    if (!hudControlsLayer || !hudControlsLayer.classList.contains("active")) return;
     const pageEntries = hudOpenState.pageEntries;
     if (!pageEntries || pageEntries.length === 0) return;
 
@@ -356,7 +372,7 @@ export function refreshHUDNodes() {
     });
     hudOpenState.nodeCleanups.length = 0;
 
-    const pillEl = hudOverlay.querySelector(".hud-pill");
+    const pillEl = hudControlsLayer.querySelector(".hud-pill");
     const pillText = pillEl && pillEl.querySelector(".hud-pill-text");
     if (!pillEl) return;
 
@@ -429,19 +445,23 @@ export function closeHUD() {
     hudOpenState.wireframeEls.length = 0;
     hudOpenState.updateAllWireframeRects = null;
 
-    const pillEl = hudOverlay && hudOverlay.querySelector(".hud-pill");
+    const pillEl = hudControlsLayer?.querySelector(".hud-pill");
     if (pillEl) {
         pillEl.classList.remove("visible");
         pillEl.setAttribute("aria-hidden", "true");
     }
 
-    if (hudOverlay) {
-        hudOverlay.classList.remove("active");
-        hudOverlay.setAttribute("aria-hidden", "true");
+    if (hudBackdropBlur) {
+        hudBackdropBlur.classList.remove("active");
+        hudBackdropBlur.setAttribute("aria-hidden", "true");
     }
     if (hudWireframesLayer) {
         hudWireframesLayer.classList.remove("active");
         hudWireframesLayer.setAttribute("aria-hidden", "true");
+    }
+    if (hudControlsLayer) {
+        hudControlsLayer.classList.remove("active");
+        hudControlsLayer.setAttribute("aria-hidden", "true");
     }
     document.querySelector(".hud-trigger-fab")?.classList.remove("hud-trigger-fab-hidden");
 }
@@ -450,8 +470,8 @@ export function closeHUD() {
  * Remove the Deal Insights wireframe (used when deals page switches to Kanban view).
  */
 export function removeDealInsightsWireframe() {
-    if (!hudOverlay) return;
-    const wireframesWrap = (hudWireframesLayer || hudOverlay)?.querySelector(".hud-wireframes");
+    if (!hudWireframesLayer) return;
+    const wireframesWrap = hudWireframesLayer.querySelector(".hud-wireframes");
     if (!wireframesWrap) return;
     wireframesWrap.querySelectorAll(".hud-wireframe[data-container=\".deals-charts-section\"]").forEach((el) => {
         el.remove();
@@ -464,7 +484,7 @@ export function removeDealInsightsWireframe() {
  * Add the Deal Insights wireframe (used when deals page switches back to list view).
  */
 export function addDealInsightsWireframe() {
-    if (!hudOverlay || !hudOverlay.classList.contains("active")) return;
+    if (!hudControlsLayer || !hudControlsLayer.classList.contains("active")) return;
     if (getCurrentPageKey() !== "deals.html") return;
     const board = document.getElementById("kanban-board-view");
     if (board && !board.classList.contains("hidden")) return;
@@ -473,7 +493,7 @@ export function addDealInsightsWireframe() {
     if (!entry) return;
     const el = resolveContainer(entry.container);
     if (!el) return;
-    const wireframesWrap = (hudWireframesLayer || hudOverlay)?.querySelector(".hud-wireframes");
+    const wireframesWrap = hudWireframesLayer?.querySelector(".hud-wireframes");
     if (!wireframesWrap) return;
     const index = entries.indexOf(entry);
     const sectionColor = jarvisRainbow[index % jarvisRainbow.length];
@@ -523,15 +543,16 @@ function buildHUDTriggerButton() {
  * Wireframes and node pills are created in openHUD(). Idempotent.
  */
 export function initHUD() {
-    if (document.getElementById("hud-overlay")) return;
+    if (document.getElementById("hud-backdrop-blur")) return;
 
     const html = buildHUDHTML();
     document.body.insertAdjacentHTML("beforeend", html);
+    hudBackdropBlur = document.getElementById("hud-backdrop-blur");
     hudWireframesLayer = document.getElementById("hud-wireframes-layer");
-    hudOverlay = document.getElementById("hud-overlay");
-    if (!hudOverlay) return;
+    hudControlsLayer = document.getElementById("hud-controls-layer");
+    if (!hudBackdropBlur || !hudControlsLayer) return;
 
-    const closeBtn = hudOverlay.querySelector(".hud-close-btn");
+    const closeBtn = hudControlsLayer.querySelector(".hud-close-btn");
     if (closeBtn) {
         closeBtn.addEventListener("click", (e) => {
             e.preventDefault();
