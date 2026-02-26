@@ -2977,15 +2977,22 @@ body.theme-green {
     }
     .sequence-steps-section {
         @apply flex flex-col flex-1 min-h-0 mt-4;
+        min-width: 0;
     }
     .sequence-steps-section .subsection-title {
         @apply flex-shrink-0 mb-2;
     }
     .sequence-steps-flow {
         @apply flex flex-col items-center gap-4 mt-2 w-full;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: visible;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        -webkit-overflow-scrolling: touch;
     }
     .sequence-flow-row {
-        @apply flex items-center justify-center gap-4;
+        @apply flex items-center justify-center gap-4 flex-shrink-0;
     }
     .sequence-flow-connector-css {
         @apply w-full;
@@ -3042,6 +3049,35 @@ body.theme-green {
         min-width: 0;
         overflow: hidden;
         z-index: 10;
+    }
+    /* Smaller screens: contain cards and scale down */
+    @media (max-width: 1024px) {
+        .sequence-steps-flow {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+        .sequence-step-card {
+            width: 12rem;
+        }
+    }
+    @media (max-width: 640px) {
+        .sequence-steps-flow {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        .sequence-step-card {
+            width: 10rem;
+            padding: 0.5rem 0.75rem;
+        }
+        .sequence-step-card-bg-icon {
+            font-size: 4.5rem;
+        }
+        .sequence-step-card-bg-number {
+            font-size: 2.5rem;
+        }
+        .sequence-flow-row {
+            gap: 0.5rem;
+        }
     }
     .sequence-step-card-bg-icon {
         @apply absolute inset-0 flex items-center justify-center pointer-events-none;
