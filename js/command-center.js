@@ -688,7 +688,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         overlay.innerHTML = `
             <div class="v2-promo-modal">
                 <div class="v2-promo-title">Constellation V.2 is Live</div>
-                <div class="v2-promo-text">Experience the next generation of our CRM. Featuring the new AR Tactical HUD, enhanced enterprise proposals, and optimized high-performance telemetry.</div>
+                <div class="v2-promo-text">Experience the next generation of our CRM. Featuring new integrations, enhanced enterprise proposals, and optimized high-performance look and feel.</div>
                 <div class="v2-promo-actions">
                     <button id="v2-promo-close" class="v2-promo-btn-secondary">Stay on V.1</button>
                     <a href="https://constellation-pyhmz5m88-constellation-crm.vercel.app/" class="v2-promo-btn-primary">Initialize V.2</a>
