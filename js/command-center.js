@@ -624,6 +624,88 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // --- V.2 ADOPTION INTERCEPTOR ---
+    function showV2PromoModal() {
+        // Check if the sensor has already tripped this session
+        if (sessionStorage.getItem('v2_prompt_shown') === 'true') return;
+
+        // Trip the sensor so it doesn't fire again until they close the browser
+        sessionStorage.setItem('v2_prompt_shown', 'true');
+
+        // Inject the V.2 Slate Glass Styles dynamically
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .v2-promo-overlay {
+                position: fixed; inset: 0; z-index: 999999;
+                background: rgba(15, 23, 42, 0.4);
+                backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                display: flex; align-items: center; justify-content: center;
+                opacity: 0; transition: opacity 0.3s ease;
+            }
+            .v2-promo-modal {
+                background: rgba(15, 23, 42, 0.85);
+                backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+                border: 1px solid #00A1E0;
+                border-radius: 12px;
+                padding: 2.5rem;
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                color: #f8fafc;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 161, 224, 0.3);
+                transform: translateY(20px); transition: transform 0.3s ease;
+            }
+            .v2-promo-overlay.active { opacity: 1; }
+            .v2-promo-overlay.active .v2-promo-modal { transform: translateY(0); }
+            .v2-promo-title { 
+                font-family: 'Courier New', monospace; font-size: 1.5rem; 
+                font-weight: 900; color: #00A1E0; margin-bottom: 1rem; 
+                letter-spacing: 2px; text-transform: uppercase; 
+            }
+            .v2-promo-text { 
+                font-size: 1.05rem; line-height: 1.6; 
+                margin-bottom: 2rem; color: rgba(248, 250, 252, 0.9); 
+            }
+            .v2-promo-actions { display: flex; gap: 1rem; justify-content: center; }
+            .v2-promo-btn-primary { 
+                background: #00A1E0; color: white; padding: 12px 24px; 
+                border-radius: 6px; border: none; font-weight: bold; 
+                cursor: pointer; text-decoration: none; transition: all 0.2s; 
+            }
+            .v2-promo-btn-primary:hover { background: #0081B0; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,161,224,0.4); }
+            .v2-promo-btn-secondary { 
+                background: transparent; color: #f8fafc; padding: 12px 24px; 
+                border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); 
+                cursor: pointer; transition: all 0.2s; 
+            }
+            .v2-promo-btn-secondary:hover { background: rgba(255,255,255,0.1); color: white; }
+        `;
+        document.head.appendChild(style);
+
+        // Build the HTML chassis
+        const overlay = document.createElement('div');
+        overlay.className = 'v2-promo-overlay';
+        overlay.innerHTML = `
+            <div class="v2-promo-modal">
+                <div class="v2-promo-title">Constellation V.2 is Live</div>
+                <div class="v2-promo-text">Experience the next generation of our CRM. Featuring the new AR Tactical HUD, enhanced enterprise proposals, and optimized high-performance telemetry.</div>
+                <div class="v2-promo-actions">
+                    <button id="v2-promo-close" class="v2-promo-btn-secondary">Stay on V.1</button>
+                    <a href="https://constellation-pyhmz5m88-constellation-crm.vercel.app/" class="v2-promo-btn-primary">Initialize V.2</a>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Smooth transition in
+        requestAnimationFrame(() => overlay.classList.add('active'));
+
+        // Wire up the close button
+        document.getElementById('v2-promo-close').addEventListener('click', () => {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300); // Wait for fade out
+        });
+    }
     // --- App Initialization ---
     async function initializePage() {
         await loadSVGs();
@@ -659,6 +741,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             setupPageEventListeners();
+            // --- TRIGGER THE V.2 INTERCEPTOR ---
+            setTimeout(showV2PromoModal, 800);
         } else {
             window.location.href = "index.html";
         }
