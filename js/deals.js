@@ -21,7 +21,8 @@ import {
     refreshHUDNodes,
     removeDealInsightsWireframe,
     addDealInsightsWireframe,
-    reloadHUDWireframes
+    reloadHUDWireframes,
+    getState
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -622,6 +623,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         cancelBtn.onclick = (ev) => { ev.stopPropagation(); exitNotesEdit(); };
     }
 
+    function enterDealFocusMode(focusedElement) {
+        if (!focusedElement) return;
+        let backdrop = document.getElementById('deal-focus-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'deal-focus-backdrop';
+            backdrop.className = 'deal-focus-backdrop';
+            const main = document.querySelector('main');
+            if (main) main.appendChild(backdrop);
+        }
+        focusedElement.classList.add('deal-card-focus-mode');
+    }
+    function exitDealFocusMode() {
+        document.querySelectorAll('.deal-card-focus-mode').forEach(el => el.classList.remove('deal-card-focus-mode'));
+        document.getElementById('deal-focus-backdrop')?.remove();
+    }
+
     function enterDealEditMode(dealId) {
         const deal = state.deals.find(d => d.id === dealId);
         if (!deal) return;
@@ -630,6 +648,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (card.classList.contains('deal-card-editing')) return;
 
         card.classList.add('deal-card-editing');
+        enterDealFocusMode(card);
 
         const valueEl = card.querySelector('.deal-card-value');
         if (valueEl) {
@@ -875,6 +894,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function exitDealEditMode(dealId, refresh = false) {
+        exitDealFocusMode();
         if (refresh) {
             render();
             return;
@@ -985,6 +1005,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const stageClass = getDealStageColorClass(deal.stage);
         const notes = (deal.notes || '').trim();
         const notesEscaped = escapeNotesForHtml(notes);
+        const accountName = (state.accounts.find((a) => a.id === deal.account_id)?.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') || '—';
         
         const truncate = (str, max = 30) => {
             if (!str) return '';
@@ -1008,6 +1029,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
             <div class="deal-card-value">$${deal.mrc || 0}/mo</div>
             <div class="deal-card-name" title="${safeName}">${truncate(safeName, 30)}</div>
+            <div class="deal-card-account kanban-card-account">${accountName}</div>
             <div class="deal-card-products">${getProductPillHtml(deal.id, deal.products)}</div>
             <div class="deal-card-footer">
                 ${deal.close_month ? `<span class="deal-card-close">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty"></span>'}
@@ -1279,6 +1301,173 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    function buildModalFanHtml(idPrefix, options, currentVal, placeholder, optionClass = 'deal-stage-default') {
+        const currentLabel = options.find(o => o.value === currentVal)?.label || placeholder;
+        const pills = options.map((opt, i) => `<button type="button" class="deal-card-stage-pill ${optionClass}" data-value="${opt.value}" style="--fan-i: ${i}">${opt.label}</button>`).join('');
+        const fanClass = idPrefix === 'month' ? 'deal-card-close-month-fan' : idPrefix === 'year' ? 'deal-card-close-year-fan' : idPrefix === 'term' ? 'deal-card-close-term-fan' : '';
+        return `<div class="deal-card-stage-fan-wrap deal-card-close-fan ${fanClass}" data-modal-fan="${idPrefix}">
+            <button type="button" class="deal-card-stage-trigger deal-card-close-fan-trigger">${currentLabel} <i class="fas fa-chevron-down deal-card-stage-chevron"></i></button>
+            <div class="deal-card-stage-fan">${pills}</div>
+        </div>`;
+    }
+
+    function handleAddDeal() {
+        if (tsAccountInstance) { tsAccountInstance.destroy(); tsAccountInstance = null; }
+        if (tsStageInstance) { tsStageInstance.destroy(); tsStageInstance = null; }
+        const stages = state.dealStages.sort((a, b) => a.sort_order - b.sort_order);
+        const firstStage = stages[0]?.stage_name || '';
+        const tomAccount = state.accounts.find((a) => (a.name || '').trim().toLowerCase() === 'tom');
+        const defaultAccountId = tomAccount ? tomAccount.id : (state.accounts.length ? state.accounts[0].id : null);
+        const accountOptions = '<option value="">Select account</option>' + state.accounts
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+            .map((acc) => `<option value="${acc.id}" ${acc.id === defaultAccountId ? 'selected' : ''}>${(acc.name || '').replace(/</g, '&lt;').replace(/"/g, '&quot;')}</option>`)
+            .join('');
+        const stagePills = stages.map((s, i) => `<button type="button" class="deal-card-stage-pill ${getDealStageColorClass(s.stage_name)}" data-value="${s.stage_name}" style="--fan-i: ${i}">${s.stage_name}</button>`).join('');
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const monthOptions = monthNames.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }));
+        const currentYear = new Date().getFullYear();
+        const yearOptions = [currentYear, currentYear + 1, currentYear + 2].map(y => ({ value: String(y), label: String(y) }));
+        const termOptions = [{ value: '12', label: '12' }, { value: '24', label: '24' }, { value: '36', label: '36' }, { value: '48', label: '48' }, { value: '60', label: '60' }];
+        const monthFanHtml = buildModalFanHtml('month', monthOptions, '', 'Mo');
+        const yearFanHtml = buildModalFanHtml('year', yearOptions, '', 'Yr');
+        const termFanHtml = buildModalFanHtml('term', termOptions, '', 'Term');
+        const stageFanHtml = `<div class="deal-card-stage-fan-wrap" data-modal-fan="stage">
+            <input type="hidden" id="modal-deal-stage" value="${firstStage.replace(/"/g, '&quot;')}">
+            <button type="button" class="deal-card-stage-trigger ${getDealStageColorClass(firstStage)}">${firstStage || 'Stage'} <i class="fas fa-chevron-down deal-card-stage-chevron"></i></button>
+            <div class="deal-card-stage-fan">${stagePills}</div>
+        </div>`;
+        const cardHtml = `
+            <div id="new-deal-modal-card" class="deal-card deal-card-modal deal-stage-default">
+                <div class="deal-card-header">
+                    <div class="deal-card-commit-row flex items-center gap-2">
+                        <span class="text-sm font-semibold text-[var(--text-medium)]">Account</span>
+                        <select id="modal-deal-account" class="min-w-[8rem]" required>${accountOptions}</select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        ${stageFanHtml}
+                        <button type="button" id="new-deal-save-btn" class="btn-primary deal-card-save-btn ml-auto"><i class="fas fa-check mr-1"></i> Save</button>
+                        <button type="button" id="new-deal-cancel-btn" class="btn-secondary">Cancel</button>
+                    </div>
+                </div>
+                <div class="deal-card-value">$ <input type="number" id="modal-deal-mrc" min="0" value="0" step="0.01" class="deal-card-inline-input deal-card-value-input w-24 text-center"> /mo</div>
+                <div class="deal-card-name"><input type="text" id="modal-deal-name" required placeholder="Deal name" class="deal-card-inline-input deal-card-name-input w-full"></div>
+                <div class="deal-card-products" id="modal-deal-products-wrap">${getProductPillHtml('modal-new', '')}<input type="hidden" id="modal-deal-products" value=""></div>
+                <div class="deal-card-footer">
+                    <div class="deal-card-close-picker flex gap-2 items-center">
+                        <input type="hidden" id="modal-deal-close-month" value="">
+                        ${monthFanHtml}
+                        ${yearFanHtml}
+                    </div>
+                    <div class="deal-card-term-fan-wrap">${termFanHtml}<input type="hidden" id="modal-deal-term" value=""></div>
+                </div>
+            </div>`;
+        const container = document.getElementById('new-deal-inline-container');
+        if (!container) return;
+        container.classList.remove('hidden');
+        container.innerHTML = cardHtml;
+        const card = container.querySelector('#new-deal-modal-card');
+        if (!card) return;
+        const tsOpts = { maxItems: 1, render: { dropdown: () => { const d = document.createElement('div'); d.className = 'ts-dropdown tom-select-no-search'; return d; } } };
+        const accSel = container.querySelector('#modal-deal-account');
+        if (accSel) tsAccountInstance = initDealModalTomSelect(accSel, tsOpts);
+        enterDealFocusMode(container);
+        const onSave = async () => {
+            const accountId = tsAccountInstance ? tsAccountInstance.getValue() : document.getElementById('modal-deal-account')?.value;
+            const name = document.getElementById('modal-deal-name')?.value?.trim();
+            if (!name) { showToast('Deal name is required.', 'error'); return; }
+            if (!accountId) { showToast('Please select an account.', 'error'); return; }
+            const insertData = {
+                user_id: getState().effectiveUserId,
+                name,
+                account_id: Number(accountId),
+                term: document.getElementById('modal-deal-term')?.value || '',
+                stage: document.getElementById('modal-deal-stage')?.value || firstStage,
+                mrc: parseFloat(document.getElementById('modal-deal-mrc')?.value) || 0,
+                close_month: document.getElementById('modal-deal-close-month')?.value || null,
+                products: document.getElementById('modal-deal-products')?.value?.trim() || '',
+                is_committed: false
+            };
+            const { error } = await supabase.from('deals').insert([insertData]);
+            if (error) { showToast('Error creating deal: ' + error.message, 'error'); return; }
+            if (tsAccountInstance) { tsAccountInstance.destroy(); tsAccountInstance = null; }
+            exitDealFocusMode();
+            container.classList.add('hidden');
+            container.innerHTML = '';
+            await loadAllData();
+        };
+        const onCancel = () => {
+            if (tsAccountInstance) { tsAccountInstance.destroy(); tsAccountInstance = null; }
+            exitDealFocusMode();
+            container.classList.add('hidden');
+            container.innerHTML = '';
+        };
+        container.querySelector('#new-deal-save-btn')?.addEventListener('click', onSave);
+        container.querySelector('#new-deal-cancel-btn')?.addEventListener('click', onCancel);
+        const closeFan = (wrap) => { wrap.classList.remove('open'); document.removeEventListener('click', closeHandler); };
+        let closeHandler = () => {};
+        function setupFanWrap(wrap, hiddenId, onSelect) {
+            const trigger = wrap.querySelector('.deal-card-stage-trigger');
+            const fan = wrap.querySelector('.deal-card-stage-fan');
+            const hidden = document.getElementById(hiddenId) || wrap.parentElement.querySelector(`#${hiddenId}`);
+            if (!trigger || !fan) return;
+            fan.querySelectorAll('.deal-card-stage-pill').forEach((pill) => {
+                pill.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const val = pill.dataset.value;
+                    if (hidden) hidden.value = val;
+                    trigger.innerHTML = `${pill.textContent} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+                    if (pill.classList.contains('deal-stage-discovery') || pill.classList.contains('deal-stage-won')) trigger.className = `deal-card-stage-trigger ${pill.className.split(' ').find(c => c.startsWith('deal-stage-')) || 'deal-stage-default'}`;
+                    else trigger.className = `deal-card-stage-trigger deal-card-close-fan-trigger`;
+                    onSelect && onSelect(val, pill.textContent);
+                    wrap.classList.remove('open');
+                });
+            });
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (wrap.classList.contains('open')) { wrap.classList.remove('open'); return; }
+                wrap.classList.add('open');
+                closeHandler = () => { wrap.classList.remove('open'); document.removeEventListener('click', closeHandler); };
+                setTimeout(() => document.addEventListener('click', closeHandler), 0);
+            });
+            wrap.addEventListener('click', (e) => e.stopPropagation());
+        }
+        card.querySelectorAll('[data-modal-fan="stage"]').forEach((wrap) => setupFanWrap(wrap, 'modal-deal-stage', (val) => { const t = wrap.querySelector('.deal-card-stage-trigger'); t.className = `deal-card-stage-trigger ${getDealStageColorClass(val)}`; }));
+        const monthWrap = card.querySelector('[data-modal-fan="month"]');
+        const yearWrap = card.querySelector('[data-modal-fan="year"]');
+        const syncCloseMonthInput = () => {
+            const ymEl = document.getElementById('modal-deal-close-month');
+            if (!ymEl) return;
+            const m = monthWrap?.dataset.selectedMonth;
+            const y = yearWrap?.dataset.selectedYear;
+            ymEl.value = (y && m) ? `${y}-${m}` : '';
+        };
+        if (monthWrap) setupFanWrap(monthWrap, null, (val) => { monthWrap.dataset.selectedMonth = val; syncCloseMonthInput(); });
+        if (yearWrap) setupFanWrap(yearWrap, null, (val) => { yearWrap.dataset.selectedYear = val; syncCloseMonthInput(); });
+        card.querySelectorAll('[data-modal-fan="term"]').forEach((wrap) => setupFanWrap(wrap, 'modal-deal-term'));
+        const productsWrap = container.querySelector('#modal-deal-products-wrap');
+        if (productsWrap) {
+            productsWrap.addEventListener('click', (e) => {
+                const pill = e.target.closest('.product-pill-toggle');
+                if (!pill) return;
+                e.preventDefault();
+                const productsHidden = document.getElementById('modal-deal-products');
+                if (!productsHidden) return;
+                const productName = pill.dataset.product;
+                let current = (productsHidden.value || '').split(',').map(p => p.trim()).filter(p => p);
+                if (pill.classList.contains('active')) {
+                    current = current.filter(p => { const pl = p.toLowerCase(); const tl = productName.toLowerCase(); if (tl === 'pri/sip') return !pl.includes('pri') && !pl.includes('sip'); if (tl === 'sd-wan') return !pl.includes('sdwan') && !pl.includes('sd-wan'); return pl !== tl; });
+                } else current.push(productName);
+                const newVal = current.join(', ');
+                productsHidden.value = newVal;
+                const newPillsHtml = getProductPillHtml('modal-new', newVal);
+                const frag = document.createElement('div');
+                frag.innerHTML = newPillsHtml;
+                productsWrap.replaceChildren(...frag.childNodes);
+                productsWrap.appendChild(productsHidden);
+            });
+        }
+    }
+
     // NEW: Drag and Drop Logic
     const setupDragAndDrop = () => {
         const cards = document.querySelectorAll('.kanban-card');
@@ -1459,6 +1648,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 handleFilterChange();
             });
         }
+        const addDealBtn = document.getElementById('add-deal-btn');
+        if (addDealBtn) addDealBtn.addEventListener('click', () => handleAddDeal());
     }
 
     function handleFilterChange() {

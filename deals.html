@@ -85,9 +85,12 @@
                     </div>
                 </div>
 
-                <div class="section-card">
+                <div class="section-card deals-pipeline-card">
                     <div class="section-card-header flex flex-wrap items-center justify-between gap-4">
-                        <h2 class="section-title m-0">Deal Pipeline</h2>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <h2 class="section-title m-0">Deal Pipeline</h2>
+                            <button type="button" id="add-deal-btn" class="btn-icon-header" title="New Deal" aria-label="New Deal"><i class="fas fa-plus"></i></button>
+                        </div>
                         <div class="deals-filters flex flex-wrap items-center gap-4">
                             <div class="deals-filter-group flex items-center gap-2">
                                 <span class="text-xs font-semibold uppercase tracking-wider text-[var(--text-medium)]">Committed</span>
@@ -111,6 +114,7 @@
                         </div>
                     </div>
                     <div class="section-card-body px-5 pt-5 pb-5">
+                        <div id="new-deal-inline-container" class="hidden mb-4"></div>
                 <div id="list-view-container">
                     <div class="table-container deals-table-container">
                         <table id="deals-table">

@@ -104,6 +104,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         return "deal-stage-default";
     }
 
+    function escapeNotesForHtml(notes) {
+        if (!notes || !notes.trim()) return "";
+        return (notes || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br>");
+    }
+
+    const PRODUCT_FAMILIES = ["Internet", "Ethernet", "UC", "PRI/SIP", "SD-WAN", "Firewall", "5G", "Cloud Connect", "Waves"];
+
+    function getProductClass(productName) {
+        const p = productName.toLowerCase().trim();
+        if (p.includes("internet")) return "product-internet";
+        if (p.includes("ethernet")) return "product-ethernet";
+        if (p.includes("uc")) return "product-uc";
+        if (p.includes("pri") || p.includes("sip")) return "product-pri-sip";
+        if (p.includes("sdwan") || p.includes("sd-wan")) return "product-sdwan";
+        if (p.includes("firewall")) return "product-firewall";
+        if (p.includes("5g")) return "product-5g";
+        if (p.includes("cloud")) return "product-cloud";
+        if (p.includes("wave")) return "product-waves";
+        return "product-default";
+    }
+
+    function getProductPillHtml(dealId, productsString) {
+        const activeProducts = (productsString || "").split(",").map((p) => p.trim().toLowerCase()).filter((p) => p);
+        return `<div class="flex flex-wrap gap-1 mt-1 justify-start">
+            ${PRODUCT_FAMILIES.map((p) => {
+                const isMatch = (ap) => ap === p.toLowerCase() ||
+                    (p === "PRI/SIP" && (ap.includes("pri") || ap.includes("sip"))) ||
+                    (p === "SD-WAN" && (ap.includes("sdwan") || ap.includes("sd-wan")));
+                const isActive = activeProducts.some(isMatch);
+                if (isActive) {
+                    return `<span class="product-pill product-pill-toggle active cursor-pointer hover:opacity-80 transition-opacity ${getProductClass(p)}" data-deal-id="${dealId}" data-product="${p}" title="Remove ${p}">${p}</span>`;
+                }
+                return `<span class="product-pill product-pill-toggle cursor-pointer hover:bg-[var(--bg-medium)] transition-colors" data-deal-id="${dealId}" data-product="${p}" style="background-color: transparent; color: var(--text-muted); border-color: var(--border-color);" title="Add ${p}">${p}</span>`;
+            }).join("")}
+        </div>`;
+    }
+
     // --- Dirty Check and Navigation ---
     const handleNavigation = (url) => {
         if (state.isFormDirty) {
@@ -420,14 +457,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             deals.forEach((deal) => {
                 const stageClass = getDealStageColorClass(deal.stage);
                 const notes = (deal.notes || "").trim();
-                const notesEscaped = notes ? notes.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br>") : "";
+                const notesEscaped = escapeNotesForHtml(notes);
                 const dealId = deal.id;
                 const truncate = (str, max = 30) => {
                     if (!str) return '';
                     return str.length > max ? str.substring(0, max) + '...' : str;
                 };
                 const safeName = (deal.name || "").replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const safeProducts = (deal.products || "").replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
                 const frontContent = `
                     <div class="deal-card-header">
@@ -439,64 +475,53 @@ document.addEventListener("DOMContentLoaded", async () => {
                             </label>
                             <span class="deal-card-stage">${deal.stage}</span>
                         </div>
-                        <button class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${dealId}" title="Edit Deal"><i class="fas fa-pen"></i></button>
+                        <button type="button" class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${dealId}" title="Edit Deal"><i class="fas fa-pen"></i></button>
                     </div>
                     <div class="deal-card-value">$${deal.mrc || 0}/mo</div>
                     <div class="deal-card-name" title="${safeName}">${truncate(safeName, 30)}</div>
-                    <div class="deal-card-products" title="${safeProducts}">${truncate(safeProducts, 30)}</div>
+                    <div class="deal-card-products">${getProductPillHtml(dealId, deal.products)}</div>
                     <div class="deal-card-footer">
                         ${deal.close_month ? `<span class="deal-card-close">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty"></span>'}
                         ${deal.term ? `<span class="deal-card-term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty"></span>'}
                     </div>
                 `;
-                const backContent = notes
-                    ? `
+                const backContent = `
                     <div class="deal-card-back-content">
-                        <div class="deal-card-back-body">${notesEscaped}</div>
+                        <div class="deal-card-back-body">${notesEscaped || '<span class="text-[var(--text-muted)]">No notes</span>'}</div>
                         <button type="button" class="btn-icon btn-icon-sm deal-card-back-edit" data-deal-id="${dealId}" title="Edit notes"><i class="fas fa-pen"></i></button>
-                    </div>
-                    `
-                    : "";
+                    </div>`;
                 const card = document.createElement("div");
-                card.className = `deal-card ${stageClass}${notes ? " deal-card-flippable" : ""}`;
+                card.className = `deal-card ${stageClass} deal-card-flippable`;
                 card.dataset.dealId = dealId;
-                if (notes) {
-                    card.innerHTML = `
-                        <div class="deal-card-flip-inner">
-                            <div class="deal-card-front">${frontContent}</div>
-                            <div class="deal-card-back">${backContent}</div>
-                        </div>
-                    `;
-                } else {
-                    card.innerHTML = `<div class="deal-card-flip-inner"><div class="deal-card-front">${frontContent}</div></div>`;
-                }
+                card.innerHTML = `
+                    <div class="deal-card-flip-inner">
+                        <div class="deal-card-front">${frontContent}</div>
+                        <div class="deal-card-back">${backContent}</div>
+                    </div>
+                `;
                 accountDealsCards.appendChild(card);
-                if (notes) {
-                    const flipInner = card.querySelector(".deal-card-flip-inner");
-                    const backContentEl = card.querySelector(".deal-card-back-content");
-                    const backBody = card.querySelector(".deal-card-back-body");
-                    const backEditBtn = card.querySelector(".deal-card-back-edit");
-                    const flipToBack = () => card.classList.add("deal-card-flipped");
-                    const flipToFront = () => card.classList.remove("deal-card-flipped");
-                    flipInner.addEventListener("click", (e) => {
-                        if (card.classList.contains("deal-card-editing") || card.classList.contains("deal-card-notes-editing")) return;
-                        const isEdit = e.target.closest(".edit-deal-btn");
-                        const isCommit = e.target.closest(".deal-card-commit-toggle");
-                        const isBackEdit = e.target.closest(".deal-card-back-edit");
-                        const isNotesSave = e.target.closest(".deal-card-notes-save");
-                        const isNotesCancel = e.target.closest(".deal-card-notes-cancel");
-                        if (isBackEdit) { e.stopPropagation(); enterNotesEditMode(card, dealId, deal.notes || ""); return; }
-                        if (isNotesSave || isNotesCancel) return;
-                        if (card.classList.contains("deal-card-flipped")) { flipToFront(); return; }
-                        if (isEdit || isCommit) return;
-                        flipToBack();
+                const flipInner = card.querySelector(".deal-card-flip-inner");
+                const backEditBtn = card.querySelector(".deal-card-back-edit");
+                flipInner.addEventListener("click", (e) => {
+                    if (card.classList.contains("deal-card-editing") || card.classList.contains("deal-card-notes-editing")) return;
+                    const isEdit = e.target.closest(".edit-deal-btn");
+                    const isCommit = e.target.closest(".deal-card-commit-toggle");
+                    const isBackEdit = e.target.closest(".deal-card-back-edit");
+                    const isNotesSave = e.target.closest(".deal-card-notes-save");
+                    const isNotesCancel = e.target.closest(".deal-card-notes-cancel");
+                    const isProductPill = e.target.closest(".product-pill-toggle");
+                    if (isProductPill) { e.stopPropagation(); handleProductPillToggle(e.target.closest(".product-pill-toggle")); return; }
+                    if (isBackEdit) { e.stopPropagation(); enterNotesEditMode(card, dealId, deal.notes || ""); return; }
+                    if (isNotesSave || isNotesCancel) return;
+                    if (card.classList.contains("deal-card-flipped")) { card.classList.remove("deal-card-flipped"); return; }
+                    if (isEdit || isCommit) return;
+                    card.classList.add("deal-card-flipped");
+                });
+                if (backEditBtn) {
+                    backEditBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        enterNotesEditMode(card, dealId, deal.notes || "");
                     });
-                    if (backEditBtn) {
-                        backEditBtn.addEventListener("click", (e) => {
-                            e.stopPropagation();
-                            enterNotesEditMode(card, dealId, deal.notes || "");
-                        });
-                    }
                 }
             });
         }
@@ -890,6 +915,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    async function handleProductPillToggle(pillElement) {
+        const dealIdRaw = pillElement.dataset.dealId;
+        const dealId = dealIdRaw === "new" ? "new" : Number(dealIdRaw);
+        const productName = pillElement.dataset.product;
+        const deal = state.selectedAccountDetails.deals.find((d) => String(d.id) === String(dealId));
+        if (!deal || !productName) return;
+
+        const isActive = pillElement.classList.contains("active");
+        let currentProducts = (deal.products || "").split(",").map((p) => p.trim()).filter((p) => p);
+
+        if (isActive) {
+            currentProducts = currentProducts.filter((p) => {
+                const pLower = p.toLowerCase();
+                const targetLower = productName.toLowerCase();
+                if (targetLower === "pri/sip") return !pLower.includes("pri") && !pLower.includes("sip");
+                if (targetLower === "sd-wan") return !pLower.includes("sdwan") && !pLower.includes("sd-wan");
+                return pLower !== targetLower;
+            });
+        } else {
+            currentProducts.push(productName);
+        }
+
+        const newProductsString = currentProducts.join(", ");
+        deal.products = newProductsString;
+
+        if (dealId === "new") {
+            renderAccountDetails();
+            return;
+        }
+        const { error } = await supabase.from("deals").update({ products: newProductsString }).eq("id", dealId);
+        if (error) return;
+        const dealMaster = state.deals.find((d) => d.id === dealId);
+        if (dealMaster) dealMaster.products = newProductsString;
+        renderAccountDetails();
+    }
+
     function enterNotesEditMode(card, dealId, currentNotes) {
         if (dealId === 'new') return;
         const backContent = card.querySelector(".deal-card-back-content");
@@ -939,6 +1000,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         cancelBtn.addEventListener("click", (e) => { e.stopPropagation(); exitNotesEdit(); });
     }
 
+    function enterDealFocusMode(focusedElement) {
+        if (!focusedElement) return;
+        let backdrop = document.getElementById('deal-focus-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'deal-focus-backdrop';
+            backdrop.className = 'deal-focus-backdrop';
+            const main = document.querySelector('main');
+            if (main) main.appendChild(backdrop);
+        }
+        focusedElement.classList.add('deal-card-focus-mode');
+    }
+    function exitDealFocusMode() {
+        document.querySelectorAll('.deal-card-focus-mode').forEach(el => el.classList.remove('deal-card-focus-mode'));
+        document.getElementById('deal-focus-backdrop')?.remove();
+    }
+
     function enterDealEditMode(dealId) {
         const deal = state.selectedAccountDetails.deals.find(d => d.id === dealId);
         if (!deal) return;
@@ -947,6 +1025,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (card.classList.contains('deal-card-editing')) return;
 
         card.classList.add('deal-card-editing');
+        enterDealFocusMode(card);
 
         const valueEl = card.querySelector('.deal-card-value');
         if (valueEl) {
@@ -1043,9 +1122,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const footerEl = card.querySelector('.deal-card-footer');
         if (footerEl) {
             const closeEl = footerEl.querySelector('.deal-card-close');
+            const termEl = footerEl.querySelector('.deal-card-term');
             const closeWrap = document.createElement('div');
             closeWrap.className = 'deal-card-close-picker';
-            const [year, month] = (deal.close_month || '').split('-');
+            const closeMonthStr = (deal.close_month || '').toString();
+            const [year, month] = closeMonthStr.split('-');
             const hiddenClose = document.createElement('input');
             hiddenClose.type = 'hidden';
             hiddenClose.className = 'deal-card-close-input';
@@ -1121,9 +1202,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             closeWrap.appendChild(monthFan);
             closeWrap.appendChild(yearFan);
             closeWrap.appendChild(hiddenClose);
-            closeEl.replaceWith(closeWrap);
+            if (closeEl) closeEl.replaceWith(closeWrap);
+            else footerEl.insertBefore(closeWrap, footerEl.firstChild);
 
-            const termEl = footerEl.querySelector('.deal-card-term');
             const termOptions = [
                 { value: '12', label: '12' },
                 { value: '24', label: '24' },
@@ -1145,19 +1226,49 @@ document.addEventListener("DOMContentLoaded", async () => {
             termWrap.className = 'deal-card-term-fan-wrap';
             termWrap.appendChild(termFan);
             termWrap.appendChild(termHidden);
-            termEl.replaceWith(termWrap);
+            if (termEl) termEl.replaceWith(termWrap);
+            else footerEl.appendChild(termWrap);
         }
 
         const productsEl = card.querySelector('.deal-card-products');
         if (productsEl) {
             const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'deal-card-inline-input deal-card-products-input';
+            input.type = 'hidden';
+            input.className = 'deal-card-products-input';
             input.dataset.field = 'products';
             input.value = deal.products || '';
-            input.placeholder = 'Products';
-            productsEl.textContent = '';
-            productsEl.appendChild(input);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'deal-card-products';
+            wrapper.innerHTML = getProductPillHtml(dealId, deal.products);
+            wrapper.appendChild(input);
+            productsEl.replaceWith(wrapper);
+            wrapper.addEventListener('click', (e) => {
+                const pill = e.target.closest('.product-pill-toggle');
+                if (!pill) return;
+                e.stopPropagation();
+                const pid = pill.dataset.dealId === 'new' ? 'new' : Number(pill.dataset.dealId);
+                const theDeal = state.selectedAccountDetails.deals.find((d) => String(d.id) === String(pid));
+                if (!theDeal) return;
+                const productName = pill.dataset.product;
+                let currentProducts = (theDeal.products || '').split(',').map((p) => p.trim()).filter((p) => p);
+                const isActive = pill.classList.contains('active');
+                if (isActive) {
+                    currentProducts = currentProducts.filter((p) => {
+                        const pLower = p.toLowerCase();
+                        const targetLower = productName.toLowerCase();
+                        if (targetLower === 'pri/sip') return !pLower.includes('pri') && !pLower.includes('sip');
+                        if (targetLower === 'sd-wan') return !pLower.includes('sdwan') && !pLower.includes('sd-wan');
+                        return pLower !== targetLower;
+                    });
+                } else {
+                    currentProducts.push(productName);
+                }
+                const newProductsString = currentProducts.join(', ');
+                theDeal.products = newProductsString;
+                input.value = newProductsString;
+                wrapper.innerHTML = getProductPillHtml(dealId, theDeal.products);
+                wrapper.appendChild(input);
+            });
         }
 
         const editBtn = card.querySelector('.edit-deal-btn');
@@ -1178,6 +1289,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function exitDealEditMode(dealId, refresh = false) {
+        exitDealFocusMode();
         if (refresh) {
             renderAccountDetails();
             return;
@@ -1221,6 +1333,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             };
             const { data: inserted, error } = await supabase.from('deals').insert([insertData]).select('id').single();
             if (error) return;
+            exitDealFocusMode();
             state.selectedAccountDetails.deals = state.selectedAccountDetails.deals.filter(d => d.id !== 'new');
             await refreshData();
             renderAccountDetails();
