@@ -65,10 +65,30 @@ const jarvisData = {
         { container: '#settings-view', macro: 'System Settings. Deal stages and activity types.', nodes: [{ anchor: '#new-deal-stage-name', text: 'New deal stage name.' }, { anchor: '#add-deal-stage-btn', text: 'Add deal stage.' }, { anchor: '#new-activity-type-name', text: 'New activity type name.' }, { anchor: '#add-activity-type-btn', text: 'Add activity type.' }] }
     ],
     'proposals.html': [
-        { 
-            container: 'body', // Anchors to the main view since it's an embed
-            macro: 'Strategic Proposal Engineering. High-fidelity document generation and version control for enterprise-grade service agreements.', 
-            nodes: [] // Embedded iframe buttons are shielded by browser security, so we use a macro-only overlay here
+        {
+            container: '#proposals-properties-section',
+            macro: 'Proposal Properties. RFP name, business, rep, dates; save/load project and compile proposal.',
+            nodes: [
+                { anchor: '#save-project-btn', text: 'Save project (.spec).' },
+                { anchor: '#load-project-label', text: 'Load project from file.' },
+                { anchor: '#generate-btn', text: 'Compile proposal: click once to enable (state change), then click again to generate.' }
+            ]
+        },
+        {
+            container: '#cover-letter-section',
+            macro: 'Cover Letter. Personalize body; use snippets, track readiness, and keep proposal notes.',
+            nodes: [
+                { anchor: '#cover-letter-section .rounded-xl:has(#cover-snippets)', text: 'Click to add: inserts snippet at cursor in cover letter.' },
+                { anchor: '#proposal-readiness-checklist', text: 'Proposal Readiness: track RFP, cover, pricing, and ready state.' },
+                { anchor: '#discovery-scratchpad', text: 'Proposal Notes: scratchpad for sites, contacts, quick math.' }
+            ]
+        },
+        {
+            container: '#proposals-elements-section',
+            macro: 'Proposal Elements. Include/exclude sections; drag to reorder for output order.',
+            nodes: [
+                { anchor: '#module-list', text: 'Drag to reorder; order defines proposal output.' }
+            ]
         }
     ]
 };

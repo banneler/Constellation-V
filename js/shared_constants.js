@@ -700,7 +700,6 @@ const GLOBAL_NAV_TEMPLATE = `
             <i class="fa-solid fa-chevron-down nav-menu-chevron"></i>
         </button>
         <div id="user-menu-popup" class="user-menu-content user-menu-collapsed">
-            <a href="ai-admin.html" class="nav-button"><i class="fa-solid fa-robot nav-icon"></i><span class="nav-label-text">AI Admin</span></a>
             <div class="user-menu-downloads">
                 <span class="user-menu-downloads-label">CSV Templates</span>
                 <a href="contacts_template.csv" class="user-menu-download-link" download>Contacts</a>

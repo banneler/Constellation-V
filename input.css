@@ -6701,9 +6701,9 @@ body:not(.theme-green) .list-item.selected {
     position: fixed;
     inset: 0;
     z-index: 9000;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(1px);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
