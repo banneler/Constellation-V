@@ -706,6 +706,7 @@ const GLOBAL_NAV_TEMPLATE = `
                 <a href="accounts_template.csv" class="user-menu-download-link" download>Accounts</a>
                 <a href="sequence_steps_template.csv" class="user-menu-download-link" download>Sequence Steps</a>
             </div>
+            <a href="ai-admin.html" class="nav-button" title="AI Admin"><span class="nav-label-text">AI Admin</span></a>
             <button id="logout-btn" class="nav-button nav-button-logout"><i class="fa-solid fa-right-from-bracket nav-icon"></i><span class="nav-label-text">Logout</span></button>
         </div>
     </div>
