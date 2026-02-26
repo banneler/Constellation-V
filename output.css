@@ -8010,6 +8010,10 @@ body.theme-green {
   .auth-container #auth-toggle-link:hover, .auth-container #forgot-password-link:hover, .auth-container #return-to-login-link:hover {
     text-decoration: underline;
   }
+  .v2-login-logo {
+    filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    -webkit-filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  }
   .user-menu {
     margin-top: auto;
     display: flex;

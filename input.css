@@ -4589,6 +4589,13 @@ body.theme-green {
     .auth-container #return-to-login-link:hover {
         text-decoration: underline;
     }
+
+    /* V.2 Login Screen Logo Override */
+    .v2-login-logo {
+        filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        -webkit-filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    }
+
     .user-menu {
         @apply flex flex-col mt-auto pt-4 min-w-0 flex-shrink-0;
     }
