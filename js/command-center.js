@@ -691,7 +691,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <div class="v2-promo-text">Experience the next generation of our CRM. Featuring new integrations, enhanced enterprise proposals, and optimized high-performance look.</div>
                 <div class="v2-promo-actions">
                     <button id="v2-promo-close" class="v2-promo-btn-secondary">Stay on V.1</button>
-                    <a href="http://constellation-v-git-deploy-constellation-crm.vercel.app" class="v2-promo-btn-primary">Initialize V.2</a>
+                    <a href="https://constellation-v-git-deploy-constellation-crm.vercel.app" class="v2-promo-btn-primary">Initialize V.2</a>
                 </div>
             </div>
         `;
