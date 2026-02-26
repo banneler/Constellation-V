@@ -704,7 +704,8 @@ body.theme-green {
         color: white;
     }
     .ai-write-form .ai-prompt-input {
-        @apply flex-grow min-h-0 resize-none;
+        @apply flex-grow resize-none;
+        min-height: 6.5rem;
     }
     .ai-write-form .ai-prompt-input,
     .ai-email-subject-input,
