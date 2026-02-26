@@ -19,7 +19,8 @@ import {
     injectGlobalNavigation,
     logToSalesforce,
     showGlobalLoader,
-    hideGlobalLoader
+    hideGlobalLoader,
+    refreshHUDNodes
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -456,6 +457,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 recentActivitiesList.appendChild(item);
             });
         }
+        if (typeof refreshHUDNodes === 'function') refreshHUDNodes();
     }
 
     function getActivityIconInfo(act) {

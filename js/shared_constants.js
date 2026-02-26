@@ -1,7 +1,9 @@
 // js/shared_constants.js
 
 // --- SHARED CONSTANTS AND FUNCTIONS ---
-import { initHUD, openHUD } from './hud.js';
+import { initHUD, refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes } from './hud.js';
+
+export { refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes };
 
 export const SUPABASE_URL = "https://pjxcciepfypzrfmlfchj.supabase.co";
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqeGNjaWVwZnlwenJmbWxmY2hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxMTU4NDQsImV4cCI6MjA2NzY5MTg0NH0.m_jyE0e4QFevI-mGJHYlGmA12lXf8XoMDoiljUav79c";
@@ -698,7 +700,6 @@ const GLOBAL_NAV_TEMPLATE = `
             <i class="fa-solid fa-chevron-down nav-menu-chevron"></i>
         </button>
         <div id="user-menu-popup" class="user-menu-content user-menu-collapsed">
-            <button type="button" id="user-menu-hud-toggle" class="nav-button" style="width: 100%; text-align: left; background: none; border: none; cursor: pointer;"><i class="fa-solid fa-lightbulb nav-icon"></i><span class="nav-label-text">Page Tips & Tricks</span></button>
             <a href="ai-admin.html" class="nav-button"><i class="fa-solid fa-robot nav-icon"></i><span class="nav-label-text">AI Admin</span></a>
             <div class="user-menu-downloads">
                 <span class="user-menu-downloads-label">CSV Templates</span>
@@ -722,13 +723,6 @@ export function injectGlobalNavigation() {
     container.innerHTML = GLOBAL_NAV_TEMPLATE;
 
     initHUD();
-    const userMenuHudToggle = document.getElementById('user-menu-hud-toggle');
-    if (userMenuHudToggle) {
-        userMenuHudToggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            openHUD();
-        });
-    }
 
     const navSidebar = container.closest('.nav-sidebar');
     const toggleBtn = document.getElementById('nav-collapse-toggle');

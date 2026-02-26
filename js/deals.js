@@ -17,7 +17,11 @@ import {
     loadSVGs,
     setupGlobalSearch,
     checkAndSetNotifications,
-    injectGlobalNavigation
+    injectGlobalNavigation,
+    refreshHUDNodes,
+    removeDealInsightsWireframe,
+    addDealInsightsWireframe,
+    reloadHUDWireframes
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -259,11 +263,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             listViewContainer.classList.remove('hidden');
             kanbanBoardView.classList.add('hidden');
             if (dealsChartsSection) dealsChartsSection.classList.remove('hidden');
+            if (typeof addDealInsightsWireframe === 'function') addDealInsightsWireframe();
+            if (typeof reloadHUDWireframes === 'function') reloadHUDWireframes();
         } else {
             renderKanbanBoard();
             listViewContainer.classList.add('hidden');
             kanbanBoardView.classList.remove('hidden');
             if (dealsChartsSection) dealsChartsSection.classList.add('hidden');
+            if (typeof removeDealInsightsWireframe === 'function') removeDealInsightsWireframe();
+            if (typeof reloadHUDWireframes === 'function') reloadHUDWireframes();
+            if (typeof refreshHUDNodes === 'function') refreshHUDNodes();
         }
     };
 
