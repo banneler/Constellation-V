@@ -265,6 +265,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderDealsPage(); // Your original table render function
             listViewContainer.classList.remove('hidden');
             kanbanBoardView.classList.add('hidden');
+            const pipelineCard = listViewContainer.closest('.deals-pipeline-card');
+            if (pipelineCard) pipelineCard.classList.add('deals-list-view-active');
             if (dealsChartsSection) dealsChartsSection.classList.remove('hidden');
             if (typeof addDealInsightsWireframe === 'function') addDealInsightsWireframe();
             if (typeof reloadHUDWireframes === 'function') {
@@ -274,6 +276,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderKanbanBoard();
             listViewContainer.classList.add('hidden');
             kanbanBoardView.classList.remove('hidden');
+            const pipelineCard = listViewContainer.closest('.deals-pipeline-card');
+            if (pipelineCard) pipelineCard.classList.remove('deals-list-view-active');
             if (dealsChartsSection) dealsChartsSection.classList.add('hidden');
             if (typeof removeDealInsightsWireframe === 'function') removeDealInsightsWireframe();
             if (typeof reloadHUDWireframes === 'function') reloadHUDWireframes();

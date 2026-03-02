@@ -143,7 +143,7 @@ async function handleDeleteSetting(e) {
 
 
 async function loadUserData() {
-    const { data, error } = await supabase.from('admin_users_view').select('*');
+    const { data, error } = await supabase.rpc('get_admin_users');
     if (error) { alert(`Could not load user data: ${error.message}`); return; }
     state.allUsers = data || [];
     renderUserTable();
@@ -219,14 +219,14 @@ async function loadContentData() {
 async function loadAnalyticsData() {
     const tablesToFetch = ['activities', 'contact_sequences', 'campaigns', 'tasks', 'deals'];
     
-    const { data: users, error: userError } = await supabase.from('admin_users_view').select('*');
+    const { data: users, error: userError } = await supabase.rpc('get_admin_users');
     if(userError) {
         alert('Could not load user data for analytics.');
         return;
     }
     state.allUsers = users || [];
 
-    const { data: log, error: logError } = await supabase.from('admin_activity_log_view').select('*').order('activity_date', { ascending: false }).limit(200);
+    const { data: log, error: logError } = await supabase.rpc('get_admin_activity_log', { _limit: 200 });
     if(logError) {
          alert('Could not load system activity log: ' + logError.message);
          state.activityLog = [];
@@ -253,11 +253,7 @@ async function loadAnalyticsData() {
 }
 
 async function loadScriptLogs() {
-    // Fetch script logs from our new, simplified view.
-    const { data, error } = await supabase
-        .from('admin_script_logs_view')
-        .select('*')
-        .order('last_completed_at', { ascending: false });
+    const { data, error } = await supabase.rpc('get_admin_script_logs');
 
     if (error) {
         alert(`Could not load script logs: ${error.message}`);

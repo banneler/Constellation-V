@@ -3823,9 +3823,52 @@ body.theme-green {
     #deals .deals-pipeline-card #list-view-container:not(.hidden) {
         @apply overflow-auto;
     }
+    /* List view: let #deals and pipeline card grow with table content so .content-area can scroll vertically */
+    #deals:has(.deals-pipeline-card.deals-list-view-active) {
+        flex: 0 0 auto;
+        min-height: min-content;
+    }
+    #deals .deals-pipeline-card.deals-list-view-active {
+        flex: 0 0 auto;
+        min-height: 0;
+    }
+    #deals .deals-pipeline-card.deals-list-view-active .section-card-body {
+        flex: 0 0 auto;
+        overflow: visible;
+    }
+    #deals .deals-pipeline-card.deals-list-view-active #list-view-container {
+        flex: 0 0 auto;
+        min-height: auto;
+        overflow: visible;
+    }
     #deals .deals-pipeline-card #kanban-board-view:not(.hidden) {
         @apply flex flex-row gap-4 py-4 min-h-0 overflow-x-auto overflow-y-hidden;
         padding-bottom: 2rem;
+    }
+    /* Kanban view: let board and columns grow vertically so cards stay full height and the page scrolls */
+    #deals:has(#kanban-board-view:not(.hidden)) {
+        flex: 0 0 auto;
+        min-height: min-content;
+    }
+    #deals:has(#kanban-board-view:not(.hidden)) .deals-pipeline-card {
+        flex: 0 0 auto;
+    }
+    #deals:has(#kanban-board-view:not(.hidden)) .deals-pipeline-card .section-card-body {
+        flex: 0 0 auto;
+        overflow: visible;
+    }
+    #deals:has(#kanban-board-view:not(.hidden)) #kanban-board-view:not(.hidden) {
+        flex: 0 0 auto;
+        min-height: min-content;
+        overflow-y: visible;
+    }
+    #deals:has(#kanban-board-view:not(.hidden)) .kanban-column {
+        align-self: flex-start;
+    }
+    #deals:has(#kanban-board-view:not(.hidden)) .kanban-column-body {
+        flex: 0 0 auto;
+        min-height: min-content;
+        overflow-y: visible;
     }
     #deals .deals-pipeline-card .kanban-column {
         @apply flex flex-col flex-[1_1_0] min-w-[160px] max-w-[400px] rounded-xl border border-[var(--border-color)];
@@ -4223,6 +4266,12 @@ body.theme-green {
     .table-container {
         @apply overflow-x-auto overflow-y-hidden rounded-xl;
     }
+    /* List view: let stage/close/term dropdown fans overflow the table container when open */
+    #list-view-container .deals-table-container:has(.deal-card-stage-fan-wrap.open),
+    #list-view-container .deals-table-container:has(.deal-card-close-fan.open),
+    #list-view-container .deals-table-container:has(.deal-card-term-fan-wrap.open) {
+        overflow-y: visible;
+    }
     #deals,
     .deals-table-container {
         font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
@@ -4341,6 +4390,17 @@ body.theme-green {
     }
     #deals-table tbody td {
         overflow: hidden;
+    }
+    /* Let stage/close/term dropdown fans overflow the cell when open (list view) */
+    #deals-table tbody td:has(.deal-card-stage-fan-wrap.open),
+    #deals-table tbody td:has(.deal-card-close-fan.open),
+    #deals-table tbody td:has(.deal-card-term-fan-wrap.open) {
+        overflow: visible;
+    }
+    #deals-table tbody tr:has(.deal-card-stage-fan-wrap.open),
+    #deals-table tbody tr:has(.deal-card-close-fan.open),
+    #deals-table tbody tr:has(.deal-card-term-fan-wrap.open) {
+        overflow: visible;
     }
     #deals-table tbody td.deal-cell-notes {
         vertical-align: top;
