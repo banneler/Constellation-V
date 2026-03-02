@@ -317,7 +317,7 @@ body.theme-green {
     }
     .content-area {
         position: relative;
-        @apply flex-grow p-5 overflow-y-auto min-h-0;
+        @apply flex flex-col flex-grow p-5 overflow-y-auto min-h-0;
         background: linear-gradient(180deg, var(--bg-dark) 0%, #f8fafc 100%);
     }
     .nav-cognito-wrap {
@@ -3301,10 +3301,12 @@ body.theme-green {
         @apply flex-1 min-h-0 overflow-y-auto px-4;
     }
     /* When a footer fan (Mo/Yr/Term) is open, allow overflow so dropdown isn’t clipped */
+    .account-deals-card:has(.deal-card-stage-fan-wrap.open),
     .account-deals-card:has(.deal-card-footer .deal-card-close-fan.open),
     .account-deals-card:has(.deal-card-footer .deal-card-term-fan-wrap.open) {
         overflow: visible;
     }
+    .account-deals-body:has(.deal-card-stage-fan-wrap.open),
     .account-deals-body:has(.deal-card-footer .deal-card-close-fan.open),
     .account-deals-body:has(.deal-card-footer .deal-card-term-fan-wrap.open) {
         overflow: visible;
@@ -3333,13 +3335,15 @@ body.theme-green {
         overflow: hidden;
         perspective: 1000px;
     }
-    /* Allow fans to show when editing or when any footer fan is open (month/year/term) */
+    /* Allow fans to show when editing or when any fan (stage or footer) is open */
     .deal-card-flippable.deal-card-editing,
+    .deal-card-flippable:has(.deal-card-stage-fan-wrap.open),
     .deal-card-flippable:has(.deal-card-footer .deal-card-close-fan.open),
     .deal-card-flippable:has(.deal-card-footer .deal-card-term-fan-wrap.open) {
         overflow: visible;
     }
     .deal-card-editing .deal-card-front,
+    .deal-card-front:has(.deal-card-stage-fan-wrap.open),
     .deal-card-front:has(.deal-card-footer .deal-card-close-fan.open),
     .deal-card-front:has(.deal-card-footer .deal-card-term-fan-wrap.open) {
         overflow: visible;
@@ -3380,6 +3384,15 @@ body.theme-green {
         line-height: 1.5;
         white-space: pre-wrap;
     }
+    .deal-card-back-footer {
+        @apply flex items-center justify-between flex-shrink-0 gap-2;
+        padding-top: 4px;
+        min-height: 2rem;
+    }
+    .deal-card-notes-updated {
+        @apply text-[0.7rem];
+        color: var(--text-muted);
+    }
     .deal-card-back-edit {
         @apply absolute w-7 h-7 rounded flex items-center justify-center border cursor-pointer;
         bottom: 2px;
@@ -3388,6 +3401,11 @@ body.theme-green {
         border-color: var(--border-color);
         color: var(--text-medium);
         transition: background-color 0.2s, color 0.2s;
+    }
+    .deal-card-back-footer .deal-card-back-edit {
+        position: static;
+        bottom: auto;
+        right: auto;
     }
     .deal-card-back-edit:hover {
         background-color: var(--bg-dark);
@@ -3440,6 +3458,32 @@ body.theme-green {
     .deal-card-header {
         @apply flex justify-between items-center gap-2;
     }
+    .deal-card-notes-dot {
+        @apply flex-shrink-0 flex flex-col items-center justify-center gap-0.5;
+        width: 14px;
+        padding: 3px 0;
+        border-radius: 6px;
+        background-color: rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    .deal-card-notes-light {
+        @apply rounded-full flex-shrink-0;
+        width: 8px;
+        height: 8px;
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+    .deal-card-notes-dot--red .deal-card-notes-light--top {
+        background-color: #ef4444;
+        box-shadow: 0 0 6px #ef4444;
+    }
+    .deal-card-notes-dot--yellow .deal-card-notes-light--mid {
+        background-color: #eab308;
+        box-shadow: 0 0 6px #eab308;
+    }
+    .deal-card-notes-dot--green .deal-card-notes-light--bottom {
+        background-color: var(--completed-color, #22c55e);
+        box-shadow: 0 0 6px var(--completed-color, #22c55e);
+    }
     .deal-card-commit-row {
         @apply flex items-center gap-3;
     }
@@ -3472,6 +3516,12 @@ body.theme-green {
     .deal-card-commit-label {
         @apply text-sm;
         color: var(--text-medium);
+    }
+    /* Editable fields: only as wide as content so rest of card can trigger flip */
+    .deal-card-front .deal-card-editable {
+        width: fit-content;
+        max-width: 100%;
+        display: inline-block;
     }
     .deal-card-value {
         @apply text-2xl font-bold;
@@ -3755,6 +3805,32 @@ body.theme-green {
     .deals-pipeline-card .btn-icon-header:hover {
         filter: brightness(1.15);
         transform: scale(1.05);
+    }
+    /* Deals page: pipeline card flexes to bottom of viewport */
+    #deals.content-view.active-view {
+        @apply flex flex-col min-h-0 flex-1;
+    }
+    #deals .deals-pipeline-card {
+        @apply flex flex-col flex-1 min-h-0 mb-6;
+    }
+    #deals .deals-pipeline-card .section-card-body {
+        @apply flex-1 min-h-0 flex flex-col overflow-hidden;
+    }
+    #deals .deals-pipeline-card #list-view-container,
+    #deals .deals-pipeline-card #kanban-board-view {
+        @apply min-h-0 flex-1 flex flex-col;
+    }
+    #deals .deals-pipeline-card #list-view-container:not(.hidden) {
+        @apply overflow-auto;
+    }
+    #deals .deals-pipeline-card #kanban-board-view:not(.hidden) {
+        @apply flex flex-row gap-4 py-4 min-h-0 overflow-x-auto overflow-y-hidden;
+        padding-bottom: 2rem;
+    }
+    #deals .deals-pipeline-card .kanban-column {
+        @apply flex flex-col flex-[1_1_0] min-w-[160px] max-w-[400px] rounded-xl border border-[var(--border-color)];
+        background-color: var(--bg-medium);
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
     }
     .account-contacts-card {
         @apply flex flex-col min-h-0 overflow-hidden min-w-0 flex-grow;
@@ -5098,6 +5174,11 @@ body:not(.theme-green) #contact-activities-list li {
     }
     .kanban-column-body {
         @apply flex-grow py-3 px-3 overflow-y-auto flex flex-col gap-3;
+    }
+    /* When stage fan is open, allow dropdown to extend outside the column */
+    .kanban-column:has(.deal-card-stage-fan-wrap.open),
+    .kanban-column-body:has(.deal-card-stage-fan-wrap.open) {
+        overflow: visible;
     }
     .kanban-card {
         @apply rounded-xl cursor-grab border-l-4 border-[var(--primary-blue)];

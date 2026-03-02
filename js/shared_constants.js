@@ -195,6 +195,24 @@ export function formatSimpleDate(dateString) {
     return adjustedDate.toLocaleDateString("en-US");
 }
 
+/**
+ * Returns notes status for deal cards: 'green' (≤7 days), 'yellow' (8–21 days), 'red' (no notes or >21 days).
+ * @param {{ notes?: string | null, notes_last_updated?: string | null }} deal
+ * @returns {{ status: 'green' | 'yellow' | 'red', label: string }}
+ */
+export function getDealNotesStatus(deal) {
+    const hasNotes = !!((deal?.notes || '').trim());
+    const updatedAt = deal?.notes_last_updated ? new Date(deal.notes_last_updated) : null;
+    if (!hasNotes || !updatedAt || Number.isNaN(updatedAt.getTime())) {
+        return { status: 'red', label: hasNotes ? 'Notes (date unknown)' : 'No notes' };
+    }
+    const now = new Date();
+    const daysAgo = (now.getTime() - updatedAt.getTime()) / (24 * 60 * 60 * 1000);
+    if (daysAgo <= 7) return { status: 'green', label: `Notes updated ${formatSimpleDate(deal.notes_last_updated)}` };
+    if (daysAgo <= 21) return { status: 'yellow', label: `Notes updated ${formatSimpleDate(deal.notes_last_updated)}` };
+    return { status: 'red', label: `Notes updated ${formatSimpleDate(deal.notes_last_updated)}` };
+}
+
 export function formatCurrency(value) {
     if (typeof value !== 'number') return '$0';
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;

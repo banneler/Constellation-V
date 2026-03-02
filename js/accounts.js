@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -464,7 +464,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return str.length > max ? str.substring(0, max) + '...' : str;
                 };
                 const safeName = (deal.name || "").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const actionButtons = dealId === 'new'
+                    ? `<div class="flex items-center gap-1"><button type="button" class="btn-icon btn-icon-sm deal-card-save-btn" data-deal-id="${dealId}" title="Save Deal"><i class="fas fa-check"></i></button><button type="button" class="btn-icon btn-icon-sm deal-card-cancel-btn" data-deal-id="${dealId}" title="Cancel"><i class="fas fa-times"></i></button></div>`
+                    : '';
 
+                const notesStatus = getDealNotesStatus(deal);
+                const updatedLabel = deal.notes_last_updated ? formatSimpleDate(deal.notes_last_updated) : "—";
                 const frontContent = `
                     <div class="deal-card-header">
                         <div class="deal-card-commit-row">
@@ -473,22 +478,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 <span class="deal-card-commit-slider"></span>
                                 <span class="deal-card-commit-label">Committed</span>
                             </label>
-                            <span class="deal-card-stage">${deal.stage}</span>
+                            <span class="deal-card-stage deal-card-editable" data-field="stage">${deal.stage}</span>
                         </div>
-                        <button type="button" class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${dealId}" title="Edit Deal"><i class="fas fa-pen"></i></button>
+                        ${actionButtons}
+                        <span class="deal-card-notes-dot deal-card-notes-dot--${notesStatus.status}" title="${(notesStatus.label || "").replace(/"/g, "&quot;")}" aria-hidden="true"><span class="deal-card-notes-light deal-card-notes-light--top"></span><span class="deal-card-notes-light deal-card-notes-light--mid"></span><span class="deal-card-notes-light deal-card-notes-light--bottom"></span></span>
                     </div>
-                    <div class="deal-card-value">$${deal.mrc || 0}/mo</div>
-                    <div class="deal-card-name" title="${safeName}">${truncate(safeName, 30)}</div>
+                    <div class="deal-card-value deal-card-editable" data-field="mrc">$${deal.mrc || 0}/mo</div>
+                    <div class="deal-card-name deal-card-editable" data-field="name" title="${safeName}">${truncate(safeName, 30)}</div>
                     <div class="deal-card-products">${getProductPillHtml(dealId, deal.products)}</div>
                     <div class="deal-card-footer">
-                        ${deal.close_month ? `<span class="deal-card-close">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty"></span>'}
-                        ${deal.term ? `<span class="deal-card-term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty"></span>'}
+                        ${deal.close_month ? `<span class="deal-card-close deal-card-editable" data-field="close_month">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty deal-card-editable" data-field="close_month">-</span>'}
+                        ${deal.term ? `<span class="deal-card-term deal-card-editable" data-field="term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty deal-card-editable" data-field="term">Term</span>'}
                     </div>
                 `;
                 const backContent = `
                     <div class="deal-card-back-content">
                         <div class="deal-card-back-body">${notesEscaped || '<span class="text-[var(--text-muted)]">No notes</span>'}</div>
-                        <button type="button" class="btn-icon btn-icon-sm deal-card-back-edit" data-deal-id="${dealId}" title="Edit notes"><i class="fas fa-pen"></i></button>
+                        <div class="deal-card-back-footer">
+                            <span class="deal-card-notes-updated">Updated ${updatedLabel}</span>
+                            <button type="button" class="btn-icon btn-icon-sm deal-card-back-edit" data-deal-id="${dealId}" title="Edit notes"><i class="fas fa-pen"></i></button>
+                        </div>
                     </div>`;
                 const card = document.createElement("div");
                 card.className = `deal-card ${stageClass} deal-card-flippable`;
@@ -504,17 +513,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const backEditBtn = card.querySelector(".deal-card-back-edit");
                 flipInner.addEventListener("click", (e) => {
                     if (card.classList.contains("deal-card-editing") || card.classList.contains("deal-card-notes-editing")) return;
-                    const isEdit = e.target.closest(".edit-deal-btn");
                     const isCommit = e.target.closest(".deal-card-commit-toggle");
                     const isBackEdit = e.target.closest(".deal-card-back-edit");
                     const isNotesSave = e.target.closest(".deal-card-notes-save");
                     const isNotesCancel = e.target.closest(".deal-card-notes-cancel");
                     const isProductPill = e.target.closest(".product-pill-toggle");
+                    const inlineInput = e.target.closest(".deal-card-inline-input, .deal-card-inline-select");
+                    const inlineEditable = e.target.closest(".deal-card-editable");
                     if (isProductPill) { e.stopPropagation(); handleProductPillToggle(e.target.closest(".product-pill-toggle")); return; }
                     if (isBackEdit) { e.stopPropagation(); enterNotesEditMode(card, dealId, deal.notes || ""); return; }
                     if (isNotesSave || isNotesCancel) return;
+                    if (inlineInput) { e.stopPropagation(); return; }
+                    if (inlineEditable && dealId !== 'new') { e.stopPropagation(); startAccountDealInlineEdit(card, inlineEditable, dealId); return; }
                     if (card.classList.contains("deal-card-flipped")) { card.classList.remove("deal-card-flipped"); return; }
-                    if (isEdit || isCommit) return;
+                    if (isCommit) return;
                     card.classList.add("deal-card-flipped");
                 });
                 if (backEditBtn) {
@@ -951,6 +963,283 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderAccountDetails();
     }
 
+    async function saveAccountDealField(dealId, field, value) {
+        const deal = state.selectedAccountDetails.deals.find((d) => d.id === dealId);
+        if (!deal || dealId === 'new') return;
+
+        let updateVal = value;
+        if (field === 'mrc') updateVal = parseFloat(value) || 0;
+        if (field === 'close_month') updateVal = value || null;
+        if (field === 'name' && !String(value || '').trim()) {
+            showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+
+        const { error } = await supabase.from('deals').update({ [field]: updateVal }).eq('id', dealId);
+        if (error) {
+            showModal("Error", "Error saving deal: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+
+        const dealMaster = state.deals.find((d) => d.id === dealId);
+        if (dealMaster) dealMaster[field] = updateVal;
+        deal[field] = updateVal;
+        renderAccountDetails();
+    }
+
+    function createAccountInlineCloseFan(options, currentVal, placeholder, onSelect) {
+        const wrap = document.createElement('div');
+        wrap.className = 'deal-card-stage-fan-wrap deal-card-close-fan';
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'deal-card-stage-trigger deal-card-close-fan-trigger';
+        const currentLabel = options.find(o => o.value === currentVal)?.label || placeholder;
+        trigger.innerHTML = `${currentLabel} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+        wrap.appendChild(trigger);
+        const fan = document.createElement('div');
+        fan.className = 'deal-card-stage-fan';
+        options.forEach((opt, i) => {
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            pill.className = 'deal-card-stage-pill deal-stage-default';
+            pill.textContent = opt.label;
+            pill.dataset.value = opt.value;
+            pill.style.setProperty('--fan-i', `${i}`);
+            pill.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onSelect(opt.value, opt.label);
+                trigger.innerHTML = `${opt.label} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+            });
+            fan.appendChild(pill);
+        });
+        wrap.appendChild(fan);
+        const closeFan = () => {
+            wrap.classList.remove('open');
+            document.removeEventListener('click', closeFan);
+        };
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (wrap.classList.contains('open')) closeFan();
+            else {
+                wrap.classList.add('open');
+                setTimeout(() => document.addEventListener('click', closeFan), 0);
+            }
+        });
+        wrap.addEventListener('click', (e) => e.stopPropagation());
+        fan.querySelectorAll('.deal-card-stage-pill').forEach((p) => p.addEventListener('click', () => closeFan()));
+        return wrap;
+    }
+
+    function startAccountDealInlineEdit(card, el, dealId) {
+        const field = el.dataset.field;
+        const deal = state.selectedAccountDetails.deals.find((d) => d.id === dealId);
+        if (!deal || !field || el.classList.contains('deal-card-editing')) return;
+
+        if (field === 'stage') {
+            const stages = (state.dealStages || []).sort((a, b) => a.sort_order - b.sort_order);
+            const currentStage = deal.stage || '';
+            const wrap = document.createElement('div');
+            wrap.className = 'deal-card-stage-fan-wrap';
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.className = 'deal-card-stage-input';
+            hiddenInput.dataset.field = 'stage';
+            hiddenInput.value = currentStage;
+            wrap.appendChild(hiddenInput);
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = `deal-card-stage-trigger ${getDealStageColorClass(currentStage)}`;
+            trigger.innerHTML = `${currentStage || 'Stage'} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+            wrap.appendChild(trigger);
+            const fan = document.createElement('div');
+            fan.className = 'deal-card-stage-fan';
+            const total = stages.length;
+            const spread = Math.min(120, Math.max(60, (total - 1) * 25));
+            const startAngle = 90 + spread / 2;
+            stages.forEach((s, i) => {
+                const angle = total <= 1 ? 90 : startAngle - (spread * i) / (total - 1);
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `deal-card-stage-pill ${getDealStageColorClass(s.stage_name)}`;
+                pill.textContent = s.stage_name;
+                pill.dataset.stage = s.stage_name;
+                pill.style.setProperty('--fan-angle', `${angle}deg`);
+                pill.style.setProperty('--fan-i', `${i}`);
+                pill.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const val = s.stage_name;
+                    hiddenInput.value = val;
+                    closeFan();
+                    await saveAccountDealField(dealId, 'stage', val);
+                    const span = document.createElement('span');
+                    span.className = 'deal-card-stage deal-card-editable';
+                    span.dataset.field = 'stage';
+                    span.textContent = val;
+                    wrap.replaceWith(span);
+                    card.className = card.className.replace(/\bdeal-stage-\w+/g, '').trim();
+                    card.classList.add(getDealStageColorClass(val));
+                });
+                fan.appendChild(pill);
+            });
+            wrap.appendChild(fan);
+            const closeFan = () => {
+                wrap.classList.remove('open');
+                document.removeEventListener('click', closeFan);
+            };
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (wrap.classList.contains('open')) closeFan();
+                else {
+                    wrap.classList.add('open');
+                    setTimeout(() => document.addEventListener('click', closeFan), 0);
+                }
+            });
+            wrap.addEventListener('click', (e) => e.stopPropagation());
+            fan.querySelectorAll('.deal-card-stage-pill').forEach((p) => p.addEventListener('click', () => closeFan()));
+            el.replaceWith(wrap);
+            return;
+        }
+
+        if (field === 'close_month') {
+            const closeMonthStr = (deal.close_month || '').toString();
+            const [year, month] = closeMonthStr.split('-');
+            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const monthOptions = monthNames.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }));
+            const currentYear = new Date().getFullYear();
+            const yearOptions = [currentYear, currentYear + 1, currentYear + 2].map(y => ({ value: String(y), label: String(y) }));
+            let selectedMonth = month || '';
+            let selectedYear = year || '';
+            const closeWrap = document.createElement('div');
+            closeWrap.className = 'deal-card-close-picker';
+            const hiddenClose = document.createElement('input');
+            hiddenClose.type = 'hidden';
+            hiddenClose.className = 'deal-card-close-input';
+            hiddenClose.dataset.field = 'close_month';
+            hiddenClose.value = deal.close_month || '';
+            const syncHidden = () => {
+                hiddenClose.value = (selectedYear && selectedMonth) ? `${selectedYear}-${selectedMonth}` : '';
+            };
+            const monthFan = createAccountInlineCloseFan(monthOptions, month, 'Mo', (val) => {
+                selectedMonth = val;
+                syncHidden();
+            });
+            monthFan.classList.add('deal-card-close-month-fan');
+            const yearFan = createAccountInlineCloseFan(yearOptions, year, 'Yr', (val) => {
+                selectedYear = val;
+                syncHidden();
+            });
+            yearFan.classList.add('deal-card-close-year-fan');
+            closeWrap.appendChild(monthFan);
+            closeWrap.appendChild(yearFan);
+            closeWrap.appendChild(hiddenClose);
+            const onClose = async () => {
+                document.removeEventListener('click', onClose);
+                const val = hiddenClose.value || null;
+                await saveAccountDealField(dealId, 'close_month', val);
+                const span = document.createElement('span');
+                span.className = val ? 'deal-card-close deal-card-editable' : 'deal-card-close deal-card-empty deal-card-editable';
+                span.dataset.field = 'close_month';
+                span.textContent = val ? formatMonthYear(val) : '-';
+                closeWrap.replaceWith(span);
+            };
+            const openHandler = (e) => {
+                if (!closeWrap.contains(e.target)) onClose();
+            };
+            setTimeout(() => document.addEventListener('click', openHandler), 0);
+            el.replaceWith(closeWrap);
+            return;
+        }
+
+        if (field === 'term') {
+            const termOptions = [
+                { value: '12', label: '12' },
+                { value: '24', label: '24' },
+                { value: '36', label: '36' },
+                { value: '48', label: '48' },
+                { value: '60', label: '60' }
+            ];
+            const termValue = (deal.term || '').replace(/\D/g, '') || '';
+            const termFan = createAccountInlineCloseFan(termOptions, termValue, 'Term', async (val) => {
+                await saveAccountDealField(dealId, 'term', val);
+                const span = document.createElement('span');
+                span.className = val ? 'deal-card-term deal-card-editable' : 'deal-card-term deal-card-empty deal-card-editable';
+                span.dataset.field = 'term';
+                span.textContent = val ? `Term: ${val}` : 'Term';
+                termWrap.replaceWith(span);
+            });
+            termFan.classList.add('deal-card-close-term-fan');
+            const termWrap = document.createElement('div');
+            termWrap.className = 'deal-card-term-fan-wrap';
+            termWrap.appendChild(termFan);
+            el.replaceWith(termWrap);
+            return;
+        }
+
+        let input;
+        if (field === 'mrc') {
+            input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '0.01';
+            input.value = deal.mrc || 0;
+            input.className = 'deal-card-inline-input';
+        } else if (field === 'name') {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.value = deal.name || '';
+            input.className = 'deal-card-inline-input';
+        } else {
+            return;
+        }
+
+        el.classList.add('deal-card-editing');
+        const originalHtml = el.innerHTML;
+        el.textContent = '';
+        el.appendChild(input);
+        input.focus();
+
+        const restoreDisplay = (value) => {
+            el.classList.remove('deal-card-editing');
+            el.textContent = '';
+            if (field === 'mrc') {
+                el.textContent = `$${typeof value === 'number' ? value : (parseFloat(value) || 0)}/mo`;
+            } else if (field === 'name') {
+                const safe = (value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                el.textContent = safe.length > 30 ? safe.substring(0, 30) + '...' : safe;
+                el.title = value || '';
+            }
+        };
+
+        const save = async () => {
+            let value;
+            if (field === 'mrc') value = parseFloat(input.value) || 0;
+            else if (field === 'name') value = input.value.trim();
+            else value = input.value || '';
+
+            if (field === 'name' && !value) {
+                el.classList.remove('deal-card-editing');
+                el.innerHTML = originalHtml;
+                showModal("Error", "Deal name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
+            restoreDisplay(value);
+            await saveAccountDealField(dealId, field, value);
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', (evt) => {
+            if (evt.key === 'Enter') {
+                evt.preventDefault();
+                input.blur();
+            }
+            if (evt.key === 'Escape') {
+                evt.preventDefault();
+                el.classList.remove('deal-card-editing');
+                el.innerHTML = originalHtml;
+            }
+        });
+    }
+
     function enterNotesEditMode(card, dealId, currentNotes) {
         if (dealId === 'new') return;
         const backContent = card.querySelector(".deal-card-back-content");
@@ -976,7 +1265,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const orig = backBody.dataset.originalNotes || "";
             const escaped = orig.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br>");
             backBody.removeAttribute("data-original-notes");
-            backBody.innerHTML = escaped;
+            backBody.innerHTML = escaped || '<span class="text-[var(--text-muted)]">No notes</span>';
             const newEditBtn = document.createElement("button");
             newEditBtn.type = "button";
             newEditBtn.className = "btn-icon btn-icon-sm deal-card-back-edit";
@@ -988,14 +1277,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         saveBtn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const value = textarea.value.trim();
-            const { error } = await supabase.from("deals").update({ notes: value }).eq("id", dealId);
-            if (error) return;
+            const notesUpdatedLast = new Date().toISOString().slice(0, 10);
+            let payload = { notes: value, notes_last_updated: notesUpdatedLast };
+            let { error } = await supabase.from("deals").update(payload).eq("id", dealId);
+            if (error) {
+                const msg = (error.message || "").toLowerCase();
+                if (msg.includes("notes_last_updated") || msg.includes("column") || error.code === "22P02") {
+                    payload = { notes: value };
+                    const retry = await supabase.from("deals").update(payload).eq("id", dealId);
+                    if (retry.error) {
+                        return;
+                    }
+                } else {
+                    return;
+                }
+            }
             const deal = state.deals.find(d => d.id === dealId);
-            if (deal) deal.notes = value;
+            if (deal) {
+                deal.notes = value;
+                deal.notes_last_updated = notesUpdatedLast;
+            }
             const dealDetails = state.selectedAccountDetails.deals.find(d => d.id === dealId);
-            if (dealDetails) dealDetails.notes = value;
+            if (dealDetails) {
+                dealDetails.notes = value;
+                dealDetails.notes_last_updated = notesUpdatedLast;
+            }
             backBody.dataset.originalNotes = value;
             exitNotesEdit();
+            const updatedDeal = deal || dealDetails || { notes: value, notes_last_updated: notesUpdatedLast };
+            const newStatus = getDealNotesStatus(updatedDeal);
+            const dot = card.querySelector(".deal-card-notes-dot");
+            if (dot) {
+                dot.className = `deal-card-notes-dot deal-card-notes-dot--${newStatus.status}`;
+                dot.title = newStatus.label;
+            }
+            const updatedEl = card.querySelector(".deal-card-notes-updated");
+            if (updatedEl) updatedEl.textContent = `Updated ${formatSimpleDate(notesUpdatedLast)}`;
         });
         cancelBtn.addEventListener("click", (e) => { e.stopPropagation(); exitNotesEdit(); });
     }
@@ -1752,6 +2069,160 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+// --- AI Briefing Handler ---
+    async function handleGenerateBriefing() {
+        if (!state.selectedAccountId) {
+            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+        const { account, contacts, activities, deals } = state.selectedAccountDetails;
+        if (!account) return;
+
+        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+
+        try {
+            let orgChartText = "No hierarchy defined.";
+            if (contacts.length > 0) {
+                const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
+                const tree = [];
+                contactMap.forEach(contact => {
+                    if (contact.reports_to && contactMap.has(Number(contact.reports_to))) {
+                        contactMap.get(Number(contact.reports_to)).children.push(contact);
+                    } else {
+                        tree.push(contact);
+                    }
+                });
+                
+                const buildTextTree = (node, prefix = "") => {
+                    let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
+                    node.children
+                        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                        .forEach(child => {
+                            text += buildTextTree(child, prefix + "  ");
+                        });
+                    return text;
+                };
+                orgChartText = tree
+                    .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
+                    .map(node => buildTextTree(node)).join('');
+            }
+
+            const internalData = {
+                accountName: account.name,
+                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
+                orgChart: orgChartText,
+                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
+                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
+                    const contact = contacts.find(c => c.id === act.contact_id);
+                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
+                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
+                }).join('\n')
+            };
+
+            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
+            if (error) throw error;
+
+    // --- UPDATED GLOBAL PROCESSING ---
+const summaryText = flattenAIResponse(briefing.summary);
+
+const keyPlayersHtml = flattenAIResponse(briefing.key_players)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+const pipelineText = flattenAIResponse(briefing.pipeline);
+
+const activityHighlightsHtml = flattenAIResponse(briefing.activity_highlights);
+
+const newsText = flattenAIResponse(briefing.news);
+const newContactsText = flattenAIResponse(briefing.new_contacts);
+
+const icebreakersHtml = flattenAIResponse(briefing.icebreakers)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+const recommendationText = flattenAIResponse(briefing.recommendation);
+
+            let orgChartDisplayHtml = '';
+
+            // --- THIS IS THE FIX ---
+            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
+                
+                // 1. Get the INNER HTML from the live chart
+                const chartCloneHtml = contactOrgChartView.innerHTML;
+                
+                // 2. Get the INNER HTML from the unassigned container
+                const unassignedContainer = document.getElementById("unassigned-contacts-container");
+                let unassignedCloneHtml = '';
+                if (unassignedContainer) {
+                    unassignedCloneHtml = unassignedContainer.innerHTML;
+                }
+                
+                // 3. Re-wrap the HTML in the IDs/classes that our CSS file needs
+                orgChartDisplayHtml = `
+                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
+                    <div class="briefing-section org-chart-print-container"
+                         style="
+                            max-height: 300px;
+                            overflow: hidden;
+                            border: 1px solid var(--border-color);
+                            background: var(--bg-dark);
+                            padding: 10px;
+                            border-radius: 8px;
+                       ">
+                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
+                            
+                            <div id="contact-org-chart-view">
+                                ${chartCloneHtml}
+                            </div>
+                            <div id="unassigned-contacts-container">
+                                ${unassignedCloneHtml} 
+                            </div>
+                            
+                        </div>
+                    </div>`;
+                // --- END OF FIX ---
+                
+            } else if (contacts.length > 0) {
+                orgChartDisplayHtml = `
+                    <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
+                    <div class="briefing-section">
+                        <p>${keyPlayersHtml}</p>
+                    </div>`;
+            }
+
+            const briefingHtml = `
+                <div class="ai-briefing-container">
+                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
+                        ${orgChartDisplayHtml}
+                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
+                        <p><strong>Recent Activity:</strong></p>
+                        <div class="briefing-pre">${briefing.activity_highlights}</div>
+                    </div>
+                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
+                    <div class="briefing-section">
+                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
+                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
+                        <p><strong>Social Icebreakers:</strong></p>
+                        <div class="briefing-pre">${icebreakersHtml}</div>
+                    </div>
+                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
+                    <div class="briefing-section recommendation">
+                        <p>${briefing.recommendation}</p>
+                    </div>
+                </div>`;
+            
+            const modalFooter = `
+                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
+                <button id="modal-ok-btn" class="btn-primary">Close</button>
+            `;
+            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
+
+        } catch (error) {
+            console.error("Error invoking AI Briefing Edge Function:", error);
+            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    }
+
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
@@ -1851,12 +2322,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (accountDealsCards) {
             accountDealsCards.addEventListener('click', (e) => {
-                const editBtn = e.target.closest('.edit-deal-btn');
                 const saveBtn = e.target.closest('.deal-card-save-btn');
                 const cancelBtn = e.target.closest('.deal-card-cancel-btn');
                 const commitToggle = e.target.closest('.deal-card-commit-toggle');
                 const commitCheck = commitToggle?.querySelector('.commit-deal-checkbox') || e.target.closest('.commit-deal-checkbox');
-                if (editBtn) enterDealEditMode(editBtn.dataset.dealId === 'new' ? 'new' : Number(editBtn.dataset.dealId));
                 if (saveBtn) handleSaveDeal(saveBtn.dataset.dealId === 'new' ? 'new' : Number(saveBtn.dataset.dealId));
                 if (cancelBtn) exitDealEditMode(cancelBtn.dataset.dealId === 'new' ? 'new' : Number(cancelBtn.dataset.dealId));
                 if (commitCheck) {
@@ -1983,7 +2452,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                             const recordName = String(record.name).trim().toLowerCase();
                             const existingAccount = existingAccountMap.get(recordName);
-
+                            globalState = getState(); // <-- ADD THIS
                             const processedRecord = {
                                 name: String(record.name).trim(),
                                 website: record.website || null,
@@ -2149,6 +2618,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             showModal("Error", "Task description is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                             return false;
                         }
+                            globalState = getState(); // <-- ADD THIS
                         const newTask = {
                             user_id: getState().effectiveUserId,
                             description,

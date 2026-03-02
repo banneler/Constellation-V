@@ -3,8 +3,10 @@ import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     formatMonthYear,
+    formatSimpleDate,
     formatCurrencyK,
     formatCurrency,
+    getDealNotesStatus,
     themes,
     setupModalListeners,
     showModal,
@@ -529,27 +531,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function setupKanbanFlipListeners() {
         kanbanBoardView.onclick = (e) => {
-            const editBtn = e.target.closest('.edit-deal-btn');
-            const saveBtn = e.target.closest('.deal-card-save-btn');
-            const cancelBtn = e.target.closest('.deal-card-cancel-btn');
             const commitToggle = e.target.closest('.deal-card-commit-toggle');
             const commitCheck = commitToggle?.querySelector('.commit-deal-checkbox') || e.target.closest('.commit-deal-checkbox');
-            
-            if (editBtn) {
-                e.stopPropagation();
-                enterDealEditMode(Number(editBtn.dataset.dealId));
-                return;
-            }
-            if (saveBtn) {
-                e.stopPropagation();
-                handleKanbanSaveDeal(Number(saveBtn.dataset.dealId));
-                return;
-            }
-            if (cancelBtn) {
-                e.stopPropagation();
-                exitDealEditMode(Number(cancelBtn.dataset.dealId));
-                return;
-            }
+            const inlineInput = e.target.closest('.deal-card-inline-input, .deal-card-inline-select');
+            const inlineEditable = e.target.closest('.deal-card-editable');
+            const productPill = e.target.closest('.product-pill-toggle');
+
             if (commitCheck) {
                 e.stopPropagation();
                 handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
@@ -559,20 +546,39 @@ document.addEventListener("DOMContentLoaded", async () => {
                 e.stopPropagation();
                 return;
             }
+            if (inlineInput) {
+                e.stopPropagation();
+                return;
+            }
+            if (productPill) {
+                e.stopPropagation();
+                handleProductPillToggle(productPill);
+                return;
+            }
 
             const card = e.target.closest('.kanban-card.deal-card-flippable');
             if (!card || card.classList.contains('dragging')) return;
             const dealId = Number(card.dataset.id);
             const flipInner = card.querySelector('.deal-card-flip-inner');
             if (!flipInner) return;
-            if (card.classList.contains('deal-card-editing') || card.classList.contains('deal-card-notes-editing')) return;
+            if (card.classList.contains('deal-card-notes-editing')) return;
             const isBackEdit = e.target.closest('.deal-card-back-edit');
             const isNotesSave = e.target.closest('.deal-card-notes-save');
             const isNotesCancel = e.target.closest('.deal-card-notes-cancel');
             if (isBackEdit) { e.stopPropagation(); enterKanbanNotesEditMode(card, dealId); return; }
             if (isNotesSave || isNotesCancel) return;
-            if (card.classList.contains('deal-card-flipped')) card.classList.remove('deal-card-flipped');
-            else card.classList.add('deal-card-flipped');
+            if (inlineEditable) {
+                e.stopPropagation();
+                startKanbanInlineEdit(card, inlineEditable, dealId);
+                return;
+            }
+            if (card.classList.contains('deal-card-flipped')) {
+                card.classList.remove('deal-card-flipped');
+                card.draggable = true;
+            } else {
+                card.classList.add('deal-card-flipped');
+                card.draggable = false;
+            }
         };
     }
 
@@ -614,11 +620,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         saveBtn.onclick = async (ev) => {
             ev.stopPropagation();
             const value = textarea.value.trim();
-            const { error } = await supabase.from('deals').update({ notes: value }).eq('id', dealId);
-            if (error) { showToast('Error saving notes.', 'error'); return; }
-            if (deal) deal.notes = value;
+            const notesUpdatedLast = new Date().toISOString().slice(0, 10);
+            let payload = { notes: value, notes_last_updated: notesUpdatedLast };
+            let { error } = await supabase.from('deals').update(payload).eq('id', dealId);
+            if (error) {
+                const msg = (error.message || '').toLowerCase();
+                if (msg.includes('notes_last_updated') || msg.includes('column') || error.code === '22P02') {
+                    payload = { notes: value };
+                    const retry = await supabase.from('deals').update(payload).eq('id', dealId);
+                    if (retry.error) {
+                        showToast('Error saving notes: ' + retry.error.message, 'error');
+                        return;
+                    }
+                } else {
+                    showToast('Error saving notes: ' + error.message, 'error');
+                    return;
+                }
+            }
+            if (deal) {
+                deal.notes = value;
+                deal.notes_last_updated = notesUpdatedLast;
+            }
             backBody.dataset.originalNotes = value;
             exitNotesEdit();
+            const newStatus = getDealNotesStatus(deal || { notes: value, notes_last_updated: notesUpdatedLast });
+            const dot = card.querySelector('.deal-card-notes-dot');
+            if (dot) {
+                dot.className = `deal-card-notes-dot deal-card-notes-dot--${newStatus.status}`;
+                dot.title = newStatus.label;
+            }
+            const updatedEl = card.querySelector('.deal-card-notes-updated');
+            if (updatedEl) updatedEl.textContent = `Updated ${formatSimpleDate(notesUpdatedLast)}`;
         };
         cancelBtn.onclick = (ev) => { ev.stopPropagation(); exitNotesEdit(); };
     }
@@ -1015,6 +1047,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const safeName = (deal.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const safeProducts = (deal.products || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         
+        const notesStatus = getDealNotesStatus(deal);
+        const updatedLabel = deal.notes_last_updated ? formatSimpleDate(deal.notes_last_updated) : '—';
         const frontContent = `
             <div class="deal-card-header">
                 <div class="deal-card-commit-row">
@@ -1023,23 +1057,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <span class="deal-card-commit-slider"></span>
                         <span class="deal-card-commit-label">Committed</span>
                     </label>
-                    <span class="deal-card-stage">${deal.stage}</span>
+                    <span class="deal-card-stage deal-card-editable" data-field="stage">${deal.stage}</span>
                 </div>
-                <button type="button" class="btn-icon btn-icon-sm edit-deal-btn" data-deal-id="${deal.id}" title="Edit Deal"><i class="fas fa-pen"></i></button>
+                <span class="deal-card-notes-dot deal-card-notes-dot--${notesStatus.status}" title="${(notesStatus.label || '').replace(/"/g, '&quot;')}" aria-hidden="true"><span class="deal-card-notes-light deal-card-notes-light--top"></span><span class="deal-card-notes-light deal-card-notes-light--mid"></span><span class="deal-card-notes-light deal-card-notes-light--bottom"></span></span>
             </div>
-            <div class="deal-card-value">$${deal.mrc || 0}/mo</div>
-            <div class="deal-card-name" title="${safeName}">${truncate(safeName, 30)}</div>
-            <div class="deal-card-account kanban-card-account">${accountName}</div>
+            <div class="deal-card-value deal-card-editable" data-field="mrc">$${deal.mrc || 0}/mo</div>
+            <div class="deal-card-name deal-card-editable" data-field="name" title="${safeName}">${truncate(safeName, 30)}</div>
+            <div class="deal-card-account kanban-card-account deal-card-editable" data-field="account_id">${accountName}</div>
             <div class="deal-card-products">${getProductPillHtml(deal.id, deal.products)}</div>
             <div class="deal-card-footer">
-                ${deal.close_month ? `<span class="deal-card-close">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty"></span>'}
-                ${deal.term ? `<span class="deal-card-term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty"></span>'}
+                ${deal.close_month ? `<span class="deal-card-close deal-card-editable" data-field="close_month">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty deal-card-editable" data-field="close_month">-</span>'}
+                ${deal.term ? `<span class="deal-card-term deal-card-editable" data-field="term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty deal-card-editable" data-field="term">Term</span>'}
             </div>
         `;
         const backContent = `
             <div class="deal-card-back-content">
                 <div class="deal-card-back-body">${notesEscaped || '<span class="text-[var(--text-muted)]">No notes</span>'}</div>
-                <button type="button" class="btn-icon btn-icon-sm deal-card-back-edit" data-deal-id="${deal.id}" title="Edit notes"><i class="fas fa-pen"></i></button>
+                <div class="deal-card-back-footer">
+                    <span class="deal-card-notes-updated">Updated ${updatedLabel}</span>
+                    <button type="button" class="btn-icon btn-icon-sm deal-card-back-edit" data-deal-id="${deal.id}" title="Edit notes"><i class="fas fa-pen"></i></button>
+                </div>
             </div>`;
             
         return `
@@ -1117,14 +1154,280 @@ document.addEventListener("DOMContentLoaded", async () => {
         else {
             deal[field] = updateVal;
             if (field === 'account_id') deal.account_name = updateVal ? state.accounts.find(a => a.id === updateVal)?.name || 'N/A' : 'N/A';
-            
-            // If we just updated products, also update the product chart
-            if (field === 'products') {
-                renderDealsByProductChart();
-            }
-            
-            renderDealsPage();
+            render();
+            renderDealsMetrics();
+            renderDealsByStageChart();
+            renderDealsByTimeChart();
+            renderDealsByProductChart();
         }
+    }
+    function createInlineCloseFan(options, currentVal, placeholder, onSelect) {
+        const wrap = document.createElement('div');
+        wrap.className = 'deal-card-stage-fan-wrap deal-card-close-fan';
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'deal-card-stage-trigger deal-card-close-fan-trigger';
+        const currentLabel = options.find(o => o.value === currentVal)?.label || placeholder;
+        trigger.innerHTML = `${currentLabel} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+        wrap.appendChild(trigger);
+        const fan = document.createElement('div');
+        fan.className = 'deal-card-stage-fan';
+        options.forEach((opt, i) => {
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            pill.className = 'deal-card-stage-pill deal-stage-default';
+            pill.textContent = opt.label;
+            pill.dataset.value = opt.value;
+            pill.style.setProperty('--fan-i', `${i}`);
+            pill.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onSelect(opt.value, opt.label);
+                trigger.innerHTML = `${opt.label} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+            });
+            fan.appendChild(pill);
+        });
+        wrap.appendChild(fan);
+        const closeFan = () => {
+            wrap.classList.remove('open');
+            document.removeEventListener('click', closeFan);
+        };
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (wrap.classList.contains('open')) closeFan();
+            else {
+                wrap.classList.add('open');
+                setTimeout(() => document.addEventListener('click', closeFan), 0);
+            }
+        });
+        wrap.addEventListener('click', (e) => e.stopPropagation());
+        fan.querySelectorAll('.deal-card-stage-pill').forEach((p) => p.addEventListener('click', () => closeFan()));
+        return wrap;
+    }
+
+    function startKanbanInlineEdit(card, el, dealId) {
+        const field = el.dataset.field;
+        const deal = state.deals.find(d => d.id === dealId);
+        if (!deal || !field || el.classList.contains('deal-card-editing')) return;
+
+        if (field === 'stage') {
+            const stages = (state.dealStages || []).sort((a, b) => a.sort_order - b.sort_order);
+            const currentStage = deal.stage || '';
+            const wrap = document.createElement('div');
+            wrap.className = 'deal-card-stage-fan-wrap';
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.className = 'deal-card-stage-input';
+            hiddenInput.dataset.field = 'stage';
+            hiddenInput.value = currentStage;
+            wrap.appendChild(hiddenInput);
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = `deal-card-stage-trigger ${getDealStageColorClass(currentStage)}`;
+            trigger.innerHTML = `${currentStage || 'Stage'} <i class="fas fa-chevron-down deal-card-stage-chevron"></i>`;
+            wrap.appendChild(trigger);
+            const fan = document.createElement('div');
+            fan.className = 'deal-card-stage-fan';
+            const total = stages.length;
+            const spread = Math.min(120, Math.max(60, (total - 1) * 25));
+            const startAngle = 90 + spread / 2;
+            stages.forEach((s, i) => {
+                const angle = total <= 1 ? 90 : startAngle - (spread * i) / (total - 1);
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `deal-card-stage-pill ${getDealStageColorClass(s.stage_name)}`;
+                pill.textContent = s.stage_name;
+                pill.dataset.stage = s.stage_name;
+                pill.style.setProperty('--fan-angle', `${angle}deg`);
+                pill.style.setProperty('--fan-i', `${i}`);
+                pill.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const val = s.stage_name;
+                    hiddenInput.value = val;
+                    closeFan();
+                    await saveDealField(dealId, 'stage', val);
+                    const span = document.createElement('span');
+                    span.className = 'deal-card-stage deal-card-editable';
+                    span.dataset.field = 'stage';
+                    span.textContent = val;
+                    wrap.replaceWith(span);
+                    card.className = card.className.replace(/\bdeal-stage-\w+/g, '').trim();
+                    card.classList.add(getDealStageColorClass(val));
+                });
+                fan.appendChild(pill);
+            });
+            wrap.appendChild(fan);
+            const closeFan = () => {
+                wrap.classList.remove('open');
+                document.removeEventListener('click', closeFan);
+            };
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (wrap.classList.contains('open')) closeFan();
+                else {
+                    wrap.classList.add('open');
+                    setTimeout(() => document.addEventListener('click', closeFan), 0);
+                }
+            });
+            wrap.addEventListener('click', (e) => e.stopPropagation());
+            fan.querySelectorAll('.deal-card-stage-pill').forEach((p) => p.addEventListener('click', () => closeFan()));
+            el.replaceWith(wrap);
+            return;
+        }
+
+        if (field === 'close_month') {
+            const [year, month] = (deal.close_month || '').split('-');
+            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const monthOptions = monthNames.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }));
+            const currentYear = new Date().getFullYear();
+            const yearOptions = [currentYear, currentYear + 1, currentYear + 2].map(y => ({ value: String(y), label: String(y) }));
+            let selectedMonth = month || '';
+            let selectedYear = year || '';
+            const closeWrap = document.createElement('div');
+            closeWrap.className = 'deal-card-close-picker';
+            const hiddenClose = document.createElement('input');
+            hiddenClose.type = 'hidden';
+            hiddenClose.className = 'deal-card-close-input';
+            hiddenClose.dataset.field = 'close_month';
+            hiddenClose.value = deal.close_month || '';
+            const syncHidden = () => {
+                hiddenClose.value = (selectedYear && selectedMonth) ? `${selectedYear}-${selectedMonth}` : '';
+            };
+            const monthFan = createInlineCloseFan(monthOptions, month, 'Mo', (val) => {
+                selectedMonth = val;
+                syncHidden();
+            });
+            monthFan.classList.add('deal-card-close-month-fan');
+            const yearFan = createInlineCloseFan(yearOptions, year, 'Yr', (val) => {
+                selectedYear = val;
+                syncHidden();
+            });
+            yearFan.classList.add('deal-card-close-year-fan');
+            closeWrap.appendChild(monthFan);
+            closeWrap.appendChild(yearFan);
+            closeWrap.appendChild(hiddenClose);
+            const onClose = async () => {
+                document.removeEventListener('click', onClose);
+                const val = hiddenClose.value || null;
+                await saveDealField(dealId, 'close_month', val);
+                const span = document.createElement('span');
+                span.className = val ? 'deal-card-close deal-card-editable' : 'deal-card-close deal-card-empty deal-card-editable';
+                span.dataset.field = 'close_month';
+                span.textContent = val ? formatMonthYear(val) : '-';
+                closeWrap.replaceWith(span);
+            };
+            const openHandler = (e) => {
+                if (!closeWrap.contains(e.target)) onClose();
+            };
+            setTimeout(() => document.addEventListener('click', openHandler), 0);
+            el.replaceWith(closeWrap);
+            return;
+        }
+
+        if (field === 'term') {
+            const termOptions = [
+                { value: '12', label: '12' },
+                { value: '24', label: '24' },
+                { value: '36', label: '36' },
+                { value: '48', label: '48' },
+                { value: '60', label: '60' }
+            ];
+            const termValue = (deal.term || '').replace(/\D/g, '') || '';
+            const termFan = createInlineCloseFan(termOptions, termValue, 'Term', async (val) => {
+                await saveDealField(dealId, 'term', val);
+                const span = document.createElement('span');
+                span.className = val ? 'deal-card-term deal-card-editable' : 'deal-card-term deal-card-empty deal-card-editable';
+                span.dataset.field = 'term';
+                span.textContent = val ? `Term: ${val}` : 'Term';
+                termWrap.replaceWith(span);
+            });
+            termFan.classList.add('deal-card-close-term-fan');
+            const termWrap = document.createElement('div');
+            termWrap.className = 'deal-card-term-fan-wrap';
+            termWrap.appendChild(termFan);
+            el.replaceWith(termWrap);
+            return;
+        }
+
+        let input;
+        if (field === 'mrc') {
+            input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '0.01';
+            input.value = deal.mrc || 0;
+            input.className = 'deal-card-inline-input';
+        } else if (field === 'name') {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.value = deal.name || '';
+            input.className = 'deal-card-inline-input';
+        } else if (field === 'account_id') {
+            input = document.createElement('select');
+            input.className = 'deal-card-inline-select';
+            (state.accounts || [])
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                .forEach((acc) => {
+                    const opt = document.createElement('option');
+                    opt.value = acc.id;
+                    opt.textContent = acc.name || '';
+                    if (Number(acc.id) === Number(deal.account_id)) opt.selected = true;
+                    input.appendChild(opt);
+                });
+        } else {
+            return;
+        }
+
+        el.classList.add('deal-card-editing');
+        const originalHtml = el.innerHTML;
+        el.textContent = '';
+        el.appendChild(input);
+        input.focus();
+
+        const restoreDisplay = (value) => {
+            el.classList.remove('deal-card-editing');
+            el.textContent = '';
+            if (field === 'mrc') {
+                el.textContent = `$${typeof value === 'number' ? value : (parseFloat(value) || 0)}/mo`;
+            } else if (field === 'name') {
+                const safe = (value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                el.textContent = safe.length > 30 ? safe.substring(0, 30) + '...' : safe;
+                el.title = value || '';
+            } else if (field === 'account_id') {
+                const acc = state.accounts.find(a => a.id === (value ? Number(value) : null));
+                el.textContent = acc ? (acc.name || '—') : '—';
+            }
+        };
+
+        const save = async () => {
+            let value;
+            if (field === 'mrc') value = parseFloat(input.value) || 0;
+            else if (field === 'name') value = input.value.trim();
+            else if (field === 'account_id') value = input.value ? Number(input.value) : null;
+            else value = input.value || '';
+
+            if (field === 'name' && !value) {
+                el.classList.remove('deal-card-editing');
+                el.innerHTML = originalHtml;
+                showToast('Deal name is required.', 'error');
+                return;
+            }
+            restoreDisplay(value);
+            await saveDealField(dealId, field, value);
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', (evt) => {
+            if (evt.key === 'Enter') {
+                evt.preventDefault();
+                input.blur();
+            }
+            if (evt.key === 'Escape') {
+                evt.preventDefault();
+                el.classList.remove('deal-card-editing');
+                el.innerHTML = originalHtml;
+            }
+        });
+        if (input.tagName === 'SELECT') input.addEventListener('change', () => input.blur());
     }
     function enterSelectMode(cell) {
         const dealId = Number(cell.dataset.dealId);
