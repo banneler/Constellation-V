@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -325,8 +325,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             accountsWithOpenDealsIds = new Set(
                 state.deals
                 .filter(deal => deal.stage && deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost')
-                .map(deal => deal.account_id)
-                .filter(id => id)
+                .map(deal => Number(deal.account_id))
+                .filter(id => id && !isNaN(id))
             );
         } catch (error) {
             console.error("Error calculating accounts with open deals:", error);
@@ -340,7 +340,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 case 'hot':
                     return hotAccountIds.has(account.id);
                 case 'with_deals':
-                    return accountsWithOpenDealsIds.has(account.id);
+                    return accountsWithOpenDealsIds.has(Number(account.id));
                 case 'customer':
                     return account.is_customer === true;
                 case 'prospect':
@@ -359,7 +359,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 i.className = "list-item";
                 i.dataset.id = account.id;
 
-                const hasOpenDeal = accountsWithOpenDealsIds.has(account.id);
+                const hasOpenDeal = accountsWithOpenDealsIds.has(Number(account.id));
                 const isHot = hotAccountIds.has(account.id);
 
                 const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
@@ -464,9 +464,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return str.length > max ? str.substring(0, max) + '...' : str;
                 };
                 const safeName = (deal.name || "").replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const actionButtons = dealId === 'new'
-                    ? `<div class="flex items-center gap-1"><button type="button" class="btn-icon btn-icon-sm deal-card-save-btn" data-deal-id="${dealId}" title="Save Deal"><i class="fas fa-check"></i></button><button type="button" class="btn-icon btn-icon-sm deal-card-cancel-btn" data-deal-id="${dealId}" title="Cancel"><i class="fas fa-times"></i></button></div>`
-                    : '';
+                const actionButtons = '';
 
                 const notesStatus = getDealNotesStatus(deal);
                 const updatedLabel = deal.notes_last_updated ? formatSimpleDate(deal.notes_last_updated) : "—";
@@ -513,6 +511,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const backEditBtn = card.querySelector(".deal-card-back-edit");
                 flipInner.addEventListener("click", (e) => {
                     if (card.classList.contains("deal-card-editing") || card.classList.contains("deal-card-notes-editing")) return;
+                    const isSaveBtn = e.target.closest(".deal-card-save-btn");
+                    const isCancelBtn = e.target.closest(".deal-card-cancel-btn");
+                    if (isSaveBtn || isCancelBtn) return;
                     const isCommit = e.target.closest(".deal-card-commit-toggle");
                     const isBackEdit = e.target.closest(".deal-card-back-edit");
                     const isNotesSave = e.target.closest(".deal-card-notes-save");
@@ -524,7 +525,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     if (isBackEdit) { e.stopPropagation(); enterNotesEditMode(card, dealId, deal.notes || ""); return; }
                     if (isNotesSave || isNotesCancel) return;
                     if (inlineInput) { e.stopPropagation(); return; }
-                    if (inlineEditable && dealId !== 'new') { e.stopPropagation(); startAccountDealInlineEdit(card, inlineEditable, dealId); return; }
+                    if (inlineEditable) { e.stopPropagation(); startAccountDealInlineEdit(card, inlineEditable, dealId); return; }
                     if (card.classList.contains("deal-card-flipped")) { card.classList.remove("deal-card-flipped"); return; }
                     if (isCommit) return;
                     card.classList.add("deal-card-flipped");
@@ -909,11 +910,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- Deal Handlers ---
     async function handleCommitDeal(dealId, isCommitted) {
-        if (dealId === 'new') {
-            const deal = state.selectedAccountDetails.deals.find(d => d.id === 'new');
-            if (deal) deal.is_committed = isCommitted;
-            return;
-        }
         const { error } = await supabase.from('deals').update({ is_committed: isCommitted }).eq('id', dealId);
         if (error) {
             const checkbox = document.querySelector(`.commit-deal-checkbox[data-deal-id="${dealId}"]`);
@@ -928,8 +924,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleProductPillToggle(pillElement) {
-        const dealIdRaw = pillElement.dataset.dealId;
-        const dealId = dealIdRaw === "new" ? "new" : Number(dealIdRaw);
+        const dealId = Number(pillElement.dataset.dealId);
         const productName = pillElement.dataset.product;
         const deal = state.selectedAccountDetails.deals.find((d) => String(d.id) === String(dealId));
         if (!deal || !productName) return;
@@ -965,7 +960,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function saveAccountDealField(dealId, field, value) {
         const deal = state.selectedAccountDetails.deals.find((d) => d.id === dealId);
-        if (!deal || dealId === 'new') return;
+        if (!deal) return;
 
         let updateVal = value;
         if (field === 'mrc') updateVal = parseFloat(value) || 0;
@@ -1241,7 +1236,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function enterNotesEditMode(card, dealId, currentNotes) {
-        if (dealId === 'new') return;
         const backContent = card.querySelector(".deal-card-back-content");
         const backBody = card.querySelector(".deal-card-back-body");
         const backEditBtn = card.querySelector(".deal-card-back-edit");
@@ -1563,7 +1557,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const pill = e.target.closest('.product-pill-toggle');
                 if (!pill) return;
                 e.stopPropagation();
-                const pid = pill.dataset.dealId === 'new' ? 'new' : Number(pill.dataset.dealId);
+                const pid = Number(pill.dataset.dealId);
                 const theDeal = state.selectedAccountDetails.deals.find((d) => String(d.id) === String(pid));
                 if (!theDeal) return;
                 const productName = pill.dataset.product;
@@ -1611,11 +1605,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderAccountDetails();
             return;
         }
-        if (dealId === 'new') {
-            state.selectedAccountDetails.deals = state.selectedAccountDetails.deals.filter(d => d.id !== 'new');
-            renderAccountDetails();
-            return;
-        }
         const card = accountDealsCards?.querySelector(`.deal-card[data-deal-id="${dealId}"]`);
         if (!card) return;
         card.classList.remove('deal-card-editing');
@@ -1627,42 +1616,41 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!card) return;
         const getVal = (field) => {
             const el = card.querySelector(`[data-field="${field}"]`);
-            return el ? el.value.trim() : '';
+            if (!el) return '';
+            if (el.value !== undefined && el.value !== null) return String(el.value).trim();
+            return (el.textContent || '').trim();
         };
-        const name = getVal('name');
-        if (!name) return;
+        const rawName = getVal('name');
+        const name = rawName.replace(/^\s*Deal Name\s*$/i, '').trim();
+        if (!name) {
+            showToast('Deal name is required.', 'error');
+            return;
+        }
+        const rawTerm = getVal('term');
+        const term = rawTerm.replace(/^Term:\s*/i, '').trim() || rawTerm.trim();
+        const rawMrc = getVal('mrc');
+        const mrcNum = parseFloat(String(rawMrc).replace(/[^\d.]/g, '')) || 0;
+        const rawClose = getVal('close_month');
+        const close_month = (rawClose && /^\d{4}-\d{2}$/.test(String(rawClose).trim())) ? String(rawClose).trim() : null;
         const dealData = {
             name,
-            term: getVal('term'),
+            term,
             stage: getVal('stage'),
-            mrc: parseFloat(getVal('mrc')) || 0,
-            close_month: getVal('close_month') || null,
+            mrc: mrcNum,
+            close_month,
             products: getVal('products'),
             is_committed: false
         };
-        if (dealId === 'new') {
-            const newDeal = state.selectedAccountDetails.deals.find(d => d.id === 'new');
-            const insertData = {
-                ...dealData,
-                is_committed: newDeal?.is_committed ?? false,
-                user_id: getState().effectiveUserId,
-                account_id: state.selectedAccountId
-            };
-            const { data: inserted, error } = await supabase.from('deals').insert([insertData]).select('id').single();
-            if (error) return;
-            exitDealFocusMode();
-            state.selectedAccountDetails.deals = state.selectedAccountDetails.deals.filter(d => d.id !== 'new');
-            await refreshData();
-            renderAccountDetails();
-        } else {
-            const { error } = await supabase.from('deals').update(dealData).eq('id', dealId);
-            if (error) return;
-            const dealMaster = state.deals.find(d => d.id === dealId);
-            if (dealMaster) Object.assign(dealMaster, dealData);
-            const dealDetails = state.selectedAccountDetails.deals.find(d => d.id === dealId);
-            if (dealDetails) Object.assign(dealDetails, dealData);
-            exitDealEditMode(dealId, true);
+        const { error } = await supabase.from('deals').update(dealData).eq('id', dealId);
+        if (error) {
+            showToast('Error updating deal: ' + error.message, 'error');
+            return;
         }
+        const dealMaster = state.deals.find(d => d.id === dealId);
+        if (dealMaster) Object.assign(dealMaster, dealData);
+        const dealDetails = state.selectedAccountDetails.deals.find(d => d.id === dealId);
+        if (dealDetails) Object.assign(dealDetails, dealData);
+        exitDealEditMode(dealId, true);
     }
 
     // MODIFIED: This function is now async to await the canvas generation
@@ -2326,10 +2314,10 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
                 const cancelBtn = e.target.closest('.deal-card-cancel-btn');
                 const commitToggle = e.target.closest('.deal-card-commit-toggle');
                 const commitCheck = commitToggle?.querySelector('.commit-deal-checkbox') || e.target.closest('.commit-deal-checkbox');
-                if (saveBtn) handleSaveDeal(saveBtn.dataset.dealId === 'new' ? 'new' : Number(saveBtn.dataset.dealId));
-                if (cancelBtn) exitDealEditMode(cancelBtn.dataset.dealId === 'new' ? 'new' : Number(cancelBtn.dataset.dealId));
+                if (saveBtn) handleSaveDeal(Number(saveBtn.dataset.dealId));
+                if (cancelBtn) exitDealEditMode(Number(cancelBtn.dataset.dealId));
                 if (commitCheck) {
-                    handleCommitDeal(commitCheck.dataset.dealId === 'new' ? 'new' : Number(commitCheck.dataset.dealId), commitCheck.checked);
+                    handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
                 }
             });
         }
@@ -2567,18 +2555,27 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
         }
 
         if (addDealBtn) {
-            addDealBtn.addEventListener("click", () => {
+            addDealBtn.addEventListener("click", async () => {
                 if (!state.selectedAccountId) return showModal("Error", "Please select an account first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 if (state.dealStages.length === 0) {
                     showModal("No Deal Stages Defined", "Please contact your administrator to define deal stages before creating a deal.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return;
                 }
+                const accountId = parseInt(state.selectedAccountId, 10);
+                if (!Number.isSafeInteger(accountId) || accountId < 1) {
+                    showToast('Invalid account. Please select an account again.', 'error');
+                    return;
+                }
+                const userUuid = getState().effectiveUserId || state.currentUser?.id;
+                if (!userUuid) {
+                    showToast('Session expired. Please sign in again.', 'error');
+                    return;
+                }
                 const firstStage = state.dealStages.sort((a, b) => a.sort_order - b.sort_order)[0]?.stage_name || '';
-                const newDeal = {
-                    id: 'new',
-                    user_id: getState().effectiveUserId,
-                    account_id: state.selectedAccountId,
-                    name: '',
+                const insertData = {
+                    user_id: userUuid,
+                    account_id: accountId,
+                    name: 'New Deal',
                     term: '',
                     stage: firstStage,
                     mrc: 0,
@@ -2586,10 +2583,18 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
                     products: '',
                     is_committed: false
                 };
-                state.selectedAccountDetails.deals.unshift(newDeal);
+                const { data: inserted, error } = await supabase.from('deals').insert([insertData]).select('*').single();
+                if (error) {
+                    showToast('Error creating deal: ' + error.message, 'error');
+                    return;
+                }
+                state.selectedAccountDetails.deals.unshift(inserted);
+                const inMaster = state.deals.find(d => d.id === inserted.id);
+                if (!inMaster) {
+                    const withAccount = { ...inserted, account_name: state.accounts.find(a => a.id === inserted.account_id)?.name || 'N/A' };
+                    state.deals = [withAccount, ...state.deals];
+                }
                 renderAccountDetails();
-                const card = accountDealsCards?.querySelector('.deal-card[data-deal-id="new"]');
-                if (card) enterDealEditMode('new');
             });
         }
 

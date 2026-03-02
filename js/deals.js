@@ -1683,8 +1683,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             const name = document.getElementById('modal-deal-name')?.value?.trim();
             if (!name) { showToast('Deal name is required.', 'error'); return; }
             if (!accountId) { showToast('Please select an account.', 'error'); return; }
+            const userUuid = getState().effectiveUserId || state.currentUser?.id;
+            if (!userUuid) {
+                showToast('Session expired. Please sign in again.', 'error');
+                return;
+            }
             const insertData = {
-                user_id: getState().effectiveUserId,
+                user_id: userUuid,
                 name,
                 account_id: Number(accountId),
                 term: document.getElementById('modal-deal-term')?.value || '',
@@ -1694,13 +1699,33 @@ document.addEventListener("DOMContentLoaded", async () => {
                 products: document.getElementById('modal-deal-products')?.value?.trim() || '',
                 is_committed: false
             };
-            const { error } = await supabase.from('deals').insert([insertData]);
+            const { data: insertedDeal, error } = await supabase
+                .from('deals')
+                .insert([insertData])
+                .select('*')
+                .single();
             if (error) { showToast('Error creating deal: ' + error.message, 'error'); return; }
             if (tsAccountInstance) { tsAccountInstance.destroy(); tsAccountInstance = null; }
             exitDealFocusMode();
             container.classList.add('hidden');
             container.innerHTML = '';
             await loadAllData();
+            if (insertedDeal?.id) {
+                const existing = state.deals?.find((d) => d.id === insertedDeal.id);
+                if (existing) {
+                    Object.assign(existing, insertedDeal);
+                    existing.account_name = state.accounts.find((a) => a.id === insertedDeal.account_id)?.name || 'N/A';
+                } else {
+                    const withAccount = { ...insertedDeal, account_name: state.accounts.find((a) => a.id === insertedDeal.account_id)?.name || 'N/A' };
+                    state.deals = [...(state.deals || []), withAccount];
+                }
+                populateDealsFilters();
+                render();
+                renderDealsMetrics();
+                renderDealsByStageChart();
+                renderDealsByTimeChart();
+                renderDealsByProductChart();
+            }
         };
         const onCancel = () => {
             if (tsAccountInstance) { tsAccountInstance.destroy(); tsAccountInstance = null; }
