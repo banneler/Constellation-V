@@ -379,19 +379,33 @@ export function hideGlobalLoader() {
 }
 
 // --- TOAST NOTIFICATIONS ---
+const TOAST_CONTAINER_ID = 'toast-container';
+const TOAST_CONTAINER_CLASSES = 'fixed bottom-48 left-6 w-80 max-w-[calc(100vw-2rem)] flex flex-col gap-2 z-[9999] pointer-events-none';
+
+function getOrCreateToastContainer() {
+    let toastContainer = document.getElementById(TOAST_CONTAINER_ID);
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = TOAST_CONTAINER_ID;
+        toastContainer.className = TOAST_CONTAINER_CLASSES;
+        toastContainer.setAttribute('aria-live', 'polite');
+        document.body.appendChild(toastContainer);
+    }
+    return toastContainer;
+}
+
 export function showToast(message, type = 'success') {
-    const toastContainer = document.getElementById('toast-container');
-    if (!toastContainer) return;
+    const toastContainer = getOrCreateToastContainer();
 
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `toast toast-${type} pointer-events-auto`;
     toast.innerHTML = `<span>${message}</span>`;
     toastContainer.appendChild(toast);
 
     setTimeout(() => {
         toast.classList.add('hide');
         toast.addEventListener('transitionend', () => toast.remove());
-    }, 4000); 
+    }, 4000);
 }
 
 

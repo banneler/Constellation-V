@@ -7,9 +7,15 @@
         function showToast(message, type) {
             type = type === 'error' ? 'error' : 'success';
             var container = document.getElementById('toast-container');
-            if (!container) return;
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'fixed bottom-48 left-6 w-80 max-w-[calc(100vw-2rem)] flex flex-col gap-2 z-[9999] pointer-events-none';
+                container.setAttribute('aria-live', 'polite');
+                document.body.appendChild(container);
+            }
             var el = document.createElement('div');
-            el.className = 'toast px-4 py-3 text-sm font-medium shadow-lg ' + (type === 'error' ? 'bg-red-600 text-white' : 'bg-slate-800 text-white');
+            el.className = 'toast px-4 py-3 text-sm font-medium shadow-lg pointer-events-auto ' + (type === 'error' ? 'bg-red-600 text-white' : 'bg-slate-800 text-white');
             el.textContent = message;
             container.appendChild(el);
             setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3500);
@@ -346,9 +352,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             };
             setDirty(false);
             document.querySelectorAll('#module-list li').forEach(li => {
-                const cb = li.querySelector('input.slide-toggle');
+                const pdfId = li.getAttribute('data-filename');
+                const cb = li.querySelector(`input[data-pdf-id="${pdfId}"]`);
                 projectData.modules.push({
-                    filename: li.getAttribute('data-filename'),
+                    filename: pdfId,
                     checked: cb ? cb.checked : false
                 });
             });
@@ -423,10 +430,8 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     if (data.modules && data.modules.length) {
                         data.modules.forEach(m => {
                             const li = document.querySelector(`#module-list li[data-filename="${m.filename}"]`);
-                            if (li) {
-                                const cb = li.querySelector('input.slide-toggle');
-                                if (cb) cb.checked = !!m.checked;
-                            }
+                            const cb = li ? li.querySelector(`input[data-pdf-id="${m.filename}"]`) : null;
+                            if (cb) cb.checked = !!m.checked;
                         });
                         document.getElementById('toggle-cover-letter').dispatchEvent(new Event('change'));
                         document.getElementById('toggle-custom-text').dispatchEvent(new Event('change'));
@@ -493,7 +498,9 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         function getPayload() {
             const activeSlides = [];
             document.querySelectorAll('#module-list li').forEach(li => {
-                if (li.querySelector('.slide-toggle').checked) activeSlides.push(li.getAttribute('data-filename'));
+                const pdfId = li.getAttribute('data-filename');
+                const cb = li.querySelector(`input[data-pdf-id="${pdfId}"]`);
+                if (cb && cb.checked) activeSlides.push(pdfId);
             });
             const customPdfFile = document.getElementById('custom-pdf-upload').files[0];
             if (activeSlides.includes('CUSTOM_PDF') && !customPdfFile) { alert("Please select a file for the Custom PDF Upload."); return null; }

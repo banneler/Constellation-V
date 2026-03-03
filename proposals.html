@@ -82,7 +82,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="01_Title_Page.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" checked class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" checked class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="01_Title_Page.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Title Page</span>
         <button onclick="previewStockPdf('01_Title_Page.pdf', 'Title Page')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -91,25 +91,25 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_COVER">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_COVER">
         <span class="flex-1 font-medium text-sm text-slate-700">Cover Letter</span>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_TEXT">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_TEXT">
         <span class="flex-1 font-medium text-sm text-slate-700">Custom Page</span>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_IMPACT">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" id="toggle-impact-roi" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" id="toggle-impact-roi" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_IMPACT">
         <span class="flex-1 font-medium text-sm text-slate-700">Impact & ROI</span>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" checked class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" checked class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="02_Why_GPC.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Why GPC?</span>
         <button onclick="previewStockPdf('02_Why_GPC.pdf', 'Why GPC?')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -118,7 +118,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="03_About_GPC.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" checked class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" checked class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="03_About_GPC.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">About GPC</span>
         <button onclick="previewStockPdf('03_About_GPC.pdf', 'About GPC')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -127,19 +127,19 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_REFERENCES">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" checked id="toggle-references" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" checked id="toggle-references" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_REFERENCES">
         <span class="flex-1 font-medium text-sm text-slate-700">References</span>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_PRICING">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" checked id="toggle-pricing" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" checked id="toggle-pricing" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_PRICING">
         <span class="flex-1 font-medium text-sm text-slate-700">Proposed Pricing</span>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="04_NOC_Monitoring.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="04_NOC_Monitoring.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">24-Hour NOC Monitoring</span>
         <button onclick="previewStockPdf('04_NOC_Monitoring.pdf', '24-Hour NOC Monitoring')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -148,7 +148,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="05_DIA.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="05_DIA.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Dedicated Internet Access (DIA)</span>
         <button onclick="previewStockPdf('05_DIA.pdf', 'Dedicated Internet Access (DIA)')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -157,7 +157,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="06_SIA.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="06_SIA.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Standard Internet Access (SIA)</span>
         <button onclick="previewStockPdf('06_SIA.pdf', 'Standard Internet Access (SIA)')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -166,7 +166,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="07_CaseStudy.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="07_CaseStudy.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Boys Town Case Study</span>
         <button onclick="previewStockPdf('07_CaseStudy.pdf', 'Boys Town Case Study')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -175,7 +175,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="08_SPIN.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="08_SPIN.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">SPIN ID Number</span>
         <button onclick="previewStockPdf('08_SPIN.pdf', 'SPIN ID Number')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -184,7 +184,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="09_Project.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="09_Project.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Project Implementation Plan</span>
         <button onclick="previewStockPdf('09_Project.pdf', 'Project Implementation Plan')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -193,7 +193,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="10_Leadership.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="10_Leadership.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Senior Leadership</span>
         <button onclick="previewStockPdf('10_Leadership.pdf', 'Senior Leadership')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -202,7 +202,7 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="11_Escalation.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="11_Escalation.pdf">
         <span class="flex-1 font-medium text-sm text-slate-700">Escalation Process</span>
         <button onclick="previewStockPdf('11_Escalation.pdf', 'Escalation Process')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -211,13 +211,13 @@
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_PDF">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" id="toggle-custom-pdf" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" id="toggle-custom-pdf" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_PDF">
         <span class="flex-1 font-medium text-sm text-slate-700">Upload Custom PDF</span>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="USAC_RFP">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" id="toggle-usac" class="mr-3 w-4 h-4 text-blue-500 slide-toggle">
+        <input type="checkbox" id="toggle-usac" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="USAC_RFP">
         <span class="flex-1 font-medium text-sm text-slate-700">USAC Original RFP</span>
     </li>
     
@@ -388,8 +388,6 @@
             <p class="text-xl font-bold tracking-widest animate-pulse text-white">Assembling Proposal...</p>
         </div>
     </div>
-
-    <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] flex flex-col gap-2 pointer-events-none" aria-live="polite"></div>
 
     <div id="render-zones" class="absolute top-[-9999px] left-[-9999px] w-[800px] bg-white p-12 gpc-pdf-font">
         

@@ -16,7 +16,8 @@ import {
     setupGlobalSearch,
     updateLastVisited,
     checkAndSetNotifications,
-    injectGlobalNavigation
+    injectGlobalNavigation,
+    showToast
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -97,7 +98,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             },
             onChange: function (value) {
                 this.setValue(value || '', true);
-                this.input?.dispatchEvent(new Event('change', { bubbles: true }));
             }
         };
 
@@ -270,7 +270,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
     
             const initialOutreachCopy = await generateOutreachCopy(state.selectedAlert, account);
-    
+            if (!initialOutreachCopy) {
+                showToast('AI Generation Failed', 'error');
+                return;
+            }
+
             state.initialSuggestionSubject = initialOutreachCopy.subject;
             state.initialSuggestionBody = initialOutreachCopy.body;
     
@@ -389,7 +393,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             },
             onChange: function (value) {
                 this.setValue(value || '', true);
-                this.input?.dispatchEvent(new Event('change', { bubbles: true }));
             }
         });
     
@@ -443,8 +446,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 customSuggestionOutput.style.display = 'block';
                 handlePersonalizeOutreach({ subject: customOutreachCopy.subject, body: customOutreachCopy.body }, contactSelector.value, true);
             } else {
-                customOutreachSubjectInput.value = 'Error generating suggestion.';
-                customOutreachBodyTextarea.value = 'Please try again or check the console for details.';
+                showToast('AI Generation Failed', 'error');
+                customOutreachSubjectInput.value = '';
+                customOutreachBodyTextarea.value = '';
+                customSuggestionOutput.style.display = 'none';
             }
         });
     
@@ -501,10 +506,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return data; 
         } catch (error) {
             console.error("Error invoking get-gemini-suggestion Edge Function:", error);
-            return { 
-                subject: `Following up on ${account.name}'s latest news`, 
-                body: `Hi [FirstName],\n\nI saw the recent news about "${alert.headline}" and wanted to reach out.\n\n[Could not generate AI suggestion. Please write your message here.]\n\nBest regards,\n[Your Name]`
-            };
+            return null;
         }
     }
 
@@ -521,10 +523,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return data;
         } catch (error) {
             console.error("Error invoking generate-custom-suggestion Edge Function:", error);
-            return {
-                subject: `Custom Suggestion Error: ${account.name}'s news`,
-                body: `Hi [FirstName],\n\n[Failed to generate custom AI suggestion: ${error.message}]\n\nBest regards,\n[Your Name]`
-            };
+            return null;
         }
     }
 
