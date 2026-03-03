@@ -485,7 +485,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="deal-card-name deal-card-editable" data-field="name" title="${safeName}">${truncate(safeName, 30)}</div>
                     <div class="deal-card-products">${getProductPillHtml(dealId, deal.products)}</div>
                     <div class="deal-card-footer">
-                        ${deal.close_month ? `<span class="deal-card-close deal-card-editable" data-field="close_month">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty deal-card-editable" data-field="close_month">-</span>'}
+                        ${deal.close_month ? `<span class="deal-card-close deal-card-editable" data-field="close_month">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty deal-card-editable" data-field="close_month">Mo / Yr</span>'}
                         ${deal.term ? `<span class="deal-card-term deal-card-editable" data-field="term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty deal-card-editable" data-field="term">Term</span>'}
                     </div>
                 `;
@@ -1134,7 +1134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const span = document.createElement('span');
                 span.className = val ? 'deal-card-close deal-card-editable' : 'deal-card-close deal-card-empty deal-card-editable';
                 span.dataset.field = 'close_month';
-                span.textContent = val ? formatMonthYear(val) : '-';
+                span.textContent = val ? formatMonthYear(val) : 'Mo / Yr';
                 closeWrap.replaceWith(span);
             };
             const openHandler = (e) => {

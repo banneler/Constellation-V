@@ -49,6 +49,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         filterCloseMonth: '',
         filterCommitted: '', // '' = all, 'yes' = committed only, 'no' = uncommitted only
         showClosedLost: false,
+        showPastDue: false,
         closeMonthOffset: 0  // 0 = last/current/next; +/- = slide window
     };
 
@@ -86,6 +87,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const closeMonthNextBtn = document.getElementById('close-month-next');
     const filterCommittedPills = document.getElementById('filter-committed-pills');
     const showClosedLostEl = document.getElementById('show-closed-lost');
+    const showPastDueEl = document.getElementById('show-past-due');
     const dealsFiltersResetBtn = document.getElementById('deals-filters-reset');
 
 
@@ -224,23 +226,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         return gradient;
     }
 
+    const isClosedLost = (d) => (d.stage || '').toLowerCase().includes('closed lost') || (d.stage || '').toLowerCase().includes('lost');
+
     function getFutureDeals() {
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth() + 1;
         return state.deals.filter(deal => {
-            if (!deal.close_month) return true;
+            if (!deal.close_month) return !isClosedLost(deal);
             const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
             return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
         });
     }
 
     function getBaseDeals() {
-        if (!state.showClosedLost) return getFutureDeals();
+        if (!state.showClosedLost) {
+            let deals = getFutureDeals();
+            if (state.filterCloseMonth) {
+                const baseIds = new Set(deals.map(d => d.id));
+                const closedLostInMonth = state.deals.filter(d => isClosedLost(d) && d.close_month === state.filterCloseMonth && !baseIds.has(d.id));
+                deals = deals.concat(closedLostInMonth);
+            }
+            return deals;
+        }
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth() + 1;
-        const isClosedLost = (d) => (d.stage || '').toLowerCase().includes('closed lost') || (d.stage || '').toLowerCase().includes('lost');
         return state.deals.filter(deal => {
             if (!deal.close_month) return true;
             const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
@@ -250,8 +261,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    function isPastDue(deal) {
+        if (!deal.close_month) return false;
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth() + 1;
+        const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
+        return dealYear < currentYear || (dealYear === currentYear && dealMonth < currentMonth);
+    }
+
     function getFilteredDeals() {
         let deals = getBaseDeals();
+        if (state.showPastDue) {
+            const baseIds = new Set(deals.map(d => d.id));
+            const pastDueDeals = state.deals.filter(d => isPastDue(d) && !baseIds.has(d.id));
+            deals = deals.concat(pastDueDeals);
+        } else {
+            deals = deals.filter(d => !isPastDue(d));
+        }
         if (state.filterStage) deals = deals.filter(d => d.stage === state.filterStage);
         if (state.filterCloseMonth) deals = deals.filter(d => d.close_month === state.filterCloseMonth);
         if (state.filterCommitted === 'yes') deals = deals.filter(d => d.is_committed);
@@ -397,14 +424,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const filteredDeals = getFilteredDeals();
         const openDeals = filteredDeals.filter(deal => deal.stage !== 'Closed Won' && deal.stage !== 'Closed Lost');
         
-        const productMrc = {};
+        const productCount = {};
         openDeals.forEach(deal => {
             if (!deal.products || !deal.products.trim()) {
-                productMrc['Uncategorized'] = (productMrc['Uncategorized'] || 0) + (deal.mrc || 0);
+                productCount['Uncategorized'] = (productCount['Uncategorized'] || 0) + 1;
                 return;
             }
             const products = deal.products.split(',').map(p => p.trim()).filter(p => p);
-            const mrcPerProduct = (deal.mrc || 0) / products.length;
             products.forEach(p => {
                 let normalized = p;
                 const lower = p.toLowerCase();
@@ -418,11 +444,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 else if (lower.includes('cloud')) normalized = 'Cloud Connect';
                 else if (lower.includes('wave')) normalized = 'Waves';
                 
-                productMrc[normalized] = (productMrc[normalized] || 0) + mrcPerProduct;
+                productCount[normalized] = (productCount[normalized] || 0) + 1;
             });
         });
 
-        if (Object.keys(productMrc).length === 0) {
+        if (Object.keys(productCount).length === 0) {
             dealsByProductCanvas.classList.add('hidden');
             productChartEmptyMessage.classList.remove('hidden');
             if (state.dealsByProductChart) { state.dealsByProductChart.destroy(); state.dealsByProductChart = null; }
@@ -432,9 +458,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         dealsByProductCanvas.classList.remove('hidden');
         productChartEmptyMessage.classList.add('hidden');
 
-        const sortedProducts = Object.entries(productMrc).sort(([, a], [, b]) => b - a);
+        const sortedProducts = Object.entries(productCount).sort(([, a], [, b]) => b - a);
         const labels = sortedProducts.map(([p]) => p);
-        const data = sortedProducts.map(([, mrc]) => mrc);
+        const data = sortedProducts.map(([, count]) => count);
         
         const backgroundColors = labels.map(label => {
             const colorObj = getProductColor(label);
@@ -463,7 +489,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 cutout: '65%',
                 plugins: {
                     legend: { position: 'right', labels: { color: 'var(--text-medium)', font: { size: 11 } } },
-                    tooltip: { callbacks: { label: (c) => ` ${c.label}: ${formatCurrency(c.parsed)}` } }
+                    tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.parsed} deal${c.parsed !== 1 ? 's' : ''}` } }
                 }
             }
         });
@@ -1070,7 +1096,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="deal-card-account kanban-card-account deal-card-editable" data-field="account_id">${accountName}</div>
             <div class="deal-card-products">${getProductPillHtml(deal.id, deal.products)}</div>
             <div class="deal-card-footer">
-                ${deal.close_month ? `<span class="deal-card-close deal-card-editable" data-field="close_month">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty deal-card-editable" data-field="close_month">-</span>'}
+                ${deal.close_month ? `<span class="deal-card-close deal-card-editable" data-field="close_month">${formatMonthYear(deal.close_month)}</span>` : '<span class="deal-card-close deal-card-empty deal-card-editable" data-field="close_month">Mo / Yr</span>'}
                 ${deal.term ? `<span class="deal-card-term deal-card-editable" data-field="term">Term: ${deal.term}</span>` : '<span class="deal-card-term deal-card-empty deal-card-editable" data-field="term">Term</span>'}
             </div>
         `;
@@ -1113,6 +1139,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         const filteredDeals = getFilteredDeals();
+        const hasActiveFilter = !!(state.filterStage || state.filterCloseMonth || state.filterCommitted || state.showClosedLost || state.showPastDue);
+        const metricFunnelTitle = document.getElementById('metric-funnel-title');
+        if (metricFunnelTitle) metricFunnelTitle.textContent = hasActiveFilter ? 'Current View Total' : 'My Current Funnel';
         const currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear();
         let currentCommit = 0, bestCase = 0, closedWon = 0;
         filteredDeals.forEach((deal) => {
@@ -1316,7 +1345,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const span = document.createElement('span');
                 span.className = val ? 'deal-card-close deal-card-editable' : 'deal-card-close deal-card-empty deal-card-editable';
                 span.dataset.field = 'close_month';
-                span.textContent = val ? formatMonthYear(val) : '-';
+                span.textContent = val ? formatMonthYear(val) : 'Mo / Yr';
                 closeWrap.replaceWith(span);
             };
             const openHandler = (e) => {
@@ -1969,14 +1998,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             showClosedLostEl.addEventListener('change', () => { state.showClosedLost = showClosedLostEl.checked; localStorage.setItem('deals_show_closed_lost', state.showClosedLost); updateClosedLostToggleUI(); handleFilterChange(); });
             showClosedLostEl.closest('.deals-filter-toggle')?.addEventListener('click', (e) => { if (!e.target.closest('input')) { e.preventDefault(); showClosedLostEl.checked = !showClosedLostEl.checked; showClosedLostEl.dispatchEvent(new Event('change')); } });
         }
+        if (showPastDueEl) {
+            showPastDueEl.addEventListener('change', () => { state.showPastDue = showPastDueEl.checked; localStorage.setItem('deals_show_past_due', state.showPastDue); handleFilterChange(); });
+            showPastDueEl.closest('.deals-filter-toggle')?.addEventListener('click', (e) => { if (!e.target.closest('input')) { e.preventDefault(); showPastDueEl.checked = !showPastDueEl.checked; showPastDueEl.dispatchEvent(new Event('change')); } });
+        }
         if (dealsFiltersResetBtn) {
             dealsFiltersResetBtn.addEventListener('click', () => {
                 state.filterStage = '';
                 state.filterCloseMonth = '';
                 state.filterCommitted = '';
                 state.showClosedLost = false;
+                state.showPastDue = false;
                 state.closeMonthOffset = 0;
                 localStorage.setItem('deals_show_closed_lost', false);
+                localStorage.setItem('deals_show_past_due', false);
+                if (showClosedLostEl) showClosedLostEl.checked = false;
+                if (showPastDueEl) showPastDueEl.checked = false;
                 handleFilterChange();
             });
         }
@@ -2012,7 +2049,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (dealsViewToggleDiv) {
                 const isManager = state.currentUser.user_metadata?.is_manager === true;
                 dealsViewToggleDiv.classList.toggle('hidden', !isManager);
-                if(isManager) {
+                if (isManager) {
+                    state.dealsViewMode = 'all';
+                    viewAllDealsBtn.classList.add('active');
+                    viewMyDealsBtn.classList.remove('active');
+                } else {
                     viewMyDealsBtn.classList.add('active');
                     viewAllDealsBtn.classList.remove('active');
                 }
@@ -2029,6 +2070,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             state.showClosedLost = localStorage.getItem('deals_show_closed_lost') === 'true';
             if (showClosedLostEl) showClosedLostEl.checked = state.showClosedLost;
+            state.showPastDue = localStorage.getItem('deals_show_past_due') === 'true';
+            if (showPastDueEl) showPastDueEl.checked = state.showPastDue;
             
             await loadAllData();
         } else {

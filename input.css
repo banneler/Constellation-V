@@ -3556,13 +3556,13 @@ body.theme-green {
     .deal-card-close.deal-card-empty {
         @apply inline-block;
         min-width: 7.5rem;
-        color: transparent;
+        color: var(--text-muted);
         user-select: none;
     }
     .deal-card-term.deal-card-empty {
         @apply inline-block ml-auto;
         min-width: 4.5rem;
-        color: transparent;
+        color: var(--text-muted);
         user-select: none;
     }
     .deal-card-editing .deal-card-inline-input,

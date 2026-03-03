@@ -229,6 +229,9 @@
   }
 }
 @layer utilities {
+  .pointer-events-auto {
+    pointer-events: auto;
+  }
   .pointer-events-none {
     pointer-events: none;
   }
@@ -279,8 +282,17 @@
   .right-3 {
     right: calc(var(--spacing) * 3);
   }
+  .right-6 {
+    right: calc(var(--spacing) * 6);
+  }
   .bottom-6 {
     bottom: calc(var(--spacing) * 6);
+  }
+  .bottom-24 {
+    bottom: calc(var(--spacing) * 24);
+  }
+  .bottom-48 {
+    bottom: calc(var(--spacing) * 48);
   }
   .-left-\[9999px\] {
     left: calc(9999px * -1);
@@ -290,6 +302,9 @@
   }
   .left-1\/2 {
     left: calc(1 / 2 * 100%);
+  }
+  .left-6 {
+    left: calc(var(--spacing) * 6);
   }
   .left-\[-9999px\] {
     left: -9999px;
@@ -305,6 +320,9 @@
   }
   .z-\[150\] {
     z-index: 150;
+  }
+  .z-\[9999\] {
+    z-index: 9999;
   }
   .col-span-2 {
     grid-column: span 2 / span 2;
@@ -513,6 +531,9 @@
   .w-40 {
     width: calc(var(--spacing) * 40);
   }
+  .w-80 {
+    width: calc(var(--spacing) * 80);
+  }
   .w-\[8\.5in\] {
     width: 8.5in;
   }
@@ -539,6 +560,9 @@
   }
   .max-w-\[1680px\] {
     max-width: 1680px;
+  }
+  .max-w-\[calc\(100vw-2rem\)\] {
+    max-width: calc(100vw - 2rem);
   }
   .max-w-full {
     max-width: 100%;
@@ -6625,14 +6649,14 @@ body.theme-green {
   .deal-card-close.deal-card-empty {
     display: inline-block;
     min-width: 7.5rem;
-    color: transparent;
+    color: var(--text-muted);
     user-select: none;
   }
   .deal-card-term.deal-card-empty {
     margin-left: auto;
     display: inline-block;
     min-width: 4.5rem;
-    color: transparent;
+    color: var(--text-muted);
     user-select: none;
   }
   .deal-card-editing .deal-card-inline-input, .deal-card-editing .deal-card-inline-select {
