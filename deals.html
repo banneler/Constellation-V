@@ -48,6 +48,12 @@
                                 <button id="view-my-deals-btn" class="view-mode-btn active rounded-md px-3 py-1.5 text-sm" title="My Deals"><i class="fas fa-user"></i></button>
                                 <button id="view-all-deals-btn" class="view-mode-btn rounded-md px-3 py-1.5 text-sm" title="My Team's Deals"><i class="fas fa-users"></i></button>
                             </div>
+                            <div id="manager-pipeline-select-wrap" class="hidden flex items-center gap-2">
+                                <label for="manager-pipeline-select" class="text-xs font-semibold uppercase tracking-wider text-[var(--text-medium)]">Pipeline</label>
+                                <select id="manager-pipeline-select" class="rounded-lg border border-[var(--border-color)] bg-[var(--bg-medium)] text-[var(--text-light)] px-3 py-1.5 text-sm min-w-[10rem]">
+                                    <option value="">All team</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="view-mode-toggle flex gap-1 bg-[var(--bg-medium)] p-1 rounded-lg border border-[var(--border-color)]">
                             <button id="list-view-btn" class="view-mode-btn active rounded-md px-3 py-1.5 text-sm" title="List View"><i class="fas fa-list"></i></button>
@@ -125,6 +131,7 @@
                                     <th class="text-center whitespace-nowrap min-w-[20rem]">Products</th>
                                     <th data-sort="term" class="sortable w-20 text-center whitespace-nowrap">Term <span></span></th>
                                     <th data-sort="mrc" class="sortable w-28 text-center">MRC <span></span></th>
+                                    <th class="w-20 text-center">Renewal</th>
                                     <th class="w-full min-w-[16rem] text-center">Notes</th>
                                 </tr>
                             </thead>
@@ -147,6 +154,11 @@
                         <span class="deals-filter-toggle-switch relative inline-block w-9 h-5 rounded-full bg-[var(--bg-medium)] border border-[var(--border-color)]"><span class="deals-filter-toggle-knob absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--text-medium)] transition-transform"></span></span>
                         <input type="checkbox" id="show-past-due" class="sr-only">
                         <span class="text-sm font-medium text-[var(--text-medium)]">Show past due</span>
+                    </label>
+                    <label class="deals-filter-toggle flex items-center gap-2 cursor-pointer select-none">
+                        <span class="deals-filter-toggle-switch relative inline-block w-9 h-5 rounded-full bg-[var(--bg-medium)] border border-[var(--border-color)]"><span class="deals-filter-toggle-knob absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--text-medium)] transition-transform"></span></span>
+                        <input type="checkbox" id="hide-renewals" class="sr-only">
+                        <span class="text-sm font-medium text-[var(--text-medium)]">Hide renewals</span>
                     </label>
                 </div>
                     </div>

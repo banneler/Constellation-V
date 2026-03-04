@@ -50,7 +50,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         filterCommitted: '', // '' = all, 'yes' = committed only, 'no' = uncommitted only
         showClosedLost: false,
         showPastDue: false,
-        closeMonthOffset: 0  // 0 = last/current/next; +/- = slide window
+        closeMonthOffset: 0,  // 0 = last/current/next; +/- = slide window
+        hideRenewals: false,
+        managerSelectedUserId: ''  // '' = all team; UUID = single user's pipeline
     };
 
     // --- DOM Element Selectors ---
@@ -88,7 +90,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const filterCommittedPills = document.getElementById('filter-committed-pills');
     const showClosedLostEl = document.getElementById('show-closed-lost');
     const showPastDueEl = document.getElementById('show-past-due');
+    const hideRenewalsEl = document.getElementById('hide-renewals');
     const dealsFiltersResetBtn = document.getElementById('deals-filters-reset');
+    const managerPipelineSelectWrap = document.getElementById('manager-pipeline-select-wrap');
+    const managerPipelineSelect = document.getElementById('manager-pipeline-select');
+    let managerPipelineTomSelect = null;
 
 
     // --- Data Fetching ---
@@ -110,7 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const currentUserQuotaQuery = supabase.from("user_quotas").select("monthly_quota").eq("user_id", state.currentUser.id);
-        let allQuotasQuery = isManager ? supabase.from("user_quotas").select("monthly_quota") : Promise.resolve({ data: [], error: null });
+        let allQuotasQuery = isManager ? supabase.from("user_quotas").select("user_id, full_name, monthly_quota, show_in_pipeline").eq("show_in_pipeline", true) : Promise.resolve({ data: [], error: null });
 
         const promises = [dealsQuery, accountsQuery, currentUserQuotaQuery, dealStagesQuery, allQuotasQuery];
         const allTableNames = ["deals", "accounts", "currentUserQuota", "dealStages", "allUsersQuotas"];
@@ -134,12 +140,59 @@ document.addEventListener("DOMContentLoaded", async () => {
         } finally {
             hideGlobalLoader();
             populateDealsFilters();
+            populateManagerPipelineSelect();
             render(); 
             renderDealsMetrics();
             renderDealsByStageChart();
             renderDealsByTimeChart();
             renderDealsByProductChart();
         }
+    }
+
+    function initManagerPipelineTomSelect() {
+        if (!managerPipelineSelect || typeof window.TomSelect === 'undefined') return null;
+        try {
+            return new window.TomSelect(managerPipelineSelect, {
+                create: false,
+                maxItems: 1,
+                onChange: (val) => {
+                    state.managerSelectedUserId = (val || '').trim() || '';
+                    handleFilterChange();
+                },
+                render: {
+                    dropdown: () => {
+                        const d = document.createElement('div');
+                        d.className = 'ts-dropdown tom-select-no-search';
+                        return d;
+                    }
+                }
+            });
+        } catch (e) { return null; }
+    }
+
+    function populateManagerPipelineSelect() {
+        if (!managerPipelineSelect || !managerPipelineSelectWrap) return;
+        const isManager = state.currentUser?.user_metadata?.is_manager === true;
+        const isTeamView = state.dealsViewMode === 'all' && isManager;
+        if (!isTeamView) {
+            if (managerPipelineTomSelect) {
+                managerPipelineTomSelect.destroy();
+                managerPipelineTomSelect = null;
+            }
+            managerPipelineSelectWrap.classList.add('hidden');
+            state.managerSelectedUserId = '';
+            return;
+        }
+        managerPipelineSelectWrap.classList.remove('hidden');
+        if (managerPipelineTomSelect) {
+            managerPipelineTomSelect.destroy();
+            managerPipelineTomSelect = null;
+        }
+        const opts = (state.allUsersQuotas || []).filter(q => q && q.user_id);
+        const esc = (s) => (s || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        managerPipelineSelect.innerHTML = '<option value="">All team</option>' + opts.map(q => `<option value="${esc(q.user_id)}">${esc(q.full_name || q.user_id || 'User')}</option>`).join('');
+        managerPipelineSelect.value = state.managerSelectedUserId || '';
+        managerPipelineTomSelect = initManagerPipelineTomSelect();
     }
 
     function createFilterPill(value, label, active) {
@@ -232,19 +285,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth() + 1;
-        return state.deals.filter(deal => {
+        return getEffectiveDeals().filter(deal => {
             if (!deal.close_month) return !isClosedLost(deal);
             const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
             return dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
         });
     }
 
+    function getEffectiveDeals() {
+        let deals = state.deals || [];
+        const isManager = state.currentUser?.user_metadata?.is_manager === true;
+        if (isManager && state.dealsViewMode === 'all') {
+            const pipelineUserIds = new Set((state.allUsersQuotas || []).filter(q => q && q.user_id).map(q => q.user_id));
+            if (state.managerSelectedUserId) {
+                deals = pipelineUserIds.has(state.managerSelectedUserId) ? deals.filter(d => d.user_id === state.managerSelectedUserId) : [];
+            } else {
+                deals = deals.filter(d => pipelineUserIds.has(d.user_id));
+            }
+        }
+        return deals;
+    }
+
     function getBaseDeals() {
+        const effectiveDeals = getEffectiveDeals();
         if (!state.showClosedLost) {
             let deals = getFutureDeals();
             if (state.filterCloseMonth) {
                 const baseIds = new Set(deals.map(d => d.id));
-                const closedLostInMonth = state.deals.filter(d => isClosedLost(d) && d.close_month === state.filterCloseMonth && !baseIds.has(d.id));
+                const closedLostInMonth = effectiveDeals.filter(d => isClosedLost(d) && d.close_month === state.filterCloseMonth && !baseIds.has(d.id));
                 deals = deals.concat(closedLostInMonth);
             }
             return deals;
@@ -252,7 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth() + 1;
-        return state.deals.filter(deal => {
+        return effectiveDeals.filter(deal => {
             if (!deal.close_month) return true;
             const [dealYear, dealMonth] = deal.close_month.split('-').map(Number);
             const isFuture = dealYear > currentYear || (dealYear === currentYear && dealMonth >= currentMonth);
@@ -274,7 +342,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let deals = getBaseDeals();
         if (state.showPastDue) {
             const baseIds = new Set(deals.map(d => d.id));
-            const pastDueDeals = state.deals.filter(d => isPastDue(d) && !baseIds.has(d.id));
+            const pastDueDeals = getEffectiveDeals().filter(d => isPastDue(d) && !baseIds.has(d.id));
             deals = deals.concat(pastDueDeals);
         } else {
             deals = deals.filter(d => !isPastDue(d));
@@ -283,6 +351,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (state.filterCloseMonth) deals = deals.filter(d => d.close_month === state.filterCloseMonth);
         if (state.filterCommitted === 'yes') deals = deals.filter(d => d.is_committed);
         if (state.filterCommitted === 'no') deals = deals.filter(d => !d.is_committed);
+        if (state.hideRenewals) deals = deals.filter(d => !d.is_renewal);
         return deals;
     }
     
@@ -346,7 +415,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const data = sortedStages.map(([, mrc]) => mrc);
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
-        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
+        let effectiveMonthlyQuota = state.currentUserQuota;
+        if (isMyTeamView) effectiveMonthlyQuota = state.managerSelectedUserId ? (state.allUsersQuotas.find(q => q && q.user_id === state.managerSelectedUserId)?.monthly_quota || 0) : state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0);
         
         const fills = labels.map(stage => getStageChartColors(stage).fill);
         const borders = labels.map(stage => getStageChartColors(stage).border);
@@ -395,7 +465,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const labels = Object.keys(funnel), data = Object.values(funnel);
         const isManager = state.currentUser.user_metadata?.is_manager === true;
         const isMyTeamView = state.dealsViewMode === 'all' && isManager;
-        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
+        let effectiveMonthlyQuota = state.currentUserQuota;
+        if (isMyTeamView) effectiveMonthlyQuota = state.managerSelectedUserId ? (state.allUsersQuotas.find(q => q && q.user_id === state.managerSelectedUserId)?.monthly_quota || 0) : state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0);
         
         const funnelFills = ['#86efac', '#93c5fd', '#fde68a', '#c4b5fd'];   // light: green, blue, yellow, purple
         const funnelBorders = ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6']; // darker borders
@@ -523,6 +594,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </td>
                 <td class="deal-cell-editable align-middle text-center w-20" contenteditable="true" data-deal-id="${deal.id}" data-field="term">${esc(deal.term)}</td>
                 <td class="deal-cell-editable deal-cell-number align-middle text-center font-bold text-[var(--primary-blue)] w-28" data-deal-id="${deal.id}" data-field="mrc">${formatCurrency(deal.mrc || 0)}</td>
+                <td class="text-center align-middle w-20"><input type="checkbox" class="renewal-deal-checkbox" data-deal-id="${deal.id}" ${deal.is_renewal ? "checked" : ""} title="Renewal"></td>
                 <td class="deal-cell-notes align-middle min-w-[16rem] w-full p-0"><div class="deal-notes-cell-inner deal-cell-editable text-[0.8rem]" contenteditable="true" data-deal-id="${deal.id}" data-field="notes" data-placeholder="Notes">${esc(deal.notes)}</div></td>`;
         });
         document.querySelectorAll("#deals-table th.sortable").forEach((th) => {
@@ -1126,7 +1198,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             metricCurrentCommitTitle.textContent = isMyTeamView ? "My Team's Current Commit" : "My Current Commit";
             metricBestCaseTitle.textContent = isMyTeamView ? "My Team's Current Best Case" : "My Current Best Case";
         }
-        const effectiveMonthlyQuota = isMyTeamView ? state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0) : state.currentUserQuota;
+        let effectiveMonthlyQuota = state.currentUserQuota;
+        if (isMyTeamView) {
+            if (state.managerSelectedUserId) {
+                effectiveMonthlyQuota = state.allUsersQuotas.find(q => q && q.user_id === state.managerSelectedUserId)?.monthly_quota || 0;
+            } else {
+                effectiveMonthlyQuota = state.allUsersQuotas.reduce((sum, quota) => sum + (quota.monthly_quota || 0), 0);
+            }
+        }
         if (commitTotalQuota && bestCaseTotalQuota) {
             if (isMyTeamView) {
                 commitTotalQuota.textContent = formatCurrency(effectiveMonthlyQuota);
@@ -1139,12 +1218,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         const filteredDeals = getFilteredDeals();
-        const hasActiveFilter = !!(state.filterStage || state.filterCloseMonth || state.filterCommitted || state.showClosedLost || state.showPastDue);
+        const hasActiveFilter = !!(state.filterStage || state.filterCloseMonth || state.filterCommitted || state.showClosedLost || state.showPastDue || state.hideRenewals);
         const metricFunnelTitle = document.getElementById('metric-funnel-title');
         if (metricFunnelTitle) metricFunnelTitle.textContent = hasActiveFilter ? 'Current View Total' : 'My Current Funnel';
+        // Metrics exclude renewals so pipeline numbers stay clean
+        const metricDeals = filteredDeals.filter(d => !d.is_renewal);
         const currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear();
         let currentCommit = 0, bestCase = 0, closedWon = 0;
-        filteredDeals.forEach((deal) => {
+        metricDeals.forEach((deal) => {
             const dealCloseDate = deal.close_month ? new Date(deal.close_month + '-02') : null;
             const isCurrentMonth = dealCloseDate && dealCloseDate.getMonth() === currentMonth && dealCloseDate.getFullYear() === currentYear;
             if (isCurrentMonth) {
@@ -1155,9 +1236,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
         });
-        const totalFunnel = filteredDeals.reduce((sum, deal) => sum + (deal.mrc || 0), 0);
+        const totalFunnel = metricDeals.reduce((sum, deal) => sum + (deal.mrc || 0), 0);
         
-        const openDeals = filteredDeals.filter(d => d.stage !== 'Closed Lost' && d.stage !== 'Closed Won');
+        const openDeals = metricDeals.filter(d => d.stage !== 'Closed Lost' && d.stage !== 'Closed Won');
         const totalOpenMrc = openDeals.reduce((sum, deal) => sum + (deal.mrc || 0), 0);
         const arpu = openDeals.length > 0 ? (totalOpenMrc / openDeals.length) : 0;
         const metricArpu = document.getElementById('metric-arpu');
@@ -1182,6 +1263,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let updateVal = value;
         if (field === 'mrc') updateVal = parseFloat(value) || 0;
         if (field === 'account_id') updateVal = value ? Number(value) : null;
+        if (field === 'is_renewal') updateVal = value === true || value === 'true' || value === 1;
         const { error } = await supabase.from('deals').update({ [field]: updateVal }).eq('id', dealId);
         if (error) showToast('Error saving: ' + error.message, 'error');
         else {
@@ -1726,7 +1808,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 mrc: parseFloat(document.getElementById('modal-deal-mrc')?.value) || 0,
                 close_month: document.getElementById('modal-deal-close-month')?.value || null,
                 products: document.getElementById('modal-deal-products')?.value?.trim() || '',
-                is_committed: false
+                is_committed: false,
+                is_renewal: false
             };
             const { data: insertedDeal, error } = await supabase
                 .from('deals')
@@ -1958,7 +2041,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         dealsTableBody.addEventListener("change", (e) => {
             const commitCheck = e.target.closest(".commit-deal-checkbox");
+            const renewalCheck = e.target.closest(".renewal-deal-checkbox");
             if (commitCheck) handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
+            else if (renewalCheck) saveDealField(Number(renewalCheck.dataset.dealId), 'is_renewal', renewalCheck.checked);
         });
 
         if (viewMyDealsBtn) {
@@ -2002,6 +2087,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             showPastDueEl.addEventListener('change', () => { state.showPastDue = showPastDueEl.checked; localStorage.setItem('deals_show_past_due', state.showPastDue); handleFilterChange(); });
             showPastDueEl.closest('.deals-filter-toggle')?.addEventListener('click', (e) => { if (!e.target.closest('input')) { e.preventDefault(); showPastDueEl.checked = !showPastDueEl.checked; showPastDueEl.dispatchEvent(new Event('change')); } });
         }
+        if (hideRenewalsEl) {
+            hideRenewalsEl.addEventListener('change', () => { state.hideRenewals = hideRenewalsEl.checked; localStorage.setItem('deals_hide_renewals', state.hideRenewals); handleFilterChange(); });
+            hideRenewalsEl.closest('.deals-filter-toggle')?.addEventListener('click', (e) => { if (!e.target.closest('input')) { e.preventDefault(); hideRenewalsEl.checked = !hideRenewalsEl.checked; hideRenewalsEl.dispatchEvent(new Event('change')); } });
+        }
         if (dealsFiltersResetBtn) {
             dealsFiltersResetBtn.addEventListener('click', () => {
                 state.filterStage = '';
@@ -2009,14 +2098,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.filterCommitted = '';
                 state.showClosedLost = false;
                 state.showPastDue = false;
+                state.hideRenewals = false;
                 state.closeMonthOffset = 0;
                 localStorage.setItem('deals_show_closed_lost', false);
                 localStorage.setItem('deals_show_past_due', false);
+                localStorage.setItem('deals_hide_renewals', false);
                 if (showClosedLostEl) showClosedLostEl.checked = false;
                 if (showPastDueEl) showPastDueEl.checked = false;
+                if (hideRenewalsEl) hideRenewalsEl.checked = false;
                 handleFilterChange();
             });
         }
+        // Manager pipeline select uses TomSelect (change handled in initManagerPipelineTomSelect onChange)
         const addDealBtn = document.getElementById('add-deal-btn');
         if (addDealBtn) addDealBtn.addEventListener('click', () => handleAddDeal());
     }
@@ -2072,6 +2165,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (showClosedLostEl) showClosedLostEl.checked = state.showClosedLost;
             state.showPastDue = localStorage.getItem('deals_show_past_due') === 'true';
             if (showPastDueEl) showPastDueEl.checked = state.showPastDue;
+            state.hideRenewals = localStorage.getItem('deals_hide_renewals') === 'true';
+            if (hideRenewalsEl) hideRenewalsEl.checked = state.hideRenewals;
             
             await loadAllData();
         } else {
