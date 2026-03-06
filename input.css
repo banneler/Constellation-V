@@ -6483,25 +6483,29 @@ body:not(.theme-green) .list-item.selected {
         color: var(--text-light);
     }
     .agenda-canned-grid {
-        column-count: 2;
-        column-gap: 2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 2rem;
         margin-bottom: 1rem;
         width: 100%;
     }
-    .agenda-canned-grid .agenda-section-header {
-        column-span: all;
-        break-after: avoid;
+    .agenda-canned-column {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
     }
-    /* Force Closing (and its single item) to start in a new column so it doesn't sit beside The Business Side */
-    .agenda-canned-grid .agenda-section-header:last-of-type {
-        break-before: column;
+    .agenda-canned-grid .agenda-section-header {
+        margin-top: 1rem;
+        margin-bottom: 0.25rem;
+    }
+    .agenda-canned-grid .agenda-canned-column .agenda-section-header:first-child {
+        margin-top: 0;
     }
     .agenda-section-header {
-        @apply text-xs font-semibold uppercase tracking-wider mt-4 mb-1;
+        @apply text-xs font-semibold uppercase tracking-wider;
         color: var(--text-muted);
     }
-    .agenda-section-header:first-child,
-    .agenda-canned-grid .agenda-section-header:first-child { margin-top: 0; }
     .agenda-canned-item {
         display: flex;
         align-items: flex-start;
