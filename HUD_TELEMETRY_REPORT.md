@@ -102,6 +102,14 @@ Deep telemetry sweep of Constellation CRM: core user-facing workflows, unique fe
   * **DOM Anchor:** `#account-form`, `#sf-locator-display`, `#sf-locator-input`, `#zoominfo-locator-display`, `#zoominfo-locator-input`, `#zoominfo-account-btn`, `#salesforce-account-btn`
   * **Description:** Form for account fields; inline edit for SF and ZoomInfo IDs; buttons open Salesforce/ZoomInfo in new tab.
 
+* **Feature:** Draft meeting agenda (icon button)
+  * **DOM Anchor:** `#draft-agenda-btn`, `#agenda-modal-backdrop`, `#agenda-create-section`, `#agenda-result-wrap`, `#agenda-result`, `#agenda-copy-btn`
+  * **Description:** Opens modal to build agenda from GPC canned items and custom items, drag to reorder; AI generates copy for meeting invite; copy to clipboard.
+
+* **Feature:** Account proposals list
+  * **DOM Anchor:** `.account-proposals-card`, `#account-proposals-list`, `.account-proposals-list a[href^="proposals.html"]`, `.proposal-delete-btn`
+  * **Description:** Proposals linked to this account; open link goes to proposal builder with project loaded; delete removes proposal from account.
+
 * **Feature:** Account deals cards (flippable, notes on back)
   * **DOM Anchor:** `#account-deals-cards`, `.deal-card-flip-inner`, `.deal-card-back-edit`, `.deal-card-notes-save`
   * **Description:** Deal cards with flip-to-back for notes and edit; save persists to Supabase.

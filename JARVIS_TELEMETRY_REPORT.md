@@ -125,16 +125,23 @@ Hierarchical map of major UI containers and action nodes for Iron Man / Jarvis-s
     * `anchor: '#bulk-export-accounts-btn'` | `Hover Text: Export accounts to CSV.`
 
 * **Container:** `.account-details-form-card`
-  * **Macro Text:** "Account details. Edit fields, link to ZoomInfo and Salesforce, or generate an AI briefing."
+  * **Macro Text:** "Account Record. Edit fields, link to ZoomInfo and Salesforce, generate AI briefing, or draft meeting agenda."
   * **Nodes:**
-    * `anchor: '#zoominfo-account-btn'` | `Hover Text: Open this account in ZoomInfo.`
-    * `anchor: '#salesforce-account-btn'` | `Hover Text: Open this account in Salesforce.`
-    * `anchor: '#ai-briefing-btn'` | `Hover Text: Generate an AI account briefing.`
+    * `anchor: '#zoominfo-account-btn'` | `Hover Text: Open account in ZoomInfo.`
+    * `anchor: '#salesforce-account-btn'` | `Hover Text: Open account in Salesforce.`
+    * `anchor: '#ai-briefing-btn'` | `Hover Text: Generate AI account briefing.`
+    * `anchor: '#draft-agenda-btn'` | `Hover Text: Draft meeting agenda: build items and AI-generate copy for invites.`
     * `anchor: '#sf-locator-edit-btn'` | `Hover Text: Edit Salesforce ID.`
     * `anchor: '#zoominfo-locator-edit-btn'` | `Hover Text: Edit ZoomInfo company ID.`
     * `anchor: 'form#account-form button[type="submit"]'` | `Hover Text: Save account changes.`
     * `anchor: '#delete-account-btn'` | `Hover Text: Delete this account.`
     * `anchor: '#account-is-customer'` | `Hover Text: Toggle customer status.`
+
+* **Container:** `.account-proposals-card`
+  * **Macro Text:** "Proposals. Proposals linked to this account; open in builder or delete."
+  * **Nodes:**
+    * `anchor: '.account-proposals-list a[href^="proposals.html"]'` | `Hover Text: Open this proposal in the proposal builder.`
+    * `anchor: '.proposal-delete-btn'` | `Hover Text: Delete this proposal from the account.`
 
 * **Container:** `.account-deals-card`
   * **Macro Text:** "Current deals for this account."
