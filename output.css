@@ -10574,10 +10574,15 @@ body:not(.theme-green) .list-item.selected {
     backdrop-filter: blur(8px);
     position: fixed;
     inset: calc(var(--spacing) * 0);
-    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 10000;
+  }
+  .agenda-drag-ghost {
+    z-index: 10001 !important;
+    pointer-events: none;
+    opacity: 0.85;
   }
   #agenda-modal-backdrop:not(.hidden) {
     opacity: 1;
@@ -10594,6 +10599,13 @@ body:not(.theme-green) .list-item.selected {
     background-color: var(--bg-light);
     border: 1px solid var(--border-color);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+  #agenda-modal-backdrop.agenda-modal--result-visible .agenda-modal {
+    height: auto;
+  }
+  #agenda-modal-backdrop.agenda-modal--result-visible .agenda-modal-body {
+    flex: none;
+    overflow: visible;
   }
   .agenda-modal-header {
     display: flex;

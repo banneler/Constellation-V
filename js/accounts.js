@@ -2461,7 +2461,13 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
                 agendaSortable = null;
             }
             if (typeof Sortable !== "undefined" && agendaOrderList) {
-                agendaSortable = new Sortable(agendaOrderList, { handle: ".agenda-drag-handle", animation: 150 });
+                agendaSortable = new Sortable(agendaOrderList, {
+                    handle: ".agenda-drag-handle",
+                    animation: 150,
+                    forceFallback: true,
+                    fallbackOnBody: true,
+                    ghostClass: "agenda-drag-ghost"
+                });
             }
         }
         function escapeHtml(s) {
@@ -2479,7 +2485,11 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
             if (agendaEditToggle) agendaEditToggle.classList.add("hidden");
             if (agendaLoading) agendaLoading.classList.add("hidden");
             if (agendaPrompt) agendaPrompt.value = "";
-            if (agendaResult) agendaResult.value = "";
+            if (agendaResult) {
+                agendaResult.value = "";
+                agendaResult.rows = 10;
+            }
+            agendaModalBackdrop.classList.remove("agenda-modal--result-visible");
             agendaModalBackdrop.classList.remove("hidden");
         }
         function closeAgendaModal() {
@@ -2533,9 +2543,12 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
                     if (error) throw error;
                     if (data?.agenda) {
                         agendaResult.value = data.agenda;
+                        const lines = (data.agenda || "").split("\n").length;
+                        agendaResult.rows = Math.min(Math.max(lines, 10), 50);
                         if (agendaCreateSection) agendaCreateSection.classList.add("agenda-create-collapsed");
                         if (agendaResultWrap) agendaResultWrap.classList.remove("hidden");
                         if (agendaEditToggle) agendaEditToggle.classList.remove("hidden");
+                        if (agendaModalBackdrop) agendaModalBackdrop.classList.add("agenda-modal--result-visible");
                     } else {
                         throw new Error(data?.error || "No agenda returned");
                     }
@@ -2556,6 +2569,7 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
         if (agendaEditToggle) {
             agendaEditToggle.addEventListener("click", () => {
                 if (agendaCreateSection) agendaCreateSection.classList.remove("agenda-create-collapsed");
+                if (agendaModalBackdrop) agendaModalBackdrop.classList.remove("agenda-modal--result-visible");
             });
         }
 
