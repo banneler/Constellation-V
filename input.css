@@ -3294,11 +3294,40 @@ body.theme-green {
     }
     .account-deals-card .section-card-header,
     .account-contacts-card .section-card-header,
-    .account-activities-card .section-card-header {
-        @apply px-5 pt-5 pb-2 flex-shrink-0;
+    .account-activities-card .section-card-header,
+    .account-proposals-card .section-card-header {
+        @apply px-3 pt-3 pb-1 flex-shrink-0;
     }
     .account-deals-card .account-deals-body {
         @apply flex-1 min-h-0 overflow-y-auto px-4;
+    }
+    /* Deals column: fills row height (stretch), 2/3 Deals + 1/3 Proposals; gap between cards matches page */
+    .account-deals-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        min-height: 0;
+    }
+    .account-deals-column .section-card {
+        margin-bottom: 0;
+    }
+    .account-deals-column .account-deals-card {
+        flex: 3;
+        min-height: 0;
+        height: auto;
+    }
+    .account-deals-column .account-proposals-card {
+        flex: 1;
+        min-height: 0;
+    }
+    .account-proposals-card {
+        @apply flex flex-col rounded-2xl overflow-hidden min-h-0;
+    }
+    .account-proposals-card .account-proposals-body {
+        @apply flex-1 min-h-0 overflow-y-auto px-3 py-1;
+    }
+    .account-proposals-list {
+        @apply flex flex-col gap-1 text-sm;
     }
     /* When a footer fan (Mo/Yr/Term) is open, allow overflow so dropdown isn’t clipped */
     .account-deals-card:has(.deal-card-stage-fan-wrap.open),
@@ -4585,7 +4614,7 @@ body.theme-green {
         background-color: rgba(0, 0, 0, 0.15);
     }
     .modal-content {
-        @apply relative flex flex-col p-5 w-[90%] max-h-[90vh] z-[10000] max-w-[70rem];
+        @apply relative flex flex-col p-5 w-[90%] max-h-[90vh] z-[10000] max-w-[70rem] min-w-[min(42rem,95vw)];
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
         box-shadow: var(--shadow-card);

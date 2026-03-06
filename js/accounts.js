@@ -23,7 +23,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             activities: [],
             deals: [],
             tasks: [],
-            contact_sequences: []
+            contact_sequences: [],
+            proposals: []
         },
 
         contactViewMode: 'list' // 'list' or 'org'
@@ -56,6 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     const accountActivitiesList = document.getElementById("account-activities-list");
     const accountDealsCards = document.getElementById("account-deals-cards");
+    const accountProposalsList = document.getElementById("account-proposals-list");
     const accountPendingTaskReminder = document.getElementById("account-pending-task-reminder");
     const aiBriefingBtn = document.getElementById("ai-briefing-btn");
     const zoominfoAccountBtn = document.getElementById("zoominfo-account-btn");
@@ -213,17 +215,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
 
-        const [contactsRes, dealsRes, activitiesRes, tasksRes] = await Promise.all([
+        const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes] = await Promise.all([
             supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
-            supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId)
+            supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
+            supabase.from("proposal_specs").select("id, name, updated_at").eq("account_id", state.selectedAccountId).order("updated_at", { ascending: false })
         ]);
 
         if (contactsRes.error) throw contactsRes.error;
         if (dealsRes.error) throw dealsRes.error;
         if (activitiesRes.error) throw activitiesRes.error;
         if (tasksRes.error) throw tasksRes.error;
+        if (proposalsRes.error) throw proposalsRes.error;
 
         const contactIds = (contactsRes.data || []).map(c => c.id);
         const sequencesRes = contactIds.length > 0
@@ -237,6 +241,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.selectedAccountDetails.activities = activitiesRes.data || [];
         state.selectedAccountDetails.tasks = tasksRes.data || [];
         state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
+        state.selectedAccountDetails.proposals = proposalsRes.data || [];
 
         renderAccountDetails();
     }
@@ -261,6 +266,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (contactOrgChartView) contactOrgChartView.innerHTML = "";
         if (accountActivitiesList) accountActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see related activities.</p>';
         if (accountDealsCards) accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see deals.</p>';
+        if (accountProposalsList) accountProposalsList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] py-2">Select an account to see proposals.</p>';
         if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
 
         const sfLocatorDisplay = document.getElementById("sf-locator-display");
@@ -280,7 +286,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (clearSelection) {
             state.selectedAccountId = null;
-            state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [] };
+            state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [], proposals: [] };
             document.querySelectorAll(".list-item.selected").forEach(item => item.classList.remove("selected"));
             state.isFormDirty = false;
         }
@@ -375,7 +381,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const renderAccountDetails = () => {
-        const { account, contacts, activities, deals, tasks, contact_sequences } = state.selectedAccountDetails;
+        const { account, contacts, activities, deals, tasks, contact_sequences, proposals } = state.selectedAccountDetails;
 
         if (!account) {
             hideAccountDetails(true);
@@ -537,6 +543,38 @@ document.addEventListener("DOMContentLoaded", async () => {
                     });
                 }
             });
+        }
+
+        if (accountProposalsList) {
+            accountProposalsList.innerHTML = "";
+            if (!proposals || proposals.length === 0) {
+                const openUrl = account ? "proposals.html?account_id=" + encodeURIComponent(account.id) : "proposals.html";
+                accountProposalsList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)]">No proposals saved. <a href="' + openUrl + '" class="text-[var(--primary-blue)] hover:underline">Open Proposals</a> to create one.</p>';
+            } else {
+                proposals.forEach((p) => {
+                    const name = (p.name || "Proposal").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const updated = p.updated_at ? formatSimpleDate(p.updated_at) : "—";
+                    const row = document.createElement("div");
+                    row.className = "flex items-center gap-1 py-2 px-2 rounded-lg hover:bg-[var(--bg-medium)] group";
+                    row.innerHTML = `<a href="proposals.html?load=${encodeURIComponent(p.id)}" class="flex items-center gap-2 flex-1 min-w-0 no-underline text-[var(--text-primary)]"><i class="fas fa-file-lines text-[var(--text-muted)] flex-shrink-0" aria-hidden="true"></i><span class="min-w-0"><span class="font-medium">${name}</span><span class="block text-xs text-[var(--text-muted)]">Updated ${updated}</span></span></a><button type="button" class="proposal-delete-btn p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete proposal" data-proposal-id="${p.id}"><i class="fas fa-trash text-sm" aria-hidden="true"></i></button>`;
+                    const deleteBtn = row.querySelector(".proposal-delete-btn");
+                    deleteBtn.addEventListener("click", async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showModal("Delete proposal?", "Are you sure you want to delete this proposal? This cannot be undone.", async () => {
+                            const { error } = await supabase.from("proposal_specs").delete().eq("id", p.id);
+                            if (error) {
+                                showToast("Error deleting proposal: " + (error.message || "Unknown"), "error");
+                                return;
+                            }
+                            state.selectedAccountDetails.proposals = state.selectedAccountDetails.proposals.filter((x) => x.id !== p.id);
+                            accountProposalsList.removeChild(row);
+                            showToast("Proposal deleted.", "success");
+                        }, true, '<button id="modal-cancel-btn" class="btn-secondary">Cancel</button><button id="modal-confirm-btn" class="btn-primary">Delete</button>');
+                    });
+                    accountProposalsList.appendChild(row);
+                });
+            }
         }
 
         renderContactView();

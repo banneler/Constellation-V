@@ -21,6 +21,15 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .gpc-pdf-font { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; -webkit-font-smoothing: antialiased; }
         #freeflow-render-zone, #pricing-render-zone, #references-render-zone { background-color: #FFFFFF !important; }
+        #proposals-picker-panel.proposals-picker-collapsed { width: 3rem !important; min-width: 3rem !important; }
+        #proposals-picker-panel.proposals-picker-collapsed .proposals-picker-body { display: none !important; }
+        #proposals-picker-panel #proposals-picker-toggle { top: 50%; transform: translateY(-50%); right: 0; color: #cbd5e1; }
+        #proposals-picker-panel #proposals-picker-toggle:hover { color: #64748b; background-color: #f1f5f9; }
+        #proposals-picker-panel #proposals-picker-toggle i { color: inherit; }
+        #proposals-picker-panel.proposals-picker-collapsed #proposals-picker-toggle { right: 50%; transform: translate(50%, -50%); }
+        #proposals-picker-panel .proposals-picker-header-icon { display: none; }
+        #proposals-picker-panel.proposals-picker-collapsed .proposals-picker-header .section-title { display: none; }
+        #proposals-picker-panel.proposals-picker-collapsed .proposals-picker-header-icon { display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #64748b; }
     </style>
 </head>
 <body>
@@ -45,21 +54,33 @@
         </nav>
         <main class="content-area">
             <div id="proposals-view" class="content-view active-view proposals-layout">
-                <div class="proposals-picker-panel">
-                    <div class="proposals-picker-header">
+                <div id="proposals-picker-panel" class="proposals-picker-panel relative transition-[width] duration-200 ease-out">
+                    <button type="button" id="proposals-picker-toggle" class="absolute z-10 w-8 h-8 flex items-center justify-center rounded-lg transition" title="Minimize sidebar">
+                        <i id="proposals-picker-icon-minimize" class="fa-solid fa-grip-lines-vertical text-lg"></i>
+                        <i id="proposals-picker-icon-expand" class="fa-solid fa-chevron-right text-lg hidden"></i>
+                    </button>
+                    <div class="proposals-picker-header flex items-center justify-center min-h-[3rem]">
+                        <i class="fa-solid fa-file-lines proposals-picker-header-icon" aria-hidden="true"></i>
                         <h2 class="section-title">Proposals</h2>
                     </div>
                     <div class="proposals-picker-body">
                         <div class="proposals-picker-actions flex-shrink-0">
                 <button id="generate-btn" data-state="initial" class="btn-primary full-width proposals-generate-btn disabled:opacity-70 disabled:cursor-not-allowed"><svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16l4-4 4 4m0-8H8"></path></svg><span>Compile Proposal</span></button>
-<div class="proposals-file-actions flex gap-2 mb-6 pb-6">
-                    <button type="button" id="save-project-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-lg border border-slate-300 shadow-sm transition text-sm flex justify-center items-center gap-2" title="Save (.spec)">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+<div class="proposals-file-actions flex flex-col gap-2 mb-6 pb-6">
+                    <div class="flex gap-2">
+                        <button type="button" id="save-project-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-lg border border-slate-300 shadow-sm transition text-sm flex justify-center items-center gap-2" title="Save (.spec)">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                        </button>
+                        <label id="load-project-label" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-lg border border-slate-300 shadow-sm transition cursor-pointer flex justify-center items-center gap-2 text-sm" title="Load Project">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                            <input type="file" id="load-project-input" accept=".spec" class="hidden">
+                        </label>
+                    </div>
+                    <button type="button" id="send-for-proofing-btn" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-lg border border-slate-300 shadow-sm transition text-sm flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        Send for Proofing
                     </button>
-                    <label id="load-project-label" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-lg border border-slate-300 shadow-sm transition cursor-pointer flex justify-center items-center gap-2 text-sm" title="Load Project">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-                        <input type="file" id="load-project-input" accept=".spec" class="hidden">
-                    </label>
+                    <p id="send-for-proofing-reminder" class="hidden text-xs text-slate-500 text-center">Remember to attach the .spec file you just downloaded.</p>
                 </div>
                         </div>
                         <div class="proposals-picker-scroll flex-1 min-h-0 overflow-y-auto">
@@ -93,6 +114,12 @@
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
         <input type="checkbox" checked id="toggle-cover-letter" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_COVER">
         <span class="flex-1 font-medium text-sm text-slate-700">Cover Letter</span>
+    </li>
+    
+    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="TOC">
+        <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
+        <input type="checkbox" checked id="toggle-toc" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="TOC">
+        <span class="flex-1 font-medium text-sm text-slate-700">Table of Contents</span>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_TEXT">
@@ -164,15 +191,6 @@
         </button>
     </li>
     
-    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="07_CaseStudy.pdf">
-        <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
-        <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="07_CaseStudy.pdf">
-        <span class="flex-1 font-medium text-sm text-slate-700">Boys Town Case Study</span>
-        <button onclick="previewStockPdf('07_CaseStudy.pdf', 'Boys Town Case Study')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-        </button>
-    </li>
-    
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="08_SPIN.pdf">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
         <input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="08_SPIN.pdf">
@@ -234,14 +252,13 @@
                             <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                             <h3 class="text-2xl font-bold text-slate-800">Cover Letter</h3>
                         </div>
-                        <input type="text" id="cover-title-input" class="w-full border border-slate-300 p-2 rounded-lg mb-3 bg-slate-50 outline-none focus:border-orange-500 font-semibold text-slate-700" placeholder="Document Title (Leave blank for cover pages)">
-                        <div class="flex gap-6 flex-nowrap items-start">
-                            <div class="w-[680px] flex-shrink-0">
+                        <div class="flex gap-6 flex-wrap justify-center items-start">
+                            <div class="flex flex-col min-w-0 w-full max-w-[680px] shrink">
                                 <textarea id="cover-body" class="w-full h-[624px] p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Dear [Client Name]..." style="white-space: pre-wrap;"></textarea>
                             </div>
-                            <div class="flex-1 min-w-0 flex gap-4 h-[624px] overflow-hidden">
-                                <div class="w-[260px] h-[624px] flex-shrink-0 flex flex-col gap-4 overflow-hidden">
-                                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex-shrink-0">
+                            <div id="cover-letter-side-elements" class="flex flex-row gap-4 flex-wrap min-w-[480px] flex-shrink-0">
+                                <div class="w-[260px] flex-shrink-0 flex flex-col gap-4">
+                                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600">
                                         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3>
                                         <p class="text-xs text-slate-400 mb-2">Inserts at cursor in the cover letter.</p>
                                         <div id="cover-snippets" class="space-y-2 overflow-auto min-h-0"></div>
@@ -256,10 +273,10 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="flex-1 min-w-[200px] h-[624px] min-h-0 flex flex-col overflow-hidden">
-                                    <div class="bg-white shadow-sm border border-slate-200 rounded-xl h-full flex flex-col overflow-hidden">
+                                <div class="min-w-[200px] max-w-[280px] flex flex-col flex-shrink-0">
+                                    <div class="bg-white shadow-sm border border-slate-200 rounded-xl flex flex-col overflow-hidden min-h-0">
                                         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 px-4 py-3 flex-shrink-0">Proposal Notes</h3>
-                                        <textarea id="discovery-scratchpad" class="w-full border-0 border-t border-slate-200 p-4 text-sm text-slate-800 bg-slate-50 focus:bg-white outline-none flex-1 min-h-0 resize-none" placeholder="Sites, circuit counts, bandwidth needs, contact names, quick math, raw notes…"></textarea>
+                                        <textarea id="discovery-scratchpad" class="w-full border-0 border-t border-slate-200 p-4 text-sm text-slate-800 bg-slate-50 focus:bg-white outline-none min-h-[200px] resize-none flex-1" placeholder="Sites, circuit counts, bandwidth needs, contact names, quick math, raw notes…"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -291,6 +308,10 @@
                         <div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2">
                             <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
                             <h3 class="text-2xl font-bold text-slate-800">Upload Custom PDF (Exec Summary, etc.)</h3>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Section name for Table of Contents</label>
+                            <input type="text" id="custom-pdf-section-name" class="w-full border border-slate-300 p-2 rounded-lg bg-slate-50 focus:bg-white outline-none focus:border-orange-500 font-medium text-slate-700" maxlength="80" placeholder="e.g. Executive Summary">
                         </div>
                         <input type="file" id="custom-pdf-upload" class="hidden" accept="application/pdf">
                         <div class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="document.getElementById('custom-pdf-upload').click()">
@@ -378,6 +399,14 @@
             <div class="bg-[#525659] rounded-lg shadow-2xl flex-1 overflow-hidden border-4 border-slate-700 w-full">
                 <iframe id="pdf-preview-iframe" class="w-full h-full border-0" src=""></iframe>
             </div>
+        </div>
+    </div>
+
+    <div id="modal-backdrop" class="modal-backdrop hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 p-4">
+        <div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 id="modal-title" class="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4"></h3>
+            <div id="modal-body" class="text-slate-600 dark:text-slate-300 mb-6"></div>
+            <div id="modal-actions" class="modal-actions flex gap-3 justify-end"></div>
         </div>
     </div>
 
