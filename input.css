@@ -6492,6 +6492,10 @@ body:not(.theme-green) .list-item.selected {
         column-span: all;
         break-after: avoid;
     }
+    /* Force Closing (and its single item) to start in a new column so it doesn't sit beside The Business Side */
+    .agenda-canned-grid .agenda-section-header:last-of-type {
+        break-before: column;
+    }
     .agenda-section-header {
         @apply text-xs font-semibold uppercase tracking-wider mt-4 mb-1;
         color: var(--text-muted);
