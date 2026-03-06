@@ -64,6 +64,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const salesforceAccountBtn = document.getElementById("salesforce-account-btn");
     const accountFilterIcons = document.getElementById("account-filter-icons");
     const accountIndustrySelect = document.getElementById("account-industry");
+    const draftAgendaBtn = document.getElementById("draft-agenda-btn");
+    const agendaModalBackdrop = document.getElementById("agenda-modal-backdrop");
+    const agendaModalClose = document.getElementById("agenda-modal-close");
+    const agendaEditToggle = document.getElementById("agenda-edit-toggle");
+    const agendaCreateSection = document.getElementById("agenda-create-section");
+    const agendaCannedList = document.getElementById("agenda-canned-list");
+    const agendaOrderList = document.getElementById("agenda-order-list");
+    const agendaAddCustomBtn = document.getElementById("agenda-add-custom-btn");
+    const agendaPrompt = document.getElementById("agenda-prompt");
+    const agendaGenerateBtn = document.getElementById("agenda-generate-btn");
+    const agendaLoading = document.getElementById("agenda-loading");
+    const agendaResultWrap = document.getElementById("agenda-result-wrap");
+    const agendaResult = document.getElementById("agenda-result");
+    const agendaCopyBtn = document.getElementById("agenda-copy-btn");
 
     if (accountActivitiesList) {
         accountActivitiesList.addEventListener("click", async (e) => {
@@ -2412,6 +2426,136 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
                         hideModal();
                         showModal("Success", "Account deleted successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            });
+        }
+
+        // --- Draft agenda modal ---
+        let agendaSortable = null;
+        function agendaOrderListItems() {
+            if (!agendaOrderList) return;
+            const checked = agendaCannedList ? Array.from(agendaCannedList.querySelectorAll(".agenda-canned-cb:checked")).map(cb => cb.value) : [];
+            const existingOrder = Array.from(agendaOrderList.querySelectorAll("li")).map(li => {
+                const text = li.querySelector(".agenda-order-text");
+                const custom = li.dataset.custom === "true";
+                return { text: text ? text.textContent.trim() : "", custom };
+            });
+            const customItems = existingOrder.filter(o => o.custom).map(o => o.text);
+            const order = [...new Set(checked)];
+            customItems.forEach(t => {
+                if (t && !order.includes(t)) order.push(t);
+            });
+            agendaOrderList.innerHTML = "";
+            order.forEach(text => {
+                const li = document.createElement("li");
+                li.dataset.custom = customItems.includes(text) ? "true" : "false";
+                li.innerHTML = `<span class="agenda-drag-handle" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span><span class="agenda-order-text">${escapeHtml(text)}</span>${li.dataset.custom === "true" ? '<button type="button" class="agenda-order-remove" title="Remove"><i class="fas fa-times"></i></button>' : ""}`;
+                agendaOrderList.appendChild(li);
+            });
+            agendaOrderList.querySelectorAll(".agenda-order-remove").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    btn.closest("li").remove();
+                });
+            });
+            if (agendaSortable) {
+                agendaSortable.destroy();
+                agendaSortable = null;
+            }
+            if (typeof Sortable !== "undefined" && agendaOrderList) {
+                agendaSortable = new Sortable(agendaOrderList, { handle: ".agenda-drag-handle", animation: 150 });
+            }
+        }
+        function escapeHtml(s) {
+            const div = document.createElement("div");
+            div.textContent = s;
+            return div.innerHTML;
+        }
+        function openAgendaModal() {
+            if (!agendaModalBackdrop) return;
+            agendaOrderListItems();
+            if (agendaCreateSection) {
+                agendaCreateSection.classList.remove("agenda-create-collapsed");
+            }
+            if (agendaResultWrap) agendaResultWrap.classList.add("hidden");
+            if (agendaEditToggle) agendaEditToggle.classList.add("hidden");
+            if (agendaLoading) agendaLoading.classList.add("hidden");
+            if (agendaPrompt) agendaPrompt.value = "";
+            if (agendaResult) agendaResult.value = "";
+            agendaModalBackdrop.classList.remove("hidden");
+        }
+        function closeAgendaModal() {
+            if (agendaModalBackdrop) agendaModalBackdrop.classList.add("hidden");
+        }
+        if (draftAgendaBtn) {
+            draftAgendaBtn.addEventListener("click", () => {
+                if (!state.selectedAccountId) return;
+                openAgendaModal();
+            });
+        }
+        if (agendaModalClose) agendaModalClose.addEventListener("click", closeAgendaModal);
+        if (agendaModalBackdrop) {
+            agendaModalBackdrop.addEventListener("click", (e) => {
+                if (e.target === agendaModalBackdrop) closeAgendaModal();
+            });
+        }
+        if (agendaCannedList) {
+            agendaCannedList.addEventListener("change", () => agendaOrderListItems());
+        }
+        if (agendaAddCustomBtn) {
+            agendaAddCustomBtn.addEventListener("click", () => {
+                const text = window.prompt("Custom agenda item:", "");
+                if (text == null || !text.trim()) return;
+                const trimmed = text.trim();
+                const li = document.createElement("li");
+                li.dataset.custom = "true";
+                li.innerHTML = `<span class="agenda-drag-handle" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span><span class="agenda-order-text">${escapeHtml(trimmed)}</span><button type="button" class="agenda-order-remove" title="Remove"><i class="fas fa-times"></i></button>`;
+                agendaOrderList.appendChild(li);
+                li.querySelector(".agenda-order-remove").addEventListener("click", () => li.remove());
+            });
+        }
+        if (agendaGenerateBtn) {
+            agendaGenerateBtn.addEventListener("click", async () => {
+                if (!agendaOrderList || !agendaResult) return;
+                const items = Array.from(agendaOrderList.querySelectorAll("li")).map(li => {
+                    const t = li.querySelector(".agenda-order-text");
+                    return t ? t.textContent.trim() : "";
+                }).filter(Boolean);
+                if (items.length === 0) {
+                    showToast("Add at least one agenda item.", "error");
+                    return;
+                }
+                agendaGenerateBtn.disabled = true;
+                if (agendaLoading) agendaLoading.classList.remove("hidden");
+                try {
+                    const accountName = state.selectedAccountDetails.account?.name || "";
+                    const { data, error } = await supabase.functions.invoke("generate-agenda", {
+                        body: { items, prompt: agendaPrompt?.value?.trim() || "", accountName }
+                    });
+                    if (error) throw error;
+                    if (data?.agenda) {
+                        agendaResult.value = data.agenda;
+                        if (agendaCreateSection) agendaCreateSection.classList.add("agenda-create-collapsed");
+                        if (agendaResultWrap) agendaResultWrap.classList.remove("hidden");
+                        if (agendaEditToggle) agendaEditToggle.classList.remove("hidden");
+                    } else {
+                        throw new Error(data?.error || "No agenda returned");
+                    }
+                } catch (err) {
+                    showToast(err?.message || "Failed to generate agenda", "error");
+                } finally {
+                    agendaGenerateBtn.disabled = false;
+                    if (agendaLoading) agendaLoading.classList.add("hidden");
+                }
+            });
+        }
+        if (agendaCopyBtn) {
+            agendaCopyBtn.addEventListener("click", () => {
+                if (!agendaResult?.value) return;
+                navigator.clipboard.writeText(agendaResult.value).then(() => showToast("Copied to clipboard", "success")).catch(() => showToast("Copy failed", "error"));
+            });
+        }
+        if (agendaEditToggle) {
+            agendaEditToggle.addEventListener("click", () => {
+                if (agendaCreateSection) agendaCreateSection.classList.remove("agenda-create-collapsed");
             });
         }
 

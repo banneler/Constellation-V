@@ -14,6 +14,7 @@
     <script src="https://unpkg.com/@zumer/snapdom/dist/snapdom.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 
 <body>
@@ -118,6 +119,7 @@
                             <div class="form-buttons">
                                 <button type="submit" class="btn-icon btn-icon-save" title="Save Changes"><i class="fas fa-floppy-disk"></i></button>
                                 <button type="button" id="delete-account-btn" class="btn-icon btn-icon-danger" title="Delete Account"><i class="fas fa-trash"></i></button>
+                                <button type="button" id="draft-agenda-btn" class="btn-icon btn-icon-agenda" title="Draft meeting agenda"><i class="fas fa-calendar-days"></i><span class="ml-1.5 text-sm font-medium">Draft Agenda</span></button>
                                 <div id="account-pending-task-reminder" class="pending-task-reminder pending-task-reminder-pill hidden"></div>
                                 <label class="customer-toggle" for="account-is-customer">
                                     <input type="checkbox" id="account-is-customer" class="customer-toggle-input">
@@ -215,6 +217,62 @@
                 <button id="org-chart-modal-close-btn" class="org-chart-modal-close" title="Close">&times;</button>
             </div>
             <div id="org-chart-modal-content" class="org-chart-modal-content"></div>
+        </div>
+    </div>
+    <div id="agenda-modal-backdrop" class="modal-backdrop agenda-modal-backdrop hidden">
+        <div class="agenda-modal">
+            <div class="agenda-modal-header">
+                <h3 class="agenda-modal-title"><i class="fas fa-calendar-days"></i> Draft agenda</h3>
+                <button type="button" id="agenda-modal-close" class="agenda-modal-close" title="Close">&times;</button>
+            </div>
+            <div class="agenda-modal-body">
+                <button type="button" id="agenda-edit-toggle" class="agenda-edit-toggle hidden">Edit agenda items</button>
+                <div id="agenda-create-section" class="agenda-create-section">
+                    <p class="agenda-create-intro">Select agenda items and drag to reorder. Add any custom items, then generate copy for your meeting invite.</p>
+                    <label class="agenda-label">Agenda Items</label>
+                    <div id="agenda-canned-list" class="agenda-canned-grid">
+                        <div class="agenda-section-header col-span-2">Discovery &amp; Infrastructure</div>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Current State & Capacity Audit"> <span>Current State &amp; Capacity Audit</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Network Resiliency & Redundancy"> <span>Network Resiliency &amp; Redundancy</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Operational Bottlenecks & Growth Hurdles"> <span>Operational Bottlenecks &amp; Growth Hurdles</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Compliance & Security Requirements"> <span>Compliance &amp; Security Requirements</span></label>
+                        <div class="agenda-section-header col-span-2">The GPC Solution</div>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Strategic Solution Design"> <span>Strategic Solution Design</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Cloud & Connectivity Strategy"> <span>Cloud &amp; Connectivity Strategy</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Future-Proofing & Scalability"> <span>Future-Proofing &amp; Scalability</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Product Innovation Roadmap"> <span>Product Innovation Roadmap</span></label>
+                        <div class="agenda-section-header col-span-2">The Project Lifecycle</div>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Construction & Engineering Overview"> <span>Construction &amp; Engineering Overview</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Implementation & Migration Plan"> <span>Implementation &amp; Migration Plan</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Post-Install Support & Local Account Management"> <span>Post-Install Support &amp; Local Account Management</span></label>
+                        <div class="agenda-section-header col-span-2">The Business Side</div>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Financial Investment & ROI Analysis"> <span>Financial Investment &amp; ROI Analysis</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Service Level Agreements (SLAs) & Performance Guarantees"> <span>Service Level Agreements (SLAs) &amp; Performance Guarantees</span></label>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Strategic Partnership Review"> <span>Strategic Partnership Review</span></label>
+                        <div class="agenda-section-header col-span-2">Closing</div>
+                        <label class="agenda-canned-item"><input type="checkbox" class="agenda-canned-cb" value="Executive Q&A & Next Steps"> <span>Executive Q&amp;A &amp; Next Steps</span></label>
+                    </div>
+                    <div class="agenda-order-row">
+                        <label class="agenda-label">Agenda order (drag to reorder)</label>
+                        <button type="button" id="agenda-add-custom-btn" class="agenda-add-custom-btn">+ Add custom item</button>
+                    </div>
+                    <ul id="agenda-order-list" class="agenda-order-list"></ul>
+                    <label class="agenda-label">Additional context for intro/outro (optional)</label>
+                    <textarea id="agenda-prompt" class="agenda-prompt" rows="2" placeholder="e.g. Mention we'll send a proposal follow-up, or keep it brief"></textarea>
+                    <div class="agenda-generate-row">
+                        <button type="button" id="agenda-generate-btn" class="agenda-generate-btn">Generate agenda</button>
+                    </div>
+                    <div id="agenda-loading" class="agenda-loading hidden">
+                        <span class="agenda-loading-spinner"></span>
+                        <span>Building agenda…</span>
+                    </div>
+                </div>
+                <div id="agenda-result-wrap" class="agenda-result-wrap hidden">
+                    <label class="agenda-label">Copy for invite body</label>
+                    <textarea id="agenda-result" class="agenda-result" rows="10" readonly></textarea>
+                    <button type="button" id="agenda-copy-btn" class="agenda-copy-btn"><i class="fas fa-copy"></i> Copy to clipboard</button>
+                </div>
+            </div>
         </div>
     </div>
     <script>
