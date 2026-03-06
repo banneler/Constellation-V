@@ -22,6 +22,12 @@
         }
 
         var isDirty = false, _suppressDirty = false;
+        /** When set, proposal was loaded from DB; "Save to account" will UPDATE this row instead of INSERT. Cleared when loading from file. */
+        var loadedProposalId = null;
+        /** Saved proposal name, used to pre-fill the save modal when updating. */
+        var loadedProposalName = null;
+        /** When loaded from DB, the account_id of that proposal (for "Save as new" default). */
+        var loadedProposalAccountId = null;
         function setDirty(value) {
             isDirty = !!value;
             var header = document.getElementById('main-header');
@@ -310,16 +316,16 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         document.getElementById('contract-term').addEventListener('input', () => {});
 
         // --- Save / Load Project ---
-        function saveProject() {
+        function buildProjectData() {
             const projectData = {
                 globalRfp: document.getElementById('global-rfp').value,
                 globalBiz: document.getElementById('global-biz').value,
                 globalRep: document.getElementById('global-rep').value,
                 globalStart: document.getElementById('global-start').value,
                 globalEnd: document.getElementById('global-end').value,
-                coverTitle: document.getElementById('cover-title-input').value,
                 coverText: document.getElementById('cover-body').value,
                 customTextTitle: document.getElementById('custom-text-title-input').value,
+                customPdfSectionName: document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '',
                 customText: document.getElementById('custom-text-body').value,
                 contractTerm: document.getElementById('contract-term').value,
                 references: Array.from(document.querySelectorAll('.ref-block')).map(b => ({
@@ -350,21 +356,225 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 impactProposedCost: document.getElementById('impact-proposed-cost').value,
                 modules: []
             };
-            setDirty(false);
             document.querySelectorAll('#module-list li').forEach(li => {
                 const pdfId = li.getAttribute('data-filename');
-                const cb = li.querySelector(`input[data-pdf-id="${pdfId}"]`);
+                const cb = li.querySelector('input.slide-toggle');
                 projectData.modules.push({
                     filename: pdfId,
                     checked: cb ? cb.checked : false
                 });
             });
+            return projectData;
+        }
+
+        function downloadSpecFile(projectData) {
+            setDirty(false);
             const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = (projectData.globalBiz || 'GPC_Proposal').replace(/\s+/g, '_') + '.spec';
             a.click();
             URL.revokeObjectURL(a.href);
+        }
+
+        var proposalSaveTomSelect = null;
+
+        function destroyProposalSaveTomSelect() {
+            if (proposalSaveTomSelect) {
+                try { proposalSaveTomSelect.destroy(); } catch (e) {}
+                proposalSaveTomSelect = null;
+            }
+        }
+
+        function openSaveModal() {
+            if (typeof window.showModal !== 'function') {
+                var projectData = buildProjectData();
+                downloadSpecFile(projectData);
+                showToast('Proposal saved locally.', 'success');
+                return;
+            }
+            destroyProposalSaveTomSelect();
+            var defaultName = (loadedProposalName || (document.getElementById('global-biz') && document.getElementById('global-biz').value) || 'Proposal').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var bodyHtml = '';
+            bodyHtml += '<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Account</label>' +
+                '<select id="proposal-save-account" class="w-full mb-4" placeholder="— Select account —">' +
+                '<option value="">— Select account —</option></select>';
+            if (loadedProposalId) {
+                bodyHtml += '<p class="text-sm text-slate-600 dark:text-slate-400 mb-3">Overwrite the existing proposal or save as a new one (choose account for new copy above).</p>';
+            }
+            bodyHtml += '<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Proposal name (optional)</label>' +
+                '<input type="text" id="proposal-save-name" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200" placeholder="e.g. Q1 2026 proposal" value="' + defaultName + '">';
+            var actionsHtml = '<button type="button" id="proposal-save-cancel-btn" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-medium">Cancel</button>' +
+                '<button type="button" id="proposal-save-local-btn" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-medium">Save local copy</button>';
+            if (loadedProposalId) {
+                actionsHtml += '<button type="button" id="proposal-save-overwrite-btn" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium">Overwrite</button>' +
+                    '<button type="button" id="proposal-save-as-new-btn" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">Save as new</button>';
+            } else {
+                actionsHtml += '<button type="button" id="proposal-save-account-btn" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">Save to account</button>';
+            }
+            window.showModal('Save Proposal', bodyHtml, null, true, actionsHtml);
+            var selectEl = document.getElementById('proposal-save-account');
+            if (selectEl && window.proposalsSupabase && window.getState) {
+                var uid = window.getState().effectiveUserId;
+                if (uid) {
+                    window.proposalsSupabase.from('accounts').select('id, name').eq('user_id', uid).order('name').then(function(r) {
+                        if (r.data && r.data.length && selectEl) {
+                            r.data.forEach(function(acc) {
+                                var opt = document.createElement('option');
+                                opt.value = String(acc.id);
+                                opt.textContent = acc.name || String(acc.id);
+                                selectEl.appendChild(opt);
+                            });
+                            if (loadedProposalAccountId) selectEl.value = loadedProposalAccountId;
+                        }
+                        initProposalSaveTomSelect();
+                        if (loadedProposalAccountId && proposalSaveTomSelect) proposalSaveTomSelect.setValue(loadedProposalAccountId);
+                    });
+                } else {
+                    initProposalSaveTomSelect();
+                }
+            } else {
+                initProposalSaveTomSelect();
+            }
+            function initProposalSaveTomSelect() {
+                var sel = document.getElementById('proposal-save-account');
+                if (!sel || typeof window.TomSelect === 'undefined') return;
+                try {
+                    proposalSaveTomSelect = new window.TomSelect(sel, {
+                        create: false,
+                        maxItems: 1,
+                        placeholder: '— Select account —',
+                        render: {
+                            dropdown: function() {
+                                var d = document.createElement('div');
+                                d.className = 'ts-dropdown';
+                                return d;
+                            }
+                        }
+                    });
+                } catch (e) { proposalSaveTomSelect = null; }
+            }
+            setTimeout(function() {
+                var cancelBtn = document.getElementById('proposal-save-cancel-btn');
+                var localBtn = document.getElementById('proposal-save-local-btn');
+                var accountBtn = document.getElementById('proposal-save-account-btn');
+                var overwriteBtn = document.getElementById('proposal-save-overwrite-btn');
+                var saveAsNewBtn = document.getElementById('proposal-save-as-new-btn');
+                if (cancelBtn && window.hideModal) {
+                    cancelBtn.addEventListener('click', function() {
+                        destroyProposalSaveTomSelect();
+                        window.hideModal();
+                    });
+                }
+                if (localBtn) {
+                    localBtn.addEventListener('click', function() {
+                        destroyProposalSaveTomSelect();
+                        var projectData = buildProjectData();
+                        downloadSpecFile(projectData);
+                        if (window.hideModal) window.hideModal();
+                        showToast('Proposal saved locally.', 'success');
+                    });
+                }
+                function getSaveName() {
+                    var nameEl = document.getElementById('proposal-save-name');
+                    return (nameEl && nameEl.value && nameEl.value.trim()) ? nameEl.value.trim() : 'Proposal';
+                }
+                function getSaveAccountId() {
+                    return proposalSaveTomSelect ? (proposalSaveTomSelect.getValue() || '') : (document.getElementById('proposal-save-account') && document.getElementById('proposal-save-account').value);
+                }
+                if (overwriteBtn) {
+                    overwriteBtn.addEventListener('click', function() {
+                        var name = getSaveName();
+                        if (!window.proposalsSupabase) {
+                            showToast('Unable to save. Please try saving a local copy.', 'error');
+                            return;
+                        }
+                        var projectData = buildProjectData();
+                        window.proposalsSupabase.from('proposal_specs').update({ name: name, spec: projectData }).eq('id', loadedProposalId).then(function(r) {
+                            destroyProposalSaveTomSelect();
+                            if (r.error) {
+                                showToast('Error saving: ' + (r.error.message || 'Unknown error'), 'error');
+                                return;
+                            }
+                            if (window.hideModal) window.hideModal();
+                            setDirty(false);
+                            loadedProposalName = name;
+                            showToast('Proposal updated.', 'success');
+                        });
+                    });
+                }
+                if (saveAsNewBtn) {
+                    saveAsNewBtn.addEventListener('click', function() {
+                        var accountId = getSaveAccountId();
+                        var name = getSaveName();
+                        if (!accountId) {
+                            showToast('Please select an account for the new proposal.', 'error');
+                            return;
+                        }
+                        if (!window.proposalsSupabase) {
+                            showToast('Unable to save. Please try saving a local copy.', 'error');
+                            return;
+                        }
+                        var projectData = buildProjectData();
+                        window.proposalsSupabase.from('proposal_specs').insert({
+                            account_id: accountId,
+                            name: name,
+                            spec: projectData,
+                            created_by: window.getState().currentUser ? window.getState().currentUser.id : null
+                        }).select('id').then(function(r) {
+                            destroyProposalSaveTomSelect();
+                            if (r.error) {
+                                showToast('Error saving: ' + (r.error.message || 'Unknown error'), 'error');
+                                return;
+                            }
+                            if (window.hideModal) window.hideModal();
+                            setDirty(false);
+                            if (r.data && r.data[0] && r.data[0].id) {
+                                loadedProposalId = r.data[0].id;
+                                loadedProposalName = name;
+                                loadedProposalAccountId = String(accountId);
+                            }
+                            showToast('Saved as new proposal.', 'success');
+                        });
+                    });
+                }
+                if (accountBtn) {
+                    accountBtn.addEventListener('click', function() {
+                        var accountId = getSaveAccountId();
+                        var name = getSaveName();
+                        if (!accountId) {
+                            showToast('Please select an account.', 'error');
+                            return;
+                        }
+                        if (!window.proposalsSupabase) {
+                            showToast('Unable to save to account. Please try saving a local copy.', 'error');
+                            return;
+                        }
+                        var projectData = buildProjectData();
+                        window.proposalsSupabase.from('proposal_specs').insert({
+                            account_id: accountId,
+                            name: name,
+                            spec: projectData,
+                            created_by: window.getState().currentUser ? window.getState().currentUser.id : null
+                        }).then(function(r) {
+                            destroyProposalSaveTomSelect();
+                            if (r.error) {
+                                showToast('Error saving: ' + (r.error.message || 'Unknown error'), 'error');
+                                return;
+                            }
+                            if (window.hideModal) window.hideModal();
+                            setDirty(false);
+                            showToast('Proposal saved to account.', 'success');
+                        });
+                    });
+                }
+            }, 50);
+        }
+
+        function saveProject() {
+            var projectData = buildProjectData();
+            downloadSpecFile(projectData);
+            showToast('Proposal saved locally.', 'success');
         }
 
         function normalizeLegacyQuillText(s) {
@@ -375,6 +585,68 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             return t;
         }
 
+        function applySpecToForm(data) {
+            if (!data) return;
+            if (data.globalRfp != null) document.getElementById('global-rfp').value = data.globalRfp;
+            if (data.globalBiz != null) document.getElementById('global-biz').value = data.globalBiz;
+            if (data.globalRep != null) document.getElementById('global-rep').value = data.globalRep;
+            if (data.globalStart != null) document.getElementById('global-start').value = data.globalStart;
+            if (data.globalEnd != null) document.getElementById('global-end').value = data.globalEnd;
+            if (data.coverText != null) document.getElementById('cover-body').value = normalizeLegacyQuillText(data.coverText);
+            if (data.customPdfSectionName != null && document.getElementById('custom-pdf-section-name')) document.getElementById('custom-pdf-section-name').value = data.customPdfSectionName;
+            if (data.customTextTitle != null) document.getElementById('custom-text-title-input').value = data.customTextTitle;
+            if (data.customText != null) document.getElementById('custom-text-body').value = normalizeLegacyQuillText(data.customText);
+            if (data.contractTerm != null) document.getElementById('contract-term').value = data.contractTerm;
+            if (data.references && data.references.length) {
+                const refBlocks = document.querySelectorAll('.ref-block');
+                data.references.forEach((ref, i) => {
+                    if (refBlocks[i]) {
+                        refBlocks[i].querySelector('.ref-name').value = ref.name || '';
+                        refBlocks[i].querySelector('.ref-org').value = ref.org || '';
+                        refBlocks[i].querySelector('.ref-addr').value = ref.addr || '';
+                        refBlocks[i].querySelector('.ref-phone').value = ref.phone || '';
+                        refBlocks[i].querySelector('.ref-email').value = ref.email || '';
+                    }
+                });
+            }
+            if (data.locations) {
+                locationsContainer.innerHTML = '';
+                locationCount = 0;
+                if (data.locations.length) {
+                    data.locations.forEach(loc => addLocationBlock(loc.name || '', loc.items || []));
+                } else {
+                    addLocationBlock();
+                }
+            }
+            if (data.discoveryScratchpad != null) document.getElementById('discovery-scratchpad').value = data.discoveryScratchpad;
+            if (data.readiness) {
+                var r = data.readiness;
+                if (getReadinessControl('check-rfp-biz')) getReadinessControl('check-rfp-biz').checked = !!r.rfpBiz;
+                if (getReadinessControl('check-cover')) getReadinessControl('check-cover').checked = !!r.cover;
+                if (getReadinessControl('check-pricing')) getReadinessControl('check-pricing').checked = !!r.pricing;
+                if (getReadinessControl('check-ready')) getReadinessControl('check-ready').checked = !!r.ready;
+            }
+            if (data.impactCurrent != null) document.getElementById('impact-current').value = data.impactCurrent;
+            if (data.impactProposed != null) document.getElementById('impact-proposed').value = data.impactProposed;
+            if (data.impactCurrentCost != null) document.getElementById('impact-current-cost').value = data.impactCurrentCost;
+            if (data.impactProposedCost != null) document.getElementById('impact-proposed-cost').value = data.impactProposedCost;
+            if (typeof updateImpactNet === 'function') updateImpactNet();
+            if (data.modules && data.modules.length) {
+                data.modules.forEach(m => {
+                    const li = document.querySelector(`#module-list li[data-filename="${m.filename}"]`);
+                    const cb = li ? li.querySelector(`input[data-pdf-id="${m.filename}"]`) : null;
+                    if (cb) cb.checked = !!m.checked;
+                });
+                document.getElementById('toggle-cover-letter').dispatchEvent(new Event('change'));
+                document.getElementById('toggle-custom-text').dispatchEvent(new Event('change'));
+                if (document.getElementById('toggle-impact-roi')) document.getElementById('toggle-impact-roi').dispatchEvent(new Event('change'));
+                document.getElementById('toggle-references').dispatchEvent(new Event('change'));
+                document.getElementById('toggle-pricing').dispatchEvent(new Event('change'));
+                document.getElementById('toggle-custom-pdf').dispatchEvent(new Event('change'));
+                document.getElementById('toggle-usac').dispatchEvent(new Event('change'));
+            }
+        }
+
         function loadProject(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -383,64 +655,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (data.globalRfp != null) document.getElementById('global-rfp').value = data.globalRfp;
-                    if (data.globalBiz != null) document.getElementById('global-biz').value = data.globalBiz;
-                    if (data.globalRep != null) document.getElementById('global-rep').value = data.globalRep;
-                    if (data.globalStart != null) document.getElementById('global-start').value = data.globalStart;
-                    if (data.globalEnd != null) document.getElementById('global-end').value = data.globalEnd;
-                    if (data.coverTitle != null) document.getElementById('cover-title-input').value = data.coverTitle;
-                    if (data.coverText != null) document.getElementById('cover-body').value = normalizeLegacyQuillText(data.coverText);
-                    if (data.customTextTitle != null) document.getElementById('custom-text-title-input').value = data.customTextTitle;
-                    if (data.customText != null) document.getElementById('custom-text-body').value = normalizeLegacyQuillText(data.customText);
-                    if (data.contractTerm != null) document.getElementById('contract-term').value = data.contractTerm;
-                    if (data.references && data.references.length) {
-                        const refBlocks = document.querySelectorAll('.ref-block');
-                        data.references.forEach((ref, i) => {
-                            if (refBlocks[i]) {
-                                refBlocks[i].querySelector('.ref-name').value = ref.name || '';
-                                refBlocks[i].querySelector('.ref-org').value = ref.org || '';
-                                refBlocks[i].querySelector('.ref-addr').value = ref.addr || '';
-                                refBlocks[i].querySelector('.ref-phone').value = ref.phone || '';
-                                refBlocks[i].querySelector('.ref-email').value = ref.email || '';
-                            }
-                        });
-                    }
-                    if (data.locations) {
-                        locationsContainer.innerHTML = '';
-                        locationCount = 0;
-                        if (data.locations.length) {
-                            data.locations.forEach(loc => addLocationBlock(loc.name || '', loc.items || []));
-                        } else {
-                            addLocationBlock();
-                        }
-                    }
-                    if (data.discoveryScratchpad != null) document.getElementById('discovery-scratchpad').value = data.discoveryScratchpad;
-                    if (data.readiness) {
-                        var r = data.readiness;
-                        if (getReadinessControl('check-rfp-biz')) getReadinessControl('check-rfp-biz').checked = !!r.rfpBiz;
-                        if (getReadinessControl('check-cover')) getReadinessControl('check-cover').checked = !!r.cover;
-                        if (getReadinessControl('check-pricing')) getReadinessControl('check-pricing').checked = !!r.pricing;
-                        if (getReadinessControl('check-ready')) getReadinessControl('check-ready').checked = !!r.ready;
-                    }
-                    if (data.impactCurrent != null) document.getElementById('impact-current').value = data.impactCurrent;
-                    if (data.impactProposed != null) document.getElementById('impact-proposed').value = data.impactProposed;
-                    if (data.impactCurrentCost != null) document.getElementById('impact-current-cost').value = data.impactCurrentCost;
-                    if (data.impactProposedCost != null) document.getElementById('impact-proposed-cost').value = data.impactProposedCost;
-                    if (typeof updateImpactNet === 'function') updateImpactNet();
-                    if (data.modules && data.modules.length) {
-                        data.modules.forEach(m => {
-                            const li = document.querySelector(`#module-list li[data-filename="${m.filename}"]`);
-                            const cb = li ? li.querySelector(`input[data-pdf-id="${m.filename}"]`) : null;
-                            if (cb) cb.checked = !!m.checked;
-                        });
-                        document.getElementById('toggle-cover-letter').dispatchEvent(new Event('change'));
-                        document.getElementById('toggle-custom-text').dispatchEvent(new Event('change'));
-                        if (document.getElementById('toggle-impact-roi')) document.getElementById('toggle-impact-roi').dispatchEvent(new Event('change'));
-                        document.getElementById('toggle-references').dispatchEvent(new Event('change'));
-                        document.getElementById('toggle-pricing').dispatchEvent(new Event('change'));
-                        document.getElementById('toggle-custom-pdf').dispatchEvent(new Event('change'));
-                        document.getElementById('toggle-usac').dispatchEvent(new Event('change'));
-                    }
+                    loadedProposalId = null;
+                    loadedProposalName = null;
+                    loadedProposalAccountId = null;
+                    applySpecToForm(data);
                     showToast('Project loaded.', 'success');
                 } catch (err) {
                     console.error(err);
@@ -453,8 +671,66 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             event.target.value = '';
         }
 
-        document.getElementById('save-project-btn').addEventListener('click', saveProject);
+        document.getElementById('save-project-btn').addEventListener('click', openSaveModal);
         document.getElementById('load-project-input').addEventListener('change', loadProject);
+
+        var loadedFromUrlThisSession = false;
+        function tryLoadProposalFromUrl() {
+            if (loadedFromUrlThisSession) return;
+            var params = new URLSearchParams(window.location.search);
+            var loadId = params.get('load');
+            if (!loadId) return;
+            if (!window.proposalsSupabase) return;
+            window.proposalsSupabase.from('proposal_specs').select('id, name, spec, account_id').eq('id', loadId).single().then(function(r) {
+                if (r.error || !r.data) {
+                    if (r.error) showToast('Could not load proposal: ' + (r.error.message || 'Not found'), 'error');
+                    return;
+                }
+                loadedFromUrlThisSession = true;
+                var row = r.data;
+                _suppressDirty = true;
+                loadedProposalId = row.id;
+                loadedProposalName = row.name || null;
+                loadedProposalAccountId = row.account_id != null ? String(row.account_id) : null;
+                applySpecToForm(row.spec);
+                _suppressDirty = false;
+                setDirty(false);
+                showToast('Proposal loaded.', 'success');
+            });
+        }
+        window.tryLoadProposalFromUrl = tryLoadProposalFromUrl;
+        setTimeout(tryLoadProposalFromUrl, 1200);
+
+        var pickerPanel = document.getElementById('proposals-picker-panel');
+        var pickerToggle = document.getElementById('proposals-picker-toggle');
+        if (pickerPanel && pickerToggle) {
+            var iconMin = document.getElementById('proposals-picker-icon-minimize');
+            var iconExp = document.getElementById('proposals-picker-icon-expand');
+            pickerToggle.addEventListener('click', function() {
+                pickerPanel.classList.toggle('proposals-picker-collapsed');
+                if (iconMin) iconMin.classList.toggle('hidden', pickerPanel.classList.contains('proposals-picker-collapsed'));
+                if (iconExp) iconExp.classList.toggle('hidden', !pickerPanel.classList.contains('proposals-picker-collapsed'));
+            });
+        }
+
+        function sendForProofing() {
+            var projectData = buildProjectData();
+            var blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = (projectData.globalBiz || 'GPC_Proposal').replace(/\s+/g, '_') + '.spec';
+            a.click();
+            URL.revokeObjectURL(a.href);
+            var subject = 'Proposal Proofing Request - ' + (projectData.globalBiz || 'Account');
+            var body = 'Hi Marketing,\n\nPlease review the attached proposal spec and provide feedback when convenient.\n\nProposal engine: https://enterprise-proposals.vercel.app\n\nThanks.';
+            var mailto = 'mailto:stinkham@gpcom.com?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+            window.location.href = mailto;
+            var reminder = document.getElementById('send-for-proofing-reminder');
+            if (reminder) { reminder.classList.remove('hidden'); setTimeout(function() { reminder.classList.add('hidden'); }, 6000); }
+            showToast('Spec saved. Remember to attach the .spec file to your email.');
+        }
+        var sendProofBtn = document.getElementById('send-for-proofing-btn');
+        if (sendProofBtn) sendProofBtn.addEventListener('click', sendForProofing);
 
         // --- Stock PDF Preview Logic ---
         function previewStockPdf(filename, title) {
@@ -499,17 +775,29 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             const activeSlides = [];
             document.querySelectorAll('#module-list li').forEach(li => {
                 const pdfId = li.getAttribute('data-filename');
-                const cb = li.querySelector(`input[data-pdf-id="${pdfId}"]`);
+                const cb = li.querySelector('input.slide-toggle');
                 if (cb && cb.checked) activeSlides.push(pdfId);
             });
             const customPdfFile = document.getElementById('custom-pdf-upload').files[0];
             if (activeSlides.includes('CUSTOM_PDF') && !customPdfFile) { alert("Please select a file for the Custom PDF Upload."); return null; }
+            if (activeSlides.includes('TOC')) {
+                if (activeSlides.includes('CUSTOM_TEXT')) {
+                    const t = document.getElementById('custom-text-title-input').value;
+                    if (!(t && t.trim())) { alert("Please enter a Document Title for Custom Page (required for Table of Contents)."); return null; }
+                }
+                if (activeSlides.includes('CUSTOM_PDF')) {
+                    const sn = document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '';
+                    if (!(sn && sn.trim())) { alert("Please enter a Section name for Custom PDF (required for Table of Contents)."); return null; }
+                }
+            }
             const usacFile = document.getElementById('usac-upload').files[0];
             if (activeSlides.includes('USAC_RFP') && !usacFile) { alert("Please select a file for the USAC RFP Upload."); return null; }
+            const customPdfSectionName = document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '';
             return {
                 globals: { biz: document.getElementById('global-biz').value },
                 slides: activeSlides,
                 customPdfFile: customPdfFile,
+                customPdfSectionName: customPdfSectionName,
                 usacFile: usacFile
             };
         }
@@ -717,9 +1005,26 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             continue;
         }
         if (slideFile === 'CUSTOM_COVER') {
-            const displayTitle = document.getElementById('cover-title-input').value || '';
             const bodyHtml = textToHtml(document.getElementById('cover-body').value);
-            const canvas = await captureInteriorPageGPC(displayTitle, bodyHtml, { extraPaddingTop: 46 });
+            const canvas = await captureInteriorPageGPC('', bodyHtml, { extraPaddingTop: 46 });
+            await addPageFromCanvas(canvas);
+            continue;
+        }
+        if (slideFile === 'TOC') {
+            const tocEntries = payload.slides.filter(f => f !== 'TOC' && f !== '01_Title_Page.pdf').map((filename, idx) => {
+                let label;
+                if (filename === 'CUSTOM_TEXT') {
+                    label = (document.getElementById('custom-text-title-input') && document.getElementById('custom-text-title-input').value) ? document.getElementById('custom-text-title-input').value.trim() : 'Custom Page';
+                } else if (filename === 'CUSTOM_PDF') {
+                    label = (payload.customPdfSectionName && payload.customPdfSectionName.trim()) ? payload.customPdfSectionName.trim() : 'Upload Custom PDF';
+                } else {
+                    const li = document.querySelector('#module-list li[data-filename="' + filename + '"]');
+                    label = (li && li.querySelector('span.flex-1')) ? (li.querySelector('span.flex-1').textContent || '').trim() : filename;
+                }
+                return { num: idx + 1, label: label || filename };
+            });
+            const tocBodyHtml = tocEntries.length ? tocEntries.map(e => '<p style="margin-bottom: 0.6rem;">' + e.num + '. ' + escapeHtml(e.label) + '</p>').join('') : '<p style="color:#64748b;">No sections in this proposal.</p>';
+            const canvas = await captureInteriorPageGPC('Table of Contents', tocBodyHtml, { extraPaddingTop: 46 });
             await addPageFromCanvas(canvas);
             continue;
         }
