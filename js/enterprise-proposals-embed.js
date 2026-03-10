@@ -184,19 +184,92 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
         setupReadinessPills();
 
-        // --- UI Visibility Toggles based on Slide Selection ---
+       // --- UI Visibility Toggles based on Slide Selection ---
         function toggleSection(checkboxId, sectionId) {
-            document.getElementById(checkboxId).addEventListener('change', function(e) {
-                document.getElementById(sectionId).style.display = e.target.checked ? 'block' : 'none';
+            const checkbox = document.getElementById(checkboxId);
+            const section = document.getElementById(sectionId);
+            if (!checkbox || !section) return; // Prevent crashes if elements aren't found
+            
+            checkbox.addEventListener('change', function(e) {
+                if (e.target.checked) {
+                    section.classList.remove('hidden');
+                    section.style.display = ''; // Clear inline block just in case
+                } else {
+                    section.classList.add('hidden');
+                }
             });
         }
+
         toggleSection('toggle-cover-letter', 'cover-letter-section');
-        toggleSection('toggle-custom-text', 'custom-text-section');
         toggleSection('toggle-impact-roi', 'impact-roi-section');
-        toggleSection('toggle-custom-pdf', 'custom-pdf-section');
         toggleSection('toggle-references', 'references-section');
         toggleSection('toggle-pricing', 'pricing-section');
         toggleSection('toggle-usac', 'usac-upload-section');
+
+        function syncCustomSectionsVisibility() {
+            const customPageLis = document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]');
+            const customPdfLis = document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]');
+            const pagesContainer = document.getElementById('custom-pages-container');
+            const pdfsContainer = document.getElementById('custom-pdfs-container');
+            
+            let anyPageChecked = false;
+            customPageLis.forEach(li => {
+                const idx = li.getAttribute('data-custom-index');
+                const section = document.getElementById('custom-text-section-' + idx);
+                const cb = li.querySelector('.slide-toggle');
+                const isChecked = cb && cb.checked;
+                if (section) {
+                    if (isChecked) {
+                        section.classList.remove('hidden');
+                        section.style.display = '';
+                    } else {
+                        section.classList.add('hidden');
+                    }
+                }
+                if (isChecked) anyPageChecked = true;
+            });
+            
+            if (pagesContainer) {
+                if (anyPageChecked) {
+                    pagesContainer.classList.remove('hidden');
+                    pagesContainer.style.display = '';
+                } else {
+                    pagesContainer.classList.add('hidden');
+                }
+            }
+
+            let anyPdfChecked = false;
+            customPdfLis.forEach(li => {
+                const idx = li.getAttribute('data-custom-index');
+                const section = document.getElementById('custom-pdf-section-' + idx);
+                const cb = li.querySelector('.slide-toggle');
+                const isChecked = cb && cb.checked;
+                if (section) {
+                    if (isChecked) {
+                        section.classList.remove('hidden');
+                        section.style.display = '';
+                    } else {
+                        section.classList.add('hidden');
+                    }
+                }
+                if (isChecked) anyPdfChecked = true;
+            });
+            
+            if (pdfsContainer) {
+                if (anyPdfChecked) {
+                    pdfsContainer.classList.remove('hidden');
+                    pdfsContainer.style.display = '';
+                } else {
+                    pdfsContainer.classList.add('hidden');
+                }
+            }
+        }
+
+        document.getElementById('module-list').addEventListener('change', function(e) {
+            if (!e.target.classList.contains('slide-toggle')) return;
+            const li = e.target.closest('li[data-filename="CUSTOM_TEXT"], li[data-filename="CUSTOM_PDF"]');
+            if (li) syncCustomSectionsVisibility();
+        });
 
         new Sortable(document.getElementById('module-list'), { animation: 150, handle: '.handle', ghostClass: 'bg-slate-100', onEnd: function() { if (!_suppressDirty) setDirty(true); } });
 
