@@ -260,24 +260,129 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             });
         }
 
+        // --- Product Suggestions & Helpers ---
+        const PRODUCT_SUGGESTIONS = [
+            'Managed Firewall', 'DDoS Protection', 'Cloud Connect', 'SD-WAN',
+            'Managed Business Wi-Fi', 'Business Voice', 'Business TV',
+            'Wireless Internet Backup', 'Managed Ethernet',
+            'Dedicated Internet Access (DIA)', 'Standard Internet Access (SIA)',
+            'Business Internet', '24-Hour NOC Monitoring'
+        ];
+
+        function getBandwidthSuggestion(text) {
+            if (!text || typeof text !== 'string') return null;
+            const t = text.trim();
+            const mMatch = t.match(/^(\d+(?:\.\d+)?)\s*m\s*$/i);
+            if (mMatch) return mMatch[1] + ' Mbps';
+            const gMatch = t.match(/^(\d+(?:\.\d+)?)\s*g\s*$/i);
+            if (gMatch) return gMatch[1] + ' Gbps';
+            return null;
+        }
+
+        function getProductSuggestions(text) {
+            if (!text || typeof text !== 'string') return [];
+            const t = text.trim().toLowerCase();
+            if (t.length < 2) return [];
+            return PRODUCT_SUGGESTIONS.filter(function (name) {
+                return name.toLowerCase().indexOf(t) !== -1;
+            });
+        }
+
+        function getBandwidthPlusProductSuggestions(text) {
+            if (!text || typeof text !== 'string') return [];
+            var match = text.match(/^(\d+(?:\.\d+)?\s*(?:Mbps|Gbps))\s+(.+)$/i);
+            if (!match) return [];
+            var prefix = match[1];
+            var suffix = match[2].trim();
+            if (suffix.length < 2) return [];
+            var products = getProductSuggestions(suffix);
+            return products.map(function (p) { return prefix + ' ' + p; });
+        }
+
+        // --- Updated addRow Function ---
         function addRow(block, data) {
             const tbody = block.querySelector('.line-items-body');
             const prod = (data && data.prod != null) ? String(data.prod).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
             const price = (data && data.price != null) ? String(data.price) : '';
             const qty = (data && data.qty != null) ? String(data.qty) : '1';
+            
             const html = `
                 <tr class="border-b border-slate-100 group">
-                    <td class="p-2"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" value="${prod}"></td>
+                    <td class="p-2">
+                        <div class="relative">
+                            <input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" value="${prod}" autocomplete="off">
+                            <ul class="prod-suggestion-dropdown absolute left-0 right-0 top-full mt-0.5 bg-white border border-slate-200 rounded shadow-lg text-sm text-slate-700 py-1 z-20 hidden list-none" role="listbox"></ul>
+                        </div>
+                    </td>
                     <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01" value="${price}"></td>
                     <td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="${qty}"></td>
                     <td class="p-2 text-right font-semibold text-slate-700 row-total">$0.00</td>
                     <td class="p-2 text-center"><button class="text-slate-300 hover:text-red-500 font-bold opacity-0 group-hover:opacity-100 remove-row-btn">X</button></td>
                 </tr>`;
+                
             tbody.insertAdjacentHTML('beforeend', html);
             const row = tbody.lastElementChild;
+            const prodInput = row.querySelector('.prod-name');
+            const suggestionDropdown = row.querySelector('.prod-suggestion-dropdown');
+            
+            function applySuggestion(optEl) {
+                const opt = optEl || suggestionDropdown.querySelector('[data-suggestion]');
+                if (opt) {
+                    prodInput.value = opt.getAttribute('data-suggestion');
+                    suggestionDropdown.classList.add('hidden');
+                }
+            }
+            
+            prodInput.addEventListener('input', function () {
+                const val = this.value.trim();
+                const bandwidthSuggestion = getBandwidthSuggestion(this.value);
+                const productMatches = getProductSuggestions(this.value);
+                const bandwidthPlusProduct = getBandwidthPlusProductSuggestions(this.value);
+                var items = [];
+                if (bandwidthSuggestion && bandwidthSuggestion !== val) items.push(bandwidthSuggestion);
+                bandwidthPlusProduct.forEach(function (s) {
+                    if (s !== val && items.indexOf(s) === -1) items.push(s);
+                });
+                productMatches.forEach(function (name) {
+                    if (name !== val && items.indexOf(name) === -1) items.push(name);
+                });
+                
+                if (items.length === 0) {
+                    suggestionDropdown.classList.add('hidden');
+                    suggestionDropdown.innerHTML = '';
+                } else {
+                    suggestionDropdown.innerHTML = items.map(function (s) {
+                        return '<li class="px-3 py-1.5 hover:bg-orange-50 cursor-pointer rounded" data-suggestion="' + s.replace(/"/g, '&quot;') + '" role="option">' + s + '</li>';
+                    }).join('');
+                    suggestionDropdown.classList.remove('hidden');
+                }
+            });
+            
+            prodInput.addEventListener('keydown', function (e) {
+                if (suggestionDropdown.classList.contains('hidden')) return;
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applySuggestion();
+                } else if (e.key === 'Tab') {
+                    applySuggestion();
+                }
+            });
+            
+            prodInput.addEventListener('blur', function () {
+                setTimeout(function () { suggestionDropdown.classList.add('hidden'); }, 150);
+            });
+            
+            suggestionDropdown.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                var opt = e.target.closest('[data-suggestion]');
+                if (opt) applySuggestion(opt);
+                prodInput.focus();
+            });
+            
             row.querySelector('.price-input').addEventListener('input', () => updateMath(row, block));
             row.querySelector('.qty-input').addEventListener('input', () => updateMath(row, block));
             row.querySelector('.remove-row-btn').addEventListener('click', () => { if (tbody.children.length > 1) { row.remove(); updateMath(null, block); } });
+            
             updateMath(row, block);
         }
 
