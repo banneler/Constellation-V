@@ -72,12 +72,16 @@
             return pars.map(function(p) { return '<p style="margin: 0 0 0.75em 0;">' + p.replace(/\n/g, '<br>') + '</p>'; }).join('');
         }
         function checkCustomTextHeight() {
-            var ta = document.getElementById('custom-text-body');
-            var warn = document.getElementById('warning-customText');
-            if (!ta || !warn) return;
-            if (ta.scrollHeight > 600) warn.classList.remove('hidden'); else warn.classList.add('hidden');
+            document.querySelectorAll('.custom-text-body').forEach(function(ta) {
+                var section = ta.closest('.custom-text-section');
+                var warn = section && section.querySelector('.warning-customText');
+                if (!warn) return;
+                if (ta.scrollHeight > 600) warn.classList.remove('hidden'); else warn.classList.add('hidden');
+            });
         }
-        document.getElementById('custom-text-body').addEventListener('input', checkCustomTextHeight);
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.classList && e.target.classList.contains('custom-text-body')) checkCustomTextHeight();
+        });
 
         const GPC_COVER_SNIPPETS = [
             { label: 'Exceptional customer service', text: 'What sets our company apart is our exceptional customer service. From the first customer contact through design, turn-up, testing and maintenance, you will work with a local team that\'s committed to developing custom solutions to help you achieve your business goals.' },
@@ -137,7 +141,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             });
         }
         function insertIntoCustomTextBody(text) {
-            var ta = document.getElementById('custom-text-body');
+            var ta = (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('custom-text-body')) ? document.activeElement : document.getElementById('custom-text-body');
             if (!ta) return;
             var start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
             ta.value = val.slice(0, start) + text + val.slice(end);
@@ -185,19 +189,160 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
         setupReadinessPills();
 
-        // --- UI Visibility Toggles based on Slide Selection ---
+        // --- UI Visibility Toggles based on Slide Selection (use class to override Tailwind .hidden !important) ---
         function toggleSection(checkboxId, sectionId) {
-            document.getElementById(checkboxId).addEventListener('change', function(e) {
-                document.getElementById(sectionId).style.display = e.target.checked ? 'block' : 'none';
-            });
+            var checkbox = document.getElementById(checkboxId);
+            var section = document.getElementById(sectionId);
+            if (!checkbox || !section) return;
+            function updateVisibility() {
+                if (checkbox.checked) {
+                    section.classList.remove('hidden');
+                } else {
+                    section.classList.add('hidden');
+                }
+            }
+            checkbox.addEventListener('change', updateVisibility);
+            updateVisibility(); // sync initial state
         }
         toggleSection('toggle-cover-letter', 'cover-letter-section');
-        toggleSection('toggle-custom-text', 'custom-text-section');
         toggleSection('toggle-impact-roi', 'impact-roi-section');
-        toggleSection('toggle-custom-pdf', 'custom-pdf-section');
         toggleSection('toggle-references', 'references-section');
         toggleSection('toggle-pricing', 'pricing-section');
         toggleSection('toggle-usac', 'usac-upload-section');
+
+        function syncCustomSectionsVisibility() {
+            var pagesContainer = document.getElementById('custom-pages-container');
+            var pdfsContainer = document.getElementById('custom-pdfs-container');
+            var anyPageChecked = false;
+            document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]').forEach(function(li) {
+                var idx = li.getAttribute('data-custom-index');
+                var section = document.getElementById('custom-text-section-' + idx);
+                var checked = li.querySelector('.slide-toggle') && li.querySelector('.slide-toggle').checked;
+                if (section) {
+                    if (checked) { section.classList.remove('hidden'); anyPageChecked = true; } else section.classList.add('hidden');
+                }
+            });
+            if (pagesContainer) pagesContainer.classList.toggle('hidden', !anyPageChecked);
+            var anyPdfChecked = false;
+            document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]').forEach(function(li) {
+                var idx = li.getAttribute('data-custom-index');
+                var section = document.getElementById('custom-pdf-section-' + idx);
+                var checked = li.querySelector('.slide-toggle') && li.querySelector('.slide-toggle').checked;
+                if (section) {
+                    if (checked) { section.classList.remove('hidden'); anyPdfChecked = true; } else section.classList.add('hidden');
+                }
+            });
+            if (pdfsContainer) pdfsContainer.classList.toggle('hidden', !anyPdfChecked);
+        }
+        document.getElementById('module-list').addEventListener('change', function(e) {
+            if (!e.target || !e.target.classList || !e.target.classList.contains('slide-toggle')) return;
+            var li = e.target.closest('li[data-filename="CUSTOM_TEXT"], li[data-filename="CUSTOM_PDF"]');
+            if (li) syncCustomSectionsVisibility();
+        });
+        syncCustomSectionsVisibility();
+
+        function updateCustomPageRowLabels() {
+            document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]').forEach(function(li, i) {
+                var label = li.querySelector('.custom-page-label');
+                if (label) label.textContent = i === 0 ? 'Custom Page' : 'Custom Page ' + (i + 1);
+                var removeBtn = li.querySelector('.remove-custom-page-btn');
+                if (removeBtn) removeBtn.classList.toggle('hidden', document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]').length <= 1);
+            });
+        }
+        function updateCustomPdfRowLabels() {
+            document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]').forEach(function(li, i) {
+                var label = li.querySelector('.custom-pdf-label');
+                if (label) label.textContent = i === 0 ? 'Upload Custom PDF' : 'Upload Custom PDF ' + (i + 1);
+                var removeBtn = li.querySelector('.remove-custom-pdf-btn');
+                if (removeBtn) removeBtn.classList.toggle('hidden', document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]').length <= 1);
+            });
+        }
+        document.getElementById('module-list').addEventListener('click', function(e) {
+            var addPage = e.target && e.target.closest && e.target.closest('.add-custom-page-btn');
+            var removePage = e.target && e.target.closest && e.target.closest('.remove-custom-page-btn');
+            var addPdf = e.target && e.target.closest && e.target.closest('.add-custom-pdf-btn');
+            var removePdf = e.target && e.target.closest && e.target.closest('.remove-custom-pdf-btn');
+            if (addPage) {
+                e.preventDefault();
+                var lis = document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]');
+                var last = lis[lis.length - 1];
+                var indices = Array.prototype.map.call(lis, function(li) { return parseInt(li.getAttribute('data-custom-index') || '0', 10); });
+                var nextIdx = indices.length ? (1 + Math.max.apply(null, indices)) : 0;
+                var newLi = document.createElement('li');
+                newLi.className = 'flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400';
+                newLi.setAttribute('data-filename', 'CUSTOM_TEXT');
+                newLi.setAttribute('data-custom-index', String(nextIdx));
+                newLi.innerHTML = '<svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg><input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_TEXT"><span class="flex-1 font-medium text-sm text-slate-700 custom-page-label">Custom Page ' + (nextIdx + 1) + '</span><div class="flex items-center gap-1 flex-shrink-0"><button type="button" class="add-custom-page-btn text-slate-400 hover:text-blue-500 p-1 rounded" title="Add another Custom Page">+</button><button type="button" class="remove-custom-page-btn text-slate-400 hover:text-red-500 p-1 rounded" title="Remove">−</button></div>';
+                last.insertAdjacentElement('afterend', newLi);
+                var container = document.getElementById('custom-pages-container');
+                var section = document.createElement('div');
+                section.id = 'custom-text-section-' + nextIdx;
+                section.className = 'custom-text-section hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300';
+                section.setAttribute('data-custom-index', String(nextIdx));
+                section.innerHTML = '<div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2"><svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><h3 class="text-2xl font-bold text-slate-800 custom-text-section-title">Custom Page ' + (nextIdx + 1) + '</h3></div><input type="text" id="custom-text-title-input-' + nextIdx + '" class="custom-text-title-input w-full border border-slate-300 p-2 rounded-lg mb-3 bg-slate-50 outline-none focus:border-orange-500 font-semibold text-slate-700" placeholder="Document Title (Leave blank for no header)"><div class="flex gap-6 flex-nowrap items-start"><div class="flex-1 min-w-[500px]"><textarea id="custom-text-body-' + nextIdx + '" class="custom-text-body w-full h-64 p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Start typing custom content..." style="white-space: pre-wrap;"></textarea><p class="warning-customText hidden text-red-600 text-sm font-bold mt-2">⚠️ Warning: Text exceeds PDF page height and may be cut off. Please shorten.</p></div><div class="w-[280px] flex-shrink-0 rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex flex-col gap-4"><div><h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3><p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p><div class="custom-page-snippets space-y-2 overflow-auto min-h-0"></div></div></div></div>';
+                container.appendChild(section);
+                section.querySelectorAll('.custom-page-snippets').forEach(function(snip) {
+                    GPC_CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
+                        btn.textContent = s.label;
+                        btn.title = s.text.slice(0, 80) + (s.text.length > 80 ? '…' : '');
+                        btn.addEventListener('click', function() { insertIntoCustomTextBody(s.text); });
+                        snip.appendChild(btn);
+                    });
+                });
+                updateCustomPageRowLabels();
+                syncCustomSectionsVisibility();
+                if (!_suppressDirty) setDirty(true);
+            } else if (removePage) {
+                e.preventDefault();
+                var li = removePage.closest('li[data-filename="CUSTOM_TEXT"]');
+                if (!li || document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]').length <= 1) return;
+                var idx = li.getAttribute('data-custom-index');
+                li.remove();
+                var section = document.getElementById('custom-text-section-' + idx);
+                if (section) section.remove();
+                updateCustomPageRowLabels();
+                syncCustomSectionsVisibility();
+                if (!_suppressDirty) setDirty(true);
+            } else if (addPdf) {
+                e.preventDefault();
+                var lis = document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]');
+                var last = lis[lis.length - 1];
+                var indices = Array.prototype.map.call(lis, function(li) { return parseInt(li.getAttribute('data-custom-index') || '0', 10); });
+                var nextIdx = indices.length ? (1 + Math.max.apply(null, indices)) : 0;
+                var newLi = document.createElement('li');
+                newLi.className = 'flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400';
+                newLi.setAttribute('data-filename', 'CUSTOM_PDF');
+                newLi.setAttribute('data-custom-index', String(nextIdx));
+                newLi.innerHTML = '<svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg><input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_PDF"><span class="flex-1 font-medium text-sm text-slate-700 custom-pdf-label">Upload Custom PDF ' + (nextIdx + 1) + '</span><div class="flex items-center gap-1 flex-shrink-0"><button type="button" class="add-custom-pdf-btn text-slate-400 hover:text-blue-500 p-1 rounded" title="Add another Custom PDF">+</button><button type="button" class="remove-custom-pdf-btn text-slate-400 hover:text-red-500 p-1 rounded" title="Remove">−</button></div>';
+                last.insertAdjacentElement('afterend', newLi);
+                var container = document.getElementById('custom-pdfs-container');
+                var section = document.createElement('div');
+                section.id = 'custom-pdf-section-' + nextIdx;
+                section.className = 'custom-pdf-section hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300';
+                section.setAttribute('data-custom-index', String(nextIdx));
+                section.innerHTML = '<div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2"><svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg><h3 class="text-2xl font-bold text-slate-800 custom-pdf-section-title">Upload Custom PDF ' + (nextIdx + 1) + '</h3></div><div class="mb-4"><label class="block text-sm font-semibold text-slate-700 mb-1">Section name for Table of Contents</label><input type="text" id="custom-pdf-section-name-' + nextIdx + '" class="custom-pdf-section-name w-full border border-slate-300 p-2 rounded-lg bg-slate-50 focus:bg-white outline-none focus:border-orange-500 font-medium text-slate-700" maxlength="80" placeholder="e.g. Executive Summary"></div><input type="file" id="custom-pdf-upload-' + nextIdx + '" class="custom-pdf-upload hidden" accept="application/pdf"><div class="custom-pdf-dropzone border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="this.closest(\'.custom-pdf-section\').querySelector(\'.custom-pdf-upload\').click()"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span class="custom-pdf-filename mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop Custom PDF here, or click to browse</span></div></div>';
+                container.appendChild(section);
+                updateCustomPdfRowLabels();
+                syncCustomSectionsVisibility();
+                if (!_suppressDirty) setDirty(true);
+            } else if (removePdf) {
+                e.preventDefault();
+                var li = removePdf.closest('li[data-filename="CUSTOM_PDF"]');
+                if (!li || document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]').length <= 1) return;
+                var idx = li.getAttribute('data-custom-index');
+                li.remove();
+                var section = document.getElementById('custom-pdf-section-' + idx);
+                if (section) section.remove();
+                updateCustomPdfRowLabels();
+                syncCustomSectionsVisibility();
+                if (!_suppressDirty) setDirty(true);
+            }
+        });
+        updateCustomPageRowLabels();
+        updateCustomPdfRowLabels();
 
         new Sortable(document.getElementById('module-list'), { animation: 150, handle: '.handle', ghostClass: 'bg-slate-100', onEnd: function() { if (!_suppressDirty) setDirty(true); } });
 
@@ -205,8 +350,19 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         document.getElementById('usac-upload').addEventListener('change', e => {
             document.getElementById('usac-filename').textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop USAC RFP PDF here";
         });
-        document.getElementById('custom-pdf-upload').addEventListener('change', e => {
-            document.getElementById('custom-pdf-filename').textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop Custom PDF here";
+        var customPdfUploadEl = document.getElementById('custom-pdf-upload');
+        if (customPdfUploadEl) customPdfUploadEl.addEventListener('change', function(e) {
+            var section = e.target.closest('.custom-pdf-section');
+            var fn = section && section.querySelector('.custom-pdf-filename');
+            if (fn) fn.textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop Custom PDF here, or click to browse";
+        });
+        var customPdfsContainer = document.getElementById('custom-pdfs-container');
+        if (customPdfsContainer) customPdfsContainer.addEventListener('change', function(e) {
+            if (e.target && e.target.classList && e.target.classList.contains('custom-pdf-upload')) {
+                var section = e.target.closest('.custom-pdf-section');
+                var fn = section && section.querySelector('.custom-pdf-filename');
+                if (fn) fn.textContent = e.target.files[0] ? e.target.files[0].name : "Drag and drop Custom PDF here, or click to browse";
+            }
         });
 
         // --- Input Generation ---
@@ -325,9 +481,9 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 globalStart: document.getElementById('global-start').value,
                 globalEnd: document.getElementById('global-end').value,
                 coverText: document.getElementById('cover-body').value,
-                customTextTitle: document.getElementById('custom-text-title-input').value,
+                customTextTitle: document.getElementById('custom-text-title-input') ? document.getElementById('custom-text-title-input').value : '',
                 customPdfSectionName: document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '',
-                customText: document.getElementById('custom-text-body').value,
+                customText: document.getElementById('custom-text-body') ? document.getElementById('custom-text-body').value : '',
                 contractTerm: document.getElementById('contract-term').value,
                 references: Array.from(document.querySelectorAll('.ref-block')).map(b => ({
                     name: b.querySelector('.ref-name').value,
@@ -345,6 +501,26 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     }))
                 })),
                 discoveryScratchpad: document.getElementById('discovery-scratchpad').value,
+                customPages: (function() {
+                    var o = {};
+                    document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]').forEach(function(li) {
+                        var idx = li.getAttribute('data-custom-index') || '0';
+                        var titleEl = document.getElementById('custom-text-title-input' + (idx === '0' ? '' : '-' + idx));
+                        var bodyEl = document.getElementById('custom-text-body' + (idx === '0' ? '' : '-' + idx));
+                        o[idx] = { title: (titleEl && titleEl.value) ? titleEl.value : '', body: (bodyEl && bodyEl.value) ? bodyEl.value : '' };
+                    });
+                    return o;
+                })(),
+                customPdfs: (function() {
+                    var o = {};
+                    document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]').forEach(function(li) {
+                        var idx = li.getAttribute('data-custom-index') || '0';
+                        var nameEl = document.getElementById('custom-pdf-section-name' + (idx === '0' ? '' : '-' + idx));
+                        var fileEl = document.getElementById('custom-pdf-upload' + (idx === '0' ? '' : '-' + idx));
+                        o[idx] = { sectionName: (nameEl && nameEl.value) ? nameEl.value : '', fileName: (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0].name : '' };
+                    });
+                    return o;
+                })(),
                 readiness: {
                     rfpBiz: getReadinessControl('check-rfp-biz') ? getReadinessControl('check-rfp-biz').checked : false,
                     cover: getReadinessControl('check-cover') ? getReadinessControl('check-cover').checked : false,
@@ -357,11 +533,13 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 impactProposedCost: document.getElementById('impact-proposed-cost').value,
                 modules: []
             };
-            document.querySelectorAll('#module-list li').forEach(li => {
-                const pdfId = li.getAttribute('data-filename');
-                const cb = li.querySelector('input.slide-toggle');
+            document.querySelectorAll('#module-list li').forEach(function(li) {
+                var pdfId = li.getAttribute('data-filename');
+                var cb = li.querySelector('input.slide-toggle');
+                var customIndex = li.getAttribute('data-custom-index');
                 projectData.modules.push({
                     filename: pdfId,
+                    customIndex: (pdfId === 'CUSTOM_TEXT' || pdfId === 'CUSTOM_PDF') ? (customIndex || '0') : undefined,
                     checked: cb ? cb.checked : false
                 });
             });
@@ -594,9 +772,75 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             if (data.globalStart != null) document.getElementById('global-start').value = data.globalStart;
             if (data.globalEnd != null) document.getElementById('global-end').value = data.globalEnd;
             if (data.coverText != null) document.getElementById('cover-body').value = normalizeLegacyQuillText(data.coverText);
-            if (data.customPdfSectionName != null && document.getElementById('custom-pdf-section-name')) document.getElementById('custom-pdf-section-name').value = data.customPdfSectionName;
-            if (data.customTextTitle != null) document.getElementById('custom-text-title-input').value = data.customTextTitle;
-            if (data.customText != null) document.getElementById('custom-text-body').value = normalizeLegacyQuillText(data.customText);
+            var customPages = data.customPages || (data.customTextTitle != null ? { '0': { title: data.customTextTitle, body: (data.customText != null ? data.customText : '') } } : {});
+            var customPdfs = data.customPdfs || (data.customPdfSectionName != null ? { '0': { sectionName: data.customPdfSectionName, fileName: '' } } : {});
+            var customPageIndices = Object.keys(customPages).map(Number).sort(function(a,b){ return a - b; });
+            var customPdfIndices = Object.keys(customPdfs).map(Number).sort(function(a,b){ return a - b; });
+            for (var k = 1; k < customPageIndices.length; k++) {
+                var nextIdx = customPageIndices[k];
+                var lis = document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]');
+                var last = lis[lis.length - 1];
+                var newLi = document.createElement('li');
+                newLi.className = 'flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400';
+                newLi.setAttribute('data-filename', 'CUSTOM_TEXT');
+                newLi.setAttribute('data-custom-index', String(nextIdx));
+                newLi.innerHTML = '<svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg><input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_TEXT"><span class="flex-1 font-medium text-sm text-slate-700 custom-page-label">Custom Page ' + (nextIdx + 1) + '</span><div class="flex items-center gap-1 flex-shrink-0"><button type="button" class="add-custom-page-btn text-slate-400 hover:text-blue-500 p-1 rounded" title="Add another Custom Page">+</button><button type="button" class="remove-custom-page-btn text-slate-400 hover:text-red-500 p-1 rounded" title="Remove">−</button></div>';
+                last.insertAdjacentElement('afterend', newLi);
+                var container = document.getElementById('custom-pages-container');
+                var section = document.createElement('div');
+                section.id = 'custom-text-section-' + nextIdx;
+                section.className = 'custom-text-section hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300';
+                section.setAttribute('data-custom-index', String(nextIdx));
+                section.innerHTML = '<div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2"><svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><h3 class="text-2xl font-bold text-slate-800 custom-text-section-title">Custom Page ' + (nextIdx + 1) + '</h3></div><input type="text" id="custom-text-title-input-' + nextIdx + '" class="custom-text-title-input w-full border border-slate-300 p-2 rounded-lg mb-3 bg-slate-50 outline-none focus:border-orange-500 font-semibold text-slate-700" placeholder="Document Title (Leave blank for no header)"><div class="flex gap-6 flex-nowrap items-start"><div class="flex-1 min-w-[500px]"><textarea id="custom-text-body-' + nextIdx + '" class="custom-text-body w-full h-64 p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Start typing custom content..." style="white-space: pre-wrap;"></textarea><p class="warning-customText hidden text-red-600 text-sm font-bold mt-2">⚠️ Warning: Text exceeds PDF page height and may be cut off. Please shorten.</p></div><div class="w-[280px] flex-shrink-0 rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex flex-col gap-4"><div><h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3><p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p><div class="custom-page-snippets space-y-2 overflow-auto min-h-0"></div></div></div></div>';
+                container.appendChild(section);
+                var snipContainer = section.querySelector('.custom-page-snippets');
+                if (snipContainer && typeof GPC_CUSTOM_PAGE_SNIPPETS !== 'undefined') {
+                    GPC_CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
+                        btn.textContent = s.label;
+                        btn.title = s.text.slice(0, 80) + (s.text.length > 80 ? '…' : '');
+                        btn.addEventListener('click', function() { insertIntoCustomTextBody(s.text); });
+                        snipContainer.appendChild(btn);
+                    });
+                }
+            }
+            for (var kk = 1; kk < customPdfIndices.length; kk++) {
+                var nextIdx = customPdfIndices[kk];
+                var lis = document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]');
+                var last = lis[lis.length - 1];
+                var newLi = document.createElement('li');
+                newLi.className = 'flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400';
+                newLi.setAttribute('data-filename', 'CUSTOM_PDF');
+                newLi.setAttribute('data-custom-index', String(nextIdx));
+                newLi.innerHTML = '<svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg><input type="checkbox" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_PDF"><span class="flex-1 font-medium text-sm text-slate-700 custom-pdf-label">Upload Custom PDF ' + (nextIdx + 1) + '</span><div class="flex items-center gap-1 flex-shrink-0"><button type="button" class="add-custom-pdf-btn text-slate-400 hover:text-blue-500 p-1 rounded" title="Add another Custom PDF">+</button><button type="button" class="remove-custom-pdf-btn text-slate-400 hover:text-red-500 p-1 rounded" title="Remove">−</button></div>';
+                last.insertAdjacentElement('afterend', newLi);
+                var container = document.getElementById('custom-pdfs-container');
+                var section = document.createElement('div');
+                section.id = 'custom-pdf-section-' + nextIdx;
+                section.className = 'custom-pdf-section hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300';
+                section.setAttribute('data-custom-index', String(nextIdx));
+                section.innerHTML = '<div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2"><svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg><h3 class="text-2xl font-bold text-slate-800 custom-pdf-section-title">Upload Custom PDF ' + (nextIdx + 1) + '</h3></div><div class="mb-4"><label class="block text-sm font-semibold text-slate-700 mb-1">Section name for Table of Contents</label><input type="text" id="custom-pdf-section-name-' + nextIdx + '" class="custom-pdf-section-name w-full border border-slate-300 p-2 rounded-lg bg-slate-50 focus:bg-white outline-none focus:border-orange-500 font-medium text-slate-700" maxlength="80" placeholder="e.g. Executive Summary"></div><input type="file" id="custom-pdf-upload-' + nextIdx + '" class="custom-pdf-upload hidden" accept="application/pdf"><div class="custom-pdf-dropzone border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="this.closest(\'.custom-pdf-section\').querySelector(\'.custom-pdf-upload\').click()"><svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg><span class="custom-pdf-filename mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop Custom PDF here, or click to browse</span></div></div>';
+                container.appendChild(section);
+            }
+            if (typeof updateCustomPageRowLabels === 'function') updateCustomPageRowLabels();
+            if (typeof updateCustomPdfRowLabels === 'function') updateCustomPdfRowLabels();
+            Object.keys(customPages).forEach(function(idx) {
+                var titleEl = document.getElementById('custom-text-title-input' + (idx === '0' ? '' : '-' + idx));
+                var bodyEl = document.getElementById('custom-text-body' + (idx === '0' ? '' : '-' + idx));
+                var page = customPages[idx];
+                if (titleEl && page && page.title != null) titleEl.value = page.title;
+                if (bodyEl && page && page.body != null) bodyEl.value = normalizeLegacyQuillText(page.body);
+            });
+            Object.keys(customPdfs).forEach(function(idx) {
+                var nameEl = document.getElementById('custom-pdf-section-name' + (idx === '0' ? '' : '-' + idx));
+                var pdf = customPdfs[idx];
+                if (nameEl && pdf && pdf.sectionName != null) nameEl.value = pdf.sectionName;
+            });
+            if (data.customTextTitle != null && !data.customPages) document.getElementById('custom-text-title-input').value = data.customTextTitle;
+            if (data.customText != null && !data.customPages) document.getElementById('custom-text-body').value = normalizeLegacyQuillText(data.customText);
+            if (data.customPdfSectionName != null && !data.customPdfs && document.getElementById('custom-pdf-section-name')) document.getElementById('custom-pdf-section-name').value = data.customPdfSectionName;
             if (data.contractTerm != null) document.getElementById('contract-term').value = data.contractTerm;
             if (data.references && data.references.length) {
                 const refBlocks = document.querySelectorAll('.ref-block');
@@ -633,17 +877,21 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             if (data.impactProposedCost != null) document.getElementById('impact-proposed-cost').value = data.impactProposedCost;
             if (typeof updateImpactNet === 'function') updateImpactNet();
             if (data.modules && data.modules.length) {
-                data.modules.forEach(m => {
-                    const li = document.querySelector(`#module-list li[data-filename="${m.filename}"]`);
-                    const cb = li ? li.querySelector(`input[data-pdf-id="${m.filename}"]`) : null;
+                data.modules.forEach(function(m) {
+                    var li = null;
+                    if (m.filename === 'CUSTOM_TEXT' || m.filename === 'CUSTOM_PDF') {
+                        li = document.querySelector('#module-list li[data-filename="' + m.filename + '"][data-custom-index="' + (m.customIndex || '0') + '"]');
+                    } else {
+                        li = document.querySelector('#module-list li[data-filename="' + m.filename + '"]');
+                    }
+                    var cb = li ? li.querySelector('input.slide-toggle') : null;
                     if (cb) cb.checked = !!m.checked;
                 });
                 document.getElementById('toggle-cover-letter').dispatchEvent(new Event('change'));
-                document.getElementById('toggle-custom-text').dispatchEvent(new Event('change'));
+                if (typeof syncCustomSectionsVisibility === 'function') syncCustomSectionsVisibility();
                 if (document.getElementById('toggle-impact-roi')) document.getElementById('toggle-impact-roi').dispatchEvent(new Event('change'));
                 document.getElementById('toggle-references').dispatchEvent(new Event('change'));
                 document.getElementById('toggle-pricing').dispatchEvent(new Event('change'));
-                document.getElementById('toggle-custom-pdf').dispatchEvent(new Event('change'));
                 document.getElementById('toggle-usac').dispatchEvent(new Event('change'));
             }
         }
@@ -773,32 +1021,46 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
 
         function getPayload() {
-            const activeSlides = [];
-            document.querySelectorAll('#module-list li').forEach(li => {
-                const pdfId = li.getAttribute('data-filename');
-                const cb = li.querySelector('input.slide-toggle');
-                if (cb && cb.checked) activeSlides.push(pdfId);
-            });
-            const customPdfFile = document.getElementById('custom-pdf-upload').files[0];
-            if (activeSlides.includes('CUSTOM_PDF') && !customPdfFile) { alert("Please select a file for the Custom PDF Upload."); return null; }
-            if (activeSlides.includes('TOC')) {
-                if (activeSlides.includes('CUSTOM_TEXT')) {
-                    const t = document.getElementById('custom-text-title-input').value;
-                    if (!(t && t.trim())) { alert("Please enter a Document Title for Custom Page (required for Table of Contents)."); return null; }
+            var activeSlides = [];
+            var customTexts = [];
+            var customPdfs = [];
+            document.querySelectorAll('#module-list li').forEach(function(li) {
+                var pdfId = li.getAttribute('data-filename');
+                var cb = li.querySelector('input.slide-toggle');
+                if (!cb || !cb.checked) return;
+                activeSlides.push(pdfId);
+                if (pdfId === 'CUSTOM_TEXT') {
+                    var idx = li.getAttribute('data-custom-index') || '0';
+                    var titleEl = document.getElementById('custom-text-title-input' + (idx === '0' ? '' : '-' + idx));
+                    var bodyEl = document.getElementById('custom-text-body' + (idx === '0' ? '' : '-' + idx));
+                    customTexts.push({ title: (titleEl && titleEl.value) ? titleEl.value : '', body: (bodyEl && bodyEl.value) ? bodyEl.value : '' });
+                } else if (pdfId === 'CUSTOM_PDF') {
+                    var idx = li.getAttribute('data-custom-index') || '0';
+                    var nameEl = document.getElementById('custom-pdf-section-name' + (idx === '0' ? '' : '-' + idx));
+                    var fileEl = document.getElementById('custom-pdf-upload' + (idx === '0' ? '' : '-' + idx));
+                    customPdfs.push({ sectionName: (nameEl && nameEl.value) ? nameEl.value : '', file: (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0] : null });
                 }
-                if (activeSlides.includes('CUSTOM_PDF')) {
-                    const sn = document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '';
-                    if (!(sn && sn.trim())) { alert("Please enter a Section name for Custom PDF (required for Table of Contents)."); return null; }
+            });
+            if (activeSlides.indexOf('CUSTOM_PDF') !== -1) {
+                for (var i = 0; i < customPdfs.length; i++) {
+                    if (!customPdfs[i].file) { alert("Please select a file for every Custom PDF upload."); return null; }
                 }
             }
-            const usacFile = document.getElementById('usac-upload').files[0];
-            if (activeSlides.includes('USAC_RFP') && !usacFile) { alert("Please select a file for the USAC RFP Upload."); return null; }
-            const customPdfSectionName = document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '';
+            if (activeSlides.indexOf('TOC') !== -1) {
+                for (var j = 0; j < customTexts.length; j++) {
+                    if (!(customTexts[j].title && customTexts[j].title.trim())) { alert("Please enter a Document Title for each Custom Page (required for Table of Contents)."); return null; }
+                }
+                for (var k = 0; k < customPdfs.length; k++) {
+                    if (!(customPdfs[k].sectionName && customPdfs[k].sectionName.trim())) { alert("Please enter a Section name for each Custom PDF (required for Table of Contents)."); return null; }
+                }
+            }
+            var usacFile = document.getElementById('usac-upload').files[0];
+            if (activeSlides.indexOf('USAC_RFP') !== -1 && !usacFile) { alert("Please select a file for the USAC RFP Upload."); return null; }
             return {
                 globals: { biz: document.getElementById('global-biz').value },
                 slides: activeSlides,
-                customPdfFile: customPdfFile,
-                customPdfSectionName: customPdfSectionName,
+                customTexts: customTexts,
+                customPdfs: customPdfs,
                 usacFile: usacFile
             };
         }
@@ -999,6 +1261,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         page.drawImage(pngImage, { x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
     }
 
+    var customTextIdx = 0, customPdfIdx = 0;
     for (const slideFile of payload.slides) {
         if (slideFile === '01_Title_Page.pdf') {
             const canvas = await buildTitlePageHybrid();
@@ -1012,14 +1275,19 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             continue;
         }
         if (slideFile === 'TOC') {
-            const tocEntries = payload.slides.filter(f => f !== 'TOC' && f !== '01_Title_Page.pdf').map((filename, idx) => {
-                let label;
+            var customTextIdx = 0, customPdfIdx = 0;
+            var tocEntries = payload.slides.filter(function(f) { return f !== 'TOC' && f !== '01_Title_Page.pdf'; }).map(function(filename, idx) {
+                var label;
                 if (filename === 'CUSTOM_TEXT') {
-                    label = (document.getElementById('custom-text-title-input') && document.getElementById('custom-text-title-input').value) ? document.getElementById('custom-text-title-input').value.trim() : 'Custom Page';
+                    var ct = payload.customTexts && payload.customTexts[customTextIdx];
+                    label = (ct && ct.title && ct.title.trim()) ? ct.title.trim() : 'Custom Page';
+                    customTextIdx++;
                 } else if (filename === 'CUSTOM_PDF') {
-                    label = (payload.customPdfSectionName && payload.customPdfSectionName.trim()) ? payload.customPdfSectionName.trim() : 'Upload Custom PDF';
+                    var cp = payload.customPdfs && payload.customPdfs[customPdfIdx];
+                    label = (cp && cp.sectionName && cp.sectionName.trim()) ? cp.sectionName.trim() : 'Upload Custom PDF';
+                    customPdfIdx++;
                 } else {
-                    const li = document.querySelector('#module-list li[data-filename="' + filename + '"]');
+                    var li = document.querySelector('#module-list li[data-filename="' + filename + '"]');
                     label = (li && li.querySelector('span.flex-1')) ? (li.querySelector('span.flex-1').textContent || '').trim() : filename;
                 }
                 return { num: idx + 1, label: label || filename };
@@ -1030,9 +1298,11 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             continue;
         }
         if (slideFile === 'CUSTOM_TEXT') {
-            const customTitle = document.getElementById('custom-text-title-input').value || '';
-            const bodyHtml = textToHtml(document.getElementById('custom-text-body').value);
-            const canvas = await captureInteriorPageGPC(customTitle, bodyHtml, { extraPaddingTop: 46 });
+            var ct = payload.customTexts && payload.customTexts[customTextIdx];
+            var customTitle = (ct && ct.title) ? ct.title : '';
+            var bodyHtml = textToHtml((ct && ct.body) ? ct.body : '');
+            customTextIdx++;
+            var canvas = await captureInteriorPageGPC(customTitle, bodyHtml, { extraPaddingTop: 46 });
             await addPageFromCanvas(canvas);
             continue;
         }
@@ -1172,7 +1442,11 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 }
             }
         }
-        else if (slideFile === 'CUSTOM_PDF') { await appendUploadedPdf(payload.customPdfFile); }
+        else if (slideFile === 'CUSTOM_PDF') {
+            var cp = payload.customPdfs && payload.customPdfs[customPdfIdx];
+            if (cp && cp.file) await appendUploadedPdf(cp.file);
+            customPdfIdx++;
+        }
         else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
         else {
             try {

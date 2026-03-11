@@ -2636,7 +2636,6 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
 
                             const recordName = String(record.name).trim().toLowerCase();
                             const existingAccount = existingAccountMap.get(recordName);
-                            globalState = getState(); // <-- ADD THIS
                             const processedRecord = {
                                 name: String(record.name).trim(),
                                 website: record.website || null,
@@ -2819,7 +2818,6 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
                             showModal("Error", "Task description is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                             return false;
                         }
-                            globalState = getState(); // <-- ADD THIS
                         const newTask = {
                             user_id: getState().effectiveUserId,
                             description,

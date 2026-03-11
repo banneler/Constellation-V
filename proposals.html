@@ -122,10 +122,14 @@
         <span class="flex-1 font-medium text-sm text-slate-700">Table of Contents</span>
     </li>
     
-    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_TEXT">
+    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_TEXT" data-custom-index="0">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
         <input type="checkbox" id="toggle-custom-text" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_TEXT">
-        <span class="flex-1 font-medium text-sm text-slate-700">Custom Page</span>
+        <span class="flex-1 font-medium text-sm text-slate-700 custom-page-label">Custom Page</span>
+        <div class="flex items-center gap-1 flex-shrink-0">
+            <button type="button" class="add-custom-page-btn text-slate-400 hover:text-blue-500 p-1 rounded" title="Add another Custom Page">+</button>
+            <button type="button" class="remove-custom-page-btn hidden text-slate-400 hover:text-red-500 p-1 rounded" title="Remove">−</button>
+        </div>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_IMPACT">
@@ -227,10 +231,14 @@
         </button>
     </li>
     
-    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_PDF">
+    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="CUSTOM_PDF" data-custom-index="0">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
         <input type="checkbox" id="toggle-custom-pdf" class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="CUSTOM_PDF">
-        <span class="flex-1 font-medium text-sm text-slate-700">Upload Custom PDF</span>
+        <span class="flex-1 font-medium text-sm text-slate-700 custom-pdf-label">Upload Custom PDF</span>
+        <div class="flex items-center gap-1 flex-shrink-0">
+            <button type="button" class="add-custom-pdf-btn text-slate-400 hover:text-blue-500 p-1 rounded" title="Add another Custom PDF">+</button>
+            <button type="button" class="remove-custom-pdf-btn hidden text-slate-400 hover:text-red-500 p-1 rounded" title="Remove">−</button>
+        </div>
     </li>
     
     <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group border-l-4 border-l-blue-400" data-filename="USAC_RFP">
@@ -283,40 +291,44 @@
                         </div>
                     </div>
 
-                    <div id="custom-text-section" class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
-                        <div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2">
-                            <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            <h3 class="text-2xl font-bold text-slate-800">Custom Page</h3>
-                        </div>
-                        <input type="text" id="custom-text-title-input" class="w-full border border-slate-300 p-2 rounded-lg mb-3 bg-slate-50 outline-none focus:border-orange-500 font-semibold text-slate-700" placeholder="Document Title (Leave blank for no header)">
-                        <div class="flex gap-6 flex-nowrap items-start">
-                            <div class="flex-1 min-w-[500px]">
-                                <textarea id="custom-text-body" class="w-full h-64 p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Start typing custom content..." style="white-space: pre-wrap;"></textarea>
-                                <p id="warning-customText" class="hidden text-red-600 text-sm font-bold mt-2">⚠️ Warning: Text exceeds PDF page height and may be cut off. Please shorten.</p>
+                    <div id="custom-pages-container" class="space-y-8 hidden">
+                        <div id="custom-text-section-0" class="custom-text-section hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300" data-custom-index="0">
+                            <div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2">
+                                <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <h3 class="text-2xl font-bold text-slate-800 custom-text-section-title">Custom Page</h3>
                             </div>
-                            <div class="w-[280px] flex-shrink-0 rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex flex-col gap-4">
-                                <div>
-                                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3>
-                                    <p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p>
-                                    <div id="custom-page-snippets" class="space-y-2 overflow-auto min-h-0"></div>
+                            <input type="text" id="custom-text-title-input" class="custom-text-title-input w-full border border-slate-300 p-2 rounded-lg mb-3 bg-slate-50 outline-none focus:border-orange-500 font-semibold text-slate-700" placeholder="Document Title (Leave blank for no header)">
+                            <div class="flex gap-6 flex-nowrap items-start">
+                                <div class="flex-1 min-w-[500px]">
+                                    <textarea id="custom-text-body" class="custom-text-body w-full h-64 p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Start typing custom content..." style="white-space: pre-wrap;"></textarea>
+                                    <p id="warning-customText" class="warning-customText hidden text-red-600 text-sm font-bold mt-2">⚠️ Warning: Text exceeds PDF page height and may be cut off. Please shorten.</p>
+                                </div>
+                                <div class="w-[280px] flex-shrink-0 rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex flex-col gap-4">
+                                    <div>
+                                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3>
+                                        <p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p>
+                                        <div id="custom-page-snippets" class="space-y-2 overflow-auto min-h-0"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div id="custom-pdf-section" class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
-                        <div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2">
-                            <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                            <h3 class="text-2xl font-bold text-slate-800">Upload Custom PDF (Exec Summary, etc.)</h3>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-semibold text-slate-700 mb-1">Section name for Table of Contents</label>
-                            <input type="text" id="custom-pdf-section-name" class="w-full border border-slate-300 p-2 rounded-lg bg-slate-50 focus:bg-white outline-none focus:border-orange-500 font-medium text-slate-700" maxlength="80" placeholder="e.g. Executive Summary">
-                        </div>
-                        <input type="file" id="custom-pdf-upload" class="hidden" accept="application/pdf">
-                        <div class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="document.getElementById('custom-pdf-upload').click()">
-                            <svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                            <span id="custom-pdf-filename" class="mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop Custom PDF here, or click to browse</span>
+                    <div id="custom-pdfs-container" class="space-y-8 hidden">
+                        <div id="custom-pdf-section-0" class="custom-pdf-section hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300" data-custom-index="0">
+                            <div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2">
+                                <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                <h3 class="text-2xl font-bold text-slate-800 custom-pdf-section-title">Upload Custom PDF (Exec Summary, etc.)</h3>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Section name for Table of Contents</label>
+                                <input type="text" id="custom-pdf-section-name" class="custom-pdf-section-name w-full border border-slate-300 p-2 rounded-lg bg-slate-50 focus:bg-white outline-none focus:border-orange-500 font-medium text-slate-700" maxlength="80" placeholder="e.g. Executive Summary">
+                            </div>
+                            <input type="file" id="custom-pdf-upload" class="custom-pdf-upload hidden" accept="application/pdf">
+                            <div class="custom-pdf-dropzone border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50 hover:bg-orange-50 hover:border-orange-400 transition cursor-pointer group" onclick="this.closest('.custom-pdf-section').querySelector('.custom-pdf-upload').click()">
+                                <svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-blue-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                <span id="custom-pdf-filename" class="custom-pdf-filename mt-2 block text-slate-600 font-medium group-hover:text-orange-600">Drag and drop Custom PDF here, or click to browse</span>
+                            </div>
                         </div>
                     </div>
 
@@ -354,11 +366,11 @@
                             <h3 class="text-2xl font-bold text-slate-800">Impact & ROI</h3>
                         </div>
                         <div class="grid grid-cols-2 gap-6 mb-6">
-                            <div class="rounded-xl border border-slate-200 p-5 bg-slate-50 shadow-sm">
+                            <div class="rounded-xl border border-slate-200 p-5 bg-slate-50">
                                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">Current State</h4>
                                 <textarea id="impact-current" class="w-full border border-slate-300 p-2 rounded-lg text-sm text-slate-800 bg-white min-h-[100px] resize-y outline-none focus:border-orange-500 transition" placeholder="Current infrastructure, pain points…"></textarea>
                             </div>
-                            <div class="rounded-xl border border-slate-200 border-l-4 border-l-orange-500 p-5 bg-slate-50 shadow-sm">
+                            <div class="rounded-xl border border-slate-200 border-l-4 border-l-orange-500 p-5 bg-slate-50">
                                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">Proposed Solution</h4>
                                 <textarea id="impact-proposed" class="w-full border border-slate-300 p-2 rounded-lg text-sm text-slate-800 bg-white min-h-[100px] resize-y outline-none focus:border-orange-500 transition" placeholder="Proposed solution, benefits…"></textarea>
                             </div>
