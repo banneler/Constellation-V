@@ -198,7 +198,8 @@ body.theme-green::before {
 
 /* Correct, specific width for the smaller logo in the sidebar */
 .nav-logo {
-    width: 180px; /* This is the correct width for the sidebar */
+    width: 180px;
+    max-width: 100%; /* Scale with fluid sidebar when narrow */
     margin: 0 auto 0.625rem auto;
     display: block;
 }
@@ -255,15 +256,16 @@ body.theme-green .auth-logo:not(.constellation-main-logo) path[fill="#010101"] {
     gap: 1.25rem;
 }
 
+/* Fluid desktop: match 1080p ratio 200/1920, scale with viewport */
 .nav-sidebar {
-    width: 200px;
+    width: min(200px, max(160px, 10.5vw));
     background-color: var(--bg-light);
     padding: 1.25rem 0.625rem;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     box-shadow: 4px 0 10px var(--shadow-medium);
-    transition: background-color 0.3s, box-shadow 0.3s;
+    transition: width 0.25s ease, background-color 0.3s, box-shadow 0.3s;
     overflow: visible;
 }
 
@@ -576,6 +578,7 @@ body:not(.theme-green) .list-item.selected {
 
 .details-panel {
     flex-grow: 1;
+    min-width: 20rem; /* Keep full-size layout when no selection (fluid desktop) */
     background-color: var(--bg-medium);
     padding: 1.25rem;
     overflow-y: auto;
@@ -675,6 +678,10 @@ body:not(.theme-green) #contact-sequence-status {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0 1.25rem;
+    min-width: 0;
+}
+.form-grid > * {
+    min-width: 0;
 }
 
 .full-span-grid-item {
@@ -1191,6 +1198,10 @@ body.theme-green #account-contacts-list li a:hover {
     text-align: center;
     border: 1px solid var(--warning-yellow);
     box-shadow: 0 2px 5px var(--shadow-light);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .pending-task-reminder.hidden {
@@ -4121,8 +4132,10 @@ body.theme-dark .metric-card-won {
     min-height: 400px; /* Ensure it has height even when empty */
 }
 
+/* Fluid: 300px at 1080p; allow shrink on narrow viewports, keep column readable */
 .kanban-column {
-    flex: 0 0 300px; /* Flex-shrink, flex-grow, flex-basis */
+    flex: 0 0 min(300px, max(260px, 15.6vw));
+    min-width: 260px;
     background-color: var(--bg-light);
     border-radius: var(--border-radius);
     display: flex;

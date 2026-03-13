@@ -628,17 +628,18 @@ async function loadAllData() {
         const maxDisplayLen = displayLabels.length > 0
             ? Math.max(...displayLabels.map(l => l.length), 10)
             : 10;
+        const pillCh = Math.min(maxDisplayLen, 14);
         const productPills = products.length > 0
             ? products.map((p) => {
                 const name = p || '';
                 const displayLabel = getDisplayLabel(name);
                 const attrEscaped = name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
                 const displayEscaped = displayLabel.replace(/</g, '&lt;');
-                return `<button type="button" class="ai-product-pill" data-value="${attrEscaped}" style="min-width: ${maxDisplayLen}ch">${displayEscaped}</button>`;
+                return `<button type="button" class="ai-product-pill" data-value="${attrEscaped}" style="min-width: ${pillCh}ch">${displayEscaped}</button>`;
             }).join('')
             : '';
         const industryOptions = industries.map(ind => `<option value="${ind}">${ind}</option>`).join('');
-        const pillsContent = products.length > 0 ? productPills : '<span class="text-xs text-[var(--text-muted)] col-span-2">No products in product knowledge.</span>';
+        const pillsContent = products.length > 0 ? productPills : '<span class="text-xs text-[var(--text-muted)]">No products in product knowledge.</span>';
         const pillsAndButton = pillsContent + `<button id="ai-generate-email-btn" class="ai-generate-pill-btn btn-primary text-sm py-2 flex items-center justify-center gap-2" title="Generate email"><i class="fas fa-wand-magic-sparkles"></i>Generate</button>`;
         if (tomSelectIndustry) {
             tomSelectIndustry.destroy();

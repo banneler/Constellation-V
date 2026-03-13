@@ -136,8 +136,10 @@ body.theme-green {
         background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
         transition: background 0.3s;
     }
+    /* Fluid desktop: 1080p ratio 200/1920 ≈ 10.4%; scale with viewport, clamp for readability */
     .nav-sidebar {
-        @apply w-[200px] flex flex-col flex-shrink-0 overflow-x-hidden overflow-y-auto py-5 px-2.5 rounded-r-lg;
+        @apply flex flex-col flex-shrink-0 overflow-x-hidden overflow-y-auto py-5 px-2.5 rounded-r-lg;
+        width: min(200px, max(160px, 10.5vw));
         background-color: var(--bg-light);
         box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
         border-right: 1px solid var(--border-color);
@@ -458,6 +460,7 @@ body.theme-green {
     @media (max-width: 1024px) {
         .dashboard-sections-grid {
             grid-template-columns: 1fr;
+            align-items: start;
         }
     }
     .dashboard-column-left,
@@ -498,6 +501,31 @@ body.theme-green {
         .dashboard-left-top-row .ai-briefing-card,
         .dashboard-left-top-row .my-tasks-card {
             height: auto;
+        }
+    }
+    /* Reduce from full width: stack tasks under AI briefing, recent activities match left column height (must come after base .dashboard-left-top-row) */
+    @media (max-width: 1500px) {
+        .dashboard-sections-grid {
+            align-items: stretch;
+        }
+        .dashboard-left-top-row {
+            grid-template-columns: 1fr;
+            height: auto;
+            min-height: 0;
+        }
+        .dashboard-left-top-row .ai-briefing-card,
+        .dashboard-left-top-row .my-tasks-card {
+            height: auto;
+        }
+        .dashboard-column-right .section-card {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        #recent-activities-list {
+            flex: 1;
+            min-height: 0;
         }
     }
     .ai-briefing-card .btn-icon-header,
@@ -573,12 +601,12 @@ body.theme-green {
         background-color: var(--primary-blue);
     }
     .recent-activities-list {
-        @apply flex flex-col flex-1 min-h-0 px-4 pb-4;
+        @apply flex flex-col flex-1 min-h-0 px-4 pb-4 min-w-0;
         overflow-y: auto;
-        overflow-x: clip;
+        overflow-x: auto;
     }
     .recent-activity-item {
-        @apply flex gap-3 py-3 border-b border-[var(--border-color)] last:border-b-0 items-center;
+        @apply flex flex-wrap gap-3 py-3 border-b border-[var(--border-color)] last:border-b-0 items-center min-w-0;
     }
     .recent-activity-item .activity-icon-wrap {
         @apply flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm;
@@ -598,16 +626,20 @@ body.theme-green {
     .recent-activity-item .activity-icon-wrap.icon-linkedin {
         color: #0A66C2;
     }
+    /* Min-width so activity text keeps space; Log to SF button wraps first when row is narrow */
     .recent-activity-item .activity-body {
-        @apply flex flex-col min-w-0 flex-1;
+        @apply flex flex-col flex-1;
+        min-width: 8rem;
     }
     .recent-activity-item .activity-meta {
         @apply text-xs font-medium mb-1;
         color: var(--text-medium);
     }
     .recent-activity-item .activity-description {
-        @apply text-sm leading-snug;
+        @apply text-sm leading-snug min-w-0;
         color: var(--text-light);
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
     .recent-activity-item .activity-date {
         @apply text-xs mt-1.5;
@@ -615,6 +647,9 @@ body.theme-green {
     }
     .recent-activity-item .activity-actions {
         flex-shrink: 0;
+        margin-left: auto;
+        flex-basis: auto;
+        align-self: flex-end;
     }
     .contact-cards-row {
         @apply flex gap-5 mt-5 min-h-0;
@@ -645,10 +680,11 @@ body.theme-green {
     .contact-activities-card .recent-activities-list {
         @apply flex-1 min-h-0 overflow-y-auto px-4 pb-0;
     }
+    /* Fluid: 280/1920 at 1080p; keep full card size when empty, allow slight shrink on narrow viewports */
     .ai-assistant-card {
-        @apply flex flex-col min-h-0 overflow-hidden flex-shrink-0;
-        width: 280px;
-        min-width: 280px;
+        @apply flex flex-col min-h-0 overflow-hidden flex-shrink;
+        width: min(280px, max(240px, 14.6vw));
+        min-width: 240px;
     }
     .ai-assistant-header-actions {
         @apply flex gap-2 flex-shrink-0;
@@ -680,20 +716,21 @@ body.theme-green {
         @apply flex-shrink-0;
     }
     .ai-product-pickers {
-        @apply mt-2 mb-4 min-w-0 overflow-x-hidden;
+        @apply mt-2 mb-4 min-w-0 overflow-x-auto;
     }
     .ai-product-pills {
-        @apply grid gap-1.5 mt-1;
-        grid-template-columns: repeat(2, 1fr);
+        @apply flex flex-wrap gap-1.5 mt-1 min-w-0;
     }
     .ai-generate-pill-btn {
         @apply rounded-full;
     }
     .ai-product-pill {
-        @apply px-3 py-1.5 rounded-full text-xs font-normal cursor-pointer text-center transition-colors;
+        @apply px-3 py-1.5 rounded-full text-xs font-normal cursor-pointer text-center transition-colors flex-shrink-0;
         color: var(--text-light);
         background-color: var(--bg-medium);
         border: 1px solid var(--border-color);
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
     .ai-product-pill:hover {
         background-color: var(--bg-light, rgba(0,0,0,0.05));
@@ -738,9 +775,9 @@ body.theme-green {
         color: var(--text-light);
     }
     .logged-emails-card {
-        @apply flex flex-col min-h-0 overflow-hidden flex-shrink-0;
-        width: 280px;
-        min-width: 280px;
+        @apply flex flex-col min-h-0 overflow-hidden flex-shrink;
+        width: min(280px, max(240px, 14.6vw));
+        min-width: 240px;
     }
     .logged-emails-card .logged-emails-container {
         @apply flex-1 min-h-0 overflow-y-auto px-4 pb-0 flex flex-col;
@@ -1128,9 +1165,15 @@ body.theme-green {
     .contact-picker-panel,
     .contact-details-content {
         max-height: calc(100vh - 48px);
+        @apply flex flex-col min-h-0;
+    }
+    .contact-details-content {
+        min-width: 20rem;
     }
     .contact-picker-panel {
-        @apply flex flex-col w-[18rem] flex-shrink-0 rounded-2xl overflow-hidden;
+        @apply flex flex-col flex-shrink rounded-2xl overflow-hidden;
+        width: min(18rem, max(12rem, 15vw));
+        min-width: 12rem;
         min-height: calc(100vh - 48px);
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
@@ -1303,13 +1346,73 @@ body.theme-green {
     .contact-details-top-row {
         @apply flex gap-5 flex-shrink-0;
     }
+    /* Reflow at narrow width: stop compressing; wrap sequence status with AI, then activities/emails full width */
+    @media (max-width: 1100px) {
+        .contact-details-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: minmax(475px, auto) minmax(475px, auto) minmax(260px, 1fr) minmax(220px, 1fr);
+            gap: 1.25rem;
+            align-content: start;
+        }
+        .contact-details-content .contact-details-top-row {
+            display: contents;
+        }
+        .contact-details-content .contact-cards-row {
+            display: contents;
+        }
+        .contact-details-content .contact-details-form-card {
+            grid-column: 1 / -1;
+            grid-row: 1;
+            min-width: 0;
+            min-height: 475px;
+        }
+        .contact-details-content .sequence-status-card {
+            grid-column: 1;
+            grid-row: 2;
+            width: 100%;
+            min-width: 0;
+        }
+        .contact-details-content .ai-assistant-card {
+            grid-column: 2;
+            grid-row: 2;
+            width: 100%;
+            min-width: 0;
+        }
+        .contact-details-content .contact-activities-card {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            min-width: 0;
+            min-height: 240px;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+        }
+        .contact-details-content .contact-activities-card .recent-activities-list {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        .contact-details-content .logged-emails-card {
+            grid-column: 1 / -1;
+            grid-row: 4;
+            min-width: 0;
+            min-height: 200px;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+        }
+        .contact-details-content .logged-emails-card .logged-emails-container {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+    }
     .sequence-status-card {
-        @apply flex flex-col rounded-2xl overflow-hidden flex-shrink-0 justify-center;
+        @apply flex flex-col rounded-2xl overflow-hidden flex-shrink justify-center;
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
         box-shadow: var(--shadow-card);
-        width: 280px;
-        min-width: 280px;
+        width: min(280px, max(240px, 14.6vw));
+        min-width: 240px;
     }
     .sequence-status-card-header {
         @apply px-5 pt-5 pb-2;
@@ -1470,8 +1573,15 @@ body.theme-green {
         max-height: calc(100vh - 48px);
         @apply flex flex-col min-h-0;
     }
+    /* Details panel: keep full-size layout when no selection (min-width preserves form/card area) */
+    .account-details-content {
+        min-width: 20rem;
+    }
+    /* Fluid: 288/1920 ≈ 15% at 1080p; allow shrink with floor so details panel keeps space */
     .account-picker-panel {
-        @apply flex flex-col w-[18rem] flex-shrink-0 rounded-2xl overflow-hidden;
+        @apply flex flex-col flex-shrink rounded-2xl overflow-hidden;
+        width: min(18rem, max(12rem, 15vw));
+        min-width: 12rem;
         min-height: calc(100vh - 48px);
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
@@ -1538,6 +1648,78 @@ body.theme-green {
         gap: 1.25rem;
         align-items: stretch;
         flex-shrink: 0;
+    }
+    /* Accounts reflow: account details 550px, then [Deals+Proposals stacked] | Contacts, then Activities */
+    @media (max-width: 1100px) {
+        .account-details-content {
+            display: grid;
+            grid-template-columns: minmax(0, 275px) 1fr;
+            grid-template-rows: minmax(550px, auto) minmax(475px, auto) minmax(220px, 1fr);
+            gap: 1.25rem;
+            align-content: start;
+        }
+        .account-details-content .account-details-top-row {
+            display: contents;
+        }
+        .account-details-content .account-deals-column {
+            grid-column: 1;
+            grid-row: 2;
+            min-width: 0;
+            max-width: 275px;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .account-details-content .account-deals-column .account-deals-body {
+            overflow-x: auto;
+        }
+        .account-details-content .account-deals-column .account-proposals-card .account-proposals-body {
+            overflow-x: auto;
+        }
+        .account-details-content .account-cards-row {
+            display: contents;
+        }
+        .account-details-content .account-details-form-card {
+            grid-column: 1 / -1;
+            grid-row: 1;
+            min-width: 0;
+            min-height: 550px;
+        }
+        .account-details-content .account-deals-card .account-deals-body {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        .account-details-content .account-contacts-card {
+            grid-column: 2;
+            grid-row: 2;
+            width: 100%;
+            min-width: 0;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+        }
+        .account-details-content .account-contacts-card .account-contacts-body {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        .account-details-content .account-activities-card {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            min-width: 0;
+            min-height: 220px;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+        }
+        .account-details-content .account-activities-card .account-activities-body {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        .account-details-content .account-activities-card .recent-activities-list {
+            flex: 1 1 0;
+            min-height: 0;
+        }
     }
     .account-details-form-card {
         display: flex;
@@ -1774,8 +1956,13 @@ body.theme-green {
         max-height: calc(100vh - 48px);
         @apply flex flex-col min-h-0;
     }
+    .campaign-details-content {
+        min-width: 20rem;
+    }
     .campaign-picker-panel {
-        @apply flex flex-col w-[18rem] flex-shrink-0 rounded-2xl overflow-hidden;
+        @apply flex flex-col flex-shrink rounded-2xl overflow-hidden;
+        width: min(18rem, max(12rem, 15vw));
+        min-width: 12rem;
         min-height: calc(100vh - 48px);
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
@@ -2346,8 +2533,13 @@ body.theme-green {
         max-height: calc(100vh - 48px);
         @apply flex flex-col min-h-0;
     }
+    .sequence-details-content {
+        min-width: 20rem;
+    }
     .sequence-picker-panel {
-        @apply flex flex-col w-[18rem] flex-shrink-0 rounded-2xl overflow-hidden;
+        @apply flex flex-col flex-shrink rounded-2xl overflow-hidden;
+        width: min(18rem, max(12rem, 15vw));
+        min-width: 12rem;
         min-height: calc(100vh - 48px);
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
@@ -2412,8 +2604,13 @@ body.theme-green {
         max-height: calc(100vh - 48px);
         @apply flex flex-col min-h-0;
     }
+    .proposals-details-content {
+        min-width: 20rem;
+    }
     .proposals-picker-panel {
-        @apply flex flex-col w-[18rem] flex-shrink-0 rounded-2xl overflow-hidden;
+        @apply flex flex-col flex-shrink rounded-2xl overflow-hidden;
+        width: min(18rem, max(12rem, 15vw));
+        min-width: 12rem;
         min-height: calc(100vh - 48px);
         background-color: var(--bg-light);
         border: 1px solid var(--border-color);
@@ -2479,10 +2676,11 @@ body.theme-green {
     #main-content.proposals-details-content {
         @apply min-w-0 flex-1;
     }
-    /* Proposals pricing table – theme via CSS variables */
+    /* Proposals pricing table – fluid: 750px at 1080p, scale with viewport; column ratios preserved (380/750, 140/750, 90/750, 140/750) */
     #pricing-render-zone #flex-table-container {
         border: 2px solid var(--proposal-accent);
-        width: 750px;
+        width: min(750px, 100%);
+        min-width: 0;
     }
     #pricing-render-zone #flex-table-container > div:first-child {
         display: flex;
@@ -2495,21 +2693,25 @@ body.theme-green {
         border-right: 1px solid var(--proposal-accent);
     }
     #pricing-render-zone #flex-table-container > div:first-child > div:first-child {
-        width: 380px;
+        flex: 0 0 50.67%;
+        min-width: 0;
         padding: 12px 16px;
     }
     #pricing-render-zone #flex-table-container > div:first-child > div:nth-child(2) {
-        width: 140px;
+        flex: 0 0 18.67%;
+        min-width: 0;
         padding: 12px 5px;
         text-align: center;
     }
     #pricing-render-zone #flex-table-container > div:first-child > div:nth-child(3) {
-        width: 90px;
+        flex: 0 0 12%;
+        min-width: 0;
         padding: 12px 5px;
         text-align: center;
     }
     #pricing-render-zone #flex-table-container > div:first-child > div:last-child {
-        width: 140px;
+        flex: 0 0 18.67%;
+        min-width: 0;
         padding: 12px 16px;
         text-align: center;
     }
@@ -2521,11 +2723,13 @@ body.theme-green {
         font-size: 1.1rem;
     }
     #pricing-render-zone #flex-table-container > div:last-child > div:first-child {
-        width: 610px;
+        flex: 0 0 81.33%;
+        min-width: 0;
         padding: 16px;
     }
     #pricing-render-zone #flex-table-container #render-grand-total-flex {
-        width: 140px;
+        flex: 0 0 18.67%;
+        min-width: 0;
         padding: 16px;
         text-align: center;
     }
@@ -3930,6 +4134,33 @@ body.theme-green {
         background-color: var(--bg-medium);
         box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
     }
+    /* Kanban: at narrow viewport, stack columns as rows so each stage gets full width and cards have more room */
+    @media (max-width: 1024px) {
+        #deals .deals-pipeline-card #kanban-board-view:not(.hidden) {
+            flex-direction: column;
+            overflow-x: hidden;
+            overflow-y: visible;
+            align-items: stretch;
+        }
+        #deals .deals-pipeline-card .kanban-column {
+            flex: 0 0 auto;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+        #deals .deals-pipeline-card .kanban-column-body {
+            flex-direction: row;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            min-height: 120px;
+            padding-bottom: 0.5rem;
+        }
+        #deals .deals-pipeline-card .kanban-column-body .kanban-card {
+            flex: 0 0 min(320px, 85vw);
+            min-width: 260px;
+        }
+    }
     .account-contacts-card {
         @apply flex flex-col min-h-0 overflow-hidden min-w-0 flex-grow;
         flex-shrink: 1;
@@ -4093,8 +4324,11 @@ body.theme-green {
    ========================================================================== */
 @layer components {
     .form-grid {
-        @apply grid gap-x-5;
+        @apply grid gap-x-5 min-w-0;
         grid-template-columns: repeat(2, 1fr);
+    }
+    .form-grid > * {
+        min-width: 0;
     }
     .full-span-grid-item {
         @apply col-span-full;
@@ -5192,6 +5426,10 @@ body.theme-green {
         border-left: 3px solid var(--primary-blue);
         border-radius: 0.5rem;
         box-shadow: var(--shadow-light);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .pending-task-reminder.hidden {
         @apply hidden;
@@ -6048,6 +6286,7 @@ table input[type="checkbox"]:focus {
 }
 .nav-logo {
     width: 180px;
+    max-width: 100%; /* Scale with fluid sidebar when narrow */
     margin: 0 auto 0.625rem auto;
     display: block;
 }
@@ -7138,6 +7377,12 @@ body:not(.theme-green) .list-item.selected {
         height: 40px;
         margin: 0;
     }
+    .nav-sidebar .nav-logo-collapsed {
+        display: none !important;
+    }
+    .nav-sidebar a.nav-button[href="proposals.html"] {
+        display: none !important;
+    }
     .split-view {
         flex-direction: column;
         height: auto;
@@ -7173,18 +7418,27 @@ body:not(.theme-green) .list-item.selected {
     .proposals-picker-panel {
         width: 100%;
         flex-shrink: 0;
-        max-height: 40vh;
-        min-height: 40vh;
+        max-height: 32vh;
+        min-height: 32vh;
     }
+    /* Picker panels: horizontal scroll-snap (Contacts, Accounts, Campaigns, Sequences, Proposals) */
     .contact-picker-list {
         display: flex;
         flex-direction: row;
+        align-items: stretch;
         overflow-x: auto;
         overflow-y: hidden;
         white-space: nowrap;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
         padding-bottom: 10px;
         border: none;
         border-bottom: 1px solid var(--border-color);
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .contact-picker-list::-webkit-scrollbar {
+        display: none;
     }
     .item-list-container {
         width: 100%;
@@ -7194,31 +7448,108 @@ body:not(.theme-green) .list-item.selected {
     .item-list {
         display: flex;
         flex-direction: row;
+        align-items: stretch;
         overflow-x: auto;
         white-space: nowrap;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
         padding-bottom: 10px;
         border: none;
         border-bottom: 1px solid var(--border-color);
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .item-list::-webkit-scrollbar {
+        display: none;
+    }
+    #account-list {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    #account-list::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+    .account-list-scroll-wrap {
+        overflow: hidden;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .account-list-scroll-wrap .item-list {
+        flex: 1;
+        min-height: 0;
+    }
+    #account-list .list-item:focus,
+    #account-list .list-item:focus-visible,
+    #account-list .list-item *:focus,
+    #account-list .list-item *:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
     }
     .list-item {
-        flex: 0 0 auto;
-        width: 120px;
+        flex-shrink: 0;
+        width: 85%;
+        scroll-snap-align: center;
         border-bottom: none;
         border-right: 1px solid var(--border-color);
         flex-direction: column;
         justify-content: center;
+        align-items: center;
         text-align: center;
+        min-width: 0;
+        padding: 0.5rem 0.75rem;
+        font-size: 2.7rem;
+        align-self: stretch;
     }
     .contact-picker-list .list-item {
         flex-direction: row;
-        text-align: left;
-        justify-content: flex-start;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 0.5rem 0.75rem;
+        font-size: 1.85rem;
     }
     #account-list .list-item {
         flex-direction: row;
-        text-align: left;
-        justify-content: flex-start;
-        align-items: flex-start;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 0.5rem 0.75rem;
+        font-size: 2.7rem;
+    }
+    .contact-picker-list .list-item .contact-info {
+        justify-items: center;
+        text-align: center;
+    }
+    #account-list .list-item .account-list-item-row {
+        justify-content: center;
+        text-align: center;
+    }
+    .list-item .account-list-name,
+    .list-item .contact-name,
+    .list-item .account-name,
+    .list-item .sequence-name {
+        font-size: inherit;
+    }
+    .contact-picker-list .list-item .contact-info .contact-name,
+    .contact-picker-list .list-item .contact-info .account-name {
+        font-size: inherit;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+    }
+    .list-item .list-item-icons,
+    .list-item .list-item-icons *,
+    .list-item .organic-star-list,
+    .list-item .hot-contact-icon,
+    .list-item .deal-open-icon,
+    .contact-picker-list .list-item .contact-picker-item-icons,
+    .contact-picker-list .list-item .contact-picker-row-icons {
+        font-size: inherit;
     }
     .details-panel {
         padding: 1.25rem;
