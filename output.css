@@ -11946,8 +11946,8 @@ body:not(.theme-green) .list-item.selected {
   .contact-picker-panel, .account-picker-panel, .campaign-picker-panel, .sequence-picker-panel, .proposals-picker-panel {
     width: 100%;
     flex-shrink: 0;
-    max-height: 32vh;
-    min-height: 32vh;
+    max-height: 44vh;
+    min-height: 44vh;
   }
   .contact-picker-list {
     display: flex;
@@ -12025,7 +12025,7 @@ body:not(.theme-green) .list-item.selected {
     text-align: center;
     min-width: 0;
     padding: 0.5rem 0.75rem;
-    font-size: 2.7rem;
+    font-size: 1.6rem;
     align-self: stretch;
   }
   .contact-picker-list .list-item {
@@ -12034,7 +12034,7 @@ body:not(.theme-green) .list-item.selected {
     align-items: center;
     text-align: center;
     padding: 0.5rem 0.75rem;
-    font-size: 1.85rem;
+    font-size: 1.35rem;
   }
   #account-list .list-item {
     flex-direction: row;
@@ -12042,7 +12042,7 @@ body:not(.theme-green) .list-item.selected {
     align-items: center;
     text-align: center;
     padding: 0.5rem 0.75rem;
-    font-size: 2.7rem;
+    font-size: 1.6rem;
   }
   .contact-picker-list .list-item .contact-info {
     justify-items: center;
