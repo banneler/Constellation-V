@@ -1624,6 +1624,9 @@ body.theme-green {
     .account-picker-body > .account-filter-icons {
         @apply flex-shrink-0;
     }
+    .account-picker-body > #account-list {
+        @apply min-h-0 flex-grow;
+    }
     .account-filter-icons {
         @apply flex gap-1.5 mt-4 mb-3 flex-wrap items-center justify-center;
     }
@@ -7470,17 +7473,6 @@ body:not(.theme-green) .list-item.selected {
         display: none;
         width: 0;
         height: 0;
-    }
-    .account-list-scroll-wrap {
-        overflow: hidden;
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-    .account-list-scroll-wrap .item-list {
-        flex: 1;
-        min-height: 0;
     }
     #account-list .list-item:focus,
     #account-list .list-item:focus-visible,
