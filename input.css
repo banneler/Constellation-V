@@ -2679,63 +2679,6 @@ body.theme-green {
     #main-content.proposals-details-content {
         @apply min-w-0 flex-1;
     }
-    /* Proposals pricing table – fluid: 750px at 1080p, scale with viewport; column ratios preserved (380/750, 140/750, 90/750, 140/750) */
-    #pricing-render-zone #flex-table-container {
-        border: 2px solid var(--proposal-accent);
-        width: min(750px, 100%);
-        min-width: 0;
-    }
-    #pricing-render-zone #flex-table-container > div:first-child {
-        display: flex;
-        background-color: var(--proposal-accent);
-        color: white;
-        font-weight: bold;
-        text-transform: uppercase;
-    }
-    #pricing-render-zone #flex-table-container > div:first-child > div {
-        border-right: 1px solid var(--proposal-accent);
-    }
-    #pricing-render-zone #flex-table-container > div:first-child > div:first-child {
-        flex: 0 0 50.67%;
-        min-width: 0;
-        padding: 12px 16px;
-    }
-    #pricing-render-zone #flex-table-container > div:first-child > div:nth-child(2) {
-        flex: 0 0 18.67%;
-        min-width: 0;
-        padding: 12px 5px;
-        text-align: center;
-    }
-    #pricing-render-zone #flex-table-container > div:first-child > div:nth-child(3) {
-        flex: 0 0 12%;
-        min-width: 0;
-        padding: 12px 5px;
-        text-align: center;
-    }
-    #pricing-render-zone #flex-table-container > div:first-child > div:last-child {
-        flex: 0 0 18.67%;
-        min-width: 0;
-        padding: 12px 16px;
-        text-align: center;
-    }
-    #pricing-render-zone #flex-table-container > div:last-child {
-        display: flex;
-        background-color: var(--proposal-dark);
-        color: white;
-        font-weight: bold;
-        font-size: 1.1rem;
-    }
-    #pricing-render-zone #flex-table-container > div:last-child > div:first-child {
-        flex: 0 0 81.33%;
-        min-width: 0;
-        padding: 16px;
-    }
-    #pricing-render-zone #flex-table-container #render-grand-total-flex {
-        flex: 0 0 18.67%;
-        min-width: 0;
-        padding: 16px;
-        text-align: center;
-    }
     /* Proposals: use slate/orange styling to match rest of site (no blue overrides) */
     #proposals-view input:focus,
     #proposals-view textarea:focus,
