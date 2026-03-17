@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "build": "node scripts/inject-env.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "repository": {
     "type": "git",
@@ -20,7 +23,9 @@
   },
   "homepage": "https://github.com/banneler/Constellation-V#readme",
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/cli": "^4.2.1",
+    "dotenv": "^17.3.1",
     "tailwindcss": "^4.2.1"
   }
 }

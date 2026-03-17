@@ -1,0 +1,159 @@
+{
+  "$schema_comment": "Intent-to-implementation map for Guardian. Routes relative to BASE_URL. shared_constants.js: global-loader-overlay, theme-toggle-btn.",
+  "modules": [
+    {
+      "intent": "log_in",
+      "location": "index.html",
+      "primary_selector": "#auth-form",
+      "semantic_fallback": "Login card with Email and Password fields and a primary Login button",
+      "success_criteria": "Navigation to command-center.html; session stored in localStorage for Supabase"
+    },
+    {
+      "intent": "submit_credentials",
+      "location": "index.html",
+      "primary_selector": "#auth-submit-btn",
+      "semantic_fallback": "Full-width blue primary button labeled Login below the password field",
+      "success_criteria": "URL ends with command-center.html or auth-error stays empty on success"
+    },
+    {
+      "intent": "refresh_ai_daily_briefing",
+      "location": "command-center.html",
+      "primary_selector": "#ai-briefing-refresh-btn",
+      "semantic_fallback": "Circular refresh icon button in the AI Daily Briefing card header",
+      "success_criteria": "Briefing area updates; placeholder or container #ai-briefing-container visible"
+    },
+    {
+      "intent": "open_quick_add_task",
+      "location": "command-center.html",
+      "primary_selector": "#my-tasks-hamburger",
+      "semantic_fallback": "Plus icon button in My Tasks card header",
+      "success_criteria": "#quick-add-card form #quick-add-task-form is visible for inline task entry"
+    },
+    {
+      "intent": "add_quick_task",
+      "location": "command-center.html",
+      "primary_selector": "#quick-add-task-form",
+      "semantic_fallback": "Inline form under My Tasks with Description, optional contact/account links, due date, Add button",
+      "success_criteria": "New task row appears in #my-tasks-list after submit (requires valid data)"
+    },
+    {
+      "intent": "toggle_sequence_steps_view",
+      "location": "command-center.html",
+      "primary_selector": "#sequence-toggle-due, #sequence-toggle-upcoming",
+      "semantic_fallback": "Due / Upcoming toggle pills in Sequence Steps card",
+      "success_criteria": "#sequence-steps-list content reflects selected tab"
+    },
+    {
+      "intent": "view_recent_activities",
+      "location": "command-center.html",
+      "primary_selector": "#recent-activities-list",
+      "semantic_fallback": "Scrollable list under Recent Activities on dashboard right column",
+      "success_criteria": "List populated or empty state after data load"
+    },
+    {
+      "intent": "switch_deals_list_board",
+      "location": "deals.html",
+      "primary_selector": "#list-view-btn, #board-view-btn",
+      "semantic_fallback": "List icon vs grid icon toggle top-right of Deals pipeline section",
+      "success_criteria": "#list-view-container visible vs #kanban-board-view visible (has .hidden when inactive)"
+    },
+    {
+      "intent": "create_new_deal_entry",
+      "location": "deals.html",
+      "primary_selector": "#add-deal-btn",
+      "semantic_fallback": "Plus icon next to Deal Pipeline title — opens new deal flow",
+      "success_criteria": "Modal or #new-deal-inline-container shows deal creation UI"
+    },
+    {
+      "intent": "toggle_my_vs_team_deals",
+      "location": "deals.html",
+      "primary_selector": "#view-my-deals-btn, #view-all-deals-btn",
+      "semantic_fallback": "Single-user icon vs users-group icon beside Deals page title",
+      "success_criteria": "Metrics and table refresh; manager may see #manager-pipeline-select-wrap"
+    },
+    {
+      "intent": "view_deal_metrics",
+      "location": "deals.html",
+      "primary_selector": "#metric-current-commit, #metric-best-case, #metric-funnel",
+      "semantic_fallback": "Top metric cards: Current Commit, Best Case, Funnel dollar values",
+      "success_criteria": "Numeric values render after loader dismiss"
+    },
+    {
+      "intent": "reset_deal_filters",
+      "location": "deals.html",
+      "primary_selector": "#deals-filters-reset",
+      "semantic_fallback": "Small Reset text control in the filter row under Deal Pipeline",
+      "success_criteria": "Committed/stage/close-month pills return to default selection"
+    },
+    {
+      "intent": "search_contacts",
+      "location": "contacts.html",
+      "primary_selector": "#contact-search",
+      "semantic_fallback": "Search input at top of left contact picker panel",
+      "success_criteria": "#contact-list filters to matching contacts"
+    },
+    {
+      "intent": "add_new_contact",
+      "location": "contacts.html",
+      "primary_selector": "#add-contact-btn",
+      "semantic_fallback": "Plus icon in bottom action bar of contact picker",
+      "success_criteria": "Empty form in #contact-form; focus on new contact entry"
+    },
+    {
+      "intent": "save_contact",
+      "location": "contacts.html",
+      "primary_selector": "#contact-form button[type=submit]",
+      "semantic_fallback": "Floppy-disk save icon in Contact Details form",
+      "success_criteria": "Contact persists; #contact-last-saved may update"
+    },
+    {
+      "intent": "delete_contact",
+      "location": "contacts.html",
+      "primary_selector": "#delete-contact-btn",
+      "semantic_fallback": "Trash icon next to save in Contact Details",
+      "success_criteria": "Contact removed after confirm; list updates"
+    },
+    {
+      "intent": "sort_contacts_first_last",
+      "location": "contacts.html",
+      "primary_selector": "#sort-first-last-btn, #sort-last-first-btn",
+      "semantic_fallback": "First / Last segmented control above contact list",
+      "success_criteria": "Contact list order changes"
+    },
+    {
+      "intent": "view_social_ai_feed",
+      "location": "social_hub.html",
+      "primary_selector": "#ai-articles-container",
+      "semantic_fallback": "AI-Curated Content area below Social Hub intro copy",
+      "success_criteria": "Article cards load or empty container after API"
+    },
+    {
+      "intent": "view_marketing_posts_feed",
+      "location": "social_hub.html",
+      "primary_selector": "#marketing-posts-container",
+      "semantic_fallback": "From Our Marketing Team card body",
+      "success_criteria": "Marketing post items render"
+    },
+    {
+      "intent": "open_social_post_modal",
+      "location": "social_hub.html",
+      "primary_selector": "#modal-backdrop:not(.hidden)",
+      "semantic_fallback": "Clicking share on an article opens Prepare Your Post modal with #post-text",
+      "success_criteria": "#post-text visible; #modal-article-link populated"
+    },
+    {
+      "intent": "regenerate_social_post_copy",
+      "location": "social_hub.html",
+      "primary_selector": "#generate-custom-btn",
+      "semantic_fallback": "Regenerate button with wand icon under custom prompt in post modal",
+      "success_criteria": "#post-text content changes after AI round-trip"
+    },
+    {
+      "intent": "copy_social_post_text",
+      "location": "social_hub.html",
+      "primary_selector": "#copy-text-btn",
+      "semantic_fallback": "Copy icon in modal action bar",
+      "success_criteria": "Clipboard contains suggested post text"
+    }
+  ]
+}
