@@ -17,7 +17,17 @@ jobs:
       run: npm ci
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
+    - name: Inject Supabase env into frontend (js/env.config.js)
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: node scripts/inject-env.js
     - name: Run Playwright tests
+      env:
+        E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+        E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       run: npx playwright test
     - uses: actions/upload-artifact@v4
       if: always()
