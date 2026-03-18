@@ -12,3 +12,6 @@ export const SUPABASE_ANON_KEY = ${JSON.stringify(SUPABASE_ANON_KEY)};
 
 fs.writeFileSync(outPath, content, 'utf8');
 console.log('Wrote js/env.config.js');
+console.log(
+  `[inject-env] SUPABASE_URL length: ${SUPABASE_URL.length}, SUPABASE_ANON_KEY length: ${SUPABASE_ANON_KEY.length}`
+);

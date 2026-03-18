@@ -7,6 +7,9 @@ import {
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        console.error('[auth] Missing SUPABASE_URL or SUPABASE_ANON_KEY — check js/env.config.js (inject-env in CI)');
+    }
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // --- DOM SELECTORS (sync — before any await) ---
@@ -83,6 +86,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (isLoginMode) {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) {
+                console.error('[auth] signInWithPassword failed:', error.message, error.status ?? '');
                 showTemporaryMessage(error.message, false);
             } else {
                 window.location.href = "command-center.html";

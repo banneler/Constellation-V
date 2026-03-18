@@ -27,6 +27,8 @@ export class LoginPage {
 
   async submit(): Promise<void> {
     guardianStep('LoginPage.submit', '#auth-submit-btn');
+    // Brief pause so v2 animations / late script work can settle before first click
+    await this.page.waitForTimeout(500);
     await this.page.locator('#auth-submit-btn').click();
   }
 
