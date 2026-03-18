@@ -5,9 +5,18 @@ import { guardianStep } from '../helpers/guardian-log';
 export class LoginPage {
   constructor(private readonly page: Page) {}
 
+  /** Wait until auth.js has attached handlers and run initial updateAuthUI (avoids race with loadSVGs / form reset). */
+  async waitForAuthReady(): Promise<void> {
+    await this.page.locator('body[data-auth-ready="true"]').waitFor({
+      state: 'attached',
+      timeout: 45_000,
+    });
+  }
+
   async goto(): Promise<void> {
     guardianStep('LoginPage.goto', 'index.html');
-    await this.page.goto('/index.html');
+    await this.page.goto('/index.html', { waitUntil: 'load' });
+    await this.waitForAuthReady();
   }
 
   async fillCredentials(email: string, password: string): Promise<void> {

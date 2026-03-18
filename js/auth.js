@@ -2,18 +2,14 @@
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
-    showModal,
-    hideModal,
     setupModalListeners,
     loadSVGs
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    await loadSVGs();
-    setupModalListeners();
 
-    // --- DOM SELECTORS ---
+    // --- DOM SELECTORS (sync — before any await) ---
     const authForm = document.getElementById("auth-form");
     const resetForm = document.getElementById("reset-form");
     const authError = document.getElementById("auth-error");
@@ -49,13 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         authConfirmPasswordInput.required = !isLoginMode;
     };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('verified') === 'true') {
-        showTemporaryMessage("Email successfully verified! Please log in.", true);
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // --- EVENT LISTENERS ---
+    // --- EVENT LISTENERS: register before loadSVGs so E2E / fast clicks always hit Supabase (not native submit) ---
     authToggleLink.addEventListener("click", (e) => {
         e.preventDefault();
         isLoginMode = !isLoginMode;
@@ -95,8 +85,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (error) {
                 showTemporaryMessage(error.message, false);
             } else {
-                // EXPLICIT REDIRECT: If there's no error, we are logged in. Go to the command center.
                 window.location.href = "command-center.html";
+                return;
             }
         } else {
             const confirmPassword = authConfirmPasswordInput.value.trim();
@@ -146,10 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         resetSubmitBtn.textContent = "Send Reset Link";
     });
 
-    // --- AUTH STATE CHANGE HANDLER ---
     supabase.auth.onAuthStateChange((event, session) => {
-        // This listener is still useful for auto-login if a session already exists,
-        // but our form submission is now more reliable.
         if (event === "SIGNED_IN" && session) {
             if (!window.location.pathname.includes('command-center.html')) {
                 window.location.href = "command-center.html";
@@ -158,4 +145,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     updateAuthUI();
+    document.body.dataset.authReady = 'true';
+
+    await loadSVGs();
+    setupModalListeners();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('verified') === 'true') {
+        showTemporaryMessage("Email successfully verified! Please log in.", true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 });

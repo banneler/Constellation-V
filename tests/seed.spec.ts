@@ -13,7 +13,7 @@ const authFile = path.join(__dirname, '.auth', 'user.json');
 setup.describe('setup', () => {
   setup('seed: login and persist storage state', async ({ page }) => {
     const email = process.env.E2E_EMAIL?.trim();
-    const password = process.env.E2E_PASSWORD;
+    const password = process.env.E2E_PASSWORD?.trim();
 
     if (!email || !password) {
       console.error(
