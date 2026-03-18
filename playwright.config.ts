@@ -38,6 +38,20 @@ export default defineConfig({
         storageState: path.join(__dirname, 'tests', '.auth', 'user.json'),
       },
     },
+    {
+      name: 'smoke-public',
+      testMatch: /smoke\/public\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'smoke-crm',
+      dependencies: ['setup'],
+      testMatch: /smoke\/crm-pages\.spec\.ts$/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: path.join(__dirname, 'tests', '.auth', 'user.json'),
+      },
+    },
   ],
   webServer: process.env.SKIP_WEB_SERVER
     ? undefined

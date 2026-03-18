@@ -154,6 +154,118 @@
       "primary_selector": "#copy-text-btn",
       "semantic_fallback": "Copy icon in modal action bar",
       "success_criteria": "Clipboard contains suggested post text"
+    },
+    {
+      "intent": "smoke_load_index",
+      "location": "index.html",
+      "primary_selector": "#auth-container",
+      "semantic_fallback": "Login page (no sidebar)",
+      "success_criteria": "Title contains Constellation; auth shell; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_reset_password",
+      "location": "reset-password.html",
+      "primary_selector": "#auth-container",
+      "semantic_fallback": "Password reset form",
+      "success_criteria": "Title contains Constellation; auth shell; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_accounts",
+      "location": "accounts.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; loader cleared; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_admin",
+      "location": "admin.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_ai_admin",
+      "location": "ai-admin.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_campaigns",
+      "location": "campaigns.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_cognito",
+      "location": "cognito.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_command_center",
+      "location": "command-center.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_contacts",
+      "location": "contacts.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_deals",
+      "location": "deals.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_irr",
+      "location": "irr.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_marketing_hub",
+      "location": "marketing-hub.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_proposals",
+      "location": "proposals.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_sequences",
+      "location": "sequences.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_social_hub",
+      "location": "social_hub.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
+      "intent": "smoke_load_user_guide",
+      "location": "user-guide.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
     }
   ]
 }

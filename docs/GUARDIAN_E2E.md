@@ -5,7 +5,9 @@
 1. Copy `.env.example` → `.env` and set `E2E_EMAIL`, `E2E_PASSWORD` (Supabase user).
 2. `npm run test:e2e` — starts static server on `:4173`, runs `tests/seed.spec.ts`, then `tests/e2e/*.spec.ts` with saved session.
 
-Scripts: `test:e2e`, `test:e2e:ui`, `test:e2e:headed`.
+Scripts: `test` / `test:e2e`, `test:e2e:ui`, `test:e2e:headed`.
+
+**Smoke:** `tests/smoke/public.spec.ts` (login + reset-password, no auth) and `tests/smoke/crm-pages.spec.ts` (all other root `.html` pages, requires seed). Projects: `smoke-public`, `smoke-crm`.
 
 ## Artifacts
 
