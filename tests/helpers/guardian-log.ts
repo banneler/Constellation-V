@@ -6,6 +6,9 @@ export function guardianStep(step: string, detail?: string): void {
   console.log(`[Guardian E2E] ▶ ${msg}`);
 }
 
+/** Agentic breadcrumbs: `guardian.step('…')` in specs. */
+export const guardian = { step: guardianStep };
+
 export async function guardianScreenshot(page: Page, label: string): Promise<void> {
   try {
     await page.screenshot({ path: `test-results/guardian-${label}-${Date.now()}.png`, fullPage: true });

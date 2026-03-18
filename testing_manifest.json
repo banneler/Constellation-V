@@ -156,6 +156,90 @@
       "success_criteria": "Clipboard contains suggested post text"
     },
     {
+      "intent": "search_accounts",
+      "location": "accounts.html",
+      "primary_selector": "#account-search",
+      "semantic_fallback": "Account picker search",
+      "success_criteria": "#account-list reflects filter"
+    },
+    {
+      "intent": "create_and_save_account",
+      "location": "accounts.html",
+      "primary_selector": "#add-account-btn, #account-form",
+      "semantic_fallback": "Plus then save floppy on account form",
+      "success_criteria": "New account in list; #account-last-saved or list row"
+    },
+    {
+      "intent": "toggle_account_contact_views",
+      "location": "accounts.html",
+      "primary_selector": "#contact-list-btn, #contact-org-chart-btn",
+      "semantic_fallback": "List vs org chart on account detail",
+      "success_criteria": "#contact-list-view vs org chart visible"
+    },
+    {
+      "intent": "select_proposal_module_template",
+      "location": "proposals.html",
+      "primary_selector": "#toggle-impact-roi, #toggle-custom-text",
+      "semantic_fallback": "Proposal Elements checkboxes",
+      "success_criteria": "#impact-roi-section or #custom-text-section-0 shown"
+    },
+    {
+      "intent": "fill_proposal_properties",
+      "location": "proposals.html",
+      "primary_selector": "#global-rfp, #global-biz",
+      "semantic_fallback": "RFP and Business name fields",
+      "success_criteria": "Inputs hold values; ready for compile"
+    },
+    {
+      "intent": "calculate_irr_on_input_change",
+      "location": "irr.html",
+      "primary_selector": ".mrr-input, #global-tcv",
+      "semantic_fallback": "Site MRR fields drive global TCV/IRR",
+      "success_criteria": "Global aggregates change when MRR changes"
+    },
+    {
+      "intent": "create_sequence",
+      "location": "sequences.html",
+      "primary_selector": "#add-sequence-btn, #modal-sequence-name",
+      "semantic_fallback": "New Personal Sequence modal",
+      "success_criteria": "Sequence in #sequence-list; details panel populated"
+    },
+    {
+      "intent": "add_sequence_step",
+      "location": "sequences.html",
+      "primary_selector": "#add-step-btn, #modal-step-type",
+      "semantic_fallback": "Add Step modal",
+      "success_criteria": "Step appears in #sequence-steps-flow"
+    },
+    {
+      "intent": "select_campaign_email_template",
+      "location": "campaigns.html",
+      "primary_selector": "#template-selector, #template-email-preview",
+      "semantic_fallback": "Email Merge → Use Template",
+      "success_criteria": "#preview-template-subject populated"
+    },
+    {
+      "intent": "admin_content_view_toggle",
+      "location": "admin.html",
+      "primary_selector": "#view-templates-btn, #view-sequences-btn",
+      "semantic_fallback": "Content Management sub-tabs",
+      "success_criteria": "Table header Template Name vs Sequence Name"
+    },
+    {
+      "intent": "admin_share_content_toggle",
+      "location": "admin.html",
+      "primary_selector": ".share-toggle",
+      "semantic_fallback": "Shared checkbox on template/sequence row",
+      "success_criteria": "Supabase update on email_templates or marketing_sequences"
+    },
+    {
+      "intent": "ai_admin_save_engine_config",
+      "location": "ai-admin.html",
+      "primary_selector": "#save-config-btn, #ai-persona",
+      "semantic_fallback": "Per-engine persona/voice save",
+      "success_criteria": "ai_configs upsert; badge PERSONAL VOICE"
+    },
+    {
       "intent": "smoke_load_index",
       "location": "index.html",
       "primary_selector": "#auth-container",
