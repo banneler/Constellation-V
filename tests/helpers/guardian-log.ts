@@ -9,12 +9,27 @@ export function guardianStep(step: string, detail?: string): void {
 /** Agentic breadcrumbs: `guardian.step('…')` in specs. */
 export const guardian = { step: guardianStep };
 
+function safeLabel(label: string): string {
+  return label.replace(/[^a-z0-9-_]+/gi, '-').slice(0, 80);
+}
+
 export async function guardianScreenshot(page: Page, label: string): Promise<void> {
   try {
-    await page.screenshot({ path: `test-results/guardian-${label}-${Date.now()}.png`, fullPage: true });
-    console.log(`[Guardian E2E] 📷 Screenshot: ${label}`);
+    const path = `test-results/guardian-${safeLabel(label)}-${Date.now()}.png`;
+    await page.screenshot({ path, fullPage: true });
+    console.log(`[Guardian E2E] 📷 Screenshot: ${path}`);
   } catch {
     console.log(`[Guardian E2E] ⚠ Screenshot failed: ${label}`);
+  }
+}
+
+/** Call from afterEach on failure to capture an extra full-page shot with test title. */
+export async function guardianCaptureFailure(page: Page | undefined, testTitle: string): Promise<void> {
+  if (!page || page.isClosed()) return;
+  try {
+    await guardianScreenshot(page, `failure-${testTitle}`);
+  } catch {
+    /* ignore */
   }
 }
 

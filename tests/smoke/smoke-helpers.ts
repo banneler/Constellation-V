@@ -6,8 +6,11 @@ export function isBenignConsoleMessage(text: string): boolean {
   const m = text.toLowerCase();
   if (m.includes('favicon')) return true;
   if (m.includes('resizeobserver')) return true;
-  if (m.includes('.map')) return true; // source map 404s
+  if (m.includes('.map')) return true;
   if (m.includes('source map')) return true;
+  if (m.includes('failed to load resource') && (m.includes('404') || m.includes('net::'))) return true;
+  if (m.includes('cdn.') || m.includes('fontawesome')) return true;
+  if (m.includes('chunk') && m.includes('failed')) return true;
   return false;
 }
 

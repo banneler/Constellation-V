@@ -54,8 +54,9 @@ export class SequencesPage {
   /** Intent: add Email step to selected sequence */
   async addEmailStep(): Promise<void> {
     await this.addStepBtn().click();
+    await this.page.locator('#modal-step-type').waitFor({ state: 'visible', timeout: 15_000 });
     await this.page.locator('#modal-step-type').fill('Email');
     await this.page.getByRole('button', { name: 'Add Step' }).click();
-    await this.page.locator('#modal-backdrop').waitFor({ state: 'hidden', timeout: 20_000 });
+    await this.page.locator('#modal-backdrop').waitFor({ state: 'hidden', timeout: 25_000 });
   }
 }

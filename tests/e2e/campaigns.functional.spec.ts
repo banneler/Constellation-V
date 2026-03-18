@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { guardian } from '../helpers/guardian-log';
+import { guardian, guardianCaptureFailure } from '../helpers/guardian-log';
 import { CampaignsPage } from '../pages/campaigns.page';
 
 test.describe('Campaigns (functional)', () => {
+  test.afterEach(async ({ page }, testInfo) => {
+    if (testInfo.status === 'failed' || testInfo.status === 'timedOut') {
+      await guardianCaptureFailure(page, testInfo.title);
+    }
+  });
   test('selecting email template shows preview UI', async ({ page }) => {
     const c = new CampaignsPage(page);
     guardian.step('Opening Campaigns');

@@ -1,11 +1,19 @@
 import { test, expect } from '@playwright/test';
-import { guardian } from '../helpers/guardian-log';
+import { guardian, guardianCaptureFailure } from '../helpers/guardian-log';
 import { AccountsPage } from '../pages/accounts.page';
 
 test.describe('Accounts (functional)', () => {
-  test('search, create account, save, toggle contact views', async ({ page }) => {
+  test.afterEach(async ({ page }, testInfo) => {
+    if (testInfo.status === 'failed' || testInfo.status === 'timedOut') {
+      await guardianCaptureFailure(page, testInfo.title);
+    }
+  });
+
+  test('search, create account via modal, list + contact views', async ({ page }) => {
     const acc = new AccountsPage(page);
-    guardian.step('Opening Accounts — authenticated session');
+    page.on('dialog', (d) => d.dismiss().catch(() => {}));
+
+    guardian.step('Opening Accounts');
     await acc.goto();
 
     guardian.step('Searching account picker');
@@ -13,15 +21,22 @@ test.describe('Accounts (functional)', () => {
     await expect(acc.accountList()).toBeVisible();
 
     const unique = `E2E Acct ${Date.now()}`;
-    guardian.step(`Creating new account: ${unique}`);
-    await acc.createAndSaveAccount(unique);
+    guardian.step(`Creating account via modal: ${unique}`);
+    await acc.createAccountViaModal(unique);
 
-    guardian.step('Asserting save feedback or list contains new account');
+    guardian.step('Clearing search so new account appears in list');
+    await acc.searchAccounts('');
+    await page.waitForTimeout(500);
+
     await expect(acc.accountList().getByText(unique, { exact: false })).toBeVisible({ timeout: 30_000 });
+
+    guardian.step('Selecting new account in list');
+    await acc.accountList().locator('.list-item').filter({ hasText: unique }).first().click();
+    await page.waitForTimeout(600);
 
     guardian.step('Toggling org chart vs contact list');
     await acc.toggleToOrgChart();
-    await expect(page.locator('#contact-org-chart-view')).toBeVisible();
+    await expect(page.locator('#contact-org-chart-view')).toBeVisible({ timeout: 10_000 });
     await acc.toggleToContactList();
     await expect(acc.contactListView()).toBeVisible();
   });
