@@ -1833,7 +1833,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const imgDataUrl = canvas.toDataURL('image/png');
                 
                 // --- ORG CHART FIX 3: Restore original style to the live modal ---
-                if (originalStyle) sourceChartElement.setAttribute('style', originalStyle);
+                if (originalStyle) {
+                    sourceChartElement.setAttribute('style', originalStyle);
+                } else {
+                    sourceChartElement.removeAttribute('style');
+                }
 
                 // 7. Create new, simple HTML for the image
                 const orgChartImageHtml = `
@@ -1850,9 +1854,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 
             } catch (err) {
                 console.error("snapdom failed:", err);
-                // If it fails, restore original style
-                if (sourceChartElement && originalStyle) {
-                    sourceChartElement.setAttribute('style', originalStyle);
+                if (sourceChartElement) {
+                    if (originalStyle) {
+                        sourceChartElement.setAttribute('style', originalStyle);
+                    } else {
+                        sourceChartElement.removeAttribute('style');
+                    }
                 }
             }
         }
