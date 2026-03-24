@@ -738,16 +738,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             </li>`;
         };
 
+        const createOrphanCardHtml = (contact) => `
+            <div class="org-chart-orphan-card-wrap" role="listitem">
+                <div class="contact-card" draggable="true" data-contact-id="${contact.id}">
+                    <div class="contact-card-name">${contact.first_name} ${contact.last_name}</div>
+                    <div class="contact-card-title">${contact.title || 'N/A'}</div>
+                </div>
+            </div>`;
+
         const sortedTree = tree.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
         if (sortedTree.length > 0) {
-            const chartHtml = `<ul class="org-chart-root">
-                ${sortedTree.map(topLevelNode => createNodeHtml(topLevelNode)).join('')}
-            </ul>`;
+            const mainRoots = sortedTree.filter((n) => n.children && n.children.length > 0);
+            const orphanRoots = sortedTree.filter((n) => !n.children || n.children.length === 0);
+            let innerParts = '';
+            if (mainRoots.length > 0) {
+                innerParts += `<ul class="org-chart-root">${mainRoots.map((n) => createNodeHtml(n)).join('')}</ul>`;
+            }
+            if (orphanRoots.length > 0) {
+                innerParts += `<div class="org-chart-orphan-band">
+                    <div class="org-chart-orphan-label">No reporting manager in CRM</div>
+                    <div class="org-chart-orphan-row" role="list">${orphanRoots.map(createOrphanCardHtml).join('')}</div>
+                </div>`;
+            }
+            const chartHtml = `<div class="org-chart-scalable-inner">${innerParts}</div>`;
             const viewportContent = `<div class="org-chart-viewport"><div class="org-chart-scalable">${chartHtml}</div></div>`;
             if (briefingOnly) {
                 target.innerHTML = `<div class="org-chart-render-target briefing-org-chart-shell">${viewportContent}</div>`;
                 const viewport = target.querySelector('.org-chart-viewport');
-                if (viewport) fitOrgChartStaticSnapshot(viewport);
+                if (viewport) fitOrgChartStaticSnapshot(viewport, { preferWidth: false });
                 return;
             }
             if (target === contactOrgChartView) {
@@ -773,24 +791,50 @@ document.addEventListener("DOMContentLoaded", async () => {
         setupOrgChartDragDrop(target);
     };
 
-    /** One-shot scale-to-fit for briefing modal / print snapshot (no panning, no rAF). */
-    function fitOrgChartStaticSnapshot(viewport) {
+    /**
+     * One-shot scale for briefing modal / print snapshot (no panning, no rAF).
+     * In the AI briefing card (.ai-briefing-org-wrap), uses width-first scale so tall trees stay readable;
+     * viewport height is set to fit the scaled chart (no inner vertical scroll). Elsewhere, scales to fit both dimensions.
+     */
+    function fitOrgChartStaticSnapshot(viewport, options = {}) {
         const scalable = viewport.querySelector('.org-chart-scalable');
         if (!scalable) return;
         viewport.dataset.panX = '0';
         viewport.dataset.panY = '0';
         viewport.dataset.zoomFactor = '1';
         scalable.style.removeProperty('transform');
+        scalable.style.removeProperty('top');
+        scalable.style.removeProperty('left');
+        scalable.style.removeProperty('transform-origin');
+        viewport.style.removeProperty('padding-bottom');
+        viewport.style.removeProperty('height');
         void viewport.offsetHeight;
-        const pad = 24;
+        const pad = 16;
         const vw = viewport.clientWidth;
         const vh = viewport.clientHeight;
-        if (vw < 8 || vh < 8) return;
+        if (vw < 8) return;
         const w = Math.max(scalable.scrollWidth, 1);
         const h = Math.max(scalable.scrollHeight, 1);
-        const scale = Math.min((vw - pad) / w, (vh - pad) / h, 1.35);
-        const s = Math.max(0.08, scale);
-        scalable.style.transform = `translate(-50%, -50%) scale(${s})`;
+        const maxScale = 1.35;
+        const inBriefingCard = !!viewport.closest('.ai-briefing-org-wrap');
+        const preferWidth =
+            options.preferWidth === true || (options.preferWidth !== false && inBriefingCard);
+        let s;
+        if (preferWidth) {
+            s = Math.min((vw - pad) / w, maxScale);
+            s = Math.max(0.08, s);
+            scalable.style.transformOrigin = 'top center';
+            scalable.style.top = '0';
+            scalable.style.left = '50%';
+            scalable.style.transform = `translateX(-50%) scale(${s})`;
+            const scaledH = h * s;
+            viewport.style.height = `${Math.ceil(scaledH + 20)}px`;
+        } else {
+            if (vh < 8) return;
+            s = Math.min((vw - pad) / w, (vh - pad) / h, maxScale);
+            s = Math.max(0.08, s);
+            scalable.style.transform = `translate(-50%, -50%) scale(${s})`;
+        }
     }
 
     // --- FIXED: Population & Baller Panning ---

@@ -6538,34 +6538,72 @@ body:not(.theme-green) .list-item.selected {
         transform-origin: center;
         transform: translate(-50%, -50%);
     }
+    .org-chart-scalable-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        width: fit-content;
+        max-width: 100%;
+    }
+    .org-chart-orphan-band {
+        width: 100%;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        padding-top: 0.25rem;
+    }
+    .org-chart-orphan-label {
+        font-size: 0.68rem;
+        color: var(--text-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        text-align: center;
+    }
+    .org-chart-orphan-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 0.65rem 0.85rem;
+        margin: 0;
+        padding: 0;
+        max-width: 100%;
+    }
+    .org-chart-orphan-card-wrap {
+        flex: 0 0 auto;
+    }
     /* AI briefing modal: org chart needs explicit height chain (not the account panel flex parent) */
     .ai-briefing-org-wrap {
         border: 1px solid var(--border-color);
         background: var(--bg-dark);
         padding: 10px;
         border-radius: 8px;
-        min-height: 260px;
-        max-height: 360px;
-        overflow: auto;
+        min-height: 0;
+        overflow: visible;
     }
     .ai-briefing-org-chart-target {
         display: flex;
         flex-direction: column;
         gap: 12px;
-        min-height: 240px;
+        min-height: 0;
         min-width: 0;
     }
     .ai-briefing-org-wrap .briefing-org-chart-shell {
-        flex: 1;
-        min-height: 220px;
+        flex: 0 0 auto;
+        min-height: 0;
         min-width: 0;
         display: flex;
         flex-direction: column;
     }
     .ai-briefing-org-wrap .org-chart-viewport {
-        flex: 1;
-        min-height: 200px;
-        height: 260px;
+        flex: 0 0 auto;
+        min-height: 120px;
+        height: auto;
+        overflow-x: hidden;
+        overflow-y: visible;
     }
     /* Off-screen host used while building briefing HTML (same flex chain as modal) */
     .ai-briefing-org-snapshot-host .briefing-org-chart-shell {
@@ -6579,6 +6617,41 @@ body:not(.theme-green) .list-item.selected {
     .ai-briefing-org-snapshot-host .org-chart-viewport {
         flex: 1;
         min-height: 0;
+    }
+    .ai-briefing-org-wrap .org-chart-scalable,
+    .ai-briefing-org-snapshot-host .org-chart-scalable {
+        padding: 18px 20px;
+    }
+    .ai-briefing-org-wrap .org-chart-root > .org-chart-node,
+    .ai-briefing-org-snapshot-host .org-chart-root > .org-chart-node {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    /* Tighter vertical rhythm in briefing / snapshot so intrinsic height is smaller */
+    .ai-briefing-org-wrap .org-chart-node,
+    .ai-briefing-org-snapshot-host .org-chart-node {
+        padding-top: 1.35rem;
+    }
+    .ai-briefing-org-wrap .org-chart-node::before,
+    .ai-briefing-org-snapshot-host .org-chart-node::before {
+        height: 1.35rem;
+    }
+    .ai-briefing-org-wrap .org-chart-children,
+    .ai-briefing-org-snapshot-host .org-chart-children {
+        margin-top: 1.35rem;
+    }
+    .ai-briefing-org-wrap .org-chart-children::before,
+    .ai-briefing-org-snapshot-host .org-chart-children::before {
+        top: -1.35rem;
+        height: 1.35rem;
+    }
+    .ai-briefing-org-wrap .org-chart-scalable-inner,
+    .ai-briefing-org-snapshot-host .org-chart-scalable-inner {
+        gap: 0.65rem;
+    }
+    .ai-briefing-org-wrap .org-chart-orphan-band,
+    .ai-briefing-org-snapshot-host .org-chart-orphan-band {
+        padding-top: 0.1rem;
     }
     /* Org chart modal: glassmorphism + extra-large view + pizzazz */
     #org-chart-modal-backdrop {
@@ -6634,6 +6707,13 @@ body:not(.theme-green) .list-item.selected {
     .org-chart-modal-content .org-chart-viewport {
         flex: 1;
         min-height: 0;
+    }
+    .org-chart-modal-content .org-chart-scalable {
+        padding: 44px 36px;
+    }
+    .org-chart-modal-content .org-chart-root > .org-chart-node {
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
     }
     body.theme-green #org-chart-modal-backdrop {
         background: rgba(0, 5, 0, 0.6);
