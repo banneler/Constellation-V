@@ -13,7 +13,10 @@ import {
     setupGlobalSearch,
     updateLastVisited,
     checkAndSetNotifications,
-    injectGlobalNavigation
+    injectGlobalNavigation,
+    setupModalListeners,
+    hideModal,
+    setModalDismissPolicy
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -159,6 +162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         customPromptInput.value = prefetchedPrompt || '';
 
         postTextArea.value = prefetchedText || "Generating AI suggestion...";
+        setModalDismissPolicy({ closeOnBackdropClick: false, closeOnEscape: false });
         modalBackdrop.classList.remove('hidden');
 
         if (item.type === 'marketing_post') {
@@ -171,7 +175,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function hideModal() { modalBackdrop.classList.add('hidden'); }
+    function closePostModal() {
+        const text = (postTextArea?.value || '').trim();
+        if (text.length > 0 && !window.confirm('Discard this post draft?')) return;
+        hideModal();
+    }
 
     async function handleDismissPost(postId) {
         try {
@@ -191,7 +199,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
-        modalCloseBtn.addEventListener('click', hideModal);
+        modalCloseBtn.addEventListener('click', closePostModal);
     
         copyTextBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(postTextArea.value).then(() => {
@@ -253,6 +261,7 @@ async function initializePage() {
     window.addEventListener('effectiveUserChanged', loadSocialContent);
     await checkAndSetNotifications(supabase);
     updateLastVisited(supabase, 'social_hub');
+    setupModalListeners();
 }
 initializePage();
 });

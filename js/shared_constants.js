@@ -294,14 +294,96 @@ const modalBody = document.getElementById("modal-body");
 const modalActions = document.getElementById("modal-actions");
 let currentModalCallbacks = { onConfirm: null, onCancel: null };
 
+/** Dismiss policy for #modal-backdrop (backdrop click + Escape). showModal sets this; hideModal resets. */
+let modalDismissPolicy = { backdrop: true, escape: true };
+let actionSuccessConfirmOpen = false;
+let actionSuccessBackdropEl = null;
+let pendingActionSuccessOpts = null;
+
 export function getCurrentModalCallbacks() { return { ...currentModalCallbacks }; }
 export function setCurrentModalCallbacks(callbacks) { currentModalCallbacks = { ...callbacks }; }
 
-export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null) {
+/**
+ * Override dismiss behavior while a non-standard modal is open (e.g. Social Hub custom markup on #modal-backdrop).
+ * hideModal() resets to defaults.
+ */
+export function setModalDismissPolicy({ closeOnBackdropClick = true, closeOnEscape = true } = {}) {
+    modalDismissPolicy = {
+        backdrop: closeOnBackdropClick !== false,
+        escape: closeOnEscape !== false
+    };
+}
+
+function resetModalDismissPolicy() {
+    modalDismissPolicy = { backdrop: true, escape: true };
+}
+
+function ensureActionSuccessBackdrop() {
+    if (actionSuccessBackdropEl) return actionSuccessBackdropEl;
+    actionSuccessBackdropEl = document.createElement("div");
+    actionSuccessBackdropEl.id = "action-success-confirm-backdrop";
+    actionSuccessBackdropEl.className = "action-success-confirm-backdrop hidden";
+    actionSuccessBackdropEl.setAttribute("role", "dialog");
+    actionSuccessBackdropEl.setAttribute("aria-modal", "true");
+    actionSuccessBackdropEl.innerHTML = `
+        <div class="modal-content action-success-confirm-dialog max-w-md w-[90%]">
+            <h3 class="text-lg font-semibold mb-2 action-success-confirm-title">Did it work?</h3>
+            <p class="action-success-confirm-message text-[var(--text-medium)] mb-4"></p>
+            <div class="modal-actions flex flex-wrap gap-2 justify-end">
+                <button type="button" class="btn-primary action-success-confirm-yes">Yes</button>
+                <button type="button" class="btn-secondary action-success-confirm-no">No</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(actionSuccessBackdropEl);
+    actionSuccessBackdropEl.addEventListener("click", (e) => {
+        if (e.target === actionSuccessBackdropEl) {
+            actionSuccessBackdropEl.querySelector(".action-success-confirm-no")?.click();
+        }
+    });
+    actionSuccessBackdropEl.querySelector(".action-success-confirm-yes").addEventListener("click", async () => {
+        const o = pendingActionSuccessOpts;
+        pendingActionSuccessOpts = null;
+        actionSuccessConfirmOpen = false;
+        actionSuccessBackdropEl.classList.add("hidden");
+        if (o && o.onYes) await Promise.resolve(o.onYes());
+    });
+    actionSuccessBackdropEl.querySelector(".action-success-confirm-no").addEventListener("click", () => {
+        const o = pendingActionSuccessOpts;
+        pendingActionSuccessOpts = null;
+        actionSuccessConfirmOpen = false;
+        actionSuccessBackdropEl.classList.add("hidden");
+        if (o && o.onNo) o.onNo();
+    });
+    return actionSuccessBackdropEl;
+}
+
+/**
+ * Stack above #modal-backdrop. "No" or backdrop click only closes this layer; compose modal stays open.
+ * Escape closes this layer (same as No) while it is open.
+ */
+export function showActionSuccessConfirm({ message, title = "Did it work?", yesLabel = "Yes", noLabel = "No", onYes, onNo }) {
+    const root = ensureActionSuccessBackdrop();
+    pendingActionSuccessOpts = { onYes, onNo };
+    root.querySelector(".action-success-confirm-title").textContent = title;
+    root.querySelector(".action-success-confirm-message").textContent = message;
+    root.querySelector(".action-success-confirm-yes").textContent = yesLabel;
+    root.querySelector(".action-success-confirm-no").textContent = noLabel;
+    actionSuccessConfirmOpen = true;
+    root.classList.remove("hidden");
+}
+
+export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, customActionsHtml = null, onCancel = null, modalOptions = null) {
     if (!modalBackdrop || !modalTitle || !modalBody || !modalActions) {
         console.error("Modal elements are missing from the DOM.");
         return;
     }
+
+    const opts = modalOptions && typeof modalOptions === "object" && !Array.isArray(modalOptions) ? modalOptions : {};
+    modalDismissPolicy = {
+        backdrop: opts.closeOnBackdropClick !== false,
+        escape: opts.closeOnEscape !== false
+    };
     
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
@@ -349,14 +431,35 @@ export function showModal(title, bodyHtml, onConfirm = null, showCancel = true, 
 
 export function hideModal() {
     if (modalBackdrop) modalBackdrop.classList.add("hidden");
+    resetModalDismissPolicy();
 }
 
-function handleBackdropClick(e) { if (e.target === modalBackdrop) hideModal(); }
-function handleEscapeKey(e) { if (e.key === "Escape") hideModal(); }
+function handleBackdropClick(e) {
+    if (actionSuccessConfirmOpen) return;
+    if (!modalDismissPolicy.backdrop) return;
+    if (e.target === modalBackdrop) hideModal();
+}
+
+function handleEscapeKey(e) {
+    if (e.key !== "Escape") return;
+    if (actionSuccessConfirmOpen && actionSuccessBackdropEl && !actionSuccessBackdropEl.classList.contains("hidden")) {
+        e.preventDefault();
+        actionSuccessBackdropEl.querySelector(".action-success-confirm-no")?.click();
+        return;
+    }
+    if (!modalDismissPolicy.escape) return;
+    if (modalBackdrop && !modalBackdrop.classList.contains("hidden")) hideModal();
+}
 
 export function setupModalListeners() {
-    window.addEventListener("keydown", handleEscapeKey);
-    if (modalBackdrop) modalBackdrop.addEventListener("click", handleBackdropClick);
+    if (!document.body.dataset.crmModalEscapeAttached) {
+        document.body.dataset.crmModalEscapeAttached = "1";
+        window.addEventListener("keydown", handleEscapeKey);
+    }
+    if (modalBackdrop && modalBackdrop.dataset.modalBackdropClickAttached !== "1") {
+        modalBackdrop.dataset.modalBackdropClickAttached = "1";
+        modalBackdrop.addEventListener("click", handleBackdropClick);
+    }
 }
 
 // --- GLOBAL LOADING OVERLAY ---

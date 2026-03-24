@@ -360,6 +360,7 @@ body.theme-green {
     /* Product pills – match stage color palette */
     .product-internet { background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium)); color: var(--primary-blue); border-color: var(--primary-blue); }
     .product-ethernet { background-color: color-mix(in srgb, var(--secondary-gray) 18%, var(--bg-medium)); color: var(--secondary-gray); border-color: var(--secondary-gray); }
+    .product-dark-fiber { background-color: color-mix(in srgb, #ec4899 22%, var(--bg-medium)); color: #f472b6; border-color: #db2777; }
     .product-uc { background-color: color-mix(in srgb, var(--meeting-purple) 18%, var(--bg-medium)); color: var(--meeting-purple); border-color: var(--meeting-purple); }
     .product-pri-sip { background-color: color-mix(in srgb, var(--meeting-purple) 18%, var(--bg-medium)); color: var(--meeting-purple); border-color: var(--meeting-purple); }
     .product-sdwan { background-color: color-mix(in srgb, var(--warning-yellow) 22%, var(--bg-medium)); color: var(--warning-yellow); border-color: var(--warning-yellow); }
@@ -4808,6 +4809,12 @@ body.theme-green {
         @apply fixed inset-0 flex justify-center items-center z-[9999] backdrop-blur-sm;
         background-color: rgba(0, 0, 0, 0.15);
     }
+    /* Stacked above .modal-backdrop / .modal-content (z-[10000]) for external-action confirmation */
+    .action-success-confirm-backdrop {
+        @apply fixed inset-0 flex justify-center items-center backdrop-blur-sm;
+        z-index: 10050;
+        background-color: rgba(0, 0, 0, 0.28);
+    }
     .modal-content {
         @apply relative flex flex-col p-5 w-[90%] max-h-[90vh] z-[10000] max-w-[70rem] min-w-[min(42rem,95vw)];
         background-color: var(--bg-light);
@@ -6530,6 +6537,48 @@ body:not(.theme-green) .list-item.selected {
         padding: 60px;
         transform-origin: center;
         transform: translate(-50%, -50%);
+    }
+    /* AI briefing modal: org chart needs explicit height chain (not the account panel flex parent) */
+    .ai-briefing-org-wrap {
+        border: 1px solid var(--border-color);
+        background: var(--bg-dark);
+        padding: 10px;
+        border-radius: 8px;
+        min-height: 260px;
+        max-height: 360px;
+        overflow: auto;
+    }
+    .ai-briefing-org-chart-target {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 240px;
+        min-width: 0;
+    }
+    .ai-briefing-org-wrap .briefing-org-chart-shell {
+        flex: 1;
+        min-height: 220px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .ai-briefing-org-wrap .org-chart-viewport {
+        flex: 1;
+        min-height: 200px;
+        height: 260px;
+    }
+    /* Off-screen host used while building briefing HTML (same flex chain as modal) */
+    .ai-briefing-org-snapshot-host .briefing-org-chart-shell {
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .ai-briefing-org-snapshot-host .org-chart-viewport {
+        flex: 1;
+        min-height: 0;
     }
     /* Org chart modal: glassmorphism + extra-large view + pizzazz */
     #org-chart-modal-backdrop {

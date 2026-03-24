@@ -505,7 +505,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             products.forEach(p => {
                 let normalized = p;
                 const lower = p.toLowerCase();
-                if (lower.includes('internet')) normalized = 'Internet';
+                if (lower.includes('dark fiber')) normalized = 'Dark Fiber';
+                else if (lower.includes('internet')) normalized = 'Internet';
                 else if (lower.includes('ethernet')) normalized = 'Ethernet';
                 else if (lower.includes('uc')) normalized = 'UC';
                 else if (lower.includes('pri') || lower.includes('sip')) normalized = 'PRI/SIP';
@@ -1085,10 +1086,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (notes || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, '<br>');
     }
 
-    const PRODUCT_FAMILIES = ['Internet', 'Ethernet', 'UC', 'PRI/SIP', 'SD-WAN', 'Firewall', '5G', 'Cloud Connect', 'Waves'];
+    const PRODUCT_FAMILIES = ['Internet', 'Ethernet', 'Dark Fiber', 'UC', 'PRI/SIP', 'SD-WAN', 'Firewall', '5G', 'Cloud Connect', 'Waves'];
 
     function getProductColor(productName) {
         const p = productName.toLowerCase().trim();
+        if (p.includes('dark fiber')) return { bg: '#fbcfe8', border: '#db2777' };   // pink (chart segment)
         if (p.includes('internet')) return { bg: '#93c5fd', border: '#3b82f6' };       // light blue fill, primary-blue border
         if (p.includes('ethernet')) return { bg: '#d1d5db', border: '#6b7280' };     // light gray, secondary-gray border
         if (p.includes('uc')) return { bg: '#c4b5fd', border: '#8b5cf6' };           // light purple, meeting-purple border
@@ -1104,6 +1106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function getProductClass(productName) {
         const p = productName.toLowerCase().trim();
+        if (p.includes('dark fiber')) return 'product-dark-fiber';
         if (p.includes('internet')) return 'product-internet';
         if (p.includes('ethernet')) return 'product-ethernet';
         if (p.includes('uc')) return 'product-uc';
@@ -1123,7 +1126,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${PRODUCT_FAMILIES.map(p => {
                 const isMatch = (ap) => ap === p.toLowerCase() || 
                                         (p === 'PRI/SIP' && (ap.includes('pri') || ap.includes('sip'))) || 
-                                        (p === 'SD-WAN' && (ap.includes('sdwan') || ap.includes('sd-wan')));
+                                        (p === 'SD-WAN' && (ap.includes('sdwan') || ap.includes('sd-wan'))) ||
+                                        (p === 'Dark Fiber' && ap.includes('dark fiber'));
                 const isActive = activeProducts.some(isMatch);
                 
                 if (isActive) {
@@ -1983,6 +1987,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const targetLower = productName.toLowerCase();
                 if (targetLower === 'pri/sip') return !pLower.includes('pri') && !pLower.includes('sip');
                 if (targetLower === 'sd-wan') return !pLower.includes('sdwan') && !pLower.includes('sd-wan');
+                if (targetLower === 'dark fiber') return !pLower.includes('dark fiber');
                 return pLower !== targetLower;
             });
         } else {

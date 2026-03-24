@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -111,11 +111,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (act) {
                 const account = act.account_id ? state.accounts.find(a => a.id === act.account_id) : null;
                 logToSalesforce({ subject: act.description, notes: act.description, type: act.type, created_at: act.date, sf_account_locator: account?.sf_account_locator });
-                const { error } = await supabase.from("activities").update({ logged_to_sf: true }).eq("id", act.id);
-                if (!error) {
-                    act.logged_to_sf = true;
-                    btn.style.display = "none";
-                }
+                showActionSuccessConfirm({
+                    title: "Log to Salesforce",
+                    message: "A new Salesforce task tab should have opened. Were you able to log the activity successfully?",
+                    yesLabel: "Yes, log complete",
+                    noLabel: "No, not yet",
+                    onYes: async () => {
+                        const { error } = await supabase.from("activities").update({ logged_to_sf: true }).eq("id", act.id);
+                        if (!error) {
+                            act.logged_to_sf = true;
+                            btn.style.display = "none";
+                        }
+                    },
+                    onNo: () => {}
+                });
             }
         });
     }
@@ -222,7 +231,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         showModal('Log a call', bodyHtml, async () => {
             const notes = (document.getElementById('modal-call-notes')?.value || '').trim();
             await completeStep(csId, notes || 'Call completed');
-        }, true, `<button id="modal-confirm-btn" class="btn-primary">Log</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        }, true, `<button id="modal-confirm-btn" class="btn-primary">Log</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, null, { closeOnBackdropClick: false, closeOnEscape: false });
     }
     const ringChartText = document.getElementById("ring-chart-text");
     const contactEmailsList = document.getElementById("contact-emails-list");
@@ -1816,8 +1825,17 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 const finalSubject = document.getElementById('modal-email-subject').value;
                 const finalMessage = document.getElementById('modal-email-body').value;
                 window.open(`mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`, '_blank');
-                await completeStep(csId, `Email Sent: ${finalSubject}`);
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                showActionSuccessConfirm({
+                    title: 'Email sent?',
+                    message: 'Did your email client open and were you able to send the message successfully?',
+                    onYes: async () => {
+                        await completeStep(csId, `Email Sent: ${finalSubject}`);
+                        hideModal();
+                    },
+                    onNo: () => {}
+                });
+                return false;
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, null, { closeOnBackdropClick: false, closeOnEscape: false });
         } else if (btn.matches('.send-linkedin-message-btn')) {
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
             const message = replacePlaceholders(step.message, contact, account);
@@ -1832,8 +1850,17 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     showToast('Message copied to clipboard.', 'success');
                 } catch (_) {}
                 window.open(linkedinUrl, '_blank');
-                await completeStep(csId, 'LinkedIn message sent');
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Copy & Open LinkedIn</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+                showActionSuccessConfirm({
+                    title: 'LinkedIn message',
+                    message: 'Were you able to paste the message and send it on LinkedIn successfully?',
+                    onYes: async () => {
+                        await completeStep(csId, 'LinkedIn message sent');
+                        hideModal();
+                    },
+                    onNo: () => {}
+                });
+                return false;
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">Copy & Open LinkedIn</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, null, { closeOnBackdropClick: false, closeOnEscape: false });
         }
     });
 

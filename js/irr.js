@@ -635,14 +635,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
-     * Builds annual cash flow table from stressed monthly flows; injects into #annual-cashflow-table-container.
+     * Builds annual cash flow table HTML from stressed monthly flows (same logic as on-screen table).
+     * @param {{ compact?: boolean }} options - compact: shorter headers + classes for narrow print column
+     * @returns {string} Full <table> markup, or '' if nothing to show.
      */
-    function renderAnnualTable() {
-        if (!annualCashflowTableContainer) return;
-        if (state.sites.length === 0) {
-            annualCashflowTableContainer.innerHTML = '';
-            return;
-        }
+    function getAnnualCashflowTableHtml(options = {}) {
+        const compact = options.compact === true;
+        if (state.sites.length === 0) return '';
 
         let maxMonth = 0;
         const siteFlows = [];
@@ -679,10 +678,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        if (siteFlows.length === 0) {
-            annualCashflowTableContainer.innerHTML = '';
-            return;
-        }
+        if (siteFlows.length === 0) return '';
 
         const monthlyIn = new Array(maxMonth + 1).fill(0);
         const monthlyOut = new Array(maxMonth + 1).fill(0);
@@ -725,13 +721,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             rows.push({ year: y, cashIn: yearIn, cashOut: yearOut, net: yearNet, cumulative });
         }
 
-        let html = '<table class="annual-telemetry-table"><thead><tr><th>Year</th><th>Total Cash In</th><th>Total Cash Out</th><th>Net Position</th><th>Cumulative Cash</th></tr></thead><tbody>';
+        const tableClass = compact
+            ? 'annual-telemetry-table irr-print-annual-table irr-print-annual-table--compact'
+            : 'annual-telemetry-table irr-print-annual-table';
+        const headRow = compact
+            ? '<tr><th>Year</th><th>Cash&nbsp;in</th><th>Cash&nbsp;out</th><th>Net</th><th>Cumulative</th></tr>'
+            : '<tr><th>Year</th><th>Total Cash In</th><th>Total Cash Out</th><th>Net Position</th><th>Cumulative Cash</th></tr>';
+        const rowCount = rows.length;
+        const tableAttr = compact ? ` style="--annual-tbody-rows:${rowCount}"` : '';
+        let html = `<table class="${tableClass}"${tableAttr}><thead>${headRow}</thead><tbody>`;
         rows.forEach(r => {
             const netClass = r.net >= 0 ? 'annual-net-positive' : 'annual-net-negative';
             html += `<tr><td>${r.year}</td><td class="annual-currency">$${r.cashIn.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td><td class="annual-currency">$${r.cashOut.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td><td class="annual-currency ${netClass}">$${r.net.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td><td class="annual-currency">$${r.cumulative.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td></tr>`;
         });
         html += '</tbody></table>';
-        annualCashflowTableContainer.innerHTML = html;
+        return html;
+    }
+
+    /**
+     * Builds annual cash flow table from stressed monthly flows; injects into #annual-cashflow-table-container.
+     */
+    function renderAnnualTable() {
+        if (!annualCashflowTableContainer) return;
+        annualCashflowTableContainer.innerHTML = getAnnualCashflowTableHtml();
     }
 
     /**
@@ -922,6 +934,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // --- 6. Print Function ---
 
+    function escapeHtmlForPrint(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     async function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
@@ -938,6 +958,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             console.warn('Chart capture failed, proceeding without chart image:', e);
         }
+
+        const annualTableHtml = getAnnualCashflowTableHtml({ compact: true });
+        const capexStressPct = Math.round((stressModifiers.capex - 1) * 100);
+        const mrrStressPct = Math.round((stressModifiers.mrr - 1) * 100);
+        let stressBanner = '';
+        if (capexStressPct !== 0 || mrrStressPct !== 0) {
+            stressBanner = `<p class="print-stress-note">Stress: CapEx ${capexStressPct >= 0 ? '+' : ''}${capexStressPct}%, MRR ${mrrStressPct >= 0 ? '+' : ''}${mrrStressPct}%.</p>`;
+        }
+        const annualTableFootnote = '<p class="print-annual-footnote">* Year 0 is the first projection month; later rows are 12-month totals (same as on-screen table).</p>';
+        const chartCard = chartImgSrc
+            ? `<div class="summary-card chart-print-card">
+            <h2 class="print-section-h2">Cash Flow Projection</h2>
+            <div class="chart-print-img-wrap"><img src="${chartImgSrc}" alt="Cash Flow Projection"></div>
+        </div>`
+            : '';
+        const annualCard = annualTableHtml
+            ? `<div class="summary-card annual-cashflow-print-section annual-print-card">
+            <h2 class="print-section-h2">Annual Cash Flow</h2>
+            ${stressBanner}
+            <div class="annual-table-print-wrap">
+                <div class="annual-table-print-inner">${annualTableHtml}</div>
+                ${annualTableFootnote}
+            </div>
+        </div>`
+            : '';
+        const chartAnnualBlock =
+            chartCard && annualCard
+                ? `<div class="chart-annual-print-row"><div class="chart-annual-cell">${chartCard}</div><div class="chart-annual-cell">${annualCard}</div></div>`
+                : `${chartCard}${annualCard}`;
+
+        const globalErrText = globalErrorMessageEl && !globalErrorMessageEl.classList.contains('hidden')
+            ? globalErrorMessageEl.textContent.trim()
+            : '';
+        const globalErrorBanner = globalErrText
+            ? `<div class="report-global-error" role="alert"><strong>Global calculation note:</strong> ${escapeHtmlForPrint(globalErrText)}</div>`
+            : '';
 
         const globalDecision = globalDecisionEl.textContent;
         const globalDecisionClass = globalDecision === 'GO' ? 'go' : (globalDecision === 'NO GO' ? 'nogo' : 'error');
@@ -1001,14 +1057,159 @@ document.addEventListener('DOMContentLoaded', async () => {
             .kpi-item .kpi-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
             .kpi-item .kpi-value { font-size: 1.6rem; font-weight: 700; margin-top: 2px; }
 
-            .chart-section { margin-bottom: 20px; page-break-inside: avoid; text-align: center; }
-            .chart-section img { max-width: 100%; height: auto; max-height: 320px; border: 1px solid #e2e8f0; border-radius: 8px; }
+            .print-section-h2 { font-size: 0.95rem; color: #3b82f6; margin: 0 0 10px 0; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+
+            .chart-annual-print-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+                gap: 14px;
+                align-items: stretch;
+                margin-bottom: 20px;
+                min-height: 280px;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .chart-annual-cell {
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            .chart-print-card, .annual-print-card {
+                margin-bottom: 0;
+                page-break-inside: avoid;
+                break-inside: avoid;
+                flex: 1;
+                min-height: 0;
+                min-width: 0;
+                max-width: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            .annual-print-card {
+                overflow: hidden;
+                box-sizing: border-box;
+            }
+            .chart-print-img-wrap {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+            }
+            .chart-print-img-wrap img {
+                max-width: 100%;
+                max-height: 100%;
+                width: auto;
+                height: auto;
+                object-fit: contain;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+            }
+
+            .report-global-error { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; line-height: 1.45; }
+            .annual-cashflow-print-section { page-break-inside: auto; break-inside: auto; }
+            .print-stress-note { font-size: 0.68rem; color: #b45309; margin: 0 0 8px 0; font-weight: 600; line-height: 1.3; flex-shrink: 0; }
+            .print-annual-footnote {
+                font-size: 0.52rem;
+                color: #94a3b8;
+                margin: 8px 0 4px 0;
+                padding: 0 2px 0 0;
+                line-height: 1.35;
+                flex-shrink: 0;
+                max-width: 100%;
+                overflow-wrap: break-word;
+            }
+            .annual-table-print-wrap {
+                flex: 1;
+                min-height: 0;
+                min-width: 0;
+                max-width: 100%;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .annual-table-print-inner {
+                flex: 1;
+                min-height: 0;
+                min-width: 0;
+                max-width: 100%;
+                overflow: hidden;
+                position: relative;
+            }
+            table.irr-print-annual-table { margin-top: 2px; width: 100%; max-width: 100%; table-layout: fixed; }
+            table.irr-print-annual-table .annual-net-positive { color: #16a34a; font-weight: 700; }
+            table.irr-print-annual-table .annual-net-negative { color: #dc2626; font-weight: 700; }
+
+            table.irr-print-annual-table--compact {
+                table-layout: fixed;
+                font-size: 6.5pt;
+                width: 100%;
+                max-width: 100%;
+                flex: 1;
+                height: 100%;
+                min-height: 120px;
+                box-sizing: border-box;
+            }
+            table.irr-print-annual-table--compact thead { display: table-header-group; }
+            table.irr-print-annual-table--compact tbody {
+                height: 100%;
+            }
+            table.irr-print-annual-table--compact tbody tr {
+                height: calc((100% - 2.5rem) / var(--annual-tbody-rows, 1));
+                min-height: 1.5em;
+            }
+            table.irr-print-annual-table--compact tbody td {
+                vertical-align: middle;
+            }
+            table.irr-print-annual-table--compact th {
+                font-size: 0.52rem;
+                padding: 3px 2px;
+                white-space: normal;
+                line-height: 1.15;
+                word-break: break-word;
+                hyphens: auto;
+                vertical-align: middle;
+                overflow-wrap: anywhere;
+            }
+            table.irr-print-annual-table--compact th:not(:first-child) {
+                max-width: 0;
+            }
+            table.irr-print-annual-table--compact th:first-child {
+                max-width: none;
+            }
+            table.irr-print-annual-table--compact td {
+                padding: 2px 3px;
+                font-size: 6.5pt;
+                text-align: right;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+                max-width: 0;
+            }
+            table.irr-print-annual-table--compact td:first-child,
+            table.irr-print-annual-table--compact th:first-child {
+                text-align: center;
+                width: 10%;
+                max-width: none;
+            }
+            table.irr-print-annual-table--compact th:nth-child(2),
+            table.irr-print-annual-table--compact td:nth-child(2) { width: 19%; }
+            table.irr-print-annual-table--compact th:nth-child(3),
+            table.irr-print-annual-table--compact td:nth-child(3) { width: 19%; }
+            table.irr-print-annual-table--compact th:nth-child(4),
+            table.irr-print-annual-table--compact td:nth-child(4) { width: 20%; }
+            table.irr-print-annual-table--compact th:nth-child(5),
+            table.irr-print-annual-table--compact td:nth-child(5) { width: 32%; }
 
             table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 8.5pt; }
             th { background: #f1f5f9; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.03em; padding: 8px 6px; border-bottom: 2px solid #e2e8f0; text-align: center; white-space: nowrap; }
             th:first-child { text-align: left; }
             td { padding: 7px 6px; border-bottom: 1px solid #f1f5f9; text-align: center; }
             tr:nth-child(even) { background: #f8fafc; }
+
+            table.irr-print-annual-table--compact thead th { text-align: right; }
+            table.irr-print-annual-table--compact thead th:first-child { text-align: center; }
+            table.irr-print-annual-table--compact tbody td:first-child { text-align: center; }
 
             .go { color: #16a34a; font-weight: 700; }
             .nogo { color: #dc2626; font-weight: 700; }
@@ -1025,6 +1226,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div>Target IRR: <strong>${(globalTargetIRR * 100).toFixed(2)}%</strong></div>
             </div>
         </div>
+
+        ${globalErrorBanner}
 
         <div class="summary-card">
             <h2>Global Project Results</h2>
@@ -1052,9 +1255,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         </div>
 
-        ${chartImgSrc ? `<div class="chart-section"><img src="${chartImgSrc}" alt="Cash Flow Projection"></div>` : ''}
+        ${chartAnnualBlock}
 
-        <div class="summary-card">
+        <div class="summary-card site-breakdown-print-section">
             <h2>Site Breakdown (${state.sites.length} Sites)</h2>
             <table>
                 <thead><tr>

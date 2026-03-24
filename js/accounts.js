@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -89,11 +89,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (act) {
                 const account = state.selectedAccountDetails.account;
                 logToSalesforce({ subject: act.description, notes: act.description, type: act.type, created_at: act.date, sf_account_locator: account?.sf_account_locator });
-                const { error } = await supabase.from("activities").update({ logged_to_sf: true }).eq("id", act.id);
-                if (!error) {
-                    act.logged_to_sf = true;
-                    btn.style.display = "none";
-                }
+                showActionSuccessConfirm({
+                    title: "Log to Salesforce",
+                    message: "A new Salesforce task tab should have opened. Were you able to log the activity successfully?",
+                    yesLabel: "Yes, log complete",
+                    noLabel: "No, not yet",
+                    onYes: async () => {
+                        const { error } = await supabase.from("activities").update({ logged_to_sf: true }).eq("id", act.id);
+                        if (!error) {
+                            act.logged_to_sf = true;
+                            btn.style.display = "none";
+                        }
+                    },
+                    onNo: () => {}
+                });
             }
         });
     }
@@ -125,10 +134,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         return (notes || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br>");
     }
 
-    const PRODUCT_FAMILIES = ["Internet", "Ethernet", "UC", "PRI/SIP", "SD-WAN", "Firewall", "5G", "Cloud Connect", "Waves"];
+    const PRODUCT_FAMILIES = ["Internet", "Ethernet", "Dark Fiber", "UC", "PRI/SIP", "SD-WAN", "Firewall", "5G", "Cloud Connect", "Waves"];
 
     function getProductClass(productName) {
         const p = productName.toLowerCase().trim();
+        if (p.includes("dark fiber")) return "product-dark-fiber";
         if (p.includes("internet")) return "product-internet";
         if (p.includes("ethernet")) return "product-ethernet";
         if (p.includes("uc")) return "product-uc";
@@ -147,7 +157,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${PRODUCT_FAMILIES.map((p) => {
                 const isMatch = (ap) => ap === p.toLowerCase() ||
                     (p === "PRI/SIP" && (ap.includes("pri") || ap.includes("sip"))) ||
-                    (p === "SD-WAN" && (ap.includes("sdwan") || ap.includes("sd-wan")));
+                    (p === "SD-WAN" && (ap.includes("sdwan") || ap.includes("sd-wan"))) ||
+                    (p === "Dark Fiber" && ap.includes("dark fiber"));
                 const isActive = activeProducts.some(isMatch);
                 if (isActive) {
                     return `<span class="product-pill product-pill-toggle active cursor-pointer hover:opacity-80 transition-opacity ${getProductClass(p)}" data-deal-id="${dealId}" data-product="${p}" title="Remove ${p}">${p}</span>`;
@@ -693,7 +704,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         <button type="button" id="org-chart-zoom-in-btn" class="org-chart-zoom-btn" title="Zoom in"><i class="fas fa-plus"></i></button>
     </div>`;
 
-    const renderOrgChart = (container = null) => {
+    const renderOrgChart = (container = null, options = {}) => {
+        const briefingOnly = options.briefingOnly === true;
         const target = container || contactOrgChartView;
         if (!target) return;
 
@@ -732,6 +744,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ${sortedTree.map(topLevelNode => createNodeHtml(topLevelNode)).join('')}
             </ul>`;
             const viewportContent = `<div class="org-chart-viewport"><div class="org-chart-scalable">${chartHtml}</div></div>`;
+            if (briefingOnly) {
+                target.innerHTML = `<div class="org-chart-render-target briefing-org-chart-shell">${viewportContent}</div>`;
+                const viewport = target.querySelector('.org-chart-viewport');
+                if (viewport) fitOrgChartStaticSnapshot(viewport);
+                return;
+            }
             if (target === contactOrgChartView) {
                 target.innerHTML = `<div class="org-chart-render-target">${viewportContent}</div>${ZOOM_CONTROLS_HTML}`;
             } else {
@@ -741,6 +759,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (viewport) fitOrgChartInViewport(viewport);
         } else {
             const placeholder = `<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">No contacts found. Start adding contacts to build your org chart.</p>`;
+            if (briefingOnly) {
+                target.innerHTML = '';
+                return;
+            }
             if (target === contactOrgChartView) {
                 target.innerHTML = `<div class="org-chart-render-target">${placeholder}</div>${ZOOM_CONTROLS_HTML}`;
             } else {
@@ -750,6 +772,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         setupOrgChartDragDrop(target);
     };
+
+    /** One-shot scale-to-fit for briefing modal / print snapshot (no panning, no rAF). */
+    function fitOrgChartStaticSnapshot(viewport) {
+        const scalable = viewport.querySelector('.org-chart-scalable');
+        if (!scalable) return;
+        viewport.dataset.panX = '0';
+        viewport.dataset.panY = '0';
+        viewport.dataset.zoomFactor = '1';
+        scalable.style.removeProperty('transform');
+        void viewport.offsetHeight;
+        const pad = 24;
+        const vw = viewport.clientWidth;
+        const vh = viewport.clientHeight;
+        if (vw < 8 || vh < 8) return;
+        const w = Math.max(scalable.scrollWidth, 1);
+        const h = Math.max(scalable.scrollHeight, 1);
+        const scale = Math.min((vw - pad) / w, (vh - pad) / h, 1.35);
+        const s = Math.max(0.08, scale);
+        scalable.style.transform = `translate(-50%, -50%) scale(${s})`;
+    }
 
     // --- FIXED: Population & Baller Panning ---
     function fitOrgChartInViewport(viewport, zoomFactor) {
@@ -990,6 +1032,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const targetLower = productName.toLowerCase();
                 if (targetLower === "pri/sip") return !pLower.includes("pri") && !pLower.includes("sip");
                 if (targetLower === "sd-wan") return !pLower.includes("sdwan") && !pLower.includes("sd-wan");
+                if (targetLower === "dark fiber") return !pLower.includes("dark fiber");
                 return pLower !== targetLower;
             });
         } else {
@@ -1621,6 +1664,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const targetLower = productName.toLowerCase();
                         if (targetLower === 'pri/sip') return !pLower.includes('pri') && !pLower.includes('sip');
                         if (targetLower === 'sd-wan') return !pLower.includes('sdwan') && !pLower.includes('sd-wan');
+                        if (targetLower === 'dark fiber') return !pLower.includes('dark fiber');
                         return pLower !== targetLower;
                     });
                 } else {
@@ -1730,6 +1774,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (chartElement && sourceChartElement && sourceChartElement.innerHTML.trim() !== "" && !sourceChartElement.querySelector('.placeholder-text')) {
             try {
+                sourceChartElement.querySelectorAll('.org-chart-viewport').forEach((vp) => fitOrgChartStaticSnapshot(vp));
                 // --- ORG CHART FIX 2: Temporarily reset zoom for a clean screenshot ---
                 originalStyle = sourceChartElement.getAttribute('style');
                 // Force zoom: 1, add a background (which snapdom needs), and keep padding
@@ -1837,10 +1882,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 margin-bottom: 16px;
                             }
                             
-                            /* --- BORDER FIX: Added !important --- */
+                            /* Allow sections to split across pages so the engine does not leave huge blank gaps */
                             .briefing-section {
                                 background-color: #f9f9f9 !important;
-                                page-break-inside: avoid !important;
+                                page-break-inside: auto !important;
+                                break-inside: auto !important;
                                 border: 1px solid #eee !important;
                                 padding: 16px !important;
                                 border-radius: 8px !important;
@@ -1865,6 +1911,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 border-radius: 6px !important;
                                 font-family: inherit !important; /* <-- Use the body's sans-serif font */
                                 font-size: 0.9rem !important;
+                                page-break-inside: auto !important;
+                                break-inside: auto !important;
                             }
                             
                             /* --- This ensures our new canvas image looks good --- */
@@ -1874,6 +1922,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 height: auto;
                                 border: 1px solid #ccc;
                                 border-radius: 4px;
+                                page-break-inside: avoid !important;
+                                break-inside: avoid !important;
                             }
                         }
                     </style>
@@ -2047,185 +2097,41 @@ document.addEventListener("DOMContentLoaded", async () => {
             const icebreakersHtml = String(briefing.icebreakers || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
             let orgChartDisplayHtml = '';
-            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
-                const chartClone = contactOrgChartView.cloneNode(true);
-                chartClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
-                chartClone.querySelectorAll('.org-chart-zoom-controls').forEach(el => el.remove());
-                orgChartDisplayHtml = `
-                    <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
-                    <div class="briefing-section org-chart-print-container"
-                         style="
-                            max-height: 300px;
-                            overflow: hidden; /* We changed this from 'auto' */
-                            border: 1px solid var(--border-color);
-                            background: var(--bg-dark);
-                            padding: 10px;
-                            border-radius: 8px;
-                         ">
-                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
-                            ${chartClone.innerHTML}
-                        </div>
-                    </div>`;
-            } else if (contacts.length > 0) {
-                orgChartDisplayHtml = `
-                    <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
-                    <div class="briefing-section">
-                        <p>${keyPlayersHtml}</p>
-                    </div>`;
-            }
-
-            const briefingHtml = `
-                <div class="ai-briefing-container">
-                    <h4><i class="fas fa-database"></i> Internal Intelligence (What We Know)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Relationship Summary:</strong> ${briefing.summary}</p>
-                        ${orgChartDisplayHtml}
-                        <p><strong>Open Pipeline:</strong> ${briefing.pipeline}</p>
-                        <p><strong>Recent Activity:</strong></p>
-                        <div class="briefing-pre">${briefing.activity_highlights}</div>
-                    </div>
-                    <h4><i class="fas fa-globe"></i> External Intelligence (What's Happening Now)</h4>
-                    <div class="briefing-section">
-                        <p><strong>Latest News & Signals:</strong> ${briefing.news}</p>
-                        <p><strong>Potential New Contacts:</strong> ${briefing.new_contacts}</p>
-                        <p><strong>Social Icebreakers:</strong></p>
-                        <div class="briefing-pre">${icebreakersHtml}</div>
-                    </div>
-                    <h4><i class="fas fa-lightbulb"></i> AI Recommendation</h4>
-                    <div class="briefing-section recommendation">
-                        <p>${briefing.recommendation}</p>
-                    </div>
-                </div>`;
-            
-            const modalFooter = `
-                <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
-                <button id="modal-ok-btn" class="btn-primary">Close</button>
-            `;
-            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
-
-        } catch (error) {
-            console.error("Error invoking AI Briefing Edge Function:", error);
-            showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-        }
-    }
-
-// --- AI Briefing Handler ---
-    async function handleGenerateBriefing() {
-        if (!state.selectedAccountId) {
-            showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        const { account, contacts, activities, deals } = state.selectedAccountDetails;
-        if (!account) return;
-
-        showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-
-        try {
-            let orgChartText = "No hierarchy defined.";
             if (contacts.length > 0) {
-                const contactMap = new Map(contacts.map(c => [c.id, { ...c, children: [] }]));
-                const tree = [];
-                contactMap.forEach(contact => {
-                    if (contact.reports_to && contactMap.has(Number(contact.reports_to))) {
-                        contactMap.get(Number(contact.reports_to)).children.push(contact);
-                    } else {
-                        tree.push(contact);
+                const snapHost = document.createElement('div');
+                snapHost.className = 'ai-briefing-org-snapshot-host';
+                snapHost.style.cssText = 'position:fixed;left:-9999px;top:0;width:680px;height:280px;display:flex;flex-direction:column;overflow:hidden;visibility:hidden;pointer-events:none;';
+                document.body.appendChild(snapHost);
+                renderOrgChart(snapHost, { briefingOnly: true });
+                snapHost.querySelectorAll('[draggable="true"]').forEach((el) => el.setAttribute('draggable', 'false'));
+                const shell = snapHost.querySelector('.briefing-org-chart-shell');
+                const hasChart = shell && shell.innerHTML.trim() !== '';
+                snapHost.remove();
+
+                if (hasChart) {
+                    const unassignedEl = document.getElementById('unassigned-contacts-container');
+                    let unassignedHtml = '';
+                    if (unassignedEl && unassignedEl.innerHTML.trim() !== '') {
+                        const unassignedClone = unassignedEl.cloneNode(true);
+                        unassignedClone.querySelectorAll('[draggable="true"]').forEach(el => el.setAttribute('draggable', 'false'));
+                        unassignedClone.querySelectorAll('.org-chart-zoom-controls').forEach(el => el.remove());
+                        unassignedHtml = `<div class="unassigned-contacts-briefing">${unassignedClone.innerHTML}</div>`;
                     }
-                });
-                
-                const buildTextTree = (node, prefix = "") => {
-                    let text = `${prefix}- ${node.first_name} ${node.last_name} (${node.title || 'N/A'})\n`;
-                    node.children
-                        .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
-                        .forEach(child => {
-                            text += buildTextTree(child, prefix + "  ");
-                        });
-                    return text;
-                };
-                orgChartText = tree
-                    .sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""))
-                    .map(node => buildTextTree(node)).join('');
-            }
-
-            const internalData = {
-                accountName: account.name,
-                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
-                orgChart: orgChartText,
-                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
-                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
-                    const contact = contacts.find(c => c.id === act.contact_id);
-                    const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
-                }).join('\n')
-            };
-
-            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
-            if (error) throw error;
-
-    // --- UPDATED GLOBAL PROCESSING ---
-const summaryText = flattenAIResponse(briefing.summary);
-
-const keyPlayersHtml = flattenAIResponse(briefing.key_players)
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-const pipelineText = flattenAIResponse(briefing.pipeline);
-
-const activityHighlightsHtml = flattenAIResponse(briefing.activity_highlights);
-
-const newsText = flattenAIResponse(briefing.news);
-const newContactsText = flattenAIResponse(briefing.new_contacts);
-
-const icebreakersHtml = flattenAIResponse(briefing.icebreakers)
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-const recommendationText = flattenAIResponse(briefing.recommendation);
-
-            let orgChartDisplayHtml = '';
-
-            // --- THIS IS THE FIX ---
-            if (state.contactViewMode === 'org' && contactOrgChartView && contactOrgChartView.innerHTML.trim() !== "" && !contactOrgChartView.querySelector('.placeholder-text')) {
-                
-                // 1. Get the INNER HTML from the live chart
-                const chartCloneHtml = contactOrgChartView.innerHTML;
-                
-                // 2. Get the INNER HTML from the unassigned container
-                const unassignedContainer = document.getElementById("unassigned-contacts-container");
-                let unassignedCloneHtml = '';
-                if (unassignedContainer) {
-                    unassignedCloneHtml = unassignedContainer.innerHTML;
-                }
-                
-                // 3. Re-wrap the HTML in the IDs/classes that our CSS file needs
-                orgChartDisplayHtml = `
+                    orgChartDisplayHtml = `
                     <h4><i class="fas fa-sitemap"></i> Org Chart</h4>
-                    <div class="briefing-section org-chart-print-container"
-                         style="
-                            max-height: 300px;
-                            overflow: hidden;
-                            border: 1px solid var(--border-color);
-                            background: var(--bg-dark);
-                            padding: 10px;
-                            border-radius: 8px;
-                       ">
-                        <div id="org-chart-render-target" style="zoom: 0.75; transform-origin: top left;">
-                            
-                            <div id="contact-org-chart-view">
-                                ${chartCloneHtml}
-                            </div>
-                            <div id="unassigned-contacts-container">
-                                ${unassignedCloneHtml} 
-                            </div>
-                            
+                    <div class="briefing-section org-chart-print-container ai-briefing-org-wrap">
+                        <div id="org-chart-render-target" class="ai-briefing-org-chart-target">
+                            ${shell.outerHTML}
+                            ${unassignedHtml}
                         </div>
                     </div>`;
-                // --- END OF FIX ---
-                
-            } else if (contacts.length > 0) {
-                orgChartDisplayHtml = `
+                } else {
+                    orgChartDisplayHtml = `
                     <h4><i class="fas fa-users"></i> Key Players in CRM</h4>
                     <div class="briefing-section">
                         <p>${keyPlayersHtml}</p>
                     </div>`;
+                }
             }
 
             const briefingHtml = `
@@ -2255,14 +2161,19 @@ const recommendationText = flattenAIResponse(briefing.recommendation);
                 <button id="print-briefing-btn" class="btn-secondary"><i class="fas fa-print"></i> Print / Download</button>
                 <button id="modal-ok-btn" class="btn-primary">Close</button>
             `;
-            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter);
+            showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter, null, { closeOnBackdropClick: false, closeOnEscape: false });
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.querySelectorAll('.ai-briefing-org-wrap .org-chart-viewport').forEach((vp) => fitOrgChartStaticSnapshot(vp));
+                });
+            });
 
         } catch (error) {
             console.error("Error invoking AI Briefing Edge Function:", error);
             showModal("Error", `Failed to generate AI briefing: ${error.message}. Please try again.`, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
-
 
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
