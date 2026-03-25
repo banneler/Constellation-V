@@ -84,14 +84,14 @@
         });
 
         const GPC_COVER_SNIPPETS = [
-            { label: 'Exceptional customer service', text: 'What sets our company apart is our exceptional customer service. From the first customer contact through design, turn-up, testing and maintenance, you will work with a local team that\'s committed to developing custom solutions to help you achieve your business goals.' },
-            { label: 'Scalable fiber-driven technology', text: 'From small storefronts to large enterprises, our fully scalable, fiber-driven technology services will accelerate the success of your business.' },
-            { label: 'Why Us: local team & custom solutions', text: 'Exceptional customer service experience. Nebraska- & Indiana-based teams. Custom solutions. High-performing network, high-performing people. 24/7 tech support.' },
-            { label: '24/7 Network Operations Center', text: 'We take great pride in our high-performing fiber network. We monitor around the clock to ensure uptime for our customers. Local network monitoring in Blair, Nebraska. Highly skilled technicians. Rapid response to outages and alarms.' },
-            { label: 'High-performing network, Midwest', text: 'We take pride in being one of the largest privately owned internet service providers for businesses in the Midwest. We build our networks with redundancy and scalability to meet the needs of your business today, while also being able to grow with your business.' },
-            { label: 'Network differentiators', text: '99% buried fiber. Unique routes. MEF-certified. Reliability — 99.99% availability on the core. 20,000+ mile fiber-optic network. Secure fiber-ringed network designed with redundancy, scalability and flexibility. Local presence — technicians strategically located across Nebraska and Southeast Indiana.' },
-            { label: 'Business Internet', text: 'Reliable, high-performance dedicated business internet from 10 Mbps to 400 Gbps.' },
-            { label: 'Managed Ethernet', text: 'Scalable, secure transport across multiple locations, delivering cost savings and efficiency.' }
+            { label: 'Exceptional customer service', text: 'You gain a team of knowledgeable experts dedicated to building a tailored, endtoend solution that fits your business. From initial contact through design, turnup, testing, and ongoing maintenance, you work with a local team committed to creating solutions that support your goals. Because our teams live and work in the communities we serve, we\'re invested in helping them thrive -- including your organization.' },
+            { label: 'Scalable fiber-driven technology', text: 'Our technology is designed to meet the needs of small storefronts and medium-to-large enterprises. Our network and products are fully scalable, backed by fiber-driven technology services that will accelerate the success of your business.' },
+            { label: 'Why Us - Local Team & Custom Solutions', text: 'Experience a true partnership with GPC, a proven provider that delivers stable, future-proof solutions backed by over 100 years of expertise. Our teams are strategically placed across our network footprint that stretches Nebraska, Colorado, Iowa and Southeast Indiana. Powered by our 20,000-mile MEF-certified, high-capacity network, businesses and carriers benefit from state-of-the-art connectivity backed by custom-built strategies, expert engineering and local support.' },
+            { label: '24/7 NOC', text: 'Local network monitoring in our Blair, Nebraska Network Operations Center (NOC) provides real time and rapid response to outages and alarms, ensuring optimal up-time and operational efficiency.' },
+            { label: 'High-Performing Network - Midwest', text: 'Your business is our priority. We build reliable, scalable network solutions that meet your needs now and adapt seamlessly as they evolve. Keep operations running smoothly with the confidence that your connectivity is powered by one of the Midwest\'s largest privately owned business internet providers.' },
+            { label: 'Network Differentiators', text: 'GPC\'s fiber network spans over 20,000 miles and is 99% buried, featuring unique routes and ringed redundancy to ensure maximum uptime. The MEF-certified network delivers 99.99% core reliability, and its secure design provides scalability and flexibility. GPC maintains a strong local presence, with technicians strategically located across Nebraska and Indiana for rapid outage resolutions.' },
+            { label: 'Business Internet', text: 'GPC offers flexible business internet solutions built to meet the demands of your organization. From 10 Mbps to 400 Gbps, our high-performing network delivers the reliability and speeds your business depends on to ensure you have the bandwidth to operate efficiently and grow confidently.' },
+            { label: 'Managed Ethernet', text: 'Increase efficiency and cost savings, with scalable, secure transport across your different business locations.' }
         ];
         const GPC_CUSTOM_PAGE_SNIPPETS = [
             { label: 'Executive Summary - General', text: `Great Plains Communications (GPC) is pleased to present this proposal for enterprise-grade connectivity and managed services. From small storefronts to large enterprises, our fully scalable, fiber-driven technology services are designed to accelerate the success of your business. We are one of the largest privately owned internet service providers for businesses in the Midwest, with a high-performing network built for redundancy and scalability to meet your needs today and grow with you tomorrow.
@@ -450,6 +450,38 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 if (btn) btn.classList.toggle('hidden', opts.length <= 1);
             });
         }
+        function createLocationPromotionRow(promo) {
+            var p = promo || {};
+            var desc = (p.description != null) ? String(p.description).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
+            var amount = (p.amount != null) ? String(p.amount) : '';
+            return '<div class="location-promo-row flex items-center gap-2">' +
+                '<input type="text" class="promo-description w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500" placeholder="Promotion description" value="' + desc + '">' +
+                '<input type="number" class="promo-amount w-36 border border-slate-200 p-2 rounded text-sm text-right outline-none focus:border-orange-500" step="0.01" placeholder="Amount" value="' + amount + '">' +
+                '<button type="button" class="remove-promo-btn text-slate-300 hover:text-red-500 font-bold px-2">X</button>' +
+                '</div>';
+        }
+        function appendLocationPromotionRow(locationBlock, promo) {
+            var container = locationBlock.querySelector('.location-promotions-container');
+            if (!container) return;
+            container.insertAdjacentHTML('beforeend', createLocationPromotionRow(promo));
+            var row = container.lastElementChild;
+            var removeBtn = row && row.querySelector('.remove-promo-btn');
+            if (removeBtn) removeBtn.addEventListener('click', function() { row.remove(); if (!_suppressDirty) setDirty(true); });
+        }
+        function readLocationPromotions(locationBlock) {
+            return Array.from(locationBlock.querySelectorAll('.location-promo-row')).map(function(row) {
+                return {
+                    description: row.querySelector('.promo-description') ? row.querySelector('.promo-description').value : '',
+                    amount: row.querySelector('.promo-amount') ? row.querySelector('.promo-amount').value : ''
+                };
+            }).filter(function(p) { return (p.description && p.description.trim()) || (p.amount && String(p.amount).trim()); });
+        }
+        function setLocationPromotionsFromData(locationBlock, promotions) {
+            var container = locationBlock.querySelector('.location-promotions-container');
+            if (!container) return;
+            container.innerHTML = '';
+            if (Array.isArray(promotions) && promotions.length) promotions.forEach(function(p) { appendLocationPromotionRow(locationBlock, p || {}); });
+        }
         function calculateOptionTotal(optionBlock) {
             var gt = 0;
             optionBlock.querySelectorAll('.location-total').forEach(function(l) {
@@ -465,7 +497,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 row.querySelector('.row-total').textContent = '$' + (price * qty).toFixed(2);
             }
             var locTotal = 0;
-            locBlock.querySelectorAll('.line-items-body tr').forEach(function(r) {
+            locBlock.querySelectorAll('.line-items-body tr.pricing-row').forEach(function(r) {
                 var p = parseFloat(r.querySelector('.price-input').value) || 0;
                 var q = parseInt(r.querySelector('.qty-input').value, 10) || 0;
                 locTotal += p * q;
@@ -479,23 +511,41 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var prod = (data && data.prod != null) ? String(data.prod).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
             var price = (data && data.price != null) ? String(data.price) : '';
             var qty = (data && data.qty != null) ? String(data.qty) : '1';
-            var html = '<tr class="border-b border-slate-100 group">' +
+            var nrcEnabled = !!(data && data.nrcEnabled);
+            var nrcDescription = (data && data.nrcDescription != null) ? String(data.nrcDescription).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
+            var nrcAmount = (data && data.nrcAmount != null) ? String(data.nrcAmount) : '';
+            var html = '<tr class="pricing-row border-b border-slate-100 group">' +
                 '<td class="p-2 relative align-top"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" value="' + prod + '"></td>' +
                 '<td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01" value="' + price + '"></td>' +
                 '<td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="' + qty + '"></td>' +
                 '<td class="p-2 text-right font-semibold text-slate-700 row-total">$0.00</td>' +
-                '<td class="p-2 text-center"><button type="button" class="text-slate-300 hover:text-red-500 font-bold opacity-0 group-hover:opacity-100 remove-row-btn">X</button></td></tr>';
+                '<td class="p-2 text-center"><label class="flex items-center justify-center gap-1 text-[10px] font-semibold text-slate-500 uppercase mb-1 whitespace-nowrap"><input type="checkbox" class="row-nrc-toggle" ' + (nrcEnabled ? 'checked' : '') + '><span class="row-nrc-label-text">NRC</span></label><button type="button" class="text-slate-300 hover:text-red-500 font-bold opacity-0 group-hover:opacity-100 remove-row-btn">X</button></td></tr>' +
+                '<tr class="row-nrc-subline ' + (nrcEnabled ? '' : 'hidden') + ' bg-slate-50 border-b border-slate-100"><td colspan="5" class="px-2 pb-3"><div class="rounded border border-slate-200 bg-white px-3 py-2 flex items-center gap-3">' +
+                '<input type="text" class="row-nrc-description w-full border border-slate-200 p-1.5 rounded text-sm outline-none focus:border-orange-500" placeholder="NRC description" value="' + nrcDescription + '">' +
+                '<input type="number" class="row-nrc-amount w-40 border border-slate-200 p-1.5 rounded text-sm text-right outline-none focus:border-orange-500" step="0.01" placeholder="NRC amount" value="' + nrcAmount + '">' +
+                '</div></td></tr>';
             tbody.insertAdjacentHTML('beforeend', html);
-            var row = tbody.lastElementChild;
+            var nrcRow = tbody.lastElementChild;
+            var row = nrcRow.previousElementSibling;
             wireProdAutocomplete(row.querySelector('.prod-name'));
+            var nrcToggle = row.querySelector('.row-nrc-toggle');
             row.querySelector('.price-input').addEventListener('input', function() { updateMath(row, locBlock, optionBlock); });
             row.querySelector('.qty-input').addEventListener('input', function() { updateMath(row, locBlock, optionBlock); });
             row.querySelector('.remove-row-btn').addEventListener('click', function() {
-                if (tbody.children.length > 1) { row.remove(); updateMath(null, locBlock, optionBlock); }
+                if (tbody.querySelectorAll('tr.pricing-row').length > 1) {
+                    nrcRow.remove();
+                    row.remove();
+                    updateMath(null, locBlock, optionBlock);
+                }
             });
+            if (nrcToggle) {
+                var syncNrc = function() { nrcRow.classList.toggle('hidden', !nrcToggle.checked); if (!_suppressDirty) setDirty(true); };
+                nrcToggle.addEventListener('change', syncNrc);
+                syncNrc();
+            }
             updateMath(row, locBlock, optionBlock);
         }
-        function addLocationBlock(optionBlock, locName, items) {
+        function addLocationBlock(optionBlock, locName, items, promotions) {
             globalLocCounter++;
             var locId = 'location-' + globalLocCounter;
             var nameEsc = (locName || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
@@ -503,17 +553,21 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var html = '<div class="location-block border border-slate-200 rounded-lg p-5 bg-white relative" id="' + locId + '">' +
                 '<button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 font-bold text-sm remove-location-btn">X</button>' +
                 '<div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location name or address" value="' + nameEsc + '"></div>' +
-                '<table class="w-full text-left border-collapse mb-4 min-w-[600px]">' +
-                '<thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase"><th class="p-3">PRODUCT</th><th class="p-3 w-32">LIST PRICE</th><th class="p-3 w-24">QTY</th><th class="p-3 w-32 text-right">TOTAL</th><th class="p-3 w-12"></th></tr></thead>' +
-                '<tbody class="line-items-body"></tbody></table>' +
+                '<div class="mb-4"><table class="w-full text-left border-collapse table-fixed">' +
+                '<thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase"><th class="p-2">PRODUCT</th><th class="p-2 w-28">LIST PRICE</th><th class="p-2 w-20">QTY</th><th class="p-2 w-28 text-right">TOTAL</th><th class="p-2 w-14"></th></tr></thead>' +
+                '<tbody class="line-items-body"></tbody></table></div>' +
                 '<div class="flex justify-between items-center mt-2 border-t border-slate-100 pt-4">' +
                 '<button type="button" class="text-blue-500 text-sm font-semibold hover:text-blue-600 add-row-btn">+ Add product line</button>' +
-                '<div class="font-bold text-slate-600 text-sm">Location total: <span class="location-total text-slate-900 ml-2 text-lg">$0.00</span></div></div></div>';
+                '<div class="font-bold text-slate-600 text-sm">Location total: <span class="location-total text-slate-900 ml-2 text-lg">$0.00</span></div></div>' +
+                '<div class="mt-4 border-t border-slate-100 pt-4"><div class="flex justify-between items-center mb-2"><span class="text-xs font-bold uppercase tracking-wider text-slate-500">Promotions</span><button type="button" class="text-blue-500 text-sm font-semibold hover:text-blue-600 add-promo-btn">+ Add Promotion</button></div><div class="location-promotions-container space-y-2"></div></div>' +
+                '</div>';
             locContainer.insertAdjacentHTML('beforeend', html);
             var block = document.getElementById(locId);
             if (items && items.length) items.forEach(function(it) { addRow(block, optionBlock, it); });
             else addRow(block, optionBlock, null);
+            setLocationPromotionsFromData(block, promotions);
             block.querySelector('.add-row-btn').addEventListener('click', function() { addRow(block, optionBlock, null); });
+            block.querySelector('.add-promo-btn').addEventListener('click', function() { appendLocationPromotionRow(block); if (!_suppressDirty) setDirty(true); });
             block.querySelector('.remove-location-btn').addEventListener('click', function() {
                 var n = optionBlock.querySelectorAll('.location-block').length;
                 if (n <= 1) { showToast('Each pricing option needs at least one location.', 'error'); return; }
@@ -541,7 +595,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 '<span class="font-bold text-slate-700">Option monthly total</span>' +
                 '<span class="option-grand-total text-2xl font-extrabold text-blue-600">$0.00</span></div></div>');
             var optBlock = document.getElementById(optId);
-            optBlock.querySelector('.add-location-in-option-btn').addEventListener('click', function() { addLocationBlock(optBlock, '', null); });
+            optBlock.querySelector('.add-location-in-option-btn').addEventListener('click', function() { addLocationBlock(optBlock, '', null, null); });
             optBlock.querySelector('.remove-pricing-option-btn').addEventListener('click', function() {
                 if (optionsContainer.querySelectorAll('.pricing-option-block').length <= 1) {
                     showToast('Keep at least one pricing option.', 'error');
@@ -553,9 +607,9 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 if (!_suppressDirty) setDirty(true);
             });
             if (locationsData && locationsData.length) {
-                locationsData.forEach(function(loc) { addLocationBlock(optBlock, loc.name, loc.items); });
+                locationsData.forEach(function(loc) { addLocationBlock(optBlock, loc.name, loc.items, loc.promotions); });
             } else {
-                addLocationBlock(optBlock, '', null);
+                addLocationBlock(optBlock, '', null, null);
             }
             updateOptionTitles();
             updateOptionRemoveVisibility();
@@ -586,11 +640,19 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     locations: Array.from(optBlock.querySelectorAll('.location-block')).map(function(block) {
                         return {
                             name: block.querySelector('.loc-name-input').value,
-                            items: Array.from(block.querySelectorAll('.line-items-body tr')).map(function(tr) {
+                            promotions: readLocationPromotions(block),
+                            items: Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(function(tr) {
+                                var nrcRow = tr.nextElementSibling;
+                                var nrcToggle = tr.querySelector('.row-nrc-toggle');
+                                var nrcDescEl = nrcRow ? nrcRow.querySelector('.row-nrc-description') : null;
+                                var nrcAmountEl = nrcRow ? nrcRow.querySelector('.row-nrc-amount') : null;
                                 return {
                                     prod: tr.querySelector('.prod-name').value,
                                     price: tr.querySelector('.price-input').value,
-                                    qty: tr.querySelector('.qty-input').value
+                                    qty: tr.querySelector('.qty-input').value,
+                                    nrcEnabled: !!(nrcToggle && nrcToggle.checked),
+                                    nrcDescription: nrcDescEl ? nrcDescEl.value : '',
+                                    nrcAmount: nrcAmountEl ? nrcAmountEl.value : ''
                                 };
                             })
                         };
@@ -980,7 +1042,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     var legacyLocs = Array.isArray(data.locations) ? data.locations : [];
                     var hasLegacy = legacyLocs.length || (data.contractTerm != null && String(data.contractTerm).trim() !== '');
                     if (hasLegacy) {
-                        addPricingOption(data.contractTerm || '', legacyLocs.length ? legacyLocs : null);
+                        addPricingOption(data.contractTerm || '', legacyLocs.length ? legacyLocs.map(function(loc) { return Object.assign({}, loc, { promotions: Array.isArray(loc.promotions) ? loc.promotions : [] }); }) : null);
                     } else {
                         addPricingOption('', null);
                     }
@@ -1470,7 +1532,16 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 if (item.price !== '' && !isNaN(parseFloat(item.price))) priceVal = '$' + Math.round(parseFloat(item.price)).toLocaleString();
                 var totalVal = (item.total && item.total.replace) ? item.total.replace(/\.\d{2}$/, '') : item.total || '$0';
                 if (typeof totalVal === 'string' && totalVal.match(/^\$[\d,]+\.\d{2}$/)) totalVal = totalVal.replace(/\.\d{2}$/, '');
-                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + priceVal + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
+                var nrcHtml = '';
+                if (item.nrcEnabled) {
+                    var nrcAmountVal = parseFloat(item.nrcAmount);
+                    var nrcAmountText = '';
+                    if (!isNaN(nrcAmountVal)) nrcAmountText = '$' + Math.abs(nrcAmountVal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    var nrcDesc = (item.nrcDescription || '').trim();
+                    var nrcLabel = nrcDesc ? ('NRC: ' + escapeHtml(nrcDesc)) : 'NRC';
+                    nrcHtml = '<div style="font-size: 11px; color: #475569; margin-top: 6px;">' + nrcLabel + (nrcAmountText ? (' <strong style="font-size: 11px; color: #334155; margin-left: 8px;">' + escapeHtml(nrcAmountText) + '</strong>') : '') + '</div>';
+                }
+                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + priceVal + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
             };
             var optBlocks = Array.from(document.querySelectorAll('.pricing-option-block'));
             if (!optBlocks.length) {
@@ -1486,16 +1557,25 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     var allRows = [];
                     locationBlocks.forEach(function(block) {
                         var locName = (block.querySelector('.loc-name-input') && block.querySelector('.loc-name-input').value) || 'Location';
-                        var rows = Array.from(block.querySelectorAll('.line-items-body tr')).map(function(tr) {
+                        var rows = Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(function(tr) {
+                            var nrcRow = tr.nextElementSibling;
+                            var nrcToggle = tr.querySelector('.row-nrc-toggle');
+                            var nrcDescEl = nrcRow ? nrcRow.querySelector('.row-nrc-description') : null;
+                            var nrcAmountEl = nrcRow ? nrcRow.querySelector('.row-nrc-amount') : null;
                             return {
                                 prod: tr.querySelector('.prod-name') ? tr.querySelector('.prod-name').value : '',
                                 price: tr.querySelector('.price-input') ? tr.querySelector('.price-input').value : '',
                                 qty: tr.querySelector('.qty-input') ? tr.querySelector('.qty-input').value : '1',
-                                total: tr.querySelector('.row-total') ? tr.querySelector('.row-total').textContent : '$0.00'
+                                total: tr.querySelector('.row-total') ? tr.querySelector('.row-total').textContent : '$0.00',
+                                nrcEnabled: !!(nrcToggle && nrcToggle.checked),
+                                nrcDescription: nrcDescEl ? nrcDescEl.value : '',
+                                nrcAmount: nrcAmountEl ? nrcAmountEl.value : ''
                             };
                         });
+                        var promotions = readLocationPromotions(block);
                         if (locationBlocks.length > 1) allRows.push({ type: 'loc', name: locName });
                         rows.forEach(function(item, idx) { allRows.push({ type: 'row', item: item, bg: (idx % 2 === 0) ? '#E8E8E8' : '#f5f5f5' }); });
+                        promotions.forEach(function(promo) { allRows.push({ type: 'promo', promo: promo }); });
                     });
                     var grandTotalNoDecimals = String(grandTotalText).replace(/\.(\d{2})$/, '') || grandTotalText;
                     var totalBlockHtml = '<div style="margin-top: 20px;"><div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalNoDecimals) + '</div></div></div>';
@@ -1523,6 +1603,15 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                                     rowCount = 0;
                                 }
                                 current.push({ type: 'loc', html: '<div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; padding: 8px 16px; border: 1px solid ' + borderClr + '; border-top: none;">' + escapeHtml(allRows[r].name) + '</div>' });
+                                rowCount++;
+                            } else if (allRows[r].type === 'promo') {
+                                var promoAmountVal = parseFloat(allRows[r].promo.amount);
+                                var promoAmountText = (!isNaN(promoAmountVal) && promoAmountVal !== 0)
+                                    ? '$' + promoAmountVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    : '';
+                                var promoDesc = (allRows[r].promo.description || '').trim();
+                                var promoHtml = '<div style="margin: 8px 0 0 0; padding: 8px 12px; border: 1px solid ' + borderClr + '; border-top: none; background: #eef2ff; color: #1e293b; font-size: 12px;"><strong style="text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; margin-right: 8px;">Promotion</strong>' + escapeHtml(promoDesc || 'Applied') + (promoAmountText ? ('<span style="float: right; font-weight: 700;">' + escapeHtml(promoAmountText) + '</span>') : '') + '</div>';
+                                current.push({ type: 'promo', html: promoHtml });
                                 rowCount++;
                             } else {
                                 current.push({ type: 'row', html: rowToHtmlPricing(allRows[r].item, allRows[r].bg) });
