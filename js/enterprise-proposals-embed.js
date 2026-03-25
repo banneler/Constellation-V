@@ -1555,7 +1555,6 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             await addPageFromCanvas(canvas);
         }
         else if (slideFile === 'CUSTOM_PRICING') {
-            var MAX_ROWS_PER_PAGE = 14;
             var borderClr = '#d1d5db';
             var locHeaderOrange = '<div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase; border: 1px solid ' + borderClr + '; border-bottom: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">PRODUCT</div><div style="width: 140px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">LIST PRICE</div><div style="width: 90px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">QTY</div><div style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</div></div>';
             var rowToHtmlPricing = function(item, bg) {
@@ -1573,6 +1572,49 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     nrcHtml = '<div style="font-size: 11px; color: #475569; margin-top: 6px;">' + nrcLabel + (nrcAmountText ? (' <strong style="font-size: 11px; color: #334155; margin-left: 8px;">' + escapeHtml(nrcAmountText) + '</strong>') : '') + '</div>';
                 }
                 return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + priceVal + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
+            };
+            var buildPricingBody = function(rows, includeTotals, totalBlockHtml, termLineHtml) {
+                var body = '';
+                var firstInChunk = true;
+                for (var ci = 0; ci < rows.length; ci++) {
+                    var item = rows[ci];
+                    if (item.type === 'loc') {
+                        if (!firstInChunk) body += '</div>';
+                        body += '<div style="margin-top: ' + (firstInChunk ? 0 : 16) + 'px; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">';
+                        if (firstInChunk) { body += locHeaderOrange; firstInChunk = false; }
+                        body += item.html;
+                    } else {
+                        if (firstInChunk) {
+                            body += '<div style="margin-top: 0; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">' + locHeaderOrange;
+                            firstInChunk = false;
+                        }
+                        body += item.html;
+                    }
+                }
+                if (!firstInChunk) body += '</div>';
+                if (includeTotals) body += totalBlockHtml + termLineHtml;
+                return body;
+            };
+            var measurePricingBody = function(bodyHtml) {
+                var wrapper = document.getElementById('gpc-interior-render-wrapper');
+                wrapper.innerHTML = '';
+                var card = document.createElement('div');
+                card.className = 'gpc-pdf-font';
+                card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_INTERIOR_BG + '") no-repeat 0 0; background-size: 100% 100%;';
+                var contentArea = document.createElement('div');
+                contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: 11pt; line-height: 1.4; padding-top: 46px;';
+                contentArea.innerHTML = bodyHtml;
+                card.appendChild(contentArea);
+                wrapper.appendChild(card);
+                return {
+                    scrollHeight: contentArea.scrollHeight,
+                    clientHeight: contentArea.clientHeight
+                };
+            };
+            var bodyFits = function(rows, includeTotals, totalBlockHtml, termLineHtml) {
+                var bodyHtml = buildPricingBody(rows, includeTotals, totalBlockHtml, termLineHtml);
+                var m = measurePricingBody(bodyHtml);
+                return m.scrollHeight <= m.clientHeight;
             };
             var optBlocks = Array.from(document.querySelectorAll('.pricing-option-block'));
             if (!optBlocks.length) {
@@ -1616,66 +1658,53 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         var c0 = await captureInteriorPageGPC(baseTitle, html0, { extraPaddingTop: 46 });
                         await addPageFromCanvas(c0);
                     } else {
-                        var MAX_ROWS_LAST_PAGE = 12;
                         var chunks = [];
                         var current = [];
-                        var rowCount = 0;
                         for (var r = 0; r < allRows.length; r++) {
-                            var isLastRow = (r === allRows.length - 1);
-                            if (isLastRow && rowCount >= MAX_ROWS_LAST_PAGE) {
-                                chunks.push(current);
-                                current = [];
-                                rowCount = 0;
-                            }
+                            var rowObj;
                             if (allRows[r].type === 'loc') {
-                                if (rowCount > 0 && rowCount + 1 >= MAX_ROWS_PER_PAGE) {
-                                    chunks.push(current);
-                                    current = [];
-                                    rowCount = 0;
-                                }
-                                current.push({ type: 'loc', html: '<div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; padding: 8px 16px; border: 1px solid ' + borderClr + '; border-top: none;">' + escapeHtml(allRows[r].name) + '</div>' });
-                                rowCount++;
+                                rowObj = { type: 'loc', html: '<div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; padding: 8px 16px; border: 1px solid ' + borderClr + '; border-top: none;">' + escapeHtml(allRows[r].name) + '</div>' };
                             } else if (allRows[r].type === 'promo') {
                                 var promoAmountVal = parseFloat(allRows[r].promo.amount);
                                 var promoAmountText = (!isNaN(promoAmountVal) && promoAmountVal !== 0)
                                     ? '$' + promoAmountVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                                     : '';
                                 var promoDesc = (allRows[r].promo.description || '').trim();
-                                var promoHtml = '<div style="margin: 8px 0 0 0; padding: 8px 12px; border: 1px solid ' + borderClr + '; border-top: none; background: #eef2ff; color: #1e293b; font-size: 12px;"><strong style="text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; margin-right: 8px;">Promotion</strong>' + escapeHtml(promoDesc || 'Applied') + (promoAmountText ? ('<span style="float: right; font-weight: 700;">' + escapeHtml(promoAmountText) + '</span>') : '') + '</div>';
-                                current.push({ type: 'promo', html: promoHtml });
-                                rowCount++;
+                                rowObj = { type: 'promo', html: '<div style="margin: 8px 0 0 0; padding: 8px 12px; border: 1px solid ' + borderClr + '; border-top: none; background: #eef2ff; color: #1e293b; font-size: 12px;"><strong style="text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; margin-right: 8px;">Promotion</strong>' + escapeHtml(promoDesc || 'Applied') + (promoAmountText ? ('<span style="float: right; font-weight: 700;">' + escapeHtml(promoAmountText) + '</span>') : '') + '</div>' };
                             } else {
-                                current.push({ type: 'row', html: rowToHtmlPricing(allRows[r].item, allRows[r].bg) });
-                                rowCount++;
+                                rowObj = { type: 'row', html: rowToHtmlPricing(allRows[r].item, allRows[r].bg) };
                             }
-                            if (rowCount >= MAX_ROWS_PER_PAGE && !isLastRow) {
-                                chunks.push(current);
-                                current = [];
-                                rowCount = 0;
+
+                            var candidate = current.concat([rowObj]);
+                            if (candidate.length && !bodyFits(candidate, false, totalBlockHtml, termLineHtml)) {
+                                if (current.length === 0) {
+                                    chunks.push(candidate);
+                                    current = [];
+                                } else {
+                                    chunks.push(current);
+                                    current = [rowObj];
+                                }
+                            } else {
+                                current = candidate;
                             }
                         }
                         if (current.length) chunks.push(current);
+
+                        // Ensure the final chunk has room for totals + term line.
+                        while (chunks.length && !bodyFits(chunks[chunks.length - 1], true, totalBlockHtml, termLineHtml)) {
+                            var lastChunk = chunks[chunks.length - 1];
+                            if (lastChunk.length <= 1) break;
+                            var spill = [];
+                            while (lastChunk.length > 1 && !bodyFits(lastChunk, true, totalBlockHtml, termLineHtml)) {
+                                spill.unshift(lastChunk.pop());
+                            }
+                            if (spill.length) chunks.push(spill);
+                            else break;
+                        }
+
                         for (var p = 0; p < chunks.length; p++) {
                             var isLastChunk = (p === chunks.length - 1);
-                            var body = '';
-                            var firstInChunk = true;
-                            for (var ci = 0; ci < chunks[p].length; ci++) {
-                                var item = chunks[p][ci];
-                                if (item.type === 'loc') {
-                                    if (!firstInChunk) body += '</div>';
-                                    body += '<div style="margin-top: ' + (firstInChunk ? 0 : 16) + 'px; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">';
-                                    if (firstInChunk) { body += locHeaderOrange; firstInChunk = false; }
-                                    body += item.html;
-                                } else {
-                                    if (firstInChunk) {
-                                        body += '<div style="margin-top: 0; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">' + locHeaderOrange;
-                                        firstInChunk = false;
-                                    }
-                                    body += item.html;
-                                }
-                            }
-                            body += '</div>';
-                            if (isLastChunk) body += totalBlockHtml + termLineHtml;
+                            var body = buildPricingBody(chunks[p], isLastChunk, totalBlockHtml, termLineHtml);
                             var headerTitle = p === 0 ? baseTitle : (baseTitle + ' (Cont.)');
                             var canvasP = await captureInteriorPageGPC(headerTitle, body, { extraPaddingTop: 46 });
                             await addPageFromCanvas(canvasP);
