@@ -450,6 +450,32 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 if (btn) btn.classList.toggle('hidden', opts.length <= 1);
             });
         }
+        function buildPricingOptionSnapshot(optionBlock) {
+            if (!optionBlock) return { contractTerm: '', locations: [] };
+            return {
+                contractTerm: (optionBlock.querySelector('.option-term-input') && optionBlock.querySelector('.option-term-input').value) || '',
+                locations: Array.from(optionBlock.querySelectorAll('.location-block')).map(function(block) {
+                    return {
+                        name: block.querySelector('.loc-name-input') ? block.querySelector('.loc-name-input').value : '',
+                        promotions: readLocationPromotions(block),
+                        items: Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(function(tr) {
+                            var nrcRow = tr.nextElementSibling;
+                            var nrcToggle = tr.querySelector('.row-nrc-toggle');
+                            var nrcDescEl = nrcRow ? nrcRow.querySelector('.row-nrc-description') : null;
+                            var nrcAmountEl = nrcRow ? nrcRow.querySelector('.row-nrc-amount') : null;
+                            return {
+                                prod: tr.querySelector('.prod-name') ? tr.querySelector('.prod-name').value : '',
+                                price: tr.querySelector('.price-input') ? tr.querySelector('.price-input').value : '',
+                                qty: tr.querySelector('.qty-input') ? tr.querySelector('.qty-input').value : '',
+                                nrcEnabled: !!(nrcToggle && nrcToggle.checked),
+                                nrcDescription: nrcDescEl ? nrcDescEl.value : '',
+                                nrcAmount: nrcAmountEl ? nrcAmountEl.value : ''
+                            };
+                        })
+                    };
+                })
+            };
+        }
         function createLocationPromotionRow(promo) {
             var p = promo || {};
             var desc = (p.description != null) ? String(p.description).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
@@ -616,7 +642,12 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
         var addPricingOptBtn = document.getElementById('add-pricing-option-btn');
         if (optionsContainer && addPricingOptBtn) {
-            addPricingOptBtn.addEventListener('click', function() { addPricingOption('', null); });
+            addPricingOptBtn.addEventListener('click', function() {
+                var options = optionsContainer.querySelectorAll('.pricing-option-block');
+                var lastOption = options.length ? options[options.length - 1] : null;
+                var snapshot = buildPricingOptionSnapshot(lastOption);
+                addPricingOption(snapshot.contractTerm, snapshot.locations);
+            });
             addPricingOption('', null);
         } else if (!optionsContainer) {
             console.warn('[Proposals] #pricing-options-container not found; pricing UI disabled.');
