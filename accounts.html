@@ -44,9 +44,12 @@
                     <div class="account-picker-body">
                         <div class="accounts-mobile-picker-wrap">
                             <label for="mobile-account-select" class="accounts-mobile-picker-label">Account</label>
-                            <select id="mobile-account-select" class="accounts-mobile-picker-select">
-                                <option value="">Select an account</option>
-                            </select>
+                            <div class="accounts-mobile-picker-row">
+                                <select id="mobile-account-select" class="accounts-mobile-picker-select">
+                                    <option value="">Select an account</option>
+                                </select>
+                                <button id="mobile-add-account-btn" class="btn-icon account-picker-icon accounts-mobile-add-btn" title="Add New Account"><i class="fas fa-plus"></i></button>
+                            </div>
                         </div>
                         <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
                         <div id="account-filter-icons" class="account-filter-icons" role="group" aria-label="Filter accounts">

@@ -3492,6 +3492,14 @@ body.theme-green {
     border: 1px solid var(--border-color);
     color: var(--text-light);
   }
+  .contacts-mobile-picker-row {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+  }
+  .contacts-mobile-add-btn {
+    flex-shrink: 0;
+  }
   .contact-picker-body > button, .contact-picker-body > input[type="text"], .contact-picker-body > .display-toggle-container, .contact-picker-body > .sort-pill {
     flex-shrink: 0;
   }
@@ -3518,6 +3526,14 @@ body.theme-green {
     background-color: var(--bg-medium);
     border: 1px solid var(--border-color);
     color: var(--text-light);
+  }
+  .accounts-mobile-picker-row {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+  }
+  .accounts-mobile-add-btn {
+    flex-shrink: 0;
   }
   .campaigns-mobile-picker-wrap {
     display: none;
@@ -12064,7 +12080,7 @@ body:not(.theme-green) .list-item.selected {
   }
   .content-area {
     padding-top: calc(env(safe-area-inset-top, 0px) + 0.35rem);
-    padding-bottom: 72px;
+    padding-bottom: 64px;
   }
   .nav-sidebar {
     width: 100%;
@@ -12072,7 +12088,7 @@ body:not(.theme-green) .list-item.selected {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 15px;
+    padding: 8px 12px;
     box-shadow: 0 4px 6px -1px var(--shadow-medium);
     border-radius: 0 !important;
     position: fixed;
@@ -12134,17 +12150,33 @@ body:not(.theme-green) .list-item.selected {
     inset-block: calc(var(--spacing) * 0);
     right: calc(var(--spacing) * 0);
     display: flex;
-    width: 260px;
-    max-width: 85vw;
+    width: 240px;
+    max-width: 82vw;
     flex-direction: column;
     overflow-y: auto;
-    padding-inline: calc(var(--spacing) * 4);
-    padding-block: calc(var(--spacing) * 6);
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 4);
     display: flex !important;
     background-color: var(--bg-light);
     box-shadow: -4px 0 20px rgba(0,0,0,0.15);
     z-index: 131;
     animation: nav-drawer-in 0.25s ease;
+  }
+  .nav-sidebar.nav-mobile-open .nav-top-section {
+    gap: 0.45rem;
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.45rem;
+  }
+  .nav-sidebar.nav-mobile-open .nav-links-section {
+    gap: 0.2rem;
+  }
+  .nav-sidebar.nav-mobile-open .nav-button {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.88rem;
+    min-height: 2.05rem;
+  }
+  .nav-sidebar.nav-mobile-open .nav-bottom-section {
+    padding-top: 0.5rem;
   }
   .nav-sidebar.nav-mobile-open .nav-top-section {
     flex-direction: column;
@@ -12200,6 +12232,10 @@ body:not(.theme-green) .list-item.selected {
     display: none !important;
     pointer-events: none !important;
   }
+  body.command-center-page .nav-sidebar {
+    padding-top: 6px;
+    padding-bottom: 0;
+  }
   .cc-desktop-only {
     display: none !important;
   }
@@ -12242,12 +12278,51 @@ body:not(.theme-green) .list-item.selected {
   body.deals-page .deals-pipeline-card .section-card-header {
     padding-bottom: 0.5rem;
   }
+  body.deals-page #new-deal-inline-container {
+    padding: 0 0.1rem;
+  }
+  body.deals-page #new-deal-inline-container .deal-card-modal {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0.9rem;
+  }
+  body.deals-page #new-deal-inline-container .deal-card-modal .deal-card-header {
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  body.deals-page #new-deal-inline-container .deal-card-modal .deal-card-name input, body.deals-page #new-deal-inline-container .deal-card-modal .deal-card-value input {
+    font-size: 0.95rem;
+    padding: 0.45rem 0.65rem;
+  }
+  body.deals-page #new-deal-inline-container .deal-card-modal .deal-card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  body.deals-page #new-deal-inline-container .deal-card-modal .deal-card-save-btn, body.deals-page #new-deal-inline-container .deal-card-modal #new-deal-cancel-btn {
+    width: 100%;
+    margin-left: 0 !important;
+  }
   body.contacts-page .contacts-mobile-picker-wrap {
     margin-bottom: calc(var(--spacing) * 2);
     display: flex;
     flex-direction: column;
     gap: calc(var(--spacing) * 1.5);
     display: flex !important;
+  }
+  body.contacts-page .contacts-mobile-picker-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: end;
+  }
+  body.contacts-page .contacts-mobile-add-btn {
+    width: 2.45rem;
+    height: 2.45rem;
+    border-radius: 0.7rem;
+  }
+  body.contacts-page #add-contact-btn {
+    display: none !important;
   }
   body.contacts-page .contacts-mobile-collapse-target {
     display: none !important;
@@ -12346,6 +12421,9 @@ body:not(.theme-green) .list-item.selected {
   body.contacts-page .contact-details-content .contact-activities-card .recent-activities-list {
     min-height: 20rem;
   }
+  body.contacts-page .details-panel {
+    padding: 0.55rem 0.15rem 0.4rem;
+  }
   body.campaigns-page .campaigns-mobile-picker-wrap {
     margin-bottom: calc(var(--spacing) * 2);
     display: flex;
@@ -12402,12 +12480,29 @@ body:not(.theme-green) .list-item.selected {
     max-width: none;
     flex: 0 0 auto !important;
   }
+  body.campaigns-page .details-panel {
+    padding: 0.55rem 0.15rem 0.4rem;
+  }
   body.accounts-page .accounts-mobile-picker-wrap {
     margin-bottom: calc(var(--spacing) * 2);
     display: flex;
     flex-direction: column;
     gap: calc(var(--spacing) * 1.5);
     display: flex !important;
+  }
+  body.accounts-page .accounts-mobile-picker-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: end;
+  }
+  body.accounts-page .accounts-mobile-add-btn {
+    width: 2.45rem;
+    height: 2.45rem;
+    border-radius: 0.7rem;
+  }
+  body.accounts-page #add-account-btn {
+    display: none !important;
   }
   body.accounts-page #account-search, body.accounts-page #account-filter-icons, body.accounts-page #account-list, body.accounts-page #bulk-import-accounts-btn, body.accounts-page #bulk-export-accounts-btn, body.accounts-page #ai-briefing-btn, body.accounts-page .account-proposals-card, body.accounts-page .account-activities-card, body.accounts-page #contact-org-chart-btn, body.accounts-page #org-chart-maximize-btn, body.accounts-page #contact-org-chart-view {
     display: none !important;
@@ -12458,11 +12553,22 @@ body:not(.theme-green) .list-item.selected {
   }
   body.accounts-page #account-deals-cards {
     display: flex !important;
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.75rem;
     padding-bottom: 0.75rem;
-    overflow: visible !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
     max-height: none !important;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 6%;
+    padding-inline: 6%;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.accounts-page #account-deals-cards .deal-card {
+    flex: 0 0 88%;
+    min-width: 88%;
+    max-width: 88%;
+    scroll-snap-align: center;
   }
   body.accounts-page .account-contacts-card .account-contacts-body, body.accounts-page .account-contacts-card #contact-list-view, body.accounts-page #account-contacts-list {
     overflow: visible !important;
@@ -12475,6 +12581,9 @@ body:not(.theme-green) .list-item.selected {
   }
   body.accounts-page #contact-list-view {
     display: block !important;
+  }
+  body.accounts-page .details-panel {
+    padding: 0.55rem 0.15rem 0.4rem;
   }
   .split-view {
     flex-direction: column;

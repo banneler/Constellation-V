@@ -43,9 +43,12 @@
                     <div class="contact-picker-body">
                         <div class="contacts-mobile-picker-wrap">
                             <label for="mobile-contact-select" class="contacts-mobile-picker-label">Contact</label>
-                            <select id="mobile-contact-select" class="contacts-mobile-picker-select">
-                                <option value="">Select a contact</option>
-                            </select>
+                            <div class="contacts-mobile-picker-row">
+                                <select id="mobile-contact-select" class="contacts-mobile-picker-select">
+                                    <option value="">Select a contact</option>
+                                </select>
+                                <button id="mobile-add-contact-btn" class="btn-icon contact-picker-icon contacts-mobile-add-btn" title="Add New Contact"><i class="fas fa-plus"></i></button>
+                            </div>
                         </div>
                         <input type="text" id="contact-search" placeholder="Search by name, email...">
                         <div class="sort-pill">

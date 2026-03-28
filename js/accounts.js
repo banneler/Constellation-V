@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const navSidebar = document.querySelector(".nav-sidebar");
     const accountList = document.getElementById("account-list");
     const mobileAccountSelect = document.getElementById("mobile-account-select");
+    const mobileAddAccountBtn = document.getElementById("mobile-add-account-btn");
     const accountSearch = document.getElementById("account-search");
     const addAccountBtn = document.getElementById("add-account-btn");
     const bulkImportAccountsBtn = document.getElementById("bulk-import-accounts-btn");
@@ -2340,6 +2341,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     openNewAccountModal();
                 }
             });
+        }
+        if (mobileAddAccountBtn && addAccountBtn) {
+            mobileAddAccountBtn.addEventListener("click", () => addAccountBtn.click());
         }
 
         if (accountList) {

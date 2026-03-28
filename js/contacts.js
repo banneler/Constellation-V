@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const navSidebar = document.querySelector(".nav-sidebar");
     const contactList = document.getElementById("contact-list");
     const mobileContactSelect = document.getElementById("mobile-contact-select");
+    const mobileAddContactBtn = document.getElementById("mobile-add-contact-btn");
     const contactForm = document.getElementById("contact-form");
     const contactSearch = document.getElementById("contact-search");
     const bulkImportContactsBtn = document.getElementById("bulk-import-contacts-btn");
@@ -1416,6 +1417,9 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 openNewContactModal();
             }
         });
+        if (mobileAddContactBtn) {
+            mobileAddContactBtn.addEventListener("click", () => addContactBtn.click());
+        }
 
         contactList.addEventListener("click", (e) => {
             const item = e.target.closest(".list-item");
