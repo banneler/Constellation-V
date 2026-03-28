@@ -12062,17 +12062,24 @@ body:not(.theme-green) .list-item.selected {
     overflow: hidden;
     gap: 0;
   }
+  .content-area {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
   .nav-sidebar {
     width: 100%;
     flex-shrink: 0;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 15px;
+    padding: 10px 15px calc(10px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 4px 6px -1px var(--shadow-medium);
     border-radius: 0 !important;
-    position: relative;
-    z-index: 100;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    z-index: 120;
     background-color: var(--bg-light);
   }
   .nav-sidebar #global-nav-container {
@@ -12134,7 +12141,7 @@ body:not(.theme-green) .list-item.selected {
     display: flex !important;
     background-color: var(--bg-light);
     box-shadow: -4px 0 20px rgba(0,0,0,0.15);
-    z-index: 101;
+    z-index: 131;
     animation: nav-drawer-in 0.25s ease;
   }
   .nav-sidebar.nav-mobile-open .nav-top-section {
@@ -12152,7 +12159,7 @@ body:not(.theme-green) .list-item.selected {
       background-color: color-mix(in oklab, var(--color-black) 40%, transparent);
     }
     display: block !important;
-    z-index: 100;
+    z-index: 130;
     animation: fade-in 0.2s ease;
   }
   .nav-mobile-overlay.hidden {
