@@ -18,7 +18,24 @@ export function registerServiceWorker() {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (!window.isSecureContext && !isLocalhost) return;
+    // Local dev (Live Server) should not use SW; stale caches can break rapid edits/reloads.
+    if (isLocalhost) {
+        navigator.serviceWorker.getRegistrations()
+            .then((registrations) => Promise.all(registrations.map((reg) => reg.unregister())))
+            .catch(() => {});
+        if ('caches' in window) {
+            caches.keys()
+                .then((keys) => Promise.all(
+                    keys
+                        .filter((key) => key.startsWith('constellation-'))
+                        .map((key) => caches.delete(key))
+                ))
+                .catch(() => {});
+        }
+        return;
+    }
+
+    if (!window.isSecureContext) return;
 
     window.addEventListener('load', async () => {
         try {

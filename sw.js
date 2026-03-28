@@ -4,7 +4,6 @@ const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const SCOPE_URL = new URL(self.registration.scope);
 const PRECACHE_PATHS = [
-    '',
     'index.html',
     'output.css',
     'manifest.json',
@@ -66,7 +65,8 @@ self.addEventListener('fetch', (event) => {
                     const cachedPage = await runtimeCache.match(request);
                     if (cachedPage) return cachedPage;
                     const staticCache = await caches.open(STATIC_CACHE);
-                    return (await staticCache.match(new URL('index.html', SCOPE_URL).toString())) || Response.error();
+                    return (await staticCache.match(new URL('index.html', SCOPE_URL).toString()))
+                        || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
                 }
             })()
         );
@@ -93,7 +93,7 @@ self.addEventListener('fetch', (event) => {
                     .catch(() => null);
                 if (cached) return cached;
                 const networkResponse = await networkFetch;
-                return networkResponse || Response.error();
+                return networkResponse || new Response('', { status: 504 });
             })()
         );
     }
