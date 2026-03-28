@@ -71,6 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- DOM SELECTORS ---
     const activeCampaignList = document.getElementById('campaign-list-active');
     const pastCampaignList = document.getElementById('campaign-list-past');
+    const mobileCampaignSelect = document.getElementById('mobile-campaign-select');
     const campaignDetailsContent = document.getElementById('campaign-details-content');
     const campaignDetailsFlippable = document.getElementById('campaign-details-flippable');
     const campaignDetailsEmailBack = document.getElementById('campaign-details-email-back');
@@ -235,6 +236,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- RENDER FUNCTIONS ---
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
+
     const renderCampaignList = () => {
         if (!activeCampaignList || !pastCampaignList) {
             console.error("Campaign list elements not found.");
@@ -248,17 +251,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.campaigns.forEach(campaign => {
             (campaign.completed_at ? pastCampaigns : activeCampaigns).push(campaign);
         });
+        const sortedActiveCampaigns = activeCampaigns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const sortedPastCampaigns = pastCampaigns.sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at));
 
-        if (activeCampaigns.length === 0) {
-            activeCampaignList.innerHTML = `<div class="list-item-placeholder">No active campaigns.</div>`;
-        } else {
-            activeCampaigns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(c => renderCampaignListItem(c, activeCampaignList));
+        // Mobile flow only runs current campaigns. If a completed campaign is selected, move to current.
+        if (isMobileViewport()) {
+            const selectedCampaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
+            if (selectedCampaign?.completed_at) {
+                state.selectedCampaignId = sortedActiveCampaigns[0]?.id ?? null;
+            }
         }
 
-        if (pastCampaigns.length === 0) {
+        if (sortedActiveCampaigns.length === 0) {
+            activeCampaignList.innerHTML = `<div class="list-item-placeholder">No active campaigns.</div>`;
+        } else {
+            sortedActiveCampaigns.forEach(c => renderCampaignListItem(c, activeCampaignList));
+        }
+
+        if (sortedPastCampaigns.length === 0) {
             pastCampaignList.innerHTML = `<div class="list-item-placeholder">No past campaigns.</div>`;
         } else {
-            pastCampaigns.sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at)).forEach(c => renderCampaignListItem(c, pastCampaignList));
+            sortedPastCampaigns.forEach(c => renderCampaignListItem(c, pastCampaignList));
+        }
+
+        if (mobileCampaignSelect) {
+            mobileCampaignSelect.innerHTML = '<option value="">Select a current campaign</option>' + sortedActiveCampaigns
+                .map((campaign) => `<option value="${campaign.id}">${campaign.name}</option>`)
+                .join('');
+            const selectedCampaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
+            mobileCampaignSelect.value = (selectedCampaign && !selectedCampaign.completed_at)
+                ? String(state.selectedCampaignId)
+                : '';
         }
     };
 
@@ -1659,6 +1682,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const templateDeleteCancel = document.getElementById('template-delete-cancel-btn');
         if (templateDeleteYes) templateDeleteYes.addEventListener('click', confirmTemplateDelete);
         if (templateDeleteCancel) templateDeleteCancel.addEventListener('click', cancelTemplateDelete);
+        if (mobileCampaignSelect) {
+            mobileCampaignSelect.addEventListener('change', () => {
+                const raw = mobileCampaignSelect.value;
+                state.selectedCampaignId = raw ? Number(raw) : null;
+                renderCampaignList();
+                renderCampaignDetails();
+            });
+        }
 
         document.body.addEventListener('click', (e) => {
             if (e.target.closest('.merge-fields-buttons button')) {

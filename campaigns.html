@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 
-<body>
+<body class="campaigns-page">
     <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
         <div class="global-loader-content">
             <div class="global-loader-spinner" aria-hidden="true">
@@ -40,6 +40,12 @@
                         <h2 class="section-title">Campaigns</h2>
                     </div>
                     <div class="campaign-picker-body">
+                        <div class="campaigns-mobile-picker-wrap">
+                            <label for="mobile-campaign-select" class="campaigns-mobile-picker-label">Campaign</label>
+                            <select id="mobile-campaign-select" class="campaigns-mobile-picker-select">
+                                <option value="">Select a current campaign</option>
+                            </select>
+                        </div>
                         <div class="campaign-picker-block campaign-picker-active">
                             <h4 class="subsection-title">Active</h4>
                             <div id="campaign-list-active" class="item-list"></div>
@@ -165,7 +171,10 @@
     <script>
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
+        document.body.classList.forEach((cls) => {
+            if (cls.startsWith('theme-')) document.body.classList.remove(cls);
+        });
+        document.body.classList.add(`theme-${savedTheme}`);
     })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>

@@ -9,6 +9,28 @@ export { SUPABASE_URL, SUPABASE_ANON_KEY };
 
 export const themes = ["dark", "light", "green", "blue", "corporate"];
 
+let swRegistrationInitialized = false;
+
+export function registerServiceWorker() {
+    if (swRegistrationInitialized) return;
+    swRegistrationInitialized = true;
+
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!window.isSecureContext && !isLocalhost) return;
+
+    window.addEventListener('load', async () => {
+        try {
+            await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        } catch (error) {
+            console.warn('Service worker registration failed:', error);
+        }
+    });
+}
+
+registerServiceWorker();
+
 // --- NEW: GLOBAL STATE MANAGEMENT ---
 const appState = {
     currentUser: null,          // The actual logged-in user object

@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 
-<body>
+<body class="contacts-page">
     <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
         <div class="global-loader-content">
             <div class="global-loader-spinner" aria-hidden="true">
@@ -41,6 +41,12 @@
                     <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
                     <input type="file" id="contact-csv-input" accept=".csv" class="hidden">
                     <div class="contact-picker-body">
+                        <div class="contacts-mobile-picker-wrap">
+                            <label for="mobile-contact-select" class="contacts-mobile-picker-label">Contact</label>
+                            <select id="mobile-contact-select" class="contacts-mobile-picker-select">
+                                <option value="">Select a contact</option>
+                            </select>
+                        </div>
                         <input type="text" id="contact-search" placeholder="Search by name, email...">
                         <div class="sort-pill">
                             <button id="sort-first-last-btn" class="sort-pill-btn active">First</button>
@@ -52,9 +58,18 @@
                     <div class="contact-picker-actions">
                         <button id="add-contact-btn" class="btn-icon contact-picker-icon" title="Add New Contact"><i class="fas fa-plus"></i></button>
                         <button id="import-contact-screenshot-btn" class="btn-icon contact-picker-icon" title="Import Contact Screenshot"><i class="fas fa-image"></i></button>
-                        <button id="bulk-import-contacts-btn" class="btn-icon contact-picker-icon" title="Bulk Import from CSV"><i class="fas fa-file-import"></i></button>
+                        <button id="bulk-import-contacts-btn" class="btn-icon contact-picker-icon contacts-mobile-collapse-target" title="Bulk Import from CSV"><i class="fas fa-file-import"></i></button>
                         <button id="take-picture-btn" class="btn-icon contact-picker-icon mobile-only" title="Take Picture of Signature"><i class="fas fa-camera"></i></button>
-                        <button id="bulk-export-contacts-btn" class="btn-icon contact-picker-icon" title="Download Contacts CSV"><i class="fas fa-file-export"></i></button>
+                        <button id="bulk-export-contacts-btn" class="btn-icon contact-picker-icon contacts-mobile-collapse-target" title="Download Contacts CSV"><i class="fas fa-file-export"></i></button>
+                        <div class="contacts-mobile-menu-wrap">
+                            <button id="contacts-mobile-menu-btn" type="button" class="btn-icon contact-picker-icon contacts-mobile-menu-btn" title="More actions" aria-label="More actions" aria-expanded="false">
+                                <i class="fas fa-ellipsis-vertical"></i>
+                            </button>
+                            <div id="contacts-mobile-menu" class="contacts-mobile-menu hidden" role="menu" aria-label="Contact CSV actions">
+                                <button type="button" class="contacts-mobile-menu-item" data-mobile-action="import-csv" role="menuitem"><i class="fas fa-file-import"></i><span>Import CSV</span></button>
+                                <button type="button" class="contacts-mobile-menu-item" data-mobile-action="export-csv" role="menuitem"><i class="fas fa-file-export"></i><span>Export CSV</span></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div id="contact-details" class="details-panel contact-details-content">
@@ -203,7 +218,7 @@
     // This script runs synchronously to apply the theme before the page renders
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
+        document.body.className = `theme-${savedTheme} contacts-page`;
     })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>

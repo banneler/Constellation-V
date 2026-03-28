@@ -532,6 +532,9 @@
   .w-12 {
     width: calc(var(--spacing) * 12);
   }
+  .w-14 {
+    width: calc(var(--spacing) * 14);
+  }
   .w-20 {
     width: calc(var(--spacing) * 20);
   }
@@ -543,6 +546,9 @@
   }
   .w-32 {
     width: calc(var(--spacing) * 32);
+  }
+  .w-36 {
+    width: calc(var(--spacing) * 36);
   }
   .w-40 {
     width: calc(var(--spacing) * 40);
@@ -619,9 +625,6 @@
   .min-w-\[500px\] {
     min-width: 500px;
   }
-  .min-w-\[600px\] {
-    min-width: 600px;
-  }
   .flex-1 {
     flex: 1;
   }
@@ -639,6 +642,9 @@
   }
   .grow {
     flex-grow: 1;
+  }
+  .table-fixed {
+    table-layout: fixed;
   }
   .border-collapse {
     border-collapse: collapse;
@@ -1093,6 +1099,9 @@
   }
   .text-\[0\.8rem\] {
     font-size: 0.8rem;
+  }
+  .text-\[10px\] {
+    font-size: 10px;
   }
   .text-\[11px\] {
     font-size: 11px;
@@ -3459,8 +3468,80 @@ body.theme-green {
     padding: calc(var(--spacing) * 4);
     padding-top: calc(var(--spacing) * 0);
   }
+  .contacts-mobile-picker-wrap {
+    display: none;
+  }
+  .contacts-mobile-picker-label {
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wider);
+    letter-spacing: var(--tracking-wider);
+    text-transform: uppercase;
+    color: var(--text-medium);
+  }
+  .contacts-mobile-picker-select {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 2);
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+  }
   .contact-picker-body > button, .contact-picker-body > input[type="text"], .contact-picker-body > .display-toggle-container, .contact-picker-body > .sort-pill {
     flex-shrink: 0;
+  }
+  .accounts-mobile-picker-wrap {
+    display: none;
+  }
+  .accounts-mobile-picker-label {
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wider);
+    letter-spacing: var(--tracking-wider);
+    text-transform: uppercase;
+    color: var(--text-medium);
+  }
+  .accounts-mobile-picker-select {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 2);
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+  }
+  .campaigns-mobile-picker-wrap {
+    display: none;
+  }
+  .campaigns-mobile-picker-label {
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wider);
+    letter-spacing: var(--tracking-wider);
+    text-transform: uppercase;
+    color: var(--text-medium);
+  }
+  .campaigns-mobile-picker-select {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 2);
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
   }
   .contact-picker-list {
     margin-top: calc(var(--spacing) * 2.5);
@@ -9877,6 +9958,36 @@ body.theme-green {
   #social-hub-view .section-card {
     border-radius: 1rem;
   }
+  #social-hub-view .social-content-toggle {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-lg);
+    padding: calc(var(--spacing) * 1);
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+  }
+  #social-hub-view .social-toggle-btn {
+    border-radius: var(--radius-md);
+    border-style: var(--tw-border-style);
+    border-width: 0px;
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 1.5);
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    background: transparent;
+    color: var(--text-medium);
+    transition: background-color 0.2s, color 0.2s;
+  }
+  #social-hub-view .social-toggle-btn:hover {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+  }
+  #social-hub-view .social-toggle-btn.active {
+    color: #fff;
+    background-color: var(--primary-blue);
+  }
   #social-hub-view .page-title {
     font-size: 1.25rem;
     font-weight: 700;
@@ -12012,7 +12123,7 @@ body:not(.theme-green) .list-item.selected {
   .nav-sidebar.nav-mobile-open .nav-drawer-content {
     position: fixed;
     inset-block: calc(var(--spacing) * 0);
-    left: calc(var(--spacing) * 0);
+    right: calc(var(--spacing) * 0);
     display: flex;
     width: 260px;
     max-width: 85vw;
@@ -12022,7 +12133,7 @@ body:not(.theme-green) .list-item.selected {
     padding-block: calc(var(--spacing) * 6);
     display: flex !important;
     background-color: var(--bg-light);
-    box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+    box-shadow: -4px 0 20px rgba(0,0,0,0.15);
     z-index: 101;
     animation: nav-drawer-in 0.25s ease;
   }
@@ -12049,7 +12160,7 @@ body:not(.theme-green) .list-item.selected {
   }
   @keyframes nav-drawer-in {
     from {
-      transform: translateX(-100%);
+      transform: translateX(100%);
     }
     to {
       transform: translateX(0);
@@ -12069,6 +12180,292 @@ body:not(.theme-green) .list-item.selected {
   }
   .nav-sidebar a.nav-button[href="proposals.html"] {
     display: none !important;
+  }
+  .nav-sidebar a.nav-button[href="irr.html"] {
+    display: none !important;
+  }
+  .nav-sidebar a.nav-button[href="sequences.html"] {
+    display: none !important;
+  }
+  .hud-trigger-fab, #hud-backdrop-blur, #hud-wireframes-layer, #hud-controls-layer {
+    display: none !important;
+    pointer-events: none !important;
+  }
+  .cc-desktop-only {
+    display: none !important;
+  }
+  body.command-center-page #dashboard-sections-grid {
+    max-height: none;
+  }
+  body.command-center-page .dashboard-column-left, body.command-center-page .dashboard-sections-grid {
+    max-height: none;
+    overflow: visible;
+  }
+  body.command-center-page .dashboard-left-top-row {
+    height: auto;
+    min-height: min(55vh, 28rem);
+  }
+  body.command-center-page .dashboard-column-left {
+    width: 100%;
+  }
+  body.command-center-page .content-area {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.deals-page .deals-view-toggle, body.deals-page .view-mode-toggle, body.deals-page .deals-filters, body.deals-page .deals-filter-toggle, body.deals-page .deals-charts-section, body.deals-page #list-view-container, body.deals-page #manager-pipeline-select-wrap, body.deals-page #deals-by-stage-chart-container {
+    display: none !important;
+  }
+  body.deals-page #kanban-board-view {
+    display: grid !important;
+  }
+  body.deals-page .deals-metrics-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  body.deals-page .metric-card-won {
+    order: -1;
+    grid-column: 1 / -1;
+  }
+  body.deals-page .metric-card-best-case, body.deals-page .metric-card-arpu {
+    display: none !important;
+  }
+  body.deals-page .deals-pipeline-card .section-card-header {
+    padding-bottom: 0.5rem;
+  }
+  body.contacts-page .contacts-mobile-picker-wrap {
+    margin-bottom: calc(var(--spacing) * 2);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 1.5);
+    display: flex !important;
+  }
+  body.contacts-page .contacts-mobile-collapse-target {
+    display: none !important;
+  }
+  body.contacts-page #import-contact-screenshot-btn, body.contacts-page #bulk-import-contacts-btn, body.contacts-page #bulk-export-contacts-btn, body.contacts-page #take-picture-btn, body.contacts-page .contacts-mobile-menu-wrap {
+    display: none !important;
+  }
+  body.contacts-page .contacts-mobile-menu-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  body.contacts-page .contacts-mobile-menu {
+    border-radius: var(--radius-lg);
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.35rem);
+    min-width: 12rem;
+    z-index: 50;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-light);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  body.contacts-page .contacts-mobile-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 2);
+    text-align: left;
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    border: 0;
+    background: transparent;
+    color: var(--text-light);
+  }
+  body.contacts-page .contacts-mobile-menu-item:hover {
+    background-color: var(--bg-medium);
+  }
+  body.contacts-page .contacts-mobile-menu-item i {
+    width: 1rem;
+    text-align: center;
+  }
+  body.contacts-page #contact-search, body.contacts-page .sort-pill, body.contacts-page #contact-list {
+    display: none !important;
+  }
+  body.contacts-page .contact-picker-panel {
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+  body.contacts-page .content-area {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.contacts-page .contacts-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: auto;
+  }
+  body.contacts-page .contact-picker-body {
+    padding: calc(var(--spacing) * 4);
+    padding-top: calc(var(--spacing) * 0);
+    overflow: visible;
+  }
+  body.contacts-page .contact-picker-actions {
+    padding-top: calc(var(--spacing) * 2);
+    padding-bottom: calc(var(--spacing) * 3);
+  }
+  body.contacts-page .contact-details-content .sequence-status-card, body.contacts-page .contact-details-content .logged-emails-card {
+    display: none !important;
+  }
+  body.contacts-page .contact-details-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: none;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  body.contacts-page .contact-details-content.details-panel {
+    overflow: visible;
+  }
+  body.contacts-page .contact-details-content .contact-details-top-row, body.contacts-page .contact-details-content .contact-cards-row {
+    display: contents;
+  }
+  body.contacts-page .contact-details-content .contact-details-form-card, body.contacts-page .contact-details-content .ai-assistant-card, body.contacts-page .contact-details-content .contact-activities-card {
+    width: 100%;
+    min-width: 0;
+  }
+  body.contacts-page .contact-details-content .contact-activities-card {
+    min-height: 26rem;
+  }
+  body.contacts-page .contact-details-content .contact-activities-card .recent-activities-list {
+    min-height: 20rem;
+  }
+  body.campaigns-page .campaigns-mobile-picker-wrap {
+    margin-bottom: calc(var(--spacing) * 2);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 1.5);
+    display: flex !important;
+  }
+  body.campaigns-page .campaign-picker-active, body.campaigns-page .campaign-picker-past {
+    display: none !important;
+  }
+  body.campaigns-page .campaign-picker-panel {
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  body.campaigns-page .campaign-picker-body {
+    padding: calc(var(--spacing) * 4);
+    padding-top: calc(var(--spacing) * 0);
+    overflow: visible !important;
+  }
+  body.campaigns-page .campaign-details-content {
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body.campaigns-page .campaign-top-row {
+    display: block !important;
+  }
+  body.campaigns-page .campaign-tools-card {
+    display: none !important;
+  }
+  body.campaigns-page .campaign-top-row > .section-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-bottom: 1rem;
+  }
+  body.campaigns-page .run-campaign-active-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem;
+    min-height: 0 !important;
+  }
+  body.campaigns-page .run-campaign-contact-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    aspect-ratio: auto;
+    min-height: 7.5rem;
+  }
+  body.campaigns-page .run-campaign-notes-wrap, body.campaigns-page .run-campaign-recent-activity {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: 0 0 auto !important;
+  }
+  body.accounts-page .accounts-mobile-picker-wrap {
+    margin-bottom: calc(var(--spacing) * 2);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 1.5);
+    display: flex !important;
+  }
+  body.accounts-page #account-search, body.accounts-page #account-filter-icons, body.accounts-page #account-list, body.accounts-page #bulk-import-accounts-btn, body.accounts-page #bulk-export-accounts-btn, body.accounts-page #ai-briefing-btn, body.accounts-page .account-proposals-card, body.accounts-page .account-activities-card, body.accounts-page #contact-org-chart-btn, body.accounts-page #org-chart-maximize-btn, body.accounts-page #contact-org-chart-view {
+    display: none !important;
+  }
+  body.accounts-page .account-picker-panel {
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  body.accounts-page .account-picker-body {
+    padding: calc(var(--spacing) * 4);
+    padding-top: calc(var(--spacing) * 0);
+    overflow: visible !important;
+  }
+  body.accounts-page .account-details-content {
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body.accounts-page .account-details-content.details-panel {
+    overflow: visible !important;
+  }
+  body.accounts-page .account-details-content .account-details-top-row, body.accounts-page .account-details-content .account-cards-row {
+    display: block !important;
+  }
+  body.accounts-page .account-details-content .account-details-form-card, body.accounts-page .account-details-content .account-deals-column, body.accounts-page .account-details-content .account-contacts-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-bottom: 1rem;
+    position: relative;
+    overflow: visible !important;
+  }
+  body.accounts-page .account-details-content .account-deals-column {
+    display: block !important;
+  }
+  body.accounts-page .account-details-content .account-deals-column .account-deals-card {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  body.accounts-page .account-details-content .account-deals-column .account-deals-body {
+    overflow: visible !important;
+    max-height: none !important;
+    flex: 0 0 auto !important;
+    min-height: auto !important;
+    padding-bottom: 0.75rem;
+  }
+  body.accounts-page #account-deals-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  body.accounts-page .account-contacts-card .account-contacts-body, body.accounts-page .account-contacts-card #contact-list-view, body.accounts-page #account-contacts-list {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+  body.accounts-page .account-contacts-card .account-contacts-body, body.accounts-page .account-contacts-card #contact-list-view {
+    flex: 0 0 auto !important;
+    min-height: auto !important;
+  }
+  body.accounts-page #contact-list-view {
+    display: block !important;
   }
   .split-view {
     flex-direction: column;
@@ -12216,8 +12613,26 @@ body:not(.theme-green) .list-item.selected {
   .filter-bar select, .filter-bar button {
     max-width: none;
   }
+  #cognito-view .filter-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  #cognito-view .filter-bar .ts-wrapper, #cognito-view .filter-bar select, #cognito-view .filter-bar button {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+  }
+  #cognito-view .filter-bar #clear-filters-btn {
+    grid-column: 1 / -1;
+  }
   .mobile-only {
     display: block;
+  }
+  #social-hub-view #marketing-posts-container {
+    grid-template-columns: 1fr !important;
   }
 }
 @media (min-width: 769px) {

@@ -16,7 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 
-<body>
+<body class="deals-page">
     <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
         <div class="global-loader-content">
             <div class="global-loader-spinner" aria-hidden="true">
@@ -41,7 +41,7 @@
         <main class="content-area">
             <div id="deals" class="content-view active-view">
                 <div class="deals-top-section mb-6">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex justify-between items-center mb-4 deals-top-row">
                         <div class="flex items-center gap-4">
                             <h2 class="page-title">Deals</h2>
                             <div class="deals-view-toggle flex gap-1 bg-[var(--bg-medium)] p-1 rounded-lg border border-[var(--border-color)]">
@@ -62,23 +62,23 @@
                     </div>
                     
                     <div class="deals-metrics-container flex gap-4">
-                        <div class="metric-card">
+                        <div class="metric-card metric-card-commit">
                             <div class="metric-title" id="metric-current-commit-title">My Current Commit</div>
                             <div class="metric-value" id="metric-current-commit"></div>
                             <span class="metric-quota-percent" id="commit-quota-percent"></span>
                             <span class="metric-total-quota-display hidden" id="commit-total-quota"></span>
                         </div>
-                        <div class="metric-card">
+                        <div class="metric-card metric-card-best-case">
                             <div class="metric-title" id="metric-best-case-title">My Current Best Case</div>
                             <div class="metric-value" id="metric-best-case"></div>
                             <span class="metric-quota-percent" id="best-case-quota-percent"></span>
                             <span class="metric-total-quota-display hidden" id="best-case-total-quota"></span>
                         </div>
-                        <div class="metric-card">
+                        <div class="metric-card metric-card-funnel">
                             <div class="metric-title" id="metric-funnel-title">My Current Funnel</div>
                             <div class="metric-value" id="metric-funnel"></div>
                         </div>
-                        <div class="metric-card">
+                        <div class="metric-card metric-card-arpu">
                             <div class="metric-title">Average Deal Size (ARPU)</div>
                             <div class="metric-value" id="metric-arpu">$0</div>
                         </div>
@@ -215,7 +215,7 @@
     // This script runs synchronously to apply the theme before the page renders
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
+        document.body.className = `theme-${savedTheme} deals-page`;
     })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>

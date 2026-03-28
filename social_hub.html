@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="social-hub-page">
     <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
         <div class="global-loader-content">
             <div class="global-loader-spinner" aria-hidden="true">
@@ -32,7 +32,15 @@
         
         <main class="content-area">
             <div id="social-hub-view" class="content-view active-view">
-                <div class="section-card">
+                    <div class="section-card">
+                        <div class="section-card-header">
+                            <div id="social-content-toggle" class="social-content-toggle" role="tablist" aria-label="Social Hub content view">
+                                <button type="button" id="social-toggle-ai" class="social-toggle-btn active" data-social-view="ai" role="tab" aria-selected="true">AI Content</button>
+                                <button type="button" id="social-toggle-marketing" class="social-toggle-btn" data-social-view="marketing" role="tab" aria-selected="false">Marketing</button>
+                            </div>
+                        </div>
+                    </div>
+                <div id="social-ai-section" class="section-card social-content-section">
                     <div class="section-card-header">
                         <h2 class="page-title">Social Hub</h2>
                     </div>
@@ -42,7 +50,7 @@
                         <div id="ai-articles-container" class="alerts-container"></div>
                     </div>
                 </div>
-                <div class="section-card">
+                <div id="social-marketing-section" class="section-card social-content-section hidden">
                     <div class="section-card-header flex justify-between items-center gap-3">
                         <h2 class="section-title">From Our Marketing Team</h2>
                         <a href="https://gpcom-my.sharepoint.com/personal/dmunoz_gpcom_com/_layouts/15/onedrive.aspx?id=%2Fpersonal%2Fdmunoz%5Fgpcom%5Fcom%2FDocuments%2FDesktop%2FGraphics%20for%20LI%20posts&ga=1&startedResponseCatch=true" class="btn-primary" target="_blank" rel="noopener noreferrer">
@@ -83,7 +91,10 @@
     // This script runs synchronously to apply the theme before the page renders
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
+        document.body.classList.forEach((cls) => {
+            if (cls.startsWith('theme-')) document.body.classList.remove(cls);
+        });
+        document.body.classList.add(`theme-${savedTheme}`);
     })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>

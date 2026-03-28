@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- DOM Element Selectors ---
     const navSidebar = document.querySelector(".nav-sidebar");
     const accountList = document.getElementById("account-list");
+    const mobileAccountSelect = document.getElementById("mobile-account-select");
     const accountSearch = document.getElementById("account-search");
     const addAccountBtn = document.getElementById("add-account-btn");
     const bulkImportAccountsBtn = document.getElementById("bulk-import-accounts-btn");
@@ -78,6 +79,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const agendaResultWrap = document.getElementById("agenda-result-wrap");
     const agendaResult = document.getElementById("agenda-result");
     const agendaCopyBtn = document.getElementById("agenda-copy-btn");
+
+    function isMobileAccountsViewport() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function applyMobileAccountsDefaults() {
+        if (!isMobileAccountsViewport()) return;
+        state.contactViewMode = 'list';
+    }
 
     if (accountActivitiesList) {
         accountActivitiesList.addEventListener("click", async (e) => {
@@ -382,10 +392,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
+        const sortedAccounts = [...filteredAccounts].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
         accountList.innerHTML = "";
-        filteredAccounts
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-            .forEach((account) => {
+        sortedAccounts.forEach((account) => {
                 const i = document.createElement("div");
                 i.className = "list-item";
                 i.dataset.id = account.id;
@@ -403,9 +413,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
                 accountList.appendChild(i);
             });
+
+        if (mobileAccountSelect) {
+            mobileAccountSelect.innerHTML = '<option value="">Select an account</option>' + sortedAccounts
+                .map((account) => `<option value="${account.id}">${(account.name || 'Unnamed Account').replace(/</g, '&lt;')}</option>`)
+                .join('');
+            mobileAccountSelect.value = state.selectedAccountId ? String(state.selectedAccountId) : '';
+        }
     };
 
     const renderAccountDetails = () => {
+        applyMobileAccountsDefaults();
         const { account, contacts, activities, deals, tasks, contact_sequences, proposals } = state.selectedAccountDetails;
 
         if (!account) {
@@ -417,7 +435,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const pendingAccountTasks = tasks.filter(task => task.status === 'Pending');
             if (pendingAccountTasks.length > 0) {
                 const taskCount = pendingAccountTasks.length;
-                accountPendingTaskReminder.textContent = `You have ${taskCount} pending task${taskCount > 1 ? 's' : ''} for this account.`;
+                accountPendingTaskReminder.textContent = `${taskCount} Pending Tasks Due`;
                 accountPendingTaskReminder.classList.remove('hidden');
             } else {
                 accountPendingTaskReminder.textContent = '';
@@ -2262,6 +2280,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (accountSearch) accountSearch.addEventListener("input", renderAccountList);
+        if (mobileAccountSelect) {
+            mobileAccountSelect.addEventListener("change", async () => {
+                const raw = mobileAccountSelect.value;
+                const accountId = raw ? Number(raw) : null;
+                if (!accountId) {
+                    hideAccountDetails(true);
+                    renderAccountList();
+                    return;
+                }
+                if (accountId !== state.selectedAccountId) {
+                    await confirmAndSwitchAccount(accountId);
+                }
+            });
+        }
         if (accountFilterIcons) {
             accountFilterIcons.addEventListener("click", (e) => {
                 const btn = e.target.closest(".account-filter-icon");
@@ -2949,6 +2981,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
         state.currentUser = appState.currentUser;
+        applyMobileAccountsDefaults();
 
         try {
             await loadInitialData();

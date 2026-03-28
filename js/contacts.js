@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- DOM Element Selectors ---
     const navSidebar = document.querySelector(".nav-sidebar");
     const contactList = document.getElementById("contact-list");
+    const mobileContactSelect = document.getElementById("mobile-contact-select");
     const contactForm = document.getElementById("contact-form");
     const contactSearch = document.getElementById("contact-search");
     const bulkImportContactsBtn = document.getElementById("bulk-import-contacts-btn");
@@ -246,6 +247,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const importContactScreenshotBtn = document.getElementById("import-contact-screenshot-btn");
     const takePictureBtn = document.getElementById("take-picture-btn");
     const cameraInput = document.getElementById("camera-input");
+    const contactsMobileMenuBtn = document.getElementById("contacts-mobile-menu-btn");
+    const contactsMobileMenu = document.getElementById("contacts-mobile-menu");
     const aiActivityInsightBtn = document.getElementById("ai-activity-insight-btn");
     const aiClearInsightBtn = document.getElementById("ai-clear-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
@@ -264,6 +267,49 @@ document.addEventListener("DOMContentLoaded", async () => {
             toast.classList.add('hide');
             toast.addEventListener('transitionend', () => toast.remove());
         }, 4000);
+    }
+
+    function setupContactsMobileMenu() {
+        if (!contactsMobileMenuBtn || !contactsMobileMenu) return;
+
+        const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+        const closeMenu = () => {
+            contactsMobileMenu.classList.add('hidden');
+            contactsMobileMenuBtn.setAttribute('aria-expanded', 'false');
+        };
+        const toggleMenu = () => {
+            const willOpen = contactsMobileMenu.classList.contains('hidden');
+            contactsMobileMenu.classList.toggle('hidden', !willOpen);
+            contactsMobileMenuBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        };
+
+        contactsMobileMenuBtn.addEventListener('click', (e) => {
+            if (!isMobile()) return;
+            e.stopPropagation();
+            toggleMenu();
+        });
+
+        contactsMobileMenu.addEventListener('click', (e) => {
+            const actionBtn = e.target.closest('.contacts-mobile-menu-item');
+            if (!actionBtn) return;
+            const action = actionBtn.dataset.mobileAction;
+            if (action === 'import-image') importContactScreenshotBtn?.click();
+            if (action === 'import-csv') bulkImportContactsBtn?.click();
+            if (action === 'camera') takePictureBtn?.click();
+            if (action === 'export-csv') bulkExportContactsBtn?.click();
+            closeMenu();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!isMobile()) return;
+            if (contactsMobileMenu.classList.contains('hidden')) return;
+            if (contactsMobileMenu.contains(e.target) || contactsMobileMenuBtn.contains(e.target)) return;
+            closeMenu();
+        });
+
+        window.addEventListener('resize', () => {
+            if (!isMobile()) closeMenu();
+        });
     }
 
     // --- Dirty Check and Navigation ---
@@ -416,6 +462,16 @@ async function loadAllData() {
             if (contact.id === state.selectedContactId) item.classList.add("selected");
             contactList.appendChild(item);
         });
+
+        if (mobileContactSelect) {
+            mobileContactSelect.innerHTML = '<option value="">Select a contact</option>' + filteredContacts.map((contact) => {
+                const displayName = state.nameDisplayFormat === 'firstLast'
+                    ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
+                    : `${contact.last_name || ''}, ${contact.first_name || ''}`.trim().replace(/^,\s*/, '');
+                return `<option value="${contact.id}">${displayName || 'Unnamed Contact'}</option>`;
+            }).join('');
+            mobileContactSelect.value = state.selectedContactId ? String(state.selectedContactId) : '';
+        }
     };
 
     function renderContactNextStep(contact, activeSequence, sequence) {
@@ -1300,6 +1356,21 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         });
         
         contactSearch.addEventListener("input", renderContactList);
+        setupContactsMobileMenu();
+        if (mobileContactSelect) {
+            mobileContactSelect.addEventListener('change', () => {
+                const raw = mobileContactSelect.value;
+                const contactId = raw ? Number(raw) : null;
+                if (!contactId) {
+                    hideContactDetails(false, true);
+                    renderContactList();
+                    return;
+                }
+                if (contactId !== state.selectedContactId) {
+                    confirmAndSwitchContact(contactId);
+                }
+            });
+        }
 
         addContactBtn.addEventListener("click", () => {
             const openNewContactModal = () => {

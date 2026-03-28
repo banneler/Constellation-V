@@ -32,6 +32,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- DOM SELECTORS ---
     const aiContainer = document.getElementById('ai-articles-container');
     const marketingContainer = document.getElementById('marketing-posts-container');
+    const socialAiSection = document.getElementById('social-ai-section');
+    const socialMarketingSection = document.getElementById('social-marketing-section');
+    const socialToggleButtons = Array.from(document.querySelectorAll('.social-toggle-btn'));
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalTitle = document.getElementById('modal-title');
     const modalArticleLink = document.getElementById('modal-article-link');
@@ -64,6 +67,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- RENDER FUNCTIONS ---
+    function applySocialView(view) {
+        const showMarketing = view === 'marketing';
+        if (socialAiSection) socialAiSection.classList.toggle('hidden', showMarketing);
+        if (socialMarketingSection) socialMarketingSection.classList.toggle('hidden', !showMarketing);
+        socialToggleButtons.forEach((button) => {
+            const isActive = button.dataset.socialView === view;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+    }
+
     function renderSocialContent() {
         aiContainer.innerHTML = '';
         marketingContainer.innerHTML = '';
@@ -199,6 +213,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
+        socialToggleButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const targetView = button.dataset.socialView === 'marketing' ? 'marketing' : 'ai';
+                applySocialView(targetView);
+            });
+        });
+
         modalCloseBtn.addEventListener('click', closePostModal);
     
         copyTextBtn.addEventListener('click', () => {
@@ -258,6 +279,7 @@ async function initializePage() {
     setupPageEventListeners();
     await setupGlobalSearch(supabase, state.currentUser);
     await loadSocialContent();
+    applySocialView('ai');
     window.addEventListener('effectiveUserChanged', loadSocialContent);
     await checkAndSetNotifications(supabase);
     updateLastVisited(supabase, 'social_hub');

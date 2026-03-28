@@ -72,6 +72,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dealsViewToggleDiv = document.querySelector('.deals-view-toggle');
     const metricCurrentCommitTitle = document.getElementById("metric-current-commit-title");
     const metricBestCaseTitle = document.getElementById("metric-best-case-title");
+    const metricFunnelTitle = document.getElementById("metric-funnel-title");
     const commitTotalQuota = document.getElementById("commit-total-quota");
     const bestCaseTotalQuota = document.getElementById("best-case-total-quota");
 
@@ -96,10 +97,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     const managerPipelineSelect = document.getElementById('manager-pipeline-select');
     let managerPipelineTomSelect = null;
 
+    function isMobileDealsViewport() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function getCurrentMonthKey() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function applyMobileDealsDefaults() {
+        if (!isMobileDealsViewport()) return;
+        state.currentView = 'board';
+        const isManager = state.currentUser?.user_metadata?.is_manager === true;
+        state.dealsViewMode = isManager ? 'all' : 'mine';
+        state.managerSelectedUserId = '';
+        state.filterStage = '';
+        state.filterCommitted = '';
+        state.filterCloseMonth = getCurrentMonthKey();
+        state.showClosedLost = false;
+        state.showPastDue = false;
+        state.hideRenewals = false;
+        state.closeMonthOffset = 0;
+        if (viewMyDealsBtn) viewMyDealsBtn.classList.toggle('active', !isManager);
+        if (viewAllDealsBtn) viewAllDealsBtn.classList.toggle('active', isManager);
+        if (listViewBtn) listViewBtn.classList.remove('active');
+        if (boardViewBtn) boardViewBtn.classList.add('active');
+        if (metricFunnelTitle) metricFunnelTitle.textContent = "This Month's Funnel";
+    }
+
 
     // --- Data Fetching ---
     async function loadAllData(opts = {}) {
         if (!state.currentUser) return;
+        applyMobileDealsDefaults();
 
         const skipLoader = opts.skipLoader === true;
         if (!skipLoader) showGlobalLoader();
@@ -352,6 +383,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (state.filterCommitted === 'yes') deals = deals.filter(d => d.is_committed);
         if (state.filterCommitted === 'no') deals = deals.filter(d => !d.is_committed);
         if (state.hideRenewals) deals = deals.filter(d => !d.is_renewal);
+        if (isMobileDealsViewport()) {
+            const currentMonth = getCurrentMonthKey();
+            deals = deals.filter(d => d.close_month === currentMonth);
+        }
         return deals;
     }
     
@@ -2129,6 +2164,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     // NEW: Handler for the view toggle
     const handleViewToggle = (view) => {
+        if (isMobileDealsViewport()) {
+            state.currentView = 'board';
+            if (listViewBtn) listViewBtn.classList.remove('active');
+            if (boardViewBtn) boardViewBtn.classList.add('active');
+            render();
+            return;
+        }
         state.currentView = view;
         localStorage.setItem('deals_view_mode', view);
         listViewBtn.classList.toggle('active', view === 'list');
@@ -2165,6 +2207,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.currentView = savedView;
             listViewBtn.classList.toggle('active', savedView === 'list');
             boardViewBtn.classList.toggle('active', savedView === 'board');
+            applyMobileDealsDefaults();
 
             state.showClosedLost = localStorage.getItem('deals_show_closed_lost') === 'true';
             if (showClosedLostEl) showClosedLostEl.checked = state.showClosedLost;
