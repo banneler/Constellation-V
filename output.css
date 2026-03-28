@@ -12063,7 +12063,8 @@ body:not(.theme-green) .list-item.selected {
     gap: 0;
   }
   .content-area {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.35rem);
+    padding-bottom: 72px;
   }
   .nav-sidebar {
     width: 100%;
@@ -12071,7 +12072,7 @@ body:not(.theme-green) .list-item.selected {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 15px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 15px;
     box-shadow: 0 4px 6px -1px var(--shadow-medium);
     border-radius: 0 !important;
     position: fixed;
