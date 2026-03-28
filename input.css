@@ -7474,6 +7474,7 @@ body:not(.theme-green) .list-item.selected {
         color: white;
         border: none;
         font-size: 1.25rem;
+        border-radius: 14px;
     }
     .nav-mobile-menu-btn:hover {
         filter: brightness(1.1);
