@@ -7445,35 +7445,39 @@ body:not(.theme-green) .list-item.selected {
     }
     .content-area {
         padding-top: calc(env(safe-area-inset-top, 0px) + 0.35rem);
-        padding-bottom: 56px;
+        padding-bottom: 0.75rem;
     }
     .nav-sidebar {
-        width: 100%;
-        flex-shrink: 0;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 12px;
-        box-shadow: 0 4px 6px -1px var(--shadow-medium);
-        border-radius: 0 !important;
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        top: auto;
+        width: 0;
+        height: 0;
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+        border-radius: 0;
+        position: static;
         z-index: 120;
-        background-color: var(--bg-light);
+        background: transparent;
     }
     .nav-sidebar #global-nav-container {
-        @apply flex flex-row items-center justify-between w-full flex-wrap;
+        @apply block;
+        width: 0;
+        height: 0;
+        min-height: 0;
+        overflow: visible;
     }
     .nav-mobile-bar {
-        @apply flex items-center justify-between w-full;
-        display: flex !important;
+        position: fixed;
+        right: 1.5rem;
+        bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+        width: auto;
+        height: auto;
+        z-index: 132;
+        pointer-events: none;
+        display: block !important;
     }
     .nav-mobile-logo {
-        @apply flex items-center no-underline;
-        color: inherit;
+        display: none !important;
     }
     .nav-mobile-logo .nav-logo,
     .nav-mobile-logo [data-svg-loader] {
@@ -7481,13 +7485,17 @@ body:not(.theme-green) .list-item.selected {
         height: 40px;
     }
     .nav-mobile-menu-btn {
-        @apply w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer;
+        @apply flex items-center justify-center cursor-pointer;
+        width: 52px;
+        height: 52px;
         display: flex !important;
         background-color: var(--primary-blue);
         color: white;
         border: none;
         font-size: 1.25rem;
-        border-radius: 14px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        pointer-events: auto;
     }
     .nav-mobile-menu-btn:hover {
         filter: brightness(1.1);
@@ -7498,7 +7506,7 @@ body:not(.theme-green) .list-item.selected {
     .nav-sidebar.nav-mobile-open .nav-drawer-content {
         @apply fixed right-0 flex flex-col w-[232px] max-w-[78vw] py-3 px-3 overflow-y-auto;
         top: auto;
-        bottom: 56px;
+        bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px) + 56px + 0.5rem);
         max-height: min(70vh, 460px);
         border-radius: 14px;
         border: 1px solid var(--border-color);
