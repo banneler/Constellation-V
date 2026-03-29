@@ -7606,7 +7606,7 @@ body:not(.theme-green) .list-item.selected {
     }
     body.command-center-page .dashboard-left-top-row {
         height: auto;
-        min-height: min(55vh, 28rem);
+        min-height: 0;
     }
     body.command-center-page .dashboard-column-left {
         width: 100%;
