@@ -82,12 +82,12 @@ body.theme-green {
     }
     html {
         font-size: 87.5%;
-        height: 100%;
+        height: 100dvh;
         overflow: hidden;
     }
     body {
         margin: 0;
-        height: 100%;
+        height: 100dvh;
         overflow: hidden;
         overflow-x: hidden;
         background-color: var(--bg-dark);
@@ -131,7 +131,7 @@ body.theme-green {
 @layer components {
     .crm-container {
         @apply flex gap-5 overflow-hidden;
-        height: 100%;
+        height: 100dvh;
         min-height: 0;
         background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
         transition: background 0.3s;
@@ -7438,14 +7438,14 @@ body:not(.theme-green) .list-item.selected {
     }
     .crm-container {
         flex-direction: column;
-        height: 100%;
+        height: 100dvh;
         min-height: 0;
         overflow: hidden;
         gap: 0;
     }
     .content-area {
         padding-top: calc(env(safe-area-inset-top, 0px) + 0.35rem);
-        padding-bottom: 0.75rem;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
     }
     .nav-sidebar {
         width: 0;
