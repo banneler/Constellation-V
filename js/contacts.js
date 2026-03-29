@@ -26,13 +26,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const navSidebar = document.querySelector(".nav-sidebar");
     const contactList = document.getElementById("contact-list");
     const mobileContactSelect = document.getElementById("mobile-contact-select");
-    const mobileAddContactBtn = document.getElementById("mobile-add-contact-btn");
     const contactForm = document.getElementById("contact-form");
     const contactSearch = document.getElementById("contact-search");
     const bulkImportContactsBtn = document.getElementById("bulk-import-contacts-btn");
     const bulkExportContactsBtn = document.getElementById("bulk-export-contacts-btn");
     const contactCsvInput = document.getElementById("contact-csv-input");
     const addContactBtn = document.getElementById("add-contact-btn");
+    const addContactMobileBtn = document.getElementById("add-contact-mobile-btn");
     const deleteContactBtn = document.getElementById("delete-contact-btn");
     const logActivityBtn = document.getElementById("log-activity-btn");
     const assignSequenceSelect = document.getElementById("assign-sequence-select");
@@ -1373,7 +1373,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             });
         }
 
-        addContactBtn.addEventListener("click", () => {
+        const handleAddContactClick = () => {
             const openNewContactModal = () => {
                 hideContactDetails(false, true);
                 showModal("New Contact", `
@@ -1416,10 +1416,9 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             } else {
                 openNewContactModal();
             }
-        });
-        if (mobileAddContactBtn) {
-            mobileAddContactBtn.addEventListener("click", () => addContactBtn.click());
-        }
+        };
+        if (addContactBtn) addContactBtn.addEventListener("click", handleAddContactClick);
+        if (addContactMobileBtn) addContactMobileBtn.addEventListener("click", handleAddContactClick);
 
         contactList.addEventListener("click", (e) => {
             const item = e.target.closest(".list-item");

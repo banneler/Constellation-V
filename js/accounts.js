@@ -36,9 +36,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const navSidebar = document.querySelector(".nav-sidebar");
     const accountList = document.getElementById("account-list");
     const mobileAccountSelect = document.getElementById("mobile-account-select");
-    const mobileAddAccountBtn = document.getElementById("mobile-add-account-btn");
     const accountSearch = document.getElementById("account-search");
     const addAccountBtn = document.getElementById("add-account-btn");
+    const addAccountMobileBtn = document.getElementById("add-account-mobile-btn");
     const bulkImportAccountsBtn = document.getElementById("bulk-import-accounts-btn");
     const bulkExportAccountsBtn = document.getElementById("bulk-export-accounts-btn");
     const accountCsvInput = document.getElementById("account-csv-input");
@@ -2306,8 +2306,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
-        if (addAccountBtn) {
-            addAccountBtn.addEventListener("click", () => {
+        const handleAddAccountClick = () => {
                 const openNewAccountModal = () => {
                     hideAccountDetails(true);
                     showModal("New Account", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
@@ -2340,11 +2339,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else {
                     openNewAccountModal();
                 }
-            });
-        }
-        if (mobileAddAccountBtn && addAccountBtn) {
-            mobileAddAccountBtn.addEventListener("click", () => addAccountBtn.click());
-        }
+        };
+        if (addAccountBtn) addAccountBtn.addEventListener("click", handleAddAccountClick);
+        if (addAccountMobileBtn) addAccountMobileBtn.addEventListener("click", handleAddAccountClick);
 
         if (accountList) {
             accountList.addEventListener("click", (e) => {
