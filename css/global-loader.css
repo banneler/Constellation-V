@@ -2,6 +2,9 @@
 .global-loader-overlay {
     position: fixed;
     inset: 0;
+    /* Cover iOS PWA dynamic viewport (avoids strip below overlay with viewport-fit=cover) */
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
     z-index: 9999;
     display: flex;
     align-items: center;

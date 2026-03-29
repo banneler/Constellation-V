@@ -7432,20 +7432,38 @@ body:not(.theme-green) .list-item.selected {
 }
 
 @media (max-width: 768px) {
+    /*
+     * iOS standalone PWA + viewport-fit=cover: percentage heights can end above the
+     * physical bottom, exposing html/body behind the loader. Fill the dynamic
+     * viewport and paint the canvas with the same surface color as the shell.
+     */
+    html {
+        height: auto;
+        min-height: 100%;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+        background-color: var(--bg-dark);
+    }
     body {
         font-size: 80%;
         padding-bottom: 0;
+        min-height: 100%;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
     }
     .crm-container {
         flex-direction: column;
-        height: 100%;
-        min-height: 0;
+        height: auto;
+        min-height: 100%;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
         overflow: hidden;
         gap: 0;
     }
     .content-area {
         padding-top: calc(env(safe-area-inset-top, 0px) + 0.35rem);
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+        /* Enough bottom inset for home indicator without stacking inset + fixed padding */
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
     }
     .nav-sidebar {
         width: 0;
