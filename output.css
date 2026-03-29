@@ -12251,19 +12251,38 @@ body:not(.theme-green) .list-item.selected {
   .cc-desktop-only {
     display: none !important;
   }
+  body.command-center-page .content-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
   body.command-center-page #dashboard-sections-grid {
     max-height: none;
+    margin-bottom: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
-  body.command-center-page .dashboard-column-left, body.command-center-page .dashboard-sections-grid {
+  body.command-center-page .dashboard-column-left {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  body.command-center-page .dashboard-sections-grid {
     max-height: none;
     overflow: visible;
+    margin-bottom: 0;
   }
   body.command-center-page .dashboard-left-top-row {
     height: auto;
     min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
-  body.command-center-page .dashboard-column-left {
-    width: 100%;
+  body.command-center-page .my-tasks-card {
+    flex: 1;
   }
   body.command-center-page .content-area {
     overflow-y: auto;
