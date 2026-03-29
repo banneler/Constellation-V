@@ -82,12 +82,12 @@ body.theme-green {
     }
     html {
         font-size: 87.5%;
-        height: 100dvh;
+        height: 100%;
         overflow: hidden;
     }
     body {
         margin: 0;
-        height: 100dvh;
+        height: 100%;
         overflow: hidden;
         overflow-x: hidden;
         background-color: var(--bg-dark);
@@ -131,7 +131,7 @@ body.theme-green {
 @layer components {
     .crm-container {
         @apply flex gap-5 overflow-hidden;
-        height: 100dvh;
+        height: 100%;
         min-height: 0;
         background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
         transition: background 0.3s;
@@ -7438,7 +7438,7 @@ body:not(.theme-green) .list-item.selected {
     }
     .crm-container {
         flex-direction: column;
-        height: 100dvh;
+        height: 100%;
         min-height: 0;
         overflow: hidden;
         gap: 0;
