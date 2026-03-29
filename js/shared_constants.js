@@ -960,6 +960,7 @@ export function injectGlobalNavigation() {
     const menuToggle = document.getElementById('nav-menu-toggle');
     const userMenuContent = document.getElementById('user-menu-popup');
     const userMenu = document.querySelector('.user-menu');
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
     const closeUserMenu = () => {
         if (userMenuContent && !userMenuContent.classList.contains('user-menu-collapsed')) {
             userMenuContent.classList.add('user-menu-collapsed');
@@ -970,18 +971,36 @@ export function injectGlobalNavigation() {
         }
     };
     if (menuToggle && userMenuContent) {
-        menuToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userMenuContent.classList.toggle('user-menu-collapsed');
-            const isOpen = !userMenuContent.classList.contains('user-menu-collapsed');
-            menuToggle.setAttribute('aria-expanded', isOpen);
+        if (isMobileViewport()) {
+            const label = menuToggle.querySelector('.nav-label-text');
+            if (label) label.textContent = 'Logout';
+            const icon = menuToggle.querySelector('.nav-icon');
+            if (icon) icon.className = 'fa-solid fa-right-from-bracket nav-icon';
             const chevron = menuToggle.querySelector('.nav-menu-chevron');
-            if (chevron) chevron.className = `fa-solid fa-chevron-${isOpen ? 'up' : 'down'} nav-menu-chevron`;
-            navSidebar?.classList.toggle('user-menu-open', isOpen);
-        });
-        document.addEventListener('click', (e) => {
-            if (userMenu && !userMenu.contains(e.target)) closeUserMenu();
-        });
+            if (chevron) chevron.style.display = 'none';
+            menuToggle.setAttribute('title', 'Logout');
+            menuToggle.setAttribute('aria-label', 'Logout');
+            menuToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeUserMenu();
+                closeMobileMenu();
+                const logoutBtn = navDrawer?.querySelector('#logout-btn');
+                if (logoutBtn) logoutBtn.click();
+            });
+        } else {
+            menuToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userMenuContent.classList.toggle('user-menu-collapsed');
+                const isOpen = !userMenuContent.classList.contains('user-menu-collapsed');
+                menuToggle.setAttribute('aria-expanded', isOpen);
+                const chevron = menuToggle.querySelector('.nav-menu-chevron');
+                if (chevron) chevron.className = `fa-solid fa-chevron-${isOpen ? 'up' : 'down'} nav-menu-chevron`;
+                navSidebar?.classList.toggle('user-menu-open', isOpen);
+            });
+            document.addEventListener('click', (e) => {
+                if (userMenu && !userMenu.contains(e.target)) closeUserMenu();
+            });
+        }
     }
 
     if (searchTrigger) searchTrigger.addEventListener('click', (e) => { e.stopPropagation(); openSearchFanout(); });
