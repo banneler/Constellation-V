@@ -5,7 +5,7 @@
  * as tabs and calculating a global IRR and Payback.
  *
  * Key features:
- * - Saves/Loads projects to/from Supabase 'irr_projects' table.
+ * - Saves/Loads projects to/from Supabase 'irr_projects' table (includes business_case_start YYYY-MM; see sql/add_business_case_start_to_irr_projects.sql).
  * - Uses a single GLOBAL Target IRR for all calculations.
  * - Calculates and displays TCV, IRR, Payback, and Capital Investment.
  * - Exports a CSV with LIVE EXCEL FORMULAS for TCV, IRR, and Decision.
@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Project Inputs
     const projectNameInput = document.getElementById('project-name');
     const globalTargetIrrInput = document.getElementById('global-target-irr');
+    const globalDiscountRateInput = document.getElementById('global-discount-rate');
 
     // Site Containers
     const siteTabsContainer = document.getElementById('site-tabs-container');
@@ -65,11 +66,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const siteFormTemplate = document.getElementById('site-form-template');
 
     // Global Results Elements
-    const globalDecisionEl = document.getElementById('global-decision');
     const globalAnnualIRREl = document.getElementById('global-annual-irr');
     const globalTcvEl = document.getElementById('global-tcv');
     const globalPaybackEl = document.getElementById('global-payback'); 
     const globalCapitalInvestmentEl = document.getElementById('global-capital-investment');
+    const globalNpvEl = document.getElementById('global-npv');
     const globalErrorMessageEl = document.getElementById('global-error-message');
 
     // Load Modal Elements
@@ -97,6 +98,197 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /** Stress test modifiers: applied only during chart/table render; do not mutate state.sites */
     let stressModifiers = { capex: 1.0, mrr: 1.0 };
+
+    function defaultBusinessCaseStartStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    const CALENDAR_MONTH_NAMES = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    function buildMonthOptionsHtml(selectedTwoDigitMM) {
+        const sel = (selectedTwoDigitMM && String(selectedTwoDigitMM).length === 2)
+            ? selectedTwoDigitMM
+            : String(new Date().getMonth() + 1).padStart(2, '0');
+        return CALENDAR_MONTH_NAMES.map((name, i) => {
+            const v = String(i + 1).padStart(2, '0');
+            return `<option value="${v}"${v === sel ? ' selected' : ''}>${name}</option>`;
+        }).join('');
+    }
+
+    function yyyyMmToMonthYearParts(iso) {
+        const p = parseBusinessCaseStartMonth(String(iso || '').trim());
+        const d = new Date();
+        if (!p) {
+            return { mm: String(d.getMonth() + 1).padStart(2, '0'), yyyy: d.getFullYear() };
+        }
+        return { mm: String(p.monthIndex0 + 1).padStart(2, '0'), yyyy: p.year };
+    }
+
+    /** Reads business case start from month name select + year field (stored/saved as YYYY-MM). */
+    function getBusinessCaseStartStr() {
+        const mEl = document.getElementById('business-case-start-month');
+        const yEl = document.getElementById('business-case-start-year');
+        if (!mEl || !yEl) return defaultBusinessCaseStartStr();
+        const mm = (mEl.value || '').trim();
+        const y = parseInt(yEl.value, 10);
+        if (!/^(0[1-9]|1[0-2])$/.test(mm) || !Number.isFinite(y) || y < 2000 || y > 2100) {
+            return defaultBusinessCaseStartStr();
+        }
+        return `${y}-${mm}`;
+    }
+
+    function setBusinessCaseStartFromYYYYMM(yyyyMm) {
+        const p = parseBusinessCaseStartMonth(String(yyyyMm || '').trim())
+            || parseBusinessCaseStartMonth(defaultBusinessCaseStartStr());
+        const mEl = document.getElementById('business-case-start-month');
+        const yEl = document.getElementById('business-case-start-year');
+        if (mEl) mEl.value = String(p.monthIndex0 + 1).padStart(2, '0');
+        if (yEl) yEl.value = String(p.year);
+    }
+
+    function parseBusinessCaseStartMonth(str) {
+        if (!str || typeof str !== 'string') return null;
+        const m = str.match(/^(\d{4})-(\d{2})$/);
+        if (!m) return null;
+        const year = parseInt(m[1], 10);
+        const monthNum = parseInt(m[2], 10);
+        if (monthNum < 1 || monthNum > 12) return null;
+        return { year, monthIndex0: monthNum - 1 };
+    }
+
+    /** Model month 0 = Roger column Q; drives calendar-year rollups and print timeline labels. */
+    function getBusinessCaseStartParsed() {
+        const parsed = parseBusinessCaseStartMonth(getBusinessCaseStartStr());
+        if (parsed) return parsed;
+        return parseBusinessCaseStartMonth(defaultBusinessCaseStartStr());
+    }
+
+    function sumMonthlySeriesIntoCalendarYearMap(monthlySeries, maxMonthIndex, baseYear, baseMonth0) {
+        const map = new Map();
+        for (let mi = 0; mi <= maxMonthIndex; mi++) {
+            const d = new Date(baseYear, baseMonth0 + mi, 1);
+            const calYear = d.getFullYear();
+            const v = monthlySeries[mi] || 0;
+            map.set(calYear, (map.get(calYear) || 0) + v);
+        }
+        return map;
+    }
+
+    function sortedCalendarYearsFromMap(map) {
+        return Array.from(map.keys()).sort((a, b) => a - b);
+    }
+
+    function formatModelMonthAsCalendarLabel(baseYear, baseMonth0, modelMonthOffset) {
+        const mo = Math.max(0, parseInt(modelMonthOffset, 10) || 0);
+        const d = new Date(baseYear, baseMonth0 + mo, 1);
+        const mon = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        return `${mon} (M${mo})`;
+    }
+
+    /** Shift YYYY-MM by delta months (calendar). */
+    function addMonthsToYYYYMM(yyyyMm, deltaMonths) {
+        const p = parseBusinessCaseStartMonth(yyyyMm);
+        if (!p) return defaultBusinessCaseStartStr();
+        const d = new Date(p.year, p.monthIndex0 + deltaMonths, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function totalMonthsSinceYearZero(y, monthIndex0) {
+        return y * 12 + monthIndex0;
+    }
+
+    /**
+     * Maps timeline (calendar month pickers + duration) to 0-based model month indices vs business case start.
+     * Prefers constructionStartMonthISO / billingStartMonthISO; falls back to legacy numeric indices.
+     */
+    function resolveTimelineToModelMonths(timeline, businessCaseStartStr) {
+        const bcs = parseBusinessCaseStartMonth(String(businessCaseStartStr || '').trim())
+            || parseBusinessCaseStartMonth(defaultBusinessCaseStartStr());
+        const bcsTm = totalMonthsSinceYearZero(bcs.year, bcs.monthIndex0);
+
+        let constructionStartMonth;
+        const cIso = timeline?.constructionStartMonthISO?.trim();
+        if (cIso && parseBusinessCaseStartMonth(cIso)) {
+            const t = parseBusinessCaseStartMonth(cIso);
+            constructionStartMonth = totalMonthsSinceYearZero(t.year, t.monthIndex0) - bcsTm;
+        } else {
+            constructionStartMonth = Math.max(0, parseInt(timeline?.constructionStartMonth, 10) || 0);
+        }
+
+        let billingStartMonth;
+        const bIso = timeline?.billingStartMonthISO?.trim();
+        if (bIso && parseBusinessCaseStartMonth(bIso)) {
+            const t = parseBusinessCaseStartMonth(bIso);
+            billingStartMonth = totalMonthsSinceYearZero(t.year, t.monthIndex0) - bcsTm;
+        } else {
+            billingStartMonth = Math.max(0, parseInt(timeline?.billingStartMonth, 10) || 0);
+        }
+
+        const constructionDurationMonths = Math.max(
+            1,
+            parseInt(timeline?.constructionDurationMonths, 10) || Math.max(1, billingStartMonth - constructionStartMonth)
+        );
+
+        if (constructionStartMonth < 0) {
+            return {
+                constructionStartMonth: 0,
+                billingStartMonth: 0,
+                constructionDurationMonths,
+                error: 'Construction start must be on or after the business case start month.',
+            };
+        }
+        if (billingStartMonth < 0) {
+            return {
+                constructionStartMonth,
+                billingStartMonth: 0,
+                constructionDurationMonths,
+                error: 'Billing start must be on or after the business case start month.',
+            };
+        }
+        if (billingStartMonth < constructionStartMonth) {
+            return {
+                constructionStartMonth,
+                billingStartMonth,
+                constructionDurationMonths,
+                error: 'Billing start must be on or after construction start.',
+            };
+        }
+
+        return { constructionStartMonth, billingStartMonth, constructionDurationMonths, error: null };
+    }
+
+    /** For loaded projects: derive month pickers from legacy numeric indices + business case start. */
+    function ensureSiteTimelineISOFromLegacy(site, businessCaseStartStr) {
+        if (!site.timeline) {
+            site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+        }
+        const bcs = parseBusinessCaseStartMonth(String(businessCaseStartStr || '').trim())
+            || parseBusinessCaseStartMonth(defaultBusinessCaseStartStr());
+        const baseStr = `${bcs.year}-${String(bcs.monthIndex0 + 1).padStart(2, '0')}`;
+        if (!site.timeline.constructionStartMonthISO || !parseBusinessCaseStartMonth(site.timeline.constructionStartMonthISO)) {
+            site.timeline.constructionStartMonthISO = addMonthsToYYYYMM(
+                baseStr,
+                Math.max(0, parseInt(site.timeline.constructionStartMonth, 10) || 0)
+            );
+        }
+        if (!site.timeline.billingStartMonthISO || !parseBusinessCaseStartMonth(site.timeline.billingStartMonthISO)) {
+            site.timeline.billingStartMonthISO = addMonthsToYYYYMM(
+                baseStr,
+                Math.max(0, parseInt(site.timeline.billingStartMonth, 10) || 0)
+            );
+        }
+    }
+
+    function formatTimelineMonthISOForDisplay(yyyyMm) {
+        const p = parseBusinessCaseStartMonth(String(yyyyMm || '').trim());
+        if (!p) return '—';
+        const d = new Date(p.year, p.monthIndex0, 1);
+        return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
 
     // Dial elements
     const dialFill = document.querySelector('.irr-dial-fill');
@@ -132,6 +324,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             projectNameInput.value = '';
             globalTargetIrrInput.value = '15';
+            if (globalDiscountRateInput) globalDiscountRateInput.value = '15';
+            setBusinessCaseStartFromYYYYMM(defaultBusinessCaseStartStr());
             updateDialVisual();
 
             siteFormsContainer.innerHTML = '';
@@ -179,15 +373,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mrr: 3000,
                 term: 60,
             },
-            timeline: {
-                constructionStartMonth: 0,
-                billingStartMonth: 1,
-            },
+            timeline: (() => {
+                const bcs = getBusinessCaseStartStr();
+                const bp = parseBusinessCaseStartMonth(bcs) || parseBusinessCaseStartMonth(defaultBusinessCaseStartStr());
+                const baseStr = `${bp.year}-${String(bp.monthIndex0 + 1).padStart(2, '0')}`;
+                return {
+                    constructionStartMonth: 0,
+                    billingStartMonth: 1,
+                    constructionDurationMonths: 3,
+                    constructionStartMonthISO: baseStr,
+                    billingStartMonthISO: addMonthsToYYYYMM(baseStr, 1),
+                };
+            })(),
             result: {
                 annualIRR: null,
+                npv: null,
                 tcv: 0,
-                decision: '--',
                 payback: null,
+                paybackRogerMonth: null,
                 paybackRatio: null,
                 error: null
             }
@@ -260,8 +463,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 resultClass = 'error';
                 resultText = 'Error';
             } else if (site.result.annualIRR !== null) {
-                resultClass = site.result.decision === 'GO' ? 'go' : 'nogo';
-                resultText = `${site.result.decision} (${(site.result.annualIRR * 100).toFixed(2)}%)`;
+                const hurdle = (parseFloat(globalTargetIrrInput?.value) || 0) / 100;
+                resultClass = site.result.annualIRR >= hurdle ? 'go' : 'nogo';
+                resultText = `${(site.result.annualIRR * 100).toFixed(2)}%`;
             }
 
             tab.innerHTML = `
@@ -285,6 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!site) return;
 
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
+        const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
 
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
         if (!formWrapper) {
@@ -298,13 +503,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        const decisionEl = resultsContainer.querySelector('.individual-decision');
         const annualIRREl = resultsContainer.querySelector('.individual-annual-irr');
-        const tcvEl = resultsContainer.querySelector('.individual-tcv');  
+        const tcvEl = resultsContainer.querySelector('.individual-tcv');
+        const npvEl = resultsContainer.querySelector('.individual-npv');
         const paybackEl = resultsContainer.querySelector('.individual-payback');
         const errorMessageEl = resultsContainer.querySelector('.individual-error-message');
 
-        if (!decisionEl || !annualIRREl || !tcvEl || !errorMessageEl || !paybackEl) {
+        if (!annualIRREl || !tcvEl || !npvEl || !errorMessageEl || !paybackEl) {
             console.error(`runSiteCalculation: Missing results elements for siteId ${siteId}`);
             return;
         }
@@ -324,35 +529,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         site.result.tcv = siteTCV;
 
         // 3. Calculate Payback
-        const { paybackMonths, paybackRatio, error: paybackError } = getPaybackForSite(site.inputs);
-        site.result.payback = paybackMonths;
-        site.result.paybackRatio = paybackRatio;
+        if (!site.timeline) {
+            site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+        }
+
+        const { paybackMonths, paybackRogerMonth, paybackRatio, error: paybackError } = getPaybackForSite(site.inputs, site.timeline);
+            site.result.payback = paybackMonths;
+            site.result.paybackRogerMonth = paybackRogerMonth;
+            site.result.paybackRatio = paybackRatio;
 
         // 4. Calculate IRR
-        const { cashFlows, error: validationError } = getCashFlowsForSite(site.inputs);
+        const { cashFlows, error: validationError } = getCashFlowsForSite(site.inputs, site.timeline);
 
         // 5. Update State & UI
         const combinedError = validationError || paybackError;
         if (combinedError) {
             site.result.error = combinedError;
             site.result.annualIRR = null;
-            site.result.decision = 'Error';
-            showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, paybackEl, combinedError);
+            site.result.npv = null;
+            site.result.paybackRogerMonth = null;
+            showSiteError(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, combinedError);
         } else {
             const monthlyIRR = calculateIRR(cashFlows);
             if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
                 site.result.error = "Could not calculate IRR. Check inputs.";
                 site.result.annualIRR = null;
-                site.result.decision = 'Error';
-                showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, paybackEl, site.result.error);
+                site.result.npv = null;
+                site.result.paybackRogerMonth = null;
+                showSiteError(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, site.result.error);
             } else {
                 site.result.error = null;
                 site.result.annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
-                site.result.decision = site.result.annualIRR >= globalTargetIRR ? 'GO' : 'NO GO';
+                site.result.npv = calculateNPV(globalDiscountRate, cashFlows);
+                const irrDisplayState = site.result.annualIRR >= globalTargetIRR ? 'go' : 'nogo';
                 showSiteResults(
-                    errorMessageEl, decisionEl, annualIRREl, tcvEl, paybackEl,
-                    site.result.annualIRR, site.result.decision, site.result.tcv,
-                    site.result.payback, site.inputs.term, site.result.paybackRatio
+                    errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl,
+                    site.result.annualIRR, irrDisplayState, site.result.tcv,
+                    site.result.npv, site.result.payback, site.inputs.term, site.result.paybackRatio,
+                    site.result.paybackRogerMonth
                 );
             }
         }
@@ -369,105 +583,78 @@ document.addEventListener('DOMContentLoaded', async () => {
      * Calculates the combined IRR, TCV, and Payback for *all* sites.
      */
     function runGlobalCalculation() {
-        let globalCashFlows = [0];  
         let maxTerm = 0;
+        let maxFlowLength = 0;
         let globalTCV = 0;
-        
-        // --- MODIFIED: Global Payback & CapEx Vars ---
         let totalGlobalConstructionCost = 0;
         let totalGlobalEngineeringCost = 0;
-        let totalGlobalProductCost = 0; // <-- NEW
-        let totalGlobalCapitalInvestment = 0;
-        let totalGlobalNrr = 0;
-        let totalGlobalMrr = 0;
-        let totalGlobalMonthlyCost = 0;
-        
+        let totalGlobalProductCost = 0;
+
         if (state.sites.length === 0) {
-            showGlobalResults(NaN, 0, 0, null, 0, null, 0);
+            showGlobalResults(NaN, 0, 0, null, null, 0, null, 0, null);
             return;
         }
 
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
+        const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
+        const siteCashFlowBundles = [];
 
-        // --- 1. Aggregate all site data ---
-        state.sites.forEach(site => {
+        for (const site of state.sites) {
+            if (!site.timeline) {
+                site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            }
             if (site.inputs.term > maxTerm) {
                 maxTerm = site.inputs.term;
             }
             globalTCV += site.result.tcv || 0;
-            
-            // Sum inputs for global payback & CapEx
             totalGlobalConstructionCost += site.inputs.constructionCost || 0;
             totalGlobalEngineeringCost += site.inputs.engineeringCost || 0;
-            totalGlobalProductCost += site.inputs.productCost || 0; // <-- NEW
-            totalGlobalNrr += site.inputs.nrr || 0;
-            totalGlobalMrr += site.inputs.mrr || 0;
-            totalGlobalMonthlyCost += site.inputs.monthlyCost || 0;
-        });
-        
-        // <-- MODIFIED: Calculate Total Capital Investment -->
-        totalGlobalCapitalInvestment = totalGlobalConstructionCost + totalGlobalEngineeringCost + totalGlobalProductCost;
+            totalGlobalProductCost += site.inputs.productCost || 0;
 
-        globalTcvEl.textContent = `$${globalTCV.toLocaleString()}`;
-        globalTcvEl.classList.remove('pending');
-        
-        globalCapitalInvestmentEl.textContent = `$${totalGlobalCapitalInvestment.toLocaleString()}`;
-        globalCapitalInvestmentEl.classList.remove('pending');
-        globalCapitalInvestmentEl.style.color = 'var(--text-light, #333)';
-
-
-        // --- 2. Calculate Global Payback ---
-        const globalPaybackInputs = {
-            constructionCost: totalGlobalConstructionCost,
-            engineeringCost: totalGlobalEngineeringCost,
-            productCost: totalGlobalProductCost, // <-- NEW
-            nrr: totalGlobalNrr,
-            mrr: totalGlobalMrr,
-            monthlyCost: totalGlobalMonthlyCost,
-            term: maxTerm
-        };
-        const { paybackMonths: globalPaybackMonths, paybackRatio: globalPaybackRatio } = getPaybackForSite(globalPaybackInputs);
-
-        // --- 3. Calculate Global IRR ---
-        globalCashFlows = new Array(maxTerm + 1).fill(0);
-
-        for (const site of state.sites) {
-            // getCashFlowsForSite is now updated to include productCost
-            const { cashFlows, error } = getCashFlowsForSite(site.inputs);
-            if (!error) {
-                for (let i = 0; i < cashFlows.length; i++) {
-                    if (i < globalCashFlows.length) {
-                        globalCashFlows[i] += cashFlows[i];
-                    }
-                }
+            const flowResult = getCashFlowsForSite(site.inputs, site.timeline);
+            if (flowResult.error) {
+                showGlobalError(flowResult.error);
+                setPaybackUI(globalPaybackEl, null, maxTerm, null, null);
+                return;
+            }
+            siteCashFlowBundles.push(flowResult.cashFlows);
+            if (flowResult.cashFlows.length > maxFlowLength) {
+                maxFlowLength = flowResult.cashFlows.length;
             }
         }
-        
-        const monthZero = globalCashFlows[0];
-        const positiveFlow = globalCashFlows.slice(1).some(cf => cf > 0);
-        
-        if (monthZero >= 0 && !globalCashFlows.slice(1).some(cf => cf < 0)) {
-            showGlobalError("Global project has no negative cash flow (no investment).");
-            setPaybackUI(globalPaybackEl, globalPaybackMonths, maxTerm, globalPaybackRatio);
-            return;
+
+        const totalGlobalCapitalInvestment = totalGlobalConstructionCost + totalGlobalEngineeringCost + totalGlobalProductCost;
+        const globalCashFlows = new Array(Math.max(maxFlowLength, 1)).fill(0);
+        for (const flows of siteCashFlowBundles) {
+            for (let i = 0; i < flows.length; i++) {
+                globalCashFlows[i] += flows[i];
+            }
         }
-         if (monthZero <= 0 && !positiveFlow) {
-            showGlobalError("Global project has no positive cash flow.");
-            setPaybackUI(globalPaybackEl, globalPaybackMonths, maxTerm, globalPaybackRatio);
+
+        const { paybackMonths: globalPaybackMonths, paybackRogerMonth: globalPaybackRogerMonth, paybackRatio: globalPaybackRatio } =
+            getPaybackFromCashFlows(globalCashFlows, maxTerm);
+
+        const hasNegative = globalCashFlows.some(cf => cf < 0);
+        const hasPositive = globalCashFlows.some(cf => cf > 0);
+        if (!hasNegative || !hasPositive) {
+            showGlobalError("Global project must include at least one investment outflow and one positive inflow.");
+            setPaybackUI(globalPaybackEl, globalPaybackMonths, maxTerm, globalPaybackRatio, globalPaybackRogerMonth);
             return;
         }
 
         const globalMonthlyIRR = calculateIRR(globalCashFlows);
-        
-        // --- 4. Show All Global Results ---
+        const globalNPV = calculateNPV(globalDiscountRate, globalCashFlows);
+
         showGlobalResults(
-            globalMonthlyIRR, 
-            globalTargetIRR, 
+            globalMonthlyIRR,
+            globalTargetIRR,
             globalTCV,
             globalPaybackMonths,
+            globalPaybackRogerMonth,
             maxTerm,
             globalPaybackRatio,
-            totalGlobalCapitalInvestment
+            totalGlobalCapitalInvestment,
+            globalNPV
         );
 
         renderCashflowChart();
@@ -484,78 +671,244 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const bcsMin = getBusinessCaseStartStr();
+
         let html = `<table class="timeline-table">
             <thead><tr>
                 <th>Site</th>
-                <th>Construction Start</th>
-                <th>Billing Start</th>
+                <th>Construction start</th>
+                <th>Duration (mo)</th>
+                <th>Billing start</th>
             </tr></thead><tbody>`;
 
         state.sites.forEach(site => {
-            if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1 };
+            if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            if (!site.timeline.constructionDurationMonths || site.timeline.constructionDurationMonths < 1) {
+                site.timeline.constructionDurationMonths = 3;
+            }
+            ensureSiteTimelineISOFromLegacy(site, bcsMin);
+            const cParts = yyyyMmToMonthYearParts(site.timeline.constructionStartMonthISO);
+            const bParts = yyyyMmToMonthYearParts(site.timeline.billingStartMonthISO);
             html += `<tr>
                 <td class="site-name-cell" title="${site.name}">${site.name}</td>
-                <td><input type="number" min="0" value="${site.timeline.constructionStartMonth}" data-site-id="${site.id}" data-field="constructionStartMonth"></td>
-                <td><input type="number" min="0" value="${site.timeline.billingStartMonth}" data-site-id="${site.id}" data-field="billingStartMonth"></td>
+                <td class="timeline-split-cell">
+                    <div class="timeline-date-split">
+                        <select class="timeline-cal-month" data-site-id="${site.id}" data-cal-kind="construction" aria-label="Construction start month">${buildMonthOptionsHtml(cParts.mm)}</select>
+                        <input type="number" class="timeline-cal-year" data-site-id="${site.id}" data-cal-kind="construction" min="2000" max="2100" step="1" value="${cParts.yyyy}" aria-label="Construction start year">
+                    </div>
+                </td>
+                <td><input type="number" min="1" value="${site.timeline.constructionDurationMonths}" data-site-id="${site.id}" data-field="constructionDurationMonths" aria-label="Construction duration months"></td>
+                <td class="timeline-split-cell">
+                    <div class="timeline-date-split">
+                        <select class="timeline-cal-month" data-site-id="${site.id}" data-cal-kind="billing" aria-label="Billing start month">${buildMonthOptionsHtml(bParts.mm)}</select>
+                        <input type="number" class="timeline-cal-year" data-site-id="${site.id}" data-cal-kind="billing" min="2000" max="2100" step="1" value="${bParts.yyyy}" aria-label="Billing start year">
+                    </div>
+                </td>
             </tr>`;
         });
 
         html += '</tbody></table>';
         timelineTableContainer.innerHTML = html;
 
-        timelineTableContainer.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('change', (e) => {
-                const siteId = Number(e.target.dataset.siteId);
-                const field = e.target.dataset.field;
+        function syncTimelineIndicesFromISO(site) {
+            const r = resolveTimelineToModelMonths(site.timeline, getBusinessCaseStartStr());
+            if (!r.error) {
+                site.timeline.constructionStartMonth = r.constructionStartMonth;
+                site.timeline.billingStartMonth = r.billingStartMonth;
+                site.timeline.constructionDurationMonths = r.constructionDurationMonths;
+            }
+        }
+
+        function readCalISOFromRow(row, kind) {
+            if (!row) return null;
+            const sel = row.querySelector(`select.timeline-cal-month[data-cal-kind="${kind}"]`);
+            const yIn = row.querySelector(`input.timeline-cal-year[data-cal-kind="${kind}"]`);
+            if (!sel || !yIn) return null;
+            const mm = (sel.value || '').trim();
+            const y = parseInt(yIn.value, 10);
+            if (!/^(0[1-9]|1[0-2])$/.test(mm) || !Number.isFinite(y) || y < 2000 || y > 2100) return null;
+            return `${y}-${mm}`;
+        }
+
+        timelineTableContainer.addEventListener('change', (e) => {
+            const t = e.target;
+            if (t.matches?.('select.timeline-cal-month')) {
+                const row = t.closest('tr');
+                const siteId = Number(t.dataset.siteId);
+                const kind = t.dataset.calKind;
+                const site = state.sites.find(s => s.id === siteId);
+                if (!site) return;
+                if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+                const iso = readCalISOFromRow(row, kind);
+                if (iso) {
+                    if (kind === 'construction') site.timeline.constructionStartMonthISO = iso;
+                    else if (kind === 'billing') site.timeline.billingStartMonthISO = iso;
+                }
+                syncTimelineIndicesFromISO(site);
+                state.isFormDirty = true;
+                runSiteCalculation(siteId, true);
+            }
+            if (t.matches?.('input.timeline-cal-year')) {
+                const row = t.closest('tr');
+                const siteId = Number(t.dataset.siteId);
+                const kind = t.dataset.calKind;
+                const site = state.sites.find(s => s.id === siteId);
+                if (!site) return;
+                if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+                const iso = readCalISOFromRow(row, kind);
+                if (iso) {
+                    if (kind === 'construction') site.timeline.constructionStartMonthISO = iso;
+                    else if (kind === 'billing') site.timeline.billingStartMonthISO = iso;
+                }
+                syncTimelineIndicesFromISO(site);
+                state.isFormDirty = true;
+                runSiteCalculation(siteId, true);
+            }
+            if (t.matches?.('input[data-field="constructionDurationMonths"]')) {
+                const siteId = Number(t.dataset.siteId);
                 const site = state.sites.find(s => s.id === siteId);
                 if (site) {
-                    if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1 };
-                    site.timeline[field] = parseInt(e.target.value) || 0;
+                    if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+                    site.timeline.constructionDurationMonths = Math.max(1, parseInt(t.value, 10) || 1);
+                    syncTimelineIndicesFromISO(site);
+                    state.isFormDirty = true;
+                    runSiteCalculation(siteId, true);
                 }
-            });
+            }
+        });
+
+        timelineTableContainer.addEventListener('input', (e) => {
+            const t = e.target;
+            if (!t.matches?.('input.timeline-cal-year')) return;
+            const row = t.closest('tr');
+            const siteId = Number(t.dataset.siteId);
+            const kind = t.dataset.calKind;
+            const site = state.sites.find(s => s.id === siteId);
+            if (!site) return;
+            if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            const iso = readCalISOFromRow(row, kind);
+            if (iso) {
+                if (kind === 'construction') site.timeline.constructionStartMonthISO = iso;
+                else if (kind === 'billing') site.timeline.billingStartMonthISO = iso;
+            }
+            syncTimelineIndicesFromISO(site);
+            state.isFormDirty = true;
+            runSiteCalculation(siteId, true);
         });
     }
 
+    function buildCashFlowComponentsForSite(inputs, timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 }) {
+        const {
+            nrr = 0,
+            constructionCost = 0,
+            engineeringCost = 0,
+            productCost = 0,
+            mrr = 0,
+            monthlyCost = 0,
+            term = 0
+        } = inputs || {};
+
+        const termMonths = parseInt(term, 10) || 0;
+        const bcsStr = getBusinessCaseStartStr();
+        const resolved = resolveTimelineToModelMonths(timeline, bcsStr);
+        if (resolved.error) return { error: resolved.error };
+
+        const { constructionStartMonth, billingStartMonth, constructionDurationMonths } = resolved;
+        if (termMonths <= 0) return { error: "Term must be > 0" };
+
+        const capexTotal = (constructionCost || 0) + (engineeringCost || 0) + (productCost || 0);
+        // Keep requested SG&A model: 3% of NRR + 1x MRR.
+        const sgaTotal = ((nrr || 0) * 0.03) + (mrr || 0);
+        const constructionMonths = constructionDurationMonths;
+        // SG&A is split across two model months (Roger-style); when billing starts at month 0,
+        // still use months 0 and 1 — not 100% in 0 — so length may need at least 2 even for term 1.
+        let minSeriesTail = billingStartMonth + termMonths;
+        if (sgaTotal !== 0 && billingStartMonth === 0) {
+            minSeriesTail = Math.max(minSeriesTail, 2);
+        }
+        const requiredLength = Math.max(
+            constructionStartMonth + constructionMonths,
+            minSeriesTail,
+            billingStartMonth + 1
+        );
+
+        const revenue = new Array(requiredLength).fill(0);
+        const cos = new Array(requiredLength).fill(0);
+        const sga = new Array(requiredLength).fill(0);
+        const capex = new Array(requiredLength).fill(0);
+
+        if (capexTotal !== 0) {
+            const capexPerMonth = capexTotal / constructionMonths;
+            for (let month = constructionStartMonth; month < constructionStartMonth + constructionMonths; month++) {
+                capex[month] += capexPerMonth;
+            }
+        }
+
+        if (sgaTotal !== 0) {
+            if (billingStartMonth > 0) {
+                sga[billingStartMonth - 1] += sgaTotal / 2;
+                sga[billingStartMonth] += sgaTotal / 2;
+            } else {
+                sga[0] += sgaTotal / 2;
+                sga[1] += sgaTotal / 2;
+            }
+        }
+
+        // NRC/NRR is recognized in billing start month in Roger's workbook model.
+        revenue[billingStartMonth] += (nrr || 0);
+        for (let month = billingStartMonth; month < billingStartMonth + termMonths; month++) {
+            revenue[month] += (mrr || 0);
+            cos[month] += (monthlyCost || 0);
+        }
+
+        const cashFlows = new Array(requiredLength).fill(0);
+        for (let month = 0; month < requiredLength; month++) {
+            cashFlows[month] = revenue[month] - cos[month] - sga[month] - capex[month];
+        }
+
+        const hasNegative = cashFlows.some(cf => cf < 0);
+        const hasPositive = cashFlows.some(cf => cf > 0);
+        if (!hasNegative || !hasPositive) {
+            return { revenue, cos, sga, capex, cashFlows, error: "Cash flows must include both investment outflow and positive inflow." };
+        }
+
+        return { revenue, cos, sga, capex, cashFlows, error: null };
+    }
+
     /**
-     * Builds cumulative cash flow data using per-site timeline offsets,
-     * then renders or updates the Chart.js line chart.
+     * Shared Chart.js data/options for on-screen chart and print export (same series as global NPV).
+     * @returns {{ chartData: object, chartOptions: object } | null}
      */
-    function renderCashflowChart() {
-        if (!cashflowChartCanvas || state.sites.length === 0) return;
+    function getCashflowChartPayload() {
+        if (state.sites.length === 0) return null;
 
         let maxMonth = 0;
-        const siteFlows = [];
-
+        const siteFlowArrays = [];
+        const chartBcs = getBusinessCaseStartStr();
         state.sites.forEach(site => {
-            const { cashFlows, error } = getStressedCashFlowsForSite(site.inputs);
+            ensureSiteTimelineISOFromLegacy(site, chartBcs);
+            const tl = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            const { cashFlows, error } = getStressedCashFlowsForSite(site.inputs || {}, tl);
             if (error || cashFlows.length === 0) return;
-
-            const tl = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1 };
-            const term = site.inputs.term;
-            const initialOutflow = cashFlows[0];
-            const monthlyNet = cashFlows.length > 1 ? cashFlows[1] : 0;
-            const lastMonth = Math.max(tl.constructionStartMonth, tl.billingStartMonth + term);
-            if (lastMonth > maxMonth) maxMonth = lastMonth;
-
-            siteFlows.push({ initialOutflow, monthlyNet, term, constructionStart: tl.constructionStartMonth, billingStart: tl.billingStartMonth });
+            siteFlowArrays.push(cashFlows);
+            maxMonth = Math.max(maxMonth, cashFlows.length - 1);
         });
 
-        if (siteFlows.length === 0) return;
+        if (siteFlowArrays.length === 0) return null;
+
+        const monthlyTotals = new Array(maxMonth + 1).fill(0);
+        for (let m = 0; m <= maxMonth; m++) {
+            siteFlowArrays.forEach(flows => {
+                monthlyTotals[m] += (flows[m] || 0);
+            });
+        }
 
         const labels = [];
         const cumulativeData = [];
         let cumulative = 0;
-
         for (let m = 0; m <= maxMonth; m++) {
             labels.push(m);
-            let monthCash = 0;
-
-            siteFlows.forEach(sf => {
-                if (m === sf.constructionStart) monthCash += sf.initialOutflow;
-                if (m >= sf.billingStart && m < sf.billingStart + sf.term) monthCash += sf.monthlyNet;
-            });
-
-            cumulative += monthCash;
+            cumulative += (monthlyTotals[m] || 0);
             cumulativeData.push(cumulative);
         }
 
@@ -586,12 +939,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const chartOptions = {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        title: (items) => `Month ${items[0].label}`,
+                        title: (items) => {
+                            const raw = items[0]?.label;
+                            const modelMonth = Number(raw);
+                            if (!Number.isFinite(modelMonth)) return `Month ${raw}`;
+                            const bcs = getBusinessCaseStartParsed();
+                            const d = new Date(bcs.year, bcs.monthIndex0 + modelMonth, 1);
+                            const mm = String(d.getMonth() + 1).padStart(2, '0');
+                            const yy = String(d.getFullYear() % 100).padStart(2, '0');
+                            return `Month ${modelMonth} · ${mm}/${yy}`;
+                        },
                         label: (item) => `Cash Flow: $${item.parsed.y.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
                     }
                 },
@@ -625,10 +988,187 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
+        return { chartData, chartOptions };
+    }
+
+    function cashflowPrintDataUrlLooksValid(url) {
+        if (typeof url !== 'string') return false;
+        if (!/^data:image\/png(;|$)/i.test(url)) return false;
+        const base64 = url.split(',')[1] || '';
+        return base64.replace(/\s/g, '').length > 80;
+    }
+
+    /**
+     * Plain Canvas2D cumulative line when Chart.js export fails (still a readable print chart).
+     */
+    function drawCumulativeCashflowFallbackOnCanvas(canvas, cumulativeData) {
+        const W = canvas.width;
+        const H = canvas.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx || !cumulativeData?.length) return false;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+        const padL = 56;
+        const padR = 24;
+        const padT = 40;
+        const padB = 52;
+        const plotW = W - padL - padR;
+        const plotH = H - padT - padB;
+        let minY = Math.min(0, ...cumulativeData);
+        let maxY = Math.max(0, ...cumulativeData);
+        if (!Number.isFinite(minY) || !Number.isFinite(maxY)) return false;
+        if (Math.abs(maxY - minY) < 1e-9) {
+            minY -= 1;
+            maxY += 1;
+        }
+        const n = cumulativeData.length;
+        const xAt = (i) => padL + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+        const yAt = (v) => padT + (1 - (v - minY) / (maxY - minY)) * plotH;
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        const zy = yAt(0);
+        if (zy >= padT && zy <= padT + plotH) {
+            ctx.beginPath();
+            ctx.moveTo(padL, zy);
+            ctx.lineTo(padL + plotW, zy);
+            ctx.stroke();
+        }
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+            const x = xAt(i);
+            const y = yAt(cumulativeData[i]);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px system-ui,sans-serif';
+        ctx.fillText('Cumulative cash flow ($)', padL, 26);
+        return true;
+    }
+
+    function cumulativeSeriesToPngDataUrl(cumulativeData) {
+        if (!cumulativeData?.length) return '';
+        const W = 1280;
+        const H = 600;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        if (!drawCumulativeCashflowFallbackOnCanvas(canvas, cumulativeData)) return '';
+        try {
+            const url = canvas.toDataURL('image/png');
+            return cashflowPrintDataUrlLooksValid(url) ? url : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    /**
+     * Renders the same series as the UI chart on a fixed-size off-DOM canvas — avoids flip-card
+     * flex sizing (often 0×0 bitmap) breaking canvas.toDataURL for PDF/print.
+     */
+    async function captureCashflowChartForPrintDataUrl() {
+        const payload = getCashflowChartPayload();
+        if (!payload || typeof Chart === 'undefined') return '';
+
+        const W = 1280;
+        const H = 600;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        canvas.style.cssText = 'position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0.01;pointer-events:none';
+        document.body.appendChild(canvas);
+
+        const srcPlugins = payload.chartOptions.plugins || {};
+        const exportPlugins = { ...srcPlugins, tooltip: { enabled: false }, legend: { display: false } };
+        delete exportPlugins.annotation;
+        const exportOptions = {
+            ...payload.chartOptions,
+            plugins: exportPlugins,
+            responsive: false,
+            maintainAspectRatio: false,
+            animation: { duration: 0 },
+            transitions: { active: { animation: { duration: 0 } } },
+            devicePixelRatio: 1,
+        };
+
+        let exportChart = null;
+        try {
+            exportChart = new Chart(canvas, {
+                type: 'line',
+                data: payload.chartData,
+                options: exportOptions,
+            });
+            exportChart.update('none');
+            await new Promise((resolve) => {
+                requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            });
+            await new Promise((r) => setTimeout(r, 120));
+            let url = '';
+            try {
+                url = canvas.toDataURL('image/png');
+            } catch (e1) {
+                console.warn('Print chart: canvas.toDataURL failed:', e1);
+            }
+            if (!cashflowPrintDataUrlLooksValid(url) && typeof exportChart.toBase64Image === 'function') {
+                try {
+                    const b64 = exportChart.toBase64Image('image/png', 1);
+                    if (cashflowPrintDataUrlLooksValid(b64)) url = b64;
+                } catch (e2) {
+                    console.warn('Print chart: toBase64Image failed:', e2);
+                }
+            }
+            if (cashflowPrintDataUrlLooksValid(url)) return url;
+
+            try {
+                exportChart.destroy();
+            } catch (_) { /* ignore */ }
+            exportChart = null;
+            if (drawCumulativeCashflowFallbackOnCanvas(canvas, payload.chartData.datasets[0].data)) {
+                try {
+                    url = canvas.toDataURL('image/png');
+                    if (cashflowPrintDataUrlLooksValid(url)) return url;
+                } catch (e3) {
+                    console.warn('Print chart: fallback toDataURL failed:', e3);
+                }
+            }
+            console.warn('Print chart: export produced no usable PNG (Chart + fallback).');
+            return '';
+        } catch (e) {
+            console.warn('Offscreen cashflow chart export failed:', e);
+            try {
+                if (drawCumulativeCashflowFallbackOnCanvas(canvas, payload.chartData.datasets[0].data)) {
+                    const url = canvas.toDataURL('image/png');
+                    if (cashflowPrintDataUrlLooksValid(url)) return url;
+                }
+            } catch (_) { /* ignore */ }
+            return '';
+        } finally {
+            if (exportChart) {
+                try {
+                    exportChart.destroy();
+                } catch (_) { /* ignore */ }
+            }
+            canvas.remove();
+        }
+    }
+
+    /**
+     * Builds cumulative cash flow data using per-site timeline offsets,
+     * then renders or updates the Chart.js line chart.
+     */
+    function renderCashflowChart() {
+        if (!cashflowChartCanvas) return;
+        const payload = getCashflowChartPayload();
+        if (!payload) return;
+
+        const { chartData, chartOptions } = payload;
         if (cashflowChartInstance) {
             cashflowChartInstance.data = chartData;
             cashflowChartInstance.options = chartOptions;
-            cashflowChartInstance.update();
+            cashflowChartInstance.update('none');
         } else {
             cashflowChartInstance = new Chart(cashflowChartCanvas, { type: 'line', data: chartData, options: chartOptions });
         }
@@ -644,12 +1184,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (state.sites.length === 0) return '';
 
         let maxMonth = 0;
-        const siteFlows = [];
+        const componentSets = [];
+        const annualBcs = getBusinessCaseStartStr();
         state.sites.forEach(site => {
-            const { cashFlows, error } = getStressedCashFlowsForSite(site.inputs);
-            if (error || cashFlows.length === 0) return;
-            const tl = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1 };
-            const term = site.inputs.term;
+            ensureSiteTimelineISOFromLegacy(site, annualBcs);
+            const tl = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
             const stressedInputs = {
                 ...site.inputs,
                 constructionCost: (site.inputs.constructionCost || 0) * stressModifiers.capex,
@@ -657,68 +1196,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                 productCost: (site.inputs.productCost || 0) * stressModifiers.capex,
                 mrr: (site.inputs.mrr || 0) * stressModifiers.mrr
             };
-            const nrr = site.inputs.nrr;
-            const mrr = stressedInputs.mrr;
-            const monthlyCost = site.inputs.monthlyCost || 0;
-            const capex = stressedInputs.constructionCost + stressedInputs.engineeringCost + stressedInputs.productCost;
-            const sg_and_a = (mrr * 1) + (nrr * 0.03);
-            const monthZeroOut = capex + sg_and_a;
-            const lastMonth = Math.max(tl.constructionStartMonth, tl.billingStartMonth + term);
-            if (lastMonth > maxMonth) maxMonth = lastMonth;
-            siteFlows.push({
-                constructionStart: tl.constructionStartMonth,
-                billingStart: tl.billingStartMonth,
-                term,
-                initialOutflow: cashFlows[0],
-                monthlyNet: cashFlows.length > 1 ? cashFlows[1] : 0,
-                monthZeroIn: nrr,
-                monthZeroOut,
-                monthlyIn: mrr,
-                monthlyOut: monthlyCost
-            });
+            const components = buildCashFlowComponentsForSite(stressedInputs, tl);
+            if (components.error || !components.cashFlows?.length) return;
+            componentSets.push(components);
+            maxMonth = Math.max(maxMonth, components.cashFlows.length - 1);
         });
 
-        if (siteFlows.length === 0) return '';
+        if (componentSets.length === 0) return '';
 
         const monthlyIn = new Array(maxMonth + 1).fill(0);
         const monthlyOut = new Array(maxMonth + 1).fill(0);
         const monthlyNet = new Array(maxMonth + 1).fill(0);
 
         for (let m = 0; m <= maxMonth; m++) {
-            siteFlows.forEach(sf => {
-                if (m === sf.constructionStart) {
-                    monthlyIn[m] += sf.monthZeroIn;
-                    monthlyOut[m] += sf.monthZeroOut;
-                    monthlyNet[m] += sf.initialOutflow;
-                }
-                if (m >= sf.billingStart && m < sf.billingStart + sf.term) {
-                    monthlyIn[m] += sf.monthlyIn;
-                    monthlyOut[m] += sf.monthlyOut;
-                    monthlyNet[m] += sf.monthlyNet;
-                }
+            componentSets.forEach(components => {
+                const revenue = components.revenue[m] || 0;
+                const costs = (components.cos[m] || 0) + (components.sga[m] || 0) + (components.capex[m] || 0);
+                monthlyIn[m] += revenue;
+                monthlyOut[m] += costs;
+                monthlyNet[m] += (components.cashFlows[m] || 0);
             });
         }
 
-        const numYears = maxMonth === 0 ? 1 : Math.ceil(maxMonth / 12) + 1;
+        const { year: bcy, monthIndex0: bcm } = getBusinessCaseStartParsed();
+        const inByY = sumMonthlySeriesIntoCalendarYearMap(monthlyIn, maxMonth, bcy, bcm);
+        const outByY = sumMonthlySeriesIntoCalendarYearMap(monthlyOut, maxMonth, bcy, bcm);
+        const netByY = sumMonthlySeriesIntoCalendarYearMap(monthlyNet, maxMonth, bcy, bcm);
+        const calendarYears = sortedCalendarYearsFromMap(netByY);
         const rows = [];
         let cumulative = 0;
-        for (let y = 0; y < numYears; y++) {
-            const startMonth = y === 0 ? 0 : (y - 1) * 12 + 1;
-            const endMonth = y === 0 ? 0 : Math.min(y * 12, maxMonth);
-            let yearIn = 0, yearOut = 0, yearNet = 0;
-            if (y === 0) {
-                yearIn = monthlyIn[0];
-                yearOut = monthlyOut[0];
-                yearNet = monthlyNet[0];
-            } else {
-                for (let m = startMonth; m <= endMonth; m++) {
-                    yearIn += monthlyIn[m] || 0;
-                    yearOut += monthlyOut[m] || 0;
-                    yearNet += monthlyNet[m] || 0;
-                }
-            }
+        for (const calYear of calendarYears) {
+            const yearIn = inByY.get(calYear) || 0;
+            const yearOut = outByY.get(calYear) || 0;
+            const yearNet = netByY.get(calYear) || 0;
             cumulative += yearNet;
-            rows.push({ year: y, cashIn: yearIn, cashOut: yearOut, net: yearNet, cumulative });
+            rows.push({ year: calYear, cashIn: yearIn, cashOut: yearOut, net: yearNet, cumulative });
         }
 
         const tableClass = compact
@@ -749,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * Returns cash flows with stress modifiers applied. Does not mutate state; builds a copy of inputs.
      */
-    function getStressedCashFlowsForSite(siteInputs) {
+    function getStressedCashFlowsForSite(siteInputs, timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 }) {
         const stressedInputs = {
             ...siteInputs,
             constructionCost: (siteInputs.constructionCost || 0) * stressModifiers.capex,
@@ -757,72 +1269,65 @@ document.addEventListener('DOMContentLoaded', async () => {
             productCost: (siteInputs.productCost || 0) * stressModifiers.capex,
             mrr: (siteInputs.mrr || 0) * stressModifiers.mrr
         };
-        return getCashFlowsForSite(stressedInputs);
+        return getCashFlowsForSite(stressedInputs, timeline);
     }
 
     /**
      * Helper to get a cash flow array from a site's inputs
      */
-    function getCashFlowsForSite(inputs) {
-        // <-- MODIFIED: Added productCost
-        const { nrr, constructionCost, engineeringCost, productCost, mrr, monthlyCost, term } = inputs;
-        const cashFlows = [];
-        
-        const sg_and_a_cost = (mrr * 1) + (nrr * 0.03);
-        
-        // <-- MODIFIED: Added productCost to the initial outflow
-        const monthZeroCashFlow = nrr - (constructionCost + engineeringCost + productCost + sg_and_a_cost);
-        const monthlyNetCashFlow = mrr - monthlyCost;
-
-        if (term <= 0) return { cashFlows: [], error: "Term must be > 0" };
-        
-        if (monthZeroCashFlow >= 0 && monthlyNetCashFlow >= 0) {
-            return { cashFlows: [], error: "No investment. All cash flows are positive." };
-        }
-        
-        cashFlows.push(monthZeroCashFlow);
-        for (let i = 0; i < term; i++) {
-            cashFlows.push(monthlyNetCashFlow);
-        }
-        
-        return { cashFlows, error: null };
+    function getCashFlowsForSite(inputs, timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 }) {
+        const { cashFlows, error } = buildCashFlowComponentsForSite(inputs, timeline);
+        return { cashFlows: cashFlows || [], error };
     }
 
     /**
-     * MODIFIED: Helper to get payback metrics from a site's inputs
+     * Payback: Roger breakeven =IFERROR(INDEX(Q10:DC10,MATCH(1,(Q198:DC198<0)*(R198:DC198>=0),0)+1),...)
+     * i.e. first month-end where prior cumulative is strictly negative and current >= 0.
+     * paybackRogerMonth matches INDEX row-10 style: 0-based month index when cumulative first reaches >= 0
+     * after that crossing (same as the loop index `month`). Interpolated paybackMonths still drives paybackRatio.
      */
-    function getPaybackForSite(inputs) {
-        const { constructionCost, engineeringCost, productCost, nrr, mrr, monthlyCost, term } = inputs;
+    function getPaybackFromCashFlows(cashFlows, term) {
+        let paybackMonths = Infinity;
+        let paybackRogerMonth = null;
+        let paybackRatio = Infinity;
 
-        const sg_and_a_cost = (mrr * 1) + (nrr * 0.03);
-        const netCapex = (constructionCost + engineeringCost + productCost + sg_and_a_cost) - nrr;
-        const netMonthlyIncome = mrr - monthlyCost;
-
-        let paybackMonths = null;
-        let paybackRatio = null;
-        let error = null;
-
+        if (!Array.isArray(cashFlows) || cashFlows.length === 0) {
+            return { paybackMonths, paybackRogerMonth, paybackRatio, error: "No cash flows available." };
+        }
         if (term <= 0) {
-            error = "Term must be > 0";
-            paybackMonths = Infinity;
-            paybackRatio = Infinity;
-        } else if (netMonthlyIncome <= 0) {
-            if (netCapex > 0) {
-                paybackMonths = Infinity;
-                paybackRatio = Infinity;
-            } else {
-                paybackMonths = 0;
-                paybackRatio = 0;
-            }
-        } else if (netCapex <= 0) {
-            paybackMonths = 0;
-            paybackRatio = 0;
-        } else {
-            paybackMonths = netCapex / netMonthlyIncome;
-            paybackRatio = paybackMonths / term;
+            return { paybackMonths, paybackRogerMonth, paybackRatio, error: "Term must be > 0" };
         }
 
-        return { paybackMonths, paybackRatio, error };
+        let cumulative = cashFlows[0] || 0;
+        let sawNegativeCumulative = cumulative < 0;
+
+        for (let month = 1; month < cashFlows.length; month++) {
+            const prevCumulative = cumulative;
+            cumulative += cashFlows[month];
+            if (cumulative < 0) sawNegativeCumulative = true;
+            if (sawNegativeCumulative && prevCumulative < 0 && cumulative >= 0) {
+                paybackRogerMonth = month;
+                const delta = cumulative - prevCumulative;
+                if (Math.abs(delta) < 1e-9) {
+                    paybackMonths = month;
+                } else {
+                    const fraction = (0 - prevCumulative) / delta;
+                    paybackMonths = (month - 1) + fraction;
+                }
+                paybackRatio = paybackMonths / term;
+                return { paybackMonths, paybackRogerMonth, paybackRatio, error: null };
+            }
+        }
+
+        return { paybackMonths, paybackRogerMonth, paybackRatio, error: null };
+    }
+
+    function getPaybackForSite(inputs, timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 }) {
+        const { cashFlows, error } = getCashFlowsForSite(inputs, timeline);
+        if (error) {
+            return { paybackMonths: Infinity, paybackRogerMonth: null, paybackRatio: Infinity, error };
+        }
+        return getPaybackFromCashFlows(cashFlows, inputs.term);
     }
 
 
@@ -852,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function setPaybackUI(element, paybackMonths, term, ratio) {
+    function setPaybackUI(element, paybackMonths, term, ratio, paybackRogerMonth) {
         element.classList.remove('pending', 'payback-green', 'payback-yellow', 'payback-red');
         
         if (ratio === null || !isFinite(paybackMonths) || term <= 0) {
@@ -863,7 +1368,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             element.textContent = `Never / ${term}`;
             element.classList.add('payback-red');
         } else {
-            element.textContent = `${paybackMonths.toFixed(1)} / ${term}`;
+            const displayMonth = (paybackRogerMonth != null && Number.isFinite(paybackRogerMonth))
+                ? paybackRogerMonth
+                : paybackMonths;
+            element.textContent = `${displayMonth} / ${term}`;
             if (ratio <= 0.5) {
                 element.classList.add('payback-green');
             } else if (ratio < 1) {
@@ -874,28 +1382,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function showSiteResults(errorMessageEl, decisionEl, annualIRREl, tcvEl, paybackEl, annualIRR, decision, tcv, paybackMonths, term, paybackRatio) {
+    function showSiteResults(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, annualIRR, irrDisplayState, tcv, npv, paybackMonths, term, paybackRatio, paybackRogerMonth) {
         errorMessageEl.classList.add('hidden');
-        const decisionState = decision === 'GO' ? 'go' : 'nogo';
-        setResultUI(decisionEl, decision, decisionState);
-        setResultUI(annualIRREl, (annualIRR * 100).toFixed(2) + '%', decisionState);
+        setResultUI(annualIRREl, (annualIRR * 100).toFixed(2) + '%', irrDisplayState);
         setResultUI(tcvEl, `$${tcv.toLocaleString()}`, 'tcv');
         tcvEl.style.color = 'var(--color-primary, #3b82f6)';
+        setResultUI(npvEl, `$${(npv || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, 'default');
+        npvEl.style.color = 'var(--text-light, #333)';
         
-        setPaybackUI(paybackEl, paybackMonths, term, paybackRatio);
+        setPaybackUI(paybackEl, paybackMonths, term, paybackRatio, paybackRogerMonth);
     }
 
-    function showSiteError(errorMessageEl, decisionEl, annualIRREl, tcvEl, paybackEl, message) {
+    function showSiteError(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, message) {
         errorMessageEl.classList.remove('hidden');
         errorMessageEl.textContent = message;
-        setResultUI(decisionEl, 'Error', 'error');
         setResultUI(annualIRREl, '--%', 'error');
         setResultUI(tcvEl, '$0', 'error');
+        setResultUI(npvEl, '$0', 'error');
         
-        setPaybackUI(paybackEl, null, null, null);
+        setPaybackUI(paybackEl, null, null, null, null);
     }
 
-    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalTerm, globalPaybackRatio, totalCapitalInvestment) {
+    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalPaybackRogerMonth, globalTerm, globalPaybackRatio, totalCapitalInvestment, npv) {
         globalErrorMessageEl.classList.add('hidden');
         
         setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
@@ -903,8 +1411,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         setResultUI(globalCapitalInvestmentEl, `$${(totalCapitalInvestment || 0).toLocaleString()}`, 'default');
         globalCapitalInvestmentEl.style.color = 'var(--text-light, #333)';
+        setResultUI(globalNpvEl, `$${(npv || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, 'default');
+        globalNpvEl.style.color = 'var(--text-light, #333)';
 
-        setPaybackUI(globalPaybackEl, globalPaybackMonths, globalTerm, globalPaybackRatio);
+        setPaybackUI(globalPaybackEl, globalPaybackMonths, globalTerm, globalPaybackRatio, globalPaybackRogerMonth);
 
         if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
             showGlobalError("Could not calculate Global IRR. Check inputs.");
@@ -914,19 +1424,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
         
         if (annualIRR >= targetIRR) {
-            setResultUI(globalDecisionEl, 'GO', 'go');
             setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'go');
         } else {
-            setResultUI(globalDecisionEl, 'NO GO', 'nogo');
             setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'nogo');
         }
     }
 
     function showGlobalError(message) {
-        setResultUI(globalDecisionEl, 'Error', 'error');
         setResultUI(globalAnnualIRREl, '--%', 'error');
         setResultUI(globalTcvEl, '$0', 'error');
         setResultUI(globalCapitalInvestmentEl, '$0', 'error');
+        setResultUI(globalNpvEl, '$0', 'error');
         
         globalErrorMessageEl.textContent = message;
         globalErrorMessageEl.classList.remove('hidden');
@@ -945,72 +1453,95 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
+        const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
         const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        const printBcs = getBusinessCaseStartParsed();
+        const businessCaseStartLabel = new Date(printBcs.year, printBcs.monthIndex0, 1).toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric'
+        });
 
+        // --- 1. Capture Chart First ---
         let chartImgSrc = '';
         try {
-            const chartFront = document.querySelector('.flip-card-front');
-            if (chartFront && typeof snapdom !== 'undefined') {
-                const capture = await snapdom(chartFront, { scale: 2, backgroundColor: 'white' });
-                const canvas = await capture.toCanvas();
-                chartImgSrc = canvas.toDataURL('image/png');
-            }
+            chartImgSrc = await captureCashflowChartForPrintDataUrl();
         } catch (e) {
-            console.warn('Chart capture failed, proceeding without chart image:', e);
+            console.warn('Print chart capture failed:', e);
         }
 
+        // --- 2. Aggregate Data ---
+        let maxCashflowLength = 0;
+        let maxSummaryMonth = 0;
+        const globalCashFlows = [];
+        const monthlyRevenue = [];
+        const monthlyCos = [];
+        const monthlySga = [];
+        const monthlyCapex = [];
+        const printBcsForFlows = getBusinessCaseStartStr();
+
+        state.sites.forEach(site => {
+            const inp = site.inputs || {};
+            ensureSiteTimelineISOFromLegacy(site, printBcsForFlows);
+            const tl = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            const components = buildCashFlowComponentsForSite(inp, tl);
+            if (!components.error && components.cashFlows?.length) {
+                const { cashFlows, revenue, cos, sga, capex } = components;
+                if (cashFlows.length > maxCashflowLength) maxCashflowLength = cashFlows.length;
+                if (cashFlows.length - 1 > maxSummaryMonth) maxSummaryMonth = cashFlows.length - 1;
+                globalCashFlows.push(cashFlows);
+                for (let i = 0; i < cashFlows.length; i++) {
+                    monthlyRevenue[i] = (monthlyRevenue[i] || 0) + (revenue[i] || 0);
+                    monthlyCos[i] = (monthlyCos[i] || 0) + (cos[i] || 0);
+                    monthlySga[i] = (monthlySga[i] || 0) + (sga[i] || 0);
+                    monthlyCapex[i] = (monthlyCapex[i] || 0) + (capex[i] || 0);
+                }
+            }
+        });
+
+        const aggregatedCashFlows = new Array(Math.max(maxCashflowLength, 1)).fill(0);
+        globalCashFlows.forEach(flows => {
+            for (let i = 0; i < flows.length; i++) aggregatedCashFlows[i] += flows[i];
+        });
+
+        if (!chartImgSrc && globalCashFlows.length > 0) {
+            const cum = [];
+            let c = 0;
+            for (let i = 0; i < aggregatedCashFlows.length; i++) {
+                c += aggregatedCashFlows[i] || 0;
+                cum.push(c);
+            }
+            chartImgSrc = cumulativeSeriesToPngDataUrl(cum);
+        }
+
+        // --- 3. Build Tables ---
         const annualTableHtml = getAnnualCashflowTableHtml({ compact: true });
-        const capexStressPct = Math.round((stressModifiers.capex - 1) * 100);
-        const mrrStressPct = Math.round((stressModifiers.mrr - 1) * 100);
-        let stressBanner = '';
-        if (capexStressPct !== 0 || mrrStressPct !== 0) {
-            stressBanner = `<p class="print-stress-note">Stress: CapEx ${capexStressPct >= 0 ? '+' : ''}${capexStressPct}%, MRR ${mrrStressPct >= 0 ? '+' : ''}${mrrStressPct}%.</p>`;
+        
+        const summaryMaxM = Math.max(0, maxSummaryMonth);
+        const revByCalY = sumMonthlySeriesIntoCalendarYearMap(monthlyRevenue, summaryMaxM, printBcs.year, printBcs.monthIndex0);
+        const cosByCalY = sumMonthlySeriesIntoCalendarYearMap(monthlyCos, summaryMaxM, printBcs.year, printBcs.monthIndex0);
+        const sgaByCalY = sumMonthlySeriesIntoCalendarYearMap(monthlySga, summaryMaxM, printBcs.year, printBcs.monthIndex0);
+        const capexByCalY = sumMonthlySeriesIntoCalendarYearMap(monthlyCapex, summaryMaxM, printBcs.year, printBcs.monthIndex0);
+        
+        // Cap the summary years to 6 to prevent layout overflow
+        let summaryCalendarYears = sortedCalendarYearsFromMap(revByCalY);
+        if (summaryCalendarYears.length > 6) {
+            summaryCalendarYears = summaryCalendarYears.slice(0, 6);
         }
-        const annualTableFootnote = '<p class="print-annual-footnote">* Year 0 is the first projection month; later rows are 12-month totals (same as on-screen table).</p>';
-        const chartCard = chartImgSrc
-            ? `<div class="summary-card chart-print-card">
-            <h2 class="print-section-h2">Cash Flow Projection</h2>
-            <div class="chart-print-img-wrap"><img src="${chartImgSrc}" alt="Cash Flow Projection"></div>
-        </div>`
-            : '';
-        const annualCard = annualTableHtml
-            ? `<div class="summary-card annual-cashflow-print-section annual-print-card">
-            <h2 class="print-section-h2">Annual Cash Flow</h2>
-            ${stressBanner}
-            <div class="annual-table-print-wrap">
-                <div class="annual-table-print-inner">${annualTableHtml}</div>
-                ${annualTableFootnote}
-            </div>
-        </div>`
-            : '';
-        const chartAnnualBlock =
-            chartCard && annualCard
-                ? `<div class="chart-annual-print-row"><div class="chart-annual-cell">${chartCard}</div><div class="chart-annual-cell">${annualCard}</div></div>`
-                : `${chartCard}${annualCard}`;
 
-        const globalErrText = globalErrorMessageEl && !globalErrorMessageEl.classList.contains('hidden')
-            ? globalErrorMessageEl.textContent.trim()
-            : '';
-        const globalErrorBanner = globalErrText
-            ? `<div class="report-global-error" role="alert"><strong>Global calculation note:</strong> ${escapeHtmlForPrint(globalErrText)}</div>`
-            : '';
-
-        const globalDecision = globalDecisionEl.textContent;
-        const globalDecisionClass = globalDecision === 'GO' ? 'go' : (globalDecision === 'NO GO' ? 'nogo' : 'error');
-
-        const globalPayback = globalPaybackEl.textContent;
-        const globalPaybackClass = (globalPaybackEl.className.match(/payback-(green|yellow|red)/) || [])[0] || '';
-        let globalPaybackPrintClass = '';
-        if (globalPaybackClass === 'payback-green') globalPaybackPrintClass = 'go';
-        if (globalPaybackClass === 'payback-yellow') globalPaybackPrintClass = 'warn';
-        if (globalPaybackClass === 'payback-red') globalPaybackPrintClass = 'nogo';
+        const buildSummaryRow = (label, values, rowClass = '') => `
+            <tr class="${rowClass}">
+                <td style="text-align:left; font-weight:600;">${label}</td>
+                ${values.map(v => `<td>${(Math.round((v || 0) / 1000)).toLocaleString()}</td>`).join('')}
+            </tr>`;
 
         let siteRows = '';
         state.sites.forEach(site => {
-            const inp = site.inputs;
+            const inp = site.inputs || {};
             const res = site.result;
+            ensureSiteTimelineISOFromLegacy(site, getBusinessCaseStartStr());
+            const timeline = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
             const irrText = res.error ? 'Error' : `${(res.annualIRR * 100).toFixed(2)}%`;
-            const decClass = res.decision === 'GO' ? 'go' : (res.decision === 'NO GO' ? 'nogo' : 'error');
+            const irrClass = res.error ? 'error' : (res.annualIRR >= globalTargetIRR ? 'go' : 'nogo');
 
             let pText = '-- / --';
             let pClass = '';
@@ -1018,275 +1549,204 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pText = `Never / ${inp.term}`;
                 pClass = 'nogo';
             } else if (res.paybackRatio !== null && isFinite(res.payback)) {
-                pText = `${res.payback.toFixed(1)} / ${inp.term}`;
+                pText = `${(res.paybackRogerMonth != null ? res.paybackRogerMonth : res.payback.toFixed(1))} / ${inp.term}`;
                 if (res.paybackRatio <= 0.5) pClass = 'go';
                 else if (res.paybackRatio < 1) pClass = 'warn';
                 else pClass = 'nogo';
             }
 
             siteRows += `<tr>
-                <td style="text-align:left;font-weight:600;">${site.name}</td>
-                <td class="${decClass}">${res.decision}</td>
-                <td class="${decClass}">${irrText}</td>
+                <td style="text-align:left;font-weight:600;">${escapeHtmlForPrint(site.name)}</td>
+                <td class="${irrClass}">${irrText}</td>
                 <td>$${(res.tcv || 0).toLocaleString()}</td>
-                <td>$${inp.constructionCost.toLocaleString()}</td>
-                <td>$${inp.engineeringCost.toLocaleString()}</td>
-                <td>$${inp.productCost.toLocaleString()}</td>
-                <td>$${inp.nrr.toLocaleString()}</td>
-                <td>$${inp.mrr.toLocaleString()}</td>
-                <td>$${inp.monthlyCost.toLocaleString()}</td>
+                <td>$${(inp.constructionCost || 0).toLocaleString()}</td>
+                <td>$${(inp.engineeringCost || 0).toLocaleString()}</td>
+                <td>$${(inp.productCost || 0).toLocaleString()}</td>
+                <td>$${(inp.nrr || 0).toLocaleString()}</td>
+                <td>$${(inp.mrr || 0).toLocaleString()}</td>
+                <td>$${(inp.monthlyCost || 0).toLocaleString()}</td>
+                <td>${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.constructionStartMonthISO))}</td>
+                <td>${Math.max(1, parseInt(timeline.constructionDurationMonths, 10) || 3)}</td>
+                <td>${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.billingStartMonthISO))}</td>
                 <td>${inp.term}</td>
                 <td class="${pClass}">${pText}</td>
             </tr>`;
         });
 
-        const reportHtml = `<!DOCTYPE html><html><head><title>${projectName}</title>
+        // --- 4. HTML Layout ---
+        const reportHtml = `<!DOCTYPE html><html><head><title>${escapeHtmlForPrint(projectName)}</title>
         <style>
-            @page { margin: 0.5in; size: landscape; }
+            /* Default to Portrait */
+            @page { size: portrait; margin: 0.5in; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; font-size: 9pt; line-height: 1.4; }
+            body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.3; }
+            
+            /* --- PAGE 1: PORTRAIT WRAPPER --- */
+            .page-1-wrapper { 
+                width: 7.5in; /* 8.5" page minus 0.5" margins */
+                margin: 0 auto; 
+            }
+            
+            .report-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #3b82f6; padding-bottom: 6px; margin-bottom: 12px; }
+            .report-header h1 { font-size: 1.4rem; color: #1e293b; margin: 0; }
+            
+            .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
+            .summary-card h2 { font-size: 0.9rem; color: #3b82f6; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+            
+            .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center; }
+            .kpi-item .kpi-label { font-size: 7.5pt; color: #64748b; text-transform: uppercase; }
+            .kpi-item .kpi-value { font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
+            
+            .summary-financials-grid { width: 100%; border-collapse: collapse; font-size: 8pt; }
+            .summary-financials-grid th { background: #eff6ff; color: #1d4ed8; padding: 4px; border-bottom: 1px solid #bfdbfe; font-size: 8pt; text-transform: uppercase; }
+            .summary-financials-grid td { padding: 4px; border-bottom: 1px solid #e5e7eb; text-align: right; }
+            .summary-bold-row td { font-weight: 700; background: #f1f5f9; border-top: 1px solid #cbd5e1; }
+            
+            .chart-print-img-wrap { width: 100%; text-align: center; }
+            /* Increased chart height to fill the empty space on Page 1 */
+            .chart-print-img-wrap img { max-width: 100%; height: 300px; border: 1px solid #e2e8f0; border-radius: 4px; object-fit: contain; }
+            
+            table.irr-print-annual-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-top: 0; }
+            table.irr-print-annual-table th { background: #f1f5f9; padding: 4px; border-bottom: 2px solid #e2e8f0; text-align: right; }
+            table.irr-print-annual-table th:first-child { text-align: center; }
+            table.irr-print-annual-table td { padding: 4px; border-bottom: 1px solid #f1f5f9; text-align: right; }
+            table.irr-print-annual-table td:first-child { text-align: center; }
 
-            .report-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px; }
-            .report-header h1 { font-size: 1.5rem; color: #1e293b; margin: 0; }
-            .report-header .meta { font-size: 0.8rem; color: #64748b; text-align: right; }
-
-            .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; background: #f8fafc; page-break-inside: avoid; }
-            .summary-card h2 { font-size: 1rem; color: #3b82f6; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-
-            .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; text-align: center; }
-            .kpi-item .kpi-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
-            .kpi-item .kpi-value { font-size: 1.6rem; font-weight: 700; margin-top: 2px; }
-
-            .print-section-h2 { font-size: 0.95rem; color: #3b82f6; margin: 0 0 10px 0; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
-
-            .chart-annual-print-row {
-                display: grid;
-                grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-                gap: 14px;
-                align-items: stretch;
-                margin-bottom: 20px;
-                min-height: 280px;
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-            .chart-annual-cell {
-                min-width: 0;
-                display: flex;
-                flex-direction: column;
-            }
-            .chart-print-card, .annual-print-card {
-                margin-bottom: 0;
-                page-break-inside: avoid;
-                break-inside: avoid;
-                flex: 1;
-                min-height: 0;
-                min-width: 0;
-                max-width: 100%;
-                display: flex;
-                flex-direction: column;
-            }
-            .annual-print-card {
-                overflow: hidden;
-                box-sizing: border-box;
-            }
-            .chart-print-img-wrap {
-                flex: 1;
-                min-height: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                text-align: center;
-            }
-            .chart-print-img-wrap img {
-                max-width: 100%;
-                max-height: 100%;
-                width: auto;
-                height: auto;
-                object-fit: contain;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-            }
-
-            .report-global-error { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; line-height: 1.45; }
-            .annual-cashflow-print-section { page-break-inside: auto; break-inside: auto; }
-            .print-stress-note { font-size: 0.68rem; color: #b45309; margin: 0 0 8px 0; font-weight: 600; line-height: 1.3; flex-shrink: 0; }
-            .print-annual-footnote {
-                font-size: 0.52rem;
-                color: #94a3b8;
-                margin: 8px 0 4px 0;
-                padding: 0 2px 0 0;
-                line-height: 1.35;
-                flex-shrink: 0;
-                max-width: 100%;
-                overflow-wrap: break-word;
-            }
-            .annual-table-print-wrap {
-                flex: 1;
-                min-height: 0;
-                min-width: 0;
-                max-width: 100%;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-            .annual-table-print-inner {
-                flex: 1;
-                min-height: 0;
-                min-width: 0;
-                max-width: 100%;
-                overflow: hidden;
+            /* --- PAGE 2: ROTATED LANDSCAPE HACK --- */
+            .landscape-container {
+                page-break-before: always;
+                break-before: page;
                 position: relative;
+                width: 7.5in;  /* Constrained to portrait width */
+                height: 10in;  /* Constrained to portrait height */
+                overflow: hidden;
             }
-            table.irr-print-annual-table { margin-top: 2px; width: 100%; max-width: 100%; table-layout: fixed; }
-            table.irr-print-annual-table .annual-net-positive { color: #16a34a; font-weight: 700; }
-            table.irr-print-annual-table .annual-net-negative { color: #dc2626; font-weight: 700; }
-
-            table.irr-print-annual-table--compact {
-                table-layout: fixed;
-                font-size: 6.5pt;
+            
+            .rotated-content {
+                position: absolute;
+                /* Rotate around the top-left corner, then push it down into view */
+                transform-origin: 0 0;
+                transform: rotate(-90deg) translate(-10in, 0);
+                /* The content now treats the old height as its width, and vice versa */
+                width: 10in; 
+                height: 7.5in; 
+                padding: 10px; /* Slight inset to prevent edge clipping */
+            }
+            
+            /* Tighter table styling to ensure it fits the 10in width */
+            .rotated-content table {
                 width: 100%;
-                max-width: 100%;
-                flex: 1;
-                height: 100%;
-                min-height: 120px;
-                box-sizing: border-box;
+                table-layout: fixed; /* Forces columns to fit */
+                border-collapse: collapse;
+                font-size: 7.5pt; /* Smaller font to fit 14 columns */
             }
-            table.irr-print-annual-table--compact thead { display: table-header-group; }
-            table.irr-print-annual-table--compact tbody {
-                height: 100%;
+            .rotated-content th { 
+                background: #f1f5f9; 
+                padding: 4px 2px; 
+                border-bottom: 2px solid #e2e8f0; 
+                text-align: center; 
+                word-wrap: break-word; /* Allows headers to wrap */
             }
-            table.irr-print-annual-table--compact tbody tr {
-                height: calc((100% - 2.5rem) / var(--annual-tbody-rows, 1));
-                min-height: 1.5em;
+            .rotated-content td { 
+                padding: 4px 2px; 
+                border-bottom: 1px solid #f1f5f9; 
+                text-align: center; 
+                word-wrap: break-word; 
             }
-            table.irr-print-annual-table--compact tbody td {
-                vertical-align: middle;
-            }
-            table.irr-print-annual-table--compact th {
-                font-size: 0.52rem;
-                padding: 3px 2px;
-                white-space: normal;
-                line-height: 1.15;
-                word-break: break-word;
-                hyphens: auto;
-                vertical-align: middle;
-                overflow-wrap: anywhere;
-            }
-            table.irr-print-annual-table--compact th:not(:first-child) {
-                max-width: 0;
-            }
-            table.irr-print-annual-table--compact th:first-child {
-                max-width: none;
-            }
-            table.irr-print-annual-table--compact td {
-                padding: 2px 3px;
-                font-size: 6.5pt;
-                text-align: right;
-                overflow-wrap: anywhere;
-                word-break: break-word;
-                max-width: 0;
-            }
-            table.irr-print-annual-table--compact td:first-child,
-            table.irr-print-annual-table--compact th:first-child {
-                text-align: center;
-                width: 10%;
-                max-width: none;
-            }
-            table.irr-print-annual-table--compact th:nth-child(2),
-            table.irr-print-annual-table--compact td:nth-child(2) { width: 19%; }
-            table.irr-print-annual-table--compact th:nth-child(3),
-            table.irr-print-annual-table--compact td:nth-child(3) { width: 19%; }
-            table.irr-print-annual-table--compact th:nth-child(4),
-            table.irr-print-annual-table--compact td:nth-child(4) { width: 20%; }
-            table.irr-print-annual-table--compact th:nth-child(5),
-            table.irr-print-annual-table--compact td:nth-child(5) { width: 32%; }
-
-            table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 8.5pt; }
-            th { background: #f1f5f9; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.03em; padding: 8px 6px; border-bottom: 2px solid #e2e8f0; text-align: center; white-space: nowrap; }
-            th:first-child { text-align: left; }
-            td { padding: 7px 6px; border-bottom: 1px solid #f1f5f9; text-align: center; }
-            tr:nth-child(even) { background: #f8fafc; }
-
-            table.irr-print-annual-table--compact thead th { text-align: right; }
-            table.irr-print-annual-table--compact thead th:first-child { text-align: center; }
-            table.irr-print-annual-table--compact tbody td:first-child { text-align: center; }
-
+            
             .go { color: #16a34a; font-weight: 700; }
             .nogo { color: #dc2626; font-weight: 700; }
             .warn { color: #d97706; font-weight: 700; }
             .error { color: #f97316; font-weight: 700; }
-
-            .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 0.75rem; color: #94a3b8; display: flex; justify-content: space-between; }
+            .annual-net-positive { color: #16a34a; font-weight: 700; }
+            .annual-net-negative { color: #dc2626; font-weight: 700; }
         </style></head><body>
+            
+            <div class="page-1-wrapper">
+                <div class="report-header">
+                    <h1>${escapeHtmlForPrint(projectName)}</h1>
+                    <div style="text-align:right; font-size: 8pt; color: #64748b;">
+                        <div>Generated ${reportDate}</div>
+                        <div>Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong> | Target: <strong>${(globalTargetIRR * 100).toFixed(1)}%</strong></div>
+                    </div>
+                </div>
 
-        <div class="report-header">
-            <h1>${projectName}</h1>
-            <div class="meta">
-                <div>Generated ${reportDate}</div>
-                <div>Target IRR: <strong>${(globalTargetIRR * 100).toFixed(2)}%</strong></div>
+                <div class="summary-card">
+                    <div class="kpi-grid">
+                        <div class="kpi-item"><div class="kpi-label">Annual IRR</div><div class="kpi-value ${globalAnnualIRREl.className}">${globalAnnualIRREl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value">${globalCapitalInvestmentEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value" style="color:#3b82f6;">${globalTcvEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value">${globalNpvEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Payback / Term</div><div class="kpi-value ${globalPaybackEl.className}">${globalPaybackEl.textContent}</div></div>
+                    </div>
+                </div>
+
+                <div class="summary-card">
+                    <h2>Summary Financials ($000s)</h2>
+                    <table class="summary-financials-grid">
+                        <thead><tr><th style="text-align:left;">Metric</th>${summaryCalendarYears.map(y => `<th style="text-align:right;">${y}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${buildSummaryRow('Revenue', summaryCalendarYears.map(y => revByCalY.get(y)))}
+                            ${buildSummaryRow('COS', summaryCalendarYears.map(y => -cosByCalY.get(y)))}
+                            ${buildSummaryRow('SG&amp;A', summaryCalendarYears.map(y => -sgaByCalY.get(y)))}
+                            ${buildSummaryRow('EBITDA', summaryCalendarYears.map(y => (revByCalY.get(y) || 0) - (cosByCalY.get(y) || 0) - (sgaByCalY.get(y) || 0)), 'summary-bold-row')}
+                            ${buildSummaryRow('CapEx', summaryCalendarYears.map(y => -capexByCalY.get(y)))}
+                            ${buildSummaryRow('Cash Flow', summaryCalendarYears.map(y => (revByCalY.get(y) || 0) - (cosByCalY.get(y) || 0) - (sgaByCalY.get(y) || 0) - (capexByCalY.get(y) || 0)), 'summary-bold-row')}
+                        </tbody>
+                    </table>
+                </div>
+
+                ${chartImgSrc ? `
+                <div class="summary-card">
+                    <h2>Cash Flow Projection</h2>
+                    <div class="chart-print-img-wrap"><img id="irr-print-cashflow-chart" src="${chartImgSrc}" alt="Cash flow chart" /></div>
+                </div>` : ''}
+
+                ${annualTableHtml ? `
+                <div class="summary-card" style="margin-bottom:0;">
+                    <h2>Annual Cash Flow</h2>
+                    ${annualTableHtml}
+                </div>` : ''}
             </div>
-        </div>
 
-        ${globalErrorBanner}
-
-        <div class="summary-card">
-            <h2>Global Project Results</h2>
-            <div class="kpi-grid">
-                <div class="kpi-item">
-                    <div class="kpi-label">Decision</div>
-                    <div class="kpi-value ${globalDecisionClass}">${globalDecision}</div>
-                </div>
-                <div class="kpi-item">
-                    <div class="kpi-label">Annual IRR</div>
-                    <div class="kpi-value ${globalDecisionClass}">${globalAnnualIRREl.textContent}</div>
-                </div>
-                <div class="kpi-item">
-                    <div class="kpi-label">Capital Investment</div>
-                    <div class="kpi-value" style="color:#1e293b;">${globalCapitalInvestmentEl.textContent}</div>
-                </div>
-                <div class="kpi-item">
-                    <div class="kpi-label">Total Contract Value</div>
-                    <div class="kpi-value" style="color:#3b82f6;">${globalTcvEl.textContent}</div>
-                </div>
-                <div class="kpi-item">
-                    <div class="kpi-label">Payback / Term</div>
-                    <div class="kpi-value ${globalPaybackPrintClass}">${globalPayback}</div>
+            <div class="landscape-container">
+                <div class="rotated-content">
+                    <div class="summary-card" style="border:none; background:transparent; padding: 0;">
+                        <h2 style="font-size: 1.1rem; color: #3b82f6; text-transform: uppercase;">Site Breakdown Detail</h2>
+                        <table class="site-breakdown-print-table">
+                            <thead><tr>
+                                <th style="text-align:left; width: 12%;">Site</th>
+                                <th style="width: 5%;">IRR</th>
+                                <th style="width: 8%;">TCV</th>
+                                <th style="width: 8%;">Const.</th>
+                                <th style="width: 8%;">Eng.</th>
+                                <th style="width: 8%;">Prod.</th>
+                                <th style="width: 8%;">NRR</th>
+                                <th style="width: 8%;">MRR</th>
+                                <th style="width: 8%;">MCOS</th>
+                                <th style="width: 8%;">C-Start</th>
+                                <th style="width: 4%;">Dur.</th>
+                                <th style="width: 8%;">B-Start</th>
+                                <th style="width: 4%;">Term</th>
+                                <th style="width: 8%;">Payback</th>
+                            </tr></thead>
+                            <tbody>${siteRows}</tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        ${chartAnnualBlock}
-
-        <div class="summary-card site-breakdown-print-section">
-            <h2>Site Breakdown (${state.sites.length} Sites)</h2>
-            <table>
-                <thead><tr>
-                    <th>Site</th><th>Decision</th><th>IRR</th><th>TCV</th>
-                    <th>Construction</th><th>Engineering</th><th>Product</th>
-                    <th>NRR</th><th>MRR</th><th>Monthly Cost</th>
-                    <th>Term</th><th>Payback / Term</th>
-                </tr></thead>
-                <tbody>${siteRows}</tbody>
-            </table>
-        </div>
-
-        <div class="footer">
-            <span>Constellation CRM — Multi-Site IRR Calculator</span>
-            <span>${state.sites.length} site${state.sites.length !== 1 ? 's' : ''} analyzed</span>
-        </div>
 
         </body></html>`;
 
         const printFrame = document.createElement('iframe');
-        printFrame.style.cssText = 'position:absolute;width:0;height:0;border:0;';
+        printFrame.style.cssText = 'position:fixed;width:0;height:0;border:0;';
         document.body.appendChild(printFrame);
-
         const frameDoc = printFrame.contentWindow.document;
         frameDoc.open();
         frameDoc.write(reportHtml);
         frameDoc.close();
 
-        setTimeout(() => {
+        const finishPrint = () => {
             try {
                 printFrame.contentWindow.focus();
                 printFrame.contentWindow.print();
@@ -1296,7 +1756,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             } finally {
                 if (document.body.contains(printFrame)) document.body.removeChild(printFrame);
             }
-        }, 500);
+        };
+
+        const printImg = frameDoc.querySelector('#irr-print-cashflow-chart');
+        if (printImg && chartImgSrc) {
+            if (typeof printImg.decode === 'function') {
+                printImg.decode()
+                    .then(() => setTimeout(finishPrint, 50))
+                    .catch(() => setTimeout(finishPrint, 50));
+            } else if (printImg.complete) {
+                setTimeout(finishPrint, 50);
+            } else {
+                printImg.onload = () => finishPrint();
+                printImg.onerror = () => finishPrint();
+                setTimeout(finishPrint, 1500);
+            }
+        } else {
+            setTimeout(finishPrint, 500);
+        }
     }
     
     // --- 7. CSV Export Function ---
@@ -1317,152 +1794,74 @@ document.addEventListener('DOMContentLoaded', async () => {
      */
     function handleExportCSV() {
         const projectName = projectNameInput.value.trim() || "IRR Project";
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 15) / 100;
-        
-        let csvContent = [];
-
-        // --- Header Info ---
-        csvContent.push(`Project Name:,${escapeCSV(projectName)}`);
-        csvContent.push(`Global Target IRR:,${globalTargetIRR}`);
-        csvContent.push("");
-        
-        // --- MODIFIED: Site Table Headers ---
+        const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
         const headers = [
-            "Site Name",            // Col A
-            "Construction Cost",    // Col B
-            "Engineering Cost",     // Col C
-            "Product Cost",         // Col D  <-- NEW
-            "NRR (Upfront)",        // Col E
-            "MRR",                  // Col F
-            "Monthly Cost",         // Col G
-            "Term (Months)",        // Col H
-            "TCV (Formula)",        // Col I
-            "Calculated IRR (Formula)", // Col J
-            "Decision (Formula)",   // Col K
-            "Payback Months (Formula)", // Col L
-            "Payback Ratio (Formula)"   // Col M
+            "Site Name",
+            "Address",
+            "Term",
+            "Est. CapEx",
+            "MCOS",
+            "SG&A",
+            "Payback",
+            "MRC",
+            "NRC",
+            "Billing start (YYYY-MM)",
+            "TCV",
+            "IRR",
+            "NPV"
         ];
-        csvContent.push(headers.join(','));
+        const csvContent = [headers.join(',')];
 
-        // --- Helper function for creating CSV formulas ---
-        const createCsvFormula = (baseFormula) => {
-            const escapedFormula = baseFormula.replace(/"/g, '""');
-            return `"=${escapedFormula}"`;
-        };
+        const csvBcs = getBusinessCaseStartStr();
+        state.sites.forEach(site => {
+            const i = site.inputs || {};
+            ensureSiteTimelineISOFromLegacy(site, csvBcs);
+            const t = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            const capex = (i.constructionCost || 0) + (i.engineeringCost || 0) + (i.productCost || 0);
+            const sga = ((i.mrr || 0) * 1) + ((i.nrr || 0) * 0.03);
+            const tcv = ((i.mrr || 0) * (i.term || 0)) + (i.nrr || 0);
 
-        // --- MODIFIED: Site Data Rows ---
-        const startRow = 5;
-        state.sites.forEach((site, index) => {
-            const rowNum = startRow + index;
-            const i = site.inputs;
-            
-            // --- MODIFIED: All formulas shifted and updated ---
-            const tcvFormulaBase = `ROUND((F${rowNum}*H${rowNum})+E${rowNum}, 2)`;
-            
-            // PV = B+C+D+F-0.97*E
-            const irrFormulaBase = `IFERROR((1+RATE(H${rowNum}, G${rowNum}-F${rowNum}, B${rowNum}+C${rowNum}+D${rowNum}+F${rowNum}-0.97*E${rowNum}))^12-1, "Error")`;
-            const decisionFormulaBase = `IF(J${rowNum}="Error", "Error", IF(J${rowNum}>=B$2, "GO", "NO GO"))`;
-
-            // Payback Months = (B+C+D-E) / (F-G)
-            const paybackMonthsBase = `IFERROR(IF(F${rowNum}-G${rowNum}<=0, "Never", IF(B${rowNum}+C${rowNum}+D${rowNum}-E${rowNum}<=0, 0, (B${rowNum}+C${rowNum}+D${rowNum}-E${rowNum}) / (F${rowNum}-G${rowNum}))), "Error")`;
-            const paybackRatioBase = `IFERROR(IF(L${rowNum}="Never", "Never", L${rowNum}/H${rowNum}), "Error")`;
-
+            const { cashFlows, error } = getCashFlowsForSite(i, t);
+            let annualIrrText = '';
+            let npvText = '';
+            let paybackText = 'Never';
+            if (!error) {
+                const monthlyIrr = calculateIRR(cashFlows);
+                const annualIrr = (isFinite(monthlyIrr) && !isNaN(monthlyIrr)) ? (Math.pow(1 + monthlyIrr, 12) - 1) : null;
+                const npv = calculateNPV(globalDiscountRate, cashFlows);
+                const { paybackMonths, paybackRogerMonth: csvRogerPb } = getPaybackFromCashFlows(cashFlows, i.term || 0);
+                annualIrrText = annualIrr === null ? '' : (annualIrr * 100).toFixed(6);
+                npvText = isFinite(npv) ? npv.toFixed(2) : '';
+                paybackText = isFinite(paybackMonths)
+                    ? (csvRogerPb != null ? String(csvRogerPb) : paybackMonths.toFixed(1))
+                    : 'Never';
+            }
 
             const row = [
-                escapeCSV(site.name),
-                i.constructionCost,
-                i.engineeringCost,
-                i.productCost, // <-- NEW
-                i.nrr,
-                i.mrr,
-                i.monthlyCost,
-                i.term,
-                createCsvFormula(tcvFormulaBase),
-                createCsvFormula(irrFormulaBase),
-                createCsvFormula(decisionFormulaBase),
-                createCsvFormula(paybackMonthsBase),
-                createCsvFormula(paybackRatioBase)
+                escapeCSV(site.name || ''),
+                escapeCSV(site.note || site.name || ''),
+                i.term || 0,
+                capex.toFixed(2),
+                (i.monthlyCost || 0).toFixed(2),
+                sga.toFixed(2),
+                paybackText,
+                (i.mrr || 0).toFixed(2),
+                (i.nrr || 0).toFixed(2),
+                escapeCSV(t.billingStartMonthISO || ''),
+                tcv.toFixed(2),
+                annualIrrText,
+                npvText
             ];
             csvContent.push(row.join(','));
         });
 
-        // --- MODIFIED: Global Summary ---
-        if (state.sites.length > 0) {
-            const lastRow = startRow + state.sites.length - 1;
-            csvContent.push("");
-            
-            // Define summary row numbers
-            const globalTcvRow = lastRow + 2;
-            const globalCapExRow = globalTcvRow + 1;
-            const globalIrrRow = globalCapExRow + 1;
-            const globalDecisionRow = globalIrrRow + 1;
-            const globalPaybackMonthsRow = globalDecisionRow + 1;
-            const globalPaybackRatioRow = globalPaybackMonthsRow + 1;
-
-            // --- 1. Global TCV (Formula uses new Col I) ---
-            const globalTcvFormulaBase = `SUM(I${startRow}:I${lastRow})`;
-            csvContent.push(`Global TCV (Formula):,,${createCsvFormula(globalTcvFormulaBase)}`);
-            
-            // --- 2. Global Capital Investment (Formula uses new Col D) ---
-            const constRange = `B${startRow}:B${lastRow}`;
-            const engRange = `C${startRow}:C${lastRow}`;
-            const prodRange = `D${startRow}:D${lastRow}`; // <-- NEW
-            const globalCapExFormulaBase = `SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})`; // <-- MODIFIED
-            csvContent.push(`Total Capital Investment (Formula):,,${createCsvFormula(globalCapExFormulaBase)}`);
-
-            // --- 3. Global IRR & Payback (Conditional Formula) ---
-            const firstTerm = state.sites[0]?.inputs.term;
-            const allTermsSame = state.sites.every(s => s.inputs.term === firstTerm);
-
-            if (allTermsSame && firstTerm > 0) {
-                const firstTermCell = `H${startRow}`; // <-- MODIFIED (was G)
-                const pmtRange = `G${startRow}:G${lastRow}`; // <-- MODIFIED (was F)
-                const mrrRange = `F${startRow}:F${lastRow}`; // <-- MODIFIED (was E)
-                const nrrRange = `E${startRow}:E${lastRow}`; // <-- MODIFIED (was D)
-                // constRange, engRange, prodRange defined above
-
-                // Global IRR (Formula uses new Col D)
-                const globalIrrFormulaBase = `IFERROR((1+RATE(${firstTermCell}, SUM(${pmtRange})-SUM(${mrrRange}), SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})+SUM(${mrrRange})-0.97*SUM(${nrrRange})))^12-1, "Error")`;
-                csvContent.push(`Global IRR (Formula):,,${createCsvFormula(globalIrrFormulaBase)}`);
-                
-                // Global Decision
-                const globalDecisionFormulaBase = `IF(C${globalIrrRow}="Error", "Error", IF(C${globalIrrRow}>=B$2, "GO", "NO GO"))`;
-                csvContent.push(`Global Decision (Formula):,,${createCsvFormula(globalDecisionFormulaBase)}`);
-
-                // Global Payback Months (Formula uses new Col D)
-                const globalPaybackMonthsBase = `IFERROR(IF(SUM(${mrrRange})-SUM(${pmtRange})<=0, "Never", IF(SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})-SUM(${nrrRange})<=0, 0, (SUM(${constRange})+SUM(${engRange})+SUM(${prodRange})-SUM(${nrrRange})) / (SUM(${mrrRange})-SUM(${pmtRange})))), "Error")`;
-                csvContent.push(`Global Payback Months (Formula):,,${createCsvFormula(globalPaybackMonthsBase)}`);
-
-                // Global Payback Ratio
-                const globalPaybackRatioBase = `IFERROR(IF(C${globalPaybackMonthsRow}="Never", "Never", C${globalPaybackMonthsRow}/${firstTermCell}), "Error")`;
-                csvContent.push(`Global Payback Ratio (Formula):,,${createCsvFormula(globalPaybackRatioBase)}`);
-
-            } else {
-                // Fallback to calculated values
-                const globalIRRValue = globalAnnualIRREl.textContent;
-                csvContent.push(`Global IRR (Calculated):,,${escapeCSV(globalIRRValue)}`);
-                
-                const globalDecisionValue = globalDecisionEl.textContent;
-                csvContent.push(`Global Decision (Calculated):,,${escapeCSV(globalDecisionValue)}`);
-
-                const globalPaybackValue = globalPaybackEl.textContent;
-                csvContent.push(`Global Payback/Term (Calculated):,,${escapeCSV(globalPaybackValue)}`);
-                
-                csvContent.push(`Note:, "Global IRR and Payback are calculated values because site terms are not identical."`);
-            }
-        }
-
-        // --- Download Logic ---
         const csvString = csvContent.join('\n');
         const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvString);
-        
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `${projectName.replace(/ /g, "_")}_IRR_Model.csv`);
+        link.setAttribute("download", `${projectName.replace(/ /g, "_")}_Deal_Summary.csv`);
         document.body.appendChild(link);
-        
         link.click();
-        
         document.body.removeChild(link);
     }
 
@@ -1483,6 +1882,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const projectData = {
             project_name: projectName,
             global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
+            global_discount_rate: parseFloat(globalDiscountRateInput?.value) || 15,
+            business_case_start: (getBusinessCaseStartStr()),
             sites: state.sites,
             user_id: state.currentUser.id,
             last_saved: new Date().toISOString()
@@ -1611,6 +2012,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 3. Set global inputs
         projectNameInput.value = projectData.project_name || '';
         globalTargetIrrInput.value = projectData.global_target_irr || 15;
+        if (globalDiscountRateInput) {
+            globalDiscountRateInput.value = projectData.global_discount_rate || 15;
+        }
+        const loadedBcs = projectData.business_case_start;
+        setBusinessCaseStartFromYYYYMM(
+            (loadedBcs && parseBusinessCaseStartMonth(String(loadedBcs).trim()))
+                ? String(loadedBcs).trim()
+                : defaultBusinessCaseStartStr()
+        );
         updateDialVisual();
         
         // 4. Rebuild DOM for each site
@@ -1631,7 +2041,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             newFormWrapper.querySelector('.nrr-input').value = inputs.nrr || 0;
             newFormWrapper.querySelector('.mrr-input').value = inputs.mrr || 0;
             
-            if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1 };
+            if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            if (!site.timeline.constructionDurationMonths || site.timeline.constructionDurationMonths < 1) {
+                site.timeline.constructionDurationMonths = 3;
+            }
+            const bcsH = getBusinessCaseStartStr();
+            ensureSiteTimelineISOFromLegacy(site, bcsH);
+            const resH = resolveTimelineToModelMonths(site.timeline, bcsH);
+            if (!resH.error) {
+                site.timeline.constructionStartMonth = resH.constructionStartMonth;
+                site.timeline.billingStartMonth = resH.billingStartMonth;
+                site.timeline.constructionDurationMonths = resH.constructionDurationMonths;
+            }
 
             siteFormsContainer.appendChild(templateClone);
             attachFormListeners(newFormWrapper);
@@ -1756,6 +2177,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 runGlobalCalculation();  
             });
         }
+        if (globalDiscountRateInput) {
+            globalDiscountRateInput.addEventListener('input', () => {
+                state.isFormDirty = true;
+                state.sites.forEach(site => runSiteCalculation(site.id, false));
+                runGlobalCalculation();
+            });
+        }
         updateDialVisual();
         
         // Project Name listener
@@ -1764,6 +2192,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 state.isFormDirty = true;
             });
         }
+        function onBusinessCaseStartChanged() {
+            state.isFormDirty = true;
+            state.sites.forEach((site) => {
+                const r = resolveTimelineToModelMonths(site.timeline, getBusinessCaseStartStr());
+                if (!r.error) {
+                    site.timeline.constructionStartMonth = r.constructionStartMonth;
+                    site.timeline.billingStartMonth = r.billingStartMonth;
+                    site.timeline.constructionDurationMonths = r.constructionDurationMonths;
+                }
+                runSiteCalculation(site.id, false);
+            });
+            runGlobalCalculation();
+            renderTimelineTable();
+            renderAnnualTable();
+        }
+        const bcsMonthEl = document.getElementById('business-case-start-month');
+        const bcsYearEl = document.getElementById('business-case-start-year');
+        bcsMonthEl?.addEventListener('change', onBusinessCaseStartChanged);
+        bcsYearEl?.addEventListener('input', onBusinessCaseStartChanged);
+        bcsYearEl?.addEventListener('change', onBusinessCaseStartChanged);
 
         // Flip Card Toggle Listeners
         if (flipToSettingsBtn) {
@@ -1781,6 +2229,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (saveSettingsFlipBtn) {
             saveSettingsFlipBtn.addEventListener('click', () => {
                 cashflowFlipCard.classList.remove('flipped');
+                state.sites.forEach(site => runSiteCalculation(site.id, false));
+                runGlobalCalculation();
                 renderCashflowChart();
             });
         }
@@ -1878,12 +2328,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 11. Financial Calculation (Pure Functions) ---
 
-    function calculateNPV(rate, cashFlows) {
+    /** Same as Excel: CF0 + NPV(rate, CF1..n) with CF_i discounted by (1+rate)^i. */
+    function calculateNPVAtRate(rate, cashFlows) {
         let npv = 0;
         for (let i = 0; i < cashFlows.length; i++) {
             npv += cashFlows[i] / Math.pow(1 + rate, i);
         }
         return npv;
+    }
+
+    /**
+     * Roger template parity: =NPV(((1+$C$200)^(1/12)-1),R197:DC197)+Q197
+     * — effective monthly discount (1+r_annual)^(1/12)-1; first month in the array
+     * is Q197 (t=0), then R..DC at t=1..n. App discount rate must match C200 (e.g. 0.15).
+     * A small NPV gap vs Excel can remain if row 197 is built from rounded component cells;
+     * IRR/NPV here share the same full-precision monthly series.
+     */
+    function calculateNPV(annualRate, cashFlows) {
+        const a = annualRate || 0;
+        const monthlyRate = a === 0 ? 0 : Math.pow(1 + a, 1 / 12) - 1;
+        return calculateNPVAtRate(monthlyRate, cashFlows);
     }
 
     function calculateIRR(cashFlows) {
@@ -1894,24 +2358,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         let maxRate = 1.0;     
         let midRate = (minRate + maxRate) / 2;
 
-        let npvAtMin = calculateNPV(minRate, cashFlows);
-        let npvAtMax = calculateNPV(maxRate, cashFlows);
+        let npvAtMin = calculateNPVAtRate(minRate, cashFlows);
+        let npvAtMax = calculateNPVAtRate(maxRate, cashFlows);
         
         if (npvAtMin * npvAtMax > 0) {
             maxRate = 5.0;
-            npvAtMax = calculateNPV(maxRate, cashFlows);
+            npvAtMax = calculateNPVAtRate(maxRate, cashFlows);
             if (npvAtMin * npvAtMax > 0) {
                  minRate = -0.999999;
                  maxRate = 20.0;
-                 npvAtMin = calculateNPV(minRate, cashFlows);
-                 npvAtMax = calculateNPV(maxRate, cashFlows);
+                 npvAtMin = calculateNPVAtRate(minRate, cashFlows);
+                 npvAtMax = calculateNPVAtRate(maxRate, cashFlows);
                  if (npvAtMin * npvAtMax > 0) return NaN;  
             }
         }
 
         for (let i = 0; i < maxIterations; i++) {
             midRate = (minRate + maxRate) / 2;
-            let npvAtMid = calculateNPV(midRate, cashFlows);
+            let npvAtMid = calculateNPVAtRate(midRate, cashFlows);
 
             if (Math.abs(npvAtMid) < precision) {
                 return midRate;

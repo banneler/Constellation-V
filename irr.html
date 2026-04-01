@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/@zumer/snapdom/dist/snapdom.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -120,19 +120,21 @@
             margin: 0 0 1rem 0;
         }
 
-        /* Header row: title+toolbar left, dial right */
-        .irr-header-row {
-            display: flex;
-            align-items: stretch;
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .irr-header-left {
+        /* Title on first row; project name + discount/IRR share second row (aligned inputs) */
+        .irr-header-stack {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             gap: 0.75rem;
-            flex: 1;
+            margin-bottom: 1.5rem;
+        }
+        .irr-header-stack > .page-title {
+            margin: 0;
+        }
+        .irr-header-toolbar-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 1.5rem;
             min-width: 0;
         }
 
@@ -140,12 +142,36 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
+            flex: 1;
+            min-width: 0;
+        }
+        .irr-project-name-field {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            flex: 1;
+            min-width: 0;
+        }
+        /* Invisible copy of discount label metrics so both inputs share one baseline row */
+        .irr-project-name-label-spacer {
+            display: block;
+            text-align: left;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+            margin-bottom: 0.2rem;
+            line-height: 1.15;
+            user-select: none;
+            pointer-events: none;
         }
         .irr-toolbar-left {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             flex-shrink: 0;
+            align-self: center;
         }
         .irr-toolbar-divider {
             width: 2px;
@@ -154,12 +180,14 @@
             margin: 0 0.25rem;
         }
         .irr-project-name-input {
-            flex: 1;
+            width: 100%;
             min-width: 0;
             text-align: left;
             font-size: 1rem;
             font-weight: 600;
             padding: 0.4rem 0.75rem;
+            min-height: 2.375rem;
+            box-sizing: border-box;
             border: 1px solid var(--border-color);
             border-radius: 0.5rem;
             background: var(--bg-medium);
@@ -170,19 +198,183 @@
             color: var(--text-muted);
         }
 
-        /* Target IRR dial (spans title + toolbar height) */
+        /* Business case start: lives on chart flip-card back with timeline table */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .timeline-business-case-panel {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .timeline-business-case-panel .timeline-bc-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            width: 100%;
+        }
+        .timeline-date-split {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 0.45rem 0.65rem;
+        }
+        .timeline-date-split select.timeline-cal-month,
+        .timeline-business-case-panel select#business-case-start-month {
+            min-width: 0;
+            width: max-content;
+            max-width: 100%;
+            field-sizing: content;
+            padding: 0.35rem 0.35rem 0.35rem 0.45rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--bg-medium);
+            color: var(--text-light);
+            font-size: 0.85rem;
+            min-height: 2.125rem;
+        }
+        .timeline-date-split input.timeline-cal-year,
+        .timeline-business-case-panel input#business-case-start-year {
+            width: 4rem;
+            padding: 0.2rem 0.2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--bg-medium);
+            color: var(--text-light);
+            font-size: 0.85rem;
+            min-height: 1.85rem;
+            text-align: center;
+        }
+        /* Keep <td> as table-cell — display:flex on td breaks header/body column alignment */
+        .timeline-split-cell {
+            vertical-align: middle;
+        }
+        /* inline-flex: row only as wide as month + year (no stretched select) */
+        .timeline-split-cell .timeline-date-split {
+            display: inline-flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 0.4rem;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        /* Hug longest option text; do not grow into empty cell space */
+        .timeline-split-cell .timeline-cal-month {
+            flex: 0 0 auto;
+            width: max-content;
+            max-width: 100%;
+            min-width: 0;
+            field-sizing: content;
+            padding: 0.3rem 0.3rem 0.3rem 0.4rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            background: var(--bg-medium);
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+        .timeline-split-cell .timeline-cal-year {
+            width: 3.65rem;
+            min-width: 3.35rem;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            padding: 0.18rem 0.15rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            background: var(--bg-medium);
+            color: var(--text-light);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        /* Target IRR dial + discount beside donut (overlay centered on SVG only) */
         .irr-dial-container {
-            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            flex-shrink: 0;
+        }
+        .irr-dial-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.85rem;
+        }
+        .irr-dial-graph-col {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+            justify-content: flex-start;
+        }
+        .irr-dial-graph-label {
+            display: block;
+            text-align: center;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+            margin-bottom: 0.2rem;
+            line-height: 1.15;
+        }
+        .irr-dial-graph-wrap {
+            position: relative;
             width: 90px;
+            height: 90px;
+            flex-shrink: 0;
+        }
+        .irr-dial-discount-block {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
+            min-width: 4.5rem;
+            max-width: 5.5rem;
+        }
+        .irr-dial-discount-block label {
+            display: block;
+            text-align: center;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: var(--text-medium);
+            text-transform: uppercase;
+            letter-spacing: 0.35px;
+            margin-bottom: 0.2rem;
+            line-height: 1.15;
+        }
+        .irr-dial-discount-block input[type="number"] {
+            width: 100%;
+            text-align: center;
+            padding: 0.3rem 0.25rem;
+            font-size: 0.9rem;
+            min-height: 2.375rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            background: var(--bg-medium);
+            color: var(--text-light);
+            box-sizing: border-box;
         }
         .irr-dial-svg {
             width: 90px;
             height: 90px;
+            display: block;
             transform: rotate(-90deg);
         }
         .irr-dial-track {
@@ -201,20 +393,23 @@
         }
         .irr-dial-value-wrap {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 90px;
-            height: 90px;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 1px;
+            gap: 0;
+            pointer-events: none;
+        }
+        .irr-dial-value-wrap .irr-dial-input {
+            pointer-events: auto;
         }
         .irr-dial-input {
-            width: 2rem;
-            text-align: right;
-            font-size: 1.25rem;
+            width: 2.85rem;
+            min-width: 0;
+            text-align: center;
+            font-size: 1.55rem;
             font-weight: 700;
+            line-height: 1;
             background: transparent;
             border: none;
             color: var(--text-light);
@@ -222,19 +417,12 @@
             outline: none;
         }
         .irr-dial-unit {
-            font-size: 0.8rem;
+            font-size: 0.88rem;
             font-weight: 600;
             color: var(--text-medium);
-            margin-top: 0.1rem;
-        }
-        .irr-dial-label {
-            font-size: 0.65rem;
-            font-weight: 600;
-            color: var(--text-medium);
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin-top: 2px;
-            white-space: nowrap;
+            line-height: 1;
+            align-self: center;
+            margin-left: 2px;
         }
 
         /* Styles for the Global Results box */
@@ -245,32 +433,52 @@
             padding: 1.5rem;
             margin-bottom: 1.5rem;
             box-shadow: var(--shadow-card);
+            max-width: 900px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            box-sizing: border-box;
         }
 
         .global-results-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 1rem;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: clamp(0.35rem, 1.5vw, 1rem);
             text-align: center;
         }
+        /* Each KPI column is its own query container so cqw tracks column width on resize */
         .global-results-grid > div {
+            container-type: inline-size;
+            min-width: 0;
+        }
+        .global-results-grid > div > span:first-child {
+            display: block;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+            line-height: 1.2;
         }
-        
-        #global-decision {
-            font-size: 3rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            line-height: 1;
-            margin: 0;
-        }
-
-        /* MODIFIED: Added #global-capital-investment */
-        #global-annual-irr, #global-tcv, #global-payback, #global-capital-investment {
-            font-size: 2.25rem;
+        .global-results-grid > div > p {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
             font-weight: 700;
             margin: 0.5rem 0 0 0;
-            line-height: 1;
+            line-height: 1.1;
+        }
+
+        /* cqw = each grid column; strong scaling so values shrink before clipping */
+        #global-results-container .global-results-grid > div > span:first-child {
+            font-size: 0.82rem;
+            font-size: clamp(0.52rem, 0.28rem + 3.4cqw, 1rem) !important;
+        }
+        #global-results-container #global-annual-irr,
+        #global-results-container #global-tcv,
+        #global-results-container #global-payback,
+        #global-results-container #global-capital-investment,
+        #global-results-container #global-npv {
+            font-size: 1.45rem;
+            font-size: clamp(0.58rem, 0.22rem + 11.5cqw, 2.35rem);
         }
         
         #global-tcv {
@@ -297,28 +505,40 @@
         
         .individual-results-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: clamp(0.35rem, 1.5vw, 1rem);
             text-align: center;
         }
         .individual-results-grid > div {
+            container-type: inline-size;
+            min-width: 0;
+        }
+        .individual-results-grid > div > span:first-child {
+            display: block;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+            line-height: 1.2;
         }
-
-        .individual-decision {
-            font-size: 3rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            line-height: 1;
-            margin: 0;
-        }
-
-        /* MODIFIED: Added .individual-payback */
-        .individual-annual-irr, .individual-tcv, .individual-payback {
-            font-size: 2.25rem;
+        .individual-results-grid > div > p {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
             font-weight: 700;
             margin: 0.5rem 0 0 0;
-            line-height: 1;
+            line-height: 1.1;
+        }
+
+        .individual-results-container .individual-results-grid > div > span:first-child {
+            font-size: 0.82rem;
+            font-size: clamp(0.52rem, 0.28rem + 3.4cqw, 1rem) !important;
+        }
+        .individual-results-container .individual-annual-irr,
+        .individual-results-container .individual-tcv,
+        .individual-results-container .individual-payback,
+        .individual-results-container .individual-npv {
+            font-size: 1.45rem;
+            font-size: clamp(0.58rem, 0.22rem + 11.5cqw, 2.35rem);
         }
         
         .individual-tcv {
@@ -336,7 +556,7 @@
         .payback-green { color: var(--completed-color); }
         .payback-yellow { color: var(--warning-yellow); }
         .payback-red { color: var(--danger-red); }
-        
+
         /* Style for the load project modal (unchanged) */
         #load-project-list {
             list-style: none;
@@ -388,6 +608,8 @@
             perspective: 1000px;
             height: 600px;
             margin-bottom: 1.5rem;
+            min-width: 0;
+            width: 100%;
         }
 
         .flip-card-inner {
@@ -414,7 +636,9 @@
             padding: 1.25rem;
             display: flex;
             flex-direction: column;
-            overflow: auto;
+            min-width: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         .flip-card-back {
@@ -447,40 +671,75 @@
         }
 
         /* Timeline settings table on flip card back */
-        .timeline-table {
+        .timeline-table-scroll {
+            flex: 1;
+            min-width: 0;
             width: 100%;
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .timeline-table {
+            table-layout: fixed;
+            width: 100%;
+            max-width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
         }
+        /* Construction / billing start equal width; duration narrow; site gets remainder */
+        .timeline-table th:nth-child(1),
+        .timeline-table td:nth-child(1) {
+            width: 32%;
+        }
+        .timeline-table th:nth-child(2),
+        .timeline-table td:nth-child(2) {
+            width: 29%;
+        }
+        .timeline-table th:nth-child(3),
+        .timeline-table td:nth-child(3) {
+            width: 10%;
+        }
+        .timeline-table th:nth-child(4),
+        .timeline-table td:nth-child(4) {
+            width: 29%;
+        }
+        /* Same horizontal padding on th/td so vertical rules line up */
         .timeline-table th {
             text-align: left;
-            padding: 0.5rem 0.5rem;
+            padding: 0.45rem 0.5rem;
             font-weight: 600;
             color: var(--text-medium);
             border-bottom: 2px solid var(--border-color);
-            white-space: nowrap;
-            font-size: 0.8rem;
+            white-space: normal;
+            line-height: 1.2;
+            font-size: 0.75rem;
+            vertical-align: bottom;
+            box-sizing: border-box;
         }
         .timeline-table td {
             padding: 0.4rem 0.5rem;
             border-bottom: 1px solid var(--border-color);
             vertical-align: middle;
+            box-sizing: border-box;
         }
         .timeline-table .site-name-cell {
             font-weight: 600;
             color: var(--text-light);
-            max-width: 140px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            line-height: 1.3;
         }
-        .timeline-table input[type="number"] {
-            width: 70px;
-            padding: 0.35rem 0.5rem;
-            font-size: 0.85rem;
+        /* Duration column: plain <td>, not .timeline-split-cell (avoids clobbering year inputs) */
+        .timeline-table td:not(.timeline-split-cell) input[type="number"] {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 3.1rem;
+            min-width: 0;
+            padding: 0.18rem 0.2rem;
+            font-size: 0.8rem;
             text-align: center;
         }
-
     </style>
 </head>
 
@@ -507,9 +766,9 @@
                 <div class="irr-layout-grid">
                 <div class="section-card">
                     <div class="section-card-body p-5">
-                        <div class="irr-header-row">
-                            <div class="irr-header-left">
-                                <h2 class="page-title">Multi-Site IRR Calculator</h2>
+                        <div class="irr-header-stack">
+                            <h2 class="page-title">Multi-Site IRR Calculator</h2>
+                            <div class="irr-header-toolbar-row">
                                 <div class="irr-toolbar">
                                     <div class="irr-toolbar-left">
                                         <button type="button" id="new-project-btn" class="btn-secondary" title="New Project"><i class="fas fa-file"></i></button>
@@ -520,29 +779,38 @@
                                         <button type="button" id="print-report-btn" class="btn-secondary" title="Print Report"><i class="fas fa-print"></i></button>
                                         <button type="button" id="export-csv-btn" class="btn-secondary" title="Export to CSV"><i class="fas fa-file-csv"></i></button>
                                     </div>
-                                    <input type="text" id="project-name" placeholder="Project Name..." class="irr-project-name-input">
+                                    <div class="irr-project-name-field">
+                                        <span class="irr-project-name-label-spacer" aria-hidden="true">Discount (%)</span>
+                                        <input type="text" id="project-name" placeholder="Project Name..." class="irr-project-name-input">
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="irr-dial-container">
-                                <svg class="irr-dial-svg" viewBox="0 0 120 120">
-                                    <circle class="irr-dial-track" cx="60" cy="60" r="52" />
-                                    <circle class="irr-dial-fill" cx="60" cy="60" r="52" />
-                                </svg>
-                                <div class="irr-dial-value-wrap">
-                                    <input type="number" id="global-target-irr" value="15" min="0" max="100" class="irr-dial-input">
-                                    <span class="irr-dial-unit">%</span>
+                                <div class="irr-dial-container">
+                                    <div class="irr-dial-row">
+                                        <div class="irr-dial-discount-block">
+                                            <label for="global-discount-rate">Discount (%)</label>
+                                            <input type="number" id="global-discount-rate" value="15" min="0" max="100" step="0.01" aria-label="Global discount rate percent">
+                                        </div>
+                                        <div class="irr-dial-graph-col">
+                                            <label class="irr-dial-graph-label" for="global-target-irr">Target IRR</label>
+                                            <div class="irr-dial-graph-wrap">
+                                                <svg class="irr-dial-svg" viewBox="0 0 120 120" aria-hidden="true">
+                                                    <circle class="irr-dial-track" cx="60" cy="60" r="52" />
+                                                    <circle class="irr-dial-fill" cx="60" cy="60" r="52" />
+                                                </svg>
+                                                <div class="irr-dial-value-wrap">
+                                                    <input type="number" id="global-target-irr" value="15" min="0" max="100" class="irr-dial-input" aria-label="Target IRR percent">
+                                                    <span class="irr-dial-unit" aria-hidden="true">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <span class="irr-dial-label">Target IRR</span>
                             </div>
                         </div>
 
                 <div id="global-results-container">
                     <h3 class="irr-results-title">Global Project Results (All Sites)</h3>
                     <div class="global-results-grid">
-                        <div>
-                            <span style="font-size: 1rem; color: var(--text-medium);">Global Decision</span>
-                            <p id="global-decision" class="pending">--</p>
-                        </div>
                         <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Global Annual IRR</span>
                             <p id="global-annual-irr" class="pending">--%</p>
@@ -554,6 +822,10 @@
                         <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Global TCV ($)</span>
                             <p id="global-tcv" class="pending">$0</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global NPV ($)</span>
+                            <p id="global-npv" class="pending">$0</p>
                         </div>
                         <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Global Payback / Term</span>
@@ -606,9 +878,31 @@
                                     </button>
                                 </div>
                                 <p class="card-subtitle">
-                                    Set per-site construction and billing start months to model staggered rollouts.
+                                    Pick construction and billing <strong>start months</strong> (calendar); model month&nbsp;0 is the business case start above. Duration stays in months.
                                 </p>
-                                <div id="timeline-table-container" style="flex: 1; overflow: auto;"></div>
+                                <div class="timeline-business-case-panel">
+                                    <span class="timeline-bc-label" id="business-case-start-label">Business case start (month&nbsp;0)</span>
+                                    <div class="timeline-date-split" role="group" aria-labelledby="business-case-start-label">
+                                        <label for="business-case-start-month" class="sr-only">Start month</label>
+                                        <select id="business-case-start-month" aria-label="Business case start month name">
+                                            <option value="01">January</option>
+                                            <option value="02">February</option>
+                                            <option value="03">March</option>
+                                            <option value="04">April</option>
+                                            <option value="05">May</option>
+                                            <option value="06">June</option>
+                                            <option value="07">July</option>
+                                            <option value="08">August</option>
+                                            <option value="09">September</option>
+                                            <option value="10">October</option>
+                                            <option value="11">November</option>
+                                            <option value="12">December</option>
+                                        </select>
+                                        <label for="business-case-start-year" class="sr-only">Start year</label>
+                                        <input type="number" id="business-case-start-year" min="2000" max="2100" step="1" inputmode="numeric" aria-label="Business case start year">
+                                    </div>
+                                </div>
+                                <div id="timeline-table-container" class="timeline-table-scroll"></div>
 
                                 <button type="button" id="save-settings-flip-btn" class="btn-primary cognito-style-btn btn-block">
                                     Save & View Chart
@@ -721,16 +1015,16 @@
                     <h3 class="irr-results-title">Site Project Results</h3>
                     <div class="individual-results-grid">
                         <div>
-                            <span style="font-size: 1rem; color: var(--text-medium);">Site Decision</span>
-                            <p class="individual-decision pending">--</p>
-                        </div>
-                        <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Site Annual IRR</span>
                             <p class="individual-annual-irr pending">--%</p>
                         </div>
                         <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Site TCV ($)</span>
                             <p class="individual-tcv pending">$0</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Site NPV ($)</span>
+                            <p class="individual-npv pending">$0</p>
                         </div>
                         <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Site Payback / Term</span>
