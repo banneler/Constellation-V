@@ -212,13 +212,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                     updated_at: new Date().toISOString()
                 };
 
-                // Upsert on (function_id, user_id)
+                // Upsert on (function_id, user_id) — requires DB constraint ai_configs_function_id_user_id_key
+                // (see sql/ai_configs_unique_function_user.sql; NOT unique(function_id) alone).
                 const { error } = await supabase
                     .from('ai_configs')
-                    .upsert(data, { onConflict: 'function_id, user_id' });
+                    .upsert(data, { onConflict: 'function_id,user_id' });
                 
                 if (error) {
-                    showToast(`Save Error: ${error.message}`, 'error');
+                    let msg = error.message || 'Unknown error';
+                    if (msg.includes('ai_configs_function_id_key') || msg.includes('duplicate key')) {
+                        msg =
+                            'Database still enforces one row per function only. Run sql/ai_configs_unique_function_user.sql in Supabase.';
+                    }
+                    showToast(`Save Error: ${msg}`, 'error');
                 } else {
                     showToast("Your Personal AI Voice Updated!");
                     await loadConfigs(); // Refresh to show override status
