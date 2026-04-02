@@ -4381,6 +4381,13 @@ body.theme-green {
         box-shadow: inset 1px 1px 3px var(--shadow-light);
         transition: background-color 0.3s, border-color 0.3s, color 0.3s;
     }
+    /* Native checkboxes/radios must stay intrinsic width or flex rows collapse the label text */
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: auto;
+        max-width: none;
+        flex-shrink: 0;
+    }
     body:not(.theme-green) input,
     body:not(.theme-green) select,
     body:not(.theme-green) textarea {
@@ -5018,13 +5025,21 @@ body.theme-green {
         @apply flex justify-end gap-2.5 mt-5;
     }
     #modal-body {
-        @apply overflow-y-auto;
+        /* min-w-0: flex column child can otherwise refuse to shrink → horizontal overflow/scrollbars */
+        @apply overflow-y-auto min-w-0;
         color: var(--text-light);
     }
-    #modal-body input,
+    #modal-body input:not([type="checkbox"]):not([type="radio"]),
     #modal-body textarea,
     #modal-body select {
         @apply mt-2.5;
+    }
+    .reassign-account-option-row {
+        @apply min-w-0;
+    }
+    .reassign-account-option-label {
+        color: var(--text-light);
+        @apply min-w-0 flex-1 font-normal leading-snug;
     }
     .log-call-phone-link {
         color: var(--primary-blue);

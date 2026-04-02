@@ -337,6 +337,9 @@
   .z-\[9999\] {
     z-index: 9999;
   }
+  .row-10 {
+    grid-row: 10;
+  }
   .container {
     width: 100%;
     @media (width >= 40rem) {
@@ -387,6 +390,9 @@
   }
   .mr-3 {
     margin-right: calc(var(--spacing) * 3);
+  }
+  .mb-0 {
+    margin-bottom: calc(var(--spacing) * 0);
   }
   .mb-0\.5 {
     margin-bottom: calc(var(--spacing) * 0.5);
@@ -439,11 +445,17 @@
   .inline-block {
     display: inline-block;
   }
+  .inline-flex {
+    display: inline-flex;
+  }
   .list-item {
     display: list-item;
   }
   .table {
     display: table;
+  }
+  .table-cell {
+    display: table-cell;
   }
   .h-4 {
     height: calc(var(--spacing) * 4);
@@ -1126,6 +1138,10 @@
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
   }
+  .font-normal {
+    --tw-font-weight: var(--font-weight-normal);
+    font-weight: var(--font-weight-normal);
+  }
   .font-semibold {
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
@@ -1234,6 +1250,10 @@
   }
   .shadow-xl {
     --tw-shadow: 0 20px 25px -5px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 8px 10px -6px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .shadow\/filter {
+    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .ring {
@@ -7953,6 +7973,11 @@ body.theme-green {
     box-shadow: inset 1px 1px 3px var(--shadow-light);
     transition: background-color 0.3s, border-color 0.3s, color 0.3s;
   }
+  input[type="checkbox"], input[type="radio"] {
+    width: auto;
+    max-width: none;
+    flex-shrink: 0;
+  }
   body:not(.theme-green) input, body:not(.theme-green) select, body:not(.theme-green) textarea {
     border-radius: var(--radius-lg);
   }
@@ -8672,11 +8697,24 @@ body.theme-green {
     gap: calc(var(--spacing) * 2.5);
   }
   #modal-body {
+    min-width: calc(var(--spacing) * 0);
     overflow-y: auto;
     color: var(--text-light);
   }
-  #modal-body input, #modal-body textarea, #modal-body select {
+  #modal-body input:not([type="checkbox"]):not([type="radio"]), #modal-body textarea, #modal-body select {
     margin-top: calc(var(--spacing) * 2.5);
+  }
+  .reassign-account-option-row {
+    min-width: calc(var(--spacing) * 0);
+  }
+  .reassign-account-option-label {
+    color: var(--text-light);
+    min-width: calc(var(--spacing) * 0);
+    flex: 1;
+    --tw-leading: var(--leading-snug);
+    line-height: var(--leading-snug);
+    --tw-font-weight: var(--font-weight-normal);
+    font-weight: var(--font-weight-normal);
   }
   .log-call-phone-link {
     color: var(--primary-blue);

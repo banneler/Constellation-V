@@ -304,6 +304,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (accountDealsCards) accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see deals.</p>';
         if (accountProposalsList) accountProposalsList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] py-2">Select an account to see proposals.</p>';
         if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+        const reassignBtnEl = document.getElementById('reassign-account-btn');
+        if (reassignBtnEl) reassignBtnEl.classList.add('hidden');
 
         const sfLocatorDisplay = document.getElementById("sf-locator-display");
         const sfLocatorInput = document.getElementById("sf-locator-input");
@@ -422,6 +424,115 @@ document.addEventListener("DOMContentLoaded", async () => {
             mobileAccountSelect.value = state.selectedAccountId ? String(state.selectedAccountId) : '';
         }
     };
+
+    const reassignAccountBtn = document.getElementById('reassign-account-btn');
+    let reassignAccountUsersCache = null;
+
+    function syncReassignAccountButtonVisibility() {
+        if (!reassignAccountBtn) return;
+        const show =
+            getState().isManager === true &&
+            !!state.selectedAccountId &&
+            !!state.selectedAccountDetails.account;
+        reassignAccountBtn.classList.toggle('hidden', !show);
+    }
+
+    async function openReassignAccountModal() {
+        if (!getState().isManager || !state.selectedAccountId || !state.selectedAccountDetails.account) return;
+        const account = state.selectedAccountDetails.account;
+        let users = reassignAccountUsersCache;
+        if (!users) {
+            const { data, error } = await supabase.rpc('get_admin_users');
+            if (error || !data?.length) {
+                showToast('Could not load users for reassignment.', 'error');
+                console.error(error);
+                return;
+            }
+            reassignAccountUsersCache = data;
+            users = data;
+        }
+        const ownerId = account.user_id ? String(account.user_id) : '';
+        const optionsHtml = users
+            .filter((u) => u.user_id && String(u.user_id) !== ownerId)
+            .sort((a, b) => (a.full_name || a.email || '').localeCompare(b.full_name || b.email || ''))
+            .map(
+                (u) =>
+                    `<option value="${u.user_id}">${(u.full_name || u.email || 'User').replace(/</g, '&lt;')}</option>`
+            )
+            .join('');
+        if (!optionsHtml) {
+            showToast('No other users available to assign to.', 'error');
+            return;
+        }
+        const ownerRow = ownerId ? users.find((u) => String(u.user_id) === ownerId) : null;
+        const ownerName = ownerRow?.full_name || ownerRow?.email || ownerId || 'Unknown';
+        const body = `
+            <p class="text-sm mb-3" style="color:var(--text-medium)">Move <strong>${(account.name || 'Account').replace(/</g, '&lt;')}</strong> and all of its <strong>contacts</strong> to a new owner. Optionally also reassign activities, deals, and tasks on this account so they show under the new owner in lists and reports.</p>
+            <p class="text-xs mb-2" style="color:var(--text-medium)">Current owner: ${String(ownerName).replace(/</g, '&lt;')}</p>
+            <label class="block text-sm font-medium mb-1" for="reassign-account-to-user">New owner</label>
+            <select id="reassign-account-to-user" class="w-full rounded px-2 py-2" style="border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-light)">${optionsHtml}</select>
+            <div class="reassign-account-options mt-4 space-y-2 text-sm min-w-0" style="color:var(--text-light)">
+                <div class="reassign-account-option-row flex items-start gap-2">
+                    <input type="checkbox" id="reassign-include-activities" class="reassign-account-option-cb mt-1">
+                    <label class="reassign-account-option-label mb-0 font-normal cursor-pointer" for="reassign-include-activities">Include activity history <span style="color:var(--text-medium)">(set user_id on activities)</span></label>
+                </div>
+                <div class="reassign-account-option-row flex items-start gap-2">
+                    <input type="checkbox" id="reassign-include-deals" class="reassign-account-option-cb mt-1">
+                    <label class="reassign-account-option-label mb-0 font-normal cursor-pointer" for="reassign-include-deals">Include deals <span style="color:var(--text-medium)">(set user_id)</span></label>
+                </div>
+                <div class="reassign-account-option-row flex items-start gap-2">
+                    <input type="checkbox" id="reassign-include-tasks" class="reassign-account-option-cb mt-1">
+                    <label class="reassign-account-option-label mb-0 font-normal cursor-pointer" for="reassign-include-tasks">Include tasks <span style="color:var(--text-medium)">(set user_id)</span></label>
+                </div>
+            </div>`;
+        showModal(
+            'Reassign account',
+            body,
+            async () => {
+                const sel = document.getElementById('reassign-account-to-user');
+                const toUserId = sel?.value;
+                if (!toUserId) {
+                    showToast('Select a user to reassign to.', 'error');
+                    return false;
+                }
+                const incAct = document.getElementById('reassign-include-activities')?.checked === true;
+                const incDeals = document.getElementById('reassign-include-deals')?.checked === true;
+                const incTasks = document.getElementById('reassign-include-tasks')?.checked === true;
+                showGlobalLoader();
+                try {
+                    const { error } = await supabase.rpc('reassign_account_to_user', {
+                        p_account_id: account.id,
+                        p_to_user_id: toUserId,
+                        p_include_activities: incAct,
+                        p_include_deals: incDeals,
+                        p_include_tasks: incTasks
+                    });
+                    if (error) throw error;
+                    state.isFormDirty = false;
+                    await refreshData();
+                    state.selectedAccountId = account.id;
+                    renderAccountList();
+                    await loadDetailsForSelectedAccount();
+                    showToast('Account reassigned.', 'success');
+                    return true;
+                } catch (err) {
+                    console.error(err);
+                    showModal(
+                        'Reassign failed',
+                        (err && err.message) ? err.message : 'Could not reassign account.',
+                        null,
+                        false,
+                        `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+                    );
+                    return false;
+                } finally {
+                    hideGlobalLoader();
+                }
+            },
+            true,
+            `<button id="modal-confirm-btn" class="btn-primary">Reassign</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+        );
+    }
 
     const renderAccountDetails = () => {
         applyMobileAccountsDefaults();
@@ -652,6 +763,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
+        syncReassignAccountButtonVisibility();
         state.isFormDirty = false;
     };
 
@@ -2421,6 +2533,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                         hideModal();
                         showModal("Success", "Account deleted successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            });
+        }
+
+        if (reassignAccountBtn) {
+            reassignAccountBtn.addEventListener("click", () => {
+                openReassignAccountModal();
             });
         }
 

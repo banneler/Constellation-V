@@ -1130,7 +1130,7 @@ table input[type="checkbox"]:focus {
     overflow-y: auto;
 }
 
-#modal-body input,
+#modal-body input:not([type="checkbox"]):not([type="radio"]),
 #modal-body textarea,
 #modal-body select {
     margin-top: 0.625rem;
