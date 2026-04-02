@@ -787,7 +787,7 @@
                                     </div>
                                     <div class="irr-project-name-field">
                                         <span class="irr-project-name-label-spacer" aria-hidden="true">Discount (%)</span>
-                                        <input type="text" id="project-name" placeholder="Project Name..." class="irr-project-name-input">
+                                        <input type="text" id="project-name" class="irr-project-name-input">
                                     </div>
                                 </div>
                                 <div class="irr-dial-container">
@@ -977,11 +977,11 @@
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div style="flex-grow: 1;">
                             <label for="site-name">Site Name</label>
-                            <input type="text" class="site-name-input" placeholder="e.g., Downtown Business Park" value="Site 1">
+                            <input type="text" class="site-name-input" value="Site 1">
                         </div>
                         <div style="margin-left: 1rem; flex-basis: 150px; flex-shrink: 0;">
                             <label>Project Term (Months)</label>
-                            <input type="number" class="term-input" placeholder="e.g., 60" value="60">
+                            <input type="number" class="term-input" value="60" min="1" step="1">
                         </div>
                         <button type="button" class="btn-danger delete-site-btn" title="Delete this site" style="margin-left: 1rem; margin-top: 1.25rem;">
                             <i class="fas fa-trash"></i>
@@ -991,27 +991,27 @@
                     <div class="form-grid" style="margin-top: 1.5rem;">
                         <div>
                             <label>Construction Cost ($)</label>
-                            <input type="number" class="construction-cost-input" placeholder="e.g., 100000" value="100000">
+                            <input type="number" class="construction-cost-input" value="0" min="0" step="1">
                         </div>
                         <div>
                             <label>Engineering Cost ($)</label>
-                            <input type="number" class="engineering-cost-input" placeholder="e.g., 20000" value="20000">
+                            <input type="number" class="engineering-cost-input" value="0" min="0" step="1">
                         </div>
                         <div>
                             <label>Product Cost ($)</label>
-                            <input type="number" class="product-cost-input" placeholder="e.g., 10000" value="0">
+                            <input type="number" class="product-cost-input" value="0" min="0" step="1">
                         </div>
                         <div>
                             <label>Monthly Costs ($)</label>
-                            <input type="number" class="monthly-cost-input" placeholder="e.g., 500" value="500">
+                            <input type="number" class="monthly-cost-input" value="0" min="0" step="1">
                         </div>
                         <div>
                             <label>Non-Recurring Revenue (Upfront) ($)</label>
-                            <input type="number" class="nrr-input" placeholder="e.g., 5000" value="5000">
+                            <input type="number" class="nrr-input" value="0" min="0" step="1">
                         </div>
                         <div>
                             <label>Monthly Recurring Revenue ($)</label>
-                            <input type="number" class="mrr-input" placeholder="e.g., 3000" value="3000">
+                            <input type="number" class="mrr-input" value="0" min="0" step="1">
                         </div>
                     </div>
                     

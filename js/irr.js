@@ -353,11 +353,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newSiteId = state.nextSiteId++;
         const siteName = `Site ${newSiteId}`;
 
+        const prevSite = state.sites.length ? state.sites[state.sites.length - 1] : null;
+        const rawPrevTerm = prevSite ? parseInt(prevSite.inputs.term, 10) : NaN;
+        const termForNewSite = Number.isFinite(rawPrevTerm) && rawPrevTerm > 0 ? rawPrevTerm : 60;
+
         const templateClone = siteFormTemplate.content.cloneNode(true);
         const newFormWrapper = templateClone.querySelector('.site-form-wrapper');
         
         newFormWrapper.dataset.siteId = newSiteId;
         newFormWrapper.querySelector('.site-name-input').value = siteName;
+        newFormWrapper.querySelector('.term-input').value = String(termForNewSite);
+        newFormWrapper.querySelector('.construction-cost-input').value = '0';
+        newFormWrapper.querySelector('.engineering-cost-input').value = '0';
+        newFormWrapper.querySelector('.product-cost-input').value = '0';
+        newFormWrapper.querySelector('.monthly-cost-input').value = '0';
+        newFormWrapper.querySelector('.nrr-input').value = '0';
+        newFormWrapper.querySelector('.mrr-input').value = '0';
         
         siteFormsContainer.appendChild(templateClone);
 
@@ -365,13 +376,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             id: newSiteId,
             name: siteName,
             inputs: {
-                constructionCost: 100000,
-                engineeringCost: 20000,
+                constructionCost: 0,
+                engineeringCost: 0,
                 productCost: 0,
-                monthlyCost: 500,
-                nrr: 5000,
-                mrr: 3000,
-                term: 60,
+                monthlyCost: 0,
+                nrr: 0,
+                mrr: 0,
+                term: termForNewSite,
             },
             timeline: (() => {
                 const bcs = getBusinessCaseStartStr();
@@ -1028,10 +1039,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         ctx.lineWidth = 1;
         const zy = yAt(0);
         if (zy >= padT && zy <= padT + plotH) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(34, 197, 94, 0.75)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
             ctx.beginPath();
             ctx.moveTo(padL, zy);
             ctx.lineTo(padL + plotW, zy);
             ctx.stroke();
+            ctx.setLineDash([]);
+            const breakIdx = cumulativeData.findIndex((v) => v >= 0);
+            if (breakIdx > 0) {
+                ctx.fillStyle = 'rgba(34, 197, 94, 0.85)';
+                ctx.font = '11px system-ui,sans-serif';
+                const label = 'Break even';
+                ctx.fillText(label, padL + 4, zy - 4);
+            }
+            ctx.restore();
         }
         ctx.strokeStyle = '#3b82f6';
         ctx.lineWidth = 2;
@@ -1084,7 +1108,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const srcPlugins = payload.chartOptions.plugins || {};
         const exportPlugins = { ...srcPlugins, tooltip: { enabled: false }, legend: { display: false } };
-        delete exportPlugins.annotation;
         const exportOptions = {
             ...payload.chartOptions,
             plugins: exportPlugins,
@@ -1574,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 `;
     }
 
-    async function handlePrintReport() {
+    async function runIrrPdfExportJob() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
@@ -1986,6 +2009,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             hideModal();
             showModal("Error", (err && err.message) ? err.message : "Could not generate PDF.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        }
+    }
+
+    async function handlePrintReport() {
+        const pdfLoaderTextEl = document.querySelector('#global-loader-overlay .global-loader-text');
+        const pdfLoaderTextPrev = pdfLoaderTextEl ? pdfLoaderTextEl.textContent : '';
+        if (pdfLoaderTextEl) pdfLoaderTextEl.textContent = 'Building PDF…';
+        showGlobalLoader();
+        try {
+            await runIrrPdfExportJob();
+        } finally {
+            hideGlobalLoader();
+            if (pdfLoaderTextEl) pdfLoaderTextEl.textContent = pdfLoaderTextPrev;
         }
     }
     
