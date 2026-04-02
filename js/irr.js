@@ -1594,6 +1594,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         let chartImgSrc = '';
         try {
             chartImgSrc = await captureCashflowChartForPrintDataUrl();
+            if (!chartImgSrc) {
+                await new Promise((r) => setTimeout(r, 120));
+                chartImgSrc = await captureCashflowChartForPrintDataUrl();
+            }
         } catch (e) {
             console.warn('Print chart capture failed:', e);
         }
@@ -1916,7 +1920,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return captureHtmlViaSnapIframe(widthPx, innerHtml);
             }
 
-            const canvas1 = await capturePdfFragment(portraitContentPx, page1InnerHtml);
+            /**
+             * Same idea as proposals Compile → Generate: first snapdom pass warms layout/fonts/image
+             * decode so the chart PNG is not 0×0 on the captured page. No extra user click.
+             */
+            let canvas1;
+            if (chartSrcForPdf) {
+                await capturePdfFragment(portraitContentPx, page1InnerHtml);
+                canvas1 = await capturePdfFragment(portraitContentPx, page1InnerHtml);
+            } else {
+                canvas1 = await capturePdfFragment(portraitContentPx, page1InnerHtml);
+            }
             const canvas2 = await captureLandscapeFragment(landscapeContentPx, page2InnerHtml);
             pdfBlobUrlsToRevoke.forEach((u) => {
                 try { URL.revokeObjectURL(u); } catch (_) { /* ignore */ }
