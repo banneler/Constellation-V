@@ -536,7 +536,8 @@ function getOrCreateToastContainer() {
     return toastContainer;
 }
 
-export function showToast(message, type = 'success') {
+/** durationMs 0 = stay until returned dismiss() is called (cancels auto-hide). */
+export function showToast(message, type = 'success', durationMs = 4000) {
     const toastContainer = getOrCreateToastContainer();
 
     const toast = document.createElement('div');
@@ -544,10 +545,21 @@ export function showToast(message, type = 'success') {
     toast.innerHTML = `<span>${message}</span>`;
     toastContainer.appendChild(toast);
 
-    setTimeout(() => {
+    const dismiss = () => {
+        if (!toast.isConnected) return;
         toast.classList.add('hide');
-        toast.addEventListener('transitionend', () => toast.remove());
-    }, 4000);
+        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    };
+
+    let timeoutId;
+    if (durationMs > 0) {
+        timeoutId = setTimeout(dismiss, durationMs);
+    }
+
+    return () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        dismiss();
+    };
 }
 
 

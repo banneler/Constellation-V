@@ -1079,7 +1079,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         canvas.width = W;
         canvas.height = H;
         canvas.style.cssText = 'position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0.01;pointer-events:none';
-        document.body.appendChild(canvas);
+        const chartExportSink = document.getElementById('irr-offscreen-chart-export');
+        (chartExportSink || document.body).appendChild(canvas);
 
         const srcPlugins = payload.chartOptions.plugins || {};
         const exportPlugins = { ...srcPlugins, tooltip: { enabled: false }, legend: { display: false } };
@@ -1440,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         globalErrorMessageEl.classList.remove('hidden');
     }
     
-    // --- 6. Print Function ---
+    // --- 6. Report PDF (snapdom + pdf-lib; same HTML as legacy print) ---
 
     function escapeHtmlForPrint(text) {
         return String(text)
@@ -1450,10 +1451,138 @@ document.addEventListener('DOMContentLoaded', async () => {
             .replace(/"/g, '&quot;');
     }
 
+    /** PDF/print KPIs: match on-screen colors (theme + IRR/payback state) via resolved computed color. */
+    function irrKpiComputedColorAttr(el) {
+        if (!el) return '';
+        try {
+            const c = getComputedStyle(el).color;
+            if (!c || c === 'rgba(0, 0, 0, 0)') return '';
+            return ` style="color:${c}"`;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    /**
+     * Shared print/PDF report styles. PDF capture adds shadow/filter stripping on the capture root.
+     * @param {boolean} includePrintPageRules - @page rules for browser print; omit for snapdom PDF raster.
+     */
+    function buildIrrReportStylesheet(includePrintPageRules) {
+        const pageBlock = includePrintPageRules ? `
+            @page { size: letter portrait; margin: 0.5in; }
+            @page irr-site-landscape { size: letter landscape; margin: 0.35in; }
+` : '';
+        const shadowKill = includePrintPageRules ? '' : `
+            .irr-pdf-capture-root, .irr-pdf-capture-root * {
+                box-shadow: none !important;
+                text-shadow: none !important;
+                filter: none !important;
+            }
+`;
+        return `${pageBlock}${shadowKill}
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body, .irr-pdf-capture-root { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.3; }
+            .irr-pdf-capture-root { overflow: visible; }
+            
+            .page-1-wrapper { width: 7.5in; margin: 0 auto; }
+            
+            .report-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 3px solid #3b82f6; padding-bottom: 8px; margin-bottom: 12px; overflow: visible; }
+            .report-header h1 { flex: 1; min-width: 0; font-size: 1.25rem; color: #1e293b; margin: 0; line-height: 1.2; }
+            .report-header-meta { flex: 0 1 auto; max-width: 58%; text-align: right; line-height: 1.35; overflow: visible; min-width: 0; }
+            .report-header-meta-row { font-size: 7pt; color: #64748b; white-space: nowrap; overflow: visible; }
+            
+            .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
+            .summary-card h2 { font-size: 0.9rem; color: #3b82f6; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+            
+            .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center; }
+            .kpi-item .kpi-label { font-size: 7.5pt; color: #64748b; text-transform: uppercase; }
+            .kpi-item .kpi-value { font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
+            
+            .summary-financials-grid { width: 100%; border-collapse: collapse; font-size: 8pt; }
+            .summary-financials-grid th { background: #eff6ff; color: #1d4ed8; padding: 4px; border-bottom: 1px solid #bfdbfe; font-size: 8pt; text-transform: uppercase; }
+            .summary-financials-grid td { padding: 4px; border-bottom: 1px solid #e5e7eb; text-align: right; }
+            .summary-bold-row td { font-weight: 700; background: #f1f5f9; border-top: 1px solid #cbd5e1; }
+            
+            .chart-print-img-wrap { width: 100%; text-align: center; }
+            .chart-print-img-wrap img { max-width: 100%; height: 300px; border: 1px solid #e2e8f0; border-radius: 4px; object-fit: contain; }
+            
+            table.irr-print-annual-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-top: 0; }
+            table.irr-print-annual-table th { background: #f1f5f9; padding: 4px; border-bottom: 2px solid #e2e8f0; text-align: right; }
+            table.irr-print-annual-table th:first-child { text-align: center; }
+            table.irr-print-annual-table td { padding: 4px; border-bottom: 1px solid #f1f5f9; text-align: right; }
+            table.irr-print-annual-table td:first-child { text-align: center; }
+
+            .irr-print-landscape-section {
+                page: irr-site-landscape;
+                page-break-before: always;
+                break-before: page;
+                break-inside: avoid;
+                width: 100%;
+                max-width: 100%;
+            }
+            .irr-print-landscape-section h2 { font-size: 1.05rem; color: #3b82f6; text-transform: uppercase; margin-bottom: 8px; }
+            .site-breakdown-print-table {
+                width: 100%;
+                table-layout: fixed;
+                border-collapse: collapse;
+                font-size: 5.5pt;
+            }
+            .site-breakdown-print-table col.site-bd-col-site { width: 14%; }
+            .site-breakdown-print-table col.site-bd-col-num { width: 6.692307%; }
+            .site-breakdown-print-table th {
+                background: #f1f5f9;
+                padding: 3px 2px;
+                border-bottom: 2px solid #e2e8f0;
+                text-align: center;
+                white-space: normal;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                font-weight: 600;
+                font-size: 5pt;
+                line-height: 1.15;
+            }
+            .site-breakdown-print-table th:first-child { text-align: left; }
+            .site-breakdown-print-table td {
+                padding: 2px 1px;
+                border-bottom: 1px solid #f1f5f9;
+                text-align: center;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                vertical-align: top;
+                line-height: 1.2;
+            }
+            .site-breakdown-print-table td:first-child {
+                text-align: left;
+                font-weight: 600;
+                word-break: normal;
+                overflow-wrap: break-word;
+            }
+            .site-breakdown-print-table td.site-bd-date-cell {
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                line-height: 1.25;
+                hyphens: auto;
+            }
+            
+            .go { color: #16a34a; font-weight: 700; }
+            .nogo { color: #dc2626; font-weight: 700; }
+            .warn { color: #d97706; font-weight: 700; }
+            .error { color: #f97316; font-weight: 700; }
+            .annual-net-positive { color: #16a34a; font-weight: 700; }
+            .annual-net-negative { color: #dc2626; font-weight: 700; }
+`;
+    }
+
     async function handlePrintReport() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
+        const npvDiscountPctPrint = (() => {
+            const pct = globalDiscountRate * 100;
+            if (!Number.isFinite(pct)) return '15';
+            return Math.abs(pct - Math.round(pct)) < 1e-6 ? String(Math.round(pct)) : pct.toFixed(1);
+        })();
         const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         const printBcs = getBusinessCaseStartParsed();
         const businessCaseStartLabel = new Date(printBcs.year, printBcs.monthIndex0, 1).toLocaleDateString('en-US', {
@@ -1565,7 +1694,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td>$${(inp.nrr || 0).toLocaleString()}</td>
                 <td>$${(inp.mrr || 0).toLocaleString()}</td>
                 <td>$${(inp.monthlyCost || 0).toLocaleString()}</td>
-                <td>${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.constructionStartMonthISO))}</td>
+                <td class="site-bd-date-cell">${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.constructionStartMonthISO))}</td>
                 <td>${Math.max(1, parseInt(timeline.constructionDurationMonths, 10) || 3)}</td>
                 <td>${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.billingStartMonthISO))}</td>
                 <td>${inp.term}</td>
@@ -1573,111 +1702,40 @@ document.addEventListener('DOMContentLoaded', async () => {
             </tr>`;
         });
 
-        // --- 4. HTML Layout ---
-        const reportHtml = `<!DOCTYPE html><html><head><title>${escapeHtmlForPrint(projectName)}</title>
-        <style>
-            /* Default to Portrait */
-            @page { size: portrait; margin: 0.5in; }
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.3; }
-            
-            /* --- PAGE 1: PORTRAIT WRAPPER --- */
-            .page-1-wrapper { 
-                width: 7.5in; /* 8.5" page minus 0.5" margins */
-                margin: 0 auto; 
+        /* Blob URL helps snapdom serialize chart PNGs; huge data: URIs sometimes paint as 0×0 until too late */
+        let chartSrcForPdf = chartImgSrc || '';
+        const pdfBlobUrlsToRevoke = [];
+        if (chartImgSrc && chartImgSrc.startsWith('data:image')) {
+            try {
+                const blob = await (await fetch(chartImgSrc)).blob();
+                const u = URL.createObjectURL(blob);
+                pdfBlobUrlsToRevoke.push(u);
+                chartSrcForPdf = u;
+            } catch (e) {
+                console.warn('IRR PDF: could not use blob URL for chart, using data URL:', e);
+                chartSrcForPdf = chartImgSrc;
             }
-            
-            .report-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #3b82f6; padding-bottom: 6px; margin-bottom: 12px; }
-            .report-header h1 { font-size: 1.4rem; color: #1e293b; margin: 0; }
-            
-            .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
-            .summary-card h2 { font-size: 0.9rem; color: #3b82f6; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-            
-            .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center; }
-            .kpi-item .kpi-label { font-size: 7.5pt; color: #64748b; text-transform: uppercase; }
-            .kpi-item .kpi-value { font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
-            
-            .summary-financials-grid { width: 100%; border-collapse: collapse; font-size: 8pt; }
-            .summary-financials-grid th { background: #eff6ff; color: #1d4ed8; padding: 4px; border-bottom: 1px solid #bfdbfe; font-size: 8pt; text-transform: uppercase; }
-            .summary-financials-grid td { padding: 4px; border-bottom: 1px solid #e5e7eb; text-align: right; }
-            .summary-bold-row td { font-weight: 700; background: #f1f5f9; border-top: 1px solid #cbd5e1; }
-            
-            .chart-print-img-wrap { width: 100%; text-align: center; }
-            /* Increased chart height to fill the empty space on Page 1 */
-            .chart-print-img-wrap img { max-width: 100%; height: 300px; border: 1px solid #e2e8f0; border-radius: 4px; object-fit: contain; }
-            
-            table.irr-print-annual-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; margin-top: 0; }
-            table.irr-print-annual-table th { background: #f1f5f9; padding: 4px; border-bottom: 2px solid #e2e8f0; text-align: right; }
-            table.irr-print-annual-table th:first-child { text-align: center; }
-            table.irr-print-annual-table td { padding: 4px; border-bottom: 1px solid #f1f5f9; text-align: right; }
-            table.irr-print-annual-table td:first-child { text-align: center; }
+        }
 
-            /* --- PAGE 2: ROTATED LANDSCAPE HACK --- */
-            .landscape-container {
-                page-break-before: always;
-                break-before: page;
-                position: relative;
-                width: 7.5in;  /* Constrained to portrait width */
-                height: 10in;  /* Constrained to portrait height */
-                overflow: hidden;
-            }
-            
-            .rotated-content {
-                position: absolute;
-                /* Rotate around the top-left corner, then push it down into view */
-                transform-origin: 0 0;
-                transform: rotate(-90deg) translate(-10in, 0);
-                /* The content now treats the old height as its width, and vice versa */
-                width: 10in; 
-                height: 7.5in; 
-                padding: 10px; /* Slight inset to prevent edge clipping */
-            }
-            
-            /* Tighter table styling to ensure it fits the 10in width */
-            .rotated-content table {
-                width: 100%;
-                table-layout: fixed; /* Forces columns to fit */
-                border-collapse: collapse;
-                font-size: 7.5pt; /* Smaller font to fit 14 columns */
-            }
-            .rotated-content th { 
-                background: #f1f5f9; 
-                padding: 4px 2px; 
-                border-bottom: 2px solid #e2e8f0; 
-                text-align: center; 
-                word-wrap: break-word; /* Allows headers to wrap */
-            }
-            .rotated-content td { 
-                padding: 4px 2px; 
-                border-bottom: 1px solid #f1f5f9; 
-                text-align: center; 
-                word-wrap: break-word; 
-            }
-            
-            .go { color: #16a34a; font-weight: 700; }
-            .nogo { color: #dc2626; font-weight: 700; }
-            .warn { color: #d97706; font-weight: 700; }
-            .error { color: #f97316; font-weight: 700; }
-            .annual-net-positive { color: #16a34a; font-weight: 700; }
-            .annual-net-negative { color: #dc2626; font-weight: 700; }
-        </style></head><body>
-            
-            <div class="page-1-wrapper">
+        // --- 4. Same HTML structure as legacy print; PDF = snapdom raster + pdf-lib (page 2 always landscape) ---
+        const npvDiscountPctForPrint = String(npvDiscountPctPrint).replace(/%\s*$/, '');
+        const page1InnerHtml = `
                 <div class="report-header">
                     <h1>${escapeHtmlForPrint(projectName)}</h1>
-                    <div style="text-align:right; font-size: 8pt; color: #64748b;">
-                        <div>Generated ${reportDate}</div>
-                        <div>Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong> | Target: <strong>${(globalTargetIRR * 100).toFixed(1)}%</strong></div>
+                    <div class="report-header-meta">
+                        <div class="report-header-meta-row">Generated ${reportDate}</div>
+                        <div class="report-header-meta-row">Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong> · Target <strong>${(globalTargetIRR * 100).toFixed(1)}%</strong></div>
+                        <div class="report-header-meta-row">NPV discount <strong>${npvDiscountPctForPrint}%</strong></div>
                     </div>
                 </div>
 
                 <div class="summary-card">
                     <div class="kpi-grid">
-                        <div class="kpi-item"><div class="kpi-label">Annual IRR</div><div class="kpi-value ${globalAnnualIRREl.className}">${globalAnnualIRREl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value">${globalCapitalInvestmentEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value" style="color:#3b82f6;">${globalTcvEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value">${globalNpvEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Payback / Term</div><div class="kpi-value ${globalPaybackEl.className}">${globalPaybackEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Annual IRR</div><div class="kpi-value"${irrKpiComputedColorAttr(globalAnnualIRREl)}>${globalAnnualIRREl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value"${irrKpiComputedColorAttr(globalCapitalInvestmentEl)}>${globalCapitalInvestmentEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalTcvEl)}>${globalTcvEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalNpvEl)}>${globalNpvEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Payback / Term</div><div class="kpi-value"${irrKpiComputedColorAttr(globalPaybackEl)}>${globalPaybackEl.textContent}</div></div>
                     </div>
                 </div>
 
@@ -1696,83 +1754,224 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </table>
                 </div>
 
-                ${chartImgSrc ? `
+                ${chartSrcForPdf ? `
                 <div class="summary-card">
                     <h2>Cash Flow Projection</h2>
-                    <div class="chart-print-img-wrap"><img id="irr-print-cashflow-chart" src="${chartImgSrc}" alt="Cash flow chart" /></div>
+                    <div class="chart-print-img-wrap"><img src="${chartSrcForPdf}" alt="Cash flow chart" /></div>
                 </div>` : ''}
 
                 ${annualTableHtml ? `
                 <div class="summary-card" style="margin-bottom:0;">
                     <h2>Annual Cash Flow</h2>
                     ${annualTableHtml}
-                </div>` : ''}
-            </div>
+                </div>` : ''}`;
 
-            <div class="landscape-container">
-                <div class="rotated-content">
-                    <div class="summary-card" style="border:none; background:transparent; padding: 0;">
-                        <h2 style="font-size: 1.1rem; color: #3b82f6; text-transform: uppercase;">Site Breakdown Detail</h2>
-                        <table class="site-breakdown-print-table">
-                            <thead><tr>
-                                <th style="text-align:left; width: 12%;">Site</th>
-                                <th style="width: 5%;">IRR</th>
-                                <th style="width: 8%;">TCV</th>
-                                <th style="width: 8%;">Const.</th>
-                                <th style="width: 8%;">Eng.</th>
-                                <th style="width: 8%;">Prod.</th>
-                                <th style="width: 8%;">NRR</th>
-                                <th style="width: 8%;">MRR</th>
-                                <th style="width: 8%;">MCOS</th>
-                                <th style="width: 8%;">C-Start</th>
-                                <th style="width: 4%;">Dur.</th>
-                                <th style="width: 8%;">B-Start</th>
-                                <th style="width: 4%;">Term</th>
-                                <th style="width: 8%;">Payback</th>
-                            </tr></thead>
-                            <tbody>${siteRows}</tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+        const page2InnerHtml = `
+            <div class="irr-print-landscape-section">
+                <h2>Site Breakdown Detail</h2>
+                <table class="site-breakdown-print-table">
+                    <colgroup>
+                        <col class="site-bd-col-site" />
+                        <col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" />
+                    </colgroup>
+                    <thead><tr>
+                        <th>Site</th>
+                        <th>IRR</th>
+                        <th>TCV</th>
+                        <th>Construction</th>
+                        <th>Engineering</th>
+                        <th>Product</th>
+                        <th>NRR</th>
+                        <th>MRR</th>
+                        <th>MCOS</th>
+                        <th>Const. Start</th>
+                        <th>Duration</th>
+                        <th>Billing start</th>
+                        <th>Term</th>
+                        <th>Payback</th>
+                    </tr></thead>
+                    <tbody>${siteRows}</tbody>
+                </table>
+            </div>`;
 
-        </body></html>`;
+        const stylesheetPdf = buildIrrReportStylesheet(false);
+        const PX = 96;
+        const portraitContentPx = 7.5 * PX;
+        /* Letter landscape printable width ≈ 10in @ 96dpi after PDF margins — keeps table on one row */
+        const landscapeContentPx = 10 * PX;
 
-        const printFrame = document.createElement('iframe');
-        printFrame.style.cssText = 'position:fixed;width:0;height:0;border:0;';
-        document.body.appendChild(printFrame);
-        const frameDoc = printFrame.contentWindow.document;
-        frameDoc.open();
-        frameDoc.write(reportHtml);
-        frameDoc.close();
-
-        const finishPrint = () => {
-            try {
-                printFrame.contentWindow.focus();
-                printFrame.contentWindow.print();
-            } catch (e) {
-                console.error("Print failed:", e);
-                showModal("Error", "Could not open print dialog.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            } finally {
-                if (document.body.contains(printFrame)) document.body.removeChild(printFrame);
+        try {
+            if (typeof PDFLib === 'undefined') {
+                throw new Error('PDF library not loaded. Refresh the page and try again.');
             }
-        };
-
-        const printImg = frameDoc.querySelector('#irr-print-cashflow-chart');
-        if (printImg && chartImgSrc) {
-            if (typeof printImg.decode === 'function') {
-                printImg.decode()
-                    .then(() => setTimeout(finishPrint, 50))
-                    .catch(() => setTimeout(finishPrint, 50));
-            } else if (printImg.complete) {
-                setTimeout(finishPrint, 50);
-            } else {
-                printImg.onload = () => finishPrint();
-                printImg.onerror = () => finishPrint();
-                setTimeout(finishPrint, 1500);
+            const snapdomFn = globalThis.snapdom;
+            if (typeof snapdomFn !== 'function') {
+                throw new Error('snapdom not loaded.');
             }
-        } else {
-            setTimeout(finishPrint, 500);
+
+            const snapOpts = {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                outerShadows: false,
+                outerTransforms: false
+            };
+
+            /**
+             * Data URLs and large PNGs often report complete before decode(); naturalWidth stays 0 briefly.
+             * snapdom then captures an empty image — especially the cashflow chart.
+             */
+            async function waitReportImages(root) {
+                const imgs = Array.from(root.querySelectorAll('img'));
+                for (const img of imgs) {
+                    try {
+                        if (typeof img.decode === 'function') {
+                            await img.decode();
+                        }
+                    } catch (_) { /* broken src; still wait below */ }
+                    if (img.naturalWidth > 0) continue;
+                    await new Promise((resolve) => {
+                        const done = () => resolve();
+                        if (img.complete) {
+                            done();
+                            return;
+                        }
+                        img.addEventListener('load', done, { once: true });
+                        img.addEventListener('error', done, { once: true });
+                        setTimeout(done, 5000);
+                    });
+                    for (let i = 0; i < 40 && img.naturalWidth === 0; i++) {
+                        await new Promise((r) => requestAnimationFrame(r));
+                    }
+                }
+            }
+
+            function getPdfSnapIframe() {
+                let iframe = document.getElementById('irr-pdf-snap-iframe');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'irr-pdf-snap-iframe';
+                    iframe.setAttribute('aria-hidden', 'true');
+                    iframe.title = '';
+                    iframe.style.cssText =
+                        'position:fixed;border:0;width:0;height:0;left:0;top:0;opacity:0;pointer-events:none;visibility:hidden';
+                    iframe.src = 'about:blank';
+                    document.body.appendChild(iframe);
+                }
+                return iframe;
+            }
+
+            function blankPdfSnapIframe(iframe) {
+                const doc = iframe.contentDocument;
+                if (!doc) return;
+                doc.open();
+                doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body></body></html>');
+                doc.close();
+            }
+
+            /**
+             * Rasterize in a hidden same-origin iframe so tall report DOM + fonts.ready + snapdom
+             * never touch the main document (avoids visible layout jitter / scrollbar thrash).
+             */
+            async function captureHtmlViaSnapIframe(widthPx, innerBodyHtml) {
+                const iframe = getPdfSnapIframe();
+                const doc = iframe.contentDocument;
+                if (!doc) {
+                    throw new Error('PDF snap iframe has no document.');
+                }
+                const fontHref =
+                    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
+                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${fontHref}"><style>${stylesheetPdf}</style></head><body style="margin:0;background:#fff;"><div class="irr-pdf-capture-root" style="width:${widthPx}px;background:#fff;">${innerBodyHtml}</div></body></html>`;
+                try {
+                    doc.open();
+                    doc.write(html);
+                    doc.close();
+                    const root = doc.querySelector('.irr-pdf-capture-root');
+                    if (!root) {
+                        throw new Error('PDF capture root missing in iframe.');
+                    }
+                    try {
+                        if (doc.fonts && doc.fonts.ready) {
+                            await doc.fonts.ready;
+                        }
+                    } catch (_) { /* ignore */ }
+                    await waitReportImages(root);
+                    if (chartSrcForPdf) {
+                        await new Promise((r) => setTimeout(r, 50));
+                    }
+                    await new Promise((r) => requestAnimationFrame(r));
+                    await new Promise((r) => requestAnimationFrame(r));
+                    const capture = await snapdomFn(root, snapOpts);
+                    return capture.toCanvas();
+                } finally {
+                    blankPdfSnapIframe(iframe);
+                }
+            }
+
+            async function capturePdfFragment(widthPx, innerHtml) {
+                const innerBodyHtml = `<div class="page-1-wrapper" style="width:100%;max-width:100%;">${innerHtml}</div>`;
+                return captureHtmlViaSnapIframe(widthPx, innerBodyHtml);
+            }
+
+            async function captureLandscapeFragment(widthPx, innerHtml) {
+                return captureHtmlViaSnapIframe(widthPx, innerHtml);
+            }
+
+            const canvas1 = await capturePdfFragment(portraitContentPx, page1InnerHtml);
+            const canvas2 = await captureLandscapeFragment(landscapeContentPx, page2InnerHtml);
+            pdfBlobUrlsToRevoke.forEach((u) => {
+                try { URL.revokeObjectURL(u); } catch (_) { /* ignore */ }
+            });
+
+            const { PDFDocument } = PDFLib;
+            const pdfDoc = await PDFDocument.create();
+            const marginPt = 36;
+            const embedFromCanvas = (canvas) => pdfDoc.embedPng(canvas.toDataURL('image/png'));
+
+            const png1 = await embedFromCanvas(canvas1);
+            const pagePortrait = pdfDoc.addPage([612, 792]);
+            const uW1 = 612 - 2 * marginPt;
+            const uH1 = 792 - 2 * marginPt;
+            const d1 = png1.scaleToFit(uW1, uH1);
+            pagePortrait.drawImage(png1, {
+                x: (612 - d1.width) / 2,
+                y: (792 - d1.height) / 2,
+                width: d1.width,
+                height: d1.height
+            });
+
+            const png2 = await embedFromCanvas(canvas2);
+            const pageLandscape = pdfDoc.addPage([792, 612]);
+            const uW2 = 792 - 2 * marginPt;
+            const uH2 = 612 - 2 * marginPt;
+            const d2 = png2.scaleToFit(uW2, uH2);
+            /* Top-align site table: pdf-lib y is bottom of image; page top y = 612 */
+            const x2 = (792 - d2.width) / 2;
+            const y2Top = 612 - marginPt - d2.height;
+            pageLandscape.drawImage(png2, {
+                x: x2,
+                y: Math.max(marginPt, y2Top),
+                width: d2.width,
+                height: d2.height
+            });
+
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${projectName.replace(/\s+/g, '_')}_IRR_Report.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+        } catch (err) {
+            console.error('IRR PDF export failed:', err);
+            pdfBlobUrlsToRevoke.forEach((u) => {
+                try { URL.revokeObjectURL(u); } catch (_) { /* ignore */ }
+            });
+            hideModal();
+            showModal("Error", (err && err.message) ? err.message : "Could not generate PDF.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
         }
     }
     

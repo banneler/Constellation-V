@@ -15,10 +15,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/@zumer/snapdom/dist/snapdom.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
 
     <style>
+        /* Avoid layout jump when scrollbars appear/disappear during heavy work (e.g. PDF export) */
+        html {
+            scrollbar-gutter: stable;
+        }
+
         .irr-tab-scroll-wrapper {
             display: flex;
             align-items: stretch;
@@ -776,7 +782,7 @@
                                         <button type="button" id="save-project-btn" class="btn-primary cognito-style-btn" title="Save Project"><i class="fas fa-save"></i></button>
                                         <div class="irr-toolbar-divider"></div>
                                         <button type="button" id="add-site-btn" class="btn-secondary" title="Add Site"><i class="fas fa-plus"></i></button>
-                                        <button type="button" id="print-report-btn" class="btn-secondary" title="Print Report"><i class="fas fa-print"></i></button>
+                                        <button type="button" id="print-report-btn" class="btn-secondary" title="Download PDF report"><i class="fas fa-file-pdf"></i></button>
                                         <button type="button" id="export-csv-btn" class="btn-secondary" title="Export to CSV"><i class="fas fa-file-csv"></i></button>
                                     </div>
                                     <div class="irr-project-name-field">
@@ -1072,6 +1078,9 @@
             document.body.className = 'theme-' + savedTheme;
         })();
     </script>
+
+    <!-- Chart.js PDF export canvas only; snapdom runs in #irr-pdf-snap-iframe (separate document) -->
+    <div id="irr-offscreen-chart-export" aria-hidden="true" style="position:fixed;left:0;top:-9999px;box-sizing:border-box;overflow:visible;pointer-events:none;width:0;height:0;"></div>
     
     <script type="module" src="js/irr.js"></script>
 </body>
