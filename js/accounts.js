@@ -500,14 +500,40 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const incTasks = document.getElementById('reassign-include-tasks')?.checked === true;
                 showGlobalLoader();
                 try {
-                    const { error } = await supabase.rpc('reassign_account_to_user', {
-                        p_account_id: account.id,
-                        p_to_user_id: toUserId,
-                        p_include_activities: incAct,
-                        p_include_deals: incDeals,
-                        p_include_tasks: incTasks
-                    });
-                    if (error) throw error;
+                    const { error: refreshErr } = await supabase.auth.refreshSession();
+                    if (refreshErr) console.warn('refreshSession before reassign:', refreshErr);
+                    const aid = account.id;
+                    const { error: accErr } = await supabase
+                        .from('accounts')
+                        .update({ user_id: toUserId })
+                        .eq('id', aid);
+                    if (accErr) throw accErr;
+                    const { error: contactErr } = await supabase
+                        .from('contacts')
+                        .update({ user_id: toUserId })
+                        .eq('account_id', aid);
+                    if (contactErr) throw contactErr;
+                    if (incAct) {
+                        const { error: actErr } = await supabase
+                            .from('activities')
+                            .update({ user_id: toUserId })
+                            .eq('account_id', aid);
+                        if (actErr) throw actErr;
+                    }
+                    if (incDeals) {
+                        const { error: dealErr } = await supabase
+                            .from('deals')
+                            .update({ user_id: toUserId })
+                            .eq('account_id', aid);
+                        if (dealErr) throw dealErr;
+                    }
+                    if (incTasks) {
+                        const { error: taskErr } = await supabase
+                            .from('tasks')
+                            .update({ user_id: toUserId })
+                            .eq('account_id', aid);
+                        if (taskErr) throw taskErr;
+                    }
                     state.isFormDirty = false;
                     await refreshData();
                     state.selectedAccountId = account.id;
@@ -517,13 +543,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return true;
                 } catch (err) {
                     console.error(err);
-                    showModal(
-                        'Reassign failed',
-                        (err && err.message) ? err.message : 'Could not reassign account.',
-                        null,
-                        false,
-                        `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-                    );
+                    const raw = (err && err.message) ? String(err.message) : '';
+                    let msg = raw || 'Could not reassign account.';
+                    if (
+                        raw.includes('unique_account_name_per_user') ||
+                        raw.includes('duplicate key') ||
+                        raw.includes('23505')
+                    ) {
+                        msg =
+                            'The new owner already has an account with this name (unique name per user). Rename one of the accounts and try again.';
+                    }
+                    showModal('Reassign failed', msg, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return false;
                 } finally {
                     hideGlobalLoader();
