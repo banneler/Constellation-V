@@ -6,11 +6,13 @@
 --
 -- Run once in Supabase SQL editor (safe to re-run).
 
--- Remove legacy single-column unique (constraint or standalone index).
+-- Remove ANY legacy single-column unique on function_id (names vary by migration history).
 ALTER TABLE public.ai_configs
-  DROP CONSTRAINT IF EXISTS ai_configs_function_id_key;
+  DROP CONSTRAINT IF EXISTS ai_configs_function_id_key,
+  DROP CONSTRAINT IF EXISTS unique_function_id;
 
 DROP INDEX IF EXISTS ai_configs_function_id_key;
+DROP INDEX IF EXISTS unique_function_id;
 
 -- If a previous attempt left the new constraint, skip add.
 DO $migration$
