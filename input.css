@@ -3701,6 +3701,41 @@ body.theme-green {
     .deal-card.deal-stage-default {
         border-color: var(--secondary-gray);
     }
+
+    /* Deals pipeline kanban: renewals — crosshatch + pill (column totals may include renewals; metric cards often exclude) */
+    #deals #kanban-board-view .deal-card.deal-card--renewal {
+        background-color: var(--bg-light);
+        background-image:
+            repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 5px,
+                color-mix(in srgb, var(--text-medium) 11%, transparent) 5px,
+                color-mix(in srgb, var(--text-medium) 11%, transparent) 6px
+            ),
+            repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 5px,
+                color-mix(in srgb, var(--text-medium) 8%, transparent) 5px,
+                color-mix(in srgb, var(--text-medium) 8%, transparent) 6px
+            );
+    }
+
+    #deals #kanban-board-view .deal-card-renewal-pill {
+        margin-left: auto;
+        flex-shrink: 0;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-medium);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1px 5px;
+        background-color: color-mix(in srgb, var(--bg-medium) 88%, transparent);
+    }
+
     .deal-card-header {
         @apply flex justify-between items-center gap-2;
     }

@@ -1199,6 +1199,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <span class="deal-card-commit-label">Committed</span>
                     </label>
                     <span class="deal-card-stage deal-card-editable" data-field="stage">${deal.stage}</span>
+                    ${deal.is_renewal ? '<span class="deal-card-renewal-pill">Renewal</span>' : ''}
                 </div>
                 <span class="deal-card-notes-dot deal-card-notes-dot--${notesStatus.status}" title="${(notesStatus.label || '').replace(/"/g, '&quot;')}" aria-hidden="true"><span class="deal-card-notes-light deal-card-notes-light--top"></span><span class="deal-card-notes-light deal-card-notes-light--mid"></span><span class="deal-card-notes-light deal-card-notes-light--bottom"></span></span>
             </div>
@@ -1220,8 +1221,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>`;
             
+        const renewalClass = deal.is_renewal ? 'deal-card--renewal' : '';
+        const renewalTitle = deal.is_renewal ? ' title="Renewal deal"' : '';
         return `
-            <div class="kanban-card deal-card ${stageClass} deal-card-flippable" draggable="true" data-id="${deal.id}">
+            <div class="kanban-card deal-card ${stageClass} ${renewalClass} deal-card-flippable" draggable="true" data-id="${deal.id}"${renewalTitle}>
                 <div class="deal-card-flip-inner">
                     <div class="deal-card-front">${frontContent}</div>
                     <div class="deal-card-back">${backContent}</div>
