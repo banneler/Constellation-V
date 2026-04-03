@@ -3,13 +3,40 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover: safe-area env() for PWA/notch; max-scale stops iOS auto-zoom that shifts the auth card -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Constellation">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="assets/constellation-logo-c.svg">
     <title>Constellation CRM - Login</title>
+    <style>
+        /* Login / PWA: avoid iOS zoom + horizontal drift; keep inputs at 16px so focus doesn’t force zoom if max-scale is relaxed later */
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        body {
+            margin: 0;
+            width: 100%;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        #auth-container {
+            min-height: 100dvh;
+            min-height: -webkit-fill-available;
+            padding-left: max(1rem, env(safe-area-inset-left, 0px));
+            padding-right: max(1rem, env(safe-area-inset-right, 0px));
+            padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+            padding-top: max(1rem, env(safe-area-inset-top, 0px));
+        }
+        #auth-container input,
+        #auth-container button {
+            font-size: 16px;
+        }
+    </style>
     <link rel="stylesheet" href="output.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -22,20 +49,20 @@
             
             <form id="auth-form" class="w-full">
                 <input type="email" id="auth-email" placeholder="Email" required
-                    class="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
+                    class="w-full text-base bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
                 <input type="password" id="auth-password" placeholder="Password" required
-                    class="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
+                    class="w-full text-base bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
                 <div id="signup-fields" class="hidden">
                     <input type="password" id="auth-confirm-password" placeholder="Confirm Password"
-                        class="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
+                        class="w-full text-base bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
                 </div>
-                <button type="submit" id="auth-submit-btn" class="btn-primary w-full mb-4">Login</button>
+                <button type="submit" id="auth-submit-btn" class="btn-primary w-full mb-4 text-base">Login</button>
             </form>
 
             <form id="reset-form" class="hidden w-full">
                 <input type="email" id="reset-email" placeholder="Email" required
-                    class="w-full bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
-                <button type="submit" id="reset-submit-btn" class="btn-primary w-full mb-4">Send Reset Link</button>
+                    class="w-full text-base bg-white border border-slate-300 text-slate-900 placeholder-slate-400 px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-slate-50 transition-all">
+                <button type="submit" id="reset-submit-btn" class="btn-primary w-full mb-4 text-base">Send Reset Link</button>
             </form>
 
             <a href="#" id="auth-toggle-link" class="block mt-2 text-sm text-blue-600 hover:text-blue-700 no-underline hover:underline">Need an account? Sign Up</a>
