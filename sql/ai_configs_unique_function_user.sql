@@ -42,3 +42,15 @@ COMMENT ON CONSTRAINT ai_configs_function_id_user_id_key ON public.ai_configs IS
 -- CREATE UNIQUE INDEX IF NOT EXISTS ai_configs_one_override_per_user
 --   ON public.ai_configs (function_id, user_id) WHERE user_id IS NOT NULL;
 -- Then adjust Supabase upsert to target the partial index columns (may require an RPC).
+
+-- ----- If personal saves still fail with duplicate key on function_id, inspect what is left: -----
+-- SELECT c.conname, pg_get_constraintdef(c.oid) AS def
+-- FROM pg_constraint c
+-- JOIN pg_class t ON c.conrelid = t.oid
+-- JOIN pg_namespace n ON t.relnamespace = n.oid
+-- WHERE n.nspname = 'public' AND t.relname = 'ai_configs' AND c.contype = 'u';
+--
+-- SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'ai_configs';
+--
+-- Drop any UNIQUE that is ONLY on (function_id) after the composite constraint exists (use the name from above):
+-- ALTER TABLE public.ai_configs DROP CONSTRAINT IF EXISTS <name>;

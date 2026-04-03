@@ -199,35 +199,65 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (tab) selectEngine(tab.dataset.id);
             });
 
-            // SAVE CONFIG: Updated to target the User UUID Override
+            // SAVE CONFIG: personal override row (user_id = current user). PostgREST upsert often does not
+            // honor UNIQUE NULLS NOT DISTINCT for onConflict, so we update-by-id or insert explicitly.
             saveBtn.addEventListener('click', async () => {
                 if (!state.selectedEngineId) return;
 
-                const data = {
+                const engine = ENGINES.find((e) => e.id === state.selectedEngineId);
+                const techEl = document.getElementById('ai-technical-foundation');
+                const technical_prompt =
+                    (techEl?.value || '').trim() || engine?.technicalPrompt || '';
+
+                const payload = {
                     function_id: state.selectedEngineId,
-                    user_id: state.currentUser.id, // Save as personal override
+                    user_id: state.currentUser.id,
                     persona: document.getElementById('ai-persona').value,
                     voice: document.getElementById('ai-voice').value,
                     custom_instructions: document.getElementById('ai-custom-instructions').value,
+                    technical_prompt,
                     updated_at: new Date().toISOString()
                 };
 
-                // Upsert on (function_id, user_id) — requires DB constraint ai_configs_function_id_user_id_key
-                // (see sql/ai_configs_unique_function_user.sql; NOT unique(function_id) alone).
-                const { error } = await supabase
+                const { data: existing, error: selErr } = await supabase
                     .from('ai_configs')
-                    .upsert(data, { onConflict: 'function_id,user_id' });
-                
+                    .select('id')
+                    .eq('function_id', state.selectedEngineId)
+                    .eq('user_id', state.currentUser.id)
+                    .maybeSingle();
+
+                if (selErr) {
+                    showToast(`Save Error: ${selErr.message}`, 'error');
+                    console.error(selErr);
+                    return;
+                }
+
+                let error;
+                if (existing?.id) {
+                    const { error: upErr } = await supabase
+                        .from('ai_configs')
+                        .update({
+                            persona: payload.persona,
+                            voice: payload.voice,
+                            custom_instructions: payload.custom_instructions,
+                            technical_prompt: payload.technical_prompt,
+                            updated_at: payload.updated_at
+                        })
+                        .eq('id', existing.id);
+                    error = upErr;
+                } else {
+                    const { error: inErr } = await supabase.from('ai_configs').insert(payload);
+                    error = inErr;
+                }
+
                 if (error) {
-                    let msg = error.message || 'Unknown error';
-                    if (msg.includes('ai_configs_function_id_key') || msg.includes('duplicate key')) {
-                        msg =
-                            'Database still enforces one row per function only. Run sql/ai_configs_unique_function_user.sql in Supabase.';
-                    }
-                    showToast(`Save Error: ${msg}`, 'error');
+                    const parts = [error.message, error.details, error.hint].filter(Boolean);
+                    const raw = parts.join(' — ');
+                    console.error('ai_configs save:', error);
+                    showToast(`Save Error: ${raw || 'Unknown error'}`, 'error');
                 } else {
                     showToast("Your Personal AI Voice Updated!");
-                    await loadConfigs(); // Refresh to show override status
+                    await loadConfigs();
                 }
             });
 
