@@ -510,22 +510,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function generateCustomOutreachCopy(alert, account, customPrompt, previousSubject, previousBody, originalBasePrompt) {
-        try {
-            const { data, error } = await supabase.functions.invoke('generate-custom-suggestion', {
-                body: {
-                    alertData: alert, accountData: account, customPrompt: customPrompt,
-                    previousSubject: previousSubject, previousBody: previousBody,
-                    originalBasePrompt: originalBasePrompt
-                }
-            });
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            console.error("Error invoking generate-custom-suggestion Edge Function:", error);
-            return null;
-        }
+async function generateCustomOutreachCopy(alert, account, customPrompt, previousSubject, previousBody, originalBasePrompt) {
+    try {
+        // 1. Map your frontend variables to the backend's expected format
+        const payload = {
+            originalSuggestion: {
+                subject: previousSubject,
+                body: previousBody
+            },
+            userInstruction: customPrompt,
+            
+            // Note: The backend code you shared earlier doesn't actually use these three variables 
+            // in the AI prompt right now, but it's totally fine to keep sending them in case 
+            // you want to add them to the Edge Function prompt later!
+            alertData: alert, 
+            accountData: account, 
+            originalBasePrompt: originalBasePrompt
+        };
+
+        // 2. Send the newly formatted payload
+        const { data, error } = await supabase.functions.invoke('generate-custom-suggestion', {
+            body: payload
+        });
+        
+        if (error) throw error;
+        
+        return data;
+        
+    } catch (error) {
+        console.error("Error invoking generate-custom-suggestion Edge Function:", error);
+        return null;
     }
+}
 
     // --- ACTION HANDLERS (Integration with Constellation) ---
     async function handleContactChange(e) {
