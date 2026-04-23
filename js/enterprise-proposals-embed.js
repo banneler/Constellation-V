@@ -1685,7 +1685,6 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
         else if (slideFile === 'CUSTOM_PRICING') {
             const optionBlocks = Array.from(document.querySelectorAll('.pricing-option-block'));
-            const MAX_ROWS_PER_PAGE = 14;
             const borderClr = '#d1d5db';
             const locHeaderOrange = '<div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase; border: 1px solid ' + borderClr + '; border-bottom: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">PRODUCT</div><div style="width: 140px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">LIST PRICE</div><div style="width: 90px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">QTY</div><div style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</div></div>';
             
@@ -1798,52 +1797,110 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         return m.scrollHeight <= m.clientHeight;
                     };
 
-                    const chunks = [];
-                    let current = [];
-
+                    const rowObjs = [];
                     for (let r = 0; r < allRows.length; r++) {
                         let rowObj;
                         if (allRows[r].type === 'loc') {
                             rowObj = { type: 'loc', html: '<div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; padding: 8px 16px; border: 1px solid ' + borderClr + '; border-top: none;">' + escapeHtml(allRows[r].name) + '</div>' };
                         } else if (allRows[r].type === 'promo') {
-                            var promoAmountVal = parseFloat(allRows[r].promo.amount);
-                            var promoAmountText = (!isNaN(promoAmountVal) && promoAmountVal !== 0)
-                                ? '$' + promoAmountVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            var promoAmountVal2 = parseFloat(allRows[r].promo.amount);
+                            var promoAmountText2 = (!isNaN(promoAmountVal2) && promoAmountVal2 !== 0)
+                                ? '$' + promoAmountVal2.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                                 : '';
-                            var promoDesc = (allRows[r].promo.description || '').trim();
-                            var promoHtml = '<div style="display:flex;background:#eef2ff;color:#1e293b;border:1px solid ' + borderClr + ';border-top:none;font-size:12px;">' +
-                                '<div style="width:380px;padding:10px 16px;border-right:1px solid ' + borderClr + ';"><strong style="text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-right:8px;">Promotion</strong>' + escapeHtml((promoDesc || '').length ? promoDesc : 'Applied') + '</div>' +
+                            var promoDesc2 = (allRows[r].promo.description || '').trim();
+                            var promoHtml2 = '<div style="display:flex;background:#eef2ff;color:#1e293b;border:1px solid ' + borderClr + ';border-top:none;font-size:12px;">' +
+                                '<div style="width:380px;padding:10px 16px;border-right:1px solid ' + borderClr + ';"><strong style="text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-right:8px;">Promotion</strong>' + escapeHtml((promoDesc2 || '').length ? promoDesc2 : 'Applied') + '</div>' +
                                 '<div style="width:140px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div>' +
                                 '<div style="width:90px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div>' +
-                                '<div style="width:140px;padding:10px 16px;text-align:center;font-weight:700;">' + escapeHtml(promoAmountText || '') + '</div>' +
+                                '<div style="width:140px;padding:10px 16px;text-align:center;font-weight:700;">' + escapeHtml(promoAmountText2 || '') + '</div>' +
                                 '</div>';
-                            rowObj = { type: 'promo', html: promoHtml };
+                            rowObj = { type: 'promo', html: promoHtml2 };
                         } else {
                             rowObj = { type: 'row', html: rowToHtml(allRows[r].item, allRows[r].bg) };
                         }
+                        rowObjs.push(rowObj);
+                    }
 
-                        const candidate = current.concat([rowObj]);
-                        if (candidate.length && !bodyFits(candidate, false, totalBlockHtml, termLineHtml)) {
-                            if (current.length === 0) {
-                                chunks.push(candidate);
-                                current = [];
-                            } else {
-                                chunks.push(current);
-                                current = [rowObj];
+                    const locationUnits = [];
+                    let unitBuf = [];
+                    for (let u = 0; u < rowObjs.length; u++) {
+                        const o = rowObjs[u];
+                        if (o.type === 'loc' && unitBuf.length) {
+                            locationUnits.push(unitBuf);
+                            unitBuf = [];
+                        }
+                        unitBuf.push(o);
+                    }
+                    if (unitBuf.length) locationUnits.push(unitBuf);
+
+                    function splitOversizedLocationUnit(unit) {
+                        const parts = [];
+                        let i = 0;
+                        while (i < unit.length) {
+                            const sub = [];
+                            if (i < unit.length && unit[i].type === 'loc') {
+                                sub.push(unit[i]);
+                                i++;
                             }
-                        } else {
-                            current = candidate;
+                            while (i < unit.length && unit[i].type !== 'loc') {
+                                const o = unit[i];
+                                if (bodyFits(sub.concat([o]), false, totalBlockHtml, termLineHtml)) {
+                                    sub.push(o);
+                                    i++;
+                                } else {
+                                    if (sub.length === 1 && sub[0].type === 'loc') {
+                                        sub.push(o);
+                                        i++;
+                                    }
+                                    break;
+                                }
+                            }
+                            if (!sub.length && i < unit.length) {
+                                sub.push(unit[i]);
+                                i++;
+                            }
+                            parts.push(sub);
+                        }
+                        return parts;
+                    }
+
+                    const chunks = [];
+                    let current = [];
+                    for (let ui = 0; ui < locationUnits.length; ui++) {
+                        const unit = locationUnits[ui];
+                        if (bodyFits(current.concat(unit), false, totalBlockHtml, termLineHtml)) {
+                            current = current.concat(unit);
+                            continue;
+                        }
+                        if (current.length) {
+                            chunks.push(current);
+                            current = [];
+                        }
+                        if (bodyFits(unit, false, totalBlockHtml, termLineHtml)) {
+                            current = unit.slice();
+                            continue;
+                        }
+                        const subparts = splitOversizedLocationUnit(unit);
+                        for (let si = 0; si < subparts.length; si++) {
+                            const sp = subparts[si];
+                            if (current.length && !bodyFits(current.concat(sp), false, totalBlockHtml, termLineHtml)) {
+                                chunks.push(current);
+                                current = [];
+                            }
+                            current = current.concat(sp);
                         }
                     }
                     if (current.length) chunks.push(current);
 
-                    // Ensure final chunk still has room for totals and term line.
                     while (chunks.length && !bodyFits(chunks[chunks.length - 1], true, totalBlockHtml, termLineHtml)) {
                         const lastChunk = chunks[chunks.length - 1];
                         if (lastChunk.length <= 1) break;
                         const spill = [];
                         while (lastChunk.length > 1 && !bodyFits(lastChunk, true, totalBlockHtml, termLineHtml)) {
                             spill.unshift(lastChunk.pop());
+                        }
+                        if (lastChunk.length === 1 && lastChunk[0].type === 'loc' && spill.length) {
+                            lastChunk.push(spill.shift());
                         }
                         if (spill.length) chunks.push(spill);
                         else break;
