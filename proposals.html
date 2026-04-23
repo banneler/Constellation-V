@@ -34,6 +34,8 @@
         #pricing-section input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         #pricing-section input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
         .prod-suggestions { max-height: 10rem; overflow-y: auto; }
+        .location-pricing-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .location-pricing-table-wrap table { width: 100%; min-width: 0; table-layout: fixed; }
     </style>
 </head>
 <body>
@@ -137,11 +139,11 @@
         </div>
     </li>
     
-    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf">
+    <li class="flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group" data-filename="02_Why_GPC.pdf" data-toc-label="High-Performing Network">
         <svg class="w-5 h-5 handle text-slate-400 group-hover:text-blue-500 transition cursor-grab mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg>
         <input type="checkbox" checked class="mr-3 w-4 h-4 text-blue-500 slide-toggle" data-pdf-id="02_Why_GPC.pdf">
-        <span class="flex-1 font-medium text-sm text-slate-700">Why GPC?</span>
-        <button onclick="previewStockPdf('02_Why_GPC.pdf', 'Why GPC?')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
+        <span class="flex-1 font-medium text-sm text-slate-700">High-Performing Network (Why GPC)</span>
+        <button onclick="previewStockPdf('02_Why_GPC.pdf', 'High-Performing Network (Why GPC)')" class="text-slate-400 hover:text-blue-500 transition px-2" title="Preview PDF">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
         </button>
     </li>

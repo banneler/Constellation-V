@@ -22,6 +22,25 @@
             setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3500);
         }
 
+        function findBracketedPlaceholders() {
+            const re = /\[[^\[\]]{2,}\]/g;
+            const found = [];
+            var cover = document.getElementById('cover-body');
+            if (cover && cover.value) {
+                var m; while ((m = re.exec(cover.value)) !== null) {
+                    if (found.indexOf(m[0]) === -1) found.push(m[0]);
+                }
+            }
+            document.querySelectorAll('.custom-text-body').forEach(function(ta) {
+                if (!ta.value) return;
+                re.lastIndex = 0;
+                var m; while ((m = re.exec(ta.value)) !== null) {
+                    if (found.indexOf(m[0]) === -1) found.push(m[0]);
+                }
+            });
+            return found;
+        }
+
         var isDirty = false, _suppressDirty = false;
         /** When set, proposal was loaded from DB; "Save to account" will UPDATE this row instead of INSERT. Cleared when loading from file. */
         var loadedProposalId = null;
@@ -39,7 +58,11 @@
             if (msg) msg.classList.toggle('hidden', !isDirty);
         }
         window.addEventListener('beforeunload', function(e) {
-            if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+            var coverBody = document.getElementById('cover-body');
+            var hasData = document.getElementById('global-rfp').value ||
+                document.getElementById('global-biz').value ||
+                (coverBody && coverBody.value || '').trim().length > 0;
+            if (isDirty || hasData) { e.preventDefault(); e.returnValue = ''; }
         });
         document.body.addEventListener('input', function(e) {
             if (_suppressDirty) return;
@@ -579,7 +602,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var html = '<div class="location-block border border-slate-200 rounded-lg p-5 bg-white relative" id="' + locId + '">' +
                 '<button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 font-bold text-sm remove-location-btn">X</button>' +
                 '<div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location name or address" value="' + nameEsc + '"></div>' +
-                '<div class="mb-4"><table class="w-full text-left border-collapse table-fixed">' +
+                '<div class="location-pricing-table-wrap mb-4"><table class="w-full text-left border-collapse table-fixed">' +
                 '<thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase"><th class="p-2">PRODUCT</th><th class="p-2 w-28">LIST PRICE</th><th class="p-2 w-20">QTY</th><th class="p-2 w-28 text-right">TOTAL</th><th class="p-2 w-14"></th></tr></thead>' +
                 '<tbody class="line-items-body"></tbody></table></div>' +
                 '<div class="flex justify-between items-center mt-2 border-t border-slate-100 pt-4">' +
@@ -1191,6 +1214,11 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
 
         function sendForProofing() {
+            var brackets = findBracketedPlaceholders();
+            if (brackets.length) {
+                alert('Please replace the following placeholder text before sending:\n\n' + brackets.join('\n'));
+                return;
+            }
             var projectData = buildProjectData();
             var blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
             var a = document.createElement('a');
@@ -1248,46 +1276,82 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             }
         }
 
+        function promptPdfFileName(defaultBase) {
+            var suggestion = (defaultBase || '').trim();
+            if (!suggestion) suggestion = 'GPC_Proposal';
+            suggestion = suggestion.replace(/\s+/g, '_').replace(/[<>:"/\\|?*]+/g, '');
+            if (!suggestion) suggestion = 'GPC_Proposal';
+            var raw = window.prompt('Enter a file name for your PDF (without extension). This is required before downloading:', suggestion);
+            if (raw === null) return null;
+            var cleaned = String(raw).trim();
+            if (!cleaned) {
+                showToast('Please enter a file name to continue.', 'error');
+                return null;
+            }
+            cleaned = cleaned.replace(/\.pdf$/i, '');
+            cleaned = cleaned.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/^\.+$/, '').trim();
+            if (!cleaned) {
+                showToast('That file name is not valid. Use letters, numbers, dashes, or underscores.', 'error');
+                return null;
+            }
+            return cleaned + '.pdf';
+        }
+
         function getPayload() {
-            var activeSlides = [];
-            var customTexts = [];
-            var customPdfs = [];
-            document.querySelectorAll('#module-list li').forEach(function(li) {
-                var pdfId = li.getAttribute('data-filename');
-                var cb = li.querySelector('input.slide-toggle');
-                if (!cb || !cb.checked) return;
-                activeSlides.push(pdfId);
-                if (pdfId === 'CUSTOM_TEXT') {
-                    var idx = li.getAttribute('data-custom-index') || '0';
-                    var titleEl = document.getElementById('custom-text-title-input' + (idx === '0' ? '' : '-' + idx));
-                    var bodyEl = document.getElementById('custom-text-body' + (idx === '0' ? '' : '-' + idx));
-                    customTexts.push({ title: (titleEl && titleEl.value) ? titleEl.value : '', body: (bodyEl && bodyEl.value) ? bodyEl.value : '' });
-                } else if (pdfId === 'CUSTOM_PDF') {
-                    var idx = li.getAttribute('data-custom-index') || '0';
-                    var nameEl = document.getElementById('custom-pdf-section-name' + (idx === '0' ? '' : '-' + idx));
-                    var fileEl = document.getElementById('custom-pdf-upload' + (idx === '0' ? '' : '-' + idx));
-                    customPdfs.push({ sectionName: (nameEl && nameEl.value) ? nameEl.value : '', file: (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0] : null });
-                }
+            var brackets = findBracketedPlaceholders();
+            if (brackets.length) {
+                alert('Please replace the following placeholder text before generating:\n\n' + brackets.join('\n'));
+                return null;
+            }
+            const activeSlides = [];
+            document.querySelectorAll('#module-list li').forEach(li => {
+                if (!li.querySelector('.slide-toggle').checked) return;
+                const fn = li.getAttribute('data-filename');
+                const idx = li.getAttribute('data-custom-index');
+                if (fn === 'CUSTOM_TEXT' || fn === 'CUSTOM_PDF') activeSlides.push(fn + (idx != null ? ':' + idx : ':0'));
+                else activeSlides.push(fn);
             });
-            if (activeSlides.indexOf('CUSTOM_PDF') !== -1) {
-                for (var i = 0; i < customPdfs.length; i++) {
-                    if (!customPdfs[i].file) { alert("Please select a file for every Custom PDF upload."); return null; }
+            const customPages = {};
+            document.querySelectorAll('#module-list li[data-filename="CUSTOM_TEXT"]').forEach(li => {
+                const idx = li.getAttribute('data-custom-index') || '0';
+                const titleEl = document.getElementById('custom-text-title-input' + (idx === '0' ? '' : '-' + idx));
+                const bodyEl = document.getElementById('custom-text-body' + (idx === '0' ? '' : '-' + idx));
+                customPages[idx] = { title: (titleEl && titleEl.value) ? titleEl.value.trim() : '', body: (bodyEl && bodyEl.value) ? bodyEl.value : '' };
+            });
+            const customPdfs = {};
+            document.querySelectorAll('#module-list li[data-filename="CUSTOM_PDF"]').forEach(li => {
+                const idx = li.getAttribute('data-custom-index') || '0';
+                const nameEl = document.getElementById('custom-pdf-section-name' + (idx === '0' ? '' : '-' + idx));
+                const fileEl = document.getElementById('custom-pdf-upload' + (idx === '0' ? '' : '-' + idx));
+                const file = fileEl && fileEl.files[0];
+                customPdfs[idx] = { sectionName: (nameEl && nameEl.value) ? nameEl.value.trim() : '', file: file };
+            });
+            if (activeSlides.includes('TOC')) {
+                for (let i = 0; i < activeSlides.length; i++) {
+                    const s = activeSlides[i];
+                    if (s.startsWith('CUSTOM_TEXT:')) {
+                        const idx = s.split(':')[1];
+                        if (!(customPages[idx] && customPages[idx].title)) { alert("Please enter a Document Title for every Custom Page (required for Table of Contents)."); return null; }
+                    }
+                    if (s.startsWith('CUSTOM_PDF:')) {
+                        const idx = s.split(':')[1];
+                        if (!(customPdfs[idx] && customPdfs[idx].sectionName)) { alert("Please enter a Section name for every Custom PDF (required for Table of Contents)."); return null; }
+                    }
                 }
             }
-            if (activeSlides.indexOf('TOC') !== -1) {
-                for (var j = 0; j < customTexts.length; j++) {
-                    if (!(customTexts[j].title && customTexts[j].title.trim())) { alert("Please enter a Document Title for each Custom Page (required for Table of Contents)."); return null; }
-                }
-                for (var k = 0; k < customPdfs.length; k++) {
-                    if (!(customPdfs[k].sectionName && customPdfs[k].sectionName.trim())) { alert("Please enter a Section name for each Custom PDF (required for Table of Contents)."); return null; }
+            for (let i = 0; i < activeSlides.length; i++) {
+                const s = activeSlides[i];
+                if (s.startsWith('CUSTOM_PDF:')) {
+                    const idx = s.split(':')[1];
+                    if (!(customPdfs[idx] && customPdfs[idx].file)) { alert("Please select a file for every Upload Custom PDF."); return null; }
                 }
             }
-            var usacFile = document.getElementById('usac-upload').files[0];
-            if (activeSlides.indexOf('USAC_RFP') !== -1 && !usacFile) { alert("Please select a file for the USAC RFP Upload."); return null; }
+            const usacFile = document.getElementById('usac-upload').files[0];
+            if (activeSlides.includes('USAC_RFP') && !usacFile) { alert("Please select a file for the USAC RFP Upload."); return null; }
             return {
                 globals: { biz: document.getElementById('global-biz').value },
                 slides: activeSlides,
-                customTexts: customTexts,
+                customPages: customPages,
                 customPdfs: customPdfs,
                 usacFile: usacFile
             };
@@ -1374,7 +1438,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         card.className = 'gpc-pdf-font';
         card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_INTERIOR_BG + '") no-repeat 0 0; background-size: 100% 100%;';
         const titleText = document.createElement('div');
-        titleText.style.cssText = 'position: absolute; left: 72px; top: 0.5in; color: white; font-size: 32px; font-weight: bold;';
+        titleText.style.cssText = 'position: absolute; left: 72px; top: 0.5in; color: white; font-size: 32px; font-weight: bold; white-space: nowrap;';
         titleText.textContent = (headerTitle && headerTitle.trim()) ? headerTitle : '\u00A0';
         card.appendChild(titleText);
         const contentArea = document.createElement('div');
@@ -1390,19 +1454,78 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         return canvas;
     }
 
+    async function paginateCustomContent(headerTitle, bodyHtml, options) {
+        options = options || {};
+        var temp = document.createElement('div');
+        temp.innerHTML = bodyHtml;
+        var paragraphs = Array.from(temp.children);
+        if (paragraphs.length === 0) {
+            var canvas = await captureInteriorPageGPC(headerTitle, bodyHtml, options);
+            return [canvas];
+        }
+
+        var baseFontSize = (options.fontSize) || '11pt';
+        var fontFamily = options.fontFamily || '';
+
+        function measureFit(html, extraPad) {
+            var wrapper = document.getElementById('gpc-interior-render-wrapper');
+            wrapper.innerHTML = '';
+            var card = document.createElement('div');
+            card.className = 'gpc-pdf-font';
+            card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box;';
+            var contentArea = document.createElement('div');
+            contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: ' + baseFontSize + '; line-height: 1.4;' + (extraPad ? ' padding-top: ' + extraPad + 'px;' : '') + (fontFamily ? ' font-family: ' + fontFamily + ';' : '');
+            contentArea.innerHTML = html;
+            card.appendChild(contentArea);
+            wrapper.appendChild(card);
+            return contentArea.scrollHeight <= contentArea.clientHeight;
+        }
+
+        var canvases = [];
+        var remaining = paragraphs.map(function(p) { return p.outerHTML; });
+        var isFirstPage = true;
+
+        while (remaining.length > 0) {
+            var extraPad = options.extraPaddingTop || 0;
+            var count = 0;
+
+            for (var i = 1; i <= remaining.length; i++) {
+                var testHtml = remaining.slice(0, i).join('');
+                if (!measureFit(testHtml, extraPad)) break;
+                count = i;
+            }
+            if (count === 0) count = 1;
+
+            var pageHtml = remaining.slice(0, count).join('');
+            var pageOpts = {};
+            for (var k in options) { if (options.hasOwnProperty(k)) pageOpts[k] = options[k]; }
+
+            var pageTitle = isFirstPage ? headerTitle : '';
+            var canvas = await captureInteriorPageGPC(pageTitle, pageHtml, pageOpts);
+            canvases.push(canvas);
+
+            remaining = remaining.slice(count);
+            isFirstPage = false;
+        }
+
+        return canvases;
+    }
+
     async function buildTitlePageHybrid() {
-        const rfpText = (document.getElementById('global-rfp').value || '').substring(0, 33);
-        const bizText = (document.getElementById('global-biz').value || '').substring(0, 33);
-        const repText = (document.getElementById('global-rep').value || '').substring(0, 33);
-        var gdEl = document.getElementById('global-date');
-        var dateLine = (gdEl && gdEl.value && String(gdEl.value).trim()) ? String(gdEl.value).trim() : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const rfpText = (document.getElementById('global-rfp').value || '').substring(0, 33);
+    const bizText = (document.getElementById('global-biz').value || '').substring(0, 33);
+    const repText = (document.getElementById('global-rep').value || '').substring(0, 33);
+    
+    // Check for custom date, default to today if empty
+    const customDate = document.getElementById('global-date').value.trim();
+    const displayDate = customDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         const wrapper = document.getElementById('gpc-title-render-wrapper');
         wrapper.innerHTML = '';
         const card = document.createElement('div');
         card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_TITLE_BG + '") no-repeat 0 0; background-size: 100% 100%;';
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position: absolute; right: 72px; left: calc(58% - 0.7in); bottom: calc(45px + 0.25in); color: white; font-family: Helvetica, Arial, sans-serif;';
-        overlay.innerHTML = '<div style="font-size: 31px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(bizText) + '</div><div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(rfpText) + '</div><div style="font-size: 14px; margin-bottom: 5px;">Presented by: ' + escapeHtml(repText) + '</div><div style="font-size: 12px;">' + escapeHtml(dateLine) + '</div>';
+        overlay.innerHTML = '<div style="font-size: 31px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(bizText) + '</div><div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(rfpText) + '</div><div style="font-size: 14px; margin-bottom: 5px;">Presented by: ' + escapeHtml(repText) + '</div><div style="font-size: 12px;">' + escapeHtml(displayDate) + '</div>';
         card.appendChild(overlay);
         wrapper.appendChild(card);
         await new Promise(r => requestAnimationFrame(r));
@@ -1465,7 +1588,6 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         page.drawImage(pngImage, { x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
     }
 
-    var customTextIdx = 0, customPdfIdx = 0;
     for (const slideFile of payload.slides) {
         if (slideFile === '01_Title_Page.pdf') {
             const canvas = await buildTitlePageHybrid();
@@ -1474,25 +1596,22 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
         if (slideFile === 'CUSTOM_COVER') {
             const bodyHtml = textToHtml(document.getElementById('cover-body').value);
-            const canvas = await captureInteriorPageGPC('', bodyHtml, { extraPaddingTop: 46 });
-            await addPageFromCanvas(canvas);
+            const canvases = await paginateCustomContent('', bodyHtml, { extraPaddingTop: 46 });
+            for (const cv of canvases) { await addPageFromCanvas(cv); }
             continue;
         }
         if (slideFile === 'TOC') {
-            var customTextIdx = 0, customPdfIdx = 0;
-            var tocEntries = payload.slides.filter(function(f) { return f !== 'TOC' && f !== '01_Title_Page.pdf'; }).map(function(filename, idx) {
-                var label;
-                if (filename === 'CUSTOM_TEXT') {
-                    var ct = payload.customTexts && payload.customTexts[customTextIdx];
-                    label = (ct && ct.title && ct.title.trim()) ? ct.title.trim() : 'Custom Page';
-                    customTextIdx++;
-                } else if (filename === 'CUSTOM_PDF') {
-                    var cp = payload.customPdfs && payload.customPdfs[customPdfIdx];
-                    label = (cp && cp.sectionName && cp.sectionName.trim()) ? cp.sectionName.trim() : 'Upload Custom PDF';
-                    customPdfIdx++;
+            const tocEntries = payload.slides.filter(f => f !== 'TOC' && f !== '01_Title_Page.pdf').map((filename, idx) => {
+                let label;
+                if (filename.startsWith('CUSTOM_TEXT:')) {
+                    const i = filename.split(':')[1];
+                    label = (payload.customPages && payload.customPages[i] && payload.customPages[i].title) ? payload.customPages[i].title : 'Custom Page';
+                } else if (filename.startsWith('CUSTOM_PDF:')) {
+                    const i = filename.split(':')[1];
+                    label = (payload.customPdfs && payload.customPdfs[i] && payload.customPdfs[i].sectionName) ? payload.customPdfs[i].sectionName : 'Upload Custom PDF';
                 } else {
-                    var li = document.querySelector('#module-list li[data-filename="' + filename + '"]');
-                    label = (li && li.querySelector('span.flex-1')) ? (li.querySelector('span.flex-1').textContent || '').trim() : filename;
+                    const li = document.querySelector(`#module-list li[data-filename="${filename}"]`);
+                    label = (li && li.getAttribute('data-toc-label')) ? li.getAttribute('data-toc-label') : (li && li.querySelector('span.flex-1')) ? (li.querySelector('span.flex-1').textContent || '').trim() : filename;
                 }
                 return { num: idx + 1, label: label || filename };
             });
@@ -1501,13 +1620,13 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             await addPageFromCanvas(canvas);
             continue;
         }
-        if (slideFile === 'CUSTOM_TEXT') {
-            var ct = payload.customTexts && payload.customTexts[customTextIdx];
-            var customTitle = (ct && ct.title) ? ct.title : '';
-            var bodyHtml = textToHtml((ct && ct.body) ? ct.body : '');
-            customTextIdx++;
-            var canvas = await captureInteriorPageGPC(customTitle, bodyHtml, { extraPaddingTop: 46 });
-            await addPageFromCanvas(canvas);
+        if (slideFile.startsWith('CUSTOM_TEXT:')) {
+            const idx = slideFile.split(':')[1];
+            const page = payload.customPages && payload.customPages[idx];
+            const customTitle = (page && page.title) ? page.title : '';
+            const bodyHtml = textToHtml((page && page.body) ? page.body : '');
+            const canvases = await paginateCustomContent(customTitle, bodyHtml, { extraPaddingTop: 46 });
+            for (const cv of canvases) { await addPageFromCanvas(cv); }
             continue;
         }
         else if (slideFile === 'CUSTOM_IMPACT') {
@@ -1515,29 +1634,39 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var prop = document.getElementById('impact-proposed').value || '';
             var curCost = document.getElementById('impact-current-cost').value || '';
             var propCost = document.getElementById('impact-proposed-cost').value || '';
-            var netEl = document.getElementById('impact-net');
-            var netTextRaw = netEl ? netEl.textContent : '$0';
-            var netText = (typeof netTextRaw === 'string' && netTextRaw.match(/^\$[\d,]+\.\d{2}$/)) ? netTextRaw.replace(/\.\d{2}$/, '') : netTextRaw;
-            var tableStyle = 'border-collapse: collapse; border: 1px solid #d1d5db; border-radius: 0;';
-            var thStyle = 'background-color: #0f172a; color: white; font-weight: bold; text-align: left; padding: 12px 16px; border: 1px solid #d1d5db;';
-            var tdStyle = 'padding: 12px 16px; border: 1px solid #d1d5db; background-color: #f8fafc; color: #0f172a;';
-            var tdAlt = 'padding: 12px 16px; border: 1px solid #d1d5db; background-color: #f1f5f9; color: #0f172a;';
-            var roiHeaderOrange = 'padding: 12px 16px; border: 1px solid #d1d5db; background-color: #DE5A24; color: white; font-weight: bold; text-align: center;';
-            var impactValueCell = 'padding: 12px 16px; border: 1px solid #d1d5db; background-color: #f8fafc; color: #0f172a; font-weight: 900; text-align: center;';
             var curNum = parseFloat(curCost);
             var propNum = parseFloat(propCost);
             var curDollar = (curCost !== '' && curCost != null && !isNaN(curNum)) ? ('$' + Math.round(curNum).toLocaleString()) : '—';
             var propDollar = (propCost !== '' && propCost != null && !isNaN(propNum)) ? ('$' + Math.round(propNum).toLocaleString()) : '—';
-            var wrapperStyle = 'margin: 0 auto; width: 600px;';
-            var topTable = '<table style="' + tableStyle + '; width: 100%;"><thead><tr><th colspan="2" style="' + thStyle + '">Impact & ROI</th></tr></thead><tbody>' +
-                '<tr><td style="' + tdStyle + '"><strong>Current State</strong></td><td style="' + tdStyle + '">' + escapeHtml(cur || '—') + '</td></tr>' +
-                '<tr><td style="' + tdAlt + '"><strong>Proposed Solution</strong></td><td style="' + tdAlt + '">' + escapeHtml(prop || '—') + '</td></tr></tbody></table>';
-            var pricingRow = '<table style="' + tableStyle + '; width: 100%; margin-top: 16px;"><tbody><tr>' +
-                '<td style="' + roiHeaderOrange + '">Current Spend</td><td style="' + roiHeaderOrange + '">Proposed GPC Spend</td><td style="' + roiHeaderOrange + '">Net Impact</td></tr><tr>' +
-                '<td style="' + tdStyle + '; text-align: center; font-weight: 600;">' + escapeHtml(curDollar) + '</td>' +
-                '<td style="' + tdAlt + '; text-align: center; font-weight: 600;">' + escapeHtml(propDollar) + '</td>' +
-                '<td style="' + impactValueCell + '">' + escapeHtml(netText) + '</td></tr></tbody></table>';
-            var impactHtml = '<div style="' + wrapperStyle + '">' + topTable + pricingRow + '</div>';
+            var diff = (isNaN(curNum) ? 0 : curNum) - (isNaN(propNum) ? 0 : propNum);
+            var impactLabel = diff >= 0 ? 'SAVINGS' : 'NET IMPACT';
+            var impactAmount = '$' + Math.abs(Math.round(diff)).toLocaleString() + '/MO';
+            var impactAccent = diff >= 0 ? '#15803d' : '#1d4ed8';
+            var toHtmlLines = function(s) {
+                return escapeHtml((s || '').trim() || '—').replace(/\n/g, '<br>');
+            };
+            var impactHtml =
+                '<div style="margin: 0 auto; width: 640px;">' +
+                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">' +
+                        '<div style="border:1px solid #d1d5db;border-radius:12px;background:#f8fafc;padding:18px;">' +
+                            '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-bottom:12px;">Current State</div>' +
+                            '<div style="font-size:13px;line-height:1.6;color:#0f172a;font-weight:500;">' + toHtmlLines(cur) + '</div>' +
+                        '</div>' +
+                        '<div style="border:1px solid #d1d5db;border-left:4px solid #DE5A24;border-radius:12px;background:#f8fafc;padding:18px;">' +
+                            '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-bottom:12px;">Proposed Solution</div>' +
+                            '<div style="font-size:13px;line-height:1.6;color:#0f172a;font-weight:500;">' + toHtmlLines(prop) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:20px;background:#12243D;color:#fff;border-radius:12px;padding:18px 20px;border:1px solid #334155;">' +
+                        '<div style="text-align:center;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Current Spend</div><div style="font-size:20px;font-weight:700;">' + escapeHtml(curDollar) + '</div></div>' +
+                        '<div style="font-size:20px;opacity:.55;">→</div>' +
+                        '<div style="text-align:center;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Proposed GPC Spend</div><div style="font-size:20px;font-weight:700;">' + escapeHtml(propDollar) + '</div></div>' +
+                        '<div style="text-align:center;background:#fff;color:' + impactAccent + ';padding:10px 16px;border-radius:10px;border:2px solid ' + impactAccent + ';min-width: 180px;">' +
+                            '<div style="font-size:10px;font-weight:800;letter-spacing:.08em;margin-bottom:3px;text-transform:uppercase;">' + escapeHtml(impactLabel) + '</div>' +
+                            '<div style="font-size:20px;font-weight:800;line-height:1.1;white-space:nowrap;">' + escapeHtml(impactAmount) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
             const canvas = await captureInteriorPageGPC('Impact & ROI', impactHtml, { extraPaddingTop: 37 });
             await addPageFromCanvas(canvas);
         }
@@ -1555,168 +1684,186 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             await addPageFromCanvas(canvas);
         }
         else if (slideFile === 'CUSTOM_PRICING') {
-            var borderClr = '#d1d5db';
-            var locHeaderOrange = '<div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase; border: 1px solid ' + borderClr + '; border-bottom: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">PRODUCT</div><div style="width: 140px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">LIST PRICE</div><div style="width: 90px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">QTY</div><div style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</div></div>';
-            var rowToHtmlPricing = function(item, bg) {
+            const optionBlocks = Array.from(document.querySelectorAll('.pricing-option-block'));
+            const MAX_ROWS_PER_PAGE = 14;
+            const borderClr = '#d1d5db';
+            const locHeaderOrange = '<div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase; border: 1px solid ' + borderClr + '; border-bottom: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">PRODUCT</div><div style="width: 140px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">LIST PRICE</div><div style="width: 90px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">QTY</div><div style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</div></div>';
+            
+            const rowToHtml = (item, bg) => {
                 var priceVal = '$0';
                 if (item.price !== '' && !isNaN(parseFloat(item.price))) priceVal = '$' + Math.round(parseFloat(item.price)).toLocaleString();
                 var totalVal = (item.total && item.total.replace) ? item.total.replace(/\.\d{2}$/, '') : item.total || '$0';
-                if (typeof totalVal === 'string' && totalVal.match(/^\$[\d,]+\.\d{2}$/)) totalVal = totalVal.replace(/\.\d{2}$/, '');
+                if (totalVal.match(/^\$[\d,]+\.\d{2}$/)) totalVal = totalVal.replace(/\.\d{2}$/, '');
+
                 var nrcHtml = '';
                 if (item.nrcEnabled) {
                     var nrcAmountVal = parseFloat(item.nrcAmount);
                     var nrcAmountText = '';
-                    if (!isNaN(nrcAmountVal)) nrcAmountText = '$' + Math.abs(nrcAmountVal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    if (!isNaN(nrcAmountVal)) {
+                        nrcAmountText = '$' + Math.abs(nrcAmountVal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
                     var nrcDesc = (item.nrcDescription || '').trim();
                     var nrcLabel = nrcDesc ? ('NRC: ' + escapeHtml(nrcDesc)) : 'NRC';
                     nrcHtml = '<div style="font-size: 11px; color: #475569; margin-top: 6px;">' + nrcLabel + (nrcAmountText ? (' <strong style="font-size: 11px; color: #334155; margin-left: 8px;">' + escapeHtml(nrcAmountText) + '</strong>') : '') + '</div>';
                 }
+
                 return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + priceVal + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
             };
-            var buildPricingBody = function(rows, includeTotals, totalBlockHtml, termLineHtml) {
-                var body = '';
-                var firstInChunk = true;
-                for (var ci = 0; ci < rows.length; ci++) {
-                    var item = rows[ci];
-                    if (item.type === 'loc') {
-                        if (!firstInChunk) body += '</div>';
-                        body += '<div style="margin-top: ' + (firstInChunk ? 0 : 16) + 'px; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">';
-                        if (firstInChunk) { body += locHeaderOrange; firstInChunk = false; }
-                        body += item.html;
-                    } else {
-                        if (firstInChunk) {
-                            body += '<div style="margin-top: 0; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">' + locHeaderOrange;
-                            firstInChunk = false;
-                        }
-                        body += item.html;
-                    }
-                }
-                if (!firstInChunk) body += '</div>';
-                if (includeTotals) body += totalBlockHtml + termLineHtml;
-                return body;
-            };
-            var measurePricingBody = function(bodyHtml) {
-                var wrapper = document.getElementById('gpc-interior-render-wrapper');
-                wrapper.innerHTML = '';
-                var card = document.createElement('div');
-                card.className = 'gpc-pdf-font';
-                card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_INTERIOR_BG + '") no-repeat 0 0; background-size: 100% 100%;';
-                var contentArea = document.createElement('div');
-                contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: 11pt; line-height: 1.4; padding-top: 46px;';
-                contentArea.innerHTML = bodyHtml;
-                card.appendChild(contentArea);
-                wrapper.appendChild(card);
-                return {
-                    scrollHeight: contentArea.scrollHeight,
-                    clientHeight: contentArea.clientHeight
-                };
-            };
-            var bodyFits = function(rows, includeTotals, totalBlockHtml, termLineHtml) {
-                var bodyHtml = buildPricingBody(rows, includeTotals, totalBlockHtml, termLineHtml);
-                var m = measurePricingBody(bodyHtml);
-                return m.scrollHeight <= m.clientHeight;
-            };
-            var optBlocks = Array.from(document.querySelectorAll('.pricing-option-block'));
-            if (!optBlocks.length) {
-                var canvasEmpty = await captureInteriorPageGPC('Proposed Pricing', '<p style="color:#64748b;">No pricing options.</p>', { extraPaddingTop: 46 });
-                await addPageFromCanvas(canvasEmpty);
-            } else {
-                for (var oi = 0; oi < optBlocks.length; oi++) {
-                    var optBlock = optBlocks[oi];
-                    var locationBlocks = Array.from(optBlock.querySelectorAll('.location-block'));
-                    var grandTotalText = (optBlock.querySelector('.option-grand-total') && optBlock.querySelector('.option-grand-total').textContent) || '$0.00';
-                    var contractTerm = (optBlock.querySelector('.option-term-input') && optBlock.querySelector('.option-term-input').value) || 'XX';
-                    var baseTitle = optBlocks.length > 1 ? ('Pricing Option ' + (oi + 1)) : 'Proposed Pricing';
-                    var allRows = [];
-                    locationBlocks.forEach(function(block) {
-                        var locName = (block.querySelector('.loc-name-input') && block.querySelector('.loc-name-input').value) || 'Location';
-                        var rows = Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(function(tr) {
-                            var nrcRow = tr.nextElementSibling;
-                            var nrcToggle = tr.querySelector('.row-nrc-toggle');
-                            var nrcDescEl = nrcRow ? nrcRow.querySelector('.row-nrc-description') : null;
-                            var nrcAmountEl = nrcRow ? nrcRow.querySelector('.row-nrc-amount') : null;
-                            return {
-                                prod: tr.querySelector('.prod-name') ? tr.querySelector('.prod-name').value : '',
-                                price: tr.querySelector('.price-input') ? tr.querySelector('.price-input').value : '',
-                                qty: tr.querySelector('.qty-input') ? tr.querySelector('.qty-input').value : '1',
-                                total: tr.querySelector('.row-total') ? tr.querySelector('.row-total').textContent : '$0.00',
-                                nrcEnabled: !!(nrcToggle && nrcToggle.checked),
-                                nrcDescription: nrcDescEl ? nrcDescEl.value : '',
-                                nrcAmount: nrcAmountEl ? nrcAmountEl.value : ''
-                            };
-                        });
-                        var promotions = readLocationPromotions(block);
-                        if (locationBlocks.length > 1) allRows.push({ type: 'loc', name: locName });
-                        rows.forEach(function(item, idx) { allRows.push({ type: 'row', item: item, bg: (idx % 2 === 0) ? '#E8E8E8' : '#f5f5f5' }); });
-                        promotions.forEach(function(promo) { allRows.push({ type: 'promo', promo: promo }); });
+
+            for (let optIdx = 0; optIdx < optionBlocks.length; optIdx++) {
+                const optBlock = optionBlocks[optIdx];
+                const contractTerm = (optBlock.querySelector('.option-term-input') && optBlock.querySelector('.option-term-input').value) || 'XX';
+                const grandTotalText = optBlock.querySelector('.option-grand-total').innerText;
+                const locationBlocks = Array.from(optBlock.querySelectorAll('.location-block'));
+                
+                let allRows = [];
+                locationBlocks.forEach((block) => {
+                    const locName = (block.querySelector('.loc-name-input') && block.querySelector('.loc-name-input').value) || 'Location';
+                    const rows = Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(tr => {
+                        const nrcRow = tr.nextElementSibling;
+                        const nrcToggle = tr.querySelector('.row-nrc-toggle');
+                        const nrcDescription = nrcRow && nrcRow.querySelector('.row-nrc-description') ? nrcRow.querySelector('.row-nrc-description').value : '';
+                        const nrcAmount = nrcRow && nrcRow.querySelector('.row-nrc-amount') ? nrcRow.querySelector('.row-nrc-amount').value : '';
+                        return {
+                            prod: tr.querySelector('.prod-name') ? tr.querySelector('.prod-name').value : '',
+                            price: tr.querySelector('.price-input') ? tr.querySelector('.price-input').value : '',
+                            qty: tr.querySelector('.qty-input') ? tr.querySelector('.qty-input').value : '1',
+                            total: tr.querySelector('.row-total') ? tr.querySelector('.row-total').textContent : '$0.00',
+                            nrcEnabled: !!(nrcToggle && nrcToggle.checked),
+                            nrcDescription,
+                            nrcAmount
+                        };
                     });
-                    var grandTotalNoDecimals = String(grandTotalText).replace(/\.(\d{2})$/, '') || grandTotalText;
-                    var totalBlockHtml = '<div style="margin-top: 20px;"><div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalNoDecimals) + '</div></div></div>';
-                    var termLineHtml = '<p style="text-align: center; font-size: 11px; color: #DE5A24; margin-top: 1rem;">Pricing based off ' + escapeHtml(contractTerm) + '-month term</p>';
-                    if (allRows.length === 0) {
-                        var html0 = totalBlockHtml + termLineHtml;
-                        var c0 = await captureInteriorPageGPC(baseTitle, html0, { extraPaddingTop: 46 });
-                        await addPageFromCanvas(c0);
-                    } else {
-                        var chunks = [];
-                        var current = [];
-                        for (var r = 0; r < allRows.length; r++) {
-                            var rowObj;
-                            if (allRows[r].type === 'loc') {
-                                rowObj = { type: 'loc', html: '<div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; padding: 8px 16px; border: 1px solid ' + borderClr + '; border-top: none;">' + escapeHtml(allRows[r].name) + '</div>' };
-                            } else if (allRows[r].type === 'promo') {
-                                var promoAmountVal = parseFloat(allRows[r].promo.amount);
-                                var promoAmountText = (!isNaN(promoAmountVal) && promoAmountVal !== 0)
-                                    ? '$' + promoAmountVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                    : '';
-                                var promoDesc = (allRows[r].promo.description || '').trim();
-                                rowObj = { type: 'promo', html: '<div style="margin: 8px 0 0 0; padding: 8px 12px; border: 1px solid ' + borderClr + '; border-top: none; background: #eef2ff; color: #1e293b; font-size: 12px;"><strong style="text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; margin-right: 8px;">Promotion</strong>' + escapeHtml(promoDesc || 'Applied') + (promoAmountText ? ('<span style="float: right; font-weight: 700;">' + escapeHtml(promoAmountText) + '</span>') : '') + '</div>' };
-                            } else {
-                                rowObj = { type: 'row', html: rowToHtmlPricing(allRows[r].item, allRows[r].bg) };
-                            }
+                    const promotions = readLocationPromotions(block);
+                    if (locationBlocks.length > 1) {
+                        allRows.push({ type: 'loc', name: locName });
+                    }
+                    rows.forEach((item, idx) => { allRows.push({ type: 'row', item, bg: (idx % 2 === 0) ? '#E8E8E8' : '#f5f5f5' }); });
+                    promotions.forEach((promo) => { allRows.push({ type: 'promo', promo }); });
+                });
 
-                            var candidate = current.concat([rowObj]);
-                            if (candidate.length && !bodyFits(candidate, false, totalBlockHtml, termLineHtml)) {
-                                if (current.length === 0) {
-                                    chunks.push(candidate);
-                                    current = [];
-                                } else {
-                                    chunks.push(current);
-                                    current = [rowObj];
+                var grandTotalNoDecimals = grandTotalText.replace(/\.(\d{2})$/, '') || grandTotalText;
+                const totalBlockHtml = '<div style="margin-top: 20px;">' + '<div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalNoDecimals) + '</div></div>' + '</div>';
+                const termLineHtml = '<p style="text-align: center; font-size: 11px; color: #475569; margin-top: 1rem;">Pricing based off ' + escapeHtml(contractTerm) + '-month term</p>';
+
+                let baseHeader = optionBlocks.length > 1 ? `Proposed Pricing Option ${optIdx + 1}` : 'Proposed Pricing';
+
+                if (allRows.length === 0) {
+                    const html = totalBlockHtml + termLineHtml;
+                    const canvas = await captureInteriorPageGPC(baseHeader, html, { extraPaddingTop: 46 });
+                    await addPageFromCanvas(canvas);
+                } else {
+                    const buildPricingBody = function(rows, includeTotals, totalBlockHtml, termLineHtml) {
+                        let body = '';
+                        let firstInChunk = true;
+                        for (const item of rows) {
+                            if (item.type === 'loc') {
+                                if (!firstInChunk) body += '</div>';
+                                body += '<div style="margin-top: ' + (firstInChunk ? 0 : 16) + 'px; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">';
+                                if (firstInChunk) { body += locHeaderOrange; firstInChunk = false; }
+                                body += item.html;
+                            } else {
+                                if (firstInChunk) {
+                                    body += '<div style="margin-top: 0; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">' + locHeaderOrange;
+                                    firstInChunk = false;
                                 }
+                                body += item.html;
+                            }
+                        }
+                        if (!firstInChunk) body += '</div>';
+                        if (includeTotals) body += totalBlockHtml + termLineHtml;
+                        return body;
+                    };
+
+                    const measurePricingBody = function(bodyHtml) {
+                        const wrapper = document.getElementById('gpc-interior-render-wrapper');
+                        wrapper.innerHTML = '';
+                        const card = document.createElement('div');
+                        card.className = 'gpc-pdf-font';
+                        card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_INTERIOR_BG + '") no-repeat 0 0; background-size: 100% 100%;';
+                        const contentArea = document.createElement('div');
+                        contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: 11pt; line-height: 1.4; padding-top: 46px;';
+                        contentArea.innerHTML = bodyHtml;
+                        card.appendChild(contentArea);
+                        wrapper.appendChild(card);
+                        return {
+                            scrollHeight: contentArea.scrollHeight,
+                            clientHeight: contentArea.clientHeight
+                        };
+                    };
+
+                    const bodyFits = function(rows, includeTotals, totalBlockHtml, termLineHtml) {
+                        const bodyHtml = buildPricingBody(rows, includeTotals, totalBlockHtml, termLineHtml);
+                        const m = measurePricingBody(bodyHtml);
+                        return m.scrollHeight <= m.clientHeight;
+                    };
+
+                    const chunks = [];
+                    let current = [];
+
+                    for (let r = 0; r < allRows.length; r++) {
+                        let rowObj;
+                        if (allRows[r].type === 'loc') {
+                            rowObj = { type: 'loc', html: '<div style="display: flex; background-color: #A6A6A6; color: white; font-weight: bold; padding: 8px 16px; border: 1px solid ' + borderClr + '; border-top: none;">' + escapeHtml(allRows[r].name) + '</div>' };
+                        } else if (allRows[r].type === 'promo') {
+                            var promoAmountVal = parseFloat(allRows[r].promo.amount);
+                            var promoAmountText = (!isNaN(promoAmountVal) && promoAmountVal !== 0)
+                                ? '$' + promoAmountVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                : '';
+                            var promoDesc = (allRows[r].promo.description || '').trim();
+                            var promoHtml = '<div style="display:flex;background:#eef2ff;color:#1e293b;border:1px solid ' + borderClr + ';border-top:none;font-size:12px;">' +
+                                '<div style="width:380px;padding:10px 16px;border-right:1px solid ' + borderClr + ';"><strong style="text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-right:8px;">Promotion</strong>' + escapeHtml((promoDesc || '').length ? promoDesc : 'Applied') + '</div>' +
+                                '<div style="width:140px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div>' +
+                                '<div style="width:90px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div>' +
+                                '<div style="width:140px;padding:10px 16px;text-align:center;font-weight:700;">' + escapeHtml(promoAmountText || '') + '</div>' +
+                                '</div>';
+                            rowObj = { type: 'promo', html: promoHtml };
+                        } else {
+                            rowObj = { type: 'row', html: rowToHtml(allRows[r].item, allRows[r].bg) };
+                        }
+
+                        const candidate = current.concat([rowObj]);
+                        if (candidate.length && !bodyFits(candidate, false, totalBlockHtml, termLineHtml)) {
+                            if (current.length === 0) {
+                                chunks.push(candidate);
+                                current = [];
                             } else {
-                                current = candidate;
+                                chunks.push(current);
+                                current = [rowObj];
                             }
+                        } else {
+                            current = candidate;
                         }
-                        if (current.length) chunks.push(current);
+                    }
+                    if (current.length) chunks.push(current);
 
-                        // Ensure the final chunk has room for totals + term line.
-                        while (chunks.length && !bodyFits(chunks[chunks.length - 1], true, totalBlockHtml, termLineHtml)) {
-                            var lastChunk = chunks[chunks.length - 1];
-                            if (lastChunk.length <= 1) break;
-                            var spill = [];
-                            while (lastChunk.length > 1 && !bodyFits(lastChunk, true, totalBlockHtml, termLineHtml)) {
-                                spill.unshift(lastChunk.pop());
-                            }
-                            if (spill.length) chunks.push(spill);
-                            else break;
+                    // Ensure final chunk still has room for totals and term line.
+                    while (chunks.length && !bodyFits(chunks[chunks.length - 1], true, totalBlockHtml, termLineHtml)) {
+                        const lastChunk = chunks[chunks.length - 1];
+                        if (lastChunk.length <= 1) break;
+                        const spill = [];
+                        while (lastChunk.length > 1 && !bodyFits(lastChunk, true, totalBlockHtml, termLineHtml)) {
+                            spill.unshift(lastChunk.pop());
                         }
+                        if (spill.length) chunks.push(spill);
+                        else break;
+                    }
 
-                        for (var p = 0; p < chunks.length; p++) {
-                            var isLastChunk = (p === chunks.length - 1);
-                            var body = buildPricingBody(chunks[p], isLastChunk, totalBlockHtml, termLineHtml);
-                            var headerTitle = p === 0 ? baseTitle : (baseTitle + ' (Cont.)');
-                            var canvasP = await captureInteriorPageGPC(headerTitle, body, { extraPaddingTop: 46 });
-                            await addPageFromCanvas(canvasP);
-                        }
+                    for (let p = 0; p < chunks.length; p++) {
+                        const isLast = (p === chunks.length - 1);
+                        const body = buildPricingBody(chunks[p], isLast, totalBlockHtml, termLineHtml);
+                        const headerTitle = p === 0 ? baseHeader : `${baseHeader} (Cont.)`;
+                        const canvas = await captureInteriorPageGPC(headerTitle, body, { extraPaddingTop: 46 });
+                        await addPageFromCanvas(canvas);
                     }
                 }
             }
         }
-        else if (slideFile === 'CUSTOM_PDF') {
-            var cp = payload.customPdfs && payload.customPdfs[customPdfIdx];
-            if (cp && cp.file) await appendUploadedPdf(cp.file);
-            customPdfIdx++;
+        else if (slideFile.startsWith('CUSTOM_PDF:')) {
+            const idx = slideFile.split(':')[1];
+            const pdfEntry = payload.customPdfs && payload.customPdfs[idx];
+            if (pdfEntry && pdfEntry.file) await appendUploadedPdf(pdfEntry.file);
+            continue;
         }
         else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
         else {
@@ -1780,9 +1927,12 @@ if (slideFile === '09_Project.pdf') {
         if (downloadBtn) {
             downloadBtn.classList.remove('hidden');
             downloadBtn.onclick = () => {
+                const defaultPdf = `${(payload.globals.biz || 'GPC').replace(/\s+/g, '_')}_Proposal`;
+                const pdfFileName = promptPdfFileName(defaultPdf);
+                if (!pdfFileName) return;
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${(payload.globals.biz || 'GPC').replace(/ /g, '_')}_Proposal.pdf`;
+                a.download = pdfFileName;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -1801,14 +1951,3 @@ if (slideFile === '09_Project.pdf') {
         if (overlay) overlay.classList.add('hidden');
     }
 }
-
-        // --- Dirty Data Check before leaving page ---
-        window.addEventListener('beforeunload', function (e) {
-            const hasData = document.getElementById('global-rfp').value || 
-                            document.getElementById('global-biz').value ||
-                            (document.getElementById('cover-body') && document.getElementById('cover-body').value || '').trim().length > 0;
-            if (hasData) {
-                e.preventDefault();
-                e.returnValue = ''; // Triggers the native browser warning
-            }
-        });
