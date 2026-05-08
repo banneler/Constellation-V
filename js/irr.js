@@ -68,7 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Global Results Elements
     const globalAnnualIRREl = document.getElementById('global-annual-irr');
     const globalTcvEl = document.getElementById('global-tcv');
-    const globalPaybackEl = document.getElementById('global-payback'); 
+    const globalPaybackEl = document.getElementById('global-payback');
+    const globalRunRatePaybackEl = document.getElementById('global-run-rate-payback');
     const globalCapitalInvestmentEl = document.getElementById('global-capital-investment');
     const globalNpvEl = document.getElementById('global-npv');
     const globalErrorMessageEl = document.getElementById('global-error-message');
@@ -403,6 +404,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 payback: null,
                 paybackRogerMonth: null,
                 paybackRatio: null,
+                runRatePayback: null,
                 error: null
             }
         };
@@ -518,9 +520,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tcvEl = resultsContainer.querySelector('.individual-tcv');
         const npvEl = resultsContainer.querySelector('.individual-npv');
         const paybackEl = resultsContainer.querySelector('.individual-payback');
+        const runRatePaybackEl = resultsContainer.querySelector('.individual-run-rate-payback');
         const errorMessageEl = resultsContainer.querySelector('.individual-error-message');
 
-        if (!annualIRREl || !tcvEl || !npvEl || !errorMessageEl || !paybackEl) {
+        if (!annualIRREl || !tcvEl || !npvEl || !errorMessageEl || !paybackEl || !runRatePaybackEl) {
             console.error(`runSiteCalculation: Missing results elements for siteId ${siteId}`);
             return;
         }
@@ -538,6 +541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 2. Calculate TCV
         const siteTCV = (site.inputs.mrr * site.inputs.term) + site.inputs.nrr;
         site.result.tcv = siteTCV;
+        site.result.runRatePayback = computeSiteRunRatePaybackMonths(site.inputs);
 
         // 3. Calculate Payback
         if (!site.timeline) {
@@ -559,7 +563,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             site.result.annualIRR = null;
             site.result.npv = null;
             site.result.paybackRogerMonth = null;
-            showSiteError(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, combinedError);
+            showSiteError(
+                errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl,
+                combinedError,
+                site.inputs.term,
+                site.result.runRatePayback
+            );
         } else {
             const monthlyIRR = calculateIRR(cashFlows);
             if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
@@ -567,17 +576,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 site.result.annualIRR = null;
                 site.result.npv = null;
                 site.result.paybackRogerMonth = null;
-                showSiteError(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, site.result.error);
+                showSiteError(
+                    errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl,
+                    site.result.error,
+                    site.inputs.term,
+                    site.result.runRatePayback
+                );
             } else {
                 site.result.error = null;
                 site.result.annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
                 site.result.npv = calculateNPV(globalDiscountRate, cashFlows);
                 const irrDisplayState = site.result.annualIRR >= globalTargetIRR ? 'go' : 'nogo';
                 showSiteResults(
-                    errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl,
+                    errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl,
                     site.result.annualIRR, irrDisplayState, site.result.tcv,
                     site.result.npv, site.result.payback, site.inputs.term, site.result.paybackRatio,
-                    site.result.paybackRogerMonth
+                    site.result.paybackRogerMonth,
+                    site.result.runRatePayback
                 );
             }
         }
@@ -602,13 +617,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         let totalGlobalProductCost = 0;
 
         if (state.sites.length === 0) {
-            showGlobalResults(NaN, 0, 0, null, null, 0, null, 0, null);
+            globalErrorMessageEl.classList.add('hidden');
+            setResultUI(globalAnnualIRREl, '--%', 'pending');
+            setResultUI(globalTcvEl, '$0', 'tcv');
+            globalTcvEl.style.color = 'var(--color-primary, #3b82f6)';
+            setResultUI(globalCapitalInvestmentEl, '$0', 'default');
+            globalCapitalInvestmentEl.style.color = 'var(--text-light, #333)';
+            setResultUI(globalNpvEl, '$0', 'default');
+            globalNpvEl.style.color = 'var(--text-light, #333)';
+            setPaybackUI(globalPaybackEl, null, null, null, null);
+            if (globalRunRatePaybackEl) setPaybackUI(globalRunRatePaybackEl, null, null, null, null);
             return;
         }
 
         const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
         const siteCashFlowBundles = [];
+        let globalNetInvestment = 0;
+        let globalGrossMargin = 0;
 
         for (const site of state.sites) {
             if (!site.timeline) {
@@ -622,10 +648,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalGlobalEngineeringCost += site.inputs.engineeringCost || 0;
             totalGlobalProductCost += site.inputs.productCost || 0;
 
+            const inp = site.inputs;
+            const siteCapex = (inp.constructionCost || 0) + (inp.engineeringCost || 0) + (inp.productCost || 0);
+            const nrr = inp.nrr || 0;
+            const mrr = inp.mrr || 0;
+            globalNetInvestment += siteCapex + (nrr * 0.03 + mrr) - nrr;
+            globalGrossMargin += mrr - (inp.monthlyCost || 0);
+
             const flowResult = getCashFlowsForSite(site.inputs, site.timeline);
             if (flowResult.error) {
                 showGlobalError(flowResult.error);
-                setPaybackUI(globalPaybackEl, null, maxTerm, null, null);
                 return;
             }
             siteCashFlowBundles.push(flowResult.cashFlows);
@@ -645,11 +677,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { paybackMonths: globalPaybackMonths, paybackRogerMonth: globalPaybackRogerMonth, paybackRatio: globalPaybackRatio } =
             getPaybackFromCashFlows(globalCashFlows, maxTerm);
 
+        const globalRunRatePayback = globalGrossMargin > 0 ? (globalNetInvestment / globalGrossMargin) : Infinity;
+
         const hasNegative = globalCashFlows.some(cf => cf < 0);
         const hasPositive = globalCashFlows.some(cf => cf > 0);
         if (!hasNegative || !hasPositive) {
             showGlobalError("Global project must include at least one investment outflow and one positive inflow.");
-            setPaybackUI(globalPaybackEl, globalPaybackMonths, maxTerm, globalPaybackRatio, globalPaybackRogerMonth);
             return;
         }
 
@@ -665,7 +698,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             maxTerm,
             globalPaybackRatio,
             totalGlobalCapitalInvestment,
-            globalNPV
+            globalNPV,
+            globalRunRatePayback
         );
 
         renderCashflowChart();
@@ -1354,6 +1388,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         return getPaybackFromCashFlows(cashFlows, inputs.term);
     }
 
+    /**
+     * Run-rate payback (static): Net investment / Gross margin, in months (unstressed inputs).
+     * Net investment = CapEx + SG&A − NRR; SG&A = 0.03×NRR + MRR; Gross margin = MRR − monthly COS.
+     */
+    function computeSiteRunRatePaybackMonths(inputs) {
+        const capex = (inputs.constructionCost || 0) + (inputs.engineeringCost || 0) + (inputs.productCost || 0);
+        const nrr = inputs.nrr || 0;
+        const mrr = inputs.mrr || 0;
+        const grossMargin = mrr - (inputs.monthlyCost || 0);
+        if (!(grossMargin > 0)) return Infinity;
+        const sga = nrr * 0.03 + mrr;
+        const netInvestment = capex + sga - nrr;
+        return netInvestment / grossMargin;
+    }
+
 
     // --- 5. UI Update Functions ---
 
@@ -1384,13 +1433,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     function setPaybackUI(element, paybackMonths, term, ratio, paybackRogerMonth) {
         element.classList.remove('pending', 'payback-green', 'payback-yellow', 'payback-red');
         
-        if (ratio === null || !isFinite(paybackMonths) || term <= 0) {
+        if (ratio === null || term <= 0) {
             element.textContent = "-- / --";
             element.classList.add('pending');
             element.style.color = 'var(--text-color-secondary, #9ca3af)';
-        } else if (!isFinite(ratio)) { // Catches Infinity
+        } else if (!isFinite(ratio)) {
             element.textContent = `Never / ${term}`;
             element.classList.add('payback-red');
+        } else if (!isFinite(paybackMonths)) {
+            element.textContent = "-- / --";
+            element.classList.add('pending');
+            element.style.color = 'var(--text-color-secondary, #9ca3af)';
         } else {
             const displayMonth = (paybackRogerMonth != null && Number.isFinite(paybackRogerMonth))
                 ? paybackRogerMonth
@@ -1406,7 +1459,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function showSiteResults(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, annualIRR, irrDisplayState, tcv, npv, paybackMonths, term, paybackRatio, paybackRogerMonth) {
+    function runRateRatioForUi(term, runRateMonths) {
+        if (!(term > 0) || runRateMonths == null) return null;
+        if (!Number.isFinite(runRateMonths)) return Infinity;
+        return runRateMonths / term;
+    }
+
+    function showSiteResults(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl, annualIRR, irrDisplayState, tcv, npv, paybackMonths, term, paybackRatio, paybackRogerMonth, runRatePaybackMonths) {
         errorMessageEl.classList.add('hidden');
         setResultUI(annualIRREl, (annualIRR * 100).toFixed(2) + '%', irrDisplayState);
         setResultUI(tcvEl, `$${tcv.toLocaleString()}`, 'tcv');
@@ -1415,19 +1474,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         npvEl.style.color = 'var(--text-light, #333)';
         
         setPaybackUI(paybackEl, paybackMonths, term, paybackRatio, paybackRogerMonth);
+        setPaybackUI(runRatePaybackEl, runRatePaybackMonths, term, runRateRatioForUi(term, runRatePaybackMonths), null);
     }
 
-    function showSiteError(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, message) {
+    function showSiteError(errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl, message, term, runRateMonths) {
         errorMessageEl.classList.remove('hidden');
         errorMessageEl.textContent = message;
         setResultUI(annualIRREl, '--%', 'error');
         setResultUI(tcvEl, '$0', 'error');
         setResultUI(npvEl, '$0', 'error');
-        
+
         setPaybackUI(paybackEl, null, null, null, null);
+        setPaybackUI(runRatePaybackEl, runRateMonths, term, runRateRatioForUi(term, runRateMonths), null);
     }
 
-    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalPaybackRogerMonth, globalTerm, globalPaybackRatio, totalCapitalInvestment, npv) {
+    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalPaybackRogerMonth, globalTerm, globalPaybackRatio, totalCapitalInvestment, npv, globalRunRatePayback) {
         globalErrorMessageEl.classList.add('hidden');
         
         setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
@@ -1439,9 +1500,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         globalNpvEl.style.color = 'var(--text-light, #333)';
 
         setPaybackUI(globalPaybackEl, globalPaybackMonths, globalTerm, globalPaybackRatio, globalPaybackRogerMonth);
+        if (globalRunRatePaybackEl) {
+            setPaybackUI(globalRunRatePaybackEl, globalRunRatePayback, globalTerm, runRateRatioForUi(globalTerm, globalRunRatePayback), null);
+        }
 
         if (isNaN(monthlyIRR) || !isFinite(monthlyIRR)) {
-            showGlobalError("Could not calculate Global IRR. Check inputs.");
+            setResultUI(globalAnnualIRREl, '--%', 'error');
+            globalErrorMessageEl.textContent = "Could not calculate Global IRR. Check inputs.";
+            globalErrorMessageEl.classList.remove('hidden');
             return;
         }
 
@@ -1459,7 +1525,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         setResultUI(globalTcvEl, '$0', 'error');
         setResultUI(globalCapitalInvestmentEl, '$0', 'error');
         setResultUI(globalNpvEl, '$0', 'error');
-        
+
+        setPaybackUI(globalPaybackEl, null, null, null, null);
+        if (globalRunRatePaybackEl) setPaybackUI(globalRunRatePaybackEl, null, null, null, null);
+
         globalErrorMessageEl.textContent = message;
         globalErrorMessageEl.classList.remove('hidden');
     }
@@ -1517,7 +1586,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
             .summary-card h2 { font-size: 0.9rem; color: #3b82f6; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
             
-            .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center; }
+            .kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; text-align: center; }
             .kpi-item .kpi-label { font-size: 7.5pt; color: #64748b; text-transform: uppercase; }
             .kpi-item .kpi-value { font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
             
@@ -1711,6 +1780,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 else pClass = 'nogo';
             }
 
+            const rrMonthsPdf = computeSiteRunRatePaybackMonths(inp);
+            const termRow = inp.term || 0;
+            let rrText = '-- / --';
+            let rrClass = '';
+            if (termRow > 0) {
+                if (!Number.isFinite(rrMonthsPdf)) {
+                    rrText = `Never / ${termRow}`;
+                    rrClass = 'nogo';
+                } else {
+                    const rrRatio = rrMonthsPdf / termRow;
+                    rrText = `${(rrMonthsPdf % 1 === 0 ? rrMonthsPdf : rrMonthsPdf.toFixed(1))} / ${termRow}`;
+                    if (rrRatio <= 0.5) rrClass = 'go';
+                    else if (rrRatio < 1) rrClass = 'warn';
+                    else rrClass = 'nogo';
+                }
+            }
+
             siteRows += `<tr>
                 <td style="text-align:left;font-weight:600;">${escapeHtmlForPrint(site.name)}</td>
                 <td class="${irrClass}">${irrText}</td>
@@ -1725,6 +1811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td>${Math.max(1, parseInt(timeline.constructionDurationMonths, 10) || 3)}</td>
                 <td>${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.billingStartMonthISO))}</td>
                 <td>${inp.term}</td>
+                <td class="${rrClass}">${rrText}</td>
                 <td class="${pClass}">${pText}</td>
             </tr>`;
         });
@@ -1762,7 +1849,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value"${irrKpiComputedColorAttr(globalCapitalInvestmentEl)}>${globalCapitalInvestmentEl.textContent}</div></div>
                         <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalTcvEl)}>${globalTcvEl.textContent}</div></div>
                         <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalNpvEl)}>${globalNpvEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Payback / Term</div><div class="kpi-value"${irrKpiComputedColorAttr(globalPaybackEl)}>${globalPaybackEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Run-Rate Payback</div><div class="kpi-value"${irrKpiComputedColorAttr(globalRunRatePaybackEl)}>${globalRunRatePaybackEl ? globalRunRatePaybackEl.textContent : '-- / --'}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">CF Break-Even</div><div class="kpi-value"${irrKpiComputedColorAttr(globalPaybackEl)}>${globalPaybackEl.textContent}</div></div>
                     </div>
                 </div>
 
@@ -1799,7 +1887,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <table class="site-breakdown-print-table">
                     <colgroup>
                         <col class="site-bd-col-site" />
-                        <col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" />
+                        <col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" />
                     </colgroup>
                     <thead><tr>
                         <th>Site</th>
@@ -1815,7 +1903,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <th>Duration</th>
                         <th>Billing start</th>
                         <th>Term</th>
-                        <th>Payback</th>
+                        <th>RR<br/>payback</th>
+                        <th>CF<br/>payback</th>
                     </tr></thead>
                     <tbody>${siteRows}</tbody>
                 </table>

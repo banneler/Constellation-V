@@ -448,7 +448,7 @@
 
         .global-results-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             gap: clamp(0.35rem, 1.5vw, 1rem);
             text-align: center;
         }
@@ -481,6 +481,7 @@
         #global-results-container #global-annual-irr,
         #global-results-container #global-tcv,
         #global-results-container #global-payback,
+        #global-results-container #global-run-rate-payback,
         #global-results-container #global-capital-investment,
         #global-results-container #global-npv {
             font-size: 1.45rem;
@@ -511,7 +512,7 @@
         
         .individual-results-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: clamp(0.35rem, 1.5vw, 1rem);
             text-align: center;
         }
@@ -542,6 +543,7 @@
         .individual-results-container .individual-annual-irr,
         .individual-results-container .individual-tcv,
         .individual-results-container .individual-payback,
+        .individual-results-container .individual-run-rate-payback,
         .individual-results-container .individual-npv {
             font-size: 1.45rem;
             font-size: clamp(0.58rem, 0.22rem + 11.5cqw, 2.35rem);
@@ -834,7 +836,11 @@
                             <p id="global-npv" class="pending">$0</p>
                         </div>
                         <div>
-                            <span style="font-size: 1rem; color: var(--text-medium);">Global Payback / Term</span>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global Run-Rate Payback</span>
+                            <p id="global-run-rate-payback" class="pending">-- / --</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global CF Break-Even</span>
                             <p id="global-payback" class="pending">-- / --</p>
                         </div>
                     </div>
@@ -1033,7 +1039,11 @@
                             <p class="individual-npv pending">$0</p>
                         </div>
                         <div>
-                            <span style="font-size: 1rem; color: var(--text-medium);">Site Payback / Term</span>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Site Run-Rate Payback</span>
+                            <p class="individual-run-rate-payback pending">-- / --</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Site CF Break-Even</span>
                             <p class="individual-payback pending">-- / --</p>
                         </div>
                     </div>
