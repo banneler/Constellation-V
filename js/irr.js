@@ -1447,7 +1447,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             const displayMonth = (paybackRogerMonth != null && Number.isFinite(paybackRogerMonth))
                 ? paybackRogerMonth
-                : paybackMonths;
+                : Math.ceil(paybackMonths);
             element.textContent = `${displayMonth} / ${term}`;
             if (ratio <= 0.5) {
                 element.classList.add('payback-green');
@@ -1790,7 +1790,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     rrClass = 'nogo';
                 } else {
                     const rrRatio = rrMonthsPdf / termRow;
-                    rrText = `${(rrMonthsPdf % 1 === 0 ? rrMonthsPdf : rrMonthsPdf.toFixed(1))} / ${termRow}`;
+                    rrText = `${Math.ceil(rrMonthsPdf)} / ${termRow}`;
                     if (rrRatio <= 0.5) rrClass = 'go';
                     else if (rrRatio < 1) rrClass = 'warn';
                     else rrClass = 'nogo';
