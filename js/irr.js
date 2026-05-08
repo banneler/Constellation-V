@@ -957,7 +957,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             cumulativeData.push(cumulative);
         }
 
-        const breakEvenMonth = cumulativeData.findIndex(v => v >= 0);
+        const breakEvenMonth = cumulativeData.findIndex((v, i) => i > 0 && cumulativeData[i - 1] < 0 && v >= 0);
         const textMedium = getComputedStyle(document.body).getPropertyValue('--text-medium').trim() || '#6b7280';
 
         const pointColors = cumulativeData.map((v, i) => {
@@ -1082,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ctx.lineTo(padL + plotW, zy);
             ctx.stroke();
             ctx.setLineDash([]);
-            const breakIdx = cumulativeData.findIndex((v) => v >= 0);
+            const breakIdx = cumulativeData.findIndex((v, i) => i > 0 && cumulativeData[i - 1] < 0 && v >= 0);
             if (breakIdx > 0) {
                 ctx.fillStyle = 'rgba(34, 197, 94, 0.85)';
                 ctx.font = '11px system-ui,sans-serif';
