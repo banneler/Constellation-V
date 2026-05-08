@@ -1458,6 +1458,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function formatPaybackMonthOneDecimal(months) {
+        return (Math.round((months + Number.EPSILON) * 10) / 10).toFixed(1);
+    }
+
     function setPaybackUI(element, paybackMonths, term, ratio, paybackRogerMonth) {
         element.classList.remove('pending', 'payback-green', 'payback-yellow', 'payback-red');
         
@@ -1475,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             const displayMonth = (paybackRogerMonth != null && Number.isFinite(paybackRogerMonth))
                 ? paybackRogerMonth
-                : Math.ceil(paybackMonths);
+                : formatPaybackMonthOneDecimal(paybackMonths);
             element.textContent = `${displayMonth} / ${term}`;
             if (ratio <= 0.5) {
                 element.classList.add('payback-green');
@@ -1818,7 +1822,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     rrClass = 'nogo';
                 } else {
                     const rrRatio = rrMonthsPdf / termRow;
-                    rrText = `${Math.ceil(rrMonthsPdf)} / ${termRow}`;
+                    rrText = `${formatPaybackMonthOneDecimal(rrMonthsPdf)} / ${termRow}`;
                     if (rrRatio <= 0.5) rrClass = 'go';
                     else if (rrRatio < 1) rrClass = 'warn';
                     else rrClass = 'nogo';
