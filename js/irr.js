@@ -2160,12 +2160,135 @@ document.addEventListener('DOMContentLoaded', async () => {
         return str;
     }
 
+    function formatCsvCurrencyValue(value) {
+        return Number.isFinite(value) ? value.toFixed(2) : '';
+    }
+
+    function formatCsvPercentValue(value) {
+        return Number.isFinite(value) ? (value * 100).toFixed(2) : '';
+    }
+
+    function formatCsvPaybackValue(paybackMonths, term, paybackRogerMonth = null) {
+        if (!(term > 0)) return '';
+        if (!Number.isFinite(paybackMonths)) return `Never / ${term}`;
+        const displayMonth = (paybackRogerMonth != null && Number.isFinite(paybackRogerMonth))
+            ? String(paybackRogerMonth)
+            : formatPaybackMonthTwoDecimals(paybackMonths);
+        return `${displayMonth} / ${term}`;
+    }
+
+    function getGlobalCsvSummary(globalDiscountRate) {
+        let maxTerm = 0;
+        let maxFlowLength = 0;
+        let totalTcv = 0;
+        let totalConstruction = 0;
+        let totalEngineering = 0;
+        let totalProduct = 0;
+        let totalMonthlyCost = 0;
+        let totalNrr = 0;
+        let totalMrr = 0;
+        let globalNetInvestment = 0;
+        let globalGrossMargin = 0;
+        const siteCashFlowBundles = [];
+        const csvBcs = getBusinessCaseStartStr();
+
+        state.sites.forEach(site => {
+            const i = site.inputs || {};
+            ensureSiteTimelineISOFromLegacy(site, csvBcs);
+            const t = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
+            const term = parseInt(i.term, 10) || 0;
+            const construction = i.constructionCost || 0;
+            const engineering = i.engineeringCost || 0;
+            const product = i.productCost || 0;
+            const capex = construction + engineering + product;
+            const monthlyCost = i.monthlyCost || 0;
+            const nrr = i.nrr || 0;
+            const mrr = i.mrr || 0;
+
+            maxTerm = Math.max(maxTerm, term);
+            totalConstruction += construction;
+            totalEngineering += engineering;
+            totalProduct += product;
+            totalMonthlyCost += monthlyCost;
+            totalNrr += nrr;
+            totalMrr += mrr;
+            totalTcv += (mrr * term) + nrr;
+            globalNetInvestment += capex + (nrr * 0.03 + mrr) - nrr;
+            globalGrossMargin += mrr - monthlyCost;
+
+            const { cashFlows, error } = getCashFlowsForSite(i, t);
+            if (!error && cashFlows.length > 0) {
+                siteCashFlowBundles.push(cashFlows);
+                maxFlowLength = Math.max(maxFlowLength, cashFlows.length);
+            }
+        });
+
+        const globalCashFlows = new Array(Math.max(maxFlowLength, 1)).fill(0);
+        siteCashFlowBundles.forEach(flows => {
+            for (let i = 0; i < flows.length; i++) {
+                globalCashFlows[i] += flows[i] || 0;
+            }
+        });
+
+        const monthlyIrr = siteCashFlowBundles.length > 0 ? calculateIRR(globalCashFlows) : NaN;
+        const annualIrr = Number.isFinite(monthlyIrr) && !Number.isNaN(monthlyIrr)
+            ? Math.pow(1 + monthlyIrr, 12) - 1
+            : NaN;
+        const npv = siteCashFlowBundles.length > 0 ? calculateNPV(globalDiscountRate, globalCashFlows) : NaN;
+        const { paybackMonths, paybackRogerMonth } = getPaybackFromCashFlows(globalCashFlows, maxTerm);
+        const runRatePayback = globalGrossMargin > 0 ? (globalNetInvestment / globalGrossMargin) : Infinity;
+
+        return {
+            siteCount: state.sites.length,
+            maxTerm,
+            annualIrr,
+            targetIrr: (parseFloat(globalTargetIrrInput.value) || 0) / 100,
+            discountRate: globalDiscountRate,
+            totalCapitalInvestment: totalConstruction + totalEngineering + totalProduct,
+            totalConstruction,
+            totalEngineering,
+            totalProduct,
+            totalMonthlyCost,
+            totalNrr,
+            totalMrr,
+            totalTcv,
+            npv,
+            runRatePayback,
+            cfPaybackMonths: paybackMonths,
+            cfPaybackRogerMonth: paybackRogerMonth
+        };
+    }
+
     /**
      * Generates a CSV file with live formulas and triggers a download.
      */
     function handleExportCSV() {
         const projectName = projectNameInput.value.trim() || "IRR Project";
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
+        const summary = getGlobalCsvSummary(globalDiscountRate);
+        const csvContent = [
+            'Global Summary',
+            ['Metric', 'Value'].map(escapeCSV).join(','),
+            ['Project Name', projectName].map(escapeCSV).join(','),
+            ['Site Count', summary.siteCount].map(escapeCSV).join(','),
+            ['Max Term', summary.maxTerm].map(escapeCSV).join(','),
+            ['Target IRR (%)', (summary.targetIrr * 100).toFixed(2)].map(escapeCSV).join(','),
+            ['Discount Rate (%)', (summary.discountRate * 100).toFixed(2)].map(escapeCSV).join(','),
+            ['Global Annual IRR (%)', formatCsvPercentValue(summary.annualIrr)].map(escapeCSV).join(','),
+            ['Total Capital Investment', formatCsvCurrencyValue(summary.totalCapitalInvestment)].map(escapeCSV).join(','),
+            ['Total Construction Cost', formatCsvCurrencyValue(summary.totalConstruction)].map(escapeCSV).join(','),
+            ['Total Engineering Cost', formatCsvCurrencyValue(summary.totalEngineering)].map(escapeCSV).join(','),
+            ['Total Product Cost', formatCsvCurrencyValue(summary.totalProduct)].map(escapeCSV).join(','),
+            ['Total Monthly Cost', formatCsvCurrencyValue(summary.totalMonthlyCost)].map(escapeCSV).join(','),
+            ['Total NRR', formatCsvCurrencyValue(summary.totalNrr)].map(escapeCSV).join(','),
+            ['Total MRR', formatCsvCurrencyValue(summary.totalMrr)].map(escapeCSV).join(','),
+            ['Global TCV', formatCsvCurrencyValue(summary.totalTcv)].map(escapeCSV).join(','),
+            ['Global NPV', formatCsvCurrencyValue(summary.npv)].map(escapeCSV).join(','),
+            ['Global Run-Rate Payback', formatCsvPaybackValue(summary.runRatePayback, summary.maxTerm)].map(escapeCSV).join(','),
+            ['Global CF Break-Even', formatCsvPaybackValue(summary.cfPaybackMonths, summary.maxTerm, summary.cfPaybackRogerMonth)].map(escapeCSV).join(','),
+            '',
+            'Site Detail'
+        ];
         const headers = [
             "Site Name",
             "Address",
@@ -2181,7 +2304,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             "IRR",
             "NPV"
         ];
-        const csvContent = [headers.join(',')];
+        csvContent.push(headers.join(','));
 
         const csvBcs = getBusinessCaseStartStr();
         state.sites.forEach(site => {
