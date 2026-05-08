@@ -1464,6 +1464,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function setPaybackUI(element, paybackMonths, term, ratio, paybackRogerMonth) {
         element.classList.remove('pending', 'payback-green', 'payback-yellow', 'payback-red');
+        element.style.color = '';
         
         if (ratio === null || term <= 0) {
             element.textContent = "-- / --";
