@@ -54,6 +54,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const addSiteBtn = document.getElementById('add-site-btn');
     const printReportBtn = document.getElementById('print-report-btn');
     const exportCsvBtn = document.getElementById('export-csv-btn');
+    const importSalesforceCsvBtn = document.getElementById('import-salesforce-csv-btn');
+    const importSalesforceCsvInput = document.getElementById('import-salesforce-csv-input');
     
     // Project Inputs
     const projectNameInput = document.getElementById('project-name');
@@ -417,6 +419,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         setActiveSite(newSiteId);
         runGlobalCalculation();
         state.isFormDirty = true;
+    }
+
+    function buildDefaultTimeline() {
+        const bcs = getBusinessCaseStartStr();
+        const bp = parseBusinessCaseStartMonth(bcs) || parseBusinessCaseStartMonth(defaultBusinessCaseStartStr());
+        const baseStr = `${bp.year}-${String(bp.monthIndex0 + 1).padStart(2, '0')}`;
+        return {
+            constructionStartMonth: 0,
+            billingStartMonth: 1,
+            constructionDurationMonths: 3,
+            constructionStartMonthISO: baseStr,
+            billingStartMonthISO: addMonthsToYYYYMM(baseStr, 1),
+        };
+    }
+
+    function buildSiteResultDefaults() {
+        return {
+            annualIRR: null,
+            npv: null,
+            tcv: 0,
+            payback: null,
+            paybackRogerMonth: null,
+            paybackRatio: null,
+            runRatePayback: null,
+            error: null
+        };
     }
 
     /**
@@ -2203,6 +2231,183 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.removeChild(link);
     }
 
+    function parseCsvText(csvText) {
+        const rows = [];
+        let row = [];
+        let cell = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < csvText.length; i++) {
+            const char = csvText[i];
+            const next = csvText[i + 1];
+
+            if (char === '"') {
+                if (inQuotes && next === '"') {
+                    cell += '"';
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                row.push(cell);
+                cell = '';
+            } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                if (char === '\r' && next === '\n') i++;
+                row.push(cell);
+                if (row.some(value => String(value).trim() !== '')) rows.push(row);
+                row = [];
+                cell = '';
+            } else {
+                cell += char;
+            }
+        }
+
+        row.push(cell);
+        if (row.some(value => String(value).trim() !== '')) rows.push(row);
+        return rows;
+    }
+
+    function normalizeCsvHeader(header) {
+        return String(header || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function parseCsvNumber(value) {
+        const cleaned = String(value || '').replace(/[$,%]/g, '').replace(/,/g, '').trim();
+        if (!cleaned) return 0;
+        const parsed = parseFloat(cleaned);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function rowsFromCsv(csvText) {
+        const parsedRows = parseCsvText(csvText);
+        if (parsedRows.length < 2) return [];
+        const headers = parsedRows[0].map(normalizeCsvHeader);
+        return parsedRows.slice(1).map(values => {
+            const row = {};
+            headers.forEach((header, idx) => {
+                if (header) row[header] = values[idx] ?? '';
+            });
+            return row;
+        });
+    }
+
+    function csvValue(row, aliases) {
+        for (const alias of aliases) {
+            const key = normalizeCsvHeader(alias);
+            if (Object.prototype.hasOwnProperty.call(row, key)) {
+                return row[key];
+            }
+        }
+        return '';
+    }
+
+    function parseSalesforceCsvProject(csvText) {
+        const rows = rowsFromCsv(csvText);
+        if (rows.length === 0) {
+            throw new Error('No data rows were found in the CSV.');
+        }
+
+        const siteMap = new Map();
+        let projectName = '';
+        const importedTerm = (() => {
+            const firstTerm = rows
+                .map(row => parseInt(csvValue(row, ['Term', 'Contract Term', 'Contract Term (Months)', 'Term Months']), 10))
+                .find(value => Number.isFinite(value) && value > 0);
+            return firstTerm || 36;
+        })();
+
+        rows.forEach(row => {
+            const siteName = String(csvValue(row, ['Solution Sites Name', 'Solution Site Name', 'Site Name'])).trim();
+            if (!siteName) return;
+            const opportunityName = String(csvValue(row, [
+                'Solution: Opportunity: Opportunity Name',
+                'Opportunity Name',
+                'Solution Opportunity Name'
+            ])).trim();
+            if (!projectName && opportunityName) projectName = opportunityName;
+
+            if (!siteMap.has(siteName)) {
+                siteMap.set(siteName, {
+                    name: siteName,
+                    inputs: {
+                        constructionCost: 0,
+                        engineeringCost: 0,
+                        productCost: 0,
+                        monthlyCost: 0,
+                        nrr: 0,
+                        mrr: 0,
+                        term: importedTerm,
+                    }
+                });
+            }
+
+            const site = siteMap.get(siteName);
+            site.inputs.constructionCost += parseCsvNumber(csvValue(row, ['OSP NCOS']));
+            site.inputs.constructionCost += parseCsvNumber(csvValue(row, ['Off-Net NCOS']));
+            site.inputs.engineeringCost += parseCsvNumber(csvValue(row, ['ENG NCOS']));
+            site.inputs.productCost += parseCsvNumber(csvValue(row, ['Product NCOS']));
+            site.inputs.monthlyCost += parseCsvNumber(csvValue(row, ['Off-Net MCOS']));
+            site.inputs.monthlyCost += parseCsvNumber(csvValue(row, ['Product MCOS']));
+            site.inputs.nrr += parseCsvNumber(csvValue(row, ['Contract NRC']));
+            site.inputs.mrr += parseCsvNumber(csvValue(row, ['Incremental MRC']));
+
+            const rowTerm = parseInt(csvValue(row, ['Term', 'Contract Term', 'Contract Term (Months)', 'Term Months']), 10);
+            if (Number.isFinite(rowTerm) && rowTerm > 0) {
+                site.inputs.term = rowTerm;
+            }
+        });
+
+        const sites = Array.from(siteMap.values()).map((site, idx) => ({
+            id: idx + 1,
+            name: site.name,
+            inputs: site.inputs,
+            timeline: buildDefaultTimeline(),
+            result: buildSiteResultDefaults()
+        }));
+
+        if (sites.length === 0) {
+            throw new Error('No rows with a Solution Sites Name were found in the CSV.');
+        }
+
+        return {
+            id: null,
+            project_name: projectName || 'Imported Salesforce Project',
+            global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
+            global_discount_rate: parseFloat(globalDiscountRateInput?.value) || 15,
+            business_case_start: getBusinessCaseStartStr(),
+            sites
+        };
+    }
+
+    async function importSalesforceCsvFile(file) {
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const projectData = parseSalesforceCsvProject(text);
+            hydrateState(projectData);
+            state.currentProjectId = null;
+            state.isFormDirty = true;
+            showModal(
+                'Import Complete',
+                `Imported ${projectData.sites.length} site${projectData.sites.length === 1 ? '' : 's'} from Salesforce CSV. Review the values, then save the project when ready.`,
+                null,
+                false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
+        } catch (error) {
+            console.error('Salesforce CSV import failed:', error);
+            showModal(
+                'Import Failed',
+                error?.message || 'Could not import the Salesforce CSV.',
+                null,
+                false,
+                `<button id="modal-ok-btn" class="btn-primary">OK</button>`
+            );
+        } finally {
+            if (importSalesforceCsvInput) importSalesforceCsvInput.value = '';
+        }
+    }
+
     // --- 8. Database (Save/Load) Functions ---
 
     /**
@@ -2483,6 +2688,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (addSiteBtn) addSiteBtn.addEventListener('click', addNewSite);
         if (printReportBtn) printReportBtn.addEventListener('click', handlePrintReport);
         if (exportCsvBtn) exportCsvBtn.addEventListener('click', handleExportCSV);
+        if (importSalesforceCsvBtn && importSalesforceCsvInput) {
+            importSalesforceCsvBtn.addEventListener('click', () => importSalesforceCsvInput.click());
+            importSalesforceCsvInput.addEventListener('change', () => {
+                importSalesforceCsvFile(importSalesforceCsvInput.files?.[0]);
+            });
+        }
         
         // Tab bar click delegation + scroll arrows
         if (siteTabsContainer) {
