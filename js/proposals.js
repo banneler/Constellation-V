@@ -9,6 +9,7 @@ import {
     setupModalListeners,
     getState,
     initializeAppState,
+    setupUserMenuAndAuth,
     SUPABASE_URL,
     SUPABASE_ANON_KEY
 } from './shared_constants.js';
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Expose modal and Supabase for enterprise-proposals-embed.js (save to account)
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     await initializeAppState(supabase);
+    await setupUserMenuAndAuth(supabase, getState());
     window.showModal = showModal;
     window.hideModal = hideModal;
     window.getState = getState;

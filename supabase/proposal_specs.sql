@@ -69,6 +69,14 @@ USING (
     )
 );
 
+-- Managers: read/write any proposal_specs (requires public.is_manager() from sql/manager_helpers.sql)
+DROP POLICY IF EXISTS "proposal_specs_manager_all" ON public.proposal_specs;
+CREATE POLICY "proposal_specs_manager_all"
+ON public.proposal_specs FOR ALL
+TO authenticated
+USING (public.is_manager() = true)
+WITH CHECK (public.is_manager() = true);
+
 -- Optional: trigger to keep updated_at in sync
 CREATE OR REPLACE FUNCTION public.set_proposal_specs_updated_at()
 RETURNS TRIGGER

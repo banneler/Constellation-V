@@ -59,5 +59,14 @@ CREATE POLICY "Managers/Admins can manage all sequences"
   USING ((is_manager() = true) OR (is_admin() = true))
   WITH CHECK ((is_manager() = true) OR (is_admin() = true));
 
+-- ----- proposal_specs (managers save proposals to rep accounts when viewing as) -----
+DROP POLICY IF EXISTS "proposal_specs_manager_all" ON public.proposal_specs;
+CREATE POLICY "proposal_specs_manager_all"
+  ON public.proposal_specs
+  FOR ALL
+  TO public
+  USING (is_manager() = true)
+  WITH CHECK (is_manager() = true);
+
 -- Optional cleanup after the app uses client-side reassignment everywhere:
 -- DROP FUNCTION IF EXISTS public.reassign_account_to_user(bigint, uuid, boolean, boolean, boolean);
