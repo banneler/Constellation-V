@@ -64,11 +64,18 @@ export function getState() {
     return { ...appState };
 }
 
-/** Map numeric ids → row (Supabase bigint ids may arrive as string or number). */
+/** Stable map key for Postgres bigint / numeric ids (avoid Number() precision loss). */
+export function entityMapKey(id) {
+    if (id == null || id === '') return null;
+    return String(id);
+}
+
+/** Map entity id → row (keys are strings). */
 export function buildNumericIdMap(rows) {
     const m = new Map();
     for (const r of rows || []) {
-        if (r && r.id != null && r.id !== '') m.set(Number(r.id), r);
+        const k = entityMapKey(r?.id);
+        if (k != null) m.set(k, r);
     }
     return m;
 }
@@ -78,25 +85,41 @@ export function buildNumericIdMap(rows) {
  */
 export function resolveCrmRowAccountId(row, contactsById) {
     if (!row) return null;
-    if (row.account_id != null && row.account_id !== '') return Number(row.account_id);
+    if (row.account_id != null && row.account_id !== '') return entityMapKey(row.account_id);
     const cid = row.contact_id;
     if (cid == null || cid === '') return null;
-    const contact = contactsById.get(Number(cid));
+    const contact = contactsById.get(entityMapKey(cid));
     if (!contact || contact.account_id == null || contact.account_id === '') return null;
-    return Number(contact.account_id);
+    return entityMapKey(contact.account_id);
 }
 
 /**
  * True when the row's owner (user_id) does not match the account owner — e.g. account was
  * reassigned but activities/deals/tasks were left on the prior user.
+ *
+ * Also treats contact-only rows as orphaned when `contact_id` is set but the contact is not in
+ * `contactsById` (common after reassignment when the contact moved off your roster).
  */
 export function isOwnershipOrphanedCrmRow(row, accountsById, contactsById) {
     if (!row || row.user_id == null || row.user_id === '') return false;
-    const accountId = resolveCrmRowAccountId(row, contactsById);
-    if (accountId == null) return false;
-    const acct = accountsById.get(accountId);
+    const rowUser = String(row.user_id);
+
+    let accountKey = null;
+    if (row.account_id != null && row.account_id !== '') {
+        accountKey = entityMapKey(row.account_id);
+    } else if (row.contact_id != null && row.contact_id !== '') {
+        const ck = entityMapKey(row.contact_id);
+        const contact = ck != null ? contactsById.get(ck) : undefined;
+        if (!contact) return true;
+        accountKey = entityMapKey(contact.account_id);
+        if (accountKey == null) return false;
+    } else {
+        return false;
+    }
+
+    const acct = accountsById.get(accountKey);
     if (!acct) return true;
-    return acct.user_id !== row.user_id;
+    return String(acct.user_id) !== rowUser;
 }
 
 /** Drops ownership-orphaned CRM rows using already-loaded accounts + contacts. */

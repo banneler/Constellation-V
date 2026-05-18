@@ -272,10 +272,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (sequencesRes.error) throw sequencesRes.error;
 
-        state.selectedAccountDetails.contacts = contactsRes.data || [];
-        state.selectedAccountDetails.deals = dealsRes.data || [];
-        state.selectedAccountDetails.activities = activitiesRes.data || [];
-        state.selectedAccountDetails.tasks = tasksRes.data || [];
+        const contactsDetail = contactsRes.data || [];
+        state.selectedAccountDetails.contacts = contactsDetail;
+        state.selectedAccountDetails.deals = filterOutOwnershipOrphanedCrmRows(dealsRes.data || [], state.accounts, contactsDetail);
+        state.selectedAccountDetails.activities = filterOutOwnershipOrphanedCrmRows(activitiesRes.data || [], state.accounts, contactsDetail);
+        state.selectedAccountDetails.tasks = filterOutOwnershipOrphanedCrmRows(tasksRes.data || [], state.accounts, contactsDetail);
         state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
         state.selectedAccountDetails.proposals = proposalsRes.data || [];
 
@@ -3149,7 +3150,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             await setupUserMenuAndAuth(supabase, getState());
-            window.addEventListener('effectiveUserChanged', loadInitialData);
+            window.addEventListener('effectiveUserChanged', async () => {
+                await loadInitialData();
+                if (!state.selectedAccountId) {
+                    hideAccountDetails(false);
+                    return;
+                }
+                const stillMine = state.accounts.some(a => Number(a.id) === Number(state.selectedAccountId));
+                if (!stillMine) {
+                    hideAccountDetails(true);
+                    return;
+                }
+                await loadDetailsForSelectedAccount();
+            });
             
             // --- THIS IS THE FIX ---
             // Reverted to the "known working" call, as you pointed out.
