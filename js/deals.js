@@ -24,7 +24,8 @@ import {
     removeDealInsightsWireframe,
     addDealInsightsWireframe,
     reloadHUDWireframes,
-    getState
+    getState,
+    filterOutOwnershipOrphanedCrmRows
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -166,6 +167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? result.value.error?.message : result.reason);
                 }
             });
+            state.deals = filterOutOwnershipOrphanedCrmRows(state.deals, state.accounts, []);
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {

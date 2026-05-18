@@ -64,6 +64,48 @@ export function getState() {
     return { ...appState };
 }
 
+/** Map numeric ids → row (Supabase bigint ids may arrive as string or number). */
+export function buildNumericIdMap(rows) {
+    const m = new Map();
+    for (const r of rows || []) {
+        if (r && r.id != null && r.id !== '') m.set(Number(r.id), r);
+    }
+    return m;
+}
+
+/**
+ * Account id for an activity/deal/task row via account_id or contact → account.
+ */
+export function resolveCrmRowAccountId(row, contactsById) {
+    if (!row) return null;
+    if (row.account_id != null && row.account_id !== '') return Number(row.account_id);
+    const cid = row.contact_id;
+    if (cid == null || cid === '') return null;
+    const contact = contactsById.get(Number(cid));
+    if (!contact || contact.account_id == null || contact.account_id === '') return null;
+    return Number(contact.account_id);
+}
+
+/**
+ * True when the row's owner (user_id) does not match the account owner — e.g. account was
+ * reassigned but activities/deals/tasks were left on the prior user.
+ */
+export function isOwnershipOrphanedCrmRow(row, accountsById, contactsById) {
+    if (!row || row.user_id == null || row.user_id === '') return false;
+    const accountId = resolveCrmRowAccountId(row, contactsById);
+    if (accountId == null) return false;
+    const acct = accountsById.get(accountId);
+    if (!acct) return true;
+    return acct.user_id !== row.user_id;
+}
+
+/** Drops ownership-orphaned CRM rows using already-loaded accounts + contacts. */
+export function filterOutOwnershipOrphanedCrmRows(rows, accounts, contacts) {
+    const accountsById = buildNumericIdMap(accounts);
+    const contactsById = buildNumericIdMap(contacts);
+    return (rows || []).filter(row => !isOwnershipOrphanedCrmRow(row, accountsById, contactsById));
+}
+
 /**
  * Sets the effective user for impersonation view.
  * @param {string} userId - The UUID of the user to view as.

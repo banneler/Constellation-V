@@ -18,7 +18,8 @@ import {
     hideGlobalLoader,
     setupGlobalSearch,
     checkAndSetNotifications,
-    injectGlobalNavigation
+    injectGlobalNavigation,
+    filterOutOwnershipOrphanedCrmRows
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1617,7 +1618,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.campaigns = campaigns || [];
             state.contacts = contacts || [];
             state.accounts = accounts || [];
-            state.activities = activities || [];
+            state.activities = filterOutOwnershipOrphanedCrmRows(activities || [], state.accounts, state.contacts);
             state.emailTemplates = emailTemplates || [];
             state.user_quotas = userQuotas || [];
 

@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -229,9 +229,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (dealStagesRes.error) throw dealStagesRes.error;
         
         state.accounts = accountsRes.data || [];
-        state.deals = dealsRes.data || [];
-        state.activities = activitiesRes.data || [];
         state.contacts = contactsRes.data || [];
+        state.deals = filterOutOwnershipOrphanedCrmRows(dealsRes.data || [], state.accounts, state.contacts);
+        state.activities = filterOutOwnershipOrphanedCrmRows(activitiesRes.data || [], state.accounts, state.contacts);
         state.dealStages = dealStagesRes.data || [];
 
         renderAccountList();

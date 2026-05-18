@@ -21,7 +21,8 @@ import {
     logToSalesforce,
     showGlobalLoader,
     hideGlobalLoader,
-    refreshHUDNodes
+    refreshHUDNodes,
+    filterOutOwnershipOrphanedCrmRows
 } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -112,6 +113,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     console.error(`Error fetching ${tableName}:`, result.status === 'fulfilled' ? (result.value ? result.value.error.message : 'Unknown error') : result.reason);
                 }
             });
+            state.deals = filterOutOwnershipOrphanedCrmRows(state.deals, state.accounts, state.contacts);
+            state.activities = filterOutOwnershipOrphanedCrmRows(state.activities, state.accounts, state.contacts);
+            state.tasks = filterOutOwnershipOrphanedCrmRows(state.tasks, state.accounts, state.contacts);
         } catch (error) {
             console.error("Critical error in loadAllData:", error);
         } finally {

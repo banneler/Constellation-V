@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -380,10 +380,10 @@ async function loadAllData() {
 
         state.contacts = processResponse(contactsRes, 'contacts');
         state.accounts = processResponse(accountsRes, 'accounts');
-        state.activities = processResponse(activitiesRes, 'activities');
+        state.activities = filterOutOwnershipOrphanedCrmRows(processResponse(activitiesRes, 'activities'), state.accounts, state.contacts);
         state.contact_sequences = processResponse(contactSequencesRes, 'contact_sequences');
-        state.deals = processResponse(dealsRes, 'deals');
-        state.tasks = processResponse(tasksRes, 'tasks');
+        state.deals = filterOutOwnershipOrphanedCrmRows(processResponse(dealsRes, 'deals'), state.accounts, state.contacts);
+        state.tasks = filterOutOwnershipOrphanedCrmRows(processResponse(tasksRes, 'tasks'), state.accounts, state.contacts);
         state.sequence_steps = processResponse(sequenceStepsRes, 'sequence_steps');
         state.email_log = processResponse(emailLogRes, 'email_log');
         state.activityTypes = [...new Map(processResponse(activityTypesRes, 'activity_types').map(item => [item.type_name, item])).values()];
