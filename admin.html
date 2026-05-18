@@ -50,7 +50,7 @@
                 <div id="reassignment-section" class="hidden" style="margin-top: 2rem;">
                     <h3 class="section-title">Bulk Data Reassignment</h3>
                     <p class="placeholder-text placeholder-text-block">
-                      Quickly reassign all open deals, contacts, and accounts from one user to another. This is useful when a team member's role changes or they leave the company.
+                      Reassign selected accounts from one user to another, with control over which related records move with them.
                     </p>
                     <div class="filter-bar">
                         <label for="reassign-from-user">Reassign records FROM:</label>
@@ -58,6 +58,29 @@
                         <label for="reassign-to-user">TO:</label>
                         <select id="reassign-to-user"></select>
                         <button id="reassign-btn" class="btn-primary">Reassign</button>
+                    </div>
+                    <div class="details-panel" style="margin-top: 1rem;">
+                        <h4 class="details-panel-title">Related Records to Move</h4>
+                        <div class="filter-bar" style="justify-content: flex-start;">
+                            <label><input type="checkbox" class="reassign-include-option" id="reassign-include-contacts" checked> Contacts</label>
+                            <label><input type="checkbox" class="reassign-include-option" id="reassign-include-contact-sequences" checked> Contact Sequences</label>
+                            <label><input type="checkbox" class="reassign-include-option" id="reassign-include-activities" checked> Activities</label>
+                            <label><input type="checkbox" class="reassign-include-option" id="reassign-include-deals" checked> Deals</label>
+                            <label><input type="checkbox" class="reassign-include-option" id="reassign-include-tasks" checked> Tasks</label>
+                        </div>
+                    </div>
+                    <div class="details-panel" style="margin-top: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                            <div>
+                                <h4 class="details-panel-title" style="margin-bottom: 0.25rem;">Source Accounts</h4>
+                                <p class="placeholder-text" id="reassign-accounts-status">Select a source user to load accounts.</p>
+                            </div>
+                            <div class="action-buttons">
+                                <button type="button" id="reassign-select-all-accounts" class="btn-secondary btn-sm">Select All</button>
+                                <button type="button" id="reassign-clear-all-accounts" class="btn-secondary btn-sm">Clear All</button>
+                            </div>
+                        </div>
+                        <div id="reassign-account-list" class="table-container" style="margin-top: 0.75rem;"></div>
                     </div>
                 </div>
                     </div>

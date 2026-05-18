@@ -26,6 +26,8 @@ let state = {
     activityTypes: [],
     charts: {},
     scriptLogs: [],
+    reassignmentAccounts: [],
+    reassignmentAccountsLoading: false,
     currentView: 'user-management',
     contentView: 'templates',
     analyticsFilters: {
@@ -34,6 +36,15 @@ let state = {
         chartView: 'combined'
     }
 };
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 const loadAllDataForView = async () => {
     document.body.classList.add('loading');
@@ -166,6 +177,96 @@ function renderReassignmentTool() {
     toUserSelect.innerHTML = `<option value="">-- Select User --</option>${userOptions}`;
 
     reassignmentSection.classList.remove('hidden');
+    renderReassignmentAccountList();
+}
+
+function renderReassignmentAccountList() {
+    const accountList = document.getElementById('reassign-account-list');
+    const status = document.getElementById('reassign-accounts-status');
+    if (!accountList || !status) return;
+
+    if (state.reassignmentAccountsLoading) {
+        status.textContent = 'Loading source accounts...';
+        accountList.innerHTML = '';
+        return;
+    }
+
+    const fromUserId = document.getElementById('reassign-from-user')?.value || '';
+    if (!fromUserId) {
+        status.textContent = 'Select a source user to load accounts.';
+        accountList.innerHTML = '';
+        return;
+    }
+
+    if (state.reassignmentAccounts.length === 0) {
+        status.textContent = 'No accounts found for this source user.';
+        accountList.innerHTML = '';
+        return;
+    }
+
+    const selectedCount = state.reassignmentAccounts.filter(account => account.selected).length;
+    status.textContent = `${selectedCount} of ${state.reassignmentAccounts.length} accounts selected.`;
+    accountList.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 48px;">Move</th>
+                    <th>Account</th>
+                    <th>Website</th>
+                    <th>Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${state.reassignmentAccounts.map(account => `
+                    <tr>
+                        <td><input type="checkbox" class="reassign-account-checkbox" data-account-id="${account.id}" ${account.selected ? 'checked' : ''}></td>
+                        <td>${escapeHtml(account.name || `Account #${account.id}`)}</td>
+                        <td>${escapeHtml(account.website || '')}</td>
+                        <td>${escapeHtml(account.address || '')}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+async function loadReassignmentAccountsForUser(userId) {
+    state.reassignmentAccounts = [];
+    if (!userId) {
+        renderReassignmentAccountList();
+        return;
+    }
+
+    state.reassignmentAccountsLoading = true;
+    renderReassignmentAccountList();
+
+    const { data, error } = await supabase
+        .from('accounts')
+        .select('id, name, website, address')
+        .eq('user_id', userId)
+        .order('name', { ascending: true });
+
+    state.reassignmentAccountsLoading = false;
+
+    if (error) {
+        state.reassignmentAccounts = [];
+        renderReassignmentAccountList();
+        alert(`Could not load source accounts: ${error.message}`);
+        return;
+    }
+
+    state.reassignmentAccounts = (data || []).map(account => ({ ...account, selected: true }));
+    renderReassignmentAccountList();
+}
+
+function getReassignmentIncludes() {
+    return {
+        contacts: document.getElementById('reassign-include-contacts')?.checked === true,
+        contactSequences: document.getElementById('reassign-include-contact-sequences')?.checked === true,
+        activities: document.getElementById('reassign-include-activities')?.checked === true,
+        deals: document.getElementById('reassign-include-deals')?.checked === true,
+        tasks: document.getElementById('reassign-include-tasks')?.checked === true
+    };
 }
 
 async function handleReassignment() {
@@ -184,20 +285,60 @@ async function handleReassignment() {
 
     const fromUser = state.allUsers.find(u => u.user_id === fromUserId);
     const toUser = state.allUsers.find(u => u.user_id === toUserId);
+    const selectedAccounts = state.reassignmentAccounts.filter(account => account.selected);
+    const includes = getReassignmentIncludes();
+
+    if (selectedAccounts.length === 0) {
+        alert('Please select at least one source account to reassign.');
+        return;
+    }
+
+    const includedTypes = [
+        includes.contacts ? 'contacts' : null,
+        includes.contactSequences ? 'contact sequences' : null,
+        includes.activities ? 'activities' : null,
+        includes.deals ? 'deals' : null,
+        includes.tasks ? 'tasks' : null
+    ].filter(Boolean);
+    const includedTypesText = includedTypes.length > 0 ? includedTypes.join(', ') : 'no related records';
 
     showModal(
         'Confirm Reassignment',
-        `Are you sure you want to reassign all open deals, contacts, and accounts from <strong>${fromUser.full_name}</strong> to <strong>${toUser.full_name}</strong>? This action cannot be undone.`,
+        `Are you sure you want to reassign <strong>${selectedAccounts.length}</strong> selected account${selectedAccounts.length === 1 ? '' : 's'} from <strong>${escapeHtml(fromUser.full_name || fromUser.email)}</strong> to <strong>${escapeHtml(toUser.full_name || toUser.email)}</strong>?<br><br>Related records to move: <strong>${escapeHtml(includedTypesText)}</strong>.<br><br>This action cannot be undone.`,
         async () => {
             try {
-                const { error } = await supabase.rpc('reassign_user_records', {
-                    from_user_id: fromUserId,
-                    to_user_id: toUserId
-                });
-                if (error) throw error;
-                alert('Records reassigned successfully!');
+                const reassignBtn = document.getElementById('reassign-btn');
+                if (reassignBtn) {
+                    reassignBtn.disabled = true;
+                    reassignBtn.textContent = 'Reassigning...';
+                }
+
+                const results = [];
+                for (const account of selectedAccounts) {
+                    const { error } = await supabase.rpc('reassign_account_to_user', {
+                        p_account_id: account.id,
+                        p_to_user_id: toUserId,
+                        p_include_contacts: includes.contacts,
+                        p_include_contact_sequences: includes.contactSequences,
+                        p_include_activities: includes.activities,
+                        p_include_deals: includes.deals,
+                        p_include_tasks: includes.tasks
+                    });
+                    if (error) throw new Error(`${account.name || `Account #${account.id}`}: ${error.message}`);
+                    results.push(account.id);
+                }
+
+                alert(`Reassigned ${results.length} account${results.length === 1 ? '' : 's'} successfully.`);
+                await loadReassignmentAccountsForUser(fromUserId);
+                await loadUserData();
             } catch (error) {
                 alert('Error during reassignment: ' + error.message);
+            } finally {
+                const reassignBtn = document.getElementById('reassign-btn');
+                if (reassignBtn) {
+                    reassignBtn.disabled = false;
+                    reassignBtn.textContent = 'Reassign';
+                }
             }
             hideModal();
         }
@@ -614,6 +755,28 @@ function setupPageEventListeners() {
     });
 
     document.getElementById('reassign-btn')?.addEventListener('click', handleReassignment);
+    document.getElementById('reassign-from-user')?.addEventListener('change', e => {
+        loadReassignmentAccountsForUser(e.target.value);
+    });
+    document.getElementById('reassign-account-list')?.addEventListener('change', e => {
+        if (!e.target.matches('.reassign-account-checkbox')) return;
+        const accountId = Number(e.target.dataset.accountId);
+        const account = state.reassignmentAccounts.find(item => item.id === accountId);
+        if (account) {
+            account.selected = e.target.checked;
+            renderReassignmentAccountList();
+        }
+    });
+    document.getElementById('reassign-select-all-accounts')?.addEventListener('click', e => {
+        e.preventDefault();
+        state.reassignmentAccounts.forEach(account => { account.selected = true; });
+        renderReassignmentAccountList();
+    });
+    document.getElementById('reassign-clear-all-accounts')?.addEventListener('click', e => {
+        e.preventDefault();
+        state.reassignmentAccounts.forEach(account => { account.selected = false; });
+        renderReassignmentAccountList();
+    });
 
     document.getElementById('content-management-table')?.addEventListener('change', e => {
         e.preventDefault();
