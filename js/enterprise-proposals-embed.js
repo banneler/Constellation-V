@@ -453,50 +453,304 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             input.addEventListener('focus', refresh);
             input.addEventListener('blur', function() { setTimeout(function() { dd.classList.add('hidden'); }, 200); });
         }
+
+        function syncLocationSubtotalVisibility() {
+            var cb = document.getElementById('pricing-enable-location-subtotals');
+            var on = cb && cb.checked;
+            document.querySelectorAll('.location-subtotal-row').forEach(function(el) {
+                el.classList.toggle('hidden', !on);
+            });
+        }
+
+        function normalizeCsvHeaderCell(h) {
+            return String(h || '').replace(/^\uFEFF/, '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+        function parseCsvRows(text) {
+            var rows = [];
+            var i = 0;
+            var field = '';
+            var row = [];
+            var inQ = false;
+            var s = String(text || '');
+            while (i < s.length) {
+                var c = s[i];
+                if (inQ) {
+                    if (c === '"') {
+                        if (s[i + 1] === '"') {
+                            field += '"';
+                            i += 2;
+                            continue;
+                        }
+                        inQ = false;
+                        i++;
+                        continue;
+                    }
+                    field += c;
+                    i++;
+                    continue;
+                }
+                if (c === '"') {
+                    inQ = true;
+                    i++;
+                    continue;
+                }
+                if (c === ',') {
+                    row.push(field);
+                    field = '';
+                    i++;
+                    continue;
+                }
+                if (c === '\r') {
+                    i++;
+                    continue;
+                }
+                if (c === '\n') {
+                    row.push(field);
+                    rows.push(row);
+                    row = [];
+                    field = '';
+                    i++;
+                    continue;
+                }
+                field += c;
+                i++;
+            }
+            row.push(field);
+            rows.push(row);
+            return rows.filter(function(r) {
+                return r.some(function(cell) { return String(cell).trim() !== ''; });
+            });
+        }
+        function pickCsvColumnIndex(headersNorm, aliases) {
+            var h = headersNorm;
+            for (var a = 0; a < aliases.length; a++) {
+                var want = aliases[a].toLowerCase();
+                for (var j = 0; j < h.length; j++) {
+                    if (h[j] === want) return j;
+                }
+            }
+            for (var a2 = 0; a2 < aliases.length; a2++) {
+                var w = aliases[a2].toLowerCase();
+                for (var k = 0; k < h.length; k++) {
+                    if (h[k].indexOf(w) !== -1) return k;
+                }
+            }
+            return -1;
+        }
+        function parseMoneyCell(val) {
+            if (val == null || val === '') return NaN;
+            var t = String(val).replace(/[$,\s]/g, '').trim();
+            if (t === '') return NaN;
+            var n = parseFloat(t);
+            return isNaN(n) ? NaN : n;
+        }
+
         const optionsContainer = document.getElementById('pricing-options-container');
         let optionCount = 0;
-        let globalLocCounter = 0;
+        let locationCount = 0;
+        var pricingSubtotalCheckboxPreserveChecked = null;
+
+        function ensurePricingSubtotalCheckboxPlacement() {
+            var opts = document.querySelectorAll('.pricing-option-block');
+            if (!opts.length) return;
+            var row = opts[0].querySelector('.pricing-option-controls-row');
+            if (!row) return;
+            var wrap = row.querySelector('.pricing-location-subtotals-wrap');
+            if (!wrap) {
+                row.insertAdjacentHTML('beforeend', '<label class="pricing-location-subtotals-wrap flex cursor-pointer items-center gap-3 select-none rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-location-subtotals" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Location Subtotals</span></label>');
+                var cb = document.getElementById('pricing-enable-location-subtotals');
+                if (cb && pricingSubtotalCheckboxPreserveChecked !== null) cb.checked = pricingSubtotalCheckboxPreserveChecked;
+            } else if (wrap.parentElement !== row) {
+                row.appendChild(wrap);
+            }
+            pricingSubtotalCheckboxPreserveChecked = null;
+            syncLocationSubtotalVisibility();
+        }
+
+        if (optionsContainer) {
+            optionsContainer.addEventListener('change', function(e) {
+                if (e.target && e.target.id === 'pricing-enable-location-subtotals') {
+                    syncLocationSubtotalVisibility();
+                    if (!_suppressDirty) setDirty(true);
+                }
+            });
+        }
+
+        function applySalesforceCsvText(csvText) {
+            var rows = parseCsvRows(csvText.replace(/^\uFEFF/, ''));
+            if (rows.length < 2) {
+                showToast('CSV has no data rows.', 'error');
+                return;
+            }
+            var headersNorm = rows[0].map(normalizeCsvHeaderCell);
+            var aliasesLoc = ['z location', 'service location', 'location name', 'site name', 'account name', 'ship to street', 'ship to address', 'shipping address', 'location', 'site address', 'customer name', 'detail name', 'quote line city'];
+            var aliasesProd = ['product', 'product name', 'product title', 'product description', 'description'];
+            var aliasesQty = ['quantity', 'qty'];
+            var aliasesUnit = ['customer unit price', 'unit price', 'sales price', 'list price', 'monthly price', 'mrc', 'net unit price'];
+            var aliasesTotal = ['total price', 'extended price', 'line total', 'net total', 'total'];
+
+            var ixLoc = pickCsvColumnIndex(headersNorm, aliasesLoc);
+            var ixProd = pickCsvColumnIndex(headersNorm, aliasesProd);
+            var ixQty = pickCsvColumnIndex(headersNorm, aliasesQty);
+            var ixUnit = pickCsvColumnIndex(headersNorm, aliasesUnit);
+            var ixTotal = pickCsvColumnIndex(headersNorm, aliasesTotal);
+
+            if (ixProd < 0) {
+                showToast('Could not find a Product column in the CSV.', 'error');
+                return;
+            }
+
+            var groups = {};
+            var order = [];
+            for (var r = 1; r < rows.length; r++) {
+                var line = rows[r];
+                var locKey = ixLoc >= 0 ? String(line[ixLoc] || '').trim() : 'Imported Location';
+                if (!locKey) locKey = 'Imported Location';
+                if (!groups[locKey]) {
+                    groups[locKey] = [];
+                    order.push(locKey);
+                }
+                var prod = String(line[ixProd] || '').trim();
+                var qtyRaw = ixQty >= 0 ? line[ixQty] : '1';
+                var qtyNum = parseFloat(String(qtyRaw).replace(/[^\d.-]/g, ''));
+                if (isNaN(qtyNum) || qtyNum <= 0) qtyNum = 1;
+                var qtyStr = String(qtyNum);
+                var unit = ixUnit >= 0 ? parseMoneyCell(line[ixUnit]) : NaN;
+                var total = ixTotal >= 0 ? parseMoneyCell(line[ixTotal]) : NaN;
+                var priceNum = !isNaN(unit) ? unit : (!isNaN(total) ? total / qtyNum : NaN);
+                var priceStr = !isNaN(priceNum) ? String(priceNum) : '';
+                if (!prod && priceStr === '') continue;
+
+                groups[locKey].push({
+                    prod: prod,
+                    price: priceStr,
+                    qty: qtyStr,
+                    nrcEnabled: false,
+                    nrcDescription: '',
+                    nrcAmount: ''
+                });
+            }
+
+            if (!order.length) {
+                showToast('No importable rows found.', 'error');
+                return;
+            }
+
+            var firstOpt = document.querySelector('.pricing-option-block');
+            if (!firstOpt) {
+                showToast('Pricing builder not ready.', 'error');
+                return;
+            }
+            var locContainer = firstOpt.querySelector('.locations-container');
+            if (!locContainer) {
+                showToast('Pricing locations container missing.', 'error');
+                return;
+            }
+            locContainer.innerHTML = '';
+
+            order.forEach(function(key) {
+                addLocationBlock(locContainer, firstOpt, key, groups[key], null);
+            });
+
+            calculateOptionTotal(firstOpt);
+            syncLocationSubtotalVisibility();
+            if (!_suppressDirty) setDirty(true);
+            showToast('Imported ' + order.length + ' location(s) from Salesforce CSV.', 'success');
+        }
+
+        function handleSalesforceCsvFile(file) {
+            if (!file) return;
+            var nameOk = /\.csv$/i.test(file.name);
+            var typeOk = file.type === 'text/csv' || file.type === 'application/vnd.ms-excel' || file.type === '';
+            if (!nameOk && !typeOk) {
+                showToast('Please choose a .csv file.', 'error');
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function() {
+                applySalesforceCsvText(String(reader.result || ''));
+                var lbl = document.getElementById('salesforce-csv-label');
+                if (lbl) lbl.textContent = file.name;
+            };
+            reader.onerror = function() {
+                showToast('Could not read CSV file.', 'error');
+            };
+            reader.readAsText(file);
+        }
 
         function updateOptionTitles() {
             if (!optionsContainer) return;
-            var blocks = optionsContainer.querySelectorAll('.pricing-option-block');
-            blocks.forEach(function(ob, i) {
-                var h = ob.querySelector('.option-title');
-                if (h) h.textContent = 'Pricing Option ' + (i + 1);
+            const options = optionsContainer.querySelectorAll('.pricing-option-block');
+            options.forEach(function(opt, index) {
+                const title = opt.querySelector('.option-title');
+                const removeBtn = opt.querySelector('.remove-option-btn');
+                const totalLabel = opt.querySelector('.option-total-label');
+                if (options.length === 1) {
+                    if (title) title.textContent = 'Proposed Pricing';
+                    if (removeBtn) removeBtn.classList.add('hidden');
+                    if (totalLabel) totalLabel.textContent = 'TOTAL MONTHLY COST:';
+                } else {
+                    if (title) title.textContent = 'Option ' + (index + 1);
+                    if (removeBtn) removeBtn.classList.remove('hidden');
+                    if (totalLabel) totalLabel.textContent = 'OPTION TOTAL MONTHLY COST:';
+                }
+            });
+            ensurePricingSubtotalCheckboxPlacement();
+        }
+
+        function getPricingLineSubrows(tr) {
+            var nrcRow = tr.nextElementSibling && tr.nextElementSibling.classList.contains('row-nrc-subline') ? tr.nextElementSibling : null;
+            return { nrcRow: nrcRow };
+        }
+
+        function stripLegacyRowPromoFields(item) {
+            if (!item || typeof item !== 'object') return item;
+            var o = Object.assign({}, item);
+            delete o.promoEnabled;
+            delete o.promoDescription;
+            delete o.promoAmount;
+            return o;
+        }
+
+        function migrateLegacyRowPromosIntoLocationPromotions(items, promotions) {
+            var promos = Array.isArray(promotions) ? promotions.slice() : [];
+            (items || []).forEach(function(it) {
+                if (it && it.promoEnabled && ((it.promoDescription && String(it.promoDescription).trim()) || (it.promoAmount != null && String(it.promoAmount).trim()))) {
+                    promos.push({ description: it.promoDescription != null ? String(it.promoDescription) : '', amount: it.promoAmount != null ? String(it.promoAmount) : '' });
+                }
+            });
+            return promos;
+        }
+
+        function readPricingItemsFromLocationBlock(block) {
+            return Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(function(tr) {
+                var sub = getPricingLineSubrows(tr);
+                var nrcRow = sub.nrcRow;
+                var nrcToggle = tr.querySelector('.row-nrc-toggle');
+                return {
+                    prod: tr.querySelector('.prod-name') ? tr.querySelector('.prod-name').value : '',
+                    price: tr.querySelector('.price-input') ? tr.querySelector('.price-input').value : '',
+                    qty: tr.querySelector('.qty-input') ? tr.querySelector('.qty-input').value : '1',
+                    nrcEnabled: !!(nrcToggle && nrcToggle.checked),
+                    nrcDescription: nrcRow && nrcRow.querySelector('.row-nrc-description') ? nrcRow.querySelector('.row-nrc-description').value : '',
+                    nrcAmount: nrcRow && nrcRow.querySelector('.row-nrc-amount') ? nrcRow.querySelector('.row-nrc-amount').value : ''
+                };
             });
         }
-        function updateOptionRemoveVisibility() {
-            if (!optionsContainer) return;
-            var opts = optionsContainer.querySelectorAll('.pricing-option-block');
-            opts.forEach(function(ob) {
-                var btn = ob.querySelector('.remove-pricing-option-btn');
-                if (btn) btn.classList.toggle('hidden', opts.length <= 1);
+
+        function cloneOptionDataFromBlock(optionBlock) {
+            if (!optionBlock) return null;
+            var termEl = optionBlock.querySelector('.contract-term') || optionBlock.querySelector('.option-term-input');
+            var locations = Array.from(optionBlock.querySelectorAll('.location-block')).map(function(block) {
+                return {
+                    name: block.querySelector('.loc-name-input') ? block.querySelector('.loc-name-input').value : '',
+                    items: readPricingItemsFromLocationBlock(block),
+                    promotions: readLocationPromotions(block)
+                };
             });
-        }
-        function buildPricingOptionSnapshot(optionBlock) {
-            if (!optionBlock) return { contractTerm: '', locations: [] };
             return {
-                contractTerm: (optionBlock.querySelector('.option-term-input') && optionBlock.querySelector('.option-term-input').value) || '',
-                locations: Array.from(optionBlock.querySelectorAll('.location-block')).map(function(block) {
-                    return {
-                        name: block.querySelector('.loc-name-input') ? block.querySelector('.loc-name-input').value : '',
-                        promotions: readLocationPromotions(block),
-                        items: Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(function(tr) {
-                            var nrcRow = tr.nextElementSibling;
-                            var nrcToggle = tr.querySelector('.row-nrc-toggle');
-                            var nrcDescEl = nrcRow ? nrcRow.querySelector('.row-nrc-description') : null;
-                            var nrcAmountEl = nrcRow ? nrcRow.querySelector('.row-nrc-amount') : null;
-                            return {
-                                prod: tr.querySelector('.prod-name') ? tr.querySelector('.prod-name').value : '',
-                                price: tr.querySelector('.price-input') ? tr.querySelector('.price-input').value : '',
-                                qty: tr.querySelector('.qty-input') ? tr.querySelector('.qty-input').value : '',
-                                nrcEnabled: !!(nrcToggle && nrcToggle.checked),
-                                nrcDescription: nrcDescEl ? nrcDescEl.value : '',
-                                nrcAmount: nrcAmountEl ? nrcAmountEl.value : ''
-                            };
-                        })
-                    };
-                })
+                term: termEl ? termEl.value : '',
+                locations: locations
             };
         }
         function createLocationPromotionRow(promo) {
@@ -564,12 +818,19 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var nrcDescription = (data && data.nrcDescription != null) ? String(data.nrcDescription).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
             var nrcAmount = (data && data.nrcAmount != null) ? String(data.nrcAmount) : '';
             var html = '<tr class="pricing-row border-b border-slate-100 group">' +
-                '<td class="p-2 relative align-top"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" value="' + prod + '"></td>' +
-                '<td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01" value="' + price + '"></td>' +
-                '<td class="p-2"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="' + qty + '"></td>' +
-                '<td class="p-2 text-right font-semibold text-slate-700 row-total">$0.00</td>' +
-                '<td class="p-2 text-center"><label class="flex items-center justify-center gap-1 text-[10px] font-semibold text-slate-500 uppercase mb-1 whitespace-nowrap"><input type="checkbox" class="row-nrc-toggle" ' + (nrcEnabled ? 'checked' : '') + '><span class="row-nrc-label-text">NRC</span></label><button type="button" class="text-slate-300 hover:text-red-500 font-bold opacity-0 group-hover:opacity-100 remove-row-btn">X</button></td></tr>' +
-                '<tr class="row-nrc-subline ' + (nrcEnabled ? '' : 'hidden') + ' bg-slate-50 border-b border-slate-100"><td colspan="5" class="px-2 pb-3"><div class="rounded border border-slate-200 bg-white px-3 py-2 flex items-center gap-3">' +
+                '<td class="p-2 relative align-middle"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" value="' + prod + '" autocomplete="off"></td>' +
+                '<td class="p-2 align-middle"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01" value="' + price + '"></td>' +
+                '<td class="p-2 align-middle"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="' + qty + '"></td>' +
+                '<td class="p-2 text-right font-semibold text-slate-700 row-total align-middle">$0.00</td>' +
+                '<td class="p-2 align-middle text-center w-14">' +
+                '<input type="checkbox" class="row-nrc-toggle w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer align-middle" ' + (nrcEnabled ? 'checked' : '') + ' title="Non-recurring charge (NRC)">' +
+                '</td>' +
+                '<td class="p-2 align-middle text-center w-12">' +
+                '<button type="button" class="remove-row-btn inline-flex items-center justify-center min-w-[2rem] min-h-[2rem] rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 font-bold text-base leading-none transition" title="Remove product line">✕</button>' +
+                '</td></tr>' +
+                '<tr class="row-nrc-subline ' + (nrcEnabled ? '' : 'hidden') + ' bg-slate-50 border-b border-slate-100">' +
+                '<td colspan="6" class="px-2 pb-3">' +
+                '<div class="rounded border border-slate-200 bg-white px-3 py-2 flex items-center gap-3">' +
                 '<input type="text" class="row-nrc-description w-full border border-slate-200 p-1.5 rounded text-sm outline-none focus:border-orange-500" placeholder="NRC description" value="' + nrcDescription + '">' +
                 '<input type="number" class="row-nrc-amount w-40 border border-slate-200 p-1.5 rounded text-sm text-right outline-none focus:border-orange-500" step="0.01" placeholder="NRC amount" value="' + nrcAmount + '">' +
                 '</div></td></tr>';
@@ -581,100 +842,257 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             row.querySelector('.price-input').addEventListener('input', function() { updateMath(row, locBlock, optionBlock); });
             row.querySelector('.qty-input').addEventListener('input', function() { updateMath(row, locBlock, optionBlock); });
             row.querySelector('.remove-row-btn').addEventListener('click', function() {
+                var sub = getPricingLineSubrows(row);
                 if (tbody.querySelectorAll('tr.pricing-row').length > 1) {
-                    nrcRow.remove();
+                    if (sub.nrcRow) sub.nrcRow.remove();
                     row.remove();
                     updateMath(null, locBlock, optionBlock);
                 }
             });
             if (nrcToggle) {
-                var syncNrc = function() { nrcRow.classList.toggle('hidden', !nrcToggle.checked); if (!_suppressDirty) setDirty(true); };
+                var syncNrc = function() {
+                    var s2 = getPricingLineSubrows(row);
+                    if (s2.nrcRow) s2.nrcRow.classList.toggle('hidden', !nrcToggle.checked);
+                    if (!_suppressDirty) setDirty(true);
+                };
                 nrcToggle.addEventListener('change', syncNrc);
                 syncNrc();
             }
             updateMath(row, locBlock, optionBlock);
         }
-        function addLocationBlock(optionBlock, locName, items, promotions) {
-            globalLocCounter++;
-            var locId = 'location-' + globalLocCounter;
-            var nameEsc = (locName || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-            var locContainer = optionBlock.querySelector('.option-locations-container');
-            var html = '<div class="location-block border border-slate-200 rounded-lg p-5 bg-white relative" id="' + locId + '">' +
-                '<button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 font-bold text-sm remove-location-btn">X</button>' +
-                '<div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location name or address" value="' + nameEsc + '"></div>' +
-                '<div class="location-pricing-table-wrap mb-4"><table class="w-full text-left border-collapse table-fixed">' +
-                '<thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase"><th class="p-2">PRODUCT</th><th class="p-2 w-28">LIST PRICE</th><th class="p-2 w-20">QTY</th><th class="p-2 w-28 text-right">TOTAL</th><th class="p-2 w-14"></th></tr></thead>' +
-                '<tbody class="line-items-body"></tbody></table></div>' +
-                '<div class="flex justify-between items-center mt-2 border-t border-slate-100 pt-4">' +
-                '<button type="button" class="text-blue-500 text-sm font-semibold hover:text-blue-600 add-row-btn">+ Add product line</button>' +
-                '<div class="font-bold text-slate-600 text-sm">Location total: <span class="location-total text-slate-900 ml-2 text-lg">$0.00</span></div></div>' +
-                '<div class="mt-4 border-t border-slate-100 pt-4"><div class="flex justify-between items-center mb-2"><span class="text-xs font-bold uppercase tracking-wider text-slate-500">Promotions</span><button type="button" class="text-blue-500 text-sm font-semibold hover:text-blue-600 add-promo-btn">+ Add Promotion</button></div><div class="location-promotions-container space-y-2"></div></div>' +
-                '</div>';
-            locContainer.insertAdjacentHTML('beforeend', html);
-            var block = document.getElementById(locId);
-            if (items && items.length) items.forEach(function(it) { addRow(block, optionBlock, it); });
-            else addRow(block, optionBlock, null);
-            setLocationPromotionsFromData(block, promotions);
-            block.querySelector('.add-row-btn').addEventListener('click', function() { addRow(block, optionBlock, null); });
-            block.querySelector('.add-promo-btn').addEventListener('click', function() { appendLocationPromotionRow(block); if (!_suppressDirty) setDirty(true); });
-            block.querySelector('.remove-location-btn').addEventListener('click', function() {
-                var n = optionBlock.querySelectorAll('.location-block').length;
-                if (n <= 1) { showToast('Each pricing option needs at least one location.', 'error'); return; }
-                block.remove();
+
+        function wireLocationDragDrop(locBlock, container, optionBlock) {
+            locBlock.setAttribute('draggable', 'true');
+            locBlock.addEventListener('dragstart', function(e) {
+                var handle = locBlock.querySelector('.location-drag-handle');
+                if (!handle || !handle.contains(e.target)) {
+                    e.preventDefault();
+                    return;
+                }
+                locBlock.classList.add('drag-location-ghost');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', locBlock.id);
+            });
+            locBlock.addEventListener('dragend', function() {
+                locBlock.classList.remove('drag-location-ghost');
+                container.querySelectorAll('.location-block').forEach(function(b) {
+                    b.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
+                });
+            });
+            locBlock.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                locBlock.classList.add('ring-2', 'ring-blue-400', 'ring-inset');
+            });
+            locBlock.addEventListener('dragleave', function(e) {
+                if (!locBlock.contains(e.relatedTarget)) {
+                    locBlock.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
+                }
+            });
+            locBlock.addEventListener('drop', function(e) {
+                e.preventDefault();
+                var srcId = e.dataTransfer.getData('text/plain');
+                var src = document.getElementById(srcId);
+                locBlock.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
+                if (!src || src === locBlock || src.parentElement !== container) return;
+                var rect = locBlock.getBoundingClientRect();
+                var before = e.clientY < rect.top + rect.height / 2;
+                if (before) container.insertBefore(src, locBlock);
+                else container.insertBefore(src, locBlock.nextSibling);
                 calculateOptionTotal(optionBlock);
                 if (!_suppressDirty) setDirty(true);
             });
         }
-        function addPricingOption(presetTerm, locationsData) {
+
+        function addLocationBlock(container, optionBlock, locName, items, promotions) {
+            locationCount++;
+            var locId = 'location-' + locationCount;
+            var nameEsc = (locName || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            var html = '<div class="location-block border border-slate-200 rounded-lg p-5 bg-white shadow-sm relative pl-9" id="' + locId + '">' +
+                '<div class="location-drag-handle absolute left-2 top-11 cursor-grab active:cursor-grabbing text-slate-300 hover:text-blue-500 select-none rounded p-1 hover:bg-slate-100" title="Drag to reorder locations" aria-hidden="true">⋮⋮</div>' +
+                '<button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 font-bold text-sm remove-location-btn">✕</button>' +
+                '<div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location Name or Address (e.g., 123 Main St)" value="' + nameEsc + '"></div>' +
+                '<div class="location-pricing-table-wrap mb-4">' +
+                '<table class="w-full text-left border-collapse">' +
+                '<thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase">' +
+                '<th class="p-2">PRODUCT</th><th class="p-2 w-28">LIST PRICE</th><th class="p-2 w-20">QTY</th><th class="p-2 w-28 text-right">TOTAL</th>' +
+                '<th class="p-2 w-14 text-center text-xs font-semibold tracking-wide normal-case" title="Non-recurring charge">NRC</th>' +
+                '<th class="p-2 w-12 text-center"><span class="sr-only">Remove</span></th></tr></thead>' +
+                '<tbody class="line-items-body"></tbody></table></div>' +
+                '<div class="location-promotions-panel mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">' +
+                '<div class="flex justify-between items-center mb-2 gap-2">' +
+                '<span class="text-xs font-bold uppercase tracking-wider text-slate-500">Promotions</span>' +
+                '<button type="button" class="text-blue-500 text-sm font-semibold hover:text-blue-600 shrink-0 add-promo-btn">+ Add Promotion</button></div>' +
+                '<div class="location-promotions-container space-y-2"></div></div>' +
+                '<div class="flex justify-between items-center mt-2 border-t border-slate-100 pt-4 gap-4">' +
+                '<button type="button" class="text-blue-500 text-sm font-semibold hover:text-blue-600 add-row-btn">+ Add Product Line</button>' +
+                '<div class="location-subtotal-row hidden font-bold text-slate-600 text-sm tracking-wide whitespace-nowrap">Location subtotal: <span class="location-total text-slate-900 ml-2 text-lg">$0.00</span></div></div></div>';
+            container.insertAdjacentHTML('beforeend', html);
+            var block = document.getElementById(locId);
+            syncLocationSubtotalVisibility();
+
+            var mergedPromotions = migrateLegacyRowPromosIntoLocationPromotions(items, promotions);
+
+            if (items && items.length > 0) {
+                items.forEach(function(it) { addRow(block, optionBlock, stripLegacyRowPromoFields(it)); });
+            } else {
+                addRow(block, optionBlock, null);
+            }
+            setLocationPromotionsFromData(block, mergedPromotions);
+
+            block.querySelector('.add-promo-btn').addEventListener('click', function() { appendLocationPromotionRow(block); if (!_suppressDirty) setDirty(true); });
+            block.querySelector('.add-row-btn').addEventListener('click', function() { addRow(block, optionBlock, null); });
+            block.querySelector('.remove-location-btn').addEventListener('click', function() {
+                if (container.children.length > 1) {
+                    block.remove();
+                    calculateOptionTotal(optionBlock);
+                    if (!_suppressDirty) setDirty(true);
+                } else {
+                    showToast('Each option must have at least one location.', 'error');
+                }
+            });
+            wireLocationDragDrop(block, container, optionBlock);
+        }
+
+        function addPricingOption(optionData) {
             if (!optionsContainer) return;
+            if (optionData == null) {
+                var existingOpts = optionsContainer.querySelectorAll('.pricing-option-block');
+                if (existingOpts.length > 0) {
+                    optionData = cloneOptionDataFromBlock(existingOpts[existingOpts.length - 1]);
+                }
+            }
             optionCount++;
-            var optId = 'pricing-option-' + optionCount;
-            var termEsc = (presetTerm != null && String(presetTerm) !== '') ? String(presetTerm).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
-            optionsContainer.insertAdjacentHTML('beforeend',
-                '<div class="pricing-option-block border-2 border-slate-200 rounded-xl p-5 mb-6 bg-slate-50/80" id="' + optId + '">' +
-                '<div class="flex justify-between items-start mb-4 pb-3 border-b border-slate-200">' +
-                '<div><h4 class="option-title text-lg font-bold text-slate-800">Pricing Option ' + optionCount + '</h4>' +
-                '<p class="text-xs text-slate-500 mt-1">Term and totals apply to this option only.</p></div>' +
-                '<button type="button" class="remove-pricing-option-btn text-slate-500 hover:text-red-600 text-sm font-semibold px-2 py-1 rounded border border-transparent hover:border-red-200">Remove option</button></div>' +
-                '<div class="mb-4 max-w-xs"><label class="block text-sm font-semibold text-slate-700">Contract term (months)</label>' +
-                '<input type="text" class="option-term-input w-full border border-slate-300 p-2 rounded-lg mt-1 bg-white outline-none focus:border-orange-500" placeholder="e.g. 36" value="' + termEsc + '"></div>' +
-                '<div class="option-locations-container space-y-6"></div>' +
-                '<button type="button" class="add-location-in-option-btn mt-4 text-blue-600 hover:text-blue-800 text-sm font-semibold">+ Add location</button>' +
-                '<div class="mt-6 pt-4 border-t border-slate-200 flex justify-between items-center bg-white/90 p-4 rounded-lg">' +
-                '<span class="font-bold text-slate-700">Option monthly total</span>' +
-                '<span class="option-grand-total text-2xl font-extrabold text-blue-600">$0.00</span></div></div>');
-            var optBlock = document.getElementById(optId);
-            optBlock.querySelector('.add-location-in-option-btn').addEventListener('click', function() { addLocationBlock(optBlock, '', null, null); });
-            optBlock.querySelector('.remove-pricing-option-btn').addEventListener('click', function() {
+            var optionId = 'pricing-option-' + optionCount;
+            var termVal = '';
+            if (optionData && optionData.term != null) termVal = String(optionData.term).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            var optionHtml =
+                '<div class="pricing-option-block bg-slate-50 border border-slate-200 rounded-xl p-6 relative mb-6" id="' + optionId + '">' +
+                '<div class="flex justify-between items-center mb-6 border-b border-slate-200 pb-4">' +
+                '<h4 class="text-xl font-bold text-slate-700 option-title">Option ' + optionCount + '</h4>' +
+                '<div class="flex items-center gap-6">' +
+                '<button type="button" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-slate-900 transition add-location-btn">+ Add Location</button>' +
+                '<button type="button" class="text-slate-400 hover:text-red-500 font-bold text-2xl remove-option-btn hidden transition leading-none" title="Remove Option">✕</button></div></div>' +
+                '<div class="pricing-option-controls-row mb-6 flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between lg:gap-8">' +
+                '<div class="w-full lg:w-1/3 lg:min-w-[200px]">' +
+                '<label class="block text-sm font-semibold text-slate-700">Contract Term (Months)</label>' +
+                '<input type="text" class="contract-term option-term-input w-full border border-slate-300 p-2 rounded-lg mt-1 bg-white focus:outline-none focus:border-orange-500 transition" placeholder="e.g. 36" value="' + termVal + '">' +
+                '</div></div>' +
+                '<div class="locations-container space-y-8"></div>' +
+                '<div class="mt-6 border-t border-slate-300 pt-6 flex justify-between items-center bg-white p-6 rounded-lg shadow-sm">' +
+                '<span class="text-xl font-bold text-slate-800 uppercase option-total-label">Option Total Monthly Cost:</span>' +
+                '<span class="option-grand-total text-3xl font-extrabold text-blue-600">$0.00</span></div></div>';
+
+            optionsContainer.insertAdjacentHTML('beforeend', optionHtml);
+            var block = document.getElementById(optionId);
+            var locContainer = block.querySelector('.locations-container');
+
+            if (optionData && optionData.locations && optionData.locations.length > 0) {
+                optionData.locations.forEach(function(loc) {
+                    addLocationBlock(locContainer, block, loc.name, loc.items, loc.promotions);
+                });
+            } else {
+                addLocationBlock(locContainer, block);
+            }
+
+            block.querySelector('.add-location-btn').addEventListener('click', function() { addLocationBlock(locContainer, block); });
+            block.querySelector('.remove-option-btn').addEventListener('click', function() {
+                var subCb = document.getElementById('pricing-enable-location-subtotals');
+                if (subCb && block.contains(subCb)) {
+                    pricingSubtotalCheckboxPreserveChecked = subCb.checked;
+                }
                 if (optionsContainer.querySelectorAll('.pricing-option-block').length <= 1) {
                     showToast('Keep at least one pricing option.', 'error');
                     return;
                 }
-                optBlock.remove();
+                block.remove();
                 updateOptionTitles();
-                updateOptionRemoveVisibility();
                 if (!_suppressDirty) setDirty(true);
             });
-            if (locationsData && locationsData.length) {
-                locationsData.forEach(function(loc) { addLocationBlock(optBlock, loc.name, loc.items, loc.promotions); });
-            } else {
-                addLocationBlock(optBlock, '', null, null);
-            }
+
             updateOptionTitles();
-            updateOptionRemoveVisibility();
+            ensurePricingSubtotalCheckboxPlacement();
         }
+
         var addPricingOptBtn = document.getElementById('add-pricing-option-btn');
         if (optionsContainer && addPricingOptBtn) {
-            addPricingOptBtn.addEventListener('click', function() {
-                var options = optionsContainer.querySelectorAll('.pricing-option-block');
-                var lastOption = options.length ? options[options.length - 1] : null;
-                var snapshot = buildPricingOptionSnapshot(lastOption);
-                addPricingOption(snapshot.contractTerm, snapshot.locations);
-            });
-            addPricingOption('', null);
+            addPricingOptBtn.addEventListener('click', function() { addPricingOption(null); });
+            addPricingOption(null);
         } else if (!optionsContainer) {
             console.warn('[Proposals] #pricing-options-container not found; pricing UI disabled.');
         }
+
+        var csvInputEl = document.getElementById('salesforce-csv-input');
+        var csvTriggerEl = document.getElementById('salesforce-csv-trigger');
+        if (csvTriggerEl && csvInputEl) {
+            csvTriggerEl.addEventListener('click', function() { csvInputEl.click(); });
+            csvInputEl.addEventListener('change', function(e) {
+                var f = e.target.files && e.target.files[0];
+                if (f) handleSalesforceCsvFile(f);
+                e.target.value = '';
+            });
+            ['dragenter', 'dragover'].forEach(function(ev) {
+                csvTriggerEl.addEventListener(ev, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    csvTriggerEl.classList.add('border-blue-400', 'bg-blue-50');
+                });
+            });
+            csvTriggerEl.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                csvTriggerEl.classList.remove('border-blue-400', 'bg-blue-50');
+            });
+            csvTriggerEl.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                csvTriggerEl.classList.remove('border-blue-400', 'bg-blue-50');
+                var f = e.dataTransfer.files && e.dataTransfer.files[0];
+                if (f) handleSalesforceCsvFile(f);
+            });
+        }
+
+        (function setupSalesforceExportHelpModal() {
+            var modal = document.getElementById('salesforce-export-help-modal');
+            var openBtn = document.getElementById('salesforce-export-help-open');
+            var closeBtns = [
+                document.getElementById('salesforce-export-help-close'),
+                document.getElementById('salesforce-export-help-close-footer')
+            ].filter(Boolean);
+            if (!modal || !openBtn) return;
+
+            var prevHtmlOverflow = '';
+            var prevBodyOverflow = '';
+
+            function openModal() {
+                modal.classList.remove('hidden');
+                modal.setAttribute('aria-hidden', 'false');
+                prevHtmlOverflow = document.documentElement.style.overflow;
+                prevBodyOverflow = document.body.style.overflow;
+                document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeModal() {
+                modal.classList.add('hidden');
+                modal.setAttribute('aria-hidden', 'true');
+                document.documentElement.style.overflow = prevHtmlOverflow;
+                document.body.style.overflow = prevBodyOverflow;
+            }
+
+            openBtn.addEventListener('click', openModal);
+            closeBtns.forEach(function(btn) { btn.addEventListener('click', closeModal); });
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeModal();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+        })();
+
+        syncLocationSubtotalVisibility();
 
         function updateImpactNet() {
             var cur = parseFloat(document.getElementById('impact-current-cost').value) || 0;
@@ -689,26 +1107,16 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         // --- Save / Load Project ---
         function buildProjectData() {
             var pricingOptions = Array.from(document.querySelectorAll('.pricing-option-block')).map(function(optBlock) {
+                var termEl = optBlock.querySelector('.contract-term') || optBlock.querySelector('.option-term-input');
+                var termVal = termEl ? termEl.value : '';
                 return {
-                    contractTerm: (optBlock.querySelector('.option-term-input') && optBlock.querySelector('.option-term-input').value) || '',
+                    term: termVal,
+                    contractTerm: termVal,
                     locations: Array.from(optBlock.querySelectorAll('.location-block')).map(function(block) {
                         return {
-                            name: block.querySelector('.loc-name-input').value,
+                            name: block.querySelector('.loc-name-input') ? block.querySelector('.loc-name-input').value : '',
                             promotions: readLocationPromotions(block),
-                            items: Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(function(tr) {
-                                var nrcRow = tr.nextElementSibling;
-                                var nrcToggle = tr.querySelector('.row-nrc-toggle');
-                                var nrcDescEl = nrcRow ? nrcRow.querySelector('.row-nrc-description') : null;
-                                var nrcAmountEl = nrcRow ? nrcRow.querySelector('.row-nrc-amount') : null;
-                                return {
-                                    prod: tr.querySelector('.prod-name').value,
-                                    price: tr.querySelector('.price-input').value,
-                                    qty: tr.querySelector('.qty-input').value,
-                                    nrcEnabled: !!(nrcToggle && nrcToggle.checked),
-                                    nrcDescription: nrcDescEl ? nrcDescEl.value : '',
-                                    nrcAmount: nrcAmountEl ? nrcAmountEl.value : ''
-                                };
-                            })
+                            items: readPricingItemsFromLocationBlock(block)
                         };
                     })
                 };
@@ -724,6 +1132,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 customTextTitle: document.getElementById('custom-text-title-input') ? document.getElementById('custom-text-title-input').value : '',
                 customPdfSectionName: document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '',
                 customText: document.getElementById('custom-text-body') ? document.getElementById('custom-text-body').value : '',
+                enableLocationSubtotals: !!(document.getElementById('pricing-enable-location-subtotals') && document.getElementById('pricing-enable-location-subtotals').checked),
                 pricingOptions: pricingOptions,
                 references: Array.from(document.querySelectorAll('.ref-block')).map(b => ({
                     name: b.querySelector('.ref-name').value,
@@ -1088,7 +1497,8 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     optionCount = 0;
                     validPricingOptions.forEach(function(po) {
                         var locs = po.locations;
-                        addPricingOption(po.contractTerm, Array.isArray(locs) ? locs : []);
+                        var term = (po.term != null && String(po.term) !== '') ? po.term : (po.contractTerm != null ? po.contractTerm : '');
+                        addPricingOption({ term: term, locations: Array.isArray(locs) ? locs : [] });
                     });
                 } else {
                     optionsContainer.innerHTML = '';
@@ -1096,11 +1506,17 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     var legacyLocs = Array.isArray(data.locations) ? data.locations : [];
                     var hasLegacy = legacyLocs.length || (data.contractTerm != null && String(data.contractTerm).trim() !== '');
                     if (hasLegacy) {
-                        addPricingOption(data.contractTerm || '', legacyLocs.length ? legacyLocs.map(function(loc) { return Object.assign({}, loc, { promotions: Array.isArray(loc.promotions) ? loc.promotions : [] }); }) : null);
+                        addPricingOption({
+                            term: data.contractTerm || '',
+                            locations: legacyLocs.length ? legacyLocs.map(function(loc) { return Object.assign({}, loc, { promotions: Array.isArray(loc.promotions) ? loc.promotions : [] }); }) : []
+                        });
                     } else {
-                        addPricingOption('', null);
+                        addPricingOption(null);
                     }
                 }
+                var locSubCb = document.getElementById('pricing-enable-location-subtotals');
+                if (locSubCb) locSubCb.checked = data.enableLocationSubtotals === true;
+                syncLocationSubtotalVisibility();
             }
             if (data.references && data.references.length) {
                 const refBlocks = document.querySelectorAll('.ref-block');
@@ -1709,9 +2125,12 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + priceVal + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
             };
 
+            var enableLocSubtotalsPdf = !!(document.getElementById('pricing-enable-location-subtotals') && document.getElementById('pricing-enable-location-subtotals').checked);
+
             for (let optIdx = 0; optIdx < optionBlocks.length; optIdx++) {
                 const optBlock = optionBlocks[optIdx];
-                const contractTerm = (optBlock.querySelector('.option-term-input') && optBlock.querySelector('.option-term-input').value) || 'XX';
+                var termElPdf = optBlock.querySelector('.contract-term') || optBlock.querySelector('.option-term-input');
+                const contractTerm = (termElPdf && termElPdf.value) || 'XX';
                 const grandTotalText = optBlock.querySelector('.option-grand-total').innerText;
                 const locationBlocks = Array.from(optBlock.querySelectorAll('.location-block'));
                 
@@ -1719,7 +2138,8 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 locationBlocks.forEach((block) => {
                     const locName = (block.querySelector('.loc-name-input') && block.querySelector('.loc-name-input').value) || 'Location';
                     const rows = Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).map(tr => {
-                        const nrcRow = tr.nextElementSibling;
+                        const sub = getPricingLineSubrows(tr);
+                        const nrcRow = sub.nrcRow;
                         const nrcToggle = tr.querySelector('.row-nrc-toggle');
                         const nrcDescription = nrcRow && nrcRow.querySelector('.row-nrc-description') ? nrcRow.querySelector('.row-nrc-description').value : '';
                         const nrcAmount = nrcRow && nrcRow.querySelector('.row-nrc-amount') ? nrcRow.querySelector('.row-nrc-amount').value : '';
@@ -1739,6 +2159,16 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     }
                     rows.forEach((item, idx) => { allRows.push({ type: 'row', item, bg: (idx % 2 === 0) ? '#E8E8E8' : '#f5f5f5' }); });
                     promotions.forEach((promo) => { allRows.push({ type: 'promo', promo }); });
+                    if (enableLocSubtotalsPdf && rows.length) {
+                        var monthlySum = rows.reduce(function(acc, it) {
+                            var p = parseFloat(it.price) || 0;
+                            var q = parseInt(it.qty, 10) || 0;
+                            return acc + p * q;
+                        }, 0);
+                        var subFormatted = '$' + monthlySum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        var subHtml = '<div style="display:flex;background:#f8fafc;color:#0f172a;border:1px solid ' + borderClr + ';border-top:none;font-weight:700;font-size:12px;"><div style="width:380px;padding:10px 16px;border-right:1px solid ' + borderClr + ';">LOCATION SUBTOTAL</div><div style="width:140px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:90px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:140px;padding:10px 16px;text-align:center;">' + escapeHtml(subFormatted) + '</div></div>';
+                        allRows.push({ type: 'subtotal', html: subHtml });
+                    }
                 });
 
                 var grandTotalNoDecimals = grandTotalText.replace(/\.(\d{2})$/, '') || grandTotalText;
@@ -1815,6 +2245,8 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                                 '<div style="width:140px;padding:10px 16px;text-align:center;font-weight:700;">' + escapeHtml(promoAmountText2 || '') + '</div>' +
                                 '</div>';
                             rowObj = { type: 'promo', html: promoHtml2 };
+                        } else if (allRows[r].type === 'subtotal') {
+                            rowObj = { type: 'row', html: allRows[r].html };
                         } else {
                             rowObj = { type: 'row', html: rowToHtml(allRows[r].item, allRows[r].bg) };
                         }

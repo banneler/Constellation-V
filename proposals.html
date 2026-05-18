@@ -33,6 +33,7 @@
         #pricing-section input[type="number"]::-webkit-outer-spin-button,
         #pricing-section input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         #pricing-section input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+        .location-block.drag-location-ghost { opacity: 0.55; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15); }
         .prod-suggestions { max-height: 10rem; overflow-y: auto; }
         .location-pricing-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .location-pricing-table-wrap table { width: 100%; min-width: 0; table-layout: fixed; }
@@ -349,15 +350,41 @@
                     </div>
 
                     <div id="pricing-section" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300 flex flex-col">
-                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-2 flex-wrap gap-3">
-                            <h3 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Dynamic Pricing Engine
-                            </h3>
-                            <button type="button" id="add-pricing-option-btn" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-slate-900 transition">+ Add Another Pricing Option</button>
+                        <div class="flex items-center mb-6 border-b border-slate-100 pb-2 gap-2">
+                            <svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <h3 class="text-2xl font-bold text-slate-800">Dynamic Pricing Engine</h3>
                         </div>
-                        <p class="text-sm text-slate-500 mb-4">Each option has its own term, locations, and monthly total. PDF pricing pages render one option per section (multi-page when needed).</p>
-                        <div id="pricing-options-container" class="space-y-8"></div>
+
+                        <div class="pricing-engine-settings mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div class="mx-auto flex w-full max-w-xl flex-col items-center gap-2 text-center">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Bulk Import from Salesforce CSV</span>
+                                <input type="file" id="salesforce-csv-input" accept=".csv,text/csv" class="hidden">
+                                <button type="button" id="salesforce-csv-trigger" class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white px-4 py-4 text-center text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-900">
+                                    <svg class="h-6 w-6 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                    <span id="salesforce-csv-label">Drop a Details-only Salesforce export (.csv) here or click to browse</span>
+                                </button>
+                                <p class="text-[11px] leading-snug text-slate-500">Imports into the first pricing option and replaces existing locations. Matches reports such as <strong class="font-medium text-slate-600">Z Location</strong>, <strong class="font-medium text-slate-600">Product</strong>, <strong class="font-medium text-slate-600">Quantity</strong>, and <strong class="font-medium text-slate-600">Customer Unit Price</strong> (Details-only exports).</p>
+                                <div class="mt-3 flex w-full flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-200 pt-3">
+                                    <button type="button" id="salesforce-export-help-open" class="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition">
+                                        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        How to export from Salesforce
+                                    </button>
+                                    <a href="https://gpcom.lightning.force.com/lightning/r/Report/00OKZ000000HxGf2AK/view" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-blue-600 transition">
+                                        Open report (Enterprise Proposals – Quick Import)
+                                        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="pricing-options-container" class="space-y-12"></div>
+
+                        <div class="mt-8 border-t border-slate-200 pt-6 flex justify-center">
+                            <button type="button" id="add-pricing-option-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg border border-slate-300 shadow-sm transition flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                Add Another Pricing Option
+                            </button>
+                        </div>
                     </div>
 
                     <div id="impact-roi-section" class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 transition-all duration-300">
@@ -410,6 +437,59 @@
             </div>
             <div class="bg-[#525659] rounded-lg shadow-2xl flex-1 overflow-hidden border-4 border-slate-700 w-full">
                 <iframe id="pdf-preview-iframe" class="w-full h-full border-0" src=""></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div id="salesforce-export-help-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4" aria-hidden="true" role="dialog" aria-labelledby="salesforce-export-help-title">
+        <div class="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
+            <div class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-6 py-4">
+                <div>
+                    <h2 id="salesforce-export-help-title" class="text-xl font-bold text-slate-900">Export Salesforce report for bulk import</h2>
+                    <p class="mt-1 text-sm text-slate-600">Use the <strong class="font-semibold text-slate-800">Enterprise Proposals – Quick Import</strong> report, then upload the CSV below.</p>
+                </div>
+                <button type="button" id="salesforce-export-help-close" class="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-slate-700" aria-label="Close">&times;</button>
+            </div>
+            <div class="overflow-y-auto px-6 py-5">
+                <ol class="list-decimal space-y-8 pl-5 text-sm leading-relaxed text-slate-700 marker:font-bold marker:text-blue-600">
+                    <li class="pl-2">
+                        <span class="font-semibold text-slate-900">Open the report.</span>
+                        Use the link under the import area or
+                        <a href="https://gpcom.lightning.force.com/lightning/r/Report/00OKZ000000HxGf2AK/view" target="_blank" rel="noopener noreferrer" class="font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2">open it in a new tab</a>.
+                        Sign in to Salesforce if prompted.
+                    </li>
+                    <li class="pl-2">
+                        <span class="font-semibold text-slate-900">Edit the report.</span>
+                        In Lightning, switch to edit/customize mode so you can change filters (often <strong>Edit</strong> from the report actions menu—wording may vary slightly by org).
+                    </li>
+                    <li class="pl-2">
+                        <span class="font-semibold text-slate-900">Set your Solution Number.</span>
+                        Under <strong>Filters</strong>, edit <strong>GPC Solution: GPC Solution Number</strong>, enter your quote’s solution ID (for example <code class="rounded bg-slate-100 px-1 py-0.5 text-xs font-mono text-slate-800">Q-40776</code>), then <strong>Apply</strong>.
+                        <figure class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm">
+                            <img src="Proposal_Assets/salesforce-report-filter-run.png" alt="Salesforce report filters and Solution Number filter dialog with Run highlighted" class="w-full object-cover object-top" width="1200" height="675" loading="lazy">
+                            <figcaption class="border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">Filters → Solution Number → Apply. Then click <strong class="text-slate-700">Run</strong> (top right).</figcaption>
+                        </figure>
+                    </li>
+                    <li class="pl-2">
+                        <span class="font-semibold text-slate-900">Run the report.</span>
+                        Click the blue <strong>Run</strong> button so the detail rows refresh with your solution.
+                    </li>
+                    <li class="pl-2">
+                        <span class="font-semibold text-slate-900">Export as Details-only CSV.</span>
+                        Open <strong>Export</strong>, choose <strong>Details Only</strong>, set Format to <strong>Comma Delimited (.csv)</strong>, then click <strong>Export</strong>.
+                        <figure class="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm">
+                            <img src="Proposal_Assets/salesforce-export-details-only-modal.png" alt="Salesforce Export dialog with Details Only and CSV format selected" class="w-full object-cover object-top" width="1200" height="675" loading="lazy">
+                            <figcaption class="border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500"><strong class="text-slate-700">Details Only</strong> + <strong class="text-slate-700">Comma Delimited .csv</strong>, then Export.</figcaption>
+                        </figure>
+                    </li>
+                    <li class="pl-2">
+                        <span class="font-semibold text-slate-900">Import here.</span>
+                        Drag the downloaded file onto the dashed box above (or browse). Your locations and lines populate automatically.
+                    </li>
+                </ol>
+            </div>
+            <div class="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+                <button type="button" id="salesforce-export-help-close-footer" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">Got it</button>
             </div>
         </div>
     </div>
