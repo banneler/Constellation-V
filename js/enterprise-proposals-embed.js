@@ -609,16 +609,18 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
             if (!group) {
                 group = document.createElement('div');
-                group.className = 'pricing-option-checkboxes-wrap flex flex-wrap items-center gap-3 shrink-0';
+                group.className = 'pricing-option-checkboxes-wrap shrink-0';
+                group.insertAdjacentHTML('beforeend', '<label class="pricing-option-checkboxes-spacer block text-sm font-semibold text-slate-700 invisible select-none" aria-hidden="true">&nbsp;</label><div class="pricing-option-checkboxes-inner mt-1 flex flex-wrap items-center gap-2"></div>');
+                var inner = group.querySelector('.pricing-option-checkboxes-inner');
                 if (subWrap) {
-                    group.appendChild(subWrap);
+                    inner.appendChild(subWrap);
                 } else {
-                    group.insertAdjacentHTML('beforeend', '<label class="pricing-location-subtotals-wrap flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-location-subtotals" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Location Subtotals</span></label>');
+                    inner.insertAdjacentHTML('beforeend', '<label class="pricing-location-subtotals-wrap flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-location-subtotals" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Location Subtotals</span></label>');
                 }
                 if (amyWrap) {
-                    group.appendChild(amyWrap);
+                    inner.appendChild(amyWrap);
                 } else {
-                    group.insertAdjacentHTML('beforeend', '<label class="pricing-amy-decimals-wrap flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-decimal-points-amy" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Decimal Points for Amy</span></label>');
+                    inner.insertAdjacentHTML('beforeend', '<label class="pricing-amy-decimals-wrap flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-decimal-points-amy" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Decimal Points</span></label>');
                 }
                 var solutionWrap = row.querySelector('.pricing-solution-id-wrap');
                 if (solutionWrap) solutionWrap.insertAdjacentElement('afterend', group);
@@ -629,10 +631,19 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 else row.appendChild(group);
             }
 
+            var checkboxInner = group.querySelector('.pricing-option-checkboxes-inner');
+            if (!checkboxInner) {
+                group.insertAdjacentHTML('afterbegin', '<label class="pricing-option-checkboxes-spacer block text-sm font-semibold text-slate-700 invisible select-none" aria-hidden="true">&nbsp;</label><div class="pricing-option-checkboxes-inner mt-1 flex flex-wrap items-center gap-2"></div>');
+                checkboxInner = group.querySelector('.pricing-option-checkboxes-inner');
+            }
             subWrap = group.querySelector('.pricing-location-subtotals-wrap');
             amyWrap = group.querySelector('.pricing-amy-decimals-wrap');
-            if (subWrap && subWrap.parentElement !== group) group.prepend(subWrap);
-            if (amyWrap && amyWrap.parentElement !== group) group.appendChild(amyWrap);
+            if (checkboxInner) {
+                if (subWrap && subWrap.parentElement !== checkboxInner) checkboxInner.prepend(subWrap);
+                if (amyWrap && amyWrap.parentElement !== checkboxInner) checkboxInner.appendChild(amyWrap);
+            }
+            var amyLabel = group.querySelector('.pricing-amy-decimals-wrap span');
+            if (amyLabel) amyLabel.textContent = 'Enable Decimal Points';
 
             var cb = document.getElementById('pricing-enable-location-subtotals');
             if (cb && pricingSubtotalCheckboxPreserveChecked !== null) cb.checked = pricingSubtotalCheckboxPreserveChecked;
@@ -965,7 +976,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             });
         }
 
-        function getLocationDragAfterElement(container, y) {
+        function getLocationDragInsertBeforeElement(container, y) {
             var draggableElements = Array.from(container.querySelectorAll('.location-block:not(.drag-location-ghost)'));
             var closest = { offset: Number.NEGATIVE_INFINITY, element: null };
             draggableElements.forEach(function(child) {
@@ -976,6 +987,23 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 }
             });
             return closest.element;
+        }
+
+        function performLocationReorder(container, optionBlock, clientY, srcId) {
+            if (!container || !srcId) return;
+            var src = document.getElementById(srcId);
+            if (!src || src.parentElement !== container) return;
+
+            var insertBefore = getLocationDragInsertBeforeElement(container, clientY);
+            if (insertBefore === src) return;
+            if (insertBefore === src.nextElementSibling) return;
+
+            if (insertBefore == null) container.appendChild(src);
+            else container.insertBefore(src, insertBefore);
+
+            clearLocationDragHighlights(container);
+            calculateOptionTotal(optionBlock);
+            if (!_suppressDirty) setDirty(true);
         }
 
         function wireLocationsContainerDragDrop(container, optionBlock) {
@@ -989,18 +1017,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
             container.addEventListener('drop', function(e) {
                 e.preventDefault();
-                var srcId = e.dataTransfer.getData('text/plain');
-                if (!srcId) return;
-                var src = document.getElementById(srcId);
-                if (!src || src.parentElement !== container) return;
-
-                var afterElement = getLocationDragAfterElement(container, e.clientY);
-                if (afterElement == null) container.appendChild(src);
-                else container.insertBefore(src, afterElement);
-
-                clearLocationDragHighlights(container);
-                calculateOptionTotal(optionBlock);
-                if (!_suppressDirty) setDirty(true);
+                performLocationReorder(container, optionBlock, e.clientY, e.dataTransfer.getData('text/plain'));
             });
         }
 
@@ -1041,6 +1058,12 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     locBlock.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
                 }
             });
+
+            locBlock.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                performLocationReorder(container, optionBlock, e.clientY, e.dataTransfer.getData('text/plain'));
+            });
         }
 
         function addLocationBlock(container, optionBlock, locName, items, promotions) {
@@ -1048,10 +1071,11 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             locationCount++;
             var locId = 'location-' + locationCount;
             var nameEsc = (locName || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-            var html = '<div class="location-block border border-slate-200 rounded-lg p-5 bg-white shadow-sm relative pl-9" id="' + locId + '">' +
-                '<div class="location-drag-handle absolute left-2 top-11 cursor-grab active:cursor-grabbing text-slate-300 hover:text-blue-500 select-none rounded p-1 hover:bg-slate-100" title="Drag to reorder locations" aria-hidden="true">⋮⋮</div>' +
+            var html = '<div class="location-block border border-slate-200 rounded-lg p-5 bg-white shadow-sm relative" id="' + locId + '">' +
                 '<button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full w-8 h-8 font-bold text-sm remove-location-btn">✕</button>' +
-                '<div class="mb-5 pr-10"><input type="text" class="w-full border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location Name or Address (e.g., 123 Main St)" value="' + nameEsc + '"></div>' +
+                '<div class="mb-5 pr-10 flex items-center gap-2">' +
+                '<div class="location-drag-handle cursor-grab active:cursor-grabbing text-slate-300 hover:text-blue-500 select-none rounded p-1 hover:bg-slate-100 shrink-0 leading-none" title="Drag to reorder locations" aria-hidden="true">⋮⋮</div>' +
+                '<input type="text" class="w-full min-w-0 border-b-2 border-slate-200 p-2 text-lg font-bold text-slate-800 outline-none focus:border-orange-500 loc-name-input" placeholder="Location Name or Address (e.g., 123 Main St)" value="' + nameEsc + '"></div>' +
                 '<div class="location-pricing-table-wrap mb-4">' +
                 '<table class="w-full text-left border-collapse">' +
                 '<thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase">' +
