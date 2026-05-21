@@ -1159,7 +1159,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 '<button type="button" class="text-slate-400 hover:text-red-500 font-bold text-2xl remove-option-btn hidden transition leading-none" title="Remove Option">✕</button></div></div>' +
                 '<div class="pricing-option-controls-row mb-6">' +
                 '<div class="pricing-option-term-wrap">' +
-                '<label class="block text-sm font-semibold text-slate-700">Contract Term (Months)</label>' +
+                '<label class="block text-sm font-semibold text-slate-700">Contract Term</label>' +
                 '<input type="text" class="contract-term option-term-input w-full border border-slate-300 p-2 rounded-lg mt-1 bg-white focus:outline-none focus:border-orange-500 transition" placeholder="e.g. 36" value="' + termVal + '">' +
                 '</div>' +
                 '<div class="pricing-solution-id-wrap">' +
