@@ -314,7 +314,7 @@
                                     <div>
                                         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3>
                                         <p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p>
-                                        <div id="custom-page-snippets" class="space-y-2 overflow-auto min-h-0"></div>
+                                        <div id="custom-page-snippets" class="custom-page-snippets space-y-2 overflow-auto min-h-0"></div>
                                     </div>
                                 </div>
                             </div>
@@ -357,6 +357,16 @@
                             <button type="button" id="add-pricing-option-btn" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-slate-900 transition">+ Add Another Pricing Option</button>
                         </div>
                         <p class="text-sm text-slate-500 mb-4">Each option has its own term, locations, and monthly total. PDF pricing pages render one option per section (multi-page when needed).</p>
+                        <div class="pricing-option-checkboxes-wrap flex w-full flex-wrap items-center gap-3 mb-4">
+                            <label class="flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 shadow-sm hover:border-orange-300 transition shrink-0">
+                                <input type="checkbox" id="pricing-enable-location-subtotals" class="h-4 w-4 shrink-0 rounded border-slate-300 text-orange-500 focus:ring-orange-500">
+                                <span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable location subtotals (PDF)</span>
+                            </label>
+                            <label class="flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 shadow-sm hover:border-orange-300 transition shrink-0">
+                                <input type="checkbox" id="pricing-enable-decimal-points-amy" class="h-4 w-4 shrink-0 rounded border-slate-300 text-orange-500 focus:ring-orange-500">
+                                <span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable decimal cents (Amy / PDF totals)</span>
+                            </label>
+                        </div>
                         <div id="pricing-options-container" class="space-y-8"></div>
                     </div>
 
