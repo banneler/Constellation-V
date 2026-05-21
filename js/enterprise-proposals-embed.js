@@ -549,6 +549,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         let optionCount = 0;
         let locationCount = 0;
         var pricingSubtotalCheckboxPreserveChecked = null;
+        var csvImportTargetOptionBlock = null;
 
         function ensurePricingSubtotalCheckboxPlacement() {
             var opts = document.querySelectorAll('.pricing-option-block');
@@ -574,9 +575,16 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     if (!_suppressDirty) setDirty(true);
                 }
             });
+            optionsContainer.addEventListener('click', function(e) {
+                var btn = e.target.closest('.option-salesforce-csv-btn');
+                if (!btn || !optionsContainer.contains(btn)) return;
+                csvImportTargetOptionBlock = btn.closest('.pricing-option-block');
+                var optInput = document.getElementById('salesforce-csv-input-option');
+                if (optInput) optInput.click();
+            });
         }
 
-        function applySalesforceCsvText(csvText) {
+        function applySalesforceCsvText(csvText, targetOptionBlock) {
             var rows = parseCsvRows(csvText.replace(/^\uFEFF/, ''));
             if (rows.length < 2) {
                 showToast('CSV has no data rows.', 'error');
@@ -636,12 +644,12 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 return;
             }
 
-            var firstOpt = document.querySelector('.pricing-option-block');
-            if (!firstOpt) {
+            var targetOpt = targetOptionBlock || document.querySelector('.pricing-option-block');
+            if (!targetOpt) {
                 showToast('Pricing builder not ready.', 'error');
                 return;
             }
-            var locContainer = firstOpt.querySelector('.locations-container');
+            var locContainer = targetOpt.querySelector('.locations-container');
             if (!locContainer) {
                 showToast('Pricing locations container missing.', 'error');
                 return;
@@ -649,16 +657,18 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             locContainer.innerHTML = '';
 
             order.forEach(function(key) {
-                addLocationBlock(locContainer, firstOpt, key, groups[key], null);
+                addLocationBlock(locContainer, targetOpt, key, groups[key], null);
             });
 
-            calculateOptionTotal(firstOpt);
+            calculateOptionTotal(targetOpt);
             syncLocationSubtotalVisibility();
             if (!_suppressDirty) setDirty(true);
-            showToast('Imported ' + order.length + ' location(s) from Salesforce CSV.', 'success');
+            var titleElToast = targetOpt.querySelector('.option-title');
+            var optLbl = titleElToast ? titleElToast.textContent.trim() : 'pricing option';
+            showToast('Imported ' + order.length + ' location(s) into ' + optLbl + '.', 'success');
         }
 
-        function handleSalesforceCsvFile(file) {
+        function handleSalesforceCsvFile(file, targetOptionBlock, filenameEl) {
             if (!file) return;
             var nameOk = /\.csv$/i.test(file.name);
             var typeOk = file.type === 'text/csv' || file.type === 'application/vnd.ms-excel' || file.type === '';
@@ -668,8 +678,8 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             }
             var reader = new FileReader();
             reader.onload = function() {
-                applySalesforceCsvText(String(reader.result || ''));
-                var lbl = document.getElementById('salesforce-csv-label');
+                applySalesforceCsvText(String(reader.result || ''), targetOptionBlock);
+                var lbl = filenameEl || document.getElementById('salesforce-csv-label');
                 if (lbl) lbl.textContent = file.name;
             };
             reader.onerror = function() {
@@ -741,6 +751,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         function cloneOptionDataFromBlock(optionBlock) {
             if (!optionBlock) return null;
             var termEl = optionBlock.querySelector('.contract-term') || optionBlock.querySelector('.option-term-input');
+            var solutionEl = optionBlock.querySelector('.solution-id-input');
             var locations = Array.from(optionBlock.querySelectorAll('.location-block')).map(function(block) {
                 return {
                     name: block.querySelector('.loc-name-input') ? block.querySelector('.loc-name-input').value : '',
@@ -750,6 +761,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             });
             return {
                 term: termEl ? termEl.value : '',
+                solutionId: solutionEl ? solutionEl.value : '',
                 locations: locations
             };
         }
@@ -956,16 +968,36 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
         function addPricingOption(optionData) {
             if (!optionsContainer) return;
+            var isAdditionalOption = optionsContainer.querySelectorAll('.pricing-option-block').length > 0;
             if (optionData == null) {
                 var existingOpts = optionsContainer.querySelectorAll('.pricing-option-block');
                 if (existingOpts.length > 0) {
                     optionData = cloneOptionDataFromBlock(existingOpts[existingOpts.length - 1]);
+                }
+            } else if (typeof optionData === 'object') {
+                if ((optionData.term == null || String(optionData.term) === '') && optionData.contractTerm != null) {
+                    optionData.term = optionData.contractTerm;
+                }
+                if ((optionData.solutionId == null || String(optionData.solutionId) === '') && optionData.salesforceQuoteId != null) {
+                    optionData.solutionId = optionData.salesforceQuoteId;
                 }
             }
             optionCount++;
             var optionId = 'pricing-option-' + optionCount;
             var termVal = '';
             if (optionData && optionData.term != null) termVal = String(optionData.term).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            var solutionVal = '';
+            if (optionData && optionData.solutionId != null) {
+                solutionVal = String(optionData.solutionId).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            }
+            var csvWrapHtml = isAdditionalOption ? (
+                '<div class="option-csv-import-wrap w-full lg:w-auto lg:shrink-0 lg:max-w-[240px]">' +
+                '<span class="block text-sm font-semibold text-slate-700 lg:invisible lg:h-0 lg:overflow-hidden lg:mb-0 mb-1">Salesforce</span>' +
+                '<button type="button" class="option-salesforce-csv-btn flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-900">' +
+                '<svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>' +
+                'Import CSV into this option</button>' +
+                '<span class="option-csv-filename mt-1 block truncate text-[10px] text-slate-500" title=""></span></div>'
+            ) : '';
             var optionHtml =
                 '<div class="pricing-option-block bg-slate-50 border border-slate-200 rounded-xl p-6 relative mb-6" id="' + optionId + '">' +
                 '<div class="flex justify-between items-center mb-6 border-b border-slate-200 pb-4">' +
@@ -977,7 +1009,12 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 '<div class="w-full lg:w-1/3 lg:min-w-[200px]">' +
                 '<label class="block text-sm font-semibold text-slate-700">Contract Term (Months)</label>' +
                 '<input type="text" class="contract-term option-term-input w-full border border-slate-300 p-2 rounded-lg mt-1 bg-white focus:outline-none focus:border-orange-500 transition" placeholder="e.g. 36" value="' + termVal + '">' +
-                '</div></div>' +
+                '</div>' +
+                '<div class="w-full lg:w-1/3 lg:min-w-[180px]">' +
+                '<label class="block text-sm font-semibold text-slate-700">Solution ID <span class="font-normal text-slate-400">(optional)</span></label>' +
+                '<input type="text" class="solution-id-input w-full border border-slate-300 p-2 rounded-lg mt-1 bg-white focus:outline-none focus:border-orange-500 transition" placeholder="e.g. Q-40776" maxlength="32" value="' + solutionVal + '">' +
+                '</div>' + csvWrapHtml +
+                '</div>' +
                 '<div class="locations-container space-y-8"></div>' +
                 '<div class="mt-6 border-t border-slate-300 pt-6 flex justify-between items-center bg-white p-6 rounded-lg shadow-sm">' +
                 '<span class="text-xl font-bold text-slate-800 uppercase option-total-label">Option Total Monthly Cost:</span>' +
@@ -1023,12 +1060,21 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
 
         var csvInputEl = document.getElementById('salesforce-csv-input');
+        var csvInputOptionEl = document.getElementById('salesforce-csv-input-option');
+
+        function getFirstPricingOptionBlock() {
+            return document.querySelector('#pricing-options-container .pricing-option-block') || document.querySelector('.pricing-option-block');
+        }
+
         var csvTriggerEl = document.getElementById('salesforce-csv-trigger');
         if (csvTriggerEl && csvInputEl) {
-            csvTriggerEl.addEventListener('click', function() { csvInputEl.click(); });
+            csvTriggerEl.addEventListener('click', function() {
+                csvInputEl.click();
+            });
             csvInputEl.addEventListener('change', function(e) {
                 var f = e.target.files && e.target.files[0];
-                if (f) handleSalesforceCsvFile(f);
+                var firstOpt = getFirstPricingOptionBlock();
+                if (f) handleSalesforceCsvFile(f, firstOpt, document.getElementById('salesforce-csv-label'));
                 e.target.value = '';
             });
             ['dragenter', 'dragover'].forEach(function(ev) {
@@ -1048,7 +1094,19 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 e.stopPropagation();
                 csvTriggerEl.classList.remove('border-blue-400', 'bg-blue-50');
                 var f = e.dataTransfer.files && e.dataTransfer.files[0];
-                if (f) handleSalesforceCsvFile(f);
+                var dropFirstOpt = getFirstPricingOptionBlock();
+                if (f) handleSalesforceCsvFile(f, dropFirstOpt, document.getElementById('salesforce-csv-label'));
+            });
+        }
+
+        if (csvInputOptionEl) {
+            csvInputOptionEl.addEventListener('change', function(e) {
+                var f = e.target.files && e.target.files[0];
+                var target = csvImportTargetOptionBlock;
+                var fnEl = target ? target.querySelector('.option-csv-filename') : null;
+                if (f && target) handleSalesforceCsvFile(f, target, fnEl);
+                csvImportTargetOptionBlock = null;
+                e.target.value = '';
             });
         }
 
@@ -1109,9 +1167,13 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var pricingOptions = Array.from(document.querySelectorAll('.pricing-option-block')).map(function(optBlock) {
                 var termEl = optBlock.querySelector('.contract-term') || optBlock.querySelector('.option-term-input');
                 var termVal = termEl ? termEl.value : '';
+                var solutionEl = optBlock.querySelector('.solution-id-input');
+                var solutionVal = solutionEl ? solutionEl.value.trim() : '';
                 return {
                     term: termVal,
                     contractTerm: termVal,
+                    solutionId: solutionVal,
+                    salesforceQuoteId: solutionVal,
                     locations: Array.from(optBlock.querySelectorAll('.location-block')).map(function(block) {
                         return {
                             name: block.querySelector('.loc-name-input') ? block.querySelector('.loc-name-input').value : '',
@@ -1498,7 +1560,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     validPricingOptions.forEach(function(po) {
                         var locs = po.locations;
                         var term = (po.term != null && String(po.term) !== '') ? po.term : (po.contractTerm != null ? po.contractTerm : '');
-                        addPricingOption({ term: term, locations: Array.isArray(locs) ? locs : [] });
+                        var sid = '';
+                        if (po.solutionId != null && String(po.solutionId).trim() !== '') sid = po.solutionId;
+                        else if (po.salesforceQuoteId != null && String(po.salesforceQuoteId).trim() !== '') sid = po.salesforceQuoteId;
+                        addPricingOption({ term: term, solutionId: sid, locations: Array.isArray(locs) ? locs : [] });
                     });
                 } else {
                     optionsContainer.innerHTML = '';
@@ -2176,6 +2241,9 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 const termLineHtml = '<p style="text-align: center; font-size: 11px; color: #475569; margin-top: 1rem;">Pricing based off ' + escapeHtml(contractTerm) + '-month term</p>';
 
                 let baseHeader = optionBlocks.length > 1 ? `Proposed Pricing Option ${optIdx + 1}` : 'Proposed Pricing';
+                var solutionIdPdfEl = optBlock.querySelector('.solution-id-input');
+                var solutionIdTrim = solutionIdPdfEl && solutionIdPdfEl.value ? String(solutionIdPdfEl.value).trim() : '';
+                if (solutionIdTrim) baseHeader += ' (' + solutionIdTrim + ')';
 
                 if (allRows.length === 0) {
                     const html = totalBlockHtml + termLineHtml;
