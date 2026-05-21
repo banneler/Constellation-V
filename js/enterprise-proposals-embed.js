@@ -958,50 +958,93 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             updateMath(row, locBlock, optionBlock);
         }
 
-        function wireLocationDragDrop(locBlock, container, optionBlock) {
-            locBlock.setAttribute('draggable', 'true');
-            locBlock.addEventListener('dragstart', function(e) {
-                var handle = locBlock.querySelector('.location-drag-handle');
-                if (!handle || !handle.contains(e.target)) {
-                    e.preventDefault();
-                    return;
+        function clearLocationDragHighlights(container) {
+            if (!container) return;
+            container.querySelectorAll('.location-block').forEach(function(b) {
+                b.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
+            });
+        }
+
+        function getLocationDragAfterElement(container, y) {
+            var draggableElements = Array.from(container.querySelectorAll('.location-block:not(.drag-location-ghost)'));
+            var closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+            draggableElements.forEach(function(child) {
+                var box = child.getBoundingClientRect();
+                var offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    closest = { offset: offset, element: child };
                 }
-                locBlock.classList.add('drag-location-ghost');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', locBlock.id);
             });
-            locBlock.addEventListener('dragend', function() {
-                locBlock.classList.remove('drag-location-ghost');
-                container.querySelectorAll('.location-block').forEach(function(b) {
-                    b.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
-                });
-            });
-            locBlock.addEventListener('dragover', function(e) {
+            return closest.element;
+        }
+
+        function wireLocationsContainerDragDrop(container, optionBlock) {
+            if (!container || container.dataset.locationDropWired === '1') return;
+            container.dataset.locationDropWired = '1';
+
+            container.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
-                locBlock.classList.add('ring-2', 'ring-blue-400', 'ring-inset');
             });
-            locBlock.addEventListener('dragleave', function(e) {
-                if (!locBlock.contains(e.relatedTarget)) {
-                    locBlock.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
-                }
-            });
-            locBlock.addEventListener('drop', function(e) {
+
+            container.addEventListener('drop', function(e) {
                 e.preventDefault();
                 var srcId = e.dataTransfer.getData('text/plain');
+                if (!srcId) return;
                 var src = document.getElementById(srcId);
-                locBlock.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
-                if (!src || src === locBlock || src.parentElement !== container) return;
-                var rect = locBlock.getBoundingClientRect();
-                var before = e.clientY < rect.top + rect.height / 2;
-                if (before) container.insertBefore(src, locBlock);
-                else container.insertBefore(src, locBlock.nextSibling);
+                if (!src || src.parentElement !== container) return;
+
+                var afterElement = getLocationDragAfterElement(container, e.clientY);
+                if (afterElement == null) container.appendChild(src);
+                else container.insertBefore(src, afterElement);
+
+                clearLocationDragHighlights(container);
                 calculateOptionTotal(optionBlock);
                 if (!_suppressDirty) setDirty(true);
             });
         }
 
+        function wireLocationDragDrop(locBlock, container, optionBlock) {
+            var handle = locBlock.querySelector('.location-drag-handle');
+            if (!handle || handle.dataset.locationDragWired === '1') return;
+            handle.dataset.locationDragWired = '1';
+
+            locBlock.setAttribute('draggable', 'false');
+            handle.setAttribute('draggable', 'true');
+
+            handle.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+            });
+
+            handle.addEventListener('dragstart', function(e) {
+                locBlock.classList.add('drag-location-ghost');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', locBlock.id);
+                try {
+                    if (e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(locBlock, 24, 24);
+                } catch (err) { /* ignore */ }
+            });
+
+            handle.addEventListener('dragend', function() {
+                locBlock.classList.remove('drag-location-ghost');
+                clearLocationDragHighlights(container);
+            });
+
+            locBlock.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                locBlock.classList.add('ring-2', 'ring-blue-400', 'ring-inset');
+            });
+
+            locBlock.addEventListener('dragleave', function(e) {
+                if (!locBlock.contains(e.relatedTarget)) {
+                    locBlock.classList.remove('ring-2', 'ring-blue-400', 'ring-inset');
+                }
+            });
+        }
+
         function addLocationBlock(container, optionBlock, locName, items, promotions) {
+            wireLocationsContainerDragDrop(container, optionBlock);
             locationCount++;
             var locId = 'location-' + locationCount;
             var nameEsc = (locName || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
