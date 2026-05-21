@@ -37,6 +37,42 @@
         .prod-suggestions { max-height: 10rem; overflow-y: auto; }
         .location-pricing-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .location-pricing-table-wrap table { width: 100%; min-width: 0; table-layout: fixed; }
+        /* Pricing option controls: term, solution ID, subtotals + decimals on one row */
+        .pricing-option-controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 0.75rem 1rem;
+        }
+        .pricing-option-controls-row .pricing-option-term-wrap {
+            flex: 0 0 auto;
+            width: 8.5rem;
+            min-width: 7rem;
+        }
+        .pricing-option-controls-row .pricing-solution-id-wrap {
+            flex: 0 0 auto;
+            width: 10rem;
+            min-width: 8rem;
+        }
+        .pricing-option-controls-row .pricing-option-checkboxes-wrap {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 0 0 auto;
+        }
+        .pricing-option-controls-row .pricing-option-checkboxes-wrap label {
+            padding: 0.5rem 0.65rem;
+        }
+        .pricing-option-controls-row .pricing-option-checkboxes-wrap .text-sm {
+            font-size: 0.7rem;
+            line-height: 1.2;
+        }
+        .pricing-option-controls-row .option-csv-import-wrap {
+            flex: 0 0 auto;
+            min-width: 10rem;
+            max-width: 14rem;
+        }
         /* Salesforce help modal — max-w-3xl not in bundled Tailwind scan; constrain dialog explicitly */
         #salesforce-export-help-modal .salesforce-export-help-dialog {
             max-width: 48rem;

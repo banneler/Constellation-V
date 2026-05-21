@@ -462,6 +462,51 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             });
         }
 
+        function pricingUsesDecimalPoints() {
+            var cb = document.getElementById('pricing-enable-decimal-points-amy');
+            return !!(cb && cb.checked);
+        }
+
+        function formatPricingMoney(amount, useDecimals) {
+            var n = parseFloat(amount);
+            if (isNaN(n)) n = 0;
+            if (useDecimals) {
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+            }
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.ceil(n));
+        }
+
+        function computeLineTotalRaw(unitPrice, qty) {
+            var p = parseFloat(unitPrice) || 0;
+            var q = parseInt(qty, 10) || 0;
+            return p * q;
+        }
+
+        function formatLineListPriceDisplay(unitPrice) {
+            var p = parseFloat(unitPrice) || 0;
+            var useDecimals = pricingUsesDecimalPoints();
+            if (useDecimals) return formatPricingMoney(p, true);
+            return formatPricingMoney(Math.ceil(p), false);
+        }
+
+        function formatLineTotalDisplay(unitPrice, qty) {
+            var raw = computeLineTotalRaw(unitPrice, qty);
+            var useDecimals = pricingUsesDecimalPoints();
+            if (useDecimals) return formatPricingMoney(raw, true);
+            return formatPricingMoney(raw, false);
+        }
+
+        function refreshAllPricingMath() {
+            document.querySelectorAll('.pricing-option-block').forEach(function(optionBlock) {
+                optionBlock.querySelectorAll('.location-block').forEach(function(locBlock) {
+                    locBlock.querySelectorAll('.line-items-body tr.pricing-row').forEach(function(row) {
+                        updateMath(row, locBlock, optionBlock);
+                    });
+                });
+                calculateOptionTotal(optionBlock);
+            });
+        }
+
         function normalizeCsvHeaderCell(h) {
             return String(h || '').replace(/^\uFEFF/, '').trim().toLowerCase().replace(/\s+/g, ' ');
         }
@@ -549,6 +594,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         let optionCount = 0;
         let locationCount = 0;
         var pricingSubtotalCheckboxPreserveChecked = null;
+        var pricingAmyDecimalsPreserveChecked = null;
         var csvImportTargetOptionBlock = null;
 
         function ensurePricingSubtotalCheckboxPlacement() {
@@ -556,15 +602,44 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             if (!opts.length) return;
             var row = opts[0].querySelector('.pricing-option-controls-row');
             if (!row) return;
-            var wrap = row.querySelector('.pricing-location-subtotals-wrap');
-            if (!wrap) {
-                row.insertAdjacentHTML('beforeend', '<label class="pricing-location-subtotals-wrap flex cursor-pointer items-center gap-3 select-none rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-location-subtotals" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Location Subtotals</span></label>');
-                var cb = document.getElementById('pricing-enable-location-subtotals');
-                if (cb && pricingSubtotalCheckboxPreserveChecked !== null) cb.checked = pricingSubtotalCheckboxPreserveChecked;
-            } else if (wrap.parentElement !== row) {
-                row.appendChild(wrap);
+
+            var group = row.querySelector('.pricing-option-checkboxes-wrap');
+            var subWrap = row.querySelector('.pricing-location-subtotals-wrap');
+            var amyWrap = row.querySelector('.pricing-amy-decimals-wrap');
+
+            if (!group) {
+                group = document.createElement('div');
+                group.className = 'pricing-option-checkboxes-wrap flex flex-wrap items-center gap-3 shrink-0';
+                if (subWrap) {
+                    group.appendChild(subWrap);
+                } else {
+                    group.insertAdjacentHTML('beforeend', '<label class="pricing-location-subtotals-wrap flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-location-subtotals" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Location Subtotals</span></label>');
+                }
+                if (amyWrap) {
+                    group.appendChild(amyWrap);
+                } else {
+                    group.insertAdjacentHTML('beforeend', '<label class="pricing-amy-decimals-wrap flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm hover:border-blue-300 transition shrink-0"><input type="checkbox" id="pricing-enable-decimal-points-amy" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Enable Decimal Points for Amy</span></label>');
+                }
+                var solutionWrap = row.querySelector('.pricing-solution-id-wrap');
+                if (solutionWrap) solutionWrap.insertAdjacentElement('afterend', group);
+                else row.appendChild(group);
+            } else if (group.parentElement !== row) {
+                var solutionAnchor = row.querySelector('.pricing-solution-id-wrap');
+                if (solutionAnchor) solutionAnchor.insertAdjacentElement('afterend', group);
+                else row.appendChild(group);
             }
+
+            subWrap = group.querySelector('.pricing-location-subtotals-wrap');
+            amyWrap = group.querySelector('.pricing-amy-decimals-wrap');
+            if (subWrap && subWrap.parentElement !== group) group.prepend(subWrap);
+            if (amyWrap && amyWrap.parentElement !== group) group.appendChild(amyWrap);
+
+            var cb = document.getElementById('pricing-enable-location-subtotals');
+            if (cb && pricingSubtotalCheckboxPreserveChecked !== null) cb.checked = pricingSubtotalCheckboxPreserveChecked;
+            var amyCb = document.getElementById('pricing-enable-decimal-points-amy');
+            if (amyCb && pricingAmyDecimalsPreserveChecked !== null) amyCb.checked = pricingAmyDecimalsPreserveChecked;
             pricingSubtotalCheckboxPreserveChecked = null;
+            pricingAmyDecimalsPreserveChecked = null;
             syncLocationSubtotalVisibility();
         }
 
@@ -572,6 +647,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             optionsContainer.addEventListener('change', function(e) {
                 if (e.target && e.target.id === 'pricing-enable-location-subtotals') {
                     syncLocationSubtotalVisibility();
+                    if (!_suppressDirty) setDirty(true);
+                }
+                if (e.target && e.target.id === 'pricing-enable-decimal-points-amy') {
+                    refreshAllPricingMath();
                     if (!_suppressDirty) setDirty(true);
                 }
             });
@@ -798,26 +877,32 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             if (Array.isArray(promotions) && promotions.length) promotions.forEach(function(p) { appendLocationPromotionRow(locationBlock, p || {}); });
         }
         function calculateOptionTotal(optionBlock) {
-            var gt = 0;
-            optionBlock.querySelectorAll('.location-total').forEach(function(l) {
-                gt += parseFloat(String(l.textContent).replace(/[^0-9.-]/g, '')) || 0;
+            var useDecimals = pricingUsesDecimalPoints();
+            var optTotal = 0;
+            optionBlock.querySelectorAll('.line-items-body tr.pricing-row').forEach(function(r) {
+                var p = parseFloat(r.querySelector('.price-input').value) || 0;
+                var q = parseInt(r.querySelector('.qty-input').value, 10) || 0;
+                var lineRaw = computeLineTotalRaw(p, q);
+                optTotal += useDecimals ? lineRaw : Math.ceil(lineRaw);
             });
             var el = optionBlock.querySelector('.option-grand-total');
-            if (el) el.textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(gt);
+            if (el) el.textContent = formatPricingMoney(optTotal, useDecimals);
         }
         function updateMath(row, locBlock, optionBlock) {
+            var useDecimals = pricingUsesDecimalPoints();
             if (row) {
                 var price = parseFloat(row.querySelector('.price-input').value) || 0;
                 var qty = parseInt(row.querySelector('.qty-input').value, 10) || 0;
-                row.querySelector('.row-total').textContent = '$' + (price * qty).toFixed(2);
+                row.querySelector('.row-total').textContent = formatLineTotalDisplay(price, qty);
             }
             var locTotal = 0;
             locBlock.querySelectorAll('.line-items-body tr.pricing-row').forEach(function(r) {
                 var p = parseFloat(r.querySelector('.price-input').value) || 0;
                 var q = parseInt(r.querySelector('.qty-input').value, 10) || 0;
-                locTotal += p * q;
+                var lineRaw = computeLineTotalRaw(p, q);
+                locTotal += useDecimals ? lineRaw : Math.ceil(lineRaw);
             });
-            locBlock.querySelector('.location-total').textContent = '$' + locTotal.toFixed(2);
+            locBlock.querySelector('.location-total').textContent = formatPricingMoney(locTotal, useDecimals);
             calculateOptionTotal(optionBlock);
             if (!_suppressDirty) setDirty(true);
         }
@@ -1005,12 +1090,12 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 '<div class="flex items-center gap-6">' +
                 '<button type="button" class="bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-slate-900 transition add-location-btn">+ Add Location</button>' +
                 '<button type="button" class="text-slate-400 hover:text-red-500 font-bold text-2xl remove-option-btn hidden transition leading-none" title="Remove Option">✕</button></div></div>' +
-                '<div class="pricing-option-controls-row mb-6 flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between lg:gap-8">' +
-                '<div class="w-full lg:w-1/3 lg:min-w-[200px]">' +
+                '<div class="pricing-option-controls-row mb-6">' +
+                '<div class="pricing-option-term-wrap">' +
                 '<label class="block text-sm font-semibold text-slate-700">Contract Term (Months)</label>' +
                 '<input type="text" class="contract-term option-term-input w-full border border-slate-300 p-2 rounded-lg mt-1 bg-white focus:outline-none focus:border-orange-500 transition" placeholder="e.g. 36" value="' + termVal + '">' +
                 '</div>' +
-                '<div class="w-full lg:w-1/3 lg:min-w-[180px]">' +
+                '<div class="pricing-solution-id-wrap">' +
                 '<label class="block text-sm font-semibold text-slate-700">Solution ID <span class="font-normal text-slate-400">(optional)</span></label>' +
                 '<input type="text" class="solution-id-input w-full border border-slate-300 p-2 rounded-lg mt-1 bg-white focus:outline-none focus:border-orange-500 transition" placeholder="e.g. Q-40776" maxlength="32" value="' + solutionVal + '">' +
                 '</div>' + csvWrapHtml +
@@ -1034,9 +1119,12 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
             block.querySelector('.add-location-btn').addEventListener('click', function() { addLocationBlock(locContainer, block); });
             block.querySelector('.remove-option-btn').addEventListener('click', function() {
-                var subCb = document.getElementById('pricing-enable-location-subtotals');
-                if (subCb && block.contains(subCb)) {
-                    pricingSubtotalCheckboxPreserveChecked = subCb.checked;
+                var checkboxGroup = block.querySelector('.pricing-option-checkboxes-wrap');
+                if (checkboxGroup) {
+                    var subCb = checkboxGroup.querySelector('#pricing-enable-location-subtotals');
+                    if (subCb) pricingSubtotalCheckboxPreserveChecked = subCb.checked;
+                    var amyCb = checkboxGroup.querySelector('#pricing-enable-decimal-points-amy');
+                    if (amyCb) pricingAmyDecimalsPreserveChecked = amyCb.checked;
                 }
                 if (optionsContainer.querySelectorAll('.pricing-option-block').length <= 1) {
                     showToast('Keep at least one pricing option.', 'error');
@@ -1044,6 +1132,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 }
                 block.remove();
                 updateOptionTitles();
+                ensurePricingSubtotalCheckboxPlacement();
                 if (!_suppressDirty) setDirty(true);
             });
 
@@ -1195,6 +1284,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 customPdfSectionName: document.getElementById('custom-pdf-section-name') ? document.getElementById('custom-pdf-section-name').value : '',
                 customText: document.getElementById('custom-text-body') ? document.getElementById('custom-text-body').value : '',
                 enableLocationSubtotals: !!(document.getElementById('pricing-enable-location-subtotals') && document.getElementById('pricing-enable-location-subtotals').checked),
+                enableDecimalPointsAmy: !!(document.getElementById('pricing-enable-decimal-points-amy') && document.getElementById('pricing-enable-decimal-points-amy').checked),
                 pricingOptions: pricingOptions,
                 references: Array.from(document.querySelectorAll('.ref-block')).map(b => ({
                     name: b.querySelector('.ref-name').value,
@@ -1581,7 +1671,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 }
                 var locSubCb = document.getElementById('pricing-enable-location-subtotals');
                 if (locSubCb) locSubCb.checked = data.enableLocationSubtotals === true;
+                var amyDecCb = document.getElementById('pricing-enable-decimal-points-amy');
+                if (amyDecCb) amyDecCb.checked = data.enableDecimalPointsAmy === true;
                 syncLocationSubtotalVisibility();
+                refreshAllPricingMath();
             }
             if (data.references && data.references.length) {
                 const refBlocks = document.querySelectorAll('.ref-block');
@@ -2167,27 +2260,27 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         else if (slideFile === 'CUSTOM_PRICING') {
             const optionBlocks = Array.from(document.querySelectorAll('.pricing-option-block'));
             const borderClr = '#d1d5db';
+            const useAmyDecimalsPdf = pricingUsesDecimalPoints();
             const locHeaderOrange = '<div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase; border: 1px solid ' + borderClr + '; border-bottom: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">PRODUCT</div><div style="width: 140px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">LIST PRICE</div><div style="width: 90px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">QTY</div><div style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</div></div>';
             
             const rowToHtml = (item, bg) => {
-                var priceVal = '$0';
-                if (item.price !== '' && !isNaN(parseFloat(item.price))) priceVal = '$' + Math.round(parseFloat(item.price)).toLocaleString();
-                var totalVal = (item.total && item.total.replace) ? item.total.replace(/\.\d{2}$/, '') : item.total || '$0';
-                if (totalVal.match(/^\$[\d,]+\.\d{2}$/)) totalVal = totalVal.replace(/\.\d{2}$/, '');
+                var priceVal = formatLineListPriceDisplay(item.price);
+                var qtyNum = parseInt(item.qty, 10) || 0;
+                var totalVal = formatLineTotalDisplay(item.price, qtyNum);
 
                 var nrcHtml = '';
                 if (item.nrcEnabled) {
                     var nrcAmountVal = parseFloat(item.nrcAmount);
                     var nrcAmountText = '';
                     if (!isNaN(nrcAmountVal)) {
-                        nrcAmountText = '$' + Math.abs(nrcAmountVal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        nrcAmountText = formatPricingMoney(Math.abs(nrcAmountVal), useAmyDecimalsPdf);
                     }
                     var nrcDesc = (item.nrcDescription || '').trim();
                     var nrcLabel = nrcDesc ? ('NRC: ' + escapeHtml(nrcDesc)) : 'NRC';
                     nrcHtml = '<div style="font-size: 11px; color: #475569; margin-top: 6px;">' + nrcLabel + (nrcAmountText ? (' <strong style="font-size: 11px; color: #334155; margin-left: 8px;">' + escapeHtml(nrcAmountText) + '</strong>') : '') + '</div>';
                 }
 
-                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + priceVal + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
+                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(priceVal) + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
             };
 
             var enableLocSubtotalsPdf = !!(document.getElementById('pricing-enable-location-subtotals') && document.getElementById('pricing-enable-location-subtotals').checked);
@@ -2196,7 +2289,6 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 const optBlock = optionBlocks[optIdx];
                 var termElPdf = optBlock.querySelector('.contract-term') || optBlock.querySelector('.option-term-input');
                 const contractTerm = (termElPdf && termElPdf.value) || 'XX';
-                const grandTotalText = optBlock.querySelector('.option-grand-total').innerText;
                 const locationBlocks = Array.from(optBlock.querySelectorAll('.location-block'));
                 
                 let allRows = [];
@@ -2228,16 +2320,26 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         var monthlySum = rows.reduce(function(acc, it) {
                             var p = parseFloat(it.price) || 0;
                             var q = parseInt(it.qty, 10) || 0;
-                            return acc + p * q;
+                            var lineRaw = computeLineTotalRaw(p, q);
+                            return acc + (useAmyDecimalsPdf ? lineRaw : Math.ceil(lineRaw));
                         }, 0);
-                        var subFormatted = '$' + monthlySum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        var subFormatted = formatPricingMoney(monthlySum, useAmyDecimalsPdf);
                         var subHtml = '<div style="display:flex;background:#f8fafc;color:#0f172a;border:1px solid ' + borderClr + ';border-top:none;font-weight:700;font-size:12px;"><div style="width:380px;padding:10px 16px;border-right:1px solid ' + borderClr + ';">LOCATION SUBTOTAL</div><div style="width:140px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:90px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:140px;padding:10px 16px;text-align:center;">' + escapeHtml(subFormatted) + '</div></div>';
                         allRows.push({ type: 'subtotal', html: subHtml });
                     }
                 });
 
-                var grandTotalNoDecimals = grandTotalText.replace(/\.(\d{2})$/, '') || grandTotalText;
-                const totalBlockHtml = '<div style="margin-top: 20px;">' + '<div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalNoDecimals) + '</div></div>' + '</div>';
+                var optTotalPdf = 0;
+                locationBlocks.forEach(function(block) {
+                    Array.from(block.querySelectorAll('.line-items-body tr.pricing-row')).forEach(function(tr) {
+                        var p = parseFloat(tr.querySelector('.price-input') ? tr.querySelector('.price-input').value : '') || 0;
+                        var q = parseInt(tr.querySelector('.qty-input') ? tr.querySelector('.qty-input').value : '1', 10) || 0;
+                        var lineRaw = computeLineTotalRaw(p, q);
+                        optTotalPdf += useAmyDecimalsPdf ? lineRaw : Math.ceil(lineRaw);
+                    });
+                });
+                var grandTotalFormatted = formatPricingMoney(optTotalPdf, useAmyDecimalsPdf);
+                const totalBlockHtml = '<div style="margin-top: 20px;">' + '<div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalFormatted) + '</div></div>' + '</div>';
                 const termLineHtml = '<p style="text-align: center; font-size: 11px; color: #475569; margin-top: 1rem;">Pricing based off ' + escapeHtml(contractTerm) + '-month term</p>';
 
                 let baseHeader = optionBlocks.length > 1 ? `Proposed Pricing Option ${optIdx + 1}` : 'Proposed Pricing';
