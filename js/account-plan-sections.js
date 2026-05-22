@@ -134,6 +134,7 @@ export const PLAN_306090_HORIZONS = Object.freeze([
  * @property {'multi' | 'either_or'} [pillMode]
  * @property {string} [pillField]
  * @property {PlanFieldDef[]} [textFields]
+ * @property {'stack' | 'split'} [pillNarrativeLayout]
  * @property {readonly { key: string, badge: string, title: string, hint: string }[]} [horizons]
  * @property {PsychologySliderDef[]} [sliders]
  * @property {boolean} [exportDossier]
@@ -176,6 +177,7 @@ export const PLAN_SECTIONS = Object.freeze([
         pillGroups: STRATEGIC_TENSION_GROUPS,
         pillMode: 'either_or',
         pillField: 'selected_pills',
+        pillNarrativeLayout: 'split',
         textFields: [{ key: 'narrative', hint: 'Additional context on the tensions you selected.' }],
         exportDossier: true,
         exportExec: false,

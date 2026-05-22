@@ -4463,6 +4463,29 @@ body.theme-green {
     background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
     color: var(--text-light);
   }
+  .strategic-pills-narrative-split {
+    display: grid;
+    grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+    gap: 1.25rem 1.5rem;
+    align-items: start;
+  }
+  .strategic-pills-narrative-split .strategic-pills-group {
+    margin-bottom: 0;
+  }
+  .strategic-pills-narrative-split .strategic-pills-wrap--either-or {
+    grid-template-columns: 1fr;
+  }
+  .strategic-pills-narrative-split-text .strategic-composite-field {
+    margin-bottom: 0;
+  }
+  .strategic-pills-narrative-split-text .strategic-composite-field--with-hint .strategic-composite-field-body {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .strategic-pills-narrative-split-text .strategic-textarea {
+    min-height: 14rem;
+  }
   .influence-board {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4470,12 +4493,12 @@ body.theme-green {
     margin-bottom: 1.25rem;
   }
   .strategic-section--influence .influence-board {
-    min-height: 22rem;
+    min-height: 34rem;
   }
   .influence-board-column {
     border-radius: 0.5rem;
     border: 1px solid var(--border-color);
-    min-height: 20rem;
+    min-height: 32rem;
     background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
   }
   .influence-board-column-title {
@@ -4502,17 +4525,17 @@ body.theme-green {
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.5rem;
-    min-height: 15rem;
+    min-height: 26rem;
   }
   .influence-board-dropzone--bench {
     flex-direction: row;
     flex-wrap: wrap;
     align-content: flex-start;
     gap: 0.5rem;
-    min-height: 10rem;
+    min-height: 12rem;
   }
   .influence-board-column--bench {
-    min-height: 14rem;
+    min-height: 16rem;
   }
   .influence-contact-pill {
     display: inline-flex;
@@ -4547,8 +4570,11 @@ body.theme-green {
     border-radius: 0.5rem;
     border: 1px solid var(--border-color);
     background-color: var(--bg-light);
-    min-height: 5.5rem;
+    min-height: 10rem;
     cursor: grab;
+  }
+  .strategic-section--influence .influence-contact-card .deal-card-flip-inner {
+    min-height: 10rem;
   }
   .influence-contact-card.influence-contact-dragging {
     opacity: 0.55;
@@ -4556,10 +4582,50 @@ body.theme-green {
   .influence-contact-card-front,
   .influence-contact-card-back {
     padding: 0.75rem;
-    min-height: 5.5rem;
+    min-height: 10rem;
+  }
+  .influence-contact-card-back {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+  .influence-card-flip-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+    margin: -0.25rem -0.25rem 0;
+    padding: 0.5rem 0.625rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    background-color: color-mix(in srgb, var(--bg-medium) 70%, transparent);
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+  .influence-card-flip-strip:hover,
+  .influence-card-flip-strip:focus-visible {
+    border-color: var(--primary-blue);
+    background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
+    outline: none;
+  }
+  .influence-card-flip-strip-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-light);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .influence-card-flip-strip-hint {
+    font-size: 0.65rem;
+    font-weight: 500;
+    flex-shrink: 0;
+    color: var(--text-muted);
   }
   .influence-contact-card-back .influence-card-notes {
-    min-height: 6.5rem;
+    flex: 1;
+    min-height: 8.5rem;
   }
   .influence-contact-name {
     font-size: 0.875rem;
@@ -4722,6 +4788,12 @@ body.theme-green {
     .strategic-pills-wrap--either-or {
       grid-template-columns: 1fr;
     }
+    .strategic-pills-narrative-split {
+      grid-template-columns: 1fr;
+    }
+    .strategic-pills-narrative-split-text .strategic-textarea {
+      min-height: 6.5rem;
+    }
     .influence-board {
       grid-template-columns: 1fr;
     }
@@ -4869,6 +4941,13 @@ body.theme-green {
     line-height: 1.45;
     margin: 0;
     color: var(--text-medium);
+  }
+  .rail-plan-preview {
+    font-size: 0.875rem;
+    line-height: 1.45;
+    margin: 0;
+    color: var(--text-medium);
+    white-space: pre-line;
   }
   .rail-plan-list {
     list-style: none;

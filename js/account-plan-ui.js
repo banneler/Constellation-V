@@ -498,12 +498,24 @@ function buildPillsAndNarrativeHtml(section, data) {
     };
 
     const textFields = section.textFields || [];
+    const textHtml = textFields.map(renderField).join('');
+
     if (pillField === 'positioning_pills') {
         const [firstField, secondField] = textFields;
         return `${firstField ? renderField(firstField) : ''}${pillsBlock}${secondField ? renderField(secondField) : ''}`;
     }
 
-    return `${pillsBlock}${textFields.map(renderField).join('')}`;
+    if (section.pillNarrativeLayout === 'split') {
+        return `
+            <div class="strategic-pills-narrative-split">
+                ${pillsBlock}
+                <div class="strategic-pills-narrative-split-text">
+                    ${textHtml}
+                </div>
+            </div>`;
+    }
+
+    return `${pillsBlock}${textHtml}`;
 }
 
 function buildInfluenceContactPill(contact, entry) {
@@ -580,12 +592,16 @@ function buildInfluenceContactCard(contact, entry, bucket) {
                     <div class="influence-contact-hint">Click for influence notes</div>
                 </div>
                 <div class="deal-card-back influence-contact-card-back">
+                    <div class="influence-card-flip-strip" data-influence-flip-trigger role="button" tabindex="0" aria-label="Flip card to front">
+                        <span class="influence-card-flip-strip-name">${escapeHtml(name || 'Contact')}</span>
+                        <span class="influence-card-flip-strip-hint">Click to flip back</span>
+                    </div>
                     <label class="influence-contact-notes-label" for="influence-notes-${contactId}">Influence notes</label>
                     <textarea
                         id="influence-notes-${contactId}"
                         class="strategic-field strategic-textarea influence-card-notes"
                         data-contact-id="${contactId}"
-                        rows="5"
+                        rows="6"
                     >${notes}</textarea>
                 </div>
             </div>
@@ -818,12 +834,16 @@ function buildCanvasHtml(sections) {
 
         if (section.type === 'pills_and_narrative') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            const extraClass = section.pillNarrativeLayout === 'split'
+                ? 'strategic-section--tensions-split'
+                : '';
             return wrapStrategicSection(
                 sectionId,
                 headingId,
                 section.title,
                 headerContext,
-                buildPillsAndNarrativeHtml(section, data)
+                buildPillsAndNarrativeHtml(section, data),
+                extraClass
             );
         }
 
@@ -960,14 +980,10 @@ function renderRail(sections) {
         </div>
         <div class="section-card strategic-rail-card" id="rail-plan-card">
             <div class="section-card-header">
-                <h2 class="section-title">30 / 60 / 90</h2>
+                <h2 class="section-title">First 30 Days</h2>
             </div>
             <div class="strategic-rail-body px-5 pb-5">
-                <ul class="rail-plan-list">
-                    <li><strong>30d</strong> <span data-rail-plan-30>${escapeHtml(truncateText(String(plan306090.days_30 ?? ''), 80) || '—')}</span></li>
-                    <li><strong>60d</strong> <span data-rail-plan-60>${escapeHtml(truncateText(String(plan306090.days_60 ?? ''), 80) || '—')}</span></li>
-                    <li><strong>90d</strong> <span data-rail-plan-90>${escapeHtml(truncateText(String(plan306090.days_90 ?? ''), 80) || '—')}</span></li>
-                </ul>
+                <p class="rail-plan-preview" data-rail-plan-30>${escapeHtml(truncateText(String(plan306090.days_30 ?? ''), 160) || '—')}</p>
             </div>
         </div>
         <div class="section-card strategic-rail-card">
@@ -1080,11 +1096,7 @@ function updateRailSummaries(sections) {
     }
 
     const plan30 = document.querySelector('[data-rail-plan-30]');
-    const plan60 = document.querySelector('[data-rail-plan-60]');
-    const plan90 = document.querySelector('[data-rail-plan-90]');
-    if (plan30) plan30.textContent = truncateText(String(plan306090.days_30 ?? ''), 80) || '—';
-    if (plan60) plan60.textContent = truncateText(String(plan306090.days_60 ?? ''), 80) || '—';
-    if (plan90) plan90.textContent = truncateText(String(plan306090.days_90 ?? ''), 80) || '—';
+    if (plan30) plan30.textContent = truncateText(String(plan306090.days_30 ?? ''), 160) || '—';
 
     const momentumLabel = document.querySelector('[data-momentum-label]');
     if (momentumLabel) momentumLabel.textContent = MOMENTUM_LABELS[score - 1];
@@ -1135,7 +1147,9 @@ function bindCanvasFormEvents(canvas) {
         }
 
         const card = target.closest('.influence-contact-card.deal-card-flippable');
-        if (card instanceof HTMLElement && !target.closest('.influence-card-notes, textarea, label')) {
+        if (card instanceof HTMLElement) {
+            if (target.closest('.influence-card-notes')) return;
+            if (target.closest('.influence-contact-notes-label')) return;
             card.classList.toggle('deal-card-flipped');
         }
     });

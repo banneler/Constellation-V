@@ -1922,6 +1922,29 @@ body.theme-green {
         background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
         color: var(--text-light);
     }
+    .strategic-pills-narrative-split {
+        display: grid;
+        grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+        gap: 1.25rem 1.5rem;
+        align-items: start;
+    }
+    .strategic-pills-narrative-split .strategic-pills-group {
+        @apply mb-0;
+    }
+    .strategic-pills-narrative-split .strategic-pills-wrap--either-or {
+        grid-template-columns: 1fr;
+    }
+    .strategic-pills-narrative-split-text .strategic-composite-field {
+        @apply mb-0;
+    }
+    .strategic-pills-narrative-split-text .strategic-composite-field--with-hint .strategic-composite-field-body {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    .strategic-pills-narrative-split-text .strategic-textarea {
+        min-height: 14rem;
+    }
     .influence-board {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1929,13 +1952,13 @@ body.theme-green {
         margin-bottom: 1.25rem;
     }
     .strategic-section--influence .influence-board {
-        min-height: 22rem;
+        min-height: 34rem;
     }
     .influence-board-column {
         @apply rounded-lg border;
         border-color: var(--border-color);
         background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
-        min-height: 20rem;
+        min-height: 32rem;
     }
     .influence-board-column-title {
         @apply text-xs font-semibold uppercase tracking-wide m-0 px-3 py-2 border-b;
@@ -1951,17 +1974,17 @@ body.theme-green {
     }
     .influence-board-dropzone {
         @apply flex flex-col gap-2 p-2;
-        min-height: 15rem;
+        min-height: 26rem;
     }
     .influence-board-dropzone--bench {
         flex-direction: row;
         flex-wrap: wrap;
         align-content: flex-start;
         gap: 0.5rem;
-        min-height: 10rem;
+        min-height: 12rem;
     }
     .influence-board-column--bench {
-        min-height: 14rem;
+        min-height: 16rem;
     }
     .influence-contact-pill {
         @apply inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium cursor-grab;
@@ -1988,7 +2011,10 @@ body.theme-green {
         @apply rounded-lg border cursor-grab;
         border-color: var(--border-color);
         background-color: var(--bg-light);
-        min-height: 5.5rem;
+        min-height: 10rem;
+    }
+    .strategic-section--influence .influence-contact-card .deal-card-flip-inner {
+        min-height: 10rem;
     }
     .influence-contact-card.influence-contact-dragging {
         opacity: 0.55;
@@ -1996,10 +2022,36 @@ body.theme-green {
     .influence-contact-card-front,
     .influence-contact-card-back {
         @apply p-3;
-        min-height: 5.5rem;
+        min-height: 10rem;
+    }
+    .influence-contact-card-back {
+        @apply flex flex-col gap-1.5;
+    }
+    .influence-card-flip-strip {
+        @apply flex items-center justify-between gap-2 rounded-md border cursor-pointer flex-shrink-0;
+        margin: -0.25rem -0.25rem 0;
+        padding: 0.5rem 0.625rem;
+        border-color: color-mix(in srgb, var(--border-color) 80%, transparent);
+        background-color: color-mix(in srgb, var(--bg-medium) 70%, transparent);
+        transition: border-color 0.15s, background-color 0.15s;
+    }
+    .influence-card-flip-strip:hover,
+    .influence-card-flip-strip:focus-visible {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
+        outline: none;
+    }
+    .influence-card-flip-strip-name {
+        @apply text-sm font-semibold truncate;
+        color: var(--text-light);
+    }
+    .influence-card-flip-strip-hint {
+        @apply text-[0.65rem] font-medium flex-shrink-0;
+        color: var(--text-muted);
     }
     .influence-contact-card-back .influence-card-notes {
-        min-height: 6.5rem;
+        flex: 1;
+        min-height: 8.5rem;
     }
     .influence-contact-name {
         @apply text-sm font-semibold;
@@ -2117,6 +2169,12 @@ body.theme-green {
         }
         .strategic-pills-wrap--either-or {
             grid-template-columns: 1fr;
+        }
+        .strategic-pills-narrative-split {
+            grid-template-columns: 1fr;
+        }
+        .strategic-pills-narrative-split-text .strategic-textarea {
+            min-height: 6.5rem;
         }
         .influence-board {
             grid-template-columns: 1fr;
@@ -2244,6 +2302,11 @@ body.theme-green {
     }
     .rail-summary-text {
         @apply text-sm m-0;
+        color: var(--text-medium);
+        line-height: 1.45;
+    }
+    .rail-plan-preview {
+        @apply text-sm m-0 whitespace-pre-line;
         color: var(--text-medium);
         line-height: 1.45;
     }
