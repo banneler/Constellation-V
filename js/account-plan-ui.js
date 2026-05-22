@@ -858,16 +858,25 @@ function buildCanvasHtml(sections) {
                         <label for="momentum-score">Momentum</label>
                         <span class="momentum-score-label" data-momentum-label>${MOMENTUM_LABELS[score - 1]}</span>
                     </div>
-                    <input
-                        type="range"
-                        class="momentum-slider psychology-slider"
-                        id="momentum-score"
-                        min="1"
-                        max="5"
-                        step="1"
-                        value="${score}"
-                        data-field="relationship_momentum.score"
-                    />
+                    <div class="momentum-slider-wrap" style="${momentumSliderStyle(score)}">
+                        <input
+                            type="range"
+                            class="momentum-slider"
+                            id="momentum-score"
+                            min="1"
+                            max="5"
+                            step="1"
+                            value="${score}"
+                            data-field="relationship_momentum.score"
+                            aria-valuemin="1"
+                            aria-valuemax="5"
+                            aria-valuenow="${score}"
+                        />
+                    </div>
+                    <div class="momentum-slider-scale">
+                        <span>${escapeHtml(MOMENTUM_LABELS[0])}</span>
+                        <span>${escapeHtml(MOMENTUM_LABELS[4])}</span>
+                    </div>
                     <textarea
                         class="strategic-field strategic-textarea"
                         data-field="relationship_momentum.narrative"
@@ -1182,6 +1191,15 @@ function handleRangeInput(input) {
         }
         if (valueEl) valueEl.textContent = String(value);
     }
+
+    if (field === 'relationship_momentum.score' || input.classList.contains('momentum-slider')) {
+        const wrap = input.closest('.momentum-slider-wrap');
+        if (wrap) {
+            wrap.setAttribute('style', momentumSliderStyle(value));
+        }
+        const labelEl = document.querySelector('[data-momentum-label]');
+        if (labelEl) labelEl.textContent = MOMENTUM_LABELS[value - 1];
+    }
 }
 
 /**
@@ -1424,6 +1442,12 @@ function initPsychologySliders(root) {
         const colorScale = wrap.getAttribute('data-color-scale') || 'direct';
         wrap.setAttribute('style', psychologySliderStyle(metricId, input.value, colorScale));
     });
+
+    root.querySelectorAll('.momentum-slider-wrap').forEach((wrap) => {
+        const input = wrap.querySelector('.momentum-slider');
+        if (!(input instanceof HTMLInputElement)) return;
+        wrap.setAttribute('style', momentumSliderStyle(input.value));
+    });
 }
 
 /**
@@ -1436,6 +1460,15 @@ function psychologySliderStyle(metricId, value, colorScale = 'direct') {
     const hue = getPsychologyHue(metricId, v, colorScale);
     const fillPct = ((v - 1) / 4) * 100;
     return `--slider-value:${v};--slider-hue:${hue};--slider-fill:${fillPct}%`;
+}
+
+/**
+ * @param {number | string} value
+ */
+function momentumSliderStyle(value) {
+    const v = clampScale(value, 3);
+    const hue = Math.round(((v - 1) / 4) * 120);
+    return `--momentum-hue:${hue}`;
 }
 
 /**
