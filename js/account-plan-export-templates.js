@@ -45,14 +45,18 @@ export function buildDossierTemplate(plan, account) {
 
 /**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
- * @param {string} pageTitle
  * @param {HTMLElement} bodyEl
+ * @param {string} [titleOverride]
  */
-function createDossierPageUnit(section, pageTitle, bodyEl) {
+function createDossierSectionBlock(section, bodyEl, titleOverride) {
     const block = document.createElement('section');
-    block.className = 'ap-export-dossier-section ap-export-page-unit';
+    block.className = 'ap-export-dossier-section';
     block.dataset.sectionId = section.id;
-    block.dataset.pageTitle = pageTitle;
+
+    const title = document.createElement('h2');
+    title.className = 'ap-export-dossier-section-title';
+    title.textContent = titleOverride || section.title;
+    block.appendChild(title);
     block.appendChild(bodyEl);
     return block;
 }
@@ -106,20 +110,6 @@ function createExportAttrBadge(label, value) {
 }
 
 /**
- * @template T
- * @param {T[]} items
- * @param {number} size
- * @returns {T[][]}
- */
-function chunkArray(items, size) {
-    const chunks = [];
-    for (let i = 0; i < items.length; i += size) {
-        chunks.push(items.slice(i, i + size));
-    }
-    return chunks;
-}
-
-/**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
  * @param {Record<string, unknown>} sections
  * @returns {HTMLElement[]}
@@ -127,74 +117,80 @@ function chunkArray(items, size) {
 function buildDossierSectionUnits(section, sections) {
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        return (section.fields || []).map((field, index) => {
+        const stack = createExportPanelStack();
+        (section.fields || []).forEach((field, index) => {
             const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
             const descriptor = field.label && field.hint ? String(field.hint) : '';
-            const stack = createExportPanelStack();
             stack.appendChild(createExportPanel(
                 heading,
                 value,
                 index === 0 ? 'accent' : 'default',
                 descriptor
             ));
-            const pageTitle = index === 0 ? section.title : `${section.title} — ${heading}`;
-            return createDossierPageUnit(section, pageTitle, stack);
         });
+        return [createDossierSectionBlock(section, stack)];
     }
 
     if (section.type === 'pills_and_narrative') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const pillField = section.pillField || 'selected_pills';
         const pills = Array.isArray(data[pillField]) ? data[pillField] : [];
-        const units = [];
+        const stack = createExportPanelStack();
 
         if (pills.length > 0) {
-            const stack = createExportPanelStack();
             stack.appendChild(createExportPanel(
                 section.pillMode === 'either_or' ? 'Tension Choices' : 'Positioning',
                 pills.join(', '),
                 'accent'
             ));
-            units.push(createDossierPageUnit(section, section.title, stack));
         }
 
-        (section.textFields || []).forEach((field, index) => {
+        (section.textFields || []).forEach((field) => {
             const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
-            const stack = createExportPanelStack();
             stack.appendChild(createExportPanel(heading, value));
-            const pageTitle = pills.length === 0 && index === 0
-                ? section.title
-                : `${section.title} — ${heading}`;
-            units.push(createDossierPageUnit(section, pageTitle, stack));
         });
 
-        return units;
+        if (!stack.childElementCount) {
+            stack.appendChild(createExportPanel(section.title, '—'));
+        }
+
+        return [createDossierSectionBlock(section, stack)];
     }
 
     if (section.type === 'influence_board') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        return [
-            ['Executive', formatInfluenceEntriesForExport(data.executive)],
-            ['Mid-Level', formatInfluenceEntriesForExport(data.mid_level)],
+        const stack = createExportPanelStack();
+        [
+            ['Executive Leadership', formatInfluenceEntriesForExport(data.executive)],
+            ['Mid-Level Champions', formatInfluenceEntriesForExport(data.mid_level)],
             ['Invisible Org Chart', String(data.invisible_org_chart ?? '').trim()],
-        ].map(([label, value], index) => {
-            const stack = createExportPanelStack();
+        ].forEach(([label, value], index) => {
             stack.appendChild(createExportPanel(label, value || '—', index === 0 ? 'accent' : 'default'));
-            const pageTitle = index === 0 ? section.title : `${section.title} — ${label}`;
-            return createDossierPageUnit(section, pageTitle, stack);
         });
+        return [createDossierSectionBlock(section, stack)];
     }
 
     if (section.type === 'entry_point_carousel') {
         const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
-        const units = [];
+        const body = document.createElement('div');
+        body.className = 'ap-export-entry-points-body';
 
         points.forEach((rawPoint) => {
             if (!isPlainObject(rawPoint)) return;
             const contactName = String(rawPoint.contact_name ?? '').trim();
             if (!contactName) return;
+
+            const group = document.createElement('div');
+            group.className = 'ap-export-entry-point-group';
+
+            const nameEl = document.createElement('h3');
+            nameEl.className = 'ap-export-entry-point-name';
+            nameEl.textContent = contactName;
+            group.appendChild(nameEl);
+
+            const stack = createExportPanelStack('ap-export-panel-stack ap-export-entry-point-stack');
 
             const attrDefs = [
                 ['Trust', rawPoint.trust_level],
@@ -204,7 +200,16 @@ function buildDossierSectionUnits(section, sections) {
                 ['Compound', rawPoint.compound_potential],
             ].filter(([, val]) => String(val ?? '').trim());
 
-            const narrativeFields = [
+            if (attrDefs.length > 0) {
+                const attrRow = document.createElement('div');
+                attrRow.className = 'ap-export-attr-badge-row';
+                attrDefs.forEach(([label, val]) => {
+                    attrRow.appendChild(createExportAttrBadge(label, String(val).trim()));
+                });
+                stack.appendChild(attrRow);
+            }
+
+            [
                 ['Why They Matter', rawPoint.why_they_matter],
                 ['Likely Pressure', rawPoint.likely_pressure],
                 ['What Failure Looks Like', rawPoint.what_failure_looks_like],
@@ -214,74 +219,52 @@ function buildDossierSectionUnits(section, sections) {
                 ['Next Move', rawPoint.next_move],
                 ['Human Context', rawPoint.human_context],
                 ['Mutual Connections', rawPoint.mutual_connections],
-            ].filter(([, val]) => String(val ?? '').trim());
-
-            const fieldChunks = chunkArray(narrativeFields, 3);
-            if (fieldChunks.length === 0) fieldChunks.push([]);
-
-            fieldChunks.forEach((chunk, chunkIndex) => {
-                const stack = createExportPanelStack('ap-export-panel-stack ap-export-entry-point-stack');
-
-                if (chunkIndex === 0 && attrDefs.length > 0) {
-                    const attrRow = document.createElement('div');
-                    attrRow.className = 'ap-export-attr-badge-row';
-                    attrDefs.forEach(([label, val]) => {
-                        attrRow.appendChild(createExportAttrBadge(label, String(val).trim()));
-                    });
-                    stack.appendChild(attrRow);
-                }
-
-                chunk.forEach(([label, val]) => {
-                    stack.appendChild(createExportPanel(label, String(val)));
-                });
-
-                if (chunk.length === 0 && chunkIndex === 0 && attrDefs.length === 0) {
-                    stack.appendChild(createExportPanel('Details', 'No narrative details captured.'));
-                }
-
-                const pageTitle = chunkIndex === 0
-                    ? `${section.title} — ${contactName}`
-                    : `${contactName} — Narrative (continued)`;
-                units.push(createDossierPageUnit(section, pageTitle, stack));
+            ].filter(([, val]) => String(val ?? '').trim()).forEach(([label, val]) => {
+                stack.appendChild(createExportPanel(label, String(val)));
             });
+
+            if (!stack.childElementCount) {
+                stack.appendChild(createExportPanel('Details', 'No narrative details captured.'));
+            }
+
+            group.appendChild(stack);
+            body.appendChild(group);
         });
 
-        if (!units.length) {
+        if (!body.childElementCount) {
             const stack = createExportPanelStack();
             stack.appendChild(createExportPanel('Entry Points', 'No entry points defined.'));
-            units.push(createDossierPageUnit(section, section.title, stack));
+            body.appendChild(stack);
         }
 
-        return units;
+        return [createDossierSectionBlock(section, body)];
     }
 
     if (section.type === 'textarea') {
         const stack = createExportPanelStack();
         stack.appendChild(createExportPanel(section.title, String(sections[section.id] ?? '').trim()));
-        return [createDossierPageUnit(section, section.title, stack)];
+        return [createDossierSectionBlock(section, stack)];
     }
 
     if (section.type === 'psychology_grid') {
         const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
         const sliders = section.sliders || PSYCHOLOGY_SLIDERS;
-        return chunkArray(sliders, 3).map((chunk, index) => {
-            const stack = createExportPanelStack('ap-export-panel-stack ap-export-panel-stack--psych');
-            chunk.forEach((slider) => {
-                const value = clampScale(psychology[slider.id], 3);
-                const panel = document.createElement('div');
-                panel.className = 'ap-export-panel ap-export-panel--metric';
-                panel.appendChild(buildPsychologyBar(slider, value));
-                stack.appendChild(panel);
-            });
-            const pageTitle = index === 0 ? section.title : `${section.title} (continued)`;
-            return createDossierPageUnit(section, pageTitle, stack);
+        const grid = document.createElement('div');
+        grid.className = 'ap-export-psych-grid ap-export-psych-grid--dossier';
+        sliders.forEach((slider) => {
+            const value = clampScale(psychology[slider.id], 3);
+            const panel = document.createElement('div');
+            panel.className = 'ap-export-panel ap-export-panel--metric ap-export-panel--psych-compact';
+            panel.appendChild(buildPsychologyBar(slider, value));
+            grid.appendChild(panel);
         });
+        return [createDossierSectionBlock(section, grid)];
     }
 
     if (section.type === 'momentum') {
         const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
         const score = clampScale(momentum.score, 3);
-        const stack = createExportPanelStack();
+        const stack = createExportPanelStack('ap-export-panel-stack ap-export-panel-stack--momentum');
         const metricPanel = document.createElement('div');
         metricPanel.className = 'ap-export-panel ap-export-panel--metric';
         metricPanel.innerHTML = `
@@ -291,23 +274,28 @@ function buildDossierSectionUnits(section, sections) {
             </div>`;
         stack.appendChild(metricPanel);
         stack.appendChild(createExportPanel('Momentum Narrative', String(momentum.narrative ?? '').trim()));
-        return [createDossierPageUnit(section, section.title, stack)];
+        return [createDossierSectionBlock(section, stack)];
     }
 
     if (section.type === 'triple_textarea') {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-        return PLAN_306090_HORIZONS.map((horizon, index) => {
-            const value = String(plan306090[horizon.key] ?? '').trim();
-            const stack = createExportPanelStack();
-            stack.appendChild(createExportPanel(horizon.title, value, 'accent'));
-            const pageTitle = index === 0 ? section.title : `${section.title} — ${horizon.title}`;
-            return createDossierPageUnit(section, pageTitle, stack);
+        const grid = document.createElement('div');
+        grid.className = 'ap-export-plan-grid';
+        PLAN_306090_HORIZONS.forEach((horizon) => {
+            const value = String(plan306090[horizon.key] ?? '').trim() || '—';
+            const cell = document.createElement('div');
+            cell.className = 'ap-export-plan-cell';
+            cell.innerHTML = `
+                <h3>${escapeHtml(horizon.title)}</h3>
+                <p>${escapeHtml(value)}</p>`;
+            grid.appendChild(cell);
         });
+        return [createDossierSectionBlock(section, grid)];
     }
 
     const stack = createExportPanelStack();
     stack.appendChild(createExportPanel(section.title, ''));
-    return [createDossierPageUnit(section, section.title, stack)];
+    return [createDossierSectionBlock(section, stack)];
 }
 
 /**
@@ -477,12 +465,9 @@ export function buildDossierContentPage(blocks, meta, pageInfo) {
  * @param {HTMLElement[]} blocks
  */
 function getContentPageTitle(blocks) {
-    if (blocks.length === 1 && blocks[0] instanceof HTMLElement && blocks[0].dataset.pageTitle) {
-        return blocks[0].dataset.pageTitle.trim();
-    }
-    if (blocks.length === 1) {
-        const titleEl = blocks[0].querySelector('.ap-export-dossier-section-title');
-        if (titleEl?.textContent) return titleEl.textContent.trim();
+    if (blocks.length === 1 && blocks[0] instanceof HTMLElement) {
+        const sectionTitle = blocks[0].querySelector('.ap-export-dossier-section-title');
+        if (sectionTitle?.textContent) return sectionTitle.textContent.trim();
     }
     return 'Strategic Account Dossier';
 }
@@ -777,15 +762,26 @@ export function ensureExportTemplateStyles() {
         }
 
         /* --- Dossier section typography --- */
-        .ap-export-dossier-section { margin-bottom: 18px; }
+        .ap-export-dossier-section {
+            margin-bottom: 0;
+        }
+        .ap-export-dossier-section + .ap-export-dossier-section {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 85%, transparent);
+        }
         .ap-export-dossier-section-title {
-            margin: 0 0 8px;
+            margin: 0 0 10px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 16px;
-            line-height: 1.3;
+            font-size: 13px;
+            line-height: 1.25;
             color: ${GPC_BRAND.navyDeep};
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+        }
+        .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
+            margin-top: 0;
         }
         .ap-export-dossier-body {
             font-size: 14px;
@@ -794,6 +790,17 @@ export function ensureExportTemplateStyles() {
             white-space: pre-wrap;
         }
         .ap-export-psych-grid { display: flex; flex-direction: column; gap: 10px; }
+        .ap-export-psych-grid--dossier {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 14px;
+        }
+        .ap-export-panel--psych-compact {
+            padding: 10px 12px;
+        }
+        .ap-export-panel--psych-compact .ap-export-psych-row-header {
+            margin-bottom: 3px;
+        }
         .ap-export-psych-row-header {
             display: flex;
             justify-content: space-between;
@@ -838,26 +845,28 @@ export function ensureExportTemplateStyles() {
         .ap-export-plan-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
+            gap: 12px;
         }
         .ap-export-plan-cell {
-            border: 1px solid ${GPC_BRAND.gray};
+            border: 1px solid color-mix(in srgb, ${GPC_BRAND.teal} 28%, ${GPC_BRAND.gray});
             border-radius: 8px;
-            padding: 10px;
-            background: #f8fafc;
+            padding: 12px;
+            background: color-mix(in srgb, ${GPC_BRAND.teal} 4%, #ffffff);
+            min-height: 120px;
         }
         .ap-export-plan-cell h3 {
-            margin: 0 0 6px;
-            font-size: 11px;
+            margin: 0 0 8px;
+            font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
             color: ${GPC_BRAND.teal};
             font-family: ${GPC_BRAND.fontHeading};
+            font-weight: 700;
         }
         .ap-export-plan-cell p {
             margin: 0;
             font-size: 12px;
-            line-height: 1.45;
+            line-height: 1.5;
             color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
         }
@@ -881,22 +890,25 @@ export function ensureExportTemplateStyles() {
             color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
         }
-        .ap-export-page-unit {
-            margin: 0;
-        }
         .ap-export-panel-stack {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
         }
         .ap-export-panel-stack--psych {
             gap: 10px;
         }
+        .ap-export-panel-stack--momentum {
+            display: grid;
+            grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+            gap: 10px;
+            align-items: stretch;
+        }
         .ap-export-panel {
-            border: 1px solid ${GPC_BRAND.gray};
-            border-radius: 10px;
+            border: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 90%, transparent);
+            border-radius: 8px;
             overflow: hidden;
-            background: #f8fafc;
+            background: #ffffff;
         }
         .ap-export-panel--accent {
             border-color: color-mix(in srgb, ${GPC_BRAND.teal} 45%, ${GPC_BRAND.gray});
@@ -907,32 +919,33 @@ export function ensureExportTemplateStyles() {
             background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 4%, #ffffff);
         }
         .ap-export-panel-header {
-            padding: 8px 12px;
+            padding: 7px 12px;
             border-bottom: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 80%, transparent);
-            background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 5%, #ffffff);
+            background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 4%, #ffffff);
         }
         .ap-export-panel-header h3 {
             margin: 0;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 11px;
-            letter-spacing: 0.05em;
+            font-size: 10px;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: ${GPC_BRAND.teal};
+            font-weight: 700;
         }
         .ap-export-panel-descriptor {
-            margin: 0.35rem 0 0;
-            font-size: 11px;
-            line-height: 1.45;
-            color: color-mix(in srgb, ${GPC_BRAND.textDark} 72%, ${GPC_BRAND.gray});
+            margin: 0.25rem 0 0;
+            font-size: 10px;
+            line-height: 1.4;
+            color: color-mix(in srgb, ${GPC_BRAND.textDark} 68%, ${GPC_BRAND.gray});
             font-style: italic;
         }
         .ap-export-panel-body {
-            padding: 12px 14px;
+            padding: 10px 12px;
         }
         .ap-export-panel-body p {
             margin: 0;
-            font-size: 14px;
-            line-height: 1.55;
+            font-size: 12px;
+            line-height: 1.52;
             color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
         }
@@ -955,6 +968,24 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-entry-point-stack .ap-export-panel + .ap-export-panel {
             margin-top: 0;
+        }
+        .ap-export-entry-points-body {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .ap-export-entry-point-group + .ap-export-entry-point-group {
+            padding-top: 12px;
+            border-top: 1px dashed color-mix(in srgb, ${GPC_BRAND.gray} 80%, transparent);
+        }
+        .ap-export-entry-point-name {
+            margin: 0 0 8px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: ${GPC_BRAND.navyDeep};
         }
 
         /* --- GPC exec readout (16:9) --- */

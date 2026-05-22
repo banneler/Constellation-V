@@ -177,18 +177,151 @@ async function buildExecReadoutPdfBytes(plan, account, exportRoot) {
  */
 function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     const groups = [];
+    let current = [];
+
+    const flush = () => {
+        if (current.length > 0) {
+            groups.push(current.map((block) => block.cloneNode(true)));
+            current = [];
+        }
+    };
+
+    const pageFits = (blocks) => {
+        if (blocks.length === 0) return true;
+        return measureDossierContentPage(blocks, meta, exportRoot);
+    };
 
     sectionBlocks.forEach((block) => {
-        const single = [block.cloneNode(true)];
-        if (measureDossierContentPage(single, meta, exportRoot)) {
-            groups.push(single);
+        if (pageFits([...current, block])) {
+            current.push(block);
             return;
         }
 
-        groups.push(single);
+        flush();
+
+        if (pageFits([block])) {
+            current.push(block);
+            return;
+        }
+
+        const parts = splitDossierSectionBlock(block, meta, exportRoot);
+        parts.forEach((part) => {
+            if (pageFits([...current, part])) {
+                current.push(part);
+            } else {
+                flush();
+                current.push(part);
+            }
+        });
     });
 
+    flush();
     return groups;
+}
+
+/**
+ * Split an oversized section at panel / entry-point group boundaries.
+ * @param {HTMLElement} block
+ * @param {{ accountName: string, dateLabel: string }} meta
+ * @param {HTMLElement} exportRoot
+ * @returns {HTMLElement[]}
+ */
+function splitDossierSectionBlock(block, meta, exportRoot) {
+    if (!(block instanceof HTMLElement)) return [block];
+
+    const sectionTitle = block.querySelector('.ap-export-dossier-section-title')?.textContent?.trim()
+        || 'Section';
+    const sectionId = block.dataset.sectionId || '';
+
+    const entryGroups = block.querySelectorAll(':scope > .ap-export-entry-points-body > .ap-export-entry-point-group');
+    if (entryGroups.length > 1) {
+        return [...entryGroups].map((group, index) => (
+            buildDossierSectionFragment(
+                sectionId,
+                sectionTitle,
+                [group],
+                index > 0,
+                'ap-export-entry-points-body'
+            )
+        ));
+    }
+
+    const stack = block.querySelector(':scope > .ap-export-panel-stack')
+        || block.querySelector(':scope .ap-export-entry-point-group .ap-export-panel-stack')
+        || block.querySelector(':scope > .ap-export-psych-grid')
+        || block.querySelector(':scope > .ap-export-plan-grid');
+    if (!stack) return [block];
+
+    const units = [...stack.children];
+    if (units.length <= 1) return [block];
+
+    const stackClass = stack.className;
+    const chunks = [];
+    let currentUnits = [];
+
+    units.forEach((unit) => {
+        const trialUnits = [...currentUnits, unit];
+        const trial = buildDossierSectionFragment(sectionId, sectionTitle, trialUnits, chunks.length > 0, stackClass);
+        if (currentUnits.length === 0 || pageFitsFragment(trial, meta, exportRoot)) {
+            currentUnits = trialUnits;
+        } else {
+            if (currentUnits.length > 0) {
+                chunks.push(buildDossierSectionFragment(
+                    sectionId,
+                    sectionTitle,
+                    currentUnits,
+                    chunks.length > 0,
+                    stackClass
+                ));
+            }
+            currentUnits = [unit];
+        }
+    });
+
+    if (currentUnits.length > 0) {
+        chunks.push(buildDossierSectionFragment(
+            sectionId,
+            sectionTitle,
+            currentUnits,
+            chunks.length > 0,
+            stackClass
+        ));
+    }
+
+    return chunks.length > 0 ? chunks : [block];
+}
+
+/**
+ * @param {string} sectionId
+ * @param {string} sectionTitle
+ * @param {Element[]} units
+ * @param {boolean} continued
+ * @param {string} [stackClass]
+ */
+function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, stackClass = 'ap-export-panel-stack') {
+    const block = document.createElement('section');
+    block.className = 'ap-export-dossier-section';
+    block.dataset.sectionId = sectionId;
+
+    const title = document.createElement('h2');
+    title.className = 'ap-export-dossier-section-title';
+    title.textContent = continued ? `${sectionTitle} (continued)` : sectionTitle;
+    block.appendChild(title);
+
+    const container = document.createElement('div');
+    container.className = stackClass;
+    units.forEach((unit) => container.appendChild(unit.cloneNode(true)));
+    block.appendChild(container);
+    return block;
+}
+
+/**
+ * @param {HTMLElement} block
+ * @param {{ accountName: string, dateLabel: string }} meta
+ * @param {HTMLElement} exportRoot
+ */
+function pageFitsFragment(block, meta, exportRoot) {
+    return measureDossierContentPage([block], meta, exportRoot);
 }
 
 /**
