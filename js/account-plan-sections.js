@@ -2,7 +2,13 @@
  * Strategic Account OS — section registry (canvas, TOC, export metadata).
  */
 
-/** @typedef {'textarea' | 'psychology_grid' | 'momentum' | 'triple_textarea'} PlanSectionType */
+/** @typedef {'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'triple_textarea'} PlanSectionType */
+
+/**
+ * @typedef {Object} PlanFieldDef
+ * @property {string} key
+ * @property {string} label
+ */
 
 /**
  * @typedef {Object} PsychologySliderDef
@@ -52,6 +58,24 @@ export const PSYCHOLOGY_SLIDERS = Object.freeze([
     },
 ]);
 
+/** @type {string[]} */
+export const STRATEGIC_TENSION_PILLS = Object.freeze([
+    'Scale vs. Reliability',
+    'Innovation vs. Governance/Security',
+    'Cost vs. Agility',
+    'Cloud vs. Control',
+    'Automation vs. Human Oversight',
+]);
+
+/** @type {string[]} */
+export const POSITIONING_PILLS = Object.freeze([
+    'Operationally credible',
+    'Highly responsive',
+    'Long-term strategic partner',
+    'Innovation leader',
+    'Cost-efficient operator',
+]);
+
 /**
  * @typedef {Object} PlanSectionDef
  * @property {string} id
@@ -59,6 +83,10 @@ export const PSYCHOLOGY_SLIDERS = Object.freeze([
  * @property {string} title
  * @property {string} [description]
  * @property {string[]} [tips]
+ * @property {PlanFieldDef[]} [fields]
+ * @property {string[]} [pills]
+ * @property {string} [pillField]
+ * @property {PlanFieldDef[]} [textFields]
  * @property {PsychologySliderDef[]} [sliders]
  * @property {boolean} [exportDossier]
  * @property {boolean} [exportExec]
@@ -68,7 +96,7 @@ export const PSYCHOLOGY_SLIDERS = Object.freeze([
 export const PLAN_SECTIONS = Object.freeze([
     {
         id: 'pursuit_thesis',
-        type: 'textarea',
+        type: 'composite_textarea',
         title: 'Pursuit Thesis',
         description: 'Why pursue this account now? What is the core thesis?',
         tips: [
@@ -76,12 +104,17 @@ export const PLAN_SECTIONS = Object.freeze([
             'Cost of standing still (Fragility, scaling bottlenecks, tech debt).',
             'Strategic timing factors & trigger events.',
         ],
+        fields: [
+            { key: 'core', label: 'Core Thesis' },
+            { key: 'cost_of_standing_still', label: 'Cost of Standing Still' },
+            { key: 'timing', label: 'Strategic Timing' },
+        ],
         exportDossier: true,
         exportExec: true,
     },
     {
         id: 'strategic_tensions',
-        type: 'textarea',
+        type: 'pills_and_narrative',
         title: 'Strategic Tensions',
         description: 'What contradictions are they managing?',
         tips: [
@@ -91,12 +124,15 @@ export const PLAN_SECTIONS = Object.freeze([
             'Cloud vs. Control',
             'Automation vs. Human Oversight',
         ],
+        pills: STRATEGIC_TENSION_PILLS,
+        pillField: 'selected_pills',
+        textFields: [{ key: 'narrative', label: 'Narrative Context' }],
         exportDossier: true,
         exportExec: false,
     },
     {
         id: 'influence_mapping',
-        type: 'textarea',
+        type: 'influence_board',
         title: 'Influence Mapping',
         description: 'Map the formal and invisible organizational influence.',
         tips: [
@@ -109,25 +145,36 @@ export const PLAN_SECTIONS = Object.freeze([
     },
     {
         id: 'competitive_landscape',
-        type: 'textarea',
+        type: 'pills_and_narrative',
         title: 'Competitive Landscape',
         description: 'Assess incumbent vendors, alternatives, and our narrative positioning.',
         tips: [
             'Competitor strengths, weaknesses, and entrenchment level.',
             'How do we want to be perceived over time? (e.g., Operationally credible, highly responsive, long-term strategic partner).',
         ],
+        pills: POSITIONING_PILLS,
+        pillField: 'positioning_pills',
+        textFields: [
+            { key: 'incumbents', label: 'Incumbents & Alternatives' },
+            { key: 'narrative', label: 'Narrative Positioning' },
+        ],
         exportDossier: true,
         exportExec: true,
     },
     {
         id: 'land_and_expand',
-        type: 'textarea',
+        type: 'composite_textarea',
         title: 'Land & Expand',
         description: 'Define the initial wedge and the path to broader entrenchment.',
         tips: [
             'Initial Entry Opportunity.',
             'Why it creates trust.',
             'Expansion Path & Strategic Outcome.',
+        ],
+        fields: [
+            { key: 'initial_entry', label: 'Initial Entry Opportunity' },
+            { key: 'trust_creation', label: 'Why It Creates Trust' },
+            { key: 'expansion_path', label: 'Expansion Path & Strategic Outcome' },
         ],
         exportDossier: true,
         exportExec: true,

@@ -3153,6 +3153,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             supabase,
             getSelectedAccountId: () => state.selectedAccountId,
             getSelectedAccount: () => state.selectedAccountDetails.account,
+            getSelectedAccountDetails: () => state.selectedAccountDetails,
             getAccountPlan: () => state.accountPlan,
             isFormDirty: () => state.isFormDirty,
             clearFormDirty: () => { state.isFormDirty = false; },

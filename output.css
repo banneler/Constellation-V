@@ -4368,6 +4368,119 @@ body.theme-green {
   .strategic-section-context li:last-child {
     margin-bottom: 0;
   }
+  .strategic-composite-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .strategic-composite-field label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-bottom: 0.375rem;
+    color: var(--text-medium);
+  }
+  .strategic-pills-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .strategic-pill {
+    border-radius: 9999px;
+    border: 1px solid var(--border-color);
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background-color: var(--bg-medium);
+    color: var(--text-medium);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+  }
+  .strategic-pill:hover {
+    border-color: var(--primary-blue);
+    color: var(--text-light);
+  }
+  .strategic-pill-active {
+    border-color: var(--primary-blue);
+    background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+    color: var(--text-light);
+  }
+  .influence-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .influence-board-column {
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    min-height: 12rem;
+    background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+  }
+  .influence-board-column-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-medium);
+  }
+  .influence-board-dropzone {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    min-height: 9rem;
+  }
+  .influence-board-empty {
+    font-size: 0.75rem;
+    margin: 0;
+    padding: 1rem 0.5rem;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .influence-contact-card {
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-light);
+    min-height: 4.5rem;
+    cursor: grab;
+  }
+  .influence-contact-card.influence-contact-dragging {
+    opacity: 0.55;
+  }
+  .influence-contact-card-front,
+  .influence-contact-card-back {
+    padding: 0.75rem;
+  }
+  .influence-contact-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-light);
+  }
+  .influence-contact-title {
+    font-size: 0.75rem;
+    margin-top: 0.125rem;
+    color: var(--text-medium);
+  }
+  .influence-contact-hint {
+    font-size: 0.65rem;
+    margin-top: 0.5rem;
+    color: var(--text-muted);
+  }
+  .influence-contact-notes-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-bottom: 0.375rem;
+    color: var(--text-medium);
+  }
+  .influence-invisible-field {
+    margin-top: 0.5rem;
+  }
   .strategic-textarea {
     width: 100%;
     border-radius: 0.5rem;

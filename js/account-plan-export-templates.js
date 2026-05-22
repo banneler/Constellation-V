@@ -51,6 +51,82 @@ function buildDossierSectionBlock(section, sections) {
     title.textContent = section.title;
     block.appendChild(title);
 
+    if (section.type === 'composite_textarea') {
+        const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+        const body = document.createElement('div');
+        body.className = 'ap-export-dossier-body ap-export-composite-body';
+        (section.fields || []).forEach((field) => {
+            const value = String(data[field.key] ?? '').trim() || '—';
+            const block = document.createElement('div');
+            block.className = 'ap-export-composite-block';
+            block.innerHTML = `
+                <h3>${escapeHtml(field.label)}</h3>
+                <p>${escapeHtml(value)}</p>`;
+            body.appendChild(block);
+        });
+        block.appendChild(body);
+        return block;
+    }
+
+    if (section.type === 'pills_and_narrative') {
+        const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+        const pillField = section.pillField || 'selected_pills';
+        const pills = Array.isArray(data[pillField]) ? data[pillField] : [];
+        const wrap = document.createElement('div');
+        wrap.className = 'ap-export-dossier-body ap-export-composite-body';
+
+        if (pills.length > 0) {
+            const pillBlock = document.createElement('div');
+            pillBlock.className = 'ap-export-composite-block';
+            pillBlock.innerHTML = `
+                <h3>Selected</h3>
+                <p>${escapeHtml(pills.join(', '))}</p>`;
+            wrap.appendChild(pillBlock);
+        }
+
+        (section.textFields || []).forEach((field) => {
+            const value = String(data[field.key] ?? '').trim() || '—';
+            const fieldBlock = document.createElement('div');
+            fieldBlock.className = 'ap-export-composite-block';
+            fieldBlock.innerHTML = `
+                <h3>${escapeHtml(field.label)}</h3>
+                <p>${escapeHtml(value)}</p>`;
+            wrap.appendChild(fieldBlock);
+        });
+
+        block.appendChild(wrap);
+        return block;
+    }
+
+    if (section.type === 'influence_board') {
+        const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+        const wrap = document.createElement('div');
+        wrap.className = 'ap-export-dossier-body ap-export-composite-body';
+
+        [
+            ['Executive', data.executive],
+            ['Mid-Level', data.mid_level],
+        ].forEach(([label, entries]) => {
+            const list = formatInfluenceEntriesForExport(entries);
+            const fieldBlock = document.createElement('div');
+            fieldBlock.className = 'ap-export-composite-block';
+            fieldBlock.innerHTML = `
+                <h3>${escapeHtml(label)}</h3>
+                <p>${escapeHtml(list || '—')}</p>`;
+            wrap.appendChild(fieldBlock);
+        });
+
+        const invisibleBlock = document.createElement('div');
+        invisibleBlock.className = 'ap-export-composite-block';
+        invisibleBlock.innerHTML = `
+            <h3>Invisible Org Chart</h3>
+            <p>${escapeHtml(String(data.invisible_org_chart ?? '').trim() || '—')}</p>`;
+        wrap.appendChild(invisibleBlock);
+
+        block.appendChild(wrap);
+        return block;
+    }
+
     if (section.type === 'textarea') {
         const body = document.createElement('div');
         body.className = 'ap-export-dossier-body';
@@ -124,8 +200,8 @@ export function buildExecReadoutTemplate(plan, account) {
 
     const accountName = account?.name ? String(account.name) : 'Account';
     const dateLabel = formatExportDate(new Date());
-    const pursuitThesis = String(sections.pursuit_thesis ?? '').trim() || 'No pursuit thesis captured yet.';
-    const competitive = String(sections.competitive_landscape ?? '').trim();
+    const pursuitThesis = summarizePursuitThesis(sections.pursuit_thesis);
+    const competitive = summarizeCompetitiveLandscape(sections.competitive_landscape);
 
     const root = document.createElement('div');
     root.className = 'ap-export-exec-readout';
@@ -188,6 +264,63 @@ export function buildExecReadoutTemplate(plan, account) {
         </div>`;
 
     return root;
+}
+
+/**
+ * @param {unknown} value
+ */
+function summarizePursuitThesis(value) {
+    if (typeof value === 'string') {
+        return value.trim() || 'No pursuit thesis captured yet.';
+    }
+    if (!isPlainObject(value)) return 'No pursuit thesis captured yet.';
+
+    const parts = [
+        value.core ? `Core Thesis: ${String(value.core).trim()}` : '',
+        value.cost_of_standing_still ? `Cost of Standing Still: ${String(value.cost_of_standing_still).trim()}` : '',
+        value.timing ? `Strategic Timing: ${String(value.timing).trim()}` : '',
+    ].filter(Boolean);
+
+    return parts.join('\n\n') || 'No pursuit thesis captured yet.';
+}
+
+/**
+ * @param {unknown} value
+ */
+function summarizeCompetitiveLandscape(value) {
+    if (typeof value === 'string') {
+        return value.trim();
+    }
+    if (!isPlainObject(value)) return '';
+
+    const pills = Array.isArray(value.positioning_pills) ? value.positioning_pills.join(', ') : '';
+    const parts = [
+        value.incumbents ? String(value.incumbents).trim() : '',
+        pills ? `Positioning: ${pills}` : '',
+        value.narrative ? String(value.narrative).trim() : '',
+    ].filter(Boolean);
+
+    return parts.join('\n\n');
+}
+
+/**
+ * @param {unknown} entries
+ */
+function formatInfluenceEntriesForExport(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) return '';
+
+    return entries.map((entry) => {
+        if (entry == null) return '';
+        if (typeof entry === 'string' || typeof entry === 'number') {
+            return `Contact ${entry}`;
+        }
+        if (isPlainObject(entry)) {
+            const label = entry.id != null ? `Contact ${entry.id}` : 'Contact';
+            const notes = entry.notes ? `: ${String(entry.notes).trim()}` : '';
+            return `${label}${notes}`;
+        }
+        return '';
+    }).filter(Boolean).join('; ');
 }
 
 /**
@@ -410,6 +543,25 @@ export function ensureExportTemplateStyles() {
             margin: 0;
             font-size: 11px;
             line-height: 1.45;
+            color: #334155;
+            white-space: pre-wrap;
+        }
+        .ap-export-composite-body {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .ap-export-composite-block h3 {
+            margin: 0 0 4px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+        }
+        .ap-export-composite-block p {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.55;
             color: #334155;
             white-space: pre-wrap;
         }

@@ -86,7 +86,7 @@ test.describe('Strategic Account OS', () => {
     await createAndSelectAccount(page, acc);
     await acc.switchToStrategicMode();
 
-    const textarea = acc.strategicTextarea('pursuit_thesis');
+    const textarea = acc.strategicTextarea('pursuit_thesis.core');
     await textarea.waitFor({ state: 'visible', timeout: 15_000 });
 
     guardian.step('Typing into Pursuit Thesis textarea');
@@ -107,7 +107,7 @@ test.describe('Strategic Account OS', () => {
     await createAndSelectAccount(page, acc);
     await acc.switchToStrategicMode();
 
-    const textarea = acc.strategicTextarea('pursuit_thesis');
+    const textarea = acc.strategicTextarea('pursuit_thesis.core');
     await textarea.waitFor({ state: 'visible', timeout: 15_000 });
     await textarea.fill(`E2E force commit ${Date.now()}`);
 

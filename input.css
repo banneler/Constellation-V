@@ -1841,6 +1841,91 @@ body.theme-green {
     .strategic-section-context li:last-child {
         @apply mb-0;
     }
+    .strategic-composite-grid {
+        @apply flex flex-col gap-4;
+    }
+    .strategic-composite-field label {
+        @apply block text-xs font-medium mb-1.5;
+        color: var(--text-medium);
+    }
+    .strategic-pills-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .strategic-pill {
+        @apply rounded-full border px-3 py-1.5 text-xs font-medium transition-colors;
+        border-color: var(--border-color);
+        background-color: var(--bg-medium);
+        color: var(--text-medium);
+        cursor: pointer;
+    }
+    .strategic-pill:hover {
+        border-color: var(--primary-blue);
+        color: var(--text-light);
+    }
+    .strategic-pill-active {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+        color: var(--text-light);
+    }
+    .influence-board {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .influence-board-column {
+        @apply rounded-lg border min-h-[12rem];
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+    }
+    .influence-board-column-title {
+        @apply text-xs font-semibold uppercase tracking-wide m-0 px-3 py-2 border-b;
+        color: var(--text-medium);
+        border-color: var(--border-color);
+    }
+    .influence-board-dropzone {
+        @apply flex flex-col gap-2 p-2 min-h-[9rem];
+    }
+    .influence-board-dropzone:empty,
+    .influence-board-empty {
+        @apply text-xs m-0 px-2 py-4 text-center;
+        color: var(--text-muted);
+    }
+    .influence-contact-card {
+        @apply rounded-lg border cursor-grab;
+        border-color: var(--border-color);
+        background-color: var(--bg-light);
+        min-height: 4.5rem;
+    }
+    .influence-contact-card.influence-contact-dragging {
+        opacity: 0.55;
+    }
+    .influence-contact-card-front,
+    .influence-contact-card-back {
+        @apply p-3;
+    }
+    .influence-contact-name {
+        @apply text-sm font-semibold;
+        color: var(--text-light);
+    }
+    .influence-contact-title {
+        @apply text-xs mt-0.5;
+        color: var(--text-medium);
+    }
+    .influence-contact-hint {
+        @apply text-[0.65rem] mt-2;
+        color: var(--text-muted);
+    }
+    .influence-contact-notes-label {
+        @apply block text-xs font-medium mb-1.5;
+        color: var(--text-medium);
+    }
+    .influence-invisible-field {
+        @apply mt-2;
+    }
     .strategic-textarea {
         @apply w-full rounded-lg border px-3 py-2 text-sm resize-none overflow-hidden;
         background-color: var(--bg-medium);

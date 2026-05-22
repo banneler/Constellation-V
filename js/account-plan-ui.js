@@ -44,6 +44,7 @@ let _popoverOpen = false;
  * @param {{
  *   getSelectedAccountId?: () => number | null,
  *   getSelectedAccount?: () => object | null,
+ *   getSelectedAccountDetails?: () => { contacts?: object[] } | null,
  *   getAccountPlan?: () => { rowId?: string, plan?: object, updated_at?: string } | null,
  *   isFormDirty?: () => boolean,
  *   clearFormDirty?: () => void,
@@ -339,6 +340,304 @@ function wrapStrategicSection(sectionId, headingId, title, contextHtml, bodyHtml
 }
 
 /**
+ * @returns {object[]}
+ */
+function getAccountContacts() {
+    const details = _options.getSelectedAccountDetails?.();
+    return Array.isArray(details?.contacts) ? details.contacts : [];
+}
+
+/**
+ * @param {unknown} value
+ * @returns {{ id: string, notes: string }[]}
+ */
+function normalizeInfluenceEntries(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((entry) => {
+            if (entry == null) return null;
+            if (typeof entry === 'string' || typeof entry === 'number') {
+                return { id: String(entry), notes: '' };
+            }
+            if (isPlainObject(entry) && entry.id != null) {
+                return {
+                    id: String(entry.id),
+                    notes: entry.notes != null ? String(entry.notes) : '',
+                };
+            }
+            return null;
+        })
+        .filter(Boolean);
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} data
+ */
+function buildCompositeTextareaHtml(section, data) {
+    const obj = isPlainObject(data) ? data : {};
+    const fields = section.fields || [];
+    return `<div class="strategic-composite-grid">${fields.map((field) => {
+        const value = escapeHtml(String(obj[field.key] ?? ''));
+        return `
+            <div class="strategic-composite-field">
+                <label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>
+                <textarea
+                    id="strategic-field-${section.id}-${field.key}"
+                    class="strategic-field strategic-textarea"
+                    data-field="${section.id}.${field.key}"
+                    rows="3"
+                >${value}</textarea>
+            </div>`;
+    }).join('')}</div>`;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} data
+ */
+function buildPillsAndNarrativeHtml(section, data) {
+    const obj = isPlainObject(data) ? data : {};
+    const pillField = section.pillField || 'selected_pills';
+    const selected = Array.isArray(obj[pillField]) ? obj[pillField] : [];
+    const pillsHtml = `
+        <div class="strategic-pills-wrap" role="group" aria-label="${escapeHtml(section.title)} options">
+            ${(section.pills || []).map((pill) => {
+                const active = selected.includes(pill) ? ' strategic-pill-active' : '';
+                return `<button type="button" class="strategic-pill${active}" data-pill-section="${section.id}" data-pill-field="${pillField}" data-pill-value="${escapeHtml(pill)}">${escapeHtml(pill)}</button>`;
+            }).join('')}
+        </div>`;
+
+    const renderField = (field) => {
+        const value = escapeHtml(String(obj[field.key] ?? ''));
+        return `
+            <div class="strategic-composite-field">
+                <label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>
+                <textarea
+                    id="strategic-field-${section.id}-${field.key}"
+                    class="strategic-field strategic-textarea"
+                    data-field="${section.id}.${field.key}"
+                    rows="3"
+                >${value}</textarea>
+            </div>`;
+    };
+
+    const textFields = section.textFields || [];
+    if (pillField === 'positioning_pills') {
+        const [firstField, secondField] = textFields;
+        return `${firstField ? renderField(firstField) : ''}${pillsHtml}${secondField ? renderField(secondField) : ''}`;
+    }
+
+    return `${pillsHtml}${textFields.map(renderField).join('')}`;
+}
+
+/**
+ * @param {object | null | undefined} contact
+ * @param {{ id: string, notes: string }} entry
+ * @param {string} bucket
+ */
+function buildInfluenceContactCard(contact, entry, bucket) {
+    const name = contact
+        ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
+        : 'Unknown contact';
+    const title = contact?.title || contact?.job_title || '';
+    const notes = escapeHtml(entry.notes || '');
+    const contactId = escapeHtml(String(entry.id));
+
+    return `
+        <div
+            class="influence-contact-card deal-card-flippable"
+            draggable="true"
+            data-contact-id="${contactId}"
+            data-influence-bucket="${escapeHtml(bucket)}"
+        >
+            <div class="deal-card-flip-inner">
+                <div class="deal-card-front influence-contact-card-front">
+                    <div class="influence-contact-name">${escapeHtml(name || 'Contact')}</div>
+                    ${title ? `<div class="influence-contact-title">${escapeHtml(title)}</div>` : ''}
+                    <div class="influence-contact-hint">Click for influence notes</div>
+                </div>
+                <div class="deal-card-back influence-contact-card-back">
+                    <label class="influence-contact-notes-label" for="influence-notes-${contactId}">Influence notes</label>
+                    <textarea
+                        id="influence-notes-${contactId}"
+                        class="strategic-field strategic-textarea influence-card-notes"
+                        data-contact-id="${contactId}"
+                        rows="3"
+                    >${notes}</textarea>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} data
+ */
+function buildInfluenceBoardHtml(section, data) {
+    const mapping = isPlainObject(data)
+        ? data
+        : { executive: [], mid_level: [], invisible_org_chart: '' };
+    const contacts = getAccountContacts();
+    const contactById = new Map(contacts.map((contact) => [String(contact.id), contact]));
+
+    const executiveEntries = normalizeInfluenceEntries(mapping.executive);
+    const midLevelEntries = normalizeInfluenceEntries(mapping.mid_level);
+    const assignedIds = new Set([
+        ...executiveEntries.map((entry) => String(entry.id)),
+        ...midLevelEntries.map((entry) => String(entry.id)),
+    ]);
+
+    const renderBucket = (bucketKey, label, entries) => {
+        const cards = entries.map((entry) => {
+            const contact = contactById.get(String(entry.id));
+            return buildInfluenceContactCard(contact, entry, bucketKey);
+        }).join('');
+        const emptyHint = bucketKey === 'bench'
+            ? 'No unassigned contacts'
+            : 'Drop contacts here';
+
+        return `
+            <div class="influence-board-column">
+                <h5 class="influence-board-column-title">${escapeHtml(label)}</h5>
+                <div class="influence-board-dropzone" data-influence-drop="${bucketKey}">
+                    ${cards || `<p class="influence-board-empty">${emptyHint}</p>`}
+                </div>
+            </div>`;
+    };
+
+    const unassigned = contacts.filter((contact) => !assignedIds.has(String(contact.id)));
+    const benchEntries = unassigned.map((contact) => ({ id: String(contact.id), notes: '' }));
+
+    const invisibleValue = escapeHtml(String(mapping.invisible_org_chart ?? ''));
+
+    return `
+        <div class="influence-board">
+            ${renderBucket('bench', 'Unassigned Contacts', benchEntries)}
+            ${renderBucket('executive', 'Executive', executiveEntries)}
+            ${renderBucket('mid_level', 'Mid-Level', midLevelEntries)}
+        </div>
+        <div class="strategic-composite-field influence-invisible-field">
+            <label for="strategic-field-influence-invisible">Invisible Org Chart</label>
+            <textarea
+                id="strategic-field-influence-invisible"
+                class="strategic-field strategic-textarea"
+                data-field="influence_mapping.invisible_org_chart"
+                rows="3"
+            >${invisibleValue}</textarea>
+        </div>`;
+}
+
+/**
+ * @param {string} contactId
+ * @param {string} targetBucket
+ */
+function moveInfluenceContact(contactId, targetBucket) {
+    if (!_liveSections) return;
+
+    const mapping = isPlainObject(_liveSections.influence_mapping)
+        ? { ..._liveSections.influence_mapping }
+        : { executive: [], mid_level: [], invisible_org_chart: '' };
+
+    const id = String(contactId);
+    let entry = null;
+
+    ['executive', 'mid_level'].forEach((bucket) => {
+        const list = normalizeInfluenceEntries(mapping[bucket]);
+        const index = list.findIndex((item) => String(item.id) === id);
+        if (index >= 0) {
+            entry = list[index];
+            list.splice(index, 1);
+            mapping[bucket] = list;
+        }
+    });
+
+    if (!entry) {
+        entry = { id, notes: '' };
+    }
+
+    if (targetBucket === 'executive' || targetBucket === 'mid_level') {
+        const list = normalizeInfluenceEntries(mapping[targetBucket]);
+        if (!list.some((item) => String(item.id) === id)) {
+            list.push(entry);
+        }
+        mapping[targetBucket] = list;
+    }
+
+    _liveSections.influence_mapping = mapping;
+}
+
+/**
+ * @param {string} contactId
+ * @param {string} notes
+ */
+function updateInfluenceContactNotes(contactId, notes) {
+    if (!_liveSections || !contactId) return;
+
+    const mapping = isPlainObject(_liveSections.influence_mapping)
+        ? { ..._liveSections.influence_mapping }
+        : { executive: [], mid_level: [], invisible_org_chart: '' };
+
+    const id = String(contactId);
+    ['executive', 'mid_level'].forEach((bucket) => {
+        const list = normalizeInfluenceEntries(mapping[bucket]);
+        const index = list.findIndex((item) => String(item.id) === id);
+        if (index >= 0) {
+            list[index] = { ...list[index], notes };
+            mapping[bucket] = list;
+        }
+    });
+
+    _liveSections.influence_mapping = mapping;
+}
+
+function refreshInfluenceBoardSection() {
+    const sectionEl = document.getElementById('strategic-section-influence_mapping');
+    const sectionDef = PLAN_SECTIONS.find((section) => section.id === 'influence_mapping');
+    if (!sectionEl || !sectionDef || !_liveSections) return;
+
+    const headingId = `strategic-heading-${sectionDef.id}`;
+    const contextHtml = buildSectionContextHtml(sectionDef);
+    const bodyHtml = buildInfluenceBoardHtml(sectionDef, _liveSections.influence_mapping);
+
+    sectionEl.innerHTML = `
+        <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
+        ${contextHtml}
+        ${bodyHtml}`;
+
+    initAutoExpandTextareas(sectionEl);
+}
+
+/**
+ * @param {HTMLElement} button
+ */
+function toggleStrategicPill(button) {
+    const sectionId = button.dataset.pillSection;
+    const pillField = button.dataset.pillField;
+    const pillValue = button.dataset.pillValue;
+    if (!_liveSections || !sectionId || !pillField || !pillValue) return;
+
+    const sectionData = isPlainObject(_liveSections[sectionId])
+        ? { ..._liveSections[sectionId] }
+        : {};
+    const selected = Array.isArray(sectionData[pillField])
+        ? [...sectionData[pillField]]
+        : [];
+    const index = selected.indexOf(pillValue);
+
+    if (index >= 0) {
+        selected.splice(index, 1);
+        button.classList.remove('strategic-pill-active');
+    } else {
+        selected.push(pillValue);
+        button.classList.add('strategic-pill-active');
+    }
+
+    _liveSections[sectionId] = { ...sectionData, [pillField]: selected };
+    queueAutosave();
+}
+
+/**
  * @param {Record<string, unknown>} sections
  */
 function buildCanvasHtml(sections) {
@@ -347,14 +646,37 @@ function buildCanvasHtml(sections) {
         const sectionId = `strategic-section-${section.id}`;
         const contextHtml = buildSectionContextHtml(section);
 
-        if (section.type === 'textarea') {
-            const value = escapeHtml(String(sections[section.id] ?? ''));
-            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
-                <textarea
-                    class="strategic-field strategic-textarea"
-                    data-field="${section.id}"
-                    rows="3"
-                >${value}</textarea>`);
+        if (section.type === 'composite_textarea') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                contextHtml,
+                buildCompositeTextareaHtml(section, data)
+            );
+        }
+
+        if (section.type === 'pills_and_narrative') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                contextHtml,
+                buildPillsAndNarrativeHtml(section, data)
+            );
+        }
+
+        if (section.type === 'influence_board') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                contextHtml,
+                buildInfluenceBoardHtml(section, data)
+            );
         }
 
         if (section.type === 'psychology_grid') {
@@ -602,6 +924,8 @@ function updateRailSummaries(sections) {
     if (momentumLabel) momentumLabel.textContent = MOMENTUM_LABELS[score - 1];
 }
 
+let _draggedInfluenceContactId = null;
+
 function bindCanvasFormEvents(canvas) {
     if (_canvasEventsBound) return;
     _canvasEventsBound = true;
@@ -609,7 +933,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes')) return;
 
         if (target instanceof HTMLTextAreaElement) {
             autoExpandTextarea(target);
@@ -627,9 +951,80 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes')) return;
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
+        queueAutosave();
+    });
+
+    canvas.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const pill = target.closest('.strategic-pill');
+        if (pill instanceof HTMLElement) {
+            event.preventDefault();
+            toggleStrategicPill(pill);
+            return;
+        }
+
+        const card = target.closest('.influence-contact-card.deal-card-flippable');
+        if (card instanceof HTMLElement && !target.closest('.influence-card-notes, textarea, label')) {
+            card.classList.toggle('deal-card-flipped');
+        }
+    });
+
+    canvas.addEventListener('dragstart', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest('.influence-card-notes, textarea')) {
+            event.preventDefault();
+            return;
+        }
+        const card = target.closest('.influence-contact-card[draggable="true"]');
+        if (!(card instanceof HTMLElement)) return;
+
+        _draggedInfluenceContactId = card.dataset.contactId || null;
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', _draggedInfluenceContactId || '');
+        }
+        card.classList.add('influence-contact-dragging');
+    });
+
+    canvas.addEventListener('dragend', (event) => {
+        const target = event.target;
+        if (target instanceof Element) {
+            target.closest('.influence-contact-card')?.classList.remove('influence-contact-dragging');
+        }
+        canvas.querySelectorAll('.influence-contact-dragging').forEach((el) => {
+            el.classList.remove('influence-contact-dragging');
+        });
+        _draggedInfluenceContactId = null;
+    });
+
+    canvas.addEventListener('dragover', (event) => {
+        if (!event.target || !(event.target instanceof Element)) return;
+        if (!event.target.closest('[data-influence-drop]')) return;
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'move';
+        }
+    });
+
+    canvas.addEventListener('drop', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const dropzone = target.closest('[data-influence-drop]');
+        if (!(dropzone instanceof HTMLElement)) return;
+
+        event.preventDefault();
+        const contactId = _draggedInfluenceContactId || event.dataTransfer?.getData('text/plain');
+        const bucket = dropzone.dataset.influenceDrop;
+        if (!contactId || !bucket) return;
+
+        moveInfluenceContact(contactId, bucket);
+        refreshInfluenceBoardSection();
         queueAutosave();
     });
 }
@@ -660,6 +1055,11 @@ function handleRangeInput(input) {
  * @param {HTMLElement} el
  */
 function applyFieldToLiveSections(el) {
+    if (el.classList.contains('influence-card-notes')) {
+        updateInfluenceContactNotes(el.dataset.contactId || '', el.value);
+        return;
+    }
+
     const path = el.dataset.field;
     if (!path || !_liveSections) return;
 

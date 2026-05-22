@@ -25,11 +25,30 @@ export function createEmptyPlan() {
             updated_at: now,
             last_milestone_at: null,
             sections: {
-                pursuit_thesis: '',
-                strategic_tensions: '',
-                influence_mapping: '',
-                competitive_landscape: '',
-                land_and_expand: '',
+                pursuit_thesis: {
+                    core: '',
+                    cost_of_standing_still: '',
+                    timing: '',
+                },
+                strategic_tensions: {
+                    selected_pills: [],
+                    narrative: '',
+                },
+                influence_mapping: {
+                    executive: [],
+                    mid_level: [],
+                    invisible_org_chart: '',
+                },
+                competitive_landscape: {
+                    incumbents: '',
+                    positioning_pills: [],
+                    narrative: '',
+                },
+                land_and_expand: {
+                    initial_entry: '',
+                    trust_creation: '',
+                    expansion_path: '',
+                },
                 relationship_momentum: {
                     score: 3,
                     narrative: '',
@@ -58,15 +77,156 @@ function isPlainObject(value) {
  * @param {Record<string, unknown>} sections
  */
 function migrateLegacySectionText(sections, newKey, legacyKeys) {
-    if (sections[newKey] != null && String(sections[newKey]).trim()) {
-        return String(sections[newKey]);
+    const raw = sections[newKey];
+    if (typeof raw === 'string' && raw.trim()) {
+        return raw.trim();
     }
     for (const key of legacyKeys) {
         if (sections[key] != null && String(sections[key]).trim()) {
-            return String(sections[key]);
+            return String(sections[key]).trim();
         }
     }
     return '';
+}
+
+/**
+ * @param {unknown} entry
+ * @returns {{ id: string, notes: string } | null}
+ */
+function normalizeInfluenceContactEntry(entry) {
+    if (entry == null) return null;
+    if (typeof entry === 'string' || typeof entry === 'number') {
+        return { id: String(entry), notes: '' };
+    }
+    if (isPlainObject(entry) && entry.id != null) {
+        return {
+            id: String(entry.id),
+            notes: entry.notes != null ? String(entry.notes) : '',
+        };
+    }
+    return null;
+}
+
+/**
+ * @param {unknown[]} value
+ * @returns {{ id: string, notes: string }[]}
+ */
+function normalizeInfluenceContactList(value) {
+    if (!Array.isArray(value)) return [];
+    return value.map(normalizeInfluenceContactEntry).filter(Boolean);
+}
+
+/**
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizePursuitThesis(raw, sections) {
+    const empty = { core: '', cost_of_standing_still: '', timing: '' };
+    if (typeof raw === 'string') {
+        const legacy = raw.trim() || migrateLegacySectionText(sections, 'pursuit_thesis', ['executive_summary']);
+        return legacy ? { ...empty, core: legacy } : empty;
+    }
+    if (!isPlainObject(raw)) {
+        const legacy = migrateLegacySectionText(sections, 'pursuit_thesis', ['executive_summary']);
+        return legacy ? { ...empty, core: legacy } : empty;
+    }
+    return {
+        core: raw.core != null ? String(raw.core) : '',
+        cost_of_standing_still: raw.cost_of_standing_still != null ? String(raw.cost_of_standing_still) : '',
+        timing: raw.timing != null ? String(raw.timing) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ * @param {string} sectionKey
+ * @param {string[]} legacyKeys
+ */
+function normalizePillsAndNarrative(raw, sections, sectionKey, legacyKeys) {
+    const empty = { selected_pills: [], narrative: '' };
+    if (typeof raw === 'string') {
+        const legacy = raw.trim() || migrateLegacySectionText(sections, sectionKey, legacyKeys);
+        return legacy ? { ...empty, narrative: legacy } : empty;
+    }
+    if (!isPlainObject(raw)) {
+        const legacy = migrateLegacySectionText(sections, sectionKey, legacyKeys);
+        return legacy ? { ...empty, narrative: legacy } : empty;
+    }
+    const pillField = Array.isArray(raw.positioning_pills) ? 'positioning_pills' : 'selected_pills';
+    const pills = Array.isArray(raw[pillField])
+        ? raw[pillField].map((pill) => String(pill)).filter(Boolean)
+        : [];
+    return {
+        selected_pills: pillField === 'selected_pills' ? pills : (Array.isArray(raw.selected_pills) ? raw.selected_pills.map(String) : []),
+        positioning_pills: pillField === 'positioning_pills' ? pills : (Array.isArray(raw.positioning_pills) ? raw.positioning_pills.map(String) : []),
+        narrative: raw.narrative != null ? String(raw.narrative) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizeCompetitiveLandscape(raw, sections) {
+    const empty = { incumbents: '', positioning_pills: [], narrative: '' };
+    if (typeof raw === 'string') {
+        const legacy = raw.trim() || migrateLegacySectionText(sections, 'competitive_landscape', ['competitive_landscape']);
+        return legacy ? { ...empty, incumbents: legacy } : empty;
+    }
+    if (!isPlainObject(raw)) {
+        const legacy = migrateLegacySectionText(sections, 'competitive_landscape', ['competitive_landscape']);
+        return legacy ? { ...empty, incumbents: legacy } : empty;
+    }
+    return {
+        incumbents: raw.incumbents != null ? String(raw.incumbents) : '',
+        positioning_pills: Array.isArray(raw.positioning_pills)
+            ? raw.positioning_pills.map((pill) => String(pill)).filter(Boolean)
+            : [],
+        narrative: raw.narrative != null ? String(raw.narrative) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizeInfluenceMapping(raw, sections) {
+    const empty = { executive: [], mid_level: [], invisible_org_chart: '' };
+    if (typeof raw === 'string') {
+        const legacy = raw.trim() || migrateLegacySectionText(sections, 'influence_mapping', ['stakeholder_map']);
+        return legacy ? { ...empty, invisible_org_chart: legacy } : empty;
+    }
+    if (!isPlainObject(raw)) {
+        const legacy = migrateLegacySectionText(sections, 'influence_mapping', ['stakeholder_map']);
+        return legacy ? { ...empty, invisible_org_chart: legacy } : empty;
+    }
+    return {
+        executive: normalizeInfluenceContactList(raw.executive),
+        mid_level: normalizeInfluenceContactList(raw.mid_level),
+        invisible_org_chart: raw.invisible_org_chart != null ? String(raw.invisible_org_chart) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizeLandAndExpand(raw, sections) {
+    const empty = { initial_entry: '', trust_creation: '', expansion_path: '' };
+    if (typeof raw === 'string') {
+        const legacy = raw.trim() || migrateLegacySectionText(sections, 'land_and_expand', ['growth_opportunities']);
+        return legacy ? { ...empty, initial_entry: legacy } : empty;
+    }
+    if (!isPlainObject(raw)) {
+        const legacy = migrateLegacySectionText(sections, 'land_and_expand', ['growth_opportunities']);
+        return legacy ? { ...empty, initial_entry: legacy } : empty;
+    }
+    return {
+        initial_entry: raw.initial_entry != null ? String(raw.initial_entry) : '',
+        trust_creation: raw.trust_creation != null ? String(raw.trust_creation) : '',
+        expansion_path: raw.expansion_path != null ? String(raw.expansion_path) : '',
+    };
 }
 
 /**
@@ -91,11 +251,22 @@ export function normalizePlan(plan) {
             updated_at: typeof draft.updated_at === 'string' ? draft.updated_at : empty.current_draft.updated_at,
             last_milestone_at: draft.last_milestone_at != null ? String(draft.last_milestone_at) : null,
             sections: {
-                pursuit_thesis: migrateLegacySectionText(sections, 'pursuit_thesis', ['executive_summary']),
-                strategic_tensions: migrateLegacySectionText(sections, 'strategic_tensions', ['situation_assessment', 'risks_and_mitigations']),
-                influence_mapping: migrateLegacySectionText(sections, 'influence_mapping', ['stakeholder_map']),
-                competitive_landscape: migrateLegacySectionText(sections, 'competitive_landscape', ['competitive_landscape']),
-                land_and_expand: migrateLegacySectionText(sections, 'land_and_expand', ['growth_opportunities']),
+                pursuit_thesis: normalizePursuitThesis(sections.pursuit_thesis, sections),
+                strategic_tensions: (() => {
+                    const normalized = normalizePillsAndNarrative(
+                        sections.strategic_tensions,
+                        sections,
+                        'strategic_tensions',
+                        ['situation_assessment', 'risks_and_mitigations']
+                    );
+                    return {
+                        selected_pills: normalized.selected_pills,
+                        narrative: normalized.narrative,
+                    };
+                })(),
+                influence_mapping: normalizeInfluenceMapping(sections.influence_mapping, sections),
+                competitive_landscape: normalizeCompetitiveLandscape(sections.competitive_landscape, sections),
+                land_and_expand: normalizeLandAndExpand(sections.land_and_expand, sections),
                 relationship_momentum: {
                     score: clampScale(momentum.score, 3),
                     narrative: momentum.narrative != null ? String(momentum.narrative) : '',
