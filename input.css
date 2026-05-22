@@ -2141,7 +2141,8 @@ body.theme-green {
         color: var(--primary-blue);
     }
     .momentum-slider-wrap {
-        --momentum-hue: 60;
+        --momentum-sat: 0;
+        --momentum-light: 95;
     }
     .momentum-slider {
         @apply w-full;
@@ -2163,7 +2164,7 @@ body.theme-green {
         height: 18px;
         border-radius: 9999px;
         border: 2px solid white;
-        background: hsl(calc(var(--momentum-hue) * 1deg) 70% 45%);
+        background: hsl(120 calc(var(--momentum-sat) * 1%) calc(var(--momentum-light) * 1%));
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
         cursor: pointer;
     }
@@ -2172,7 +2173,7 @@ body.theme-green {
         height: 18px;
         border-radius: 9999px;
         border: 2px solid white;
-        background: hsl(calc(var(--momentum-hue) * 1deg) 70% 45%);
+        background: hsl(120 calc(var(--momentum-sat) * 1%) calc(var(--momentum-light) * 1%));
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
         cursor: pointer;
     }
