@@ -135,6 +135,75 @@ function buildDossierSectionBlock(section, sections) {
         return block;
     }
 
+    if (section.type === 'entry_point_carousel') {
+        const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
+        const wrap = document.createElement('div');
+        wrap.className = 'ap-export-dossier-body ap-export-composite-body ap-export-entry-points';
+
+        points.forEach((rawPoint, index) => {
+            if (!isPlainObject(rawPoint)) return;
+            const contactName = String(rawPoint.contact_name ?? '').trim();
+            if (!contactName) return;
+
+            const entryBlock = document.createElement('div');
+            entryBlock.className = 'ap-export-entry-point-block';
+
+            const attrs = [
+                ['Trust Level', rawPoint.trust_level],
+                ['Responsiveness', rawPoint.responsiveness],
+                ['Political Influence', rawPoint.political_influence],
+                ['Comm Style', rawPoint.comm_style],
+                ['Compound Potential', rawPoint.compound_potential],
+            ].filter(([, val]) => String(val ?? '').trim()).map(([label, val]) => `${label}: ${String(val).trim()}`);
+
+            const attrLine = attrs.length > 0
+                ? `<p class="ap-export-entry-point-attrs">${escapeHtml(attrs.join(' · '))}</p>`
+                : '';
+
+            const narrativeFields = [
+                ['Why They Matter', rawPoint.why_they_matter],
+                ['Likely Pressure', rawPoint.likely_pressure],
+                ['What Failure Looks Like', rawPoint.what_failure_looks_like],
+                ['Best Themes', rawPoint.best_themes],
+                ['Narrative Openings', rawPoint.narrative_openings],
+                ['Tired of Hearing', rawPoint.tired_of_hearing],
+                ['Next Move', rawPoint.next_move],
+                ['Human Context', rawPoint.human_context],
+                ['Mutual Connections', rawPoint.mutual_connections],
+            ];
+
+            const bodyHtml = narrativeFields.map(([label, val]) => {
+                const text = String(val ?? '').trim();
+                if (!text) return '';
+                return `
+                    <div class="ap-export-composite-block">
+                        <h3>${escapeHtml(label)}</h3>
+                        <p>${escapeHtml(text)}</p>
+                    </div>`;
+            }).filter(Boolean).join('');
+
+            entryBlock.innerHTML = `
+                <h3 class="ap-export-entry-point-name">${escapeHtml(contactName)}</h3>
+                ${attrLine}
+                ${bodyHtml || '<p class="ap-export-entry-point-empty">No narrative details captured.</p>'}`;
+
+            if (index > 0) {
+                entryBlock.style.marginTop = '16px';
+                entryBlock.style.paddingTop = '16px';
+                entryBlock.style.borderTop = '1px solid #D1D1D1';
+            }
+
+            wrap.appendChild(entryBlock);
+        });
+
+        if (!wrap.children.length) {
+            wrap.innerHTML = '<p class="ap-export-dossier-body">No entry points defined.</p>';
+        }
+
+        block.appendChild(wrap);
+        return block;
+    }
+
     if (section.type === 'textarea') {
         const body = document.createElement('div');
         body.className = 'ap-export-dossier-body';
@@ -757,6 +826,33 @@ export function ensureExportTemplateStyles() {
             line-height: 1.55;
             color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
+        }
+        .ap-export-entry-point-block {
+            margin-bottom: 14px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid ${GPC_BRAND.gray};
+        }
+        .ap-export-entry-point-block:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .ap-export-entry-point-name {
+            margin: 0 0 6px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 15px;
+            color: ${GPC_BRAND.navyDeep};
+        }
+        .ap-export-entry-point-attrs {
+            margin: 0 0 10px;
+            font-size: 11px;
+            color: ${GPC_BRAND.teal};
+            font-weight: 600;
+        }
+        .ap-export-entry-point-empty {
+            margin: 0;
+            font-size: 12px;
+            color: #64748b;
         }
 
         /* --- GPC exec readout (16:9) --- */

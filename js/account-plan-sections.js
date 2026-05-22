@@ -2,7 +2,7 @@
  * Strategic Account OS — section registry (canvas, TOC, export metadata).
  */
 
-/** @typedef {'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'triple_textarea'} PlanSectionType */
+/** @typedef {'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'triple_textarea' | 'entry_point_carousel'} PlanSectionType */
 
 /** @typedef {'none' | 'lead' | 'block'} SectionContextMode */
 
@@ -118,6 +118,35 @@ export const PLAN_306090_HORIZONS = Object.freeze([
     },
 ]);
 
+export const MAX_ENTRY_POINTS = 5;
+
+/** @type {readonly string[]} */
+export const ENTRY_POINT_TRUST_LEVELS = Object.freeze(['', 'Cold', 'Warm', 'Trusted']);
+
+/** @type {readonly string[]} */
+export const ENTRY_POINT_LEVEL_OPTIONS = Object.freeze(['', 'Low', 'Medium', 'High']);
+
+/** @type {readonly string[]} */
+export const ENTRY_POINT_COMM_STYLES = Object.freeze(['', 'Concise', 'Strategic', 'Conversational', 'Analytical']);
+
+/** @type {readonly { key: string, label: string }[]} */
+export const ENTRY_POINT_EXPORT_LABELS = Object.freeze([
+    { key: 'trust_level', label: 'Trust Level' },
+    { key: 'responsiveness', label: 'Responsiveness' },
+    { key: 'political_influence', label: 'Political Influence' },
+    { key: 'comm_style', label: 'Comm Style' },
+    { key: 'compound_potential', label: 'Compound Potential' },
+    { key: 'why_they_matter', label: 'Why They Matter' },
+    { key: 'likely_pressure', label: 'Likely Pressure' },
+    { key: 'what_failure_looks_like', label: 'What Failure Looks Like' },
+    { key: 'best_themes', label: 'Best Themes' },
+    { key: 'narrative_openings', label: 'Narrative Openings' },
+    { key: 'tired_of_hearing', label: 'Tired of Hearing' },
+    { key: 'next_move', label: 'Next Move' },
+    { key: 'human_context', label: 'Human Context' },
+    { key: 'mutual_connections', label: 'Mutual Connections' },
+]);
+
 /**
  * @typedef {Object} PlanSectionDef
  * @property {string} id
@@ -223,6 +252,15 @@ export const PLAN_SECTIONS = Object.freeze([
         ],
         exportDossier: true,
         exportExec: true,
+    },
+    {
+        id: 'entry_points',
+        type: 'entry_point_carousel',
+        title: 'Strategic Entry Points',
+        contextMode: 'lead',
+        description: 'Define specific individuals to leverage, how to approach them, and the exact narratives to use.',
+        exportDossier: true,
+        exportExec: false,
     },
     {
         id: 'psychology',

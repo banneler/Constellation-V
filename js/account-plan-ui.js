@@ -2,9 +2,10 @@
  * Strategic Account OS — UI controller (canvas forms, rail, versioning, autosave).
  */
 
-import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
+import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS, MAX_ENTRY_POINTS, ENTRY_POINT_TRUST_LEVELS, ENTRY_POINT_LEVEL_OPTIONS, ENTRY_POINT_COMM_STYLES } from './account-plan-sections.js';
 import {
     createEmptyPlan,
+    createEmptyEntryPoint,
     deepClonePlan,
     normalizePlan,
     savePlanDraft,
@@ -39,6 +40,7 @@ let _planBaseline = null;
 
 /** @type {Record<string, unknown> | null} */
 let _liveSections = null;
+let _entryPointActiveIndex = 0;
 
 let _canvasEventsBound = false;
 let _versionPopoverBound = false;
@@ -285,6 +287,7 @@ export function renderStrategicShell(account, plan) {
     const normalizedPlan = plan ? normalizePlan(plan) : createEmptyPlan();
     _planBaseline = deepClonePlan(normalizedPlan);
     _liveSections = deepClonePlan(_planBaseline).current_draft.sections;
+    _entryPointActiveIndex = 0;
 
     const canvas = document.getElementById('strategic-document-canvas');
     const titleEl = document.getElementById('strategic-account-title');
@@ -296,9 +299,7 @@ export function renderStrategicShell(account, plan) {
     }
 
     if (canvas) {
-        canvas.innerHTML = `<div class="strategic-document-inner">${buildCanvasHtml(_liveSections)}</div>`;
-        initAutoExpandTextareas(canvas);
-        initPsychologySliders(canvas);
+        paintCanvas();
         bindCanvasFormEvents(canvas);
     }
 
@@ -378,6 +379,20 @@ function wrapStrategicSection(sectionId, headingId, title, headerContext, bodyHt
             ${bodyHtml}
         </section>`;
 }
+
+function paintCanvas() {
+    const canvas = document.getElementById('strategic-document-canvas');
+    if (!canvas || !_liveSections) return;
+
+    const points = Array.isArray(_liveSections.entry_points) ? _liveSections.entry_points : [];
+    _entryPointActiveIndex = Math.min(_entryPointActiveIndex, Math.max(0, points.length - 1));
+
+    canvas.innerHTML = `<div class="strategic-document-inner">${buildCanvasHtml(_liveSections, _entryPointActiveIndex)}</div>`;
+    initAutoExpandTextareas(canvas);
+    initPsychologySliders(canvas);
+}
+
+const ENTRY_POINT_OTHER_LABEL = 'Other / External';
 
 /**
  * @returns {object[]}
@@ -568,6 +583,215 @@ function buildPlan306090Html(section, data) {
                 >${value}</textarea>
             </div>`;
     }).join('')}</div>`;
+}
+
+    }).join('')}</div>`;
+}
+
+/**
+ * @param {string} index
+ * @param {string} fieldKey
+ * @param {readonly string[]} options
+ * @param {string} label
+ * @param {string} value
+ */
+function buildEntryPointSelect(index, fieldKey, options, label, value) {
+    const fieldId = `entry-point-${index}-${fieldKey}`;
+    const optionHtml = options.map((option) => {
+        const selected = value === option ? ' selected' : '';
+        const display = option || '—';
+        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(display)}</option>`;
+    }).join('');
+
+    return `
+        <div class="entry-point-field entry-point-field--select">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <select
+                id="${fieldId}"
+                class="strategic-field entry-point-select"
+                data-field="entry_points.${index}.${fieldKey}"
+            >${optionHtml}</select>
+        </div>`;
+}
+
+/**
+ * @param {string} index
+ * @param {string} fieldKey
+ * @param {string} label
+ * @param {string} value
+ * @param {string} [placeholder]
+ */
+function buildEntryPointTextarea(index, fieldKey, label, value, placeholder = '') {
+    const fieldId = `entry-point-${index}-${fieldKey}`;
+    return `
+        <div class="entry-point-field entry-point-field--textarea">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <textarea
+                id="${fieldId}"
+                class="strategic-field strategic-textarea entry-point-textarea"
+                data-field="entry_points.${index}.${fieldKey}"
+                rows="3"
+                placeholder="${escapeHtml(placeholder)}"
+            >${escapeHtml(value)}</textarea>
+        </div>`;
+}
+
+/**
+ * @param {string} index
+ * @param {string} value
+ * @param {object[]} contacts
+ */
+function buildEntryPointContactSelect(index, value, contacts) {
+    const fieldId = `entry-point-${index}-contact_name`;
+    const contactNames = contacts.map((contact) => `${contact.first_name || ''} ${contact.last_name || ''}`.trim()).filter(Boolean);
+    const knownValues = new Set([...contactNames, ENTRY_POINT_OTHER_LABEL]);
+
+    let options = '<option value="">Select contact…</option>';
+    contactNames.forEach((name) => {
+        const selected = value === name ? ' selected' : '';
+        options += `<option value="${escapeHtml(name)}"${selected}>${escapeHtml(name)}</option>`;
+    });
+
+    if (value && !knownValues.has(value)) {
+        options += `<option value="${escapeHtml(value)}" selected>${escapeHtml(value)}</option>`;
+    }
+
+    const otherSelected = value === ENTRY_POINT_OTHER_LABEL ? ' selected' : '';
+    options += `<option value="${escapeHtml(ENTRY_POINT_OTHER_LABEL)}"${otherSelected}>${escapeHtml(ENTRY_POINT_OTHER_LABEL)}</option>`;
+
+    return `
+        <div class="entry-point-contact-row">
+            <label for="${fieldId}">Contact</label>
+            <select
+                id="${fieldId}"
+                class="strategic-field entry-point-select entry-point-contact-select"
+                data-field="entry_points.${index}.contact_name"
+            >${options}</select>
+        </div>`;
+}
+
+/**
+ * @param {Record<string, string>} point
+ * @param {number} index
+ * @param {object[]} contacts
+ * @param {boolean} isActive
+ */
+function buildEntryPointCardHtml(point, index, contacts, isActive) {
+    const data = isPlainObject(point) ? point : createEmptyEntryPoint();
+    const hiddenClass = isActive ? '' : ' hidden';
+
+    return `
+        <div
+            class="entry-point-card${hiddenClass}"
+            data-entry-index="${index}"
+            role="tabpanel"
+            aria-hidden="${isActive ? 'false' : 'true'}"
+        >
+            ${buildEntryPointContactSelect(String(index), String(data.contact_name ?? ''), contacts)}
+            <div class="entry-point-grid entry-point-grid--attributes">
+                ${buildEntryPointSelect(String(index), 'trust_level', ENTRY_POINT_TRUST_LEVELS, 'Trust Level', String(data.trust_level ?? ''))}
+                ${buildEntryPointSelect(String(index), 'responsiveness', ENTRY_POINT_LEVEL_OPTIONS, 'Responsiveness', String(data.responsiveness ?? ''))}
+                ${buildEntryPointSelect(String(index), 'political_influence', ENTRY_POINT_LEVEL_OPTIONS, 'Political Influence', String(data.political_influence ?? ''))}
+                ${buildEntryPointSelect(String(index), 'comm_style', ENTRY_POINT_COMM_STYLES, 'Comm Style', String(data.comm_style ?? ''))}
+                ${buildEntryPointSelect(String(index), 'compound_potential', ENTRY_POINT_LEVEL_OPTIONS, 'Compound Potential', String(data.compound_potential ?? ''))}
+            </div>
+            <div class="entry-point-grid entry-point-grid--why">
+                ${buildEntryPointTextarea(String(index), 'why_they_matter', 'Why They Matter', String(data.why_they_matter ?? ''), 'Strategic relevance and decision weight.')}
+                ${buildEntryPointTextarea(String(index), 'likely_pressure', 'Likely Pressure', String(data.likely_pressure ?? ''), 'What keeps them up at night.')}
+                ${buildEntryPointTextarea(String(index), 'what_failure_looks_like', 'What Failure Looks Like', String(data.what_failure_looks_like ?? ''), 'Risk if this entry point stalls.')}
+            </div>
+            <div class="entry-point-grid entry-point-grid--how">
+                ${buildEntryPointTextarea(String(index), 'best_themes', 'Best Themes', String(data.best_themes ?? ''), 'Messaging angles that resonate.')}
+                ${buildEntryPointTextarea(String(index), 'narrative_openings', 'Narrative Openings', String(data.narrative_openings ?? ''), 'How to open the conversation.')}
+                ${buildEntryPointTextarea(String(index), 'tired_of_hearing', 'Tired of Hearing', String(data.tired_of_hearing ?? ''), 'Pitches or claims to avoid.')}
+                ${buildEntryPointTextarea(String(index), 'next_move', 'Next Move', String(data.next_move ?? ''), 'Concrete next action.')}
+            </div>
+            <div class="entry-point-grid entry-point-grid--human">
+                ${buildEntryPointTextarea(String(index), 'human_context', 'Human Context', String(data.human_context ?? ''), 'Personal motivations and style cues.')}
+                ${buildEntryPointTextarea(String(index), 'mutual_connections', 'Mutual Connections', String(data.mutual_connections ?? ''), 'Shared relationships or references.')}
+            </div>
+        </div>`;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {unknown} entryPoints
+ * @param {number} activeIndex
+ */
+function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
+    const points = Array.isArray(entryPoints) && entryPoints.length > 0
+        ? entryPoints
+        : [createEmptyEntryPoint()];
+    const contacts = getAccountContacts();
+    const safeActive = Math.min(Math.max(0, activeIndex), points.length - 1);
+
+    const tabs = points.map((point, index) => {
+        const pointData = isPlainObject(point) ? point : createEmptyEntryPoint();
+        const contactLabel = String(pointData.contact_name ?? '').trim();
+        const label = contactLabel || `Entry Point ${index + 1}`;
+        const activeClass = index === safeActive ? ' entry-point-tab--active' : '';
+        return `
+            <button
+                type="button"
+                class="entry-point-tab${activeClass}"
+                data-entry-index="${index}"
+                role="tab"
+                aria-selected="${index === safeActive ? 'true' : 'false'}"
+            >${escapeHtml(label)}</button>`;
+    }).join('');
+
+    const addButton = points.length < MAX_ENTRY_POINTS
+        ? `<button type="button" class="entry-point-tab entry-point-tab--add" data-entry-point-add aria-label="Add entry point">+ Add Point</button>`
+        : '';
+
+    const cards = points.map((point, index) => buildEntryPointCardHtml(
+        isPlainObject(point) ? point : createEmptyEntryPoint(),
+        index,
+        contacts,
+        index === safeActive
+    )).join('');
+
+    return `
+        <div class="entry-point-carousel" data-entry-carousel>
+            <div class="entry-point-tabs" role="tablist" aria-label="${escapeHtml(section.title)}">${tabs}${addButton}</div>
+            <div class="entry-point-panels">${cards}</div>
+        </div>`;
+}
+
+function switchEntryPointTab(index) {
+    _entryPointActiveIndex = index;
+    const section = document.getElementById('strategic-section-entry_points');
+    if (!section) return;
+
+    section.querySelectorAll('.entry-point-tab[data-entry-index]').forEach((tab) => {
+        if (!(tab instanceof HTMLElement)) return;
+        const tabIndex = Number(tab.dataset.entryIndex);
+        const isActive = tabIndex === index;
+        tab.classList.toggle('entry-point-tab--active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    section.querySelectorAll('.entry-point-card').forEach((card) => {
+        if (!(card instanceof HTMLElement)) return;
+        const cardIndex = Number(card.dataset.entryIndex);
+        const isActive = cardIndex === index;
+        card.classList.toggle('hidden', !isActive);
+        card.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    });
+}
+
+function addEntryPoint() {
+    if (!_liveSections) return;
+    const points = Array.isArray(_liveSections.entry_points)
+        ? [..._liveSections.entry_points]
+        : [createEmptyEntryPoint()];
+    if (points.length >= MAX_ENTRY_POINTS) return;
+
+    points.push(createEmptyEntryPoint());
+    _liveSections.entry_points = points;
+    _entryPointActiveIndex = points.length - 1;
+    paintCanvas();
+    queueAutosave();
 }
 
 /**
@@ -819,8 +1043,9 @@ function toggleStrategicPill(button) {
 
 /**
  * @param {Record<string, unknown>} sections
+ * @param {number} [entryPointActiveIndex]
  */
-function buildCanvasHtml(sections) {
+function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
     return PLAN_SECTIONS.map((section) => {
         const headingId = `strategic-heading-${section.id}`;
         const sectionId = `strategic-section-${section.id}`;
@@ -950,6 +1175,18 @@ function buildCanvasHtml(sections) {
                 headerContext,
                 buildPlan306090Html(section, plan306090),
                 'strategic-section--plan306090'
+            );
+        }
+
+        if (section.type === 'entry_point_carousel') {
+            const entryPoints = sections.entry_points;
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildEntryPointCarouselHtml(section, entryPoints, entryPointActiveIndex),
+                'strategic-section--entry-points'
             );
         }
 
@@ -1153,7 +1390,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select')) return;
 
         if (target instanceof HTMLTextAreaElement) {
             autoExpandTextarea(target);
@@ -1171,7 +1408,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select')) return;
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
         queueAutosave();
@@ -1185,6 +1422,19 @@ function bindCanvasFormEvents(canvas) {
         if (pill instanceof HTMLElement) {
             event.preventDefault();
             toggleStrategicPill(pill);
+            return;
+        }
+
+        const entryTab = target.closest('.entry-point-tab[data-entry-index]');
+        if (entryTab instanceof HTMLElement) {
+            event.preventDefault();
+            switchEntryPointTab(Number(entryTab.dataset.entryIndex));
+            return;
+        }
+
+        if (target.closest('[data-entry-point-add]')) {
+            event.preventDefault();
+            addEntryPoint();
             return;
         }
 
@@ -1297,13 +1547,30 @@ function applyFieldToLiveSections(el) {
     let value;
     if (el instanceof HTMLInputElement && el.type === 'range') {
         value = clampScale(el.value, 3);
-    } else if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
+    } else if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
         value = el.value;
     } else {
         return;
     }
 
     setNestedValue(_liveSections, path, value);
+
+    const entryContactMatch = path.match(/^entry_points\.(\d+)\.contact_name$/);
+    if (entryContactMatch) {
+        updateEntryPointTabLabel(Number(entryContactMatch[1]), String(value));
+    }
+}
+
+/**
+ * @param {number} index
+ * @param {string} contactName
+ */
+function updateEntryPointTabLabel(index, contactName) {
+    const section = document.getElementById('strategic-section-entry_points');
+    const tab = section?.querySelector(`.entry-point-tab[data-entry-index="${index}"]`);
+    if (!(tab instanceof HTMLElement)) return;
+    const label = contactName.trim() || `Entry Point ${index + 1}`;
+    tab.textContent = label;
 }
 
 function queueAutosave() {
@@ -1580,14 +1847,42 @@ function getPsychologyHue(metricId, value, colorScale) {
 function setNestedValue(obj, path, value) {
     const parts = path.split('.');
     let cursor = obj;
+
     for (let i = 0; i < parts.length - 1; i += 1) {
         const key = parts[i];
+        const nextPart = parts[i + 1];
+        const nextIsIndex = /^\d+$/.test(nextPart);
+
+        if (/^\d+$/.test(key)) {
+            const index = Number(key);
+            if (!Array.isArray(cursor)) return;
+            if (cursor[index] == null || typeof cursor[index] !== 'object') {
+                cursor[index] = {};
+            }
+            cursor = cursor[index];
+            continue;
+        }
+
+        if (nextIsIndex) {
+            if (!Array.isArray(cursor[key])) {
+                cursor[key] = [];
+            }
+            cursor = cursor[key];
+            continue;
+        }
+
         if (!isPlainObject(cursor[key])) {
             cursor[key] = {};
         }
         cursor = cursor[key];
     }
-    cursor[parts[parts.length - 1]] = value;
+
+    const last = parts[parts.length - 1];
+    if (/^\d+$/.test(last) && Array.isArray(cursor)) {
+        cursor[Number(last)] = value;
+    } else {
+        cursor[last] = value;
+    }
 }
 
 /**

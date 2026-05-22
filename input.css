@@ -2210,6 +2210,97 @@ body.theme-green {
     .strategic-section--plan306090 {
         @apply pb-8;
     }
+    .strategic-section--entry-points {
+        @apply pb-6;
+    }
+    .entry-point-carousel {
+        @apply flex flex-col gap-4;
+    }
+    .entry-point-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .entry-point-tab {
+        @apply rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 65%, transparent);
+        color: var(--text-medium);
+        cursor: pointer;
+    }
+    .entry-point-tab:hover {
+        border-color: var(--primary-blue);
+        color: var(--text-light);
+    }
+    .entry-point-tab--active {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 16%, var(--bg-medium));
+        color: var(--text-light);
+    }
+    .entry-point-tab--add {
+        border-style: dashed;
+        color: var(--text-muted);
+    }
+    .entry-point-tab--add:hover {
+        color: var(--text-light);
+    }
+    .entry-point-card {
+        @apply rounded-xl border p-4;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+    }
+    .entry-point-card.hidden {
+        display: none;
+    }
+    .entry-point-contact-row {
+        @apply mb-4;
+    }
+    .entry-point-contact-row label,
+    .entry-point-field label {
+        @apply block text-xs font-semibold mb-1.5;
+        color: var(--text-medium);
+    }
+    .entry-point-contact-select,
+    .entry-point-select {
+        @apply w-full rounded-lg border px-3 py-2 text-sm;
+        background-color: var(--bg-medium);
+        border-color: var(--border-color);
+        color: var(--text-light);
+    }
+    .entry-point-contact-select:focus,
+    .entry-point-select:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-blue) 25%, transparent);
+    }
+    .entry-point-grid {
+        display: grid;
+        gap: 0.875rem;
+        margin-bottom: 0.875rem;
+    }
+    .entry-point-grid:last-child {
+        margin-bottom: 0;
+    }
+    .entry-point-grid--attributes {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .entry-point-grid--why {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .entry-point-grid--how {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .entry-point-grid--human {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .entry-point-field--select label {
+        @apply mb-1;
+    }
+    .entry-point-textarea {
+        min-height: 5.5rem;
+        font-size: 0.875rem;
+    }
     .psychology-grid {
         @apply flex flex-col gap-5;
     }
@@ -2244,6 +2335,14 @@ body.theme-green {
         }
         .strategic-pills-narrative-split-text .strategic-textarea {
             min-height: 6.5rem;
+        }
+        .entry-point-grid--attributes {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .entry-point-grid--why,
+        .entry-point-grid--how,
+        .entry-point-grid--human {
+            grid-template-columns: 1fr;
         }
         .influence-board {
             grid-template-columns: 1fr;

@@ -16,6 +16,34 @@ const DEFAULT_PSYCHOLOGY = Object.freeze({
     decision_velocity: 3,
 });
 
+/** @type {readonly string[]} */
+export const ENTRY_POINT_FIELD_KEYS = Object.freeze([
+    'contact_name',
+    'why_they_matter',
+    'likely_pressure',
+    'trust_level',
+    'responsiveness',
+    'political_influence',
+    'best_themes',
+    'narrative_openings',
+    'human_context',
+    'mutual_connections',
+    'tired_of_hearing',
+    'next_move',
+    'comm_style',
+    'compound_potential',
+    'what_failure_looks_like',
+]);
+
+export const MAX_ENTRY_POINTS = 5;
+
+/**
+ * @returns {Record<string, string>}
+ */
+export function createEmptyEntryPoint() {
+    return Object.fromEntries(ENTRY_POINT_FIELD_KEYS.map((key) => [key, '']));
+}
+
 /**
  * @returns {import('./account-plan-data.js').AccountPlanDocument}
  */
@@ -51,6 +79,7 @@ export function createEmptyPlan() {
                     trust_creation: '',
                     expansion_path: '',
                 },
+                entry_points: [createEmptyEntryPoint()],
                 relationship_momentum: {
                     score: 3,
                     narrative: '',
@@ -275,6 +304,30 @@ function normalizeLandAndExpand(raw, sections) {
 }
 
 /**
+ * @param {unknown} raw
+ * @returns {Record<string, string>}
+ */
+function normalizeEntryPoint(raw) {
+    const empty = createEmptyEntryPoint();
+    if (!isPlainObject(raw)) return empty;
+    ENTRY_POINT_FIELD_KEYS.forEach((key) => {
+        empty[key] = raw[key] != null ? String(raw[key]) : '';
+    });
+    return empty;
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {Record<string, string>[]}
+ */
+function normalizeEntryPoints(raw) {
+    if (!Array.isArray(raw) || raw.length === 0) {
+        return [createEmptyEntryPoint()];
+    }
+    return raw.slice(0, MAX_ENTRY_POINTS).map(normalizeEntryPoint);
+}
+
+/**
  * @param {unknown} plan
  * @returns {import('./account-plan-data.js').AccountPlanDocument}
  */
@@ -301,6 +354,7 @@ export function normalizePlan(plan) {
                 influence_mapping: normalizeInfluenceMapping(sections.influence_mapping, sections),
                 competitive_landscape: normalizeCompetitiveLandscape(sections.competitive_landscape, sections),
                 land_and_expand: normalizeLandAndExpand(sections.land_and_expand, sections),
+                entry_points: normalizeEntryPoints(sections.entry_points),
                 relationship_momentum: {
                     score: clampScale(momentum.score, 3),
                     narrative: momentum.narrative != null ? String(momentum.narrative) : '',
