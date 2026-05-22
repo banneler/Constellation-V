@@ -2046,19 +2046,19 @@ body.theme-green {
         color: var(--text-medium);
     }
     .plan-306090-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1rem;
+        @apply flex flex-col gap-4;
     }
-    .plan-306090-column {
-        @apply flex flex-col rounded-lg border p-4;
+    .plan-306090-row {
+        display: grid;
+        grid-template-columns: minmax(11rem, 24%) minmax(0, 1fr);
+        gap: 1rem;
+        align-items: center;
+        @apply rounded-lg border p-4;
         border-color: var(--border-color);
         background-color: color-mix(in srgb, var(--bg-medium) 45%, transparent);
-        min-height: 18rem;
     }
-    .plan-306090-column-header {
-        @apply flex gap-3 mb-3 pb-3 border-b;
-        border-color: color-mix(in srgb, var(--border-color) 75%, transparent);
+    .plan-306090-row-meta {
+        @apply flex gap-3 items-center min-w-0;
     }
     .plan-306090-badge {
         @apply inline-flex items-center justify-center rounded-lg text-base font-bold flex-shrink-0;
@@ -2081,8 +2081,8 @@ body.theme-green {
         color: var(--text-muted);
     }
     .plan-306090-textarea {
-        @apply flex-1 w-full;
-        min-height: 11rem;
+        @apply w-full min-w-0;
+        min-height: 6.5rem;
         font-size: 0.9375rem;
         line-height: 1.55;
     }
@@ -2354,10 +2354,13 @@ body.theme-green {
     .plan-version-restore-btn:hover {
         background-color: color-mix(in srgb, var(--primary-blue) 12%, transparent);
     }
-    @media (max-width: 900px) {
-        .triple-textarea-grid,
-        .plan-306090-grid {
+    @media (max-width: 768px) {
+        .plan-306090-row {
             grid-template-columns: 1fr;
+            align-items: stretch;
+        }
+        .plan-306090-row-meta {
+            align-items: flex-start;
         }
     }
     @media (max-width: 1100px) {

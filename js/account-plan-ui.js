@@ -534,8 +534,8 @@ function buildPlan306090Html(section, data) {
         const value = escapeHtml(String(planData[horizon.key] ?? ''));
         const fieldId = `plan-${horizon.key}`;
         return `
-            <div class="plan-306090-column">
-                <div class="plan-306090-column-header">
+            <div class="plan-306090-row">
+                <div class="plan-306090-row-meta">
                     <span class="plan-306090-badge" aria-hidden="true">${escapeHtml(horizon.badge)}</span>
                     <div class="plan-306090-column-heading">
                         <h5 class="plan-306090-column-title">${escapeHtml(horizon.title)}</h5>
@@ -546,7 +546,7 @@ function buildPlan306090Html(section, data) {
                     id="${fieldId}"
                     class="strategic-field strategic-textarea plan-306090-textarea"
                     data-field="plan_30_60_90.${horizon.key}"
-                    rows="8"
+                    rows="5"
                     placeholder="List key actions, owners, and outcomes…"
                 >${value}</textarea>
             </div>`;
