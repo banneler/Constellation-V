@@ -49,11 +49,6 @@ export class AccountsPage {
     return this.page.locator('#account-mode-toggle');
   }
 
-  /** Strategic TOC panel (visible in Strategic mode). */
-  strategicTocPanel(): ReturnType<Page['locator']> {
-    return this.page.locator('#strategic-toc-panel');
-  }
-
   /** Strategic workspace shell (canvas + rail). */
   strategicWorkspace(): ReturnType<Page['locator']> {
     return this.page.locator('#strategic-workspace');

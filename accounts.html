@@ -68,12 +68,6 @@
                         <button id="bulk-export-accounts-btn" class="btn-icon account-picker-icon" title="Bulk Export to CSV"><i class="fas fa-file-export"></i></button>
                     </div>
                 </div>
-                <div id="strategic-toc-panel" class="strategic-toc-panel" aria-hidden="true">
-                    <div class="strategic-toc-header account-picker-header">
-                        <h2 class="section-title">Plan Sections</h2>
-                    </div>
-                    <nav id="strategic-toc-nav" class="strategic-toc-nav" aria-label="Plan table of contents"></nav>
-                </div>
                 <div id="account-details" class="details-panel account-details-content">
                         <div class="account-details-top-row">
                             <div class="account-details-form-card">
@@ -95,8 +89,10 @@
                                             </div>
                                             <button id="zoominfo-account-btn" class="btn-icon-header zoominfo-btn" title="Open in ZoomInfo" aria-label="Open in ZoomInfo"><img src="assets/zoominfo-logo-2024.svg" alt="ZoomInfo" class="zoominfo-logo" /></button>
                                             <button id="salesforce-account-btn" class="btn-icon-header salesforce-btn" title="Open in Salesforce"><i class="fa-brands fa-salesforce"></i></button>
-                                            <span id="strategic-autosave-status" class="strategic-autosave-status hidden" data-status="idle" aria-live="polite"></span>
-                                            <button type="button" id="account-mode-toggle" class="btn-icon-header account-mode-toggle" title="Open Strategic Account OS" aria-pressed="false" aria-label="Toggle Strategic Account OS"><i class="fas fa-sitemap" aria-hidden="true"></i></button>
+                                            <div id="account-mode-controls" class="account-mode-controls flex items-center gap-2">
+                                                <span id="strategic-autosave-status" class="strategic-autosave-status hidden" data-status="idle" aria-live="polite"></span>
+                                                <button type="button" id="account-mode-toggle" class="btn-icon-header account-mode-toggle" title="Open Strategic Account OS" aria-pressed="false" aria-label="Toggle Strategic Account OS"><i class="fas fa-sitemap" aria-hidden="true"></i></button>
+                                            </div>
                                             <button id="ai-briefing-btn" class="btn-icon-header" title="Generate AI Briefing"><i class="fas fa-bolt-lightning"></i></button>
                                         </div>
                                     </div>

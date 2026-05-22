@@ -141,18 +141,15 @@ export function setAccountViewMode(mode, options = {}) {
 
     const accountsEl = document.getElementById('accounts');
     const body = document.body;
-    const tocPanel = document.getElementById('strategic-toc-panel');
     const workspace = document.getElementById('strategic-workspace');
 
     if (_activeMode === 'strategic') {
         accountsEl?.classList.add('strategic-mode-active');
         body?.classList.add('strategic-mode-active');
-        tocPanel?.setAttribute('aria-hidden', 'false');
         workspace?.setAttribute('aria-hidden', 'false');
     } else {
         accountsEl?.classList.remove('strategic-mode-active');
         body?.classList.remove('strategic-mode-active');
-        tocPanel?.setAttribute('aria-hidden', 'true');
         workspace?.setAttribute('aria-hidden', 'true');
     }
 
@@ -186,20 +183,29 @@ function requestAccountViewMode(mode) {
 }
 
 function moveHeaderControls(mode) {
-    const toggle = document.getElementById('account-mode-toggle');
-    const autosave = document.getElementById('strategic-autosave-status');
+    const controls = document.getElementById('account-mode-controls');
     const versionTrigger = document.getElementById('plan-version-trigger');
     const tacticalHost = document.getElementById('tactical-header-actions');
     const strategicHost = document.getElementById('strategic-header-actions');
-    const host = mode === 'strategic' ? strategicHost : tacticalHost;
+    const aiBriefing = document.getElementById('ai-briefing-btn');
 
-    if (!host) return;
-
-    if (versionTrigger && mode === 'strategic') {
-        host.insertBefore(versionTrigger, host.firstChild);
+    if (mode === 'strategic') {
+        if (versionTrigger && strategicHost) {
+            strategicHost.insertBefore(versionTrigger, strategicHost.firstChild);
+        }
+        if (controls && strategicHost) {
+            strategicHost.appendChild(controls);
+        }
+        return;
     }
-    if (autosave) host.appendChild(autosave);
-    if (toggle) host.appendChild(toggle);
+
+    if (controls && tacticalHost) {
+        if (aiBriefing && tacticalHost.contains(aiBriefing)) {
+            tacticalHost.insertBefore(controls, aiBriefing);
+        } else {
+            tacticalHost.appendChild(controls);
+        }
+    }
 }
 
 function updateToggleUi(mode) {
@@ -275,7 +281,6 @@ export function renderStrategicShell(account, plan) {
     _liveSections = deepClonePlan(_planBaseline).current_draft.sections;
 
     const canvas = document.getElementById('strategic-document-canvas');
-    const tocNav = document.getElementById('strategic-toc-nav');
     const titleEl = document.getElementById('strategic-account-title');
 
     if (titleEl) {
@@ -284,7 +289,6 @@ export function renderStrategicShell(account, plan) {
             : 'Strategic Account Plan';
     }
 
-    renderToc(tocNav);
     if (canvas) {
         canvas.innerHTML = `<div class="strategic-document-inner">${buildCanvasHtml(_liveSections)}</div>`;
         initAutoExpandTextareas(canvas);
@@ -296,13 +300,6 @@ export function renderStrategicShell(account, plan) {
     renderVersionTimeline(_planBaseline);
     updateVersionTriggerLabel(_planBaseline);
     updateToggleDisabled();
-}
-
-function renderToc(tocNav) {
-    if (!tocNav) return;
-    tocNav.innerHTML = PLAN_SECTIONS.map((section) => (
-        `<a href="#strategic-section-${section.id}" class="strategic-toc-link" data-section-id="${section.id}">${section.title}</a>`
-    )).join('');
 }
 
 /**

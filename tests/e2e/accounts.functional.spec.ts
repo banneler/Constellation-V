@@ -73,11 +73,10 @@ test.describe('Strategic Account OS', () => {
     guardian.step('Switching to Strategic mode');
     await acc.switchToStrategicMode();
 
-    guardian.step('Verifying strategic shell visible and tactical panels hidden');
-    await expect(acc.strategicTocPanel()).toBeVisible();
+    guardian.step('Verifying strategic shell visible and account picker remains');
     await expect(acc.strategicWorkspace()).toBeVisible();
     await expect(acc.strategicDocumentCanvas()).toBeVisible();
-    await expect(acc.accountPickerPanel()).toBeHidden();
+    await expect(acc.accountPickerPanel()).toBeVisible();
     await expect(acc.accountDetails()).toBeHidden();
     await expect(acc.accountModeToggle()).toHaveAttribute('aria-pressed', 'true');
   });
