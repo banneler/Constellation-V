@@ -2,7 +2,7 @@
  * Strategic Account OS — UI controller (canvas forms, rail, versioning, autosave).
  */
 
-import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS } from './account-plan-sections.js';
+import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
 import {
     createEmptyPlan,
     deepClonePlan,
@@ -523,6 +523,37 @@ function buildInfluenceContactPill(contact, entry) {
 }
 
 /**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} data
+ */
+function buildPlan306090Html(section, data) {
+    const planData = isPlainObject(data) ? data : {};
+    const horizons = section.horizons || PLAN_306090_HORIZONS;
+
+    return `<div class="plan-306090-grid">${horizons.map((horizon) => {
+        const value = escapeHtml(String(planData[horizon.key] ?? ''));
+        const fieldId = `plan-${horizon.key}`;
+        return `
+            <div class="plan-306090-column">
+                <div class="plan-306090-column-header">
+                    <span class="plan-306090-badge" aria-hidden="true">${escapeHtml(horizon.badge)}</span>
+                    <div class="plan-306090-column-heading">
+                        <h5 class="plan-306090-column-title">${escapeHtml(horizon.title)}</h5>
+                        <p class="plan-306090-column-hint">${escapeHtml(horizon.hint)}</p>
+                    </div>
+                </div>
+                <textarea
+                    id="${fieldId}"
+                    class="strategic-field strategic-textarea plan-306090-textarea"
+                    data-field="plan_30_60_90.${horizon.key}"
+                    rows="8"
+                    placeholder="List key actions, owners, and outcomes…"
+                >${value}</textarea>
+            </div>`;
+    }).join('')}</div>`;
+}
+
+/**
  * @param {object | null | undefined} contact
  * @param {{ id: string, notes: string }} entry
  * @param {string} bucket
@@ -887,21 +918,14 @@ function buildCanvasHtml(sections) {
 
         if (section.type === 'triple_textarea') {
             const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-            return wrapStrategicSection(sectionId, headingId, section.title, headerContext, `
-                <div class="triple-textarea-grid">
-                    <div>
-                        <label for="plan-days-30">30 Days</label>
-                        <textarea id="plan-days-30" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_30" rows="3">${escapeHtml(String(plan306090.days_30 ?? ''))}</textarea>
-                    </div>
-                    <div>
-                        <label for="plan-days-60">60 Days</label>
-                        <textarea id="plan-days-60" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_60" rows="3">${escapeHtml(String(plan306090.days_60 ?? ''))}</textarea>
-                    </div>
-                    <div>
-                        <label for="plan-days-90">90 Days</label>
-                        <textarea id="plan-days-90" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_90" rows="3">${escapeHtml(String(plan306090.days_90 ?? ''))}</textarea>
-                    </div>
-                </div>`);
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildPlan306090Html(section, plan306090),
+                'strategic-section--plan306090'
+            );
         }
 
         return '';

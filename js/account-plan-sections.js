@@ -96,6 +96,28 @@ export const POSITIONING_PILLS = Object.freeze([
     'Cost-efficient operator',
 ]);
 
+/** @type {readonly { key: string, badge: string, title: string, hint: string }[]} */
+export const PLAN_306090_HORIZONS = Object.freeze([
+    {
+        key: 'days_30',
+        badge: '30',
+        title: 'First 30 Days',
+        hint: 'Immediate actions, meetings, and deliverables to create momentum.',
+    },
+    {
+        key: 'days_60',
+        badge: '60',
+        title: 'Day 31–60',
+        hint: 'Build on early wins; expand access and operational proof points.',
+    },
+    {
+        key: 'days_90',
+        badge: '90',
+        title: 'Day 61–90',
+        hint: 'Consolidate gains and tee up the next strategic phase.',
+    },
+]);
+
 /**
  * @typedef {Object} PlanSectionDef
  * @property {string} id
@@ -112,6 +134,7 @@ export const POSITIONING_PILLS = Object.freeze([
  * @property {'multi' | 'either_or'} [pillMode]
  * @property {string} [pillField]
  * @property {PlanFieldDef[]} [textFields]
+ * @property {readonly { key: string, badge: string, title: string, hint: string }[]} [horizons]
  * @property {PsychologySliderDef[]} [sliders]
  * @property {boolean} [exportDossier]
  * @property {boolean} [exportExec]
@@ -227,6 +250,7 @@ export const PLAN_SECTIONS = Object.freeze([
         title: '30 / 60 / 90 Plan',
         contextMode: 'lead',
         description: 'Define the immediate tactical steps to advance the strategic pursuit.',
+        horizons: PLAN_306090_HORIZONS,
         exportDossier: true,
         exportExec: true,
     },

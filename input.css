@@ -2045,6 +2045,50 @@ body.theme-green {
         @apply block text-xs font-medium mb-1.5;
         color: var(--text-medium);
     }
+    .plan-306090-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .plan-306090-column {
+        @apply flex flex-col rounded-lg border p-4;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 45%, transparent);
+        min-height: 18rem;
+    }
+    .plan-306090-column-header {
+        @apply flex gap-3 mb-3 pb-3 border-b;
+        border-color: color-mix(in srgb, var(--border-color) 75%, transparent);
+    }
+    .plan-306090-badge {
+        @apply inline-flex items-center justify-center rounded-lg text-base font-bold flex-shrink-0;
+        width: 2.75rem;
+        height: 2.75rem;
+        background: linear-gradient(135deg, var(--primary-blue), color-mix(in srgb, var(--primary-blue) 65%, #6366f1));
+        color: white;
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-blue) 35%, transparent);
+    }
+    .plan-306090-column-heading {
+        @apply flex flex-col gap-1 min-w-0;
+    }
+    .plan-306090-column-title {
+        @apply text-sm font-semibold m-0;
+        color: var(--text-light);
+    }
+    .plan-306090-column-hint {
+        @apply text-xs m-0;
+        line-height: 1.45;
+        color: var(--text-muted);
+    }
+    .plan-306090-textarea {
+        @apply flex-1 w-full;
+        min-height: 11rem;
+        font-size: 0.9375rem;
+        line-height: 1.55;
+    }
+    .strategic-section--plan306090 {
+        @apply pb-8;
+    }
     .psychology-grid {
         @apply flex flex-col gap-5;
     }
@@ -2311,7 +2355,8 @@ body.theme-green {
         background-color: color-mix(in srgb, var(--primary-blue) 12%, transparent);
     }
     @media (max-width: 900px) {
-        .triple-textarea-grid {
+        .triple-textarea-grid,
+        .plan-306090-grid {
             grid-template-columns: 1fr;
         }
     }
