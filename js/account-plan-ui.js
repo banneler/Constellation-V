@@ -592,22 +592,26 @@ function buildPlan306090Html(section, data) {
  * @param {string} label
  * @param {string} value
  */
-function buildEntryPointSelect(index, fieldKey, options, label, value) {
-    const fieldId = `entry-point-${index}-${fieldKey}`;
-    const optionHtml = options.map((option) => {
-        const selected = value === option ? ' selected' : '';
-        const display = option || '—';
-        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(display)}</option>`;
+function buildEntryPointPills(index, fieldKey, options, label, value) {
+    const fieldPath = `entry_points.${index}.${fieldKey}`;
+    const pillOptions = options.filter((option) => option !== '');
+    const pillsHtml = pillOptions.map((option) => {
+        const active = value === option ? ' entry-point-pill--active' : '';
+        const pressed = value === option ? 'true' : 'false';
+        return `
+            <button
+                type="button"
+                class="entry-point-pill${active}"
+                data-field="${fieldPath}"
+                data-pill-value="${escapeHtml(option)}"
+                aria-pressed="${pressed}"
+            >${escapeHtml(option)}</button>`;
     }).join('');
 
     return `
-        <div class="entry-point-field entry-point-field--select">
-            <label for="${fieldId}">${escapeHtml(label)}</label>
-            <select
-                id="${fieldId}"
-                class="strategic-field entry-point-select"
-                data-field="entry_points.${index}.${fieldKey}"
-            >${optionHtml}</select>
+        <div class="entry-point-field entry-point-field--pills">
+            <span class="entry-point-field-label">${escapeHtml(label)}</span>
+            <div class="entry-point-pills-wrap" role="group" aria-label="${escapeHtml(label)}">${pillsHtml}</div>
         </div>`;
 }
 
@@ -690,11 +694,11 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
             <div class="entry-point-row-panel entry-point-row-panel--profile">
                 <h5 class="entry-point-row-panel-title">Relationship Profile</h5>
                 <div class="entry-point-grid entry-point-grid--attributes">
-                    ${buildEntryPointSelect(String(index), 'trust_level', ENTRY_POINT_TRUST_LEVELS, 'Trust Level', String(data.trust_level ?? ''))}
-                    ${buildEntryPointSelect(String(index), 'responsiveness', ENTRY_POINT_LEVEL_OPTIONS, 'Responsiveness', String(data.responsiveness ?? ''))}
-                    ${buildEntryPointSelect(String(index), 'political_influence', ENTRY_POINT_LEVEL_OPTIONS, 'Political Influence', String(data.political_influence ?? ''))}
-                    ${buildEntryPointSelect(String(index), 'comm_style', ENTRY_POINT_COMM_STYLES, 'Comm Style', String(data.comm_style ?? ''))}
-                    ${buildEntryPointSelect(String(index), 'compound_potential', ENTRY_POINT_LEVEL_OPTIONS, 'Compound Potential', String(data.compound_potential ?? ''))}
+                    ${buildEntryPointPills(String(index), 'trust_level', ENTRY_POINT_TRUST_LEVELS, 'Trust Level', String(data.trust_level ?? ''))}
+                    ${buildEntryPointPills(String(index), 'responsiveness', ENTRY_POINT_LEVEL_OPTIONS, 'Responsiveness', String(data.responsiveness ?? ''))}
+                    ${buildEntryPointPills(String(index), 'political_influence', ENTRY_POINT_LEVEL_OPTIONS, 'Political Influence', String(data.political_influence ?? ''))}
+                    ${buildEntryPointPills(String(index), 'comm_style', ENTRY_POINT_COMM_STYLES, 'Comm Style', String(data.comm_style ?? ''))}
+                    ${buildEntryPointPills(String(index), 'compound_potential', ENTRY_POINT_LEVEL_OPTIONS, 'Compound Potential', String(data.compound_potential ?? ''))}
                 </div>
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--why">
@@ -1004,6 +1008,27 @@ function refreshInfluenceBoardSection() {
 /**
  * @param {HTMLElement} button
  */
+function selectEntryPointPill(button) {
+    const field = button.dataset.field;
+    const pillValue = button.dataset.pillValue ?? '';
+    if (!field || !_liveSections) return;
+
+    const wasActive = button.classList.contains('entry-point-pill--active');
+    const newValue = wasActive ? '' : pillValue;
+    const group = button.closest('.entry-point-pills-wrap');
+
+    group?.querySelectorAll('.entry-point-pill').forEach((pillBtn) => {
+        if (!(pillBtn instanceof HTMLElement)) return;
+        const isSelected = !wasActive && pillBtn.dataset.pillValue === pillValue;
+        pillBtn.classList.toggle('entry-point-pill--active', isSelected);
+        pillBtn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
+
+    setNestedValue(_liveSections, field, newValue);
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+}
+
 function toggleStrategicPill(button) {
     const sectionId = button.dataset.pillSection;
     const pillField = button.dataset.pillField;
@@ -1428,6 +1453,13 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('click', (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
+
+        const entryPointPill = target.closest('.entry-point-pill');
+        if (entryPointPill instanceof HTMLElement) {
+            event.preventDefault();
+            selectEntryPointPill(entryPointPill);
+            return;
+        }
 
         const pill = target.closest('.strategic-pill');
         if (pill instanceof HTMLElement) {

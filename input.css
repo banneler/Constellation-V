@@ -2277,7 +2277,8 @@ body.theme-green {
         @apply mb-0;
     }
     .entry-point-contact-row label,
-    .entry-point-field label {
+    .entry-point-field label,
+    .entry-point-field-label {
         @apply block text-xs font-semibold mb-1.5;
         color: var(--text-medium);
     }
@@ -2314,8 +2315,36 @@ body.theme-green {
     .entry-point-grid--human {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .entry-point-field--select label {
-        @apply mb-1;
+    .entry-point-field--pills {
+        @apply flex flex-col;
+    }
+    .entry-point-field--pills .entry-point-field-label {
+        @apply mb-2;
+    }
+    .entry-point-pills-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+    }
+    .entry-point-pill {
+        @apply rounded-full border px-2.5 py-1 text-xs font-medium transition-colors;
+        border-color: var(--border-color);
+        background-color: var(--bg-medium);
+        color: var(--text-medium);
+        cursor: pointer;
+    }
+    .entry-point-pill:hover {
+        border-color: var(--primary-blue);
+        color: var(--text-light);
+    }
+    .entry-point-pill--active {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 16%, var(--bg-medium));
+        color: var(--text-light);
+    }
+    .entry-point-pill:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-blue) 25%, transparent);
     }
     .entry-point-textarea {
         min-height: 4.75rem;

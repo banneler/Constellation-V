@@ -4895,7 +4895,8 @@ body.theme-green {
     margin-bottom: 0;
   }
   .entry-point-contact-row label,
-  .entry-point-field label {
+  .entry-point-field label,
+  .entry-point-field-label {
     display: block;
     font-size: 0.75rem;
     font-weight: 600;
@@ -4938,8 +4939,41 @@ body.theme-green {
   .entry-point-grid--human {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .entry-point-field--select label {
-    margin-bottom: 0.25rem;
+  .entry-point-field--pills {
+    display: flex;
+    flex-direction: column;
+  }
+  .entry-point-field--pills .entry-point-field-label {
+    margin-bottom: 0.5rem;
+  }
+  .entry-point-pills-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+  .entry-point-pill {
+    border-radius: 9999px;
+    border: 1px solid var(--border-color);
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+    background-color: var(--bg-medium);
+    color: var(--text-medium);
+    cursor: pointer;
+  }
+  .entry-point-pill:hover {
+    border-color: var(--primary-blue);
+    color: var(--text-light);
+  }
+  .entry-point-pill--active {
+    border-color: var(--primary-blue);
+    background-color: color-mix(in srgb, var(--primary-blue) 16%, var(--bg-medium));
+    color: var(--text-light);
+  }
+  .entry-point-pill:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-blue) 25%, transparent);
   }
   .entry-point-textarea {
     min-height: 4.75rem;
