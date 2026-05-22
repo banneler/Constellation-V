@@ -2,7 +2,7 @@
  * Strategic Account OS — off-screen PDF render templates (Snapdom capture).
  */
 
-import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS } from './account-plan-sections.js';
+import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
 import { normalizePlan } from './account-plan-data.js';
 
 export const DOSSIER_WIDTH_PX = 816;
@@ -168,15 +168,12 @@ function buildDossierSectionBlock(section, sections) {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
         const grid = document.createElement('div');
         grid.className = 'ap-export-plan-grid';
-        [
-            ['30 Days', plan306090.days_30],
-            ['60 Days', plan306090.days_60],
-            ['90 Days', plan306090.days_90],
-        ].forEach(([label, value]) => {
+        PLAN_306090_HORIZONS.forEach((horizon) => {
+            const value = plan306090[horizon.key];
             const cell = document.createElement('div');
             cell.className = 'ap-export-plan-cell';
             cell.innerHTML = `
-                <h3>${escapeHtml(label)}</h3>
+                <h3>${escapeHtml(horizon.title)}</h3>
                 <p>${escapeHtml(String(value ?? '').trim() || '—')}</p>`;
             grid.appendChild(cell);
         });
