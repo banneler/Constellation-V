@@ -1093,6 +1093,89 @@ function toggleStrategicPill(button) {
 }
 
 /**
+ * @typedef {{ type: 'activity' | 'milestone', date: Date, label: string, desc: string }} MomentumTimelineItem
+ */
+
+/**
+ * @returns {MomentumTimelineItem[]}
+ */
+function collectMomentumTimelineItems() {
+    const activities = _options.getSelectedAccountDetails?.().activities || [];
+    const history = Array.isArray(_planBaseline?.history) ? _planBaseline.history : [];
+
+    /** @type {MomentumTimelineItem[]} */
+    const items = [];
+
+    activities.forEach((act) => {
+        if (!isPlainObject(act)) return;
+        const date = new Date(String(act.date ?? ''));
+        if (Number.isNaN(date.getTime())) return;
+        items.push({
+            type: 'activity',
+            date,
+            label: String(act.type ?? 'Activity'),
+            desc: truncateText(String(act.description ?? ''), 120),
+        });
+    });
+
+    history.forEach((hist) => {
+        if (!isPlainObject(hist)) return;
+        const date = new Date(String(hist.committed_at ?? ''));
+        if (Number.isNaN(date.getTime())) return;
+        items.push({
+            type: 'milestone',
+            date,
+            label: hist.reason === 'manual_force_commit' ? 'Manual Commit' : 'Auto Milestone',
+            desc: 'Account Plan Snapshot Saved',
+        });
+    });
+
+    return items.sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+function buildMomentumTimelineHtml() {
+    const items = collectMomentumTimelineItems();
+
+    if (items.length === 0) {
+        return '<p class="momentum-timeline-empty">No CRM activities or plan milestones yet.</p>';
+    }
+
+    const rows = items.map((item) => {
+        const sideClass = item.type === 'milestone' ? 'timeline-item-left' : 'timeline-item-right';
+        const typeClass = item.type === 'milestone' ? 'timeline-item-milestone' : 'timeline-item-activity';
+        const dateLabel = formatCommittedDate(item.date.toISOString());
+
+        return `
+            <div class="momentum-timeline-item ${sideClass} ${typeClass}">
+                <div class="momentum-timeline-node" aria-hidden="true"></div>
+                <article class="momentum-timeline-card">
+                    <div class="momentum-timeline-card-head">
+                        <span class="momentum-timeline-card-label">${escapeHtml(item.label)}</span>
+                        <time class="momentum-timeline-card-date" datetime="${escapeHtml(item.date.toISOString())}">${escapeHtml(dateLabel)}</time>
+                    </div>
+                    <p class="momentum-timeline-card-desc">${escapeHtml(item.desc)}</p>
+                </article>
+            </div>`;
+    }).join('');
+
+    return `
+        <div class="momentum-timeline-tree">
+            <div class="momentum-timeline-trunk" aria-hidden="true"></div>
+            <div class="momentum-timeline-items">${rows}</div>
+        </div>`;
+}
+
+function refreshMomentumTimelineSection() {
+    const sectionEl = document.getElementById('strategic-section-momentum_timeline');
+    if (!sectionEl) return;
+
+    const marker = sectionEl.querySelector('.momentum-timeline-tree, .momentum-timeline-empty');
+    if (marker) {
+        marker.outerHTML = buildMomentumTimelineHtml();
+    }
+}
+
+/**
  * @param {Record<string, unknown>} sections
  * @param {number} [entryPointActiveIndex]
  */
@@ -1215,6 +1298,17 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
                         rows="3"
                     >${narrative}</textarea>
                 </div>`);
+        }
+
+        if (section.type === 'timeline_view') {
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildMomentumTimelineHtml(),
+                'strategic-section--timeline'
+            );
         }
 
         if (section.type === 'triple_textarea') {
@@ -1703,6 +1797,7 @@ async function handleForceCommit() {
             _options.onPlanUpdated?.(_planBaseline, { updated_at: result.updated_at });
             renderVersionTimeline(_planBaseline);
             updateVersionTriggerLabel(_planBaseline);
+            refreshMomentumTimelineSection();
             _options.onToast?.('Milestone committed.', 'success');
         } else {
             _options.onToast?.('Failed to commit milestone.', 'error');

@@ -2,7 +2,7 @@
  * Strategic Account OS — section registry (canvas, TOC, export metadata).
  */
 
-/** @typedef {'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'triple_textarea' | 'entry_point_carousel'} PlanSectionType */
+/** @typedef {'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel'} PlanSectionType */
 
 /** @typedef {'none' | 'lead' | 'block'} SectionContextMode */
 
@@ -175,7 +175,7 @@ export const PLAN_SECTIONS = Object.freeze([
     {
         id: 'pursuit_thesis',
         type: 'composite_textarea',
-        title: 'Pursuit Thesis',
+        title: 'Pursuit Strategy',
         contextMode: 'none',
         fields: [
             {
@@ -283,6 +283,15 @@ export const PLAN_SECTIONS = Object.freeze([
         ],
         exportDossier: true,
         exportExec: true,
+    },
+    {
+        id: 'momentum_timeline',
+        type: 'timeline_view',
+        title: 'Relationship Timeline',
+        contextMode: 'lead',
+        description: 'A unified chronological view of CRM activities and strategic plan milestones.',
+        exportDossier: false,
+        exportExec: false,
     },
     {
         id: 'plan_30_60_90',

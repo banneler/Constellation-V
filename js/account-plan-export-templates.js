@@ -370,7 +370,7 @@ export function buildExecReadoutTemplate(plan, account) {
             </div>
             <div class="ap-export-exec-grid">
                 <div class="ap-export-exec-panel ap-export-exec-panel-thesis">
-                    <h2>Pursuit Thesis</h2>
+                    <h2>Pursuit Strategy</h2>
                     <p>${escapeHtml(truncate(pursuitThesis, 420))}</p>
                 </div>
                 <div class="ap-export-exec-panel ap-export-exec-panel-momentum">
