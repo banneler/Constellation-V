@@ -84,6 +84,7 @@ export function createEmptyPlan() {
                     score: 3,
                     narrative: '',
                 },
+                momentum_notes: [],
                 plan_30_60_90: {
                     days_30: '',
                     days_60: '',
@@ -328,6 +329,22 @@ function normalizeEntryPoints(raw) {
 }
 
 /**
+ * @param {unknown} raw
+ * @returns {{ id: string, date: string, text: string }[]}
+ */
+function normalizeMomentumNotes(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .filter(isPlainObject)
+        .map((note) => ({
+            id: note.id != null ? String(note.id) : crypto.randomUUID(),
+            date: note.date != null ? String(note.date) : new Date().toISOString(),
+            text: note.text != null ? String(note.text) : '',
+        }))
+        .filter((note) => note.text.trim());
+}
+
+/**
  * @param {unknown} plan
  * @returns {import('./account-plan-data.js').AccountPlanDocument}
  */
@@ -359,6 +376,7 @@ export function normalizePlan(plan) {
                     score: clampScale(momentum.score, 3),
                     narrative: momentum.narrative != null ? String(momentum.narrative) : '',
                 },
+                momentum_notes: normalizeMomentumNotes(sections.momentum_notes),
                 plan_30_60_90: {
                     days_30: plan306090.days_30 != null ? String(plan306090.days_30) : '',
                     days_60: plan306090.days_60 != null ? String(plan306090.days_60) : '',

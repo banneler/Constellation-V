@@ -1093,7 +1093,7 @@ function toggleStrategicPill(button) {
 }
 
 /**
- * @typedef {{ type: 'activity' | 'milestone', date: Date, label: string, desc: string }} MomentumTimelineItem
+ * @typedef {{ type: 'activity' | 'signal', date: Date, label: string, desc: string }} MomentumTimelineItem
  */
 
 /**
@@ -1101,10 +1101,24 @@ function toggleStrategicPill(button) {
  */
 function collectMomentumTimelineItems() {
     const activities = _options.getSelectedAccountDetails?.().activities || [];
-    const history = Array.isArray(_planBaseline?.history) ? _planBaseline.history : [];
+    const notes = Array.isArray(_liveSections?.momentum_notes) ? _liveSections.momentum_notes : [];
 
     /** @type {MomentumTimelineItem[]} */
     const items = [];
+
+    notes.forEach((note) => {
+        if (!isPlainObject(note)) return;
+        const date = new Date(String(note.date ?? ''));
+        if (Number.isNaN(date.getTime())) return;
+        const text = String(note.text ?? '').trim();
+        if (!text) return;
+        items.push({
+            type: 'signal',
+            date,
+            label: 'Strategic Signal',
+            desc: text,
+        });
+    });
 
     activities.forEach((act) => {
         if (!isPlainObject(act)) return;
@@ -1118,31 +1132,19 @@ function collectMomentumTimelineItems() {
         });
     });
 
-    history.forEach((hist) => {
-        if (!isPlainObject(hist)) return;
-        const date = new Date(String(hist.committed_at ?? ''));
-        if (Number.isNaN(date.getTime())) return;
-        items.push({
-            type: 'milestone',
-            date,
-            label: hist.reason === 'manual_force_commit' ? 'Manual Commit' : 'Auto Milestone',
-            desc: 'Account Plan Snapshot Saved',
-        });
-    });
-
     return items.sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
-function buildMomentumTimelineHtml() {
+function buildMomentumTimelineDisplayHtml() {
     const items = collectMomentumTimelineItems();
 
     if (items.length === 0) {
-        return '<p class="momentum-timeline-empty">No CRM activities or plan milestones yet.</p>';
+        return '<p class="momentum-timeline-empty">No strategic signals or CRM activities yet.</p>';
     }
 
     const rows = items.map((item) => {
-        const sideClass = item.type === 'milestone' ? 'timeline-item-left' : 'timeline-item-right';
-        const typeClass = item.type === 'milestone' ? 'timeline-item-milestone' : 'timeline-item-activity';
+        const sideClass = item.type === 'signal' ? 'timeline-item-left' : 'timeline-item-right';
+        const typeClass = item.type === 'signal' ? 'timeline-item-signal' : 'timeline-item-activity';
         const dateLabel = formatCommittedDate(item.date.toISOString());
 
         return `
@@ -1165,14 +1167,57 @@ function buildMomentumTimelineHtml() {
         </div>`;
 }
 
+function buildMomentumTimelineHtml() {
+    return `
+        <div class="momentum-timeline-body">
+            <div class="momentum-timeline-log">
+                <textarea
+                    id="momentum-signal-input"
+                    class="strategic-field strategic-textarea momentum-signal-input"
+                    rows="2"
+                    placeholder="Log a strategic signal, political shift, or momentum change…"
+                ></textarea>
+                <button type="button" class="btn-secondary momentum-signal-log-btn" data-momentum-signal-log>
+                    Log Signal
+                </button>
+            </div>
+            <div class="momentum-timeline-display">${buildMomentumTimelineDisplayHtml()}</div>
+        </div>`;
+}
+
 function refreshMomentumTimelineSection() {
     const sectionEl = document.getElementById('strategic-section-momentum_timeline');
     if (!sectionEl) return;
 
-    const marker = sectionEl.querySelector('.momentum-timeline-tree, .momentum-timeline-empty');
-    if (marker) {
-        marker.outerHTML = buildMomentumTimelineHtml();
+    const display = sectionEl.querySelector('.momentum-timeline-display');
+    if (display) {
+        display.innerHTML = buildMomentumTimelineDisplayHtml();
     }
+}
+
+function logMomentumSignal() {
+    if (!_liveSections) return;
+
+    const textarea = document.getElementById('momentum-signal-input');
+    if (!(textarea instanceof HTMLTextAreaElement)) return;
+
+    const text = textarea.value.trim();
+    if (!text) return;
+
+    const notes = Array.isArray(_liveSections.momentum_notes)
+        ? [..._liveSections.momentum_notes]
+        : [];
+    notes.push({
+        id: crypto.randomUUID(),
+        date: new Date().toISOString(),
+        text,
+    });
+    _liveSections.momentum_notes = notes;
+
+    textarea.value = '';
+    autoExpandTextarea(textarea);
+    refreshMomentumTimelineSection();
+    queueAutosave();
 }
 
 /**
@@ -1626,6 +1671,12 @@ function bindCanvasFormEvents(canvas) {
         if (target.closest('[data-entry-point-add]')) {
             event.preventDefault();
             addEntryPoint();
+            return;
+        }
+
+        if (target.closest('[data-momentum-signal-log]')) {
+            event.preventDefault();
+            logMomentumSignal();
             return;
         }
 

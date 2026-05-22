@@ -1,10 +1,10 @@
 -- =============================================================================
--- Account 10 — timeline demo data (CRM activities + plan milestones + entry points)
+-- Account 10 — timeline demo data (CRM activities + strategic signals + entry points)
 -- Run in Supabase SQL Editor after account 10, its contacts, and account_plans exist.
 --
 -- Populates:
 --   • public.activities        — historical CRM activity for Relationship Timeline (right rail)
---   • account_plans.plan       — entry_points (×3) + history milestones (left rail)
+--   • account_plans.plan       — entry_points (×3) + momentum_notes (left rail) + history (versioning)
 --
 -- Safe to re-run: replaces account-10 seed activities; upserts plan JSON for account 10.
 -- =============================================================================
@@ -57,7 +57,7 @@ JOIN public.accounts a ON a.id = 10
 WHERE cc.n > 0;
 
 -- ---------------------------------------------------------------------------
--- 2) Strategic plan — 3 entry points + milestone history for timeline
+-- 2) Strategic plan — 3 entry points + strategic signals + milestone history
 -- ---------------------------------------------------------------------------
 WITH contact_slots AS (
     SELECT
@@ -173,6 +173,28 @@ entry_points_json AS (
 plan_patch AS (
     SELECT jsonb_build_object(
         'entry_points', (SELECT payload FROM entry_points_json),
+        'momentum_notes', jsonb_build_array(
+            jsonb_build_object(
+                'id', gen_random_uuid()::text,
+                'date', to_jsonb((now() AT TIME ZONE 'utc') - interval '48 days'),
+                'text', 'VP Infrastructure mentioned tournament-weekend outages in passing — political window opening on WAN resilience.'
+            ),
+            jsonb_build_object(
+                'id', gen_random_uuid()::text,
+                'date', to_jsonb((now() AT TIME ZONE 'utc') - interval '27 days'),
+                'text', 'NOC lead co-authored workshop notes; credibility shift from vendor to partner.'
+            ),
+            jsonb_build_object(
+                'id', gen_random_uuid()::text,
+                'date', to_jsonb((now() AT TIME ZONE 'utc') - interval '11 days'),
+                'text', 'CFO office delegate skeptical on TCO — need one-page ROI before exec readout.'
+            ),
+            jsonb_build_object(
+                'id', gen_random_uuid()::text,
+                'date', to_jsonb((now() AT TIME ZONE 'utc') - interval '2 days'),
+                'text', 'Regional ops director LinkedIn connect after industry event — informal influence path opened.'
+            )
+        ),
         'history', jsonb_build_array(
             jsonb_build_object(
                 'id', gen_random_uuid()::text,
@@ -244,9 +266,14 @@ plan_patch AS (
 UPDATE public.account_plans ap
 SET plan = jsonb_set(
     jsonb_set(
-        ap.plan,
-        '{current_draft,sections,entry_points}',
-        (SELECT patch -> 'entry_points' FROM plan_patch),
+        jsonb_set(
+            ap.plan,
+            '{current_draft,sections,entry_points}',
+            (SELECT patch -> 'entry_points' FROM plan_patch),
+            true
+        ),
+        '{current_draft,sections,momentum_notes}',
+        (SELECT patch -> 'momentum_notes' FROM plan_patch),
         true
     ),
     '{history}',
@@ -267,6 +294,16 @@ SELECT
     max(a.date) AS newest
 FROM public.activities a
 WHERE a.account_id = 10
+
+UNION ALL
+
+SELECT
+    'momentum_notes' AS source,
+    jsonb_array_length(COALESCE(ap.plan -> 'current_draft' -> 'sections' -> 'momentum_notes', '[]'::jsonb)) AS row_count,
+    NULL::timestamptz,
+    NULL::timestamptz
+FROM public.account_plans ap
+WHERE ap.account_id = 10
 
 UNION ALL
 
@@ -299,6 +336,16 @@ CROSS JOIN LATERAL jsonb_array_elements(
 ) WITH ORDINALITY AS ep(value, ordinality)
 WHERE ap.account_id = 10
 ORDER BY ep.ordinality;
+
+SELECT
+    n.value ->> 'date' AS signal_date,
+    n.value ->> 'text' AS signal_text
+FROM public.account_plans ap
+CROSS JOIN LATERAL jsonb_array_elements(
+    COALESCE(ap.plan -> 'current_draft' -> 'sections' -> 'momentum_notes', '[]'::jsonb)
+) AS n(value)
+WHERE ap.account_id = 10
+ORDER BY (n.value ->> 'date') DESC;
 
 SELECT
     h.value ->> 'committed_at' AS committed_at,
