@@ -4,6 +4,12 @@
 
 import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
 import { normalizePlan } from './account-plan-data.js';
+import {
+    GPC_BRAND,
+    GPC_LOGO_NAVY,
+    GPC_LOGO_WHITE,
+    formatGpcFooterDate,
+} from './account-plan-export-brand.js';
 
 export const DOSSIER_WIDTH_PX = 816;
 export const DOSSIER_HEIGHT_PX = 1056;
@@ -203,7 +209,7 @@ export function buildExecReadoutTemplate(plan, account) {
     const competitive = summarizeCompetitiveLandscape(sections.competitive_landscape);
 
     const root = document.createElement('div');
-    root.className = 'ap-export-exec-readout';
+    root.className = 'ap-export-exec-readout ap-export-exec-readout--gpc';
     root.style.width = `${EXEC_WIDTH_PX}px`;
     root.style.minHeight = `${EXEC_HEIGHT_PX}px`;
 
@@ -229,40 +235,133 @@ export function buildExecReadoutTemplate(plan, account) {
         return `<li><strong>${days}d</strong> ${escapeHtml(truncate(line, 140))}</li>`;
     }).join('');
 
+    const footerDate = formatGpcFooterDate(new Date());
+
     root.innerHTML = `
-        <div class="ap-export-exec-header">
-            <div>
+        <div class="ap-export-exec-gpc-bg" aria-hidden="true">
+            <div class="ap-export-exec-gpc-art"></div>
+        </div>
+        <img class="ap-export-gpc-logo ap-export-gpc-logo--exec" src="${GPC_LOGO_WHITE}" alt="Great Plains Communications" crossorigin="anonymous" />
+        <div class="ap-export-exec-gpc-shell">
+            <div class="ap-export-exec-gpc-intro">
                 <p class="ap-export-exec-kicker">Strategic Account Exec Readout</p>
                 <h1 class="ap-export-exec-title">${escapeHtml(accountName)}</h1>
+                <p class="ap-export-exec-gpc-date">${escapeHtml(dateLabel)}</p>
             </div>
-            <div class="ap-export-exec-meta">${escapeHtml(dateLabel)}</div>
+            <div class="ap-export-exec-grid">
+                <div class="ap-export-exec-panel ap-export-exec-panel-thesis">
+                    <h2>Pursuit Thesis</h2>
+                    <p>${escapeHtml(truncate(pursuitThesis, 420))}</p>
+                </div>
+                <div class="ap-export-exec-panel ap-export-exec-panel-momentum">
+                    <h2>Relationship Momentum</h2>
+                    <div class="ap-export-exec-momentum-score">${score}</div>
+                    <div class="ap-export-exec-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</div>
+                </div>
+                <div class="ap-export-exec-panel ap-export-exec-panel-psych">
+                    <h2>Account Psychology</h2>
+                    <div class="ap-export-exec-psych-grid">${psychCards}</div>
+                </div>
+                <div class="ap-export-exec-panel ap-export-exec-panel-plan">
+                    <h2>30 / 60 / 90</h2>
+                    <ul class="ap-export-exec-plan-list">${planBullets}</ul>
+                </div>
+                ${competitive ? `
+                <div class="ap-export-exec-panel ap-export-exec-panel-competitive">
+                    <h2>Competitive Landscape</h2>
+                    <p>${escapeHtml(truncate(competitive, 260))}</p>
+                </div>` : ''}
+            </div>
         </div>
-        <div class="ap-export-exec-grid">
-            <div class="ap-export-exec-panel ap-export-exec-panel-thesis">
-                <h2>Pursuit Thesis</h2>
-                <p>${escapeHtml(truncate(pursuitThesis, 420))}</p>
-            </div>
-            <div class="ap-export-exec-panel ap-export-exec-panel-momentum">
-                <h2>Relationship Momentum</h2>
-                <div class="ap-export-exec-momentum-score">${score}</div>
-                <div class="ap-export-exec-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</div>
-            </div>
-            <div class="ap-export-exec-panel ap-export-exec-panel-psych">
-                <h2>Account Psychology</h2>
-                <div class="ap-export-exec-psych-grid">${psychCards}</div>
-            </div>
-            <div class="ap-export-exec-panel ap-export-exec-panel-plan">
-                <h2>30 / 60 / 90</h2>
-                <ul class="ap-export-exec-plan-list">${planBullets}</ul>
-            </div>
-            ${competitive ? `
-            <div class="ap-export-exec-panel ap-export-exec-panel-competitive">
-                <h2>Competitive Landscape</h2>
-                <p>${escapeHtml(truncate(competitive, 260))}</p>
-            </div>` : ''}
+        <div class="ap-export-exec-gpc-footer">
+            <div class="ap-export-gpc-footer-accent ap-export-gpc-footer-accent--exec" aria-hidden="true"></div>
+            <span class="ap-export-gpc-footer-left">1 / ${escapeHtml(GPC_BRAND.companyName)}</span>
+            <span class="ap-export-gpc-footer-right">${escapeHtml(footerDate)}</span>
         </div>`;
 
     return root;
+}
+
+/**
+ * GPC title-slide cover for the dossier PDF.
+ * @param {{ accountName: string, dateLabel: string }} meta
+ * @returns {HTMLElement}
+ */
+export function buildGpcCoverPage(meta) {
+    const page = document.createElement('div');
+    page.className = 'ap-export-gpc-cover';
+    page.style.width = `${DOSSIER_WIDTH_PX}px`;
+    page.style.height = `${DOSSIER_HEIGHT_PX}px`;
+    page.innerHTML = `
+        <div class="ap-export-gpc-cover-bg" aria-hidden="true">
+            <div class="ap-export-gpc-cover-art"></div>
+        </div>
+        <img class="ap-export-gpc-logo ap-export-gpc-logo--cover" src="${GPC_LOGO_WHITE}" alt="Great Plains Communications" crossorigin="anonymous" />
+        <div class="ap-export-gpc-cover-body">
+            <div class="ap-export-gpc-cover-title-frame">
+                <h1 class="ap-export-gpc-cover-title">${escapeHtml(meta.accountName)}</h1>
+            </div>
+            <p class="ap-export-gpc-cover-subtitle">Strategic Account Dossier</p>
+            <p class="ap-export-gpc-cover-date">${escapeHtml(meta.dateLabel)}</p>
+        </div>`;
+    return page;
+}
+
+/**
+ * GPC content slide for dossier interior pages.
+ * @param {HTMLElement[]} blocks
+ * @param {{ accountName: string, dateLabel: string }} meta
+ * @param {{ pageNumber: number, totalPages: number }} pageInfo
+ * @returns {HTMLElement}
+ */
+export function buildDossierContentPage(blocks, meta, pageInfo) {
+    const pageTitle = getContentPageTitle(blocks);
+    const footerDate = formatGpcFooterDate(new Date());
+
+    const page = document.createElement('div');
+    page.className = 'ap-export-dossier-page ap-export-dossier-page--content';
+    page.style.width = `${DOSSIER_WIDTH_PX}px`;
+    page.style.height = `${DOSSIER_HEIGHT_PX}px`;
+
+    const header = document.createElement('div');
+    header.className = 'ap-export-gpc-page-header';
+    header.innerHTML = `
+        <img class="ap-export-gpc-logo ap-export-gpc-logo--content" src="${GPC_LOGO_NAVY}" alt="" crossorigin="anonymous" />
+        <h1 class="ap-export-gpc-page-title">${escapeHtml(pageTitle)}</h1>
+        <p class="ap-export-gpc-page-subtitle">${escapeHtml(meta.accountName)}</p>
+        <div class="ap-export-gpc-page-rule"></div>`;
+    page.appendChild(header);
+
+    const content = document.createElement('div');
+    content.className = 'ap-export-dossier-content';
+    blocks.forEach((block) => {
+        if (blocks.length === 1) {
+            block.querySelector('.ap-export-dossier-section-title')?.remove();
+        }
+        content.appendChild(block);
+    });
+    page.appendChild(content);
+
+    const footer = document.createElement('div');
+    footer.className = 'ap-export-gpc-page-footer';
+    footer.innerHTML = `
+        <div class="ap-export-gpc-footer-accent" aria-hidden="true"></div>
+        <span class="ap-export-gpc-footer-left">${pageInfo.pageNumber} / ${escapeHtml(GPC_BRAND.companyName)}</span>
+        <span class="ap-export-gpc-footer-right">${escapeHtml(footerDate)}</span>`;
+    page.appendChild(footer);
+
+    return page;
+}
+
+/**
+ * @param {HTMLElement[]} blocks
+ */
+function getContentPageTitle(blocks) {
+    if (blocks.length === 1) {
+        const titleEl = blocks[0].querySelector('.ap-export-dossier-section-title');
+        if (titleEl?.textContent) return titleEl.textContent.trim();
+    }
+    return 'Strategic Account Dossier';
 }
 
 /**
@@ -330,36 +429,19 @@ function buildPsychologyBar(slider, value) {
     const row = document.createElement('div');
     row.className = 'ap-export-psych-row';
     const pct = ((value - 1) / 4) * 100;
-    const hue = getBarHue(slider.id, value, slider.colorScale);
     row.innerHTML = `
         <div class="ap-export-psych-row-header">
             <span class="ap-export-psych-row-label">${escapeHtml(slider.label)}</span>
             <span class="ap-export-psych-row-value">${value} / 5</span>
         </div>
         <div class="ap-export-psych-track">
-            <div class="ap-export-psych-fill" style="width:${pct}%;background:hsl(${hue} 62% 46%)"></div>
+            <div class="ap-export-psych-fill" style="width:${pct}%;background:${GPC_BRAND.teal}"></div>
         </div>
         <div class="ap-export-psych-scale">
             <span>${escapeHtml(slider.lowLabel)}</span>
             <span>${escapeHtml(slider.highLabel)}</span>
         </div>`;
     return row;
-}
-
-/**
- * @param {string} metricId
- * @param {number} value
- * @param {string} [colorScale]
- */
-function getBarHue(metricId, value, colorScale = 'direct') {
-    const t = (value - 1) / 4;
-    if (colorScale === 'inverse' || metricId === 'bureaucracy_level') {
-        return Math.round(120 - (t * 120));
-    }
-    if (metricId === 'technical_sophistication') {
-        return Math.round(20 + (t * 100));
-    }
-    return Math.round(35 + (t * 85));
 }
 
 /**
@@ -420,77 +502,187 @@ export function ensureExportTemplateStyles() {
     const style = document.createElement('style');
     style.id = 'account-plan-export-styles';
     style.textContent = `
+        /* --- GPC cover (title slide) --- */
+        .ap-export-gpc-cover {
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            background: ${GPC_BRAND.navyDark};
+            color: ${GPC_BRAND.white};
+            font-family: ${GPC_BRAND.fontHeading};
+        }
+        .ap-export-gpc-cover-bg {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .ap-export-gpc-cover-art {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 48%;
+            height: 100%;
+            background:
+                linear-gradient(155deg, ${GPC_BRAND.navyDeep} 0%, ${GPC_BRAND.navyDeep} 38%, transparent 38%),
+                linear-gradient(140deg, transparent 20%, ${GPC_BRAND.teal} 20%, ${GPC_BRAND.teal} 62%, transparent 62%),
+                linear-gradient(125deg, transparent 48%, ${GPC_BRAND.lime} 48%, ${GPC_BRAND.lime} 100%);
+        }
+        .ap-export-gpc-logo--cover {
+            position: absolute;
+            top: 36px;
+            right: 40px;
+            width: 168px;
+            height: auto;
+        }
+        .ap-export-gpc-cover-body {
+            position: absolute;
+            left: 56px;
+            right: 42%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .ap-export-gpc-cover-title-frame {
+            border: 2px solid ${GPC_BRAND.white};
+            padding: 18px 22px;
+            margin-bottom: 18px;
+        }
+        .ap-export-gpc-cover-title {
+            margin: 0;
+            font-size: 34px;
+            line-height: 1.15;
+            font-weight: 700;
+        }
+        .ap-export-gpc-cover-subtitle {
+            margin: 0 0 10px;
+            font-size: 22px;
+            line-height: 1.25;
+            color: ${GPC_BRAND.lime};
+            font-family: ${GPC_BRAND.fontBody};
+        }
+        .ap-export-gpc-cover-date {
+            margin: 0;
+            font-size: 14px;
+            color: rgba(255,255,255,0.82);
+            font-family: ${GPC_BRAND.fontBody};
+        }
+
+        /* --- GPC dossier content pages --- */
         .ap-export-dossier-page {
             width: ${DOSSIER_WIDTH_PX}px;
             height: ${DOSSIER_HEIGHT_PX}px;
             box-sizing: border-box;
-            background: #ffffff;
-            color: #1e293b;
-            font-family: Helvetica, Arial, sans-serif;
+            background: ${GPC_BRAND.white};
+            color: ${GPC_BRAND.textDark};
+            font-family: ${GPC_BRAND.fontBody};
             position: relative;
             overflow: hidden;
         }
-        .ap-export-dossier-page-header {
-            padding: 40px 48px 16px;
-            border-bottom: 2px solid #e2e8f0;
+        .ap-export-gpc-page-header {
+            position: absolute;
+            left: 48px;
+            right: 48px;
+            top: 34px;
         }
-        .ap-export-dossier-kicker {
-            margin: 0 0 4px;
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #64748b;
-            font-weight: 700;
+        .ap-export-gpc-logo--content {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 120px;
+            height: auto;
         }
-        .ap-export-dossier-title {
-            margin: 0;
+        .ap-export-gpc-page-title {
+            margin: 0 140px 6px 0;
+            font-family: ${GPC_BRAND.fontHeading};
             font-size: 28px;
             line-height: 1.15;
-            color: #0f172a;
+            font-weight: 700;
+            color: ${GPC_BRAND.textDark};
         }
-        .ap-export-dossier-date {
-            margin: 6px 0 0;
-            font-size: 12px;
-            color: #64748b;
+        .ap-export-gpc-page-subtitle {
+            margin: 0 140px 12px 0;
+            font-size: 16px;
+            line-height: 1.3;
+            color: ${GPC_BRAND.lime};
+            font-weight: 600;
+        }
+        .ap-export-gpc-page-rule {
+            height: 2px;
+            background: ${GPC_BRAND.gray};
         }
         .ap-export-dossier-content {
             position: absolute;
             left: 48px;
             right: 48px;
-            top: 120px;
-            bottom: 48px;
+            top: 148px;
+            bottom: 58px;
             overflow: hidden;
         }
-        .ap-export-dossier-section {
-            margin-bottom: 22px;
+        .ap-export-gpc-page-footer,
+        .ap-export-exec-gpc-footer {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 42px;
+            background: ${GPC_BRAND.navyDark};
+            color: ${GPC_BRAND.white};
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 48px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 11px;
+            overflow: hidden;
         }
+        .ap-export-gpc-footer-left,
+        .ap-export-gpc-footer-right {
+            position: relative;
+            z-index: 2;
+        }
+        .ap-export-gpc-footer-accent {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 120px;
+            height: 42px;
+            background:
+                linear-gradient(135deg, transparent 35%, ${GPC_BRAND.teal} 35%, ${GPC_BRAND.teal} 68%, ${GPC_BRAND.lime} 68%);
+        }
+        .ap-export-gpc-footer-accent--exec {
+            width: 160px;
+            height: 42px;
+        }
+
+        /* --- Dossier section typography --- */
+        .ap-export-dossier-section { margin-bottom: 18px; }
         .ap-export-dossier-section-title {
             margin: 0 0 8px;
-            font-size: 14px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 16px;
             line-height: 1.3;
-            color: #0f172a;
+            color: ${GPC_BRAND.navyDeep};
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
         .ap-export-dossier-body {
-            font-size: 12px;
+            font-size: 14px;
             line-height: 1.55;
-            color: #334155;
+            color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
         }
-        .ap-export-psych-grid { display: flex; flex-direction: column; gap: 12px; }
+        .ap-export-psych-grid { display: flex; flex-direction: column; gap: 10px; }
         .ap-export-psych-row-header {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 12px;
             margin-bottom: 4px;
-            color: #334155;
+            color: ${GPC_BRAND.textDark};
         }
-        .ap-export-psych-row-value { font-weight: 700; color: #0f172a; }
+        .ap-export-psych-row-value { font-weight: 700; color: ${GPC_BRAND.navyDeep}; }
         .ap-export-psych-track {
             height: 8px;
             border-radius: 999px;
-            background: #e2e8f0;
+            background: ${GPC_BRAND.gray};
             overflow: hidden;
         }
         .ap-export-psych-fill { height: 100%; border-radius: 999px; }
@@ -498,7 +690,7 @@ export function ensureExportTemplateStyles() {
             display: flex;
             justify-content: space-between;
             font-size: 10px;
-            color: #94a3b8;
+            color: #64748b;
             margin-top: 3px;
         }
         .ap-export-momentum-score-row {
@@ -508,10 +700,10 @@ export function ensureExportTemplateStyles() {
             margin-bottom: 8px;
         }
         .ap-export-momentum-score {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border-radius: 999px;
-            background: #2563eb;
+            background: ${GPC_BRAND.teal};
             color: #fff;
             display: inline-flex;
             align-items: center;
@@ -519,14 +711,14 @@ export function ensureExportTemplateStyles() {
             font-weight: 700;
             font-size: 14px;
         }
-        .ap-export-momentum-label { font-size: 12px; font-weight: 600; color: #0f172a; }
+        .ap-export-momentum-label { font-size: 13px; font-weight: 600; color: ${GPC_BRAND.navyDeep}; }
         .ap-export-plan-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 10px;
         }
         .ap-export-plan-cell {
-            border: 1px solid #e2e8f0;
+            border: 1px solid ${GPC_BRAND.gray};
             border-radius: 8px;
             padding: 10px;
             background: #f8fafc;
@@ -536,13 +728,14 @@ export function ensureExportTemplateStyles() {
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            color: #64748b;
+            color: ${GPC_BRAND.teal};
+            font-family: ${GPC_BRAND.fontHeading};
         }
         .ap-export-plan-cell p {
             margin: 0;
-            font-size: 11px;
+            font-size: 12px;
             line-height: 1.45;
-            color: #334155;
+            color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
         }
         .ap-export-composite-body {
@@ -552,120 +745,187 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-composite-block h3 {
             margin: 0 0 4px;
-            font-size: 11px;
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            color: #64748b;
+            color: ${GPC_BRAND.teal};
+            font-family: ${GPC_BRAND.fontHeading};
         }
         .ap-export-composite-block p {
             margin: 0;
-            font-size: 12px;
+            font-size: 14px;
             line-height: 1.55;
-            color: #334155;
+            color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
         }
-        .ap-export-exec-readout {
+
+        /* --- GPC exec readout (16:9) --- */
+        .ap-export-exec-readout--gpc {
             box-sizing: border-box;
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #1d4ed8 100%);
-            color: #ffffff;
-            font-family: Helvetica, Arial, sans-serif;
-            padding: 36px 40px;
+            position: relative;
+            overflow: hidden;
+            background: ${GPC_BRAND.navyDark};
+            color: ${GPC_BRAND.white};
+            font-family: ${GPC_BRAND.fontBody};
+            padding: 28px 36px 52px;
         }
-        .ap-export-exec-header {
+        .ap-export-exec-gpc-bg {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .ap-export-exec-gpc-art {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 42%;
+            height: 100%;
+            background:
+                linear-gradient(155deg, ${GPC_BRAND.navyDeep} 0%, ${GPC_BRAND.navyDeep} 35%, transparent 35%),
+                linear-gradient(140deg, transparent 18%, ${GPC_BRAND.teal} 18%, ${GPC_BRAND.teal} 58%, transparent 58%),
+                linear-gradient(125deg, transparent 45%, ${GPC_BRAND.lime} 45%, ${GPC_BRAND.lime} 100%);
+        }
+        .ap-export-gpc-logo--exec {
+            position: absolute;
+            top: 22px;
+            right: 28px;
+            width: 140px;
+            height: auto;
+            z-index: 3;
+        }
+        .ap-export-exec-gpc-shell {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: 0.95fr 1.55fr;
+            gap: 20px;
+            height: calc(100% - 8px);
+        }
+        .ap-export-exec-gpc-intro {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 24px;
-            margin-bottom: 24px;
+            flex-direction: column;
+            justify-content: center;
+            padding-right: 12px;
         }
         .ap-export-exec-kicker {
-            margin: 0 0 6px;
-            font-size: 11px;
-            letter-spacing: 0.1em;
+            margin: 0 0 8px;
+            font-size: 14px;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
-            opacity: 0.75;
-        }
-        .ap-export-exec-title {
-            margin: 0;
-            font-size: 34px;
-            line-height: 1.1;
+            color: ${GPC_BRAND.lime};
+            font-family: ${GPC_BRAND.fontHeading};
             font-weight: 700;
         }
-        .ap-export-exec-meta {
-            font-size: 12px;
+        .ap-export-exec-title {
+            margin: 0 0 10px;
+            font-size: 36px;
+            line-height: 1.08;
+            font-weight: 700;
+            font-family: ${GPC_BRAND.fontHeading};
+        }
+        .ap-export-exec-gpc-date {
+            margin: 0;
+            font-size: 13px;
             opacity: 0.85;
-            white-space: nowrap;
         }
         .ap-export-exec-grid {
             display: grid;
-            grid-template-columns: 1.4fr 0.8fr;
+            grid-template-columns: 1.35fr 0.85fr;
             grid-template-rows: auto auto;
-            gap: 14px;
+            gap: 12px;
+            align-content: start;
         }
         .ap-export-exec-panel {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            border-radius: 14px;
-            padding: 16px 18px;
-            backdrop-filter: blur(4px);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            padding: 14px 16px;
+            color: ${GPC_BRAND.textDark};
         }
         .ap-export-exec-panel h2 {
-            margin: 0 0 10px;
-            font-size: 12px;
+            margin: 0 0 8px;
+            font-size: 11px;
             letter-spacing: 0.06em;
             text-transform: uppercase;
-            opacity: 0.85;
+            color: ${GPC_BRAND.teal};
+            font-family: ${GPC_BRAND.fontHeading};
         }
         .ap-export-exec-panel p,
         .ap-export-exec-plan-list {
             margin: 0;
-            font-size: 13px;
-            line-height: 1.5;
+            font-size: 12px;
+            line-height: 1.45;
+            color: ${GPC_BRAND.textDark};
         }
         .ap-export-exec-panel-thesis { grid-column: 1; grid-row: 1; }
         .ap-export-exec-panel-momentum { grid-column: 2; grid-row: 1; text-align: center; }
         .ap-export-exec-momentum-score {
-            font-size: 48px;
+            font-size: 42px;
             font-weight: 800;
             line-height: 1;
+            color: ${GPC_BRAND.navyDeep};
         }
-        .ap-export-exec-momentum-label { font-size: 14px; opacity: 0.9; margin-top: 4px; }
+        .ap-export-exec-momentum-label {
+            font-size: 13px;
+            color: ${GPC_BRAND.teal};
+            margin-top: 4px;
+            font-weight: 600;
+        }
         .ap-export-exec-panel-psych { grid-column: 1; grid-row: 2; }
         .ap-export-exec-panel-plan { grid-column: 2; grid-row: 2; }
         .ap-export-exec-panel-competitive { grid-column: 1 / -1; }
         .ap-export-exec-psych-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
+            gap: 8px;
         }
         .ap-export-exec-psych-card {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
-            padding: 10px;
+            background: #f4f7fa;
+            border-radius: 8px;
+            padding: 8px;
         }
-        .ap-export-exec-psych-label { font-size: 10px; opacity: 0.85; margin-bottom: 4px; }
-        .ap-export-exec-psych-value { font-size: 22px; font-weight: 700; line-height: 1; }
-        .ap-export-exec-psych-value span { font-size: 12px; opacity: 0.75; margin-left: 2px; }
+        .ap-export-exec-psych-label {
+            font-size: 10px;
+            color: ${GPC_BRAND.navyDeep};
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .ap-export-exec-psych-value {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1;
+            color: ${GPC_BRAND.navyDeep};
+        }
+        .ap-export-exec-psych-value span { font-size: 11px; opacity: 0.65; margin-left: 2px; }
         .ap-export-exec-psych-track {
-            margin-top: 8px;
+            margin-top: 6px;
             height: 6px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.2);
+            background: ${GPC_BRAND.gray};
             overflow: hidden;
         }
         .ap-export-exec-psych-fill {
             height: 100%;
             border-radius: 999px;
-            background: #93c5fd;
+            background: ${GPC_BRAND.lime};
         }
         .ap-export-exec-plan-list {
             list-style: none;
             padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
         }
-        .ap-export-exec-plan-list strong { margin-right: 6px; }
+        .ap-export-exec-plan-list strong {
+            margin-right: 6px;
+            color: ${GPC_BRAND.teal};
+        }
+        .ap-export-exec-gpc-footer {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
     `;
     document.head.appendChild(style);
 }

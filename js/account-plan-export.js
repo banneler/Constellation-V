@@ -5,11 +5,9 @@
 import {
     buildDossierTemplate,
     buildExecReadoutTemplate,
-    DOSSIER_HEIGHT_PX,
-    DOSSIER_WIDTH_PX,
+    buildGpcCoverPage,
+    buildDossierContentPage,
     ensureExportTemplateStyles,
-    EXEC_HEIGHT_PX,
-    EXEC_WIDTH_PX,
 } from './account-plan-export-templates.js';
 
 const LETTER_WIDTH_PT = 612;
@@ -21,8 +19,9 @@ const EXEC_PAGE_HEIGHT_PT = EXEC_PAGE_WIDTH_PT * (9 / 16);
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @param {'dossier' | 'exec' | 'exec_readout'} type
+ * @returns {Promise<{ bytes: Uint8Array, filename: string }>}
  */
-export async function exportAccountPlanPdf(plan, account, type) {
+export async function generateAccountPlanPdf(plan, account, type) {
     if (typeof snapdom !== 'function') {
         throw new Error('Snapdom is not loaded.');
     }
@@ -41,10 +40,12 @@ export async function exportAccountPlanPdf(plan, account, type) {
 
     try {
         if (normalizedType === 'dossier') {
-            await exportDossierPdf(plan, account, exportRoot);
-        } else {
-            await exportExecReadoutPdf(plan, account, exportRoot);
+            const bytes = await buildDossierPdfBytes(plan, account, exportRoot);
+            return { bytes, filename: buildFilename(account, 'Dossier') };
         }
+
+        const bytes = await buildExecReadoutPdfBytes(plan, account, exportRoot);
+        return { bytes, filename: buildFilename(account, 'Exec_Readout') };
     } finally {
         exportRoot.innerHTML = '';
     }
@@ -53,16 +54,63 @@ export async function exportAccountPlanPdf(plan, account, type) {
 /**
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
- * @param {HTMLElement} exportRoot
+ * @param {'dossier' | 'exec' | 'exec_readout'} type
  */
-async function exportDossierPdf(plan, account, exportRoot) {
-    const { sectionBlocks, meta } = buildDossierTemplate(plan, account);
-    const pageCanvases = await capturePaginatedDossier(sectionBlocks, meta, exportRoot);
-    const pdfBytes = await canvasesToPdf(pageCanvases, {
-        pageWidthPt: LETTER_WIDTH_PT,
-        pageHeightPt: LETTER_HEIGHT_PT,
-    });
-    downloadPdfBytes(pdfBytes, buildFilename(account, 'Dossier'));
+export async function exportAccountPlanPdf(plan, account, type) {
+    const { bytes, filename } = await generateAccountPlanPdf(plan, account, type);
+    downloadPdfBytes(bytes, filename);
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {string} [filename]
+ */
+export function openAccountPlanPdfPreview(bytes, filename = 'Strategic_Account_Plan.pdf') {
+    closeAccountPlanPdfPreview();
+
+    const modal = document.getElementById('plan-pdf-preview-modal');
+    const iframe = document.getElementById('plan-pdf-preview-iframe');
+    const titleEl = document.getElementById('plan-pdf-preview-title');
+    const downloadBtn = document.getElementById('plan-pdf-preview-download-btn');
+    if (!(modal instanceof HTMLElement) || !(iframe instanceof HTMLIFrameElement)) {
+        downloadPdfBytes(bytes, filename);
+        return;
+    }
+
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    modal.dataset.previewUrl = url;
+    modal.dataset.previewFilename = filename;
+
+    if (titleEl) {
+        titleEl.textContent = filename.replace(/_/g, ' ').replace(/\.pdf$/i, '');
+    }
+    iframe.src = `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+    if (downloadBtn instanceof HTMLButtonElement) {
+        downloadBtn.dataset.filename = filename;
+    }
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+/** Close the account plan PDF preview modal and revoke any blob URL. */
+export function closeAccountPlanPdfPreview() {
+    const modal = document.getElementById('plan-pdf-preview-modal');
+    const iframe = document.getElementById('plan-pdf-preview-iframe');
+    if (!(modal instanceof HTMLElement)) return;
+
+    const url = modal.dataset.previewUrl;
+    if (url) {
+        URL.revokeObjectURL(url);
+        delete modal.dataset.previewUrl;
+    }
+    delete modal.dataset.previewFilename;
+
+    if (iframe instanceof HTMLIFrameElement) {
+        iframe.src = '';
+    }
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
 }
 
 /**
@@ -70,97 +118,95 @@ async function exportDossierPdf(plan, account, exportRoot) {
  * @param {{ name?: string } | null} account
  * @param {HTMLElement} exportRoot
  */
-async function exportExecReadoutPdf(plan, account, exportRoot) {
+async function buildDossierPdfBytes(plan, account, exportRoot) {
+    const { sectionBlocks, meta } = buildDossierTemplate(plan, account);
+    const pageBlockGroups = paginateDossierSections(sectionBlocks, meta, exportRoot);
+    const totalPages = 1 + pageBlockGroups.length;
+    const pageCanvases = [];
+
+    const cover = buildGpcCoverPage(meta);
+    exportRoot.appendChild(cover);
+    await waitForDomSettle();
+    await waitForImages(cover);
+    pageCanvases.push(await captureElementToPng(cover));
+    exportRoot.removeChild(cover);
+
+    for (let i = 0; i < pageBlockGroups.length; i += 1) {
+        const blocks = pageBlockGroups[i].map((block) => block.cloneNode(true));
+        const pageEl = buildDossierContentPage(blocks, meta, {
+            pageNumber: i + 2,
+            totalPages,
+        });
+        exportRoot.appendChild(pageEl);
+        await waitForDomSettle();
+        await waitForImages(pageEl);
+
+        pageCanvases.push(await captureElementToPng(pageEl));
+        exportRoot.removeChild(pageEl);
+    }
+
+    return canvasesToPdf(pageCanvases, {
+        pageWidthPt: LETTER_WIDTH_PT,
+        pageHeightPt: LETTER_HEIGHT_PT,
+    });
+}
+
+/**
+ * @param {unknown} plan
+ * @param {{ name?: string } | null} account
+ * @param {HTMLElement} exportRoot
+ */
+async function buildExecReadoutPdfBytes(plan, account, exportRoot) {
     const template = buildExecReadoutTemplate(plan, account);
     exportRoot.appendChild(template);
     await waitForDomSettle();
+    await waitForImages(template);
 
     const pngDataUrl = await captureElementToPng(template);
-    const pdfBytes = await pngToPdf(pngDataUrl, {
+    return pngToPdf(pngDataUrl, {
         pageWidthPt: EXEC_PAGE_WIDTH_PT,
         pageHeightPt: EXEC_PAGE_HEIGHT_PT,
     });
-    downloadPdfBytes(pdfBytes, buildFilename(account, 'Exec_Readout'));
 }
 
 /**
  * @param {HTMLElement[]} sectionBlocks
  * @param {{ accountName: string, dateLabel: string }} meta
  * @param {HTMLElement} exportRoot
+ * @returns {HTMLElement[][]}
  */
-async function capturePaginatedDossier(sectionBlocks, meta, exportRoot) {
-    const canvases = [];
+function paginateDossierSections(sectionBlocks, meta, exportRoot) {
+    const groups = [];
     let remaining = sectionBlocks.map((block) => block.cloneNode(true));
-    let isFirstPage = true;
 
     while (remaining.length > 0) {
         let fitCount = 0;
 
         for (let i = 1; i <= remaining.length; i += 1) {
-            const fits = measureDossierPage(remaining.slice(0, i), meta, isFirstPage, exportRoot);
+            const fits = measureDossierContentPage(remaining.slice(0, i), meta, exportRoot);
             if (!fits) break;
             fitCount = i;
         }
 
         if (fitCount === 0) fitCount = 1;
 
-        const pageBlocks = remaining.slice(0, fitCount);
-        const pageEl = buildDossierPageElement(pageBlocks, meta, isFirstPage);
-        exportRoot.appendChild(pageEl);
-        await waitForDomSettle();
-
-        const pngDataUrl = await captureElementToPng(pageEl);
-        canvases.push(pngDataUrl);
-
-        exportRoot.removeChild(pageEl);
+        groups.push(remaining.slice(0, fitCount));
         remaining = remaining.slice(fitCount);
-        isFirstPage = false;
     }
 
-    return canvases;
+    return groups;
 }
 
 /**
  * @param {HTMLElement[]} blocks
  * @param {{ accountName: string, dateLabel: string }} meta
- * @param {boolean} includeHeader
- */
-function buildDossierPageElement(blocks, meta, includeHeader) {
-    const page = document.createElement('div');
-    page.className = 'ap-export-dossier-page';
-
-    if (includeHeader) {
-        const header = document.createElement('div');
-        header.className = 'ap-export-dossier-page-header';
-        header.innerHTML = `
-            <p class="ap-export-dossier-kicker">Strategic Account Dossier</p>
-            <h1 class="ap-export-dossier-title">${escapeHtml(meta.accountName)}</h1>
-            <p class="ap-export-dossier-date">${escapeHtml(meta.dateLabel)}</p>`;
-        page.appendChild(header);
-    }
-
-    const content = document.createElement('div');
-    content.className = 'ap-export-dossier-content';
-    if (!includeHeader) {
-        content.style.top = '48px';
-    }
-    blocks.forEach((block) => content.appendChild(block));
-    page.appendChild(content);
-
-    return page;
-}
-
-/**
- * @param {HTMLElement[]} blocks
- * @param {{ accountName: string, dateLabel: string }} meta
- * @param {boolean} includeHeader
  * @param {HTMLElement} exportRoot
  */
-function measureDossierPage(blocks, meta, includeHeader, exportRoot) {
-    const pageEl = buildDossierPageElement(
-        blocks.map((b) => b.cloneNode(true)),
+function measureDossierContentPage(blocks, meta, exportRoot) {
+    const pageEl = buildDossierContentPage(
+        blocks.map((block) => block.cloneNode(true)),
         meta,
-        includeHeader
+        { pageNumber: 2, totalPages: 2 }
     );
     exportRoot.appendChild(pageEl);
     const content = pageEl.querySelector('.ap-export-dossier-content');
@@ -173,9 +219,28 @@ function measureDossierPage(blocks, meta, includeHeader, exportRoot) {
  * @param {HTMLElement} element
  */
 async function captureElementToPng(element) {
-    const result = await snapdom(element, { scale: 2, backgroundColor: '#ffffff' });
+    const isDarkBg = element.classList.contains('ap-export-gpc-cover')
+        || element.classList.contains('ap-export-exec-readout--gpc');
+    const result = await snapdom(element, {
+        scale: 2,
+        backgroundColor: isDarkBg ? null : '#ffffff',
+    });
     const canvas = await result.toCanvas();
     return canvas.toDataURL('image/png');
+}
+
+/**
+ * @param {HTMLElement} root
+ */
+async function waitForImages(root) {
+    const images = root.querySelectorAll('img');
+    await Promise.all([...images].map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+            img.addEventListener('load', resolve, { once: true });
+            img.addEventListener('error', resolve, { once: true });
+        });
+    }));
 }
 
 /**
@@ -248,7 +313,7 @@ function buildFilename(account, typeLabel) {
  * @param {Uint8Array} bytes
  * @param {string} filename
  */
-function downloadPdfBytes(bytes, filename) {
+export function downloadPdfBytes(bytes, filename) {
     const blob = new Blob([bytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -266,15 +331,4 @@ function waitForDomSettle() {
             requestAnimationFrame(resolve);
         });
     });
-}
-
-/**
- * @param {string} text
- */
-function escapeHtml(text) {
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }

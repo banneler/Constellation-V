@@ -220,6 +220,22 @@
         <div id="export-dossier-template"></div>
         <div id="export-exec-readout-template"></div>
     </div>
+    <div id="plan-pdf-preview-modal" class="plan-pdf-preview-modal hidden" aria-hidden="true" role="dialog" aria-labelledby="plan-pdf-preview-title" aria-modal="true">
+        <div class="plan-pdf-preview-dialog">
+            <div class="plan-pdf-preview-header">
+                <h2 id="plan-pdf-preview-title" class="plan-pdf-preview-title">PDF Preview</h2>
+                <div class="plan-pdf-preview-actions">
+                    <button type="button" id="plan-pdf-preview-download-btn" class="btn-primary plan-pdf-preview-download-btn">
+                        <i class="fas fa-download" aria-hidden="true"></i> Download PDF
+                    </button>
+                    <button type="button" id="plan-pdf-preview-close-btn" class="plan-pdf-preview-close-btn" aria-label="Close preview">&times;</button>
+                </div>
+            </div>
+            <div class="plan-pdf-preview-frame-wrap">
+                <iframe id="plan-pdf-preview-iframe" class="plan-pdf-preview-iframe" title="Account plan PDF preview"></iframe>
+            </div>
+        </div>
+    </div>
     <div id="plan-version-popover" class="plan-version-popover hidden" role="dialog" aria-labelledby="plan-version-popover-title" aria-modal="false">
         <div class="plan-version-popover-header">
             <h4 id="plan-version-popover-title">Version History</h4>

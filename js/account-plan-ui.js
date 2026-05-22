@@ -10,7 +10,11 @@ import {
     savePlanDraft,
 } from './account-plan-data.js';
 import { createAccountPlanAutosave } from './account-plan-autosave.js';
-import { exportAccountPlanPdf } from './account-plan-export.js';
+import {
+    generateAccountPlanPdf,
+    openAccountPlanPdfPreview,
+    closeAccountPlanPdfPreview,
+} from './account-plan-export.js';
 
 const STORAGE_KEY = 'accounts_view_mode';
 const MOMENTUM_LABELS = Object.freeze(['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion']);
@@ -78,6 +82,7 @@ export function initStrategicMode(options = {}) {
 
     bindVersionPopoverControls();
     bindRailControls();
+    bindPlanPdfPreviewModal();
 
     const toggleBtn = document.getElementById('account-mode-toggle');
     if (toggleBtn && !toggleBtn.dataset.strategicBound) {
@@ -1021,6 +1026,42 @@ function renderRail(sections) {
     if (execBtn instanceof HTMLButtonElement) execBtn.disabled = !_planRowId;
 }
 
+function bindPlanPdfPreviewModal() {
+    const modal = document.getElementById('plan-pdf-preview-modal');
+    if (!modal || modal.dataset.previewBound) return;
+    modal.dataset.previewBound = '1';
+
+    const closeBtn = document.getElementById('plan-pdf-preview-close-btn');
+    const downloadBtn = document.getElementById('plan-pdf-preview-download-btn');
+
+    closeBtn?.addEventListener('click', () => closeAccountPlanPdfPreview());
+
+    downloadBtn?.addEventListener('click', () => {
+        const filename = modal.dataset.previewFilename || 'Strategic_Account_Plan.pdf';
+        const url = modal.dataset.previewUrl;
+        if (!url) return;
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    });
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeAccountPlanPdfPreview();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (modal.classList.contains('hidden')) return;
+        closeAccountPlanPdfPreview();
+    });
+}
+
 function bindRailControls() {
     const rail = document.getElementById('strategic-rail');
     if (!rail || rail.dataset.railBound) return;
@@ -1069,8 +1110,9 @@ async function handleExportPdf(type) {
     });
 
     try {
-        await exportAccountPlanPdf(planForExport, account, type);
-        _options.onToast?.(`${label} PDF downloaded.`, 'success');
+        const { bytes, filename } = await generateAccountPlanPdf(planForExport, account, type);
+        openAccountPlanPdfPreview(bytes, filename);
+        _options.onToast?.(`${label} PDF ready for preview.`, 'success');
     } catch (err) {
         console.error('[account-plan-ui] PDF export failed:', err);
         _options.onToast?.(err?.message || 'PDF export failed.', 'error');
