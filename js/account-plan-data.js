@@ -2,6 +2,8 @@
  * Strategic Account OS — data layer (JSONB plan document, milestones, Supabase I/O).
  */
 
+import { STRATEGIC_TENSION_GROUPS } from './account-plan-sections.js';
+
 export const PLAN_SCHEMA_VERSION = 1;
 export const HISTORY_CAP = 50;
 export const MILESTONE_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -138,6 +140,49 @@ function normalizePursuitThesis(raw, sections) {
 }
 
 /**
+ * @param {string[]} selected
+ * @param {readonly { id: string, options: readonly string[] }[]} groups
+ */
+function enforceEitherOrPills(selected, groups) {
+    const result = [];
+    groups.forEach((group) => {
+        const match = selected.find((value) => group.options.includes(value));
+        if (match) result.push(match);
+    });
+    return result;
+}
+
+/**
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizeStrategicTensions(raw, sections) {
+    const empty = { selected_pills: [], narrative: '' };
+    const validOptions = new Set(STRATEGIC_TENSION_GROUPS.flatMap((group) => group.options));
+
+    let narrative = '';
+    let selected = [];
+
+    if (typeof raw === 'string') {
+        narrative = raw.trim() || migrateLegacySectionText(sections, 'strategic_tensions', ['situation_assessment', 'risks_and_mitigations']);
+    } else if (isPlainObject(raw)) {
+        narrative = raw.narrative != null ? String(raw.narrative) : '';
+        selected = Array.isArray(raw.selected_pills) ? raw.selected_pills.map(String) : [];
+    } else {
+        narrative = migrateLegacySectionText(sections, 'strategic_tensions', ['situation_assessment', 'risks_and_mitigations']);
+    }
+
+    selected = selected.filter((value) => validOptions.has(value));
+    selected = enforceEitherOrPills(selected, STRATEGIC_TENSION_GROUPS);
+
+    return {
+        ...empty,
+        selected_pills: selected,
+        narrative,
+    };
+}
+
+/**
  * @param {unknown} raw
  * @param {Record<string, unknown>} sections
  * @param {string} sectionKey
@@ -252,18 +297,7 @@ export function normalizePlan(plan) {
             last_milestone_at: draft.last_milestone_at != null ? String(draft.last_milestone_at) : null,
             sections: {
                 pursuit_thesis: normalizePursuitThesis(sections.pursuit_thesis, sections),
-                strategic_tensions: (() => {
-                    const normalized = normalizePillsAndNarrative(
-                        sections.strategic_tensions,
-                        sections,
-                        'strategic_tensions',
-                        ['situation_assessment', 'risks_and_mitigations']
-                    );
-                    return {
-                        selected_pills: normalized.selected_pills,
-                        narrative: normalized.narrative,
-                    };
-                })(),
+                strategic_tensions: normalizeStrategicTensions(sections.strategic_tensions, sections),
                 influence_mapping: normalizeInfluenceMapping(sections.influence_mapping, sections),
                 competitive_landscape: normalizeCompetitiveLandscape(sections.competitive_landscape, sections),
                 land_and_expand: normalizeLandAndExpand(sections.land_and_expand, sections),

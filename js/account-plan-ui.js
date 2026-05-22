@@ -324,17 +324,52 @@ function buildSectionContextHtml(section) {
 }
 
 /**
+ * @param {{ description?: string, tips?: string[], contextMode?: string }} section
+ * @returns {{ leadHtml: string, blockHtml: string }}
+ */
+function buildSectionHeaderContext(section) {
+    const mode = section.contextMode
+        || (Array.isArray(section.tips) && section.tips.length ? 'block' : section.description ? 'lead' : 'none');
+
+    if (mode === 'block') {
+        return { leadHtml: '', blockHtml: buildSectionContextHtml(section) };
+    }
+
+    if (mode === 'lead' && section.description) {
+        return {
+            leadHtml: `<p class="strategic-section-lead">${escapeHtml(section.description)}</p>`,
+            blockHtml: '',
+        };
+    }
+
+    return { leadHtml: '', blockHtml: '' };
+}
+
+/**
+ * @param {string | undefined} hint
+ */
+function buildFieldHintHtml(hint) {
+    if (!hint) return '';
+    return `<div class="strategic-field-context"><p>${escapeHtml(hint)}</p></div>`;
+}
+
+/**
  * @param {string} sectionId
  * @param {string} headingId
  * @param {string} title
- * @param {string} contextHtml
+ * @param {{ leadHtml?: string, blockHtml?: string }} headerContext
  * @param {string} bodyHtml
+ * @param {string} [extraClass]
  */
-function wrapStrategicSection(sectionId, headingId, title, contextHtml, bodyHtml) {
+function wrapStrategicSection(sectionId, headingId, title, headerContext, bodyHtml, extraClass = '') {
+    const leadHtml = headerContext.leadHtml || '';
+    const blockHtml = headerContext.blockHtml || '';
+    const classNames = ['strategic-section', extraClass].filter(Boolean).join(' ');
     return `
-        <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
+        <section id="${sectionId}" class="${classNames}" aria-labelledby="${headingId}">
             <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(title)}</h4>
-            ${contextHtml}
+            ${leadHtml}
+            ${blockHtml}
             ${bodyHtml}
         </section>`;
 }
@@ -379,15 +414,24 @@ function buildCompositeTextareaHtml(section, data) {
     const fields = section.fields || [];
     return `<div class="strategic-composite-grid">${fields.map((field) => {
         const value = escapeHtml(String(obj[field.key] ?? ''));
+        const hintHtml = buildFieldHintHtml(field.hint);
+        const labelHtml = field.label
+            ? `<label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>`
+            : '';
+        const withHint = Boolean(field.hint);
+
         return `
-            <div class="strategic-composite-field">
-                <label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>
-                <textarea
-                    id="strategic-field-${section.id}-${field.key}"
-                    class="strategic-field strategic-textarea"
-                    data-field="${section.id}.${field.key}"
-                    rows="3"
-                >${value}</textarea>
+            <div class="strategic-composite-field${withHint ? ' strategic-composite-field--with-hint' : ''}">
+                ${labelHtml}
+                <div class="strategic-composite-field-body">
+                    ${hintHtml}
+                    <textarea
+                        id="strategic-field-${section.id}-${field.key}"
+                        class="strategic-field strategic-textarea"
+                        data-field="${section.id}.${field.key}"
+                        rows="3"
+                    >${value}</textarea>
+                </div>
             </div>`;
     }).join('')}</div>`;
 }
@@ -400,35 +444,66 @@ function buildPillsAndNarrativeHtml(section, data) {
     const obj = isPlainObject(data) ? data : {};
     const pillField = section.pillField || 'selected_pills';
     const selected = Array.isArray(obj[pillField]) ? obj[pillField] : [];
-    const pillsHtml = `
-        <div class="strategic-pills-wrap" role="group" aria-label="${escapeHtml(section.title)} options">
-            ${(section.pills || []).map((pill) => {
-                const active = selected.includes(pill) ? ' strategic-pill-active' : '';
-                return `<button type="button" class="strategic-pill${active}" data-pill-section="${section.id}" data-pill-field="${pillField}" data-pill-value="${escapeHtml(pill)}">${escapeHtml(pill)}</button>`;
-            }).join('')}
+
+    const pillsInnerHtml = section.pillMode === 'either_or' && Array.isArray(section.pillGroups)
+        ? section.pillGroups.map((group) => {
+            const buttons = group.options.map((option, index) => {
+                const active = selected.includes(option) ? ' strategic-pill-active' : '';
+                const divider = index > 0 ? '<span class="strategic-pill-divider">or</span>' : '';
+                return `${divider}<button type="button" class="strategic-pill${active}" data-pill-section="${section.id}" data-pill-field="${pillField}" data-pill-group="${escapeHtml(group.id)}" data-pill-value="${escapeHtml(option)}">${escapeHtml(option)}</button>`;
+            }).join('');
+            return `
+                <div class="strategic-pill-group" data-pill-group="${escapeHtml(group.id)}" role="group" aria-label="${escapeHtml(group.options.join(' or '))}">
+                    ${buttons}
+                </div>`;
+        }).join('')
+        : (section.pills || []).map((pill) => {
+            const active = selected.includes(pill) ? ' strategic-pill-active' : '';
+            return `<button type="button" class="strategic-pill${active}" data-pill-section="${section.id}" data-pill-field="${pillField}" data-pill-value="${escapeHtml(pill)}">${escapeHtml(pill)}</button>`;
+        }).join('');
+
+    const pillsWrapClass = section.pillMode === 'either_or'
+        ? 'strategic-pills-wrap strategic-pills-wrap--either-or'
+        : 'strategic-pills-wrap';
+
+    const pillsBlock = `
+        <div class="strategic-pills-group">
+            ${section.pillHint ? buildFieldHintHtml(section.pillHint) : ''}
+            <div class="${pillsWrapClass}" role="group" aria-label="${escapeHtml(section.title)} options">
+                ${pillsInnerHtml}
+            </div>
         </div>`;
 
     const renderField = (field) => {
         const value = escapeHtml(String(obj[field.key] ?? ''));
+        const hintHtml = buildFieldHintHtml(field.hint);
+        const labelHtml = field.label
+            ? `<label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>`
+            : '';
+        const withHint = Boolean(field.hint);
+
         return `
-            <div class="strategic-composite-field">
-                <label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>
-                <textarea
-                    id="strategic-field-${section.id}-${field.key}"
-                    class="strategic-field strategic-textarea"
-                    data-field="${section.id}.${field.key}"
-                    rows="3"
-                >${value}</textarea>
+            <div class="strategic-composite-field${withHint ? ' strategic-composite-field--with-hint' : ''}">
+                ${labelHtml}
+                <div class="strategic-composite-field-body">
+                    ${hintHtml}
+                    <textarea
+                        id="strategic-field-${section.id}-${field.key}"
+                        class="strategic-field strategic-textarea"
+                        data-field="${section.id}.${field.key}"
+                        rows="3"
+                    >${value}</textarea>
+                </div>
             </div>`;
     };
 
     const textFields = section.textFields || [];
     if (pillField === 'positioning_pills') {
         const [firstField, secondField] = textFields;
-        return `${firstField ? renderField(firstField) : ''}${pillsHtml}${secondField ? renderField(secondField) : ''}`;
+        return `${firstField ? renderField(firstField) : ''}${pillsBlock}${secondField ? renderField(secondField) : ''}`;
     }
 
-    return `${pillsHtml}${textFields.map(renderField).join('')}`;
+    return `${pillsBlock}${textFields.map(renderField).join('')}`;
 }
 
 /**
@@ -463,7 +538,7 @@ function buildInfluenceContactCard(contact, entry, bucket) {
                         id="influence-notes-${contactId}"
                         class="strategic-field strategic-textarea influence-card-notes"
                         data-contact-id="${contactId}"
-                        rows="3"
+                        rows="5"
                     >${notes}</textarea>
                 </div>
             </div>
@@ -488,6 +563,8 @@ function buildInfluenceBoardHtml(section, data) {
         ...midLevelEntries.map((entry) => String(entry.id)),
     ]);
 
+    const columnHints = section.columnHints || {};
+
     const renderBucket = (bucketKey, label, entries) => {
         const cards = entries.map((entry) => {
             const contact = contactById.get(String(entry.id));
@@ -496,10 +573,14 @@ function buildInfluenceBoardHtml(section, data) {
         const emptyHint = bucketKey === 'bench'
             ? 'No unassigned contacts'
             : 'Drop contacts here';
+        const columnHint = columnHints[bucketKey]
+            ? `<p class="influence-board-column-hint">${escapeHtml(columnHints[bucketKey])}</p>`
+            : '';
 
         return `
             <div class="influence-board-column">
                 <h5 class="influence-board-column-title">${escapeHtml(label)}</h5>
+                ${columnHint}
                 <div class="influence-board-dropzone" data-influence-drop="${bucketKey}">
                     ${cards || `<p class="influence-board-empty">${emptyHint}</p>`}
                 </div>
@@ -517,14 +598,16 @@ function buildInfluenceBoardHtml(section, data) {
             ${renderBucket('executive', 'Executive', executiveEntries)}
             ${renderBucket('mid_level', 'Mid-Level', midLevelEntries)}
         </div>
-        <div class="strategic-composite-field influence-invisible-field">
-            <label for="strategic-field-influence-invisible">Invisible Org Chart</label>
-            <textarea
-                id="strategic-field-influence-invisible"
-                class="strategic-field strategic-textarea"
-                data-field="influence_mapping.invisible_org_chart"
-                rows="3"
-            >${invisibleValue}</textarea>
+        <div class="strategic-composite-field influence-invisible-field strategic-composite-field--with-hint">
+            <div class="strategic-composite-field-body">
+                ${buildFieldHintHtml(columnHints.invisible_org_chart)}
+                <textarea
+                    id="strategic-field-influence-invisible"
+                    class="strategic-field strategic-textarea influence-invisible-textarea"
+                    data-field="influence_mapping.invisible_org_chart"
+                    rows="4"
+                >${invisibleValue}</textarea>
+            </div>
         </div>`;
 }
 
@@ -597,12 +680,13 @@ function refreshInfluenceBoardSection() {
     if (!sectionEl || !sectionDef || !_liveSections) return;
 
     const headingId = `strategic-heading-${sectionDef.id}`;
-    const contextHtml = buildSectionContextHtml(sectionDef);
+    const headerContext = buildSectionHeaderContext(sectionDef);
     const bodyHtml = buildInfluenceBoardHtml(sectionDef, _liveSections.influence_mapping);
 
     sectionEl.innerHTML = `
         <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
-        ${contextHtml}
+        ${headerContext.leadHtml}
+        ${headerContext.blockHtml}
         ${bodyHtml}`;
 
     initAutoExpandTextareas(sectionEl);
@@ -615,22 +699,44 @@ function toggleStrategicPill(button) {
     const sectionId = button.dataset.pillSection;
     const pillField = button.dataset.pillField;
     const pillValue = button.dataset.pillValue;
+    const pillGroupId = button.dataset.pillGroup;
     if (!_liveSections || !sectionId || !pillField || !pillValue) return;
 
+    const sectionDef = PLAN_SECTIONS.find((section) => section.id === sectionId);
     const sectionData = isPlainObject(_liveSections[sectionId])
         ? { ..._liveSections[sectionId] }
         : {};
-    const selected = Array.isArray(sectionData[pillField])
+    let selected = Array.isArray(sectionData[pillField])
         ? [...sectionData[pillField]]
         : [];
-    const index = selected.indexOf(pillValue);
 
-    if (index >= 0) {
-        selected.splice(index, 1);
-        button.classList.remove('strategic-pill-active');
+    if (sectionDef?.pillMode === 'either_or' && pillGroupId) {
+        const group = sectionDef.pillGroups?.find((item) => item.id === pillGroupId);
+        if (group) {
+            selected = selected.filter((value) => !group.options.includes(value));
+            const wasActive = button.classList.contains('strategic-pill-active');
+            if (!wasActive) {
+                selected.push(pillValue);
+            }
+
+            const groupEl = button.closest('.strategic-pill-group');
+            groupEl?.querySelectorAll('.strategic-pill').forEach((pillBtn) => {
+                if (!(pillBtn instanceof HTMLElement)) return;
+                pillBtn.classList.toggle(
+                    'strategic-pill-active',
+                    selected.includes(pillBtn.dataset.pillValue || '')
+                );
+            });
+        }
     } else {
-        selected.push(pillValue);
-        button.classList.add('strategic-pill-active');
+        const index = selected.indexOf(pillValue);
+        if (index >= 0) {
+            selected.splice(index, 1);
+            button.classList.remove('strategic-pill-active');
+        } else {
+            selected.push(pillValue);
+            button.classList.add('strategic-pill-active');
+        }
     }
 
     _liveSections[sectionId] = { ...sectionData, [pillField]: selected };
@@ -644,7 +750,7 @@ function buildCanvasHtml(sections) {
     return PLAN_SECTIONS.map((section) => {
         const headingId = `strategic-heading-${section.id}`;
         const sectionId = `strategic-section-${section.id}`;
-        const contextHtml = buildSectionContextHtml(section);
+        const headerContext = buildSectionHeaderContext(section);
 
         if (section.type === 'composite_textarea') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
@@ -652,7 +758,7 @@ function buildCanvasHtml(sections) {
                 sectionId,
                 headingId,
                 section.title,
-                contextHtml,
+                headerContext,
                 buildCompositeTextareaHtml(section, data)
             );
         }
@@ -663,7 +769,7 @@ function buildCanvasHtml(sections) {
                 sectionId,
                 headingId,
                 section.title,
-                contextHtml,
+                headerContext,
                 buildPillsAndNarrativeHtml(section, data)
             );
         }
@@ -674,8 +780,9 @@ function buildCanvasHtml(sections) {
                 sectionId,
                 headingId,
                 section.title,
-                contextHtml,
-                buildInfluenceBoardHtml(section, data)
+                headerContext,
+                buildInfluenceBoardHtml(section, data),
+                'strategic-section--influence'
             );
         }
 
@@ -683,12 +790,16 @@ function buildCanvasHtml(sections) {
             const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
             const sliders = (section.sliders || PSYCHOLOGY_SLIDERS).map((slider) => {
                 const value = clampScale(psychology[slider.id], 3);
+                const hintHtml = slider.hint
+                    ? `<p class="psychology-slider-hint">${escapeHtml(slider.hint)}</p>`
+                    : '';
                 return `
                     <div class="psychology-slider-row" data-metric-id="${slider.id}">
                         <div class="psychology-slider-header">
                             <label class="psychology-slider-label" for="psychology-${slider.id}">${escapeHtml(slider.label)}</label>
                             <span class="psychology-slider-value" data-psych-value="${slider.id}">${value}</span>
                         </div>
+                        ${hintHtml}
                         <div class="psychology-slider-wrap" data-color-scale="${slider.colorScale || 'direct'}" style="${psychologySliderStyle(slider.id, value, slider.colorScale)}">
                             <input
                                 type="range"
@@ -711,7 +822,7 @@ function buildCanvasHtml(sections) {
                     </div>`;
             }).join('');
 
-            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
+            return wrapStrategicSection(sectionId, headingId, section.title, headerContext, `
                 <div class="psychology-grid">${sliders}</div>`);
         }
 
@@ -719,7 +830,7 @@ function buildCanvasHtml(sections) {
             const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
             const score = clampScale(momentum.score, 3);
             const narrative = escapeHtml(String(momentum.narrative ?? ''));
-            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
+            return wrapStrategicSection(sectionId, headingId, section.title, headerContext, `
                 <div class="momentum-field">
                     <div class="momentum-slider-row">
                         <label for="momentum-score">Momentum</label>
@@ -745,7 +856,7 @@ function buildCanvasHtml(sections) {
 
         if (section.type === 'triple_textarea') {
             const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
+            return wrapStrategicSection(sectionId, headingId, section.title, headerContext, `
                 <div class="triple-textarea-grid">
                     <div>
                         <label for="plan-days-30">30 Days</label>

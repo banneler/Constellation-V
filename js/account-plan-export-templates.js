@@ -57,10 +57,11 @@ function buildDossierSectionBlock(section, sections) {
         body.className = 'ap-export-dossier-body ap-export-composite-body';
         (section.fields || []).forEach((field) => {
             const value = String(data[field.key] ?? '').trim() || '—';
+            const heading = field.label || field.hint || field.key;
             const block = document.createElement('div');
             block.className = 'ap-export-composite-block';
             block.innerHTML = `
-                <h3>${escapeHtml(field.label)}</h3>
+                <h3>${escapeHtml(heading)}</h3>
                 <p>${escapeHtml(value)}</p>`;
             body.appendChild(block);
         });
@@ -79,17 +80,18 @@ function buildDossierSectionBlock(section, sections) {
             const pillBlock = document.createElement('div');
             pillBlock.className = 'ap-export-composite-block';
             pillBlock.innerHTML = `
-                <h3>Selected</h3>
+                <h3>${section.pillMode === 'either_or' ? 'Tension Choices' : 'Selected'}</h3>
                 <p>${escapeHtml(pills.join(', '))}</p>`;
             wrap.appendChild(pillBlock);
         }
 
         (section.textFields || []).forEach((field) => {
             const value = String(data[field.key] ?? '').trim() || '—';
+            const heading = field.label || field.hint || field.key;
             const fieldBlock = document.createElement('div');
             fieldBlock.className = 'ap-export-composite-block';
             fieldBlock.innerHTML = `
-                <h3>${escapeHtml(field.label)}</h3>
+                <h3>${escapeHtml(heading)}</h3>
                 <p>${escapeHtml(value)}</p>`;
             wrap.appendChild(fieldBlock);
         });
