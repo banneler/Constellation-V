@@ -361,6 +361,61 @@ function buildFieldHintHtml(hint) {
 
 /**
  * @param {string} sectionId
+ * @param {{ key: string, label?: string, hint?: string }} field
+ * @param {unknown} rawValue
+ */
+function buildCompositeFieldHtml(sectionId, field, rawValue) {
+    const value = escapeHtml(String(rawValue ?? ''));
+    const hintHtml = buildFieldHintHtml(field.hint);
+    const withHint = Boolean(field.hint);
+    const fieldId = `strategic-field-${sectionId}-${field.key}`;
+    const nestedMeta = Boolean(field.label && field.hint);
+
+    const modifierClasses = [
+        withHint ? 'strategic-composite-field--with-hint' : '',
+        nestedMeta ? 'strategic-composite-field--nested-meta' : '',
+    ].filter(Boolean).join(' ');
+
+    const textareaHtml = `
+        <textarea
+            id="${fieldId}"
+            class="strategic-field strategic-textarea"
+            data-field="${sectionId}.${field.key}"
+            rows="3"
+        >${value}</textarea>`;
+
+    if (field.label && !field.hint) {
+        return `
+            <div class="strategic-composite-field">
+                <label for="${fieldId}">${escapeHtml(field.label)}</label>
+                <div class="strategic-composite-field-body">
+                    ${textareaHtml}
+                </div>
+            </div>`;
+    }
+
+    let asideContent = '';
+    if (nestedMeta) {
+        asideContent = `
+            <div class="strategic-composite-field-meta">
+                <label for="${fieldId}">${escapeHtml(field.label)}</label>
+                ${hintHtml}
+            </div>`;
+    } else if (field.hint) {
+        asideContent = hintHtml;
+    }
+
+    return `
+        <div class="strategic-composite-field${modifierClasses ? ` ${modifierClasses}` : ''}">
+            <div class="strategic-composite-field-body">
+                ${asideContent ? `<div class="strategic-composite-field-aside">${asideContent}</div>` : ''}
+                ${textareaHtml}
+            </div>
+        </div>`;
+}
+
+/**
+ * @param {string} sectionId
  * @param {string} headingId
  * @param {string} title
  * @param {{ leadHtml?: string, blockHtml?: string }} headerContext
@@ -432,28 +487,9 @@ function normalizeInfluenceEntries(value) {
 function buildCompositeTextareaHtml(section, data) {
     const obj = isPlainObject(data) ? data : {};
     const fields = section.fields || [];
-    return `<div class="strategic-composite-grid">${fields.map((field) => {
-        const value = escapeHtml(String(obj[field.key] ?? ''));
-        const hintHtml = buildFieldHintHtml(field.hint);
-        const labelHtml = field.label
-            ? `<label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>`
-            : '';
-        const withHint = Boolean(field.hint);
-
-        return `
-            <div class="strategic-composite-field${withHint ? ' strategic-composite-field--with-hint' : ''}">
-                ${labelHtml}
-                <div class="strategic-composite-field-body">
-                    ${hintHtml}
-                    <textarea
-                        id="strategic-field-${section.id}-${field.key}"
-                        class="strategic-field strategic-textarea"
-                        data-field="${section.id}.${field.key}"
-                        rows="3"
-                    >${value}</textarea>
-                </div>
-            </div>`;
-    }).join('')}</div>`;
+    return `<div class="strategic-composite-grid">${fields.map((field) => (
+        buildCompositeFieldHtml(section.id, field, obj[field.key])
+    )).join('')}</div>`;
 }
 
 /**
@@ -494,28 +530,7 @@ function buildPillsAndNarrativeHtml(section, data) {
             </div>
         </div>`;
 
-    const renderField = (field) => {
-        const value = escapeHtml(String(obj[field.key] ?? ''));
-        const hintHtml = buildFieldHintHtml(field.hint);
-        const labelHtml = field.label
-            ? `<label for="strategic-field-${section.id}-${field.key}">${escapeHtml(field.label)}</label>`
-            : '';
-        const withHint = Boolean(field.hint);
-
-        return `
-            <div class="strategic-composite-field${withHint ? ' strategic-composite-field--with-hint' : ''}">
-                ${labelHtml}
-                <div class="strategic-composite-field-body">
-                    ${hintHtml}
-                    <textarea
-                        id="strategic-field-${section.id}-${field.key}"
-                        class="strategic-field strategic-textarea"
-                        data-field="${section.id}.${field.key}"
-                        rows="3"
-                    >${value}</textarea>
-                </div>
-            </div>`;
-    };
+    const renderField = (field) => buildCompositeFieldHtml(section.id, field, obj[field.key]);
 
     const textFields = section.textFields || [];
     const textHtml = textFields.map(renderField).join('');
@@ -1258,7 +1273,7 @@ function renderRail(sections) {
         </div>
         <div class="section-card strategic-rail-card" id="rail-plan-card">
             <div class="section-card-header">
-                <h2 class="section-title">First 30 Days</h2>
+                <h2 class="section-title">Next 30 Days</h2>
             </div>
             <div class="strategic-rail-body px-5 pb-5">
                 <p class="rail-plan-preview" data-rail-plan-30>${escapeHtml(truncateText(String(plan306090.days_30 ?? ''), 160) || '—')}</p>
@@ -1359,6 +1374,46 @@ function bindRailControls() {
 /**
  * @param {'dossier' | 'exec'} type
  */
+function getPlanExportGeneratingCopy(type) {
+    if (type === 'exec') {
+        return {
+            title: 'Generating Presentation',
+            subtitle: 'Building your exec readout PDF…',
+        };
+    }
+    return {
+        title: 'Generating Dossier',
+        subtitle: 'Assembling your strategic account dossier…',
+    };
+}
+
+function showPlanExportGeneratingOverlay(type) {
+    const overlay = document.getElementById('plan-export-generating-overlay');
+    const titleEl = document.getElementById('plan-export-generating-title');
+    const subtitleEl = document.getElementById('plan-export-generating-subtitle');
+    if (!overlay) return;
+
+    const copy = getPlanExportGeneratingCopy(type);
+    if (titleEl) titleEl.textContent = copy.title;
+    if (subtitleEl) subtitleEl.textContent = copy.subtitle;
+
+    overlay.classList.remove('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+    overlay.setAttribute('aria-busy', 'true');
+}
+
+function hidePlanExportGeneratingOverlay() {
+    const overlay = document.getElementById('plan-export-generating-overlay');
+    if (!overlay) return;
+
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.removeAttribute('aria-busy');
+}
+
+/**
+ * @param {'dossier' | 'exec'} type
+ */
 async function handleExportPdf(type) {
     if (!_planRowId || !_planBaseline) {
         _options.onToast?.('No account plan loaded.', 'error');
@@ -1373,8 +1428,7 @@ async function handleExportPdf(type) {
         }).current_draft.sections;
     }
 
-    const label = type === 'dossier' ? 'Dossier' : 'Exec Readout';
-    _options.onToast?.(`Generating ${label} PDF…`, 'success');
+    showPlanExportGeneratingOverlay(type);
 
     const dossierBtn = document.getElementById('plan-export-dossier-btn');
     const execBtn = document.getElementById('plan-export-exec-btn');
@@ -1385,11 +1439,11 @@ async function handleExportPdf(type) {
     try {
         const { bytes, filename } = await generateAccountPlanPdf(planForExport, account, type);
         openAccountPlanPdfPreview(bytes, filename);
-        _options.onToast?.(`${label} PDF ready for preview.`, 'success');
     } catch (err) {
         console.error('[account-plan-ui] PDF export failed:', err);
         _options.onToast?.(err?.message || 'PDF export failed.', 'error');
     } finally {
+        hidePlanExportGeneratingOverlay();
         if (dossierBtn instanceof HTMLButtonElement) dossierBtn.disabled = !_planRowId;
         if (execBtn instanceof HTMLButtonElement) execBtn.disabled = !_planRowId;
     }

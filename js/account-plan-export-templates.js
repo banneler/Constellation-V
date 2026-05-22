@@ -61,14 +61,18 @@ function createDossierPageUnit(section, pageTitle, bodyEl) {
  * @param {string} title
  * @param {string} text
  * @param {'default' | 'accent' | 'metric'} [variant]
+ * @param {string} [descriptor]
  */
-function createExportPanel(title, text, variant = 'default') {
+function createExportPanel(title, text, variant = 'default', descriptor = '') {
     const panel = document.createElement('div');
     panel.className = `ap-export-panel ap-export-panel--${variant}`;
 
     const heading = document.createElement('div');
     heading.className = 'ap-export-panel-header';
-    heading.innerHTML = `<h3>${escapeHtml(title)}</h3>`;
+    const descriptorHtml = descriptor
+        ? `<p class="ap-export-panel-descriptor">${escapeHtml(descriptor)}</p>`
+        : '';
+    heading.innerHTML = `<h3>${escapeHtml(title)}</h3>${descriptorHtml}`;
 
     const body = document.createElement('div');
     body.className = 'ap-export-panel-body';
@@ -126,8 +130,14 @@ function buildDossierSectionUnits(section, sections) {
         return (section.fields || []).map((field, index) => {
             const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
+            const descriptor = field.label && field.hint ? String(field.hint) : '';
             const stack = createExportPanelStack();
-            stack.appendChild(createExportPanel(heading, value, index === 0 ? 'accent' : 'default'));
+            stack.appendChild(createExportPanel(
+                heading,
+                value,
+                index === 0 ? 'accent' : 'default',
+                descriptor
+            ));
             const pageTitle = index === 0 ? section.title : `${section.title} — ${heading}`;
             return createDossierPageUnit(section, pageTitle, stack);
         });
@@ -908,6 +918,13 @@ export function ensureExportTemplateStyles() {
             letter-spacing: 0.05em;
             text-transform: uppercase;
             color: ${GPC_BRAND.teal};
+        }
+        .ap-export-panel-descriptor {
+            margin: 0.35rem 0 0;
+            font-size: 11px;
+            line-height: 1.45;
+            color: color-mix(in srgb, ${GPC_BRAND.textDark} 72%, ${GPC_BRAND.gray});
+            font-style: italic;
         }
         .ap-export-panel-body {
             padding: 12px 14px;

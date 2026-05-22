@@ -101,7 +101,7 @@ export const PLAN_306090_HORIZONS = Object.freeze([
     {
         key: 'days_30',
         badge: '30',
-        title: 'First 30 Days',
+        title: 'Next 30 Days',
         hint: 'Immediate actions, meetings, and deliverables to create momentum.',
     },
     {
