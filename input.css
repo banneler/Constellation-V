@@ -1817,6 +1817,30 @@ body.theme-green {
         @apply text-lg font-semibold m-0 mb-3;
         color: var(--text-light);
     }
+    .strategic-section-context {
+        @apply mb-3 rounded-md px-3 py-2.5;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        color: var(--text-muted);
+        background-color: color-mix(in srgb, var(--bg-medium) 65%, transparent);
+        border-left: 3px solid color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    }
+    .strategic-section-context p {
+        @apply m-0;
+    }
+    .strategic-section-context p + ul {
+        @apply mt-2;
+    }
+    .strategic-section-context ul {
+        @apply m-0 pl-5;
+        list-style-type: disc;
+    }
+    .strategic-section-context li {
+        @apply mb-1;
+    }
+    .strategic-section-context li:last-child {
+        @apply mb-0;
+    }
     .strategic-textarea {
         @apply w-full rounded-lg border px-3 py-2 text-sm resize-none overflow-hidden;
         background-color: var(--bg-medium);

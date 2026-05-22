@@ -57,7 +57,8 @@ export const PSYCHOLOGY_SLIDERS = Object.freeze([
  * @property {string} id
  * @property {PlanSectionType} type
  * @property {string} title
- * @property {string} [placeholder]
+ * @property {string} [description]
+ * @property {string[]} [tips]
  * @property {PsychologySliderDef[]} [sliders]
  * @property {boolean} [exportDossier]
  * @property {boolean} [exportExec]
@@ -69,7 +70,12 @@ export const PLAN_SECTIONS = Object.freeze([
         id: 'pursuit_thesis',
         type: 'textarea',
         title: 'Pursuit Thesis',
-        placeholder: 'Why pursue this account now? What is the core thesis?',
+        description: 'Why pursue this account now? What is the core thesis?',
+        tips: [
+            'Why they might change (Operational pain, executive pressure, vendor dissatisfaction, cloud modernization).',
+            'Cost of standing still (Fragility, scaling bottlenecks, tech debt).',
+            'Strategic timing factors & trigger events.',
+        ],
         exportDossier: true,
         exportExec: true,
     },
@@ -77,7 +83,14 @@ export const PLAN_SECTIONS = Object.freeze([
         id: 'strategic_tensions',
         type: 'textarea',
         title: 'Strategic Tensions',
-        placeholder: 'Forces pulling the account in different directions — budget, politics, timing…',
+        description: 'What contradictions are they managing?',
+        tips: [
+            'Scale vs. Reliability',
+            'Innovation vs. Governance/Security',
+            'Cost vs. Agility',
+            'Cloud vs. Control',
+            'Automation vs. Human Oversight',
+        ],
         exportDossier: true,
         exportExec: false,
     },
@@ -85,7 +98,12 @@ export const PLAN_SECTIONS = Object.freeze([
         id: 'influence_mapping',
         type: 'textarea',
         title: 'Influence Mapping',
-        placeholder: 'Champions, blockers, economic buyers, and reporting lines.',
+        description: 'Map the formal and invisible organizational influence.',
+        tips: [
+            'Executive Leadership (Strategic priorities, relationship temp).',
+            'Mid-Level Champions (Operational influence, personal ambition).',
+            'The Invisible Org Chart (Who influences decisions quietly?).',
+        ],
         exportDossier: true,
         exportExec: false,
     },
@@ -93,7 +111,11 @@ export const PLAN_SECTIONS = Object.freeze([
         id: 'competitive_landscape',
         type: 'textarea',
         title: 'Competitive Landscape',
-        placeholder: 'Incumbent vendors, alternatives, and our differentiation.',
+        description: 'Assess incumbent vendors, alternatives, and our narrative positioning.',
+        tips: [
+            'Competitor strengths, weaknesses, and entrenchment level.',
+            'How do we want to be perceived over time? (e.g., Operationally credible, highly responsive, long-term strategic partner).',
+        ],
         exportDossier: true,
         exportExec: true,
     },
@@ -101,7 +123,12 @@ export const PLAN_SECTIONS = Object.freeze([
         id: 'land_and_expand',
         type: 'textarea',
         title: 'Land & Expand',
-        placeholder: 'Initial wedge, expansion paths, and whitespace.',
+        description: 'Define the initial wedge and the path to broader entrenchment.',
+        tips: [
+            'Initial Entry Opportunity.',
+            'Why it creates trust.',
+            'Expansion Path & Strategic Outcome.',
+        ],
         exportDossier: true,
         exportExec: true,
     },
@@ -117,7 +144,6 @@ export const PLAN_SECTIONS = Object.freeze([
         id: 'relationship_momentum',
         type: 'momentum',
         title: 'Relationship Momentum',
-        placeholder: 'What is shifting in the relationship — trust, access, executive sponsorship?',
         exportDossier: true,
         exportExec: true,
     },

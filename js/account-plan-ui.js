@@ -303,23 +303,44 @@ export function renderStrategicShell(account, plan) {
 }
 
 /**
+ * @param {{ description?: string, tips?: string[] }} section
+ */
+function buildSectionContextHtml(section) {
+    const hasDescription = Boolean(section.description);
+    const hasTips = Array.isArray(section.tips) && section.tips.length > 0;
+    if (!hasDescription && !hasTips) {
+        return '';
+    }
+
+    const descriptionHtml = hasDescription
+        ? `<p>${escapeHtml(section.description)}</p>`
+        : '';
+    const tipsHtml = hasTips
+        ? `<ul>${section.tips.map((tip) => `<li>${escapeHtml(tip)}</li>`).join('')}</ul>`
+        : '';
+
+    return `<div class="strategic-section-context">${descriptionHtml}${tipsHtml}</div>`;
+}
+
+/**
  * @param {Record<string, unknown>} sections
  */
 function buildCanvasHtml(sections) {
     return PLAN_SECTIONS.map((section) => {
         const headingId = `strategic-heading-${section.id}`;
         const sectionId = `strategic-section-${section.id}`;
+        const contextHtml = buildSectionContextHtml(section);
 
         if (section.type === 'textarea') {
             const value = escapeHtml(String(sections[section.id] ?? ''));
             return `
                 <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
                     <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(section.title)}</h4>
+                    ${contextHtml}
                     <textarea
                         class="strategic-field strategic-textarea"
                         data-field="${section.id}"
                         rows="3"
-                        placeholder="${escapeHtml(section.placeholder || '')}"
                     >${value}</textarea>
                 </section>`;
         }
@@ -389,7 +410,6 @@ function buildCanvasHtml(sections) {
                             class="strategic-field strategic-textarea"
                             data-field="relationship_momentum.narrative"
                             rows="3"
-                            placeholder="${escapeHtml(section.placeholder || '')}"
                         >${narrative}</textarea>
                     </div>
                 </section>`;
@@ -400,6 +420,7 @@ function buildCanvasHtml(sections) {
             return `
                 <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
                     <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(section.title)}</h4>
+                    ${contextHtml}
                     <div class="triple-textarea-grid">
                         <div>
                             <label for="plan-days-30">30 Days</label>

@@ -4341,6 +4341,33 @@ body.theme-green {
     margin: 0 0 0.75rem;
     color: var(--text-light);
   }
+  .strategic-section-context {
+    margin-bottom: 0.75rem;
+    border-radius: 0.375rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    background-color: color-mix(in srgb, var(--bg-medium) 65%, transparent);
+    border-left: 3px solid color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+  }
+  .strategic-section-context p {
+    margin: 0;
+  }
+  .strategic-section-context p + ul {
+    margin-top: 0.5rem;
+  }
+  .strategic-section-context ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style-type: disc;
+  }
+  .strategic-section-context li {
+    margin-bottom: 0.25rem;
+  }
+  .strategic-section-context li:last-child {
+    margin-bottom: 0;
+  }
   .strategic-textarea {
     width: 100%;
     border-radius: 0.5rem;
