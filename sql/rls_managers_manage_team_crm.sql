@@ -7,6 +7,7 @@
 
 -- ----- accounts -----
 DROP POLICY IF EXISTS "Managers can view all accounts" ON public.accounts;
+DROP POLICY IF EXISTS "Managers can manage all accounts" ON public.accounts;
 CREATE POLICY "Managers can manage all accounts"
   ON public.accounts
   FOR ALL
@@ -16,6 +17,7 @@ CREATE POLICY "Managers can manage all accounts"
 
 -- ----- contacts -----
 DROP POLICY IF EXISTS "Managers can view all contacts" ON public.contacts;
+DROP POLICY IF EXISTS "Managers can manage all contacts" ON public.contacts;
 CREATE POLICY "Managers can manage all contacts"
   ON public.contacts
   FOR ALL
@@ -25,6 +27,7 @@ CREATE POLICY "Managers can manage all contacts"
 
 -- ----- activities -----
 DROP POLICY IF EXISTS "Managers can view all activities" ON public.activities;
+DROP POLICY IF EXISTS "Managers can manage all activities" ON public.activities;
 CREATE POLICY "Managers can manage all activities"
   ON public.activities
   FOR ALL
@@ -34,6 +37,7 @@ CREATE POLICY "Managers can manage all activities"
 
 -- ----- tasks -----
 DROP POLICY IF EXISTS "Managers can view all tasks" ON public.tasks;
+DROP POLICY IF EXISTS "Managers can manage all tasks" ON public.tasks;
 CREATE POLICY "Managers can manage all tasks"
   ON public.tasks
   FOR ALL
@@ -43,6 +47,7 @@ CREATE POLICY "Managers can manage all tasks"
 
 -- ----- cognito_alerts (manager visibility was SELECT-only) -----
 DROP POLICY IF EXISTS "Managers can view all cognito alerts" ON public.cognito_alerts;
+DROP POLICY IF EXISTS "Managers can manage all cognito alerts" ON public.cognito_alerts;
 CREATE POLICY "Managers can manage all cognito alerts"
   ON public.cognito_alerts
   FOR ALL
@@ -52,6 +57,7 @@ CREATE POLICY "Managers can manage all cognito alerts"
 
 -- ----- sequences (was manager/admin SELECT-only) -----
 DROP POLICY IF EXISTS "Managers/Admins can view all sequences" ON public.sequences;
+DROP POLICY IF EXISTS "Managers/Admins can manage all sequences" ON public.sequences;
 CREATE POLICY "Managers/Admins can manage all sequences"
   ON public.sequences
   FOR ALL
