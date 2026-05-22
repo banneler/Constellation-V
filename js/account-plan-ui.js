@@ -506,6 +506,22 @@ function buildPillsAndNarrativeHtml(section, data) {
     return `${pillsBlock}${textFields.map(renderField).join('')}`;
 }
 
+function buildInfluenceContactPill(contact, entry) {
+    const name = contact
+        ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
+        : 'Unknown contact';
+    const contactId = escapeHtml(String(entry.id));
+
+    return `
+        <span
+            class="influence-contact-pill"
+            draggable="true"
+            data-contact-id="${contactId}"
+            data-influence-bucket="bench"
+            title="${escapeHtml(name || 'Contact')}"
+        >${escapeHtml(name || 'Contact')}</span>`;
+}
+
 /**
  * @param {object | null | undefined} contact
  * @param {{ id: string, notes: string }} entry
@@ -566,23 +582,29 @@ function buildInfluenceBoardHtml(section, data) {
     const columnHints = section.columnHints || {};
 
     const renderBucket = (bucketKey, label, entries) => {
-        const cards = entries.map((entry) => {
+        const isBench = bucketKey === 'bench';
+        const items = entries.map((entry) => {
             const contact = contactById.get(String(entry.id));
-            return buildInfluenceContactCard(contact, entry, bucketKey);
+            return isBench
+                ? buildInfluenceContactPill(contact, entry)
+                : buildInfluenceContactCard(contact, entry, bucketKey);
         }).join('');
-        const emptyHint = bucketKey === 'bench'
+        const emptyHint = isBench
             ? 'No unassigned contacts'
             : 'Drop contacts here';
         const columnHint = columnHints[bucketKey]
             ? `<p class="influence-board-column-hint">${escapeHtml(columnHints[bucketKey])}</p>`
             : '';
+        const dropzoneClass = isBench
+            ? 'influence-board-dropzone influence-board-dropzone--bench'
+            : 'influence-board-dropzone';
 
         return `
-            <div class="influence-board-column">
+            <div class="influence-board-column${isBench ? ' influence-board-column--bench' : ''}">
                 <h5 class="influence-board-column-title">${escapeHtml(label)}</h5>
                 ${columnHint}
-                <div class="influence-board-dropzone" data-influence-drop="${bucketKey}">
-                    ${cards || `<p class="influence-board-empty">${emptyHint}</p>`}
+                <div class="${dropzoneClass}" data-influence-drop="${bucketKey}">
+                    ${items || `<p class="influence-board-empty">${emptyHint}</p>`}
                 </div>
             </div>`;
     };
@@ -1092,7 +1114,7 @@ function bindCanvasFormEvents(canvas) {
             event.preventDefault();
             return;
         }
-        const card = target.closest('.influence-contact-card[draggable="true"]');
+        const card = target.closest('.influence-contact-card[draggable="true"], .influence-contact-pill[draggable="true"]');
         if (!(card instanceof HTMLElement)) return;
 
         _draggedInfluenceContactId = card.dataset.contactId || null;
@@ -1106,7 +1128,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('dragend', (event) => {
         const target = event.target;
         if (target instanceof Element) {
-            target.closest('.influence-contact-card')?.classList.remove('influence-contact-dragging');
+            target.closest('.influence-contact-card, .influence-contact-pill')?.classList.remove('influence-contact-dragging');
         }
         canvas.querySelectorAll('.influence-contact-dragging').forEach((el) => {
             el.classList.remove('influence-contact-dragging');
