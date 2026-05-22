@@ -1467,8 +1467,10 @@ function psychologySliderStyle(metricId, value, colorScale = 'direct') {
  */
 function momentumSliderStyle(value) {
     const v = clampScale(value, 3);
-    const hue = Math.round(((v - 1) / 4) * 120);
-    return `--momentum-hue:${hue}`;
+    const t = (v - 1) / 4;
+    const sat = Math.round(t * 70);
+    const light = Math.round(95 - (t * 50));
+    return `--momentum-sat:${sat};--momentum-light:${light}`;
 }
 
 /**

@@ -2151,7 +2151,7 @@ body.theme-green {
         border-radius: 9999px;
         background: linear-gradient(
             to right,
-            hsl(0 65% 48%) 0%,
+            hsl(0 0% 100%) 0%,
             hsl(120 65% 48%) 100%
         );
         outline: none;
