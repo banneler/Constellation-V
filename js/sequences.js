@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, showToast, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -38,8 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceNameInput = document.getElementById("sequence-name");
     const sequenceDescriptionTextarea = document.getElementById("sequence-description");
     const sequenceIdInput = document.getElementById("sequence-id");
-    const sequenceForm = document.getElementById("sequence-form");
-    const sequenceLastSaved = document.getElementById("sequence-last-saved");
     const sequenceDetailsPanel = document.getElementById("sequence-details");
 
     // AI Generation Section Selectors
@@ -105,94 +103,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else if (state.selectedSequenceId && state.sequences.some(s => s.id === state.selectedSequenceId)) {
                 renderSequenceDetails(state.selectedSequenceId);
             } else {
-                if (state.selectedSequenceId) {
-                    const missingId = state.selectedSequenceId;
-                    state.selectedSequenceId = null;
-                    showModal(
-                        "Sequence unavailable",
-                        "The selected sequence (ID " + missingId + ") could not be loaded. It may have been deleted, or your access may have changed. Clearing optional step fields does not delete a sequence—check the list on the left or refresh the page.",
-                        null,
-                        false,
-                        `<button id="modal-ok-btn" class="btn-primary">OK</button>`
-                    );
-                }
                 clearSequenceDetailsPanel(false);
             }
         }
-    }
-
-    function isStepEditPanelOpen() {
-        return !!(sequenceStepEditPanel && !sequenceStepEditPanel.classList.contains("hidden"));
-    }
-
-    function updateSequenceDropZonesState() {
-        const deleteZone = document.querySelector(".sequence-drop-zone-delete");
-        const blockDeleteDrop = !!(state.editingStepId || isStepEditPanelOpen());
-        if (deleteZone) {
-            deleteZone.classList.toggle("sequence-drop-zone-disabled", blockDeleteDrop);
-            deleteZone.setAttribute("aria-disabled", blockDeleteDrop ? "true" : "false");
-            deleteZone.title = blockDeleteDrop
-                ? "Finish or cancel step editing before dragging here to delete"
-                : "Drag step here to delete";
-        }
-    }
-
-    function markSequenceLastSaved() {
-        if (sequenceLastSaved) {
-            sequenceLastSaved.textContent = "Last saved: " + formatDate(new Date().toISOString());
-        }
-    }
-
-    async function saveSequenceStepToDb(stepId, payload) {
-        const { error } = await supabase.from("sequence_steps").update(payload).eq("id", stepId);
-        if (error) {
-            console.error("Error updating sequence step:", error);
-            showModal("Error", "Could not save step: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return false;
-        }
-        return true;
-    }
-
-    async function deleteSequenceStepFromDb(stepId) {
-        const { error } = await supabase.from("sequence_steps").delete().eq("id", stepId);
-        if (error) {
-            console.error("Error deleting sequence step:", error);
-            showModal("Error", "Could not delete step: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return false;
-        }
-        return true;
-    }
-
-    async function handleSequenceFormSubmit(e) {
-        e.preventDefault();
-        if (!state.selectedSequenceId) {
-            showModal("Error", "Please select a sequence to save.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        if (state.editingStepId || isStepEditPanelOpen()) {
-            showModal("Error", "Please save or cancel the step you are editing before saving sequence details.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        const name = sequenceNameInput ? sequenceNameInput.value.trim() : "";
-        const description = sequenceDescriptionTextarea ? sequenceDescriptionTextarea.value.trim() : "";
-        if (!name) {
-            showModal("Error", "Sequence name cannot be empty.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        const { error } = await supabase
-            .from("sequences")
-            .update({ name: name, description: description })
-            .eq("id", state.selectedSequenceId);
-        if (error) {
-            console.error("Error saving sequence:", error);
-            showModal("Error", "Could not save sequence: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-            return;
-        }
-        state.originalSequenceName = name;
-        state.originalSequenceDescription = description;
-        markSequenceLastSaved();
-        showToast("Sequence saved.", "success");
-        await loadAllData();
     }
 
     // --- Render Functions ---
@@ -417,7 +330,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sequenceStepsFlow.appendChild(connector);
             }
         });
-        updateSequenceDropZonesState();
     };
     
     const renderSequenceDetails = (sequenceId) => {
@@ -452,7 +364,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (sequenceStepsFlow) sequenceStepsFlow.classList.remove("hidden");
         if (sequenceStepsDropZonesRow) sequenceStepsDropZonesRow.classList.remove("hidden");
         renderSequenceSteps();
-        updateSequenceDropZonesState();
     };
 
     const clearSequenceDetailsPanel = (hidePanel = true) => {
@@ -489,7 +400,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (sequenceStepEditPanel) sequenceStepEditPanel.classList.add("hidden");
         if (sequenceStepsFlow) sequenceStepsFlow.classList.remove("hidden");
         if (sequenceStepsDropZonesRow) sequenceStepsDropZonesRow.classList.remove("hidden");
-        updateSequenceDropZonesState();
     };
 
     function setupPageEventListeners() {
@@ -524,7 +434,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             zone.addEventListener("drop", handleDropZoneDrop);
             zone.addEventListener("dragleave", handleDropZoneDragLeave);
         });
-        if (sequenceForm) sequenceForm.addEventListener("submit", handleSequenceFormSubmit);
         if (sequenceStepEditForm) sequenceStepEditForm.addEventListener("submit", handleStepEditFormSubmit);
         if (document.getElementById("step-edit-cancel-btn")) {
             document.getElementById("step-edit-cancel-btn").addEventListener("click", hideStepEditPanel);
@@ -905,8 +814,7 @@ async function processBulkAssignment() {
                 showModal("Error", "Step Type is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                 return;
             }
-            const saved = await saveSequenceStepToDb(stepId, updatedStep);
-            if (!saved) return;
+            await supabase.from("sequence_steps").update(updatedStep).eq("id", stepId);
             state.editingStepId = null;
             await loadAllData();
         } else if (targetButton.matches(".cancel-step-btn, .cancel-step-btn *")) {
@@ -918,9 +826,9 @@ async function processBulkAssignment() {
                 return;
             }
             showModal("Confirm Delete Step", "Are you sure you want to delete this step?", async () => {
-                const deleted = await deleteSequenceStepFromDb(stepId);
+                await supabase.from("sequence_steps").delete().eq("id", stepId);
+                await loadAllData();
                 hideModal();
-                if (deleted) await loadAllData();
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         }
     }
@@ -964,7 +872,6 @@ async function processBulkAssignment() {
         e.dataTransfer.dropEffect = "move";
         updateDragPreviewPosition(e);
         const zone = e.target.closest(".sequence-drop-zone");
-        if (zone && zone.classList.contains("sequence-drop-zone-disabled")) return;
         if (zone) {
             document.querySelectorAll(".sequence-drop-zone").forEach((z) => z.classList.remove("drag-over"));
             zone.classList.add("drag-over");
@@ -985,15 +892,15 @@ async function processBulkAssignment() {
         document.querySelectorAll(".sequence-drop-zone").forEach((z) => z.classList.remove("drag-over"));
         if (state.dragPreviewEl) state.dragPreviewEl.classList.remove("is-near-drop-zone");
         const zone = e.target.closest(".sequence-drop-zone");
-        if (!zone || zone.classList.contains("sequence-drop-zone-disabled")) return;
+        if (!zone) return;
         const stepId = state.draggedStepId;
         const dropzone = zone.dataset.dropzone;
         removeDragPreview();
         if (dropzone === "delete") {
             showModal("Confirm Delete Step", "Are you sure you want to delete this step?", async () => {
-                const deleted = await deleteSequenceStepFromDb(stepId);
+                await supabase.from("sequence_steps").delete().eq("id", stepId);
+                await loadAllData();
                 hideModal();
-                if (deleted) await loadAllData();
             }, true, `<button id="modal-confirm-btn" class="btn-danger">Delete</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
         } else if (dropzone === "edit") {
             showStepEditPanel(stepId);
@@ -1035,7 +942,6 @@ async function processBulkAssignment() {
         if (sequenceStepsFlow) sequenceStepsFlow.classList.add("hidden");
         if (sequenceStepsDropZonesRow) sequenceStepsDropZonesRow.classList.add("hidden");
         sequenceStepEditPanel.classList.remove("hidden");
-        updateSequenceDropZonesState();
     }
 
     function hideStepEditPanel() {
@@ -1048,7 +954,6 @@ async function processBulkAssignment() {
         if (sequenceStepsFlow) sequenceStepsFlow.classList.remove("hidden");
         if (sequenceStepsDropZonesRow) sequenceStepsDropZonesRow.classList.remove("hidden");
         renderSequenceSteps();
-        updateSequenceDropZonesState();
     }
 
     async function handleStepEditFormSubmit(e) {
@@ -1067,8 +972,7 @@ async function processBulkAssignment() {
             delay_days: parseInt(document.getElementById("step-edit-delay").value || "0", 10),
             assigned_to: assignedValue || "Sales",
         };
-        const saved = await saveSequenceStepToDb(stepId, updatedStep);
-        if (!saved) return;
+        await supabase.from("sequence_steps").update(updatedStep).eq("id", stepId);
         hideStepEditPanel();
         await loadAllData();
     }

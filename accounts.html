@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zumer/snapdom/dist/snapdom.js"></script>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -68,19 +67,13 @@
                         <button id="bulk-export-accounts-btn" class="btn-icon account-picker-icon" title="Bulk Export to CSV"><i class="fas fa-file-export"></i></button>
                     </div>
                 </div>
-                <div id="strategic-toc-panel" class="strategic-toc-panel" aria-hidden="true">
-                    <div class="strategic-toc-header account-picker-header">
-                        <h2 class="section-title">Plan Sections</h2>
-                    </div>
-                    <nav id="strategic-toc-nav" class="strategic-toc-nav" aria-label="Plan table of contents"></nav>
-                </div>
                 <div id="account-details" class="details-panel account-details-content">
                         <div class="account-details-top-row">
                             <div class="account-details-form-card">
                                 <div class="account-details-form-header">
                                     <div class="account-details-form-header-row">
                                         <h3 class="details-panel-title">Account Details</h3>
-                                        <div id="tactical-header-actions" class="flex items-center gap-2">
+                                        <div class="flex items-center gap-2">
                                             <div class="header-locators-stack">
                                                 <span class="sf-locator-inline" id="sf-locator-inline-wrap">
                                                     <span class="sf-locator-text" id="sf-locator-display">Salesforce ID</span>
@@ -95,8 +88,6 @@
                                             </div>
                                             <button id="zoominfo-account-btn" class="btn-icon-header zoominfo-btn" title="Open in ZoomInfo" aria-label="Open in ZoomInfo"><img src="assets/zoominfo-logo-2024.svg" alt="ZoomInfo" class="zoominfo-logo" /></button>
                                             <button id="salesforce-account-btn" class="btn-icon-header salesforce-btn" title="Open in Salesforce"><i class="fa-brands fa-salesforce"></i></button>
-                                            <span id="strategic-autosave-status" class="strategic-autosave-status hidden" data-status="idle" aria-live="polite"></span>
-                                            <button type="button" id="account-mode-toggle" class="btn-icon-header account-mode-toggle" title="Open Strategic Account OS" aria-pressed="false" aria-label="Toggle Strategic Account OS"><i class="fas fa-sitemap" aria-hidden="true"></i></button>
                                             <button id="ai-briefing-btn" class="btn-icon-header" title="Generate AI Briefing"><i class="fas fa-bolt-lightning"></i></button>
                                         </div>
                                     </div>
@@ -202,34 +193,8 @@
                             </div>
                         </div>
                     </div>
-                <div id="strategic-workspace" class="strategic-workspace details-panel account-details-content" aria-hidden="true">
-                    <div class="strategic-workspace-header">
-                        <h3 id="strategic-account-title" class="strategic-account-title details-panel-title">Strategic Account Plan</h3>
-                        <div id="strategic-header-actions" class="strategic-header-actions flex items-center gap-2">
-                            <button type="button" id="plan-version-trigger" class="btn-icon-header plan-version-trigger hidden" title="Version history" aria-expanded="false" aria-controls="plan-version-popover">
-                                <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
-                                <span id="plan-version-trigger-label" class="plan-version-trigger-label"></span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="strategic-workspace-body">
-                        <div id="strategic-document-canvas" class="strategic-document-canvas"></div>
-                        <aside id="strategic-rail" class="strategic-rail"></aside>
-                    </div>
-                </div>
             </div>
         </main>
-    </div>
-    <div id="account-plan-export-root" class="account-plan-export-root" aria-hidden="true">
-        <div id="export-dossier-template"></div>
-        <div id="export-exec-readout-template"></div>
-    </div>
-    <div id="plan-version-popover" class="plan-version-popover hidden" role="dialog" aria-labelledby="plan-version-popover-title" aria-modal="false">
-        <div class="plan-version-popover-header">
-            <h4 id="plan-version-popover-title">Version History</h4>
-            <button type="button" id="plan-version-popover-close" class="plan-version-popover-close" aria-label="Close version history">&times;</button>
-        </div>
-        <div id="plan-version-timeline" class="plan-version-timeline"></div>
     </div>
     <div id="modal-backdrop" class="modal-backdrop hidden">
         <div class="modal-content">

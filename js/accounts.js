@@ -1,6 +1,4 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
-import { fetchPlanForAccount } from './account-plan-data.js';
-import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave } from './account-plan-ui.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -29,10 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             proposals: []
         },
 
-        contactViewMode: 'list', // 'list' or 'org'
-
-        accountViewMode: 'tactical',
-        accountPlan: null,
+        contactViewMode: 'list' // 'list' or 'org'
     };
 
     let draggedContactId = null;
@@ -198,7 +193,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const confirmAndSwitchAccount = async (newAccountId) => {
         const switchAccount = async () => {
-            cancelPlanAutosave();
             state.selectedAccountId = newAccountId;
             renderAccountList();
             await loadDetailsForSelectedAccount();
@@ -257,13 +251,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
 
-        const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes, planResult] = await Promise.all([
+        const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes] = await Promise.all([
             supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
-            supabase.from("proposal_specs").select("id, name, updated_at").eq("account_id", state.selectedAccountId).order("updated_at", { ascending: false }),
-            fetchPlanForAccount(supabase, state.selectedAccountId, state.currentUser?.id)
+            supabase.from("proposal_specs").select("id, name, updated_at").eq("account_id", state.selectedAccountId).order("updated_at", { ascending: false })
         ]);
 
         if (contactsRes.error) throw contactsRes.error;
@@ -287,21 +280,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
         state.selectedAccountDetails.proposals = proposalsRes.data || [];
 
-        if (planResult.ok && planResult.row) {
-            state.accountPlan = {
-                rowId: planResult.row.id,
-                plan: planResult.row.plan,
-                updated_at: planResult.row.updated_at,
-            };
-        } else {
-            state.accountPlan = null;
-            if (planResult.error) {
-                console.warn('[accounts] account plan fetch:', planResult.error);
-            }
-        }
-
         renderAccountDetails();
-        updateStrategicModeControls();
     }
     
     async function refreshData() {
@@ -347,14 +326,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (clearSelection) {
             state.selectedAccountId = null;
             state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [], proposals: [] };
-            state.accountPlan = null;
             document.querySelectorAll(".list-item.selected").forEach(item => item.classList.remove("selected"));
             state.isFormDirty = false;
-            if (state.accountViewMode === 'strategic') {
-                setAccountViewMode('tactical', { skipDirtyCheck: true });
-            }
         }
-        updateStrategicModeControls();
     };
 
     // --- Render Functions ---
@@ -3148,53 +3122,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
         }
-
-        initStrategicMode({
-            supabase,
-            getSelectedAccountId: () => state.selectedAccountId,
-            getSelectedAccount: () => state.selectedAccountDetails.account,
-            getAccountPlan: () => state.accountPlan,
-            isFormDirty: () => state.isFormDirty,
-            clearFormDirty: () => { state.isFormDirty = false; },
-            setAccountViewModeInState: (mode) => { state.accountViewMode = mode; },
-            onPlanUpdated: (plan, meta) => {
-                if (!state.accountPlan) return;
-                state.accountPlan = {
-                    ...state.accountPlan,
-                    plan,
-                    updated_at: meta?.updated_at ?? state.accountPlan.updated_at,
-                };
-            },
-            onToast: (message, type) => {
-                if (typeof showToast === 'function') {
-                    showToast(message, type === 'error' ? 'error' : 'success');
-                }
-            },
-            onConfirmDiscardUnsaved: (onConfirm) => {
-                showModal(
-                    'Unsaved Changes',
-                    'You have unsaved tactical account changes. Switch to Strategic mode anyway?',
-                    () => {
-                        hideModal();
-                        onConfirm();
-                    },
-                    true,
-                    '<button id="modal-confirm-btn" class="btn-primary">Discard & Switch</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>'
-                );
-            },
-            onConfirmRestore: (message, onConfirm) => {
-                showModal(
-                    'Restore Snapshot',
-                    message,
-                    () => {
-                        hideModal();
-                        onConfirm();
-                    },
-                    true,
-                    '<button id="modal-confirm-btn" class="btn-primary">Restore</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>'
-                );
-            },
-        });
     }
     async function initializePage() {
         await loadSVGs();
