@@ -34,7 +34,7 @@ export function buildDossierTemplate(plan, account) {
 
     const sectionBlocks = PLAN_SECTIONS
         .filter((section) => section.exportDossier !== false)
-        .map((section) => buildDossierSectionBlock(section, sections))
+        .flatMap((section) => buildDossierSectionUnits(section, sections))
         .filter(Boolean);
 
     return {
@@ -45,120 +45,154 @@ export function buildDossierTemplate(plan, account) {
 
 /**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
- * @param {Record<string, unknown>} sections
+ * @param {string} pageTitle
+ * @param {HTMLElement} bodyEl
  */
-function buildDossierSectionBlock(section, sections) {
+function createDossierPageUnit(section, pageTitle, bodyEl) {
     const block = document.createElement('section');
-    block.className = 'ap-export-dossier-section';
+    block.className = 'ap-export-dossier-section ap-export-page-unit';
     block.dataset.sectionId = section.id;
+    block.dataset.pageTitle = pageTitle;
+    block.appendChild(bodyEl);
+    return block;
+}
 
-    const title = document.createElement('h2');
-    title.className = 'ap-export-dossier-section-title';
-    title.textContent = section.title;
-    block.appendChild(title);
+/**
+ * @param {string} title
+ * @param {string} text
+ * @param {'default' | 'accent' | 'metric'} [variant]
+ */
+function createExportPanel(title, text, variant = 'default') {
+    const panel = document.createElement('div');
+    panel.className = `ap-export-panel ap-export-panel--${variant}`;
 
+    const heading = document.createElement('div');
+    heading.className = 'ap-export-panel-header';
+    heading.innerHTML = `<h3>${escapeHtml(title)}</h3>`;
+
+    const body = document.createElement('div');
+    body.className = 'ap-export-panel-body';
+    const paragraph = document.createElement('p');
+    paragraph.textContent = String(text ?? '').trim() || '—';
+    body.appendChild(paragraph);
+
+    panel.appendChild(heading);
+    panel.appendChild(body);
+    return panel;
+}
+
+/**
+ * @param {string} className
+ */
+function createExportPanelStack(className = 'ap-export-panel-stack') {
+    const stack = document.createElement('div');
+    stack.className = className;
+    return stack;
+}
+
+/**
+ * @param {string} label
+ * @param {string} value
+ */
+function createExportAttrBadge(label, value) {
+    const badge = document.createElement('span');
+    badge.className = 'ap-export-attr-badge';
+    badge.textContent = `${label}: ${value}`;
+    return badge;
+}
+
+/**
+ * @template T
+ * @param {T[]} items
+ * @param {number} size
+ * @returns {T[][]}
+ */
+function chunkArray(items, size) {
+    const chunks = [];
+    for (let i = 0; i < items.length; i += size) {
+        chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} sections
+ * @returns {HTMLElement[]}
+ */
+function buildDossierSectionUnits(section, sections) {
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        const body = document.createElement('div');
-        body.className = 'ap-export-dossier-body ap-export-composite-body';
-        (section.fields || []).forEach((field) => {
-            const value = String(data[field.key] ?? '').trim() || '—';
+        return (section.fields || []).map((field, index) => {
+            const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
-            const block = document.createElement('div');
-            block.className = 'ap-export-composite-block';
-            block.innerHTML = `
-                <h3>${escapeHtml(heading)}</h3>
-                <p>${escapeHtml(value)}</p>`;
-            body.appendChild(block);
+            const stack = createExportPanelStack();
+            stack.appendChild(createExportPanel(heading, value, index === 0 ? 'accent' : 'default'));
+            const pageTitle = index === 0 ? section.title : `${section.title} — ${heading}`;
+            return createDossierPageUnit(section, pageTitle, stack);
         });
-        block.appendChild(body);
-        return block;
     }
 
     if (section.type === 'pills_and_narrative') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const pillField = section.pillField || 'selected_pills';
         const pills = Array.isArray(data[pillField]) ? data[pillField] : [];
-        const wrap = document.createElement('div');
-        wrap.className = 'ap-export-dossier-body ap-export-composite-body';
+        const units = [];
 
         if (pills.length > 0) {
-            const pillBlock = document.createElement('div');
-            pillBlock.className = 'ap-export-composite-block';
-            pillBlock.innerHTML = `
-                <h3>${section.pillMode === 'either_or' ? 'Tension Choices' : 'Selected'}</h3>
-                <p>${escapeHtml(pills.join(', '))}</p>`;
-            wrap.appendChild(pillBlock);
+            const stack = createExportPanelStack();
+            stack.appendChild(createExportPanel(
+                section.pillMode === 'either_or' ? 'Tension Choices' : 'Positioning',
+                pills.join(', '),
+                'accent'
+            ));
+            units.push(createDossierPageUnit(section, section.title, stack));
         }
 
-        (section.textFields || []).forEach((field) => {
-            const value = String(data[field.key] ?? '').trim() || '—';
+        (section.textFields || []).forEach((field, index) => {
+            const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
-            const fieldBlock = document.createElement('div');
-            fieldBlock.className = 'ap-export-composite-block';
-            fieldBlock.innerHTML = `
-                <h3>${escapeHtml(heading)}</h3>
-                <p>${escapeHtml(value)}</p>`;
-            wrap.appendChild(fieldBlock);
+            const stack = createExportPanelStack();
+            stack.appendChild(createExportPanel(heading, value));
+            const pageTitle = pills.length === 0 && index === 0
+                ? section.title
+                : `${section.title} — ${heading}`;
+            units.push(createDossierPageUnit(section, pageTitle, stack));
         });
 
-        block.appendChild(wrap);
-        return block;
+        return units;
     }
 
     if (section.type === 'influence_board') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        const wrap = document.createElement('div');
-        wrap.className = 'ap-export-dossier-body ap-export-composite-body';
-
-        [
-            ['Executive', data.executive],
-            ['Mid-Level', data.mid_level],
-        ].forEach(([label, entries]) => {
-            const list = formatInfluenceEntriesForExport(entries);
-            const fieldBlock = document.createElement('div');
-            fieldBlock.className = 'ap-export-composite-block';
-            fieldBlock.innerHTML = `
-                <h3>${escapeHtml(label)}</h3>
-                <p>${escapeHtml(list || '—')}</p>`;
-            wrap.appendChild(fieldBlock);
+        return [
+            ['Executive', formatInfluenceEntriesForExport(data.executive)],
+            ['Mid-Level', formatInfluenceEntriesForExport(data.mid_level)],
+            ['Invisible Org Chart', String(data.invisible_org_chart ?? '').trim()],
+        ].map(([label, value], index) => {
+            const stack = createExportPanelStack();
+            stack.appendChild(createExportPanel(label, value || '—', index === 0 ? 'accent' : 'default'));
+            const pageTitle = index === 0 ? section.title : `${section.title} — ${label}`;
+            return createDossierPageUnit(section, pageTitle, stack);
         });
-
-        const invisibleBlock = document.createElement('div');
-        invisibleBlock.className = 'ap-export-composite-block';
-        invisibleBlock.innerHTML = `
-            <h3>Invisible Org Chart</h3>
-            <p>${escapeHtml(String(data.invisible_org_chart ?? '').trim() || '—')}</p>`;
-        wrap.appendChild(invisibleBlock);
-
-        block.appendChild(wrap);
-        return block;
     }
 
     if (section.type === 'entry_point_carousel') {
         const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
-        const wrap = document.createElement('div');
-        wrap.className = 'ap-export-dossier-body ap-export-composite-body ap-export-entry-points';
+        const units = [];
 
-        points.forEach((rawPoint, index) => {
+        points.forEach((rawPoint) => {
             if (!isPlainObject(rawPoint)) return;
             const contactName = String(rawPoint.contact_name ?? '').trim();
             if (!contactName) return;
 
-            const entryBlock = document.createElement('div');
-            entryBlock.className = 'ap-export-entry-point-block';
-
-            const attrs = [
-                ['Trust Level', rawPoint.trust_level],
+            const attrDefs = [
+                ['Trust', rawPoint.trust_level],
                 ['Responsiveness', rawPoint.responsiveness],
-                ['Political Influence', rawPoint.political_influence],
+                ['Influence', rawPoint.political_influence],
                 ['Comm Style', rawPoint.comm_style],
-                ['Compound Potential', rawPoint.compound_potential],
-            ].filter(([, val]) => String(val ?? '').trim()).map(([label, val]) => `${label}: ${String(val).trim()}`);
-
-            const attrLine = attrs.length > 0
-                ? `<p class="ap-export-entry-point-attrs">${escapeHtml(attrs.join(' · '))}</p>`
-                : '';
+                ['Compound', rawPoint.compound_potential],
+            ].filter(([, val]) => String(val ?? '').trim());
 
             const narrativeFields = [
                 ['Why They Matter', rawPoint.why_they_matter],
@@ -170,93 +204,100 @@ function buildDossierSectionBlock(section, sections) {
                 ['Next Move', rawPoint.next_move],
                 ['Human Context', rawPoint.human_context],
                 ['Mutual Connections', rawPoint.mutual_connections],
-            ];
+            ].filter(([, val]) => String(val ?? '').trim());
 
-            const bodyHtml = narrativeFields.map(([label, val]) => {
-                const text = String(val ?? '').trim();
-                if (!text) return '';
-                return `
-                    <div class="ap-export-composite-block">
-                        <h3>${escapeHtml(label)}</h3>
-                        <p>${escapeHtml(text)}</p>
-                    </div>`;
-            }).filter(Boolean).join('');
+            const fieldChunks = chunkArray(narrativeFields, 3);
+            if (fieldChunks.length === 0) fieldChunks.push([]);
 
-            entryBlock.innerHTML = `
-                <h3 class="ap-export-entry-point-name">${escapeHtml(contactName)}</h3>
-                ${attrLine}
-                ${bodyHtml || '<p class="ap-export-entry-point-empty">No narrative details captured.</p>'}`;
+            fieldChunks.forEach((chunk, chunkIndex) => {
+                const stack = createExportPanelStack('ap-export-panel-stack ap-export-entry-point-stack');
 
-            if (index > 0) {
-                entryBlock.style.marginTop = '16px';
-                entryBlock.style.paddingTop = '16px';
-                entryBlock.style.borderTop = '1px solid #D1D1D1';
-            }
+                if (chunkIndex === 0 && attrDefs.length > 0) {
+                    const attrRow = document.createElement('div');
+                    attrRow.className = 'ap-export-attr-badge-row';
+                    attrDefs.forEach(([label, val]) => {
+                        attrRow.appendChild(createExportAttrBadge(label, String(val).trim()));
+                    });
+                    stack.appendChild(attrRow);
+                }
 
-            wrap.appendChild(entryBlock);
+                chunk.forEach(([label, val]) => {
+                    stack.appendChild(createExportPanel(label, String(val)));
+                });
+
+                if (chunk.length === 0 && chunkIndex === 0 && attrDefs.length === 0) {
+                    stack.appendChild(createExportPanel('Details', 'No narrative details captured.'));
+                }
+
+                const pageTitle = chunkIndex === 0
+                    ? `${section.title} — ${contactName}`
+                    : `${contactName} — Narrative (continued)`;
+                units.push(createDossierPageUnit(section, pageTitle, stack));
+            });
         });
 
-        if (!wrap.children.length) {
-            wrap.innerHTML = '<p class="ap-export-dossier-body">No entry points defined.</p>';
+        if (!units.length) {
+            const stack = createExportPanelStack();
+            stack.appendChild(createExportPanel('Entry Points', 'No entry points defined.'));
+            units.push(createDossierPageUnit(section, section.title, stack));
         }
 
-        block.appendChild(wrap);
-        return block;
+        return units;
     }
 
     if (section.type === 'textarea') {
-        const body = document.createElement('div');
-        body.className = 'ap-export-dossier-body';
-        body.textContent = String(sections[section.id] ?? '').trim() || '—';
-        block.appendChild(body);
-        return block;
+        const stack = createExportPanelStack();
+        stack.appendChild(createExportPanel(section.title, String(sections[section.id] ?? '').trim()));
+        return [createDossierPageUnit(section, section.title, stack)];
     }
 
     if (section.type === 'psychology_grid') {
         const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
-        const grid = document.createElement('div');
-        grid.className = 'ap-export-psych-grid';
-        (section.sliders || PSYCHOLOGY_SLIDERS).forEach((slider) => {
-            const value = clampScale(psychology[slider.id], 3);
-            grid.appendChild(buildPsychologyBar(slider, value));
+        const sliders = section.sliders || PSYCHOLOGY_SLIDERS;
+        return chunkArray(sliders, 3).map((chunk, index) => {
+            const stack = createExportPanelStack('ap-export-panel-stack ap-export-panel-stack--psych');
+            chunk.forEach((slider) => {
+                const value = clampScale(psychology[slider.id], 3);
+                const panel = document.createElement('div');
+                panel.className = 'ap-export-panel ap-export-panel--metric';
+                panel.appendChild(buildPsychologyBar(slider, value));
+                stack.appendChild(panel);
+            });
+            const pageTitle = index === 0 ? section.title : `${section.title} (continued)`;
+            return createDossierPageUnit(section, pageTitle, stack);
         });
-        block.appendChild(grid);
-        return block;
     }
 
     if (section.type === 'momentum') {
         const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
         const score = clampScale(momentum.score, 3);
-        const wrap = document.createElement('div');
-        wrap.className = 'ap-export-momentum-block';
-        wrap.innerHTML = `
+        const stack = createExportPanelStack();
+        const metricPanel = document.createElement('div');
+        metricPanel.className = 'ap-export-panel ap-export-panel--metric';
+        metricPanel.innerHTML = `
             <div class="ap-export-momentum-score-row">
                 <span class="ap-export-momentum-score">${score}</span>
                 <span class="ap-export-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</span>
-            </div>
-            <div class="ap-export-dossier-body">${escapeHtml(String(momentum.narrative ?? '').trim() || '—')}</div>`;
-        block.appendChild(wrap);
-        return block;
+            </div>`;
+        stack.appendChild(metricPanel);
+        stack.appendChild(createExportPanel('Momentum Narrative', String(momentum.narrative ?? '').trim()));
+        return [createDossierPageUnit(section, section.title, stack)];
     }
 
     if (section.type === 'triple_textarea') {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-        const grid = document.createElement('div');
-        grid.className = 'ap-export-plan-grid';
-        PLAN_306090_HORIZONS.forEach((horizon) => {
-            const value = plan306090[horizon.key];
-            const cell = document.createElement('div');
-            cell.className = 'ap-export-plan-cell';
-            cell.innerHTML = `
-                <h3>${escapeHtml(horizon.title)}</h3>
-                <p>${escapeHtml(String(value ?? '').trim() || '—')}</p>`;
-            grid.appendChild(cell);
+        return PLAN_306090_HORIZONS.map((horizon, index) => {
+            const value = String(plan306090[horizon.key] ?? '').trim();
+            const stack = createExportPanelStack();
+            stack.appendChild(createExportPanel(horizon.title, value, 'accent'));
+            const pageTitle = index === 0 ? section.title : `${section.title} — ${horizon.title}`;
+            return createDossierPageUnit(section, pageTitle, stack);
         });
-        block.appendChild(grid);
-        return block;
     }
 
-    return block;
+    const stack = createExportPanelStack();
+    stack.appendChild(createExportPanel(section.title, ''));
+    return [createDossierPageUnit(section, section.title, stack)];
 }
 
 /**
@@ -426,6 +467,9 @@ export function buildDossierContentPage(blocks, meta, pageInfo) {
  * @param {HTMLElement[]} blocks
  */
 function getContentPageTitle(blocks) {
+    if (blocks.length === 1 && blocks[0] instanceof HTMLElement && blocks[0].dataset.pageTitle) {
+        return blocks[0].dataset.pageTitle.trim();
+    }
     if (blocks.length === 1) {
         const titleEl = blocks[0].querySelector('.ap-export-dossier-section-title');
         if (titleEl?.textContent) return titleEl.textContent.trim();
@@ -827,32 +871,73 @@ export function ensureExportTemplateStyles() {
             color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
         }
-        .ap-export-entry-point-block {
-            margin-bottom: 14px;
-            padding-bottom: 14px;
-            border-bottom: 1px solid ${GPC_BRAND.gray};
-        }
-        .ap-export-entry-point-block:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-        .ap-export-entry-point-name {
-            margin: 0 0 6px;
-            font-family: ${GPC_BRAND.fontHeading};
-            font-size: 15px;
-            color: ${GPC_BRAND.navyDeep};
-        }
-        .ap-export-entry-point-attrs {
-            margin: 0 0 10px;
-            font-size: 11px;
-            color: ${GPC_BRAND.teal};
-            font-weight: 600;
-        }
-        .ap-export-entry-point-empty {
+        .ap-export-page-unit {
             margin: 0;
-            font-size: 12px;
-            color: #64748b;
+        }
+        .ap-export-panel-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .ap-export-panel-stack--psych {
+            gap: 10px;
+        }
+        .ap-export-panel {
+            border: 1px solid ${GPC_BRAND.gray};
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+        .ap-export-panel--accent {
+            border-color: color-mix(in srgb, ${GPC_BRAND.teal} 45%, ${GPC_BRAND.gray});
+            background: color-mix(in srgb, ${GPC_BRAND.teal} 6%, #ffffff);
+        }
+        .ap-export-panel--metric {
+            padding: 12px 14px;
+            background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 4%, #ffffff);
+        }
+        .ap-export-panel-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 80%, transparent);
+            background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 5%, #ffffff);
+        }
+        .ap-export-panel-header h3 {
+            margin: 0;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: ${GPC_BRAND.teal};
+        }
+        .ap-export-panel-body {
+            padding: 12px 14px;
+        }
+        .ap-export-panel-body p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.55;
+            color: ${GPC_BRAND.textDark};
+            white-space: pre-wrap;
+        }
+        .ap-export-attr-badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .ap-export-attr-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 600;
+            color: ${GPC_BRAND.navyDeep};
+            background: color-mix(in srgb, ${GPC_BRAND.lime} 22%, #ffffff);
+            border: 1px solid color-mix(in srgb, ${GPC_BRAND.lime} 45%, ${GPC_BRAND.gray});
+        }
+        .ap-export-entry-point-stack .ap-export-panel + .ap-export-panel {
+            margin-top: 0;
         }
 
         /* --- GPC exec readout (16:9) --- */

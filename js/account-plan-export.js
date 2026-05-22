@@ -177,22 +177,16 @@ async function buildExecReadoutPdfBytes(plan, account, exportRoot) {
  */
 function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     const groups = [];
-    let remaining = sectionBlocks.map((block) => block.cloneNode(true));
 
-    while (remaining.length > 0) {
-        let fitCount = 0;
-
-        for (let i = 1; i <= remaining.length; i += 1) {
-            const fits = measureDossierContentPage(remaining.slice(0, i), meta, exportRoot);
-            if (!fits) break;
-            fitCount = i;
+    sectionBlocks.forEach((block) => {
+        const single = [block.cloneNode(true)];
+        if (measureDossierContentPage(single, meta, exportRoot)) {
+            groups.push(single);
+            return;
         }
 
-        if (fitCount === 0) fitCount = 1;
-
-        groups.push(remaining.slice(0, fitCount));
-        remaining = remaining.slice(fitCount);
-    }
+        groups.push(single);
+    });
 
     return groups;
 }

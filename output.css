@@ -4864,14 +4864,35 @@ body.theme-green {
   .entry-point-card {
     border-radius: 0.75rem;
     border: 1px solid var(--border-color);
-    padding: 1rem;
-    background-color: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+    padding: 0;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--bg-medium) 30%, transparent);
   }
   .entry-point-card.hidden {
     display: none;
   }
+  .entry-point-card-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+  }
+  .entry-point-row-panel {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  }
+  .entry-point-row-panel:last-child {
+    border-bottom: 0;
+  }
+  .entry-point-row-panel-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.75rem;
+    color: var(--text-medium);
+  }
   .entry-point-contact-row {
-    margin-bottom: 1rem;
+    margin-bottom: 0;
   }
   .entry-point-contact-row label,
   .entry-point-field label {
@@ -4906,13 +4927,13 @@ body.theme-green {
     margin-bottom: 0;
   }
   .entry-point-grid--attributes {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-  .entry-point-grid--why {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .entry-point-grid--why {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .entry-point-grid--how {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .entry-point-grid--human {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4921,8 +4942,13 @@ body.theme-green {
     margin-bottom: 0.25rem;
   }
   .entry-point-textarea {
-    min-height: 5.5rem;
+    min-height: 4.75rem;
     font-size: 0.875rem;
+  }
+  @media (min-width: 1280px) {
+    .entry-point-grid--why {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
   .psychology-grid {
     display: flex;

@@ -660,7 +660,7 @@ function buildEntryPointContactSelect(index, value, contacts) {
     options += `<option value="${escapeHtml(ENTRY_POINT_OTHER_LABEL)}"${otherSelected}>${escapeHtml(ENTRY_POINT_OTHER_LABEL)}</option>`;
 
     return `
-        <div class="entry-point-contact-row">
+        <div class="entry-point-contact-row entry-point-contact-row--inline">
             <label for="${fieldId}">Contact</label>
             <select
                 id="${fieldId}"
@@ -687,28 +687,42 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
             role="tabpanel"
             aria-hidden="${isActive ? 'false' : 'true'}"
         >
-            ${buildEntryPointContactSelect(String(index), String(data.contact_name ?? ''), contacts)}
-            <div class="entry-point-grid entry-point-grid--attributes">
-                ${buildEntryPointSelect(String(index), 'trust_level', ENTRY_POINT_TRUST_LEVELS, 'Trust Level', String(data.trust_level ?? ''))}
-                ${buildEntryPointSelect(String(index), 'responsiveness', ENTRY_POINT_LEVEL_OPTIONS, 'Responsiveness', String(data.responsiveness ?? ''))}
-                ${buildEntryPointSelect(String(index), 'political_influence', ENTRY_POINT_LEVEL_OPTIONS, 'Political Influence', String(data.political_influence ?? ''))}
-                ${buildEntryPointSelect(String(index), 'comm_style', ENTRY_POINT_COMM_STYLES, 'Comm Style', String(data.comm_style ?? ''))}
-                ${buildEntryPointSelect(String(index), 'compound_potential', ENTRY_POINT_LEVEL_OPTIONS, 'Compound Potential', String(data.compound_potential ?? ''))}
+            <div class="entry-point-card-header">
+                ${buildEntryPointContactSelect(String(index), String(data.contact_name ?? ''), contacts)}
             </div>
-            <div class="entry-point-grid entry-point-grid--why">
-                ${buildEntryPointTextarea(String(index), 'why_they_matter', 'Why They Matter', String(data.why_they_matter ?? ''), 'Strategic relevance and decision weight.')}
-                ${buildEntryPointTextarea(String(index), 'likely_pressure', 'Likely Pressure', String(data.likely_pressure ?? ''), 'What keeps them up at night.')}
-                ${buildEntryPointTextarea(String(index), 'what_failure_looks_like', 'What Failure Looks Like', String(data.what_failure_looks_like ?? ''), 'Risk if this entry point stalls.')}
+            <div class="entry-point-row-panel entry-point-row-panel--profile">
+                <h5 class="entry-point-row-panel-title">Relationship Profile</h5>
+                <div class="entry-point-grid entry-point-grid--attributes">
+                    ${buildEntryPointSelect(String(index), 'trust_level', ENTRY_POINT_TRUST_LEVELS, 'Trust Level', String(data.trust_level ?? ''))}
+                    ${buildEntryPointSelect(String(index), 'responsiveness', ENTRY_POINT_LEVEL_OPTIONS, 'Responsiveness', String(data.responsiveness ?? ''))}
+                    ${buildEntryPointSelect(String(index), 'political_influence', ENTRY_POINT_LEVEL_OPTIONS, 'Political Influence', String(data.political_influence ?? ''))}
+                    ${buildEntryPointSelect(String(index), 'comm_style', ENTRY_POINT_COMM_STYLES, 'Comm Style', String(data.comm_style ?? ''))}
+                    ${buildEntryPointSelect(String(index), 'compound_potential', ENTRY_POINT_LEVEL_OPTIONS, 'Compound Potential', String(data.compound_potential ?? ''))}
+                </div>
             </div>
-            <div class="entry-point-grid entry-point-grid--how">
-                ${buildEntryPointTextarea(String(index), 'best_themes', 'Best Themes', String(data.best_themes ?? ''), 'Messaging angles that resonate.')}
-                ${buildEntryPointTextarea(String(index), 'narrative_openings', 'Narrative Openings', String(data.narrative_openings ?? ''), 'How to open the conversation.')}
-                ${buildEntryPointTextarea(String(index), 'tired_of_hearing', 'Tired of Hearing', String(data.tired_of_hearing ?? ''), 'Pitches or claims to avoid.')}
-                ${buildEntryPointTextarea(String(index), 'next_move', 'Next Move', String(data.next_move ?? ''), 'Concrete next action.')}
+            <div class="entry-point-row-panel entry-point-row-panel--why">
+                <h5 class="entry-point-row-panel-title">Strategic Context</h5>
+                <div class="entry-point-grid entry-point-grid--why">
+                    ${buildEntryPointTextarea(String(index), 'why_they_matter', 'Why They Matter', String(data.why_they_matter ?? ''), 'Strategic relevance and decision weight.')}
+                    ${buildEntryPointTextarea(String(index), 'likely_pressure', 'Likely Pressure', String(data.likely_pressure ?? ''), 'What keeps them up at night.')}
+                    ${buildEntryPointTextarea(String(index), 'what_failure_looks_like', 'What Failure Looks Like', String(data.what_failure_looks_like ?? ''), 'Risk if this entry point stalls.')}
+                </div>
             </div>
-            <div class="entry-point-grid entry-point-grid--human">
-                ${buildEntryPointTextarea(String(index), 'human_context', 'Human Context', String(data.human_context ?? ''), 'Personal motivations and style cues.')}
-                ${buildEntryPointTextarea(String(index), 'mutual_connections', 'Mutual Connections', String(data.mutual_connections ?? ''), 'Shared relationships or references.')}
+            <div class="entry-point-row-panel entry-point-row-panel--how">
+                <h5 class="entry-point-row-panel-title">Narrative &amp; Approach</h5>
+                <div class="entry-point-grid entry-point-grid--how">
+                    ${buildEntryPointTextarea(String(index), 'best_themes', 'Best Themes', String(data.best_themes ?? ''), 'Messaging angles that resonate.')}
+                    ${buildEntryPointTextarea(String(index), 'narrative_openings', 'Narrative Openings', String(data.narrative_openings ?? ''), 'How to open the conversation.')}
+                    ${buildEntryPointTextarea(String(index), 'tired_of_hearing', 'Tired of Hearing', String(data.tired_of_hearing ?? ''), 'Pitches or claims to avoid.')}
+                    ${buildEntryPointTextarea(String(index), 'next_move', 'Next Move', String(data.next_move ?? ''), 'Concrete next action.')}
+                </div>
+            </div>
+            <div class="entry-point-row-panel entry-point-row-panel--human">
+                <h5 class="entry-point-row-panel-title">Human Intelligence</h5>
+                <div class="entry-point-grid entry-point-grid--human">
+                    ${buildEntryPointTextarea(String(index), 'human_context', 'Human Context', String(data.human_context ?? ''), 'Personal motivations and style cues.')}
+                    ${buildEntryPointTextarea(String(index), 'mutual_connections', 'Mutual Connections', String(data.mutual_connections ?? ''), 'Shared relationships or references.')}
+                </div>
             </div>
         </div>`;
 }

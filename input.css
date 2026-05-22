@@ -2246,15 +2246,35 @@ body.theme-green {
         color: var(--text-light);
     }
     .entry-point-card {
-        @apply rounded-xl border p-4;
+        @apply rounded-xl border p-0 overflow-hidden;
         border-color: var(--border-color);
-        background-color: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+        background-color: color-mix(in srgb, var(--bg-medium) 30%, transparent);
     }
     .entry-point-card.hidden {
         display: none;
     }
+    .entry-point-card-header {
+        @apply px-4 py-3 border-b;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+    }
+    .entry-point-contact-row--inline label {
+        @apply mb-1.5;
+    }
+    .entry-point-row-panel {
+        @apply px-4 py-3 border-b;
+        border-color: color-mix(in srgb, var(--border-color) 70%, transparent);
+    }
+    .entry-point-row-panel:last-child {
+        @apply border-b-0;
+    }
+    .entry-point-row-panel-title {
+        @apply text-xs font-semibold uppercase tracking-wide m-0 mb-3;
+        color: var(--text-medium);
+        letter-spacing: 0.06em;
+    }
     .entry-point-contact-row {
-        @apply mb-4;
+        @apply mb-0;
     }
     .entry-point-contact-row label,
     .entry-point-field label {
@@ -2283,13 +2303,13 @@ body.theme-green {
         margin-bottom: 0;
     }
     .entry-point-grid--attributes {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-    .entry-point-grid--why {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+    .entry-point-grid--why {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
     .entry-point-grid--how {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .entry-point-grid--human {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2298,8 +2318,13 @@ body.theme-green {
         @apply mb-1;
     }
     .entry-point-textarea {
-        min-height: 5.5rem;
+        min-height: 4.75rem;
         font-size: 0.875rem;
+    }
+    @media (min-width: 1280px) {
+        .entry-point-grid--why {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
     }
     .psychology-grid {
         @apply flex flex-col gap-5;
