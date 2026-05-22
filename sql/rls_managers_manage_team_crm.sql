@@ -68,5 +68,14 @@ CREATE POLICY "proposal_specs_manager_all"
   USING (is_manager() = true)
   WITH CHECK (is_manager() = true);
 
+-- ----- account_plans (Strategic Account OS — managers view/edit rep account plans) -----
+DROP POLICY IF EXISTS "account_plans_manager_all" ON public.account_plans;
+CREATE POLICY "account_plans_manager_all"
+  ON public.account_plans
+  FOR ALL
+  TO public
+  USING (is_manager() = true)
+  WITH CHECK (is_manager() = true);
+
 -- Optional cleanup after the app uses client-side reassignment everywhere:
 -- DROP FUNCTION IF EXISTS public.reassign_account_to_user(bigint, uuid, boolean, boolean, boolean);
