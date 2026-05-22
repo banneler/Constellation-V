@@ -323,6 +323,22 @@ function buildSectionContextHtml(section) {
 }
 
 /**
+ * @param {string} sectionId
+ * @param {string} headingId
+ * @param {string} title
+ * @param {string} contextHtml
+ * @param {string} bodyHtml
+ */
+function wrapStrategicSection(sectionId, headingId, title, contextHtml, bodyHtml) {
+    return `
+        <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
+            <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(title)}</h4>
+            ${contextHtml}
+            ${bodyHtml}
+        </section>`;
+}
+
+/**
  * @param {Record<string, unknown>} sections
  */
 function buildCanvasHtml(sections) {
@@ -333,16 +349,12 @@ function buildCanvasHtml(sections) {
 
         if (section.type === 'textarea') {
             const value = escapeHtml(String(sections[section.id] ?? ''));
-            return `
-                <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
-                    <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(section.title)}</h4>
-                    ${contextHtml}
-                    <textarea
-                        class="strategic-field strategic-textarea"
-                        data-field="${section.id}"
-                        rows="3"
-                    >${value}</textarea>
-                </section>`;
+            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
+                <textarea
+                    class="strategic-field strategic-textarea"
+                    data-field="${section.id}"
+                    rows="3"
+                >${value}</textarea>`);
         }
 
         if (section.type === 'psychology_grid') {
@@ -377,65 +389,55 @@ function buildCanvasHtml(sections) {
                     </div>`;
             }).join('');
 
-            return `
-                <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
-                    <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(section.title)}</h4>
-                    <div class="psychology-grid">${sliders}</div>
-                </section>`;
+            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
+                <div class="psychology-grid">${sliders}</div>`);
         }
 
         if (section.type === 'momentum') {
             const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
             const score = clampScale(momentum.score, 3);
             const narrative = escapeHtml(String(momentum.narrative ?? ''));
-            return `
-                <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
-                    <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(section.title)}</h4>
-                    <div class="momentum-field">
-                        <div class="momentum-slider-row">
-                            <label for="momentum-score">Momentum</label>
-                            <span class="momentum-score-label" data-momentum-label>${MOMENTUM_LABELS[score - 1]}</span>
-                        </div>
-                        <input
-                            type="range"
-                            class="momentum-slider psychology-slider"
-                            id="momentum-score"
-                            min="1"
-                            max="5"
-                            step="1"
-                            value="${score}"
-                            data-field="relationship_momentum.score"
-                        />
-                        <textarea
-                            class="strategic-field strategic-textarea"
-                            data-field="relationship_momentum.narrative"
-                            rows="3"
-                        >${narrative}</textarea>
+            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
+                <div class="momentum-field">
+                    <div class="momentum-slider-row">
+                        <label for="momentum-score">Momentum</label>
+                        <span class="momentum-score-label" data-momentum-label>${MOMENTUM_LABELS[score - 1]}</span>
                     </div>
-                </section>`;
+                    <input
+                        type="range"
+                        class="momentum-slider psychology-slider"
+                        id="momentum-score"
+                        min="1"
+                        max="5"
+                        step="1"
+                        value="${score}"
+                        data-field="relationship_momentum.score"
+                    />
+                    <textarea
+                        class="strategic-field strategic-textarea"
+                        data-field="relationship_momentum.narrative"
+                        rows="3"
+                    >${narrative}</textarea>
+                </div>`);
         }
 
         if (section.type === 'triple_textarea') {
             const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-            return `
-                <section id="${sectionId}" class="strategic-section" aria-labelledby="${headingId}">
-                    <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(section.title)}</h4>
-                    ${contextHtml}
-                    <div class="triple-textarea-grid">
-                        <div>
-                            <label for="plan-days-30">30 Days</label>
-                            <textarea id="plan-days-30" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_30" rows="3">${escapeHtml(String(plan306090.days_30 ?? ''))}</textarea>
-                        </div>
-                        <div>
-                            <label for="plan-days-60">60 Days</label>
-                            <textarea id="plan-days-60" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_60" rows="3">${escapeHtml(String(plan306090.days_60 ?? ''))}</textarea>
-                        </div>
-                        <div>
-                            <label for="plan-days-90">90 Days</label>
-                            <textarea id="plan-days-90" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_90" rows="3">${escapeHtml(String(plan306090.days_90 ?? ''))}</textarea>
-                        </div>
+            return wrapStrategicSection(sectionId, headingId, section.title, contextHtml, `
+                <div class="triple-textarea-grid">
+                    <div>
+                        <label for="plan-days-30">30 Days</label>
+                        <textarea id="plan-days-30" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_30" rows="3">${escapeHtml(String(plan306090.days_30 ?? ''))}</textarea>
                     </div>
-                </section>`;
+                    <div>
+                        <label for="plan-days-60">60 Days</label>
+                        <textarea id="plan-days-60" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_60" rows="3">${escapeHtml(String(plan306090.days_60 ?? ''))}</textarea>
+                    </div>
+                    <div>
+                        <label for="plan-days-90">90 Days</label>
+                        <textarea id="plan-days-90" class="strategic-field strategic-textarea" data-field="plan_30_60_90.days_90" rows="3">${escapeHtml(String(plan306090.days_90 ?? ''))}</textarea>
+                    </div>
+                </div>`);
         }
 
         return '';
