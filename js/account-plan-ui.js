@@ -585,9 +585,6 @@ function buildPlan306090Html(section, data) {
     }).join('')}</div>`;
 }
 
-    }).join('')}</div>`;
-}
-
 /**
  * @param {string} index
  * @param {string} fieldKey
