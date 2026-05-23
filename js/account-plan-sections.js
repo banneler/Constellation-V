@@ -290,7 +290,7 @@ export const PLAN_SECTIONS = Object.freeze([
         title: 'Relationship Timeline',
         contextMode: 'lead',
         description: 'A unified chronological view of CRM activities and strategic plan milestones.',
-        exportDossier: false,
+        exportDossier: true,
         exportExec: false,
     },
     {

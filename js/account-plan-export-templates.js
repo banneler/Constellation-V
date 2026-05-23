@@ -29,6 +29,7 @@ const DOSSIER_SECTION_ICONS = {
     land_and_expand: 'fa-route',
     psychology: 'fa-brain',
     relationship_momentum: 'fa-arrow-trend-up',
+    momentum_timeline: 'fa-bolt',
     plan_30_60_90: 'fa-calendar-check',
     entry_points: 'fa-crosshairs',
 };
@@ -534,6 +535,10 @@ function buildDossierSectionUnits(section, sections) {
         return [createDossierSectionBlock(section, stack, undefined, 'metric')];
     }
 
+    if (section.type === 'timeline_view') {
+        return [createDossierSectionBlock(section, buildDossierMomentumTimelineBody(sections))];
+    }
+
     if (section.type === 'triple_textarea') {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
         const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-editorial-grid--plan');
@@ -596,6 +601,15 @@ export function buildExecReadoutTemplate(plan, account) {
         return `<li class="ap-export-exec-plan-item"><strong>${days}d</strong><span class="ap-line-clamp-4">${escapeHtml(line)}</span></li>`;
     }).join('');
 
+    const timelineNotes = getExportMomentumNotes(sections).slice(0, 3);
+    const timelineItems = timelineNotes.length === 0
+        ? '<li class="ap-export-exec-timeline-item ap-export-exec-timeline-item--empty"><span class="ap-line-clamp-2">No strategic signals logged.</span></li>'
+        : timelineNotes.map((note) => `
+            <li class="ap-export-exec-timeline-item">
+                <time class="ap-export-exec-timeline-date">${escapeHtml(formatMomentumNoteDateShort(note.date))}</time>
+                <span class="ap-line-clamp-3">${escapeHtml(note.text)}</span>
+            </li>`).join('');
+
     const footerDate = formatGpcFooterDate(new Date());
 
     root.innerHTML = `
@@ -634,6 +648,10 @@ export function buildExecReadoutTemplate(plan, account) {
                     <div class="ap-export-exec-panel ap-export-exec-panel-plan">
                         ${buildExecPanelHeading('30 / 60 / 90', 'plan_30_60_90')}
                         <ul class="ap-export-exec-plan-list">${planBullets}</ul>
+                    </div>
+                    <div class="ap-export-exec-panel ap-export-exec-panel-timeline">
+                        <h2><i class="fas fa-bolt ap-export-exec-panel-icon" aria-hidden="true"></i>Strategic Signals</h2>
+                        <ul class="ap-export-exec-timeline-list">${timelineItems}</ul>
                     </div>
                 </div>
             </div>
@@ -827,6 +845,96 @@ function buildPsychologyBar(slider, value) {
             <span>${escapeHtml(slider.highLabel)}</span>
         </div>`;
     return row;
+}
+
+/**
+ * User-logged strategic signals only — excludes automated CRM activity records.
+ * @param {Record<string, unknown>} sections
+ * @returns {{ id: string, date: string, text: string, dateMs: number }[]}
+ */
+function getExportMomentumNotes(sections) {
+    const raw = Array.isArray(sections.momentum_notes) ? sections.momentum_notes : [];
+    return raw
+        .filter((note) => {
+            if (!isPlainObject(note)) return false;
+            const source = note.source != null ? String(note.source).toLowerCase() : '';
+            const type = note.type != null ? String(note.type).toLowerCase() : '';
+            if (source === 'activity' || source === 'crm' || type === 'activity') return false;
+            return String(note.text ?? '').trim().length > 0;
+        })
+        .map((note) => {
+            const dateStr = String(note.date ?? '');
+            const dateMs = new Date(dateStr).getTime();
+            return {
+                id: note.id != null ? String(note.id) : '',
+                date: dateStr,
+                text: String(note.text ?? '').trim(),
+                dateMs: Number.isNaN(dateMs) ? 0 : dateMs,
+            };
+        })
+        .sort((a, b) => b.dateMs - a.dateMs);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ * @returns {HTMLElement}
+ */
+function buildDossierMomentumTimelineBody(sections) {
+    const notes = getExportMomentumNotes(sections);
+    const wrap = document.createElement('div');
+    wrap.className = 'ap-export-momentum-timeline';
+
+    if (notes.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-copy ap-export-momentum-timeline-empty';
+        empty.textContent = 'No strategic signals logged.';
+        wrap.appendChild(empty);
+        return wrap;
+    }
+
+    notes.forEach((note) => {
+        const entry = document.createElement('article');
+        entry.className = 'ap-export-momentum-timeline-entry';
+
+        const dateEl = document.createElement('p');
+        dateEl.className = 'ap-export-momentum-timeline-date';
+        dateEl.textContent = formatMomentumNoteDate(note.date);
+
+        const textEl = document.createElement('p');
+        textEl.className = 'ap-export-momentum-timeline-text';
+        textEl.textContent = note.text;
+
+        entry.appendChild(dateEl);
+        entry.appendChild(textEl);
+        wrap.appendChild(entry);
+    });
+
+    return wrap;
+}
+
+/**
+ * @param {string} dateStr
+ */
+function formatMomentumNoteDate(dateStr) {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return dateStr || '—';
+    return d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+}
+
+/**
+ * @param {string} dateStr
+ */
+function formatMomentumNoteDateShort(dateStr) {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return dateStr || '—';
+    return d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+    });
 }
 
 /**
@@ -1093,6 +1201,38 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-editorial-copy:last-child {
             margin-bottom: 0;
+        }
+        .ap-export-momentum-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .ap-export-momentum-timeline-empty {
+            margin: 0;
+            color: #64748b;
+        }
+        .ap-export-momentum-timeline-entry {
+            border-left: 2px solid #e2e8f0;
+            padding-left: 12px;
+            margin-bottom: 16px;
+        }
+        .ap-export-momentum-timeline-entry:last-child {
+            margin-bottom: 0;
+        }
+        .ap-export-momentum-timeline-date {
+            margin: 0 0 4px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ap-export-momentum-timeline-text {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.55;
+            color: #1e293b;
+            white-space: pre-wrap;
         }
         .ap-export-editorial-pills-line {
             margin: 0 0 12px;
@@ -1439,6 +1579,18 @@ export function ensureExportTemplateStyles() {
         }
 
         /* --- GPC exec readout (16:9) --- */
+        .ap-line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .ap-line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
         .ap-line-clamp-4 {
             display: -webkit-box;
             -webkit-line-clamp: 4;
@@ -1521,8 +1673,11 @@ export function ensureExportTemplateStyles() {
             min-height: 0;
             height: 100%;
         }
-        .ap-export-exec-col--plan .ap-export-exec-panel {
-            flex: 1;
+        .ap-export-exec-col--plan .ap-export-exec-panel-plan {
+            flex: 1.15;
+        }
+        .ap-export-exec-col--plan .ap-export-exec-panel-timeline {
+            flex: 0.85;
         }
         .ap-export-exec-panel {
             box-sizing: border-box;
@@ -1662,6 +1817,39 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-exec-plan-item span {
             flex: 1;
+            min-width: 0;
+        }
+        .ap-export-exec-timeline-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            min-height: 0;
+        }
+        .ap-export-exec-timeline-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-height: 0;
+        }
+        .ap-export-exec-timeline-item--empty {
+            color: #64748b;
+            font-size: 11px;
+        }
+        .ap-export-exec-timeline-date {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ap-export-exec-timeline-item span {
+            font-size: 10px;
+            line-height: 1.4;
+            color: #cbd5e1;
             min-width: 0;
         }
         .ap-export-exec-gpc-footer {
