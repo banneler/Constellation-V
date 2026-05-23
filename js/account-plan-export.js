@@ -220,6 +220,22 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 }
 
 /**
+ * @param {HTMLElement} entryCard
+ * @param {Element[]} units
+ * @param {string} stackClass
+ */
+function buildEntryPointCardChunk(entryCard, units, stackClass) {
+    const chunkCard = entryCard.cloneNode(false);
+    const chunkHeader = entryCard.querySelector('.ap-export-entry-point-card-header');
+    if (chunkHeader) chunkCard.appendChild(chunkHeader.cloneNode(true));
+    const chunkGrid = document.createElement('div');
+    chunkGrid.className = stackClass;
+    units.forEach((unit) => chunkGrid.appendChild(unit.cloneNode(true)));
+    chunkCard.appendChild(chunkGrid);
+    return chunkCard;
+}
+
+/**
  * Split an oversized section at panel / entry-point group boundaries.
  * @param {HTMLElement} block
  * @param {{ accountName: string, dateLabel: string }} meta
@@ -233,7 +249,10 @@ function splitDossierSectionBlock(block, meta, exportRoot) {
         || 'Section';
     const sectionId = block.dataset.sectionId || '';
 
-    const entryGroups = block.querySelectorAll(':scope > .ap-export-entry-points-body > .ap-export-entry-point-group');
+    const entryGroups = block.querySelectorAll(
+        ':scope > .ap-export-entry-points-body > .ap-export-entry-point-card, '
+        + ':scope > .ap-export-entry-points-body > .ap-export-entry-point-group'
+    );
     if (entryGroups.length > 1) {
         return [...entryGroups].map((group, index) => (
             buildDossierSectionFragment(
@@ -241,13 +260,64 @@ function splitDossierSectionBlock(block, meta, exportRoot) {
                 sectionTitle,
                 [group],
                 index > 0,
-                'ap-export-entry-points-body'
+                'ap-export-entry-points-body ap-export-card-grid ap-export-card-grid--entry-points'
             )
         ));
     }
 
-    const stack = block.querySelector(':scope > .ap-export-panel-stack')
-        || block.querySelector(':scope .ap-export-entry-point-group .ap-export-panel-stack')
+    const entryCard = block.querySelector(':scope > .ap-export-entry-points-body > .ap-export-entry-point-card');
+    if (entryCard) {
+        const fieldGrid = entryCard.querySelector('.ap-export-card-grid');
+        if (fieldGrid && fieldGrid.children.length > 1) {
+            const units = [...fieldGrid.children];
+            const stackClass = fieldGrid.className;
+            const entryPointsBodyClass = 'ap-export-entry-points-body ap-export-card-grid ap-export-card-grid--entry-points';
+            const chunks = [];
+            let currentUnits = [];
+
+            units.forEach((unit) => {
+                const trialUnits = [...currentUnits, unit];
+                const trialBlock = buildDossierSectionFragment(
+                    sectionId,
+                    sectionTitle,
+                    [buildEntryPointCardChunk(entryCard, trialUnits, stackClass)],
+                    chunks.length > 0,
+                    entryPointsBodyClass
+                );
+
+                if (currentUnits.length === 0 || pageFitsFragment(trialBlock, meta, exportRoot)) {
+                    currentUnits = trialUnits;
+                } else {
+                    if (currentUnits.length > 0) {
+                        chunks.push(buildDossierSectionFragment(
+                            sectionId,
+                            sectionTitle,
+                            [buildEntryPointCardChunk(entryCard, currentUnits, stackClass)],
+                            chunks.length > 0,
+                            entryPointsBodyClass
+                        ));
+                    }
+                    currentUnits = [unit];
+                }
+            });
+
+            if (currentUnits.length > 0) {
+                chunks.push(buildDossierSectionFragment(
+                    sectionId,
+                    sectionTitle,
+                    [buildEntryPointCardChunk(entryCard, currentUnits, stackClass)],
+                    chunks.length > 0,
+                    entryPointsBodyClass
+                ));
+            }
+
+            if (chunks.length > 0) return chunks;
+        }
+    }
+
+    const stack = block.querySelector(':scope > .ap-export-card-grid')
+        || block.querySelector(':scope > .ap-export-panel-stack')
+        || block.querySelector(':scope .ap-export-entry-point-card .ap-export-card-grid')
         || block.querySelector(':scope > .ap-export-psych-grid')
         || block.querySelector(':scope > .ap-export-plan-grid');
     if (!stack) return [block];

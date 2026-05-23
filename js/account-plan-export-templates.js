@@ -62,14 +62,27 @@ function createDossierSectionBlock(section, bodyEl, titleOverride) {
 }
 
 /**
+ * @param {string} [extraClass]
+ */
+function createExportCardGrid(extraClass = '') {
+    const grid = document.createElement('div');
+    grid.className = extraClass ? `ap-export-card-grid ${extraClass}` : 'ap-export-card-grid';
+    return grid;
+}
+
+/**
  * @param {string} title
  * @param {string} text
  * @param {'default' | 'accent' | 'metric'} [variant]
  * @param {string} [descriptor]
+ * @param {{ span?: 'full' }} [options]
  */
-function createExportPanel(title, text, variant = 'default', descriptor = '') {
+function createExportPanel(title, text, variant = 'default', descriptor = '', options = {}) {
     const panel = document.createElement('div');
     panel.className = `ap-export-panel ap-export-panel--${variant}`;
+    if (options.span === 'full') {
+        panel.classList.add('ap-export-card-span-full');
+    }
 
     const heading = document.createElement('div');
     heading.className = 'ap-export-panel-header';
@@ -110,6 +123,76 @@ function createExportAttrBadge(label, value) {
 }
 
 /**
+ * @param {unknown} rawPoint
+ * @returns {HTMLElement | null}
+ */
+function buildEntryPointExportCard(rawPoint) {
+    if (!isPlainObject(rawPoint)) return null;
+    const contactName = String(rawPoint.contact_name ?? '').trim();
+    if (!contactName) return null;
+
+    const card = document.createElement('article');
+    card.className = 'ap-export-entry-point-card';
+
+    const header = document.createElement('div');
+    header.className = 'ap-export-entry-point-card-header';
+
+    const nameEl = document.createElement('h3');
+    nameEl.className = 'ap-export-entry-point-name';
+    nameEl.textContent = contactName;
+    header.appendChild(nameEl);
+
+    const attrDefs = [
+        ['Trust', rawPoint.trust_level],
+        ['Responsiveness', rawPoint.responsiveness],
+        ['Influence', rawPoint.political_influence],
+        ['Comm Style', rawPoint.comm_style],
+        ['Compound', rawPoint.compound_potential],
+    ].filter(([, val]) => String(val ?? '').trim());
+
+    if (attrDefs.length > 0) {
+        const attrRow = document.createElement('div');
+        attrRow.className = 'ap-export-attr-badge-row';
+        attrDefs.forEach(([label, val]) => {
+            attrRow.appendChild(createExportAttrBadge(label, String(val).trim()));
+        });
+        header.appendChild(attrRow);
+    }
+
+    card.appendChild(header);
+
+    const fieldGrid = createExportCardGrid('ap-export-card-grid ap-export-card-grid--entry-fields');
+    const fieldDefs = [
+        ['Why They Matter', rawPoint.why_they_matter, 'accent'],
+        ['Likely Pressure', rawPoint.likely_pressure, 'default'],
+        ['What Failure Looks Like', rawPoint.what_failure_looks_like, 'default'],
+        ['Best Themes', rawPoint.best_themes, 'default'],
+        ['Narrative Openings', rawPoint.narrative_openings, 'default'],
+        ['Tired of Hearing', rawPoint.tired_of_hearing, 'default'],
+        ['Next Move', rawPoint.next_move, 'accent'],
+        ['Human Context', rawPoint.human_context, 'default'],
+        ['Mutual Connections', rawPoint.mutual_connections, 'default'],
+    ].filter(([, val]) => String(val ?? '').trim());
+
+    fieldDefs.forEach(([label, val, variant]) => {
+        fieldGrid.appendChild(createExportPanel(
+            label,
+            String(val),
+            /** @type {'default' | 'accent'} */ (variant),
+            '',
+            { span: label === 'Next Move' ? 'full' : undefined }
+        ));
+    });
+
+    if (!fieldGrid.childElementCount) {
+        fieldGrid.appendChild(createExportPanel('Details', 'No narrative details captured.'));
+    }
+
+    card.appendChild(fieldGrid);
+    return card;
+}
+
+/**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
  * @param {Record<string, unknown>} sections
  * @returns {HTMLElement[]}
@@ -117,124 +200,110 @@ function createExportAttrBadge(label, value) {
 function buildDossierSectionUnits(section, sections) {
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        const stack = createExportPanelStack();
-        (section.fields || []).forEach((field, index) => {
+        const fields = section.fields || [];
+        const gridClass = section.id === 'land_and_expand'
+            ? 'ap-export-card-grid ap-export-card-grid--3'
+            : fields.length >= 3
+                ? 'ap-export-card-grid ap-export-card-grid--thesis'
+                : 'ap-export-card-grid';
+        const grid = createExportCardGrid(gridClass);
+
+        fields.forEach((field, index) => {
             const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
             const descriptor = field.label && field.hint ? String(field.hint) : '';
-            stack.appendChild(createExportPanel(
+            grid.appendChild(createExportPanel(
                 heading,
                 value,
                 index === 0 ? 'accent' : 'default',
-                descriptor
+                descriptor,
+                { span: section.id === 'pursuit_thesis' && index === 0 ? 'full' : undefined }
             ));
         });
-        return [createDossierSectionBlock(section, stack)];
+
+        if (!grid.childElementCount) {
+            grid.appendChild(createExportPanel(section.title, '—'));
+        }
+
+        return [createDossierSectionBlock(section, grid)];
     }
 
     if (section.type === 'pills_and_narrative') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const pillField = section.pillField || 'selected_pills';
         const pills = Array.isArray(data[pillField]) ? data[pillField] : [];
-        const stack = createExportPanelStack();
+        const textFields = section.textFields || [];
+        const isSplit = section.pillNarrativeLayout === 'split';
+        const grid = createExportCardGrid(
+            isSplit ? 'ap-export-card-grid ap-export-card-grid--split' : 'ap-export-card-grid'
+        );
 
         if (pills.length > 0) {
-            stack.appendChild(createExportPanel(
+            grid.appendChild(createExportPanel(
                 section.pillMode === 'either_or' ? 'Tension Choices' : 'Positioning',
                 pills.join(', '),
                 'accent'
             ));
         }
 
-        (section.textFields || []).forEach((field) => {
+        textFields.forEach((field, index) => {
             const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
-            stack.appendChild(createExportPanel(heading, value));
+            const spanFull = !isSplit && (
+                field.key === 'narrative'
+                || (textFields.length > 1 && index === textFields.length - 1 && pills.length > 0)
+            );
+            grid.appendChild(createExportPanel(
+                heading,
+                value,
+                undefined,
+                '',
+                { span: spanFull ? 'full' : undefined }
+            ));
         });
 
-        if (!stack.childElementCount) {
-            stack.appendChild(createExportPanel(section.title, '—'));
+        if (!grid.childElementCount) {
+            grid.appendChild(createExportPanel(section.title, '—'));
         }
 
-        return [createDossierSectionBlock(section, stack)];
+        return [createDossierSectionBlock(section, grid)];
     }
 
     if (section.type === 'influence_board') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        const stack = createExportPanelStack();
+        const grid = createExportCardGrid('ap-export-card-grid ap-export-card-grid--influence');
+
         [
-            ['Executive Leadership', formatInfluenceEntriesForExport(data.executive)],
-            ['Mid-Level Champions', formatInfluenceEntriesForExport(data.mid_level)],
-            ['Invisible Org Chart', String(data.invisible_org_chart ?? '').trim()],
-        ].forEach(([label, value], index) => {
-            stack.appendChild(createExportPanel(label, value || '—', index === 0 ? 'accent' : 'default'));
+            ['Executive Leadership', formatInfluenceEntriesForExport(data.executive), 'accent'],
+            ['Mid-Level Champions', formatInfluenceEntriesForExport(data.mid_level), 'default'],
+            ['Invisible Org Chart', String(data.invisible_org_chart ?? '').trim(), 'default'],
+        ].forEach(([label, value, variant], index) => {
+            grid.appendChild(createExportPanel(
+                label,
+                value || '—',
+                /** @type {'default' | 'accent'} */ (variant),
+                '',
+                { span: index === 2 ? 'full' : undefined }
+            ));
         });
-        return [createDossierSectionBlock(section, stack)];
+
+        return [createDossierSectionBlock(section, grid)];
     }
 
     if (section.type === 'entry_point_carousel') {
         const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
         const body = document.createElement('div');
-        body.className = 'ap-export-entry-points-body';
+        body.className = 'ap-export-entry-points-body ap-export-card-grid ap-export-card-grid--entry-points';
 
         points.forEach((rawPoint) => {
-            if (!isPlainObject(rawPoint)) return;
-            const contactName = String(rawPoint.contact_name ?? '').trim();
-            if (!contactName) return;
-
-            const group = document.createElement('div');
-            group.className = 'ap-export-entry-point-group';
-
-            const nameEl = document.createElement('h3');
-            nameEl.className = 'ap-export-entry-point-name';
-            nameEl.textContent = contactName;
-            group.appendChild(nameEl);
-
-            const stack = createExportPanelStack('ap-export-panel-stack ap-export-entry-point-stack');
-
-            const attrDefs = [
-                ['Trust', rawPoint.trust_level],
-                ['Responsiveness', rawPoint.responsiveness],
-                ['Influence', rawPoint.political_influence],
-                ['Comm Style', rawPoint.comm_style],
-                ['Compound', rawPoint.compound_potential],
-            ].filter(([, val]) => String(val ?? '').trim());
-
-            if (attrDefs.length > 0) {
-                const attrRow = document.createElement('div');
-                attrRow.className = 'ap-export-attr-badge-row';
-                attrDefs.forEach(([label, val]) => {
-                    attrRow.appendChild(createExportAttrBadge(label, String(val).trim()));
-                });
-                stack.appendChild(attrRow);
-            }
-
-            [
-                ['Why They Matter', rawPoint.why_they_matter],
-                ['Likely Pressure', rawPoint.likely_pressure],
-                ['What Failure Looks Like', rawPoint.what_failure_looks_like],
-                ['Best Themes', rawPoint.best_themes],
-                ['Narrative Openings', rawPoint.narrative_openings],
-                ['Tired of Hearing', rawPoint.tired_of_hearing],
-                ['Next Move', rawPoint.next_move],
-                ['Human Context', rawPoint.human_context],
-                ['Mutual Connections', rawPoint.mutual_connections],
-            ].filter(([, val]) => String(val ?? '').trim()).forEach(([label, val]) => {
-                stack.appendChild(createExportPanel(label, String(val)));
-            });
-
-            if (!stack.childElementCount) {
-                stack.appendChild(createExportPanel('Details', 'No narrative details captured.'));
-            }
-
-            group.appendChild(stack);
-            body.appendChild(group);
+            const card = buildEntryPointExportCard(rawPoint);
+            if (card) body.appendChild(card);
         });
 
         if (!body.childElementCount) {
-            const stack = createExportPanelStack();
-            stack.appendChild(createExportPanel('Entry Points', 'No entry points defined.'));
-            body.appendChild(stack);
+            const emptyGrid = createExportCardGrid();
+            emptyGrid.appendChild(createExportPanel('Entry Points', 'No entry points defined.'));
+            body.appendChild(emptyGrid);
         }
 
         return [createDossierSectionBlock(section, body)];
@@ -895,6 +964,47 @@ export function ensureExportTemplateStyles() {
             flex-direction: column;
             gap: 10px;
         }
+        .ap-export-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            align-items: stretch;
+        }
+        .ap-export-card-grid--thesis,
+        .ap-export-card-grid--influence {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .ap-export-card-grid--3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .ap-export-card-grid--split {
+            grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        }
+        .ap-export-card-grid--entry-points {
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+        .ap-export-card-grid--entry-fields {
+            gap: 10px;
+        }
+        .ap-export-card-span-full {
+            grid-column: 1 / -1;
+        }
+        .ap-export-entry-point-card {
+            border: 1px solid color-mix(in srgb, ${GPC_BRAND.teal} 32%, ${GPC_BRAND.gray});
+            border-radius: 10px;
+            overflow: hidden;
+            background: color-mix(in srgb, ${GPC_BRAND.teal} 3%, #ffffff);
+            box-shadow: 0 1px 0 color-mix(in srgb, ${GPC_BRAND.navyDeep} 6%, transparent);
+        }
+        .ap-export-entry-point-card-header {
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 82%, transparent);
+            background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 5%, #ffffff);
+        }
+        .ap-export-entry-point-card .ap-export-card-grid {
+            padding: 10px 12px 12px;
+        }
         .ap-export-panel-stack--psych {
             gap: 10px;
         }
@@ -909,6 +1019,9 @@ export function ensureExportTemplateStyles() {
             border-radius: 8px;
             overflow: hidden;
             background: #ffffff;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
         }
         .ap-export-panel--accent {
             border-color: color-mix(in srgb, ${GPC_BRAND.teal} 45%, ${GPC_BRAND.gray});
@@ -941,6 +1054,7 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-panel-body {
             padding: 10px 12px;
+            flex: 1;
         }
         .ap-export-panel-body p {
             margin: 0;
@@ -970,22 +1084,20 @@ export function ensureExportTemplateStyles() {
             margin-top: 0;
         }
         .ap-export-entry-points-body {
-            display: flex;
-            flex-direction: column;
+            display: grid;
             gap: 14px;
         }
-        .ap-export-entry-point-group + .ap-export-entry-point-group {
-            padding-top: 12px;
-            border-top: 1px dashed color-mix(in srgb, ${GPC_BRAND.gray} 80%, transparent);
-        }
         .ap-export-entry-point-name {
-            margin: 0 0 8px;
+            margin: 0 0 6px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 12px;
             font-weight: 700;
             letter-spacing: 0.04em;
             text-transform: uppercase;
             color: ${GPC_BRAND.navyDeep};
+        }
+        .ap-export-entry-point-card-header .ap-export-attr-badge-row {
+            margin-bottom: 0;
         }
 
         /* --- GPC exec readout (16:9) --- */
