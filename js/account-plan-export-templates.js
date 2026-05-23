@@ -763,19 +763,20 @@ function buildMomentumMetricPanel(score) {
 
     const track = document.createElement('div');
     track.className = 'ap-export-momentum-scale-track';
-    track.innerHTML = '<div class="ap-export-momentum-scale-line" aria-hidden="true"></div>';
 
-    const dots = document.createElement('div');
-    dots.className = 'ap-export-momentum-scale-dots';
+    const line = document.createElement('div');
+    line.className = 'ap-export-momentum-scale-line';
+    line.setAttribute('aria-hidden', 'true');
+    track.appendChild(line);
+
     for (let step = 1; step <= 5; step += 1) {
         const dot = document.createElement('span');
         dot.className = step === score
             ? 'ap-export-momentum-scale-dot is-active'
             : 'ap-export-momentum-scale-dot';
         dot.setAttribute('aria-hidden', 'true');
-        dots.appendChild(dot);
+        track.appendChild(dot);
     }
-    track.appendChild(dots);
     scale.appendChild(track);
 
     const endpoints = document.createElement('div');
@@ -1319,40 +1320,36 @@ export function ensureExportTemplateStyles() {
             max-width: 188px;
         }
         .ap-export-momentum-scale-track {
-            position: relative;
-            padding: 7px 0;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            align-items: center;
+            padding: 8px 0 2px;
         }
         .ap-export-momentum-scale-line {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 50%;
+            grid-column: 1 / -1;
+            grid-row: 1;
             height: 2px;
             background: #e2e8f0;
-            transform: translateY(-50%);
             z-index: 0;
-        }
-        .ap-export-momentum-scale-dots {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            align-self: center;
+            margin: 0 5px;
         }
         .ap-export-momentum-scale-dot {
-            width: 10px;
-            height: 10px;
+            grid-row: 1;
+            z-index: 1;
+            justify-self: center;
+            width: 8px;
+            height: 8px;
             border-radius: 999px;
             background: #ffffff;
             border: 2px solid #cbd5e1;
             box-sizing: border-box;
         }
         .ap-export-momentum-scale-dot.is-active {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             background: ${GPC_BRAND.teal};
             border-color: ${GPC_BRAND.teal};
-            box-shadow: 0 0 0 3px color-mix(in srgb, ${GPC_BRAND.teal} 22%, #ffffff);
         }
         .ap-export-momentum-scale-endpoints {
             display: flex;
