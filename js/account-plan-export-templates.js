@@ -47,8 +47,9 @@ export function buildDossierTemplate(plan, account) {
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
  * @param {HTMLElement} bodyEl
  * @param {string} [titleOverride]
+ * @param {'editorial' | 'metric'} [bodyMode]
  */
-function createDossierSectionBlock(section, bodyEl, titleOverride) {
+function createDossierSectionBlock(section, bodyEl, titleOverride, bodyMode = 'editorial') {
     const block = document.createElement('section');
     block.className = 'ap-export-dossier-section';
     block.dataset.sectionId = section.id;
@@ -57,17 +58,90 @@ function createDossierSectionBlock(section, bodyEl, titleOverride) {
     title.className = 'ap-export-dossier-section-title';
     title.textContent = titleOverride || section.title;
     block.appendChild(title);
-    block.appendChild(bodyEl);
+
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = bodyMode === 'metric'
+        ? 'ap-export-dossier-body ap-export-dossier-body--metric'
+        : 'ap-export-dossier-body ap-export-dossier-body--editorial';
+    bodyWrap.appendChild(bodyEl);
+    block.appendChild(bodyWrap);
     return block;
 }
 
 /**
  * @param {string} [extraClass]
  */
-function createExportCardGrid(extraClass = '') {
+function createEditorialGrid(extraClass = '') {
     const grid = document.createElement('div');
-    grid.className = extraClass ? `ap-export-card-grid ${extraClass}` : 'ap-export-card-grid';
+    grid.className = extraClass
+        ? `ap-export-editorial-grid ${extraClass}`
+        : 'ap-export-editorial-grid';
     return grid;
+}
+
+/**
+ * @param {string} kicker
+ * @param {string} text
+ * @param {{ span?: 'full' }} [options]
+ */
+function createEditorialCell(kicker, text, options = {}) {
+    const cell = document.createElement('div');
+    cell.className = 'ap-export-editorial-cell';
+    if (options.span === 'full') {
+        cell.classList.add('ap-export-editorial-span-full');
+    }
+
+    const label = document.createElement('h3');
+    label.className = 'ap-export-editorial-kicker';
+    label.textContent = kicker;
+
+    const copy = document.createElement('p');
+    copy.className = 'ap-export-editorial-copy';
+    copy.textContent = String(text ?? '').trim() || '—';
+
+    cell.appendChild(label);
+    cell.appendChild(copy);
+    return cell;
+}
+
+/**
+ * @param {string} pillsLabel
+ * @param {string} pillsText
+ * @param {{ kicker: string, text: string }[]} blocks
+ */
+function createEditorialProseBlock(pillsLabel, pillsText, blocks) {
+    const prose = document.createElement('div');
+    prose.className = 'ap-export-editorial-prose';
+
+    if (pillsText) {
+        const pillsLine = document.createElement('p');
+        pillsLine.className = 'ap-export-editorial-pills-line';
+        pillsLine.innerHTML = `<strong>${escapeHtml(pillsLabel)}:</strong> ${escapeHtml(pillsText)}`;
+        prose.appendChild(pillsLine);
+    }
+
+    blocks.forEach(({ kicker, text }) => {
+        if (!String(text ?? '').trim() && kicker) return;
+        if (kicker) {
+            const label = document.createElement('h3');
+            label.className = 'ap-export-editorial-kicker';
+            label.textContent = kicker;
+            prose.appendChild(label);
+        }
+        const copy = document.createElement('p');
+        copy.className = 'ap-export-editorial-copy';
+        copy.textContent = String(text ?? '').trim() || '—';
+        prose.appendChild(copy);
+    });
+
+    if (!prose.childElementCount) {
+        const copy = document.createElement('p');
+        copy.className = 'ap-export-editorial-copy';
+        copy.textContent = '—';
+        prose.appendChild(copy);
+    }
+
+    return prose;
 }
 
 /**
@@ -77,12 +151,9 @@ function createExportCardGrid(extraClass = '') {
  * @param {string} [descriptor]
  * @param {{ span?: 'full' }} [options]
  */
-function createExportPanel(title, text, variant = 'default', descriptor = '', options = {}) {
+function createExportPanel(title, text, variant = 'default', descriptor = '') {
     const panel = document.createElement('div');
     panel.className = `ap-export-panel ap-export-panel--${variant}`;
-    if (options.span === 'full') {
-        panel.classList.add('ap-export-card-span-full');
-    }
 
     const heading = document.createElement('div');
     heading.className = 'ap-export-panel-header';
@@ -112,35 +183,23 @@ function createExportPanelStack(className = 'ap-export-panel-stack') {
 }
 
 /**
- * @param {string} label
- * @param {string} value
+ * @param {string} className
  */
-function createExportAttrBadge(label, value) {
-    const badge = document.createElement('span');
-    badge.className = 'ap-export-attr-badge';
-    badge.textContent = `${label}: ${value}`;
-    return badge;
-}
-
-/**
- * @param {unknown} rawPoint
+function createExportPanelStack(className = 'ap-export-panel-stack') {
  * @returns {HTMLElement | null}
  */
-function buildEntryPointExportCard(rawPoint) {
+function buildEntryPointEditorialBlock(rawPoint) {
     if (!isPlainObject(rawPoint)) return null;
     const contactName = String(rawPoint.contact_name ?? '').trim();
     if (!contactName) return null;
 
-    const card = document.createElement('article');
-    card.className = 'ap-export-entry-point-card';
-
-    const header = document.createElement('div');
-    header.className = 'ap-export-entry-point-card-header';
+    const block = document.createElement('article');
+    block.className = 'ap-export-entry-point-block';
 
     const nameEl = document.createElement('h3');
     nameEl.className = 'ap-export-entry-point-name';
     nameEl.textContent = contactName;
-    header.appendChild(nameEl);
+    block.appendChild(nameEl);
 
     const attrDefs = [
         ['Trust', rawPoint.trust_level],
@@ -151,45 +210,100 @@ function buildEntryPointExportCard(rawPoint) {
     ].filter(([, val]) => String(val ?? '').trim());
 
     if (attrDefs.length > 0) {
-        const attrRow = document.createElement('div');
-        attrRow.className = 'ap-export-attr-badge-row';
-        attrDefs.forEach(([label, val]) => {
-            attrRow.appendChild(createExportAttrBadge(label, String(val).trim()));
-        });
-        header.appendChild(attrRow);
+        const meta = document.createElement('p');
+        meta.className = 'ap-export-entry-point-meta';
+        meta.textContent = attrDefs.map(([label, val]) => `${label}: ${String(val).trim()}`).join(' · ');
+        block.appendChild(meta);
     }
 
-    card.appendChild(header);
+    const grid = createEditorialGrid('ap-export-editorial-grid--entry-split');
 
-    const fieldGrid = createExportCardGrid('ap-export-card-grid ap-export-card-grid--entry-fields');
-    const fieldDefs = [
-        ['Why They Matter', rawPoint.why_they_matter, 'accent'],
-        ['Likely Pressure', rawPoint.likely_pressure, 'default'],
-        ['What Failure Looks Like', rawPoint.what_failure_looks_like, 'default'],
-        ['Best Themes', rawPoint.best_themes, 'default'],
-        ['Narrative Openings', rawPoint.narrative_openings, 'default'],
-        ['Tired of Hearing', rawPoint.tired_of_hearing, 'default'],
-        ['Next Move', rawPoint.next_move, 'accent'],
-        ['Human Context', rawPoint.human_context, 'default'],
-        ['Mutual Connections', rawPoint.mutual_connections, 'default'],
+    const whyColumn = document.createElement('div');
+    whyColumn.className = 'ap-export-editorial-column';
+    const whyTitle = document.createElement('h4');
+    whyTitle.className = 'ap-export-editorial-column-title';
+    whyTitle.textContent = 'Why';
+    whyColumn.appendChild(whyTitle);
+
+    const howColumn = document.createElement('div');
+    howColumn.className = 'ap-export-editorial-column';
+    const howTitle = document.createElement('h4');
+    howTitle.className = 'ap-export-editorial-column-title';
+    howTitle.textContent = 'How';
+    howColumn.appendChild(howTitle);
+
+    const whyFields = [
+        ['Why They Matter', rawPoint.why_they_matter],
+        ['Likely Pressure', rawPoint.likely_pressure],
+        ['What Failure Looks Like', rawPoint.what_failure_looks_like],
+        ['Human Context', rawPoint.human_context],
+        ['Mutual Connections', rawPoint.mutual_connections],
     ].filter(([, val]) => String(val ?? '').trim());
 
-    fieldDefs.forEach(([label, val, variant]) => {
-        fieldGrid.appendChild(createExportPanel(
-            label,
-            String(val),
-            /** @type {'default' | 'accent'} */ (variant),
-            '',
-            { span: label === 'Next Move' ? 'full' : undefined }
-        ));
+    const howFields = [
+        ['Best Themes', rawPoint.best_themes],
+        ['Narrative Openings', rawPoint.narrative_openings],
+        ['Tired of Hearing', rawPoint.tired_of_hearing],
+        ['Next Move', rawPoint.next_move],
+    ].filter(([, val]) => String(val ?? '').trim());
+
+    whyFields.forEach(([label, val]) => {
+        whyColumn.appendChild(createEditorialCell(label, String(val)));
+    });
+    howFields.forEach(([label, val]) => {
+        howColumn.appendChild(createEditorialCell(label, String(val)));
     });
 
-    if (!fieldGrid.childElementCount) {
-        fieldGrid.appendChild(createExportPanel('Details', 'No narrative details captured.'));
+    if (!whyFields.length && !howFields.length) {
+        whyColumn.appendChild(createEditorialCell('Details', 'No narrative details captured.'));
     }
 
-    card.appendChild(fieldGrid);
-    return card;
+    grid.appendChild(whyColumn);
+    grid.appendChild(howColumn);
+    block.appendChild(grid);
+    return block;
+}
+
+/**
+ * @param {unknown} entries
+ * @returns {HTMLElement}
+ */
+function createInfluenceList(entries) {
+    const list = document.createElement('ul');
+    list.className = 'ap-export-editorial-list';
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+        const item = document.createElement('li');
+        item.className = 'ap-export-editorial-copy';
+        item.textContent = '—';
+        list.appendChild(item);
+        return list;
+    }
+
+    entries.forEach((entry) => {
+        if (entry == null) return;
+        const item = document.createElement('li');
+        item.className = 'ap-export-editorial-copy';
+        if (typeof entry === 'string' || typeof entry === 'number') {
+            item.textContent = `Contact ${entry}`;
+        } else if (isPlainObject(entry)) {
+            const label = entry.id != null ? `Contact ${entry.id}` : 'Contact';
+            const notes = entry.notes ? `: ${String(entry.notes).trim()}` : '';
+            item.textContent = `${label}${notes}`;
+        } else {
+            return;
+        }
+        list.appendChild(item);
+    });
+
+    if (!list.childElementCount) {
+        const item = document.createElement('li');
+        item.className = 'ap-export-editorial-copy';
+        item.textContent = '—';
+        list.appendChild(item);
+    }
+
+    return list;
 }
 
 /**
@@ -201,28 +315,21 @@ function buildDossierSectionUnits(section, sections) {
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const fields = section.fields || [];
-        const gridClass = section.id === 'land_and_expand'
-            ? 'ap-export-card-grid ap-export-card-grid--3'
-            : fields.length >= 3
-                ? 'ap-export-card-grid ap-export-card-grid--thesis'
-                : 'ap-export-card-grid';
-        const grid = createExportCardGrid(gridClass);
+        const gridClass = section.id === 'land_and_expand' || fields.length >= 3
+            ? 'ap-export-editorial-grid--3'
+            : fields.length === 2
+                ? 'ap-export-editorial-grid--2'
+                : '';
+        const grid = createEditorialGrid(gridClass);
 
-        fields.forEach((field, index) => {
+        fields.forEach((field) => {
             const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
-            const descriptor = field.label && field.hint ? String(field.hint) : '';
-            grid.appendChild(createExportPanel(
-                heading,
-                value,
-                index === 0 ? 'accent' : 'default',
-                descriptor,
-                { span: section.id === 'pursuit_thesis' && index === 0 ? 'full' : undefined }
-            ));
+            grid.appendChild(createEditorialCell(heading, value));
         });
 
         if (!grid.childElementCount) {
-            grid.appendChild(createExportPanel(section.title, '—'));
+            grid.appendChild(createEditorialCell(section.title, '—'));
         }
 
         return [createDossierSectionBlock(section, grid)];
@@ -232,87 +339,81 @@ function buildDossierSectionUnits(section, sections) {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const pillField = section.pillField || 'selected_pills';
         const pills = Array.isArray(data[pillField]) ? data[pillField] : [];
-        const textFields = section.textFields || [];
-        const isSplit = section.pillNarrativeLayout === 'split';
-        const grid = createExportCardGrid(
-            isSplit ? 'ap-export-card-grid ap-export-card-grid--split' : 'ap-export-card-grid'
+        const pillsLabel = section.pillMode === 'either_or' ? 'Tension Choices' : 'Positioning';
+        const blocks = (section.textFields || []).map((field) => ({
+            kicker: field.label || field.hint || field.key,
+            text: String(data[field.key] ?? '').trim(),
+        }));
+
+        const prose = createEditorialProseBlock(
+            pillsLabel,
+            pills.join(', '),
+            blocks
         );
 
-        if (pills.length > 0) {
-            grid.appendChild(createExportPanel(
-                section.pillMode === 'either_or' ? 'Tension Choices' : 'Positioning',
-                pills.join(', '),
-                'accent'
-            ));
-        }
-
-        textFields.forEach((field, index) => {
-            const value = String(data[field.key] ?? '').trim();
-            const heading = field.label || field.hint || field.key;
-            const spanFull = !isSplit && (
-                field.key === 'narrative'
-                || (textFields.length > 1 && index === textFields.length - 1 && pills.length > 0)
-            );
-            grid.appendChild(createExportPanel(
-                heading,
-                value,
-                undefined,
-                '',
-                { span: spanFull ? 'full' : undefined }
-            ));
-        });
-
-        if (!grid.childElementCount) {
-            grid.appendChild(createExportPanel(section.title, '—'));
-        }
-
-        return [createDossierSectionBlock(section, grid)];
+        return [createDossierSectionBlock(section, prose)];
     }
 
     if (section.type === 'influence_board') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        const grid = createExportCardGrid('ap-export-card-grid ap-export-card-grid--influence');
+        const body = document.createElement('div');
+        body.className = 'ap-export-editorial-influence';
 
-        [
-            ['Executive Leadership', formatInfluenceEntriesForExport(data.executive), 'accent'],
-            ['Mid-Level Champions', formatInfluenceEntriesForExport(data.mid_level), 'default'],
-            ['Invisible Org Chart', String(data.invisible_org_chart ?? '').trim(), 'default'],
-        ].forEach(([label, value, variant], index) => {
-            grid.appendChild(createExportPanel(
-                label,
-                value || '—',
-                /** @type {'default' | 'accent'} */ (variant),
-                '',
-                { span: index === 2 ? 'full' : undefined }
-            ));
-        });
+        const executiveTier = document.createElement('div');
+        executiveTier.className = 'ap-export-editorial-influence-tier';
+        const executiveKicker = document.createElement('h3');
+        executiveKicker.className = 'ap-export-editorial-kicker';
+        executiveKicker.textContent = 'Executive Leadership';
+        executiveTier.appendChild(executiveKicker);
+        executiveTier.appendChild(createInfluenceList(data.executive));
+        body.appendChild(executiveTier);
 
-        return [createDossierSectionBlock(section, grid)];
+        const midTier = document.createElement('div');
+        midTier.className = 'ap-export-editorial-influence-tier';
+        const midKicker = document.createElement('h3');
+        midKicker.className = 'ap-export-editorial-kicker';
+        midKicker.textContent = 'Mid-Level Champions';
+        midTier.appendChild(midKicker);
+        midTier.appendChild(createInfluenceList(data.mid_level));
+        body.appendChild(midTier);
+
+        const invisibleTier = document.createElement('div');
+        invisibleTier.className = 'ap-export-editorial-influence-tier ap-export-editorial-span-full';
+        invisibleTier.appendChild(createEditorialCell(
+            'Invisible Org Chart',
+            String(data.invisible_org_chart ?? '').trim()
+        ));
+        body.appendChild(invisibleTier);
+
+        return [createDossierSectionBlock(section, body)];
     }
 
     if (section.type === 'entry_point_carousel') {
         const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
         const body = document.createElement('div');
-        body.className = 'ap-export-entry-points-body ap-export-card-grid ap-export-card-grid--entry-points';
+        body.className = 'ap-export-entry-points-body';
 
         points.forEach((rawPoint) => {
-            const card = buildEntryPointExportCard(rawPoint);
-            if (card) body.appendChild(card);
+            const entryBlock = buildEntryPointEditorialBlock(rawPoint);
+            if (entryBlock) body.appendChild(entryBlock);
         });
 
         if (!body.childElementCount) {
-            const emptyGrid = createExportCardGrid();
-            emptyGrid.appendChild(createExportPanel('Entry Points', 'No entry points defined.'));
-            body.appendChild(emptyGrid);
+            const empty = document.createElement('p');
+            empty.className = 'ap-export-editorial-copy';
+            empty.textContent = 'No entry points defined.';
+            body.appendChild(empty);
         }
 
         return [createDossierSectionBlock(section, body)];
     }
 
     if (section.type === 'textarea') {
-        const stack = createExportPanelStack();
-        stack.appendChild(createExportPanel(section.title, String(sections[section.id] ?? '').trim()));
-        return [createDossierSectionBlock(section, stack)];
+        const prose = createEditorialProseBlock('', '', [{
+            kicker: section.title,
+            text: String(sections[section.id] ?? '').trim(),
+        }]);
+        return [createDossierSectionBlock(section, prose)];
     }
 
     if (section.type === 'psychology_grid') {
@@ -327,7 +428,7 @@ function buildDossierSectionUnits(section, sections) {
             panel.appendChild(buildPsychologyBar(slider, value));
             grid.appendChild(panel);
         });
-        return [createDossierSectionBlock(section, grid)];
+        return [createDossierSectionBlock(section, grid, undefined, 'metric')];
     }
 
     if (section.type === 'momentum') {
@@ -343,28 +444,23 @@ function buildDossierSectionUnits(section, sections) {
             </div>`;
         stack.appendChild(metricPanel);
         stack.appendChild(createExportPanel('Momentum Narrative', String(momentum.narrative ?? '').trim()));
-        return [createDossierSectionBlock(section, stack)];
+        return [createDossierSectionBlock(section, stack, undefined, 'metric')];
     }
 
     if (section.type === 'triple_textarea') {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-        const grid = document.createElement('div');
-        grid.className = 'ap-export-plan-grid';
+        const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-editorial-grid--plan');
         PLAN_306090_HORIZONS.forEach((horizon) => {
-            const value = String(plan306090[horizon.key] ?? '').trim() || '—';
-            const cell = document.createElement('div');
-            cell.className = 'ap-export-plan-cell';
-            cell.innerHTML = `
-                <h3>${escapeHtml(horizon.title)}</h3>
-                <p>${escapeHtml(value)}</p>`;
-            grid.appendChild(cell);
+            grid.appendChild(createEditorialCell(
+                horizon.title,
+                String(plan306090[horizon.key] ?? '').trim()
+            ));
         });
         return [createDossierSectionBlock(section, grid)];
     }
 
-    const stack = createExportPanelStack();
-    stack.appendChild(createExportPanel(section.title, ''));
-    return [createDossierSectionBlock(section, stack)];
+    const prose = createEditorialProseBlock('', '', [{ kicker: section.title, text: '' }]);
+    return [createDossierSectionBlock(section, prose)];
 }
 
 /**
@@ -576,26 +672,6 @@ function summarizeCompetitiveLandscape(value) {
     ].filter(Boolean);
 
     return parts.join('\n\n');
-}
-
-/**
- * @param {unknown} entries
- */
-function formatInfluenceEntriesForExport(entries) {
-    if (!Array.isArray(entries) || entries.length === 0) return '';
-
-    return entries.map((entry) => {
-        if (entry == null) return '';
-        if (typeof entry === 'string' || typeof entry === 'number') {
-            return `Contact ${entry}`;
-        }
-        if (isPlainObject(entry)) {
-            const label = entry.id != null ? `Contact ${entry.id}` : 'Contact';
-            const notes = entry.notes ? `: ${String(entry.notes).trim()}` : '';
-            return `${label}${notes}`;
-        }
-        return '';
-    }).filter(Boolean).join('; ');
 }
 
 /**
@@ -835,39 +911,195 @@ export function ensureExportTemplateStyles() {
             margin-bottom: 0;
         }
         .ap-export-dossier-section + .ap-export-dossier-section {
-            margin-top: 22px;
-            padding-top: 18px;
-            border-top: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 85%, transparent);
+            margin-top: 28px;
+            padding-top: 22px;
+            border-top: 1px solid #e2e8f0;
         }
         .ap-export-dossier-section-title {
-            margin: 0 0 10px;
+            margin: 0 0 14px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 13px;
+            font-size: 11px;
             line-height: 1.25;
-            color: ${GPC_BRAND.navyDeep};
+            color: #0f172a;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.1em;
             font-weight: 700;
         }
         .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
             margin-top: 0;
         }
-        .ap-export-dossier-body {
-            font-size: 14px;
-            line-height: 1.55;
-            color: ${GPC_BRAND.textDark};
+        .ap-export-dossier-body--editorial {
+            color: #1e293b;
+            font-family: ${GPC_BRAND.fontBody};
+        }
+        .ap-export-dossier-body--editorial .ap-export-editorial-copy,
+        .ap-export-dossier-body--editorial .ap-export-editorial-list {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #1e293b;
+        }
+        .ap-export-editorial-kicker,
+        .ap-export-dossier-body--editorial h3.ap-export-editorial-kicker {
+            margin: 0 0 8px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 10px;
+            line-height: 1.3;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            font-weight: 700;
+        }
+        .ap-export-editorial-copy {
+            margin: 0 0 14px;
             white-space: pre-wrap;
         }
+        .ap-export-editorial-copy:last-child {
+            margin-bottom: 0;
+        }
+        .ap-export-editorial-pills-line {
+            margin: 0 0 12px;
+            font-size: 12px;
+            line-height: 1.55;
+            color: #0f172a;
+        }
+        .ap-export-editorial-pills-line strong {
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            font-size: 10px;
+            color: #64748b;
+        }
+        .ap-export-editorial-prose .ap-export-editorial-kicker:not(:first-child) {
+            margin-top: 16px;
+        }
+        .ap-export-editorial-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0;
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+        }
+        .ap-export-editorial-grid--2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .ap-export-editorial-grid--3,
+        .ap-export-editorial-grid--plan {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .ap-export-editorial-cell {
+            padding: 0 18px 0 0;
+        }
+        .ap-export-editorial-grid > .ap-export-editorial-cell:not(:last-child) {
+            border-right: 1px solid #e2e8f0;
+            padding-right: 18px;
+            margin-right: 0;
+        }
+        .ap-export-editorial-grid--3 > .ap-export-editorial-cell,
+        .ap-export-editorial-grid--plan > .ap-export-editorial-cell {
+            padding: 0 18px;
+        }
+        .ap-export-editorial-span-full {
+            grid-column: 1 / -1;
+            border-right: none !important;
+            padding-right: 0 !important;
+            margin-right: 0 !important;
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .ap-export-editorial-influence {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0;
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+        }
+        .ap-export-editorial-influence-tier {
+            padding: 0 18px 0 0;
+        }
+        .ap-export-editorial-influence-tier:first-child {
+            border-right: 1px solid #e2e8f0;
+            padding-right: 18px;
+            margin-right: 18px;
+        }
+        .ap-export-editorial-list {
+            margin: 0 0 14px;
+            padding: 0 0 0 1.1em;
+        }
+        .ap-export-editorial-list li {
+            margin: 0 0 6px;
+        }
+        .ap-export-entry-points-body {
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+        }
+        .ap-export-entry-point-block + .ap-export-entry-point-block {
+            padding-top: 22px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .ap-export-entry-point-name {
+            margin: 0 0 4px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #0f172a;
+            text-transform: none;
+        }
+        .ap-export-entry-point-meta {
+            margin: 0 0 12px;
+            font-size: 10px;
+            line-height: 1.45;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 600;
+        }
+        .ap-export-editorial-grid--entry-split {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
+        }
+        .ap-export-editorial-column {
+            padding: 0 18px 0 0;
+        }
+        .ap-export-editorial-column:first-child {
+            border-right: 1px solid #e2e8f0;
+            padding-right: 18px;
+            margin-right: 18px;
+        }
+        .ap-export-editorial-column-title {
+            margin: 0 0 10px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #0f172a;
+            font-weight: 700;
+        }
+        .ap-export-editorial-column .ap-export-editorial-cell {
+            border: none;
+            padding: 0;
+            margin: 0 0 14px;
+        }
+        .ap-export-editorial-column .ap-export-editorial-cell:last-child {
+            margin-bottom: 0;
+        }
+
+        /* --- Account Psychology (unchanged visual treatment) --- */
         .ap-export-psych-grid { display: flex; flex-direction: column; gap: 10px; }
         .ap-export-psych-grid--dossier {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px 14px;
         }
-        .ap-export-panel--psych-compact {
+        .ap-export-dossier-body--metric .ap-export-panel--psych-compact {
             padding: 10px 12px;
         }
-        .ap-export-panel--psych-compact .ap-export-psych-row-header {
+        .ap-export-dossier-body--metric .ap-export-panel--psych-compact .ap-export-psych-row-header {
             margin-bottom: 3px;
         }
         .ap-export-psych-row-header {
@@ -892,13 +1124,13 @@ export function ensureExportTemplateStyles() {
             color: #64748b;
             margin-top: 3px;
         }
-        .ap-export-momentum-score-row {
+        .ap-export-dossier-body--metric .ap-export-momentum-score-row {
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 8px;
         }
-        .ap-export-momentum-score {
+        .ap-export-dossier-body--metric .ap-export-momentum-score {
             width: 34px;
             height: 34px;
             border-radius: 999px;
@@ -910,111 +1142,23 @@ export function ensureExportTemplateStyles() {
             font-weight: 700;
             font-size: 14px;
         }
-        .ap-export-momentum-label { font-size: 13px; font-weight: 600; color: ${GPC_BRAND.navyDeep}; }
-        .ap-export-plan-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
+        .ap-export-dossier-body--metric .ap-export-momentum-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: ${GPC_BRAND.navyDeep};
         }
-        .ap-export-plan-cell {
-            border: 1px solid color-mix(in srgb, ${GPC_BRAND.teal} 28%, ${GPC_BRAND.gray});
-            border-radius: 8px;
-            padding: 12px;
-            background: color-mix(in srgb, ${GPC_BRAND.teal} 4%, #ffffff);
-            min-height: 120px;
-        }
-        .ap-export-plan-cell h3 {
-            margin: 0 0 8px;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: ${GPC_BRAND.teal};
-            font-family: ${GPC_BRAND.fontHeading};
-            font-weight: 700;
-        }
-        .ap-export-plan-cell p {
-            margin: 0;
-            font-size: 12px;
-            line-height: 1.5;
-            color: ${GPC_BRAND.textDark};
-            white-space: pre-wrap;
-        }
-        .ap-export-composite-body {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .ap-export-composite-block h3 {
-            margin: 0 0 4px;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: ${GPC_BRAND.teal};
-            font-family: ${GPC_BRAND.fontHeading};
-        }
-        .ap-export-composite-block p {
-            margin: 0;
-            font-size: 14px;
-            line-height: 1.55;
-            color: ${GPC_BRAND.textDark};
-            white-space: pre-wrap;
-        }
-        .ap-export-panel-stack {
+        .ap-export-dossier-body--metric .ap-export-panel-stack {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        .ap-export-card-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-            align-items: stretch;
-        }
-        .ap-export-card-grid--thesis,
-        .ap-export-card-grid--influence {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .ap-export-card-grid--3 {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        .ap-export-card-grid--split {
-            grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-        }
-        .ap-export-card-grid--entry-points {
-            grid-template-columns: 1fr;
-            gap: 14px;
-        }
-        .ap-export-card-grid--entry-fields {
-            gap: 10px;
-        }
-        .ap-export-card-span-full {
-            grid-column: 1 / -1;
-        }
-        .ap-export-entry-point-card {
-            border: 1px solid color-mix(in srgb, ${GPC_BRAND.teal} 32%, ${GPC_BRAND.gray});
-            border-radius: 10px;
-            overflow: hidden;
-            background: color-mix(in srgb, ${GPC_BRAND.teal} 3%, #ffffff);
-            box-shadow: 0 1px 0 color-mix(in srgb, ${GPC_BRAND.navyDeep} 6%, transparent);
-        }
-        .ap-export-entry-point-card-header {
-            padding: 10px 12px 8px;
-            border-bottom: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 82%, transparent);
-            background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 5%, #ffffff);
-        }
-        .ap-export-entry-point-card .ap-export-card-grid {
-            padding: 10px 12px 12px;
-        }
-        .ap-export-panel-stack--psych {
-            gap: 10px;
-        }
-        .ap-export-panel-stack--momentum {
+        .ap-export-dossier-body--metric .ap-export-panel-stack--momentum {
             display: grid;
             grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
             gap: 10px;
             align-items: stretch;
         }
-        .ap-export-panel {
+        .ap-export-dossier-body--metric .ap-export-panel {
             border: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 90%, transparent);
             border-radius: 8px;
             overflow: hidden;
@@ -1023,20 +1167,20 @@ export function ensureExportTemplateStyles() {
             display: flex;
             flex-direction: column;
         }
-        .ap-export-panel--accent {
+        .ap-export-dossier-body--metric .ap-export-panel--accent {
             border-color: color-mix(in srgb, ${GPC_BRAND.teal} 45%, ${GPC_BRAND.gray});
             background: color-mix(in srgb, ${GPC_BRAND.teal} 6%, #ffffff);
         }
-        .ap-export-panel--metric {
+        .ap-export-dossier-body--metric .ap-export-panel--metric {
             padding: 12px 14px;
             background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 4%, #ffffff);
         }
-        .ap-export-panel-header {
+        .ap-export-dossier-body--metric .ap-export-panel-header {
             padding: 7px 12px;
             border-bottom: 1px solid color-mix(in srgb, ${GPC_BRAND.gray} 80%, transparent);
             background: color-mix(in srgb, ${GPC_BRAND.navyDeep} 4%, #ffffff);
         }
-        .ap-export-panel-header h3 {
+        .ap-export-dossier-body--metric .ap-export-panel-header h3 {
             margin: 0;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 10px;
@@ -1045,59 +1189,16 @@ export function ensureExportTemplateStyles() {
             color: ${GPC_BRAND.teal};
             font-weight: 700;
         }
-        .ap-export-panel-descriptor {
-            margin: 0.25rem 0 0;
-            font-size: 10px;
-            line-height: 1.4;
-            color: color-mix(in srgb, ${GPC_BRAND.textDark} 68%, ${GPC_BRAND.gray});
-            font-style: italic;
-        }
-        .ap-export-panel-body {
+        .ap-export-dossier-body--metric .ap-export-panel-body {
             padding: 10px 12px;
             flex: 1;
         }
-        .ap-export-panel-body p {
+        .ap-export-dossier-body--metric .ap-export-panel-body p {
             margin: 0;
             font-size: 12px;
             line-height: 1.52;
             color: ${GPC_BRAND.textDark};
             white-space: pre-wrap;
-        }
-        .ap-export-attr-badge-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
-        .ap-export-attr-badge {
-            display: inline-flex;
-            align-items: center;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 10px;
-            font-weight: 600;
-            color: ${GPC_BRAND.navyDeep};
-            background: color-mix(in srgb, ${GPC_BRAND.lime} 22%, #ffffff);
-            border: 1px solid color-mix(in srgb, ${GPC_BRAND.lime} 45%, ${GPC_BRAND.gray});
-        }
-        .ap-export-entry-point-stack .ap-export-panel + .ap-export-panel {
-            margin-top: 0;
-        }
-        .ap-export-entry-points-body {
-            display: grid;
-            gap: 14px;
-        }
-        .ap-export-entry-point-name {
-            margin: 0 0 6px;
-            font-family: ${GPC_BRAND.fontHeading};
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: ${GPC_BRAND.navyDeep};
-        }
-        .ap-export-entry-point-card-header .ap-export-attr-badge-row {
-            margin-bottom: 0;
         }
 
         /* --- GPC exec readout (16:9) --- */
