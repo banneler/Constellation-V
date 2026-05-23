@@ -282,6 +282,19 @@ function buildExecEntryPointsPanel(sections, maxProfiles = 2) {
 }
 
 /**
+ * @param {string} headline
+ * @param {string} fallbackPeriod
+ */
+function parseHorizonHeadline(headline, fallbackPeriod) {
+    const text = String(headline ?? '').trim() || fallbackPeriod;
+    const colonMatch = text.match(/^([^:]{1,48}):\s*(.+)$/);
+    if (colonMatch) {
+        return { period: colonMatch[1].trim(), action: colonMatch[2].trim() };
+    }
+    return { period: fallbackPeriod, action: text };
+}
+
+/**
  * @param {string[]} bullets
  */
 function buildHighlightBulletsHtml(bullets) {
@@ -530,9 +543,12 @@ export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, 
     if (highlightHorizons) {
         highlightHorizons.forEach(({ key, fallbackTitle }) => {
             const block = execution[key];
+            const { period, action } = parseHorizonHeadline(block?.headline, fallbackTitle);
             const col = document.createElement('div');
-            col.className = 'ap-exec-plan-horizon-col';
-            col.innerHTML = `<h3 class="ap-exec-plan-horizon-title ap-exec-plan-horizon-headline">${escapeHtml(block?.headline ?? fallbackTitle)}</h3>`;
+            col.className = 'ap-exec-plan-horizon-col ap-exec-plan-horizon-col--highlight';
+            col.innerHTML = `
+                <div class="ap-exec-plan-horizon-period">${escapeHtml(period)}</div>
+                <h3 class="ap-exec-plan-horizon-headline">${escapeHtml(action)}</h3>`;
             const colBody = document.createElement('ul');
             colBody.className = 'ap-exec-highlight-list ap-exec-highlight-list--compact';
             colBody.innerHTML = buildHighlightBulletsHtml(block?.bullets ?? []);
@@ -2524,21 +2540,52 @@ export function ensureExportTemplateStyles() {
             color: #334155;
             min-width: 0;
         }
+
+        /* --- Highlight-reel deck (AI-synthesized headlines) --- */
+        .ap-exec-slide--highlight {
+            padding: 28px 40px 44px;
+        }
         .ap-exec-slide--highlight .ap-exec-slide-header {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+        }
+        .ap-exec-slide--highlight .ap-exec-slide-title {
+            font-size: 22px;
+            line-height: 1.15;
+            margin-bottom: 0;
+        }
+        .ap-exec-slide--highlight .ap-exec-slide-date {
+            display: none;
         }
         .ap-exec-slide-hook {
-            margin: 8px 0 0;
-            font-size: 17px;
-            line-height: 1.32;
-            font-weight: 600;
-            color: #1e3a5f;
+            margin: 6px 0 0;
+            font-size: 19px;
+            line-height: 1.28;
+            font-weight: 700;
+            color: #0f172a;
             font-family: ${GPC_BRAND.fontHeading};
+            max-width: 92%;
+        }
+        .ap-exec-slide--highlight .ap-exec-slide-body {
+            min-height: 448px;
+        }
+        .ap-exec-slide--highlight .ap-exec-grid {
+            min-height: 448px;
+            gap: 12px;
+        }
+        .ap-exec-slide--highlight .ap-exec-panel {
+            padding: 12px 14px;
         }
         .ap-exec-panel-heading--highlight {
-            font-size: 15px;
-            line-height: 1.25;
+            font-size: 12px;
+            line-height: 1.35;
+            letter-spacing: 0.04em;
+            text-transform: none;
+            color: #0f172a;
             margin-bottom: 10px;
+        }
+        .ap-exec-slide--highlight .ap-exec-panel-icon {
+            font-size: 12px;
+            margin-right: 6px;
         }
         .ap-exec-highlight-list {
             list-style: none;
@@ -2546,51 +2593,78 @@ export function ensureExportTemplateStyles() {
             padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
             min-height: 0;
             overflow: hidden;
+            flex: 1;
         }
         .ap-exec-highlight-list li {
             position: relative;
             padding-left: 14px;
-            font-size: 13px;
-            line-height: 1.42;
+            font-size: 12.5px;
+            line-height: 1.44;
             color: #334155;
         }
         .ap-exec-highlight-list li::before {
             content: "";
             position: absolute;
             left: 0;
-            top: 0.55em;
+            top: 0.58em;
             width: 5px;
             height: 5px;
             border-radius: 50%;
             background: #2563eb;
         }
-        .ap-exec-highlight-list--compact {
-            gap: 6px;
+        .ap-exec-slide--highlight .ap-exec-grid--situation {
+            grid-template-columns: 1.22fr 0.78fr;
         }
-        .ap-exec-highlight-list--compact li {
-            font-size: 11.5px;
-            line-height: 1.38;
+        .ap-exec-slide--highlight .ap-exec-panel--strategy .ap-exec-highlight-list {
+            justify-content: center;
+            gap: 11px;
+        }
+        .ap-exec-slide--highlight .ap-exec-panel--strategy .ap-exec-highlight-list li {
+            font-size: 13px;
+            line-height: 1.46;
+        }
+        .ap-exec-slide--highlight .ap-exec-stack .ap-exec-panel--momentum {
+            flex: 0 0 auto;
+            height: auto;
+        }
+        .ap-exec-slide--highlight .ap-exec-kpi {
+            align-items: stretch;
+            justify-content: flex-start;
+            gap: 0;
+        }
+        .ap-exec-slide--highlight .ap-exec-kpi-score {
+            font-size: 34px;
+            align-self: center;
+        }
+        .ap-exec-slide--highlight .ap-exec-kpi-label {
+            margin-top: 4px;
+            font-size: 10px;
+            align-self: center;
         }
         .ap-exec-kpi-insight {
             margin: 10px 0 0;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
             font-size: 11px;
             line-height: 1.45;
             color: #475569;
-            text-align: center;
+            text-align: left;
         }
         .ap-exec-psych-callouts {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 9px;
+            flex: 1;
             min-height: 0;
             overflow: hidden;
+            justify-content: space-evenly;
         }
         .ap-exec-psych-callout {
             border-left: 3px solid #2563eb;
-            padding: 0 0 0 10px;
+            padding: 6px 0 6px 11px;
         }
         .ap-exec-psych-callout-label {
             font-size: 9px;
@@ -2598,32 +2672,37 @@ export function ensureExportTemplateStyles() {
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: #64748b;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
         }
         .ap-exec-psych-callout-insight {
-            font-size: 12px;
-            line-height: 1.4;
+            font-size: 11.5px;
+            line-height: 1.38;
             color: #334155;
+        }
+        .ap-exec-slide--highlight .ap-exec-grid--battlefield {
+            grid-template-columns: 0.92fr 0.88fr 1.2fr;
         }
         .ap-exec-influence-hooks {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
+            flex: 1;
             min-height: 0;
             overflow: hidden;
+            justify-content: center;
         }
         .ap-exec-influence-hook-title {
-            margin: 0 0 4px;
-            font-size: 10px;
+            margin: 0 0 5px;
+            font-size: 9px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: #64748b;
         }
         .ap-exec-influence-hook-copy {
             margin: 0;
-            font-size: 13px;
-            line-height: 1.42;
+            font-size: 12px;
+            line-height: 1.44;
             font-weight: 600;
             color: #1e293b;
         }
@@ -2631,46 +2710,93 @@ export function ensureExportTemplateStyles() {
             display: flex;
             flex-direction: column;
             gap: 10px;
+            flex: 1;
             min-height: 0;
             overflow: hidden;
         }
         .ap-exec-highlight-entry {
+            flex: 1;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
-            padding: 10px 12px;
+            padding: 11px 13px;
             background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 0;
         }
         .ap-exec-highlight-entry-name {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             color: #0f172a;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
         }
         .ap-exec-highlight-entry-headline {
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 600;
+            line-height: 1.32;
             color: #2563eb;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
         }
         .ap-exec-highlight-entry-hook {
             margin: 0;
             font-size: 11px;
-            line-height: 1.4;
+            line-height: 1.42;
             color: #334155;
         }
         .ap-exec-highlight-entry-badges {
-            margin-top: 6px;
-            font-size: 9px;
-            letter-spacing: 0.04em;
+            margin-top: 7px;
+            font-size: 8.5px;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
             color: #64748b;
         }
+        .ap-exec-slide--highlight .ap-exec-grid--execution {
+            grid-template-columns: 1.38fr 0.62fr;
+        }
+        .ap-exec-plan-horizon-col--highlight {
+            border-left: 1px solid #e2e8f0;
+            padding-left: 12px;
+        }
+        .ap-exec-plan-horizon-col--highlight:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+        .ap-exec-plan-horizon-period {
+            font-size: 9px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #2563eb;
+            font-weight: 700;
+            margin-bottom: 4px;
+            font-family: ${GPC_BRAND.fontHeading};
+        }
         .ap-exec-plan-horizon-headline {
+            margin: 0 0 10px;
+            font-size: 12.5px;
+            line-height: 1.3;
+            font-weight: 700;
             color: #0f172a;
-            font-size: 12px;
+            text-transform: none;
+            letter-spacing: 0;
+            font-family: ${GPC_BRAND.fontHeading};
+        }
+        .ap-exec-highlight-list--compact {
+            gap: 7px;
+        }
+        .ap-exec-highlight-list--compact li {
+            font-size: 10.5px;
+            line-height: 1.42;
+        }
+        .ap-exec-slide--highlight .ap-exec-signals-list {
+            gap: 12px;
+            justify-content: flex-start;
+        }
+        .ap-exec-signals-item--highlight {
+            padding-bottom: 2px;
         }
         .ap-exec-signals-headline {
-            font-size: 13px;
+            font-size: 12px;
             line-height: 1.4;
             font-weight: 600;
             color: #1e293b;
