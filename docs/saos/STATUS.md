@@ -12,7 +12,7 @@ Last updated: 2026-05-23 (A7 QA sign-off)
 | A5 Interaction Log | `saos/a5-interaction-log` | `3672dfc` | **complete** | `interaction_log` quick-log + full form; promote-from-CRM; timeline overlay; signals-only PDF export; no new `momentum_notes` writes |
 | A6 AI Presentation | `saos/a6-ai-presentation` | `b4b7313` | **complete** | Edge function v2 prompt; `PresentationHighlight` schema extensions; normalize fallbacks; PPTX renders snapshot tier/priority, executive narrative, pain/unknowns, white space, access path, entrenchment moat, signal-only timeline |
 | A7 QA & Docs | `saos/a7-qa-docs` | `90e7e07` | **complete** | `PLAN.md` v2 refresh, Strategic OS E2E extensions, G0–G6 release gate sign-off |
-| Integration | `saos/integration` | — | **ready for release** | A0–A7 merged; PR to `deploy` / `main` |
+| Integration | `saos/integration` | `ae09656` | **ready for release** | A0–A7 merged; PR to `deploy` / `main` |
 
 ## Release gates (G0–G6)
 
