@@ -1427,7 +1427,7 @@ function renderRail(sections) {
                     <i class="fas fa-file-pdf" aria-hidden="true"></i> Export Plan Summary (PDF)
                 </button>
                 <button type="button" id="plan-export-exec-btn" class="btn-secondary plan-export-btn w-full">
-                    <i class="fas fa-display" aria-hidden="true"></i> Export Exec Readout (PDF)
+                    <i class="fas fa-display" aria-hidden="true"></i> Export Summary Presentation (PDF)
                 </button>
             </div>
         </div>
