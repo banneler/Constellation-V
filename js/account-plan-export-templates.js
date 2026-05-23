@@ -51,6 +51,18 @@ export function buildDossierSectionTitleHtml(sectionId, title, continued = false
 const EXEC_PSYCHOLOGY_IDS = ['bureaucracy_level', 'technical_sophistication', 'decision_velocity'];
 
 /**
+ * @param {string} title
+ * @param {string} sectionId
+ */
+function buildExecPanelHeading(title, sectionId) {
+    const iconClass = DOSSIER_SECTION_ICONS[sectionId];
+    const iconHtml = iconClass
+        ? `<i class="fas ${iconClass} ap-export-exec-panel-icon" aria-hidden="true"></i>`
+        : '';
+    return `<h2>${iconHtml}${escapeHtml(title)}</h2>`;
+}
+
+/**
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @returns {{ sectionBlocks: HTMLElement[], meta: { accountName: string, dateLabel: string } }}
@@ -554,12 +566,13 @@ export function buildExecReadoutTemplate(plan, account) {
     const accountName = account?.name ? String(account.name) : 'Account';
     const dateLabel = formatExportDate(new Date());
     const pursuitThesis = summarizePursuitThesis(sections.pursuit_thesis);
-    const competitive = summarizeCompetitiveLandscape(sections.competitive_landscape);
+    const competitive = summarizeCompetitiveLandscape(sections.competitive_landscape)
+        || 'No competitive landscape captured yet.';
 
     const root = document.createElement('div');
     root.className = 'ap-export-exec-readout ap-export-exec-readout--gpc';
     root.style.width = `${EXEC_WIDTH_PX}px`;
-    root.style.minHeight = `${EXEC_HEIGHT_PX}px`;
+    root.style.height = `${EXEC_HEIGHT_PX}px`;
 
     const psychCards = EXEC_PSYCHOLOGY_IDS.map((id) => {
         const def = PSYCHOLOGY_SLIDERS.find((s) => s.id === id);
@@ -580,15 +593,12 @@ export function buildExecReadoutTemplate(plan, account) {
         ['90', plan306090.days_90],
     ].map(([days, text]) => {
         const line = String(text ?? '').trim() || 'Not defined';
-        return `<li><strong>${days}d</strong> ${escapeHtml(truncate(line, 140))}</li>`;
+        return `<li class="ap-export-exec-plan-item"><strong>${days}d</strong><span class="ap-line-clamp-4">${escapeHtml(line)}</span></li>`;
     }).join('');
 
     const footerDate = formatGpcFooterDate(new Date());
 
     root.innerHTML = `
-        <div class="ap-export-exec-gpc-bg" aria-hidden="true">
-            <div class="ap-export-exec-gpc-art"></div>
-        </div>
         <img class="ap-export-gpc-logo ap-export-gpc-logo--exec" src="${GPC_LOGO_WHITE}" alt="Great Plains Communications" crossorigin="anonymous" />
         <div class="ap-export-exec-gpc-shell">
             <div class="ap-export-exec-gpc-intro">
@@ -597,28 +607,35 @@ export function buildExecReadoutTemplate(plan, account) {
                 <p class="ap-export-exec-gpc-date">${escapeHtml(dateLabel)}</p>
             </div>
             <div class="ap-export-exec-grid">
-                <div class="ap-export-exec-panel ap-export-exec-panel-thesis">
-                    <h2>Pursuit Strategy</h2>
-                    <p>${escapeHtml(truncate(pursuitThesis, 420))}</p>
+                <div class="ap-export-exec-col ap-export-exec-col--strategy">
+                    <div class="ap-export-exec-panel ap-export-exec-panel-thesis">
+                        ${buildExecPanelHeading('Pursuit Strategy', 'pursuit_thesis')}
+                        <p class="ap-line-clamp-6">${escapeHtml(pursuitThesis)}</p>
+                    </div>
+                    <div class="ap-export-exec-panel ap-export-exec-panel-competitive">
+                        ${buildExecPanelHeading('Competitive Landscape', 'competitive_landscape')}
+                        <p class="ap-line-clamp-6">${escapeHtml(competitive)}</p>
+                    </div>
                 </div>
-                <div class="ap-export-exec-panel ap-export-exec-panel-momentum">
-                    <h2>Relationship Momentum</h2>
-                    <div class="ap-export-exec-momentum-score">${score}</div>
-                    <div class="ap-export-exec-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</div>
+                <div class="ap-export-exec-col ap-export-exec-col--relationship">
+                    <div class="ap-export-exec-panel ap-export-exec-panel-momentum">
+                        ${buildExecPanelHeading('Relationship Momentum', 'relationship_momentum')}
+                        <div class="ap-export-exec-momentum-body">
+                            <div class="ap-export-exec-momentum-score">${score}</div>
+                            <div class="ap-export-exec-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</div>
+                        </div>
+                    </div>
+                    <div class="ap-export-exec-panel ap-export-exec-panel-psych">
+                        ${buildExecPanelHeading('Account Psychology', 'psychology')}
+                        <div class="ap-export-exec-psych-grid">${psychCards}</div>
+                    </div>
                 </div>
-                <div class="ap-export-exec-panel ap-export-exec-panel-psych">
-                    <h2>Account Psychology</h2>
-                    <div class="ap-export-exec-psych-grid">${psychCards}</div>
+                <div class="ap-export-exec-col ap-export-exec-col--plan">
+                    <div class="ap-export-exec-panel ap-export-exec-panel-plan">
+                        ${buildExecPanelHeading('30 / 60 / 90', 'plan_30_60_90')}
+                        <ul class="ap-export-exec-plan-list">${planBullets}</ul>
+                    </div>
                 </div>
-                <div class="ap-export-exec-panel ap-export-exec-panel-plan">
-                    <h2>30 / 60 / 90</h2>
-                    <ul class="ap-export-exec-plan-list">${planBullets}</ul>
-                </div>
-                ${competitive ? `
-                <div class="ap-export-exec-panel ap-export-exec-panel-competitive">
-                    <h2>Competitive Landscape</h2>
-                    <p>${escapeHtml(truncate(competitive, 260))}</p>
-                </div>` : ''}
             </div>
         </div>
         <div class="ap-export-exec-gpc-footer">
@@ -1422,171 +1439,238 @@ export function ensureExportTemplateStyles() {
         }
 
         /* --- GPC exec readout (16:9) --- */
+        .ap-line-clamp-4 {
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .ap-line-clamp-6 {
+            display: -webkit-box;
+            -webkit-line-clamp: 6;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
         .ap-export-exec-readout--gpc {
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
-            background: ${GPC_BRAND.navyDark};
-            color: ${GPC_BRAND.white};
+            display: flex;
+            flex-direction: column;
+            background: #0f172a;
+            color: #f8fafc;
             font-family: ${GPC_BRAND.fontBody};
-            padding: 28px 36px 52px;
-        }
-        .ap-export-exec-gpc-bg {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-        }
-        .ap-export-exec-gpc-art {
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 42%;
-            height: 100%;
-            background:
-                linear-gradient(155deg, ${GPC_BRAND.navyDeep} 0%, ${GPC_BRAND.navyDeep} 35%, transparent 35%),
-                linear-gradient(140deg, transparent 18%, ${GPC_BRAND.teal} 18%, ${GPC_BRAND.teal} 58%, transparent 58%),
-                linear-gradient(125deg, transparent 45%, ${GPC_BRAND.lime} 45%, ${GPC_BRAND.lime} 100%);
+            padding: 22px 32px 46px;
         }
         .ap-export-gpc-logo--exec {
             position: absolute;
-            top: 22px;
+            top: 20px;
             right: 28px;
-            width: 140px;
+            width: 132px;
             height: auto;
             z-index: 3;
         }
         .ap-export-exec-gpc-shell {
             position: relative;
             z-index: 2;
-            display: grid;
-            grid-template-columns: 0.95fr 1.55fr;
-            gap: 20px;
-            height: calc(100% - 8px);
-        }
-        .ap-export-exec-gpc-intro {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            padding-right: 12px;
+            flex: 1;
+            min-height: 0;
+            gap: 14px;
+        }
+        .ap-export-exec-gpc-intro {
+            flex-shrink: 0;
+            padding-right: 148px;
         }
         .ap-export-exec-kicker {
-            margin: 0 0 8px;
-            font-size: 14px;
-            letter-spacing: 0.04em;
+            margin: 0 0 6px;
+            font-size: 11px;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: ${GPC_BRAND.lime};
+            color: #3b82f6;
             font-family: ${GPC_BRAND.fontHeading};
             font-weight: 700;
         }
         .ap-export-exec-title {
-            margin: 0 0 10px;
-            font-size: 36px;
-            line-height: 1.08;
+            margin: 0 0 4px;
+            font-size: 28px;
+            line-height: 1.1;
             font-weight: 700;
             font-family: ${GPC_BRAND.fontHeading};
+            color: #ffffff;
         }
         .ap-export-exec-gpc-date {
             margin: 0;
-            font-size: 13px;
-            opacity: 0.85;
+            font-size: 12px;
+            color: #94a3b8;
         }
         .ap-export-exec-grid {
+            flex: 1;
+            min-height: 0;
             display: grid;
-            grid-template-columns: 1.35fr 0.85fr;
-            grid-template-rows: auto auto;
+            grid-template-columns: 1.2fr 0.9fr 0.9fr;
+            gap: 20px;
+            align-items: stretch;
+            height: 100%;
+        }
+        .ap-export-exec-col {
+            display: flex;
+            flex-direction: column;
             gap: 12px;
-            align-content: start;
+            min-height: 0;
+            height: 100%;
+        }
+        .ap-export-exec-col--plan .ap-export-exec-panel {
+            flex: 1;
         }
         .ap-export-exec-panel {
-            background: rgba(255, 255, 255, 0.96);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 10px;
-            padding: 14px 16px;
-            color: ${GPC_BRAND.textDark};
+            box-sizing: border-box;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: #e2e8f0;
+            overflow: hidden;
         }
         .ap-export-exec-panel h2 {
-            margin: 0 0 8px;
-            font-size: 11px;
-            letter-spacing: 0.06em;
+            margin: 0 0 10px;
+            font-size: 10px;
+            letter-spacing: 0.07em;
             text-transform: uppercase;
-            color: ${GPC_BRAND.teal};
+            color: #94a3b8;
             font-family: ${GPC_BRAND.fontHeading};
+            font-weight: 700;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
         }
-        .ap-export-exec-panel p,
-        .ap-export-exec-plan-list {
-            margin: 0;
+        .ap-export-exec-panel-icon {
+            color: #3b82f6;
+            margin-right: 8px;
             font-size: 12px;
-            line-height: 1.45;
-            color: ${GPC_BRAND.textDark};
+            flex-shrink: 0;
         }
-        .ap-export-exec-panel-thesis { grid-column: 1; grid-row: 1; }
-        .ap-export-exec-panel-momentum { grid-column: 2; grid-row: 1; text-align: center; }
+        .ap-export-exec-panel p {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #cbd5e1;
+            white-space: pre-line;
+            flex: 1;
+            min-height: 0;
+        }
+        .ap-export-exec-panel-momentum {
+            text-align: center;
+        }
+        .ap-export-exec-momentum-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+        }
         .ap-export-exec-momentum-score {
-            font-size: 42px;
+            font-size: 48px;
             font-weight: 800;
             line-height: 1;
-            color: ${GPC_BRAND.navyDeep};
+            color: #3b82f6;
         }
         .ap-export-exec-momentum-label {
-            font-size: 13px;
-            color: ${GPC_BRAND.teal};
-            margin-top: 4px;
-            font-weight: 600;
+            font-size: 12px;
+            color: #93c5fd;
+            margin-top: 6px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
-        .ap-export-exec-panel-psych { grid-column: 1; grid-row: 2; }
-        .ap-export-exec-panel-plan { grid-column: 2; grid-row: 2; }
-        .ap-export-exec-panel-competitive { grid-column: 1 / -1; }
         .ap-export-exec-psych-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: 1fr;
             gap: 8px;
+            flex: 1;
+            min-height: 0;
         }
         .ap-export-exec-psych-card {
-            background: #f4f7fa;
-            border-radius: 8px;
-            padding: 8px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 8px 10px;
         }
         .ap-export-exec-psych-label {
-            font-size: 10px;
-            color: ${GPC_BRAND.navyDeep};
+            font-size: 9px;
+            color: #94a3b8;
             margin-bottom: 4px;
             font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
         }
         .ap-export-exec-psych-value {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             line-height: 1;
-            color: ${GPC_BRAND.navyDeep};
+            color: #f8fafc;
         }
-        .ap-export-exec-psych-value span { font-size: 11px; opacity: 0.65; margin-left: 2px; }
+        .ap-export-exec-psych-value span {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-left: 2px;
+            color: #94a3b8;
+        }
         .ap-export-exec-psych-track {
             margin-top: 6px;
-            height: 6px;
+            height: 5px;
             border-radius: 999px;
-            background: ${GPC_BRAND.gray};
+            background: #334155;
             overflow: hidden;
         }
         .ap-export-exec-psych-fill {
             height: 100%;
             border-radius: 999px;
-            background: ${GPC_BRAND.lime};
+            background: linear-gradient(90deg, #3b82f6 0%, #22d3ee 100%);
         }
         .ap-export-exec-plan-list {
             list-style: none;
+            margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
         }
-        .ap-export-exec-plan-list strong {
-            margin-right: 6px;
-            color: ${GPC_BRAND.teal};
+        .ap-export-exec-plan-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 11px;
+            line-height: 1.45;
+            color: #cbd5e1;
+            min-height: 0;
+        }
+        .ap-export-exec-plan-item strong {
+            flex-shrink: 0;
+            color: #3b82f6;
+            font-size: 10px;
+            letter-spacing: 0.04em;
+            margin-top: 1px;
+        }
+        .ap-export-exec-plan-item span {
+            flex: 1;
+            min-width: 0;
         }
         .ap-export-exec-gpc-footer {
             position: absolute;
             left: 0;
             right: 0;
             bottom: 0;
+            background: #0f172a;
+            border-top: 1px solid #334155;
         }
     `;
     document.head.appendChild(style);
