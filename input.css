@@ -2052,11 +2052,19 @@ body.theme-green {
     .strategic-pills-narrative-split-text .strategic-textarea {
         min-height: 14rem;
     }
+    .strategic-section--strategic-tensions .strategic-pills-wrap--either-or {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+    }
     .influence-board {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1rem;
         margin-bottom: 1.25rem;
+    }
+    .influence-board-column--bench {
+        grid-column: 1 / -1;
     }
     .strategic-section--influence .influence-board {
         min-height: 34rem;
@@ -2181,6 +2189,178 @@ body.theme-green {
     }
     .influence-invisible-textarea {
         min-height: 6rem;
+    }
+    .influence-contact-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.35rem;
+    }
+    .influence-contact-badge {
+        @apply rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide;
+        border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
+        color: var(--text-light);
+    }
+    .influence-card-fields {
+        @apply flex flex-col gap-2;
+        padding: 0.5rem 0.75rem 0.75rem;
+        overflow-y: auto;
+        max-height: calc(100% - 2.5rem);
+    }
+    .influence-card-field-label,
+    .influence-contact-notes-label {
+        @apply text-[0.65rem] font-semibold uppercase tracking-wide block mb-1;
+        color: var(--text-muted);
+    }
+    .influence-field-pills-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+    .influence-field-pill {
+        @apply rounded-full border px-2 py-1 text-[0.65rem] font-medium transition-colors;
+        border-color: var(--border-color);
+        background-color: var(--bg-medium);
+        color: var(--text-medium);
+        cursor: pointer;
+    }
+    .influence-field-pill:hover {
+        border-color: var(--primary-blue);
+        color: var(--text-light);
+    }
+    .influence-field-pill--active {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+        color: var(--text-light);
+    }
+    .influence-card-field-textarea {
+        min-height: 3rem;
+        font-size: 0.75rem;
+    }
+    .influence-political-field,
+    .influence-invisible-field {
+        margin-bottom: 1rem;
+    }
+    .influence-political-textarea,
+    .influence-invisible-textarea {
+        min-height: 5rem;
+    }
+    .influence-access-path {
+        @apply rounded-lg border mb-4 p-3;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+    }
+    .influence-access-path-title {
+        @apply text-xs font-semibold uppercase tracking-wide m-0 mb-2;
+        color: var(--text-medium);
+    }
+    .influence-access-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+    .influence-access-field label {
+        @apply text-xs font-medium block mb-1;
+        color: var(--text-medium);
+    }
+    .influence-access-textarea {
+        min-height: 3.5rem;
+        font-size: 0.8125rem;
+    }
+    .white-space-matrix {
+        @apply flex flex-col gap-3;
+    }
+    .white-space-rows {
+        @apply flex flex-col gap-3;
+    }
+    .white-space-empty {
+        @apply text-sm m-0;
+        color: var(--text-muted);
+    }
+    .white-space-row {
+        @apply rounded-lg border p-3;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 45%, transparent);
+    }
+    .white-space-row-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    .white-space-row-label {
+        @apply text-xs font-semibold uppercase tracking-wide;
+        color: var(--text-medium);
+    }
+    .white-space-row-remove {
+        @apply text-xs font-medium;
+        color: var(--text-muted);
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+    }
+    .white-space-row-remove:hover {
+        color: var(--primary-blue);
+    }
+    .white-space-row-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+    .white-space-field label {
+        @apply text-xs font-medium block mb-1;
+        color: var(--text-medium);
+    }
+    .white-space-field--wide {
+        grid-column: 1 / -1;
+    }
+    .white-space-add-btn {
+        align-self: flex-start;
+    }
+    .psychology-gravity-section {
+        margin-top: 1.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border-color);
+    }
+    .psychology-gravity-heading {
+        @apply text-xs font-semibold uppercase tracking-wide m-0 mb-3;
+        color: var(--text-medium);
+    }
+    .psychology-gravity-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.875rem 1.25rem;
+    }
+    .psychology-gravity-field--narrative {
+        grid-column: 1 / -1;
+    }
+    .psychology-gravity-label {
+        @apply text-xs font-medium block mb-1.5;
+        color: var(--text-medium);
+    }
+    .psychology-gravity-pills-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+    .psychology-gravity-pill {
+        @apply rounded-full border px-3 py-1.5 text-xs font-medium transition-colors;
+        border-color: var(--border-color);
+        background-color: var(--bg-medium);
+        color: var(--text-medium);
+        cursor: pointer;
+    }
+    .psychology-gravity-pill:hover {
+        border-color: var(--primary-blue);
+        color: var(--text-light);
+    }
+    .psychology-gravity-pill--active {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+        color: var(--text-light);
     }
     .strategic-textarea {
         @apply w-full rounded-lg border px-3 py-2 text-sm resize-none overflow-hidden;
@@ -2508,6 +2688,11 @@ body.theme-green {
             grid-template-columns: 1fr;
         }
         .influence-board {
+            grid-template-columns: 1fr;
+        }
+        .influence-access-grid,
+        .white-space-row-grid,
+        .psychology-gravity-grid {
             grid-template-columns: 1fr;
         }
         .strategic-section--account-snapshot .account-snapshot-crm-grid,

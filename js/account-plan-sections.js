@@ -83,6 +83,7 @@ export const STRATEGIC_TENSION_GROUPS = Object.freeze([
     { id: 'speed_stability', options: ['Speed', 'Stability'] },
     { id: 'agility_compliance', options: ['Agility', 'Compliance'] },
     { id: 'centralization_flexibility', options: ['Centralization', 'Flexibility'] },
+    { id: 'build_buy', options: ['Build', 'Buy'] },
 ]);
 
 /** @type {readonly string[]} */

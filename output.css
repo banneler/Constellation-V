@@ -4860,11 +4860,19 @@ body.theme-green {
   .strategic-pills-narrative-split-text .strategic-textarea {
     min-height: 14rem;
   }
+  .strategic-section--strategic-tensions .strategic-pills-wrap--either-or {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
   .influence-board {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
     margin-bottom: 1.25rem;
+  }
+  .influence-board-column--bench {
+    grid-column: 1 / -1;
   }
   .strategic-section--influence .influence-board {
     min-height: 34rem;
@@ -5075,6 +5083,286 @@ body.theme-green {
   }
   .influence-invisible-textarea {
     min-height: 6rem;
+  }
+  .influence-contact-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.35rem;
+  }
+  .influence-contact-badge {
+    border-radius: calc(infinity * 1px);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    padding-inline: calc(var(--spacing) * 2);
+    padding-block: calc(var(--spacing) * 0.5);
+    font-size: 0.65rem;
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wide);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    border-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    }
+    background-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
+    }
+    color: var(--text-light);
+  }
+  .influence-card-fields {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 2);
+    padding: 0.5rem 0.75rem 0.75rem;
+    overflow-y: auto;
+    max-height: calc(100% - 2.5rem);
+  }
+  .influence-card-field-label, .influence-contact-notes-label {
+    margin-bottom: calc(var(--spacing) * 1);
+    display: block;
+    font-size: 0.65rem;
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wide);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .influence-field-pills-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .influence-field-pill {
+    border-radius: calc(infinity * 1px);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    padding-inline: calc(var(--spacing) * 2);
+    padding-block: calc(var(--spacing) * 1);
+    font-size: 0.65rem;
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+    border-color: var(--border-color);
+    background-color: var(--bg-medium);
+    color: var(--text-medium);
+    cursor: pointer;
+  }
+  .influence-field-pill:hover {
+    border-color: var(--primary-blue);
+    color: var(--text-light);
+  }
+  .influence-field-pill--active {
+    border-color: var(--primary-blue);
+    background-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+    }
+    color: var(--text-light);
+  }
+  .influence-card-field-textarea {
+    min-height: 3rem;
+    font-size: 0.75rem;
+  }
+  .influence-political-field, .influence-invisible-field {
+    margin-bottom: 1rem;
+  }
+  .influence-political-textarea, .influence-invisible-textarea {
+    min-height: 5rem;
+  }
+  .influence-access-path {
+    margin-bottom: calc(var(--spacing) * 4);
+    border-radius: var(--radius-lg);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    padding: calc(var(--spacing) * 3);
+    border-color: var(--border-color);
+    background-color: var(--bg-medium);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+    }
+  }
+  .influence-access-path-title {
+    margin: calc(var(--spacing) * 0);
+    margin-bottom: calc(var(--spacing) * 2);
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wide);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-medium);
+  }
+  .influence-access-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .influence-access-field label {
+    margin-bottom: calc(var(--spacing) * 1);
+    display: block;
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-medium);
+  }
+  .influence-access-textarea {
+    min-height: 3.5rem;
+    font-size: 0.8125rem;
+  }
+  .white-space-matrix {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 3);
+  }
+  .white-space-rows {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 3);
+  }
+  .white-space-empty {
+    margin: calc(var(--spacing) * 0);
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    color: var(--text-muted);
+  }
+  .white-space-row {
+    border-radius: var(--radius-lg);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    padding: calc(var(--spacing) * 3);
+    border-color: var(--border-color);
+    background-color: var(--bg-medium);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--bg-medium) 45%, transparent);
+    }
+  }
+  .white-space-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .white-space-row-label {
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wide);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-medium);
+  }
+  .white-space-row-remove {
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .white-space-row-remove:hover {
+    color: var(--primary-blue);
+  }
+  .white-space-row-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .white-space-field label {
+    margin-bottom: calc(var(--spacing) * 1);
+    display: block;
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-medium);
+  }
+  .white-space-field--wide {
+    grid-column: 1 / -1;
+  }
+  .white-space-add-btn {
+    align-self: flex-start;
+  }
+  .psychology-gravity-section {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-color);
+  }
+  .psychology-gravity-heading {
+    margin: calc(var(--spacing) * 0);
+    margin-bottom: calc(var(--spacing) * 3);
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    --tw-tracking: var(--tracking-wide);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-medium);
+  }
+  .psychology-gravity-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.875rem 1.25rem;
+  }
+  .psychology-gravity-field--narrative {
+    grid-column: 1 / -1;
+  }
+  .psychology-gravity-label {
+    margin-bottom: calc(var(--spacing) * 1.5);
+    display: block;
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-medium);
+  }
+  .psychology-gravity-pills-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .psychology-gravity-pill {
+    border-radius: calc(infinity * 1px);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 1.5);
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+    border-color: var(--border-color);
+    background-color: var(--bg-medium);
+    color: var(--text-medium);
+    cursor: pointer;
+  }
+  .psychology-gravity-pill:hover {
+    border-color: var(--primary-blue);
+    color: var(--text-light);
+  }
+  .psychology-gravity-pill--active {
+    border-color: var(--primary-blue);
+    background-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+    }
+    color: var(--text-light);
   }
   .strategic-textarea {
     width: 100%;
@@ -5599,6 +5887,9 @@ body.theme-green {
       grid-template-columns: 1fr;
     }
     .influence-board {
+      grid-template-columns: 1fr;
+    }
+    .influence-access-grid, .white-space-row-grid, .psychology-gravity-grid {
       grid-template-columns: 1fr;
     }
     .strategic-section--account-snapshot .account-snapshot-crm-grid, .strategic-section--account-snapshot .account-snapshot-plan-grid {

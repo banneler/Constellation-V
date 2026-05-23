@@ -13,15 +13,23 @@ import {
     ACCOUNT_SNAPSHOT_TIER_OPTIONS,
     ACCOUNT_SNAPSHOT_LEVEL_OPTIONS,
     CRITICAL_UNKNOWN_LANGUAGE_PILLS,
+    INFLUENCE_LEVEL_OPTIONS,
+    INFLUENCE_RELATIONSHIP_TEMPERATURE_OPTIONS,
+    INFLUENCE_PERSONALITY_STYLE_OPTIONS,
+    WHITE_SPACE_AREAS,
+    WHITE_SPACE_CONFIDENCE_OPTIONS,
+    PSYCHOLOGY_GRAVITY_PILLS,
 } from './account-plan-sections.js';
 import { formatPlanHorizonRailPreviewHtml } from './account-plan-rich-text.js';
 import {
     createEmptyPlan,
     createEmptyEntryPoint,
+    createEmptyWhiteSpaceRow,
     deepClonePlan,
     normalizePlan,
     savePlanDraft,
     ENTRY_POINT_FIELD_KEYS,
+    INFLUENCE_CONTACT_FIELD_KEYS,
 } from './account-plan-data.js';
 import { createAccountPlanAutosave } from './account-plan-autosave.js';
 import {
@@ -483,13 +491,21 @@ function normalizeInfluenceEntries(value) {
         .map((entry) => {
             if (entry == null) return null;
             if (typeof entry === 'string' || typeof entry === 'number') {
-                return { id: String(entry), notes: '' };
+                const empty = { id: String(entry), notes: '' };
+                INFLUENCE_CONTACT_FIELD_KEYS.forEach((key) => {
+                    empty[key] = '';
+                });
+                return empty;
             }
             if (isPlainObject(entry) && entry.id != null) {
-                return {
+                const normalized = {
                     id: String(entry.id),
                     notes: entry.notes != null ? String(entry.notes) : '',
                 };
+                INFLUENCE_CONTACT_FIELD_KEYS.forEach((key) => {
+                    normalized[key] = entry[key] != null ? String(entry[key]) : '';
+                });
+                return normalized;
             }
             return null;
         })
@@ -969,8 +985,38 @@ function addEntryPoint() {
 }
 
 /**
+ * @param {string} contactId
+ * @param {string} fieldKey
+ * @param {readonly string[]} options
+ * @param {string} label
+ * @param {string} value
+ */
+function buildInfluenceContactFieldPills(contactId, fieldKey, options, label, value) {
+    const pillOptions = options.filter((option) => option !== '');
+    const pillsHtml = pillOptions.map((option) => {
+        const active = value === option ? ' influence-field-pill--active' : '';
+        const pressed = value === option ? 'true' : 'false';
+        return `
+            <button
+                type="button"
+                class="influence-field-pill${active}"
+                data-influence-contact-id="${escapeHtml(contactId)}"
+                data-influence-field="${escapeHtml(fieldKey)}"
+                data-influence-pill-value="${escapeHtml(option)}"
+                aria-pressed="${pressed}"
+            >${escapeHtml(option)}</button>`;
+    }).join('');
+
+    return `
+        <div class="influence-card-field influence-card-field--pills">
+            <span class="influence-card-field-label">${escapeHtml(label)}</span>
+            <div class="influence-field-pills-wrap" role="group" aria-label="${escapeHtml(label)}">${pillsHtml}</div>
+        </div>`;
+}
+
+/**
  * @param {object | null | undefined} contact
- * @param {{ id: string, notes: string }} entry
+ * @param {Record<string, string>} entry
  * @param {string} bucket
  */
 function buildInfluenceContactCard(contact, entry, bucket) {
@@ -980,6 +1026,15 @@ function buildInfluenceContactCard(contact, entry, bucket) {
     const title = contact?.title || contact?.job_title || '';
     const notes = escapeHtml(entry.notes || '');
     const contactId = escapeHtml(String(entry.id));
+    const influenceLevel = String(entry.influence_level ?? '');
+    const politicalInfluence = String(entry.political_influence ?? '');
+    const relationshipTemp = String(entry.relationship_temperature ?? '');
+    const personalityStyle = String(entry.personality_style ?? '');
+    const strategicPriorities = escapeHtml(String(entry.strategic_priorities ?? ''));
+
+    const frontBadges = [influenceLevel, relationshipTemp].filter(Boolean).map((badge) => (
+        `<span class="influence-contact-badge">${escapeHtml(badge)}</span>`
+    )).join('');
 
     return `
         <div
@@ -992,20 +1047,39 @@ function buildInfluenceContactCard(contact, entry, bucket) {
                 <div class="deal-card-front influence-contact-card-front">
                     <div class="influence-contact-name">${escapeHtml(name || 'Contact')}</div>
                     ${title ? `<div class="influence-contact-title">${escapeHtml(title)}</div>` : ''}
-                    <div class="influence-contact-hint">Click for influence notes</div>
+                    ${frontBadges ? `<div class="influence-contact-badges">${frontBadges}</div>` : ''}
+                    <div class="influence-contact-hint">Click for influence profile</div>
                 </div>
                 <div class="deal-card-back influence-contact-card-back">
                     <div class="influence-card-flip-strip" data-influence-flip-trigger role="button" tabindex="0" aria-label="Flip card to front">
                         <span class="influence-card-flip-strip-name">${escapeHtml(name || 'Contact')}</span>
                         <span class="influence-card-flip-strip-hint">Click to flip back</span>
                     </div>
-                    <label class="influence-contact-notes-label" for="influence-notes-${contactId}">Influence notes</label>
-                    <textarea
-                        id="influence-notes-${contactId}"
-                        class="strategic-field strategic-textarea influence-card-notes"
-                        data-contact-id="${contactId}"
-                        rows="6"
-                    >${notes}</textarea>
+                    <div class="influence-card-fields">
+                        ${buildInfluenceContactFieldPills(String(entry.id), 'influence_level', INFLUENCE_LEVEL_OPTIONS, 'Influence Level', influenceLevel)}
+                        ${buildInfluenceContactFieldPills(String(entry.id), 'political_influence', INFLUENCE_LEVEL_OPTIONS, 'Political Influence', politicalInfluence)}
+                        ${buildInfluenceContactFieldPills(String(entry.id), 'relationship_temperature', INFLUENCE_RELATIONSHIP_TEMPERATURE_OPTIONS, 'Relationship Temperature', relationshipTemp)}
+                        ${buildInfluenceContactFieldPills(String(entry.id), 'personality_style', INFLUENCE_PERSONALITY_STYLE_OPTIONS, 'Personality Style', personalityStyle)}
+                        <div class="influence-card-field influence-card-field--textarea">
+                            <label class="influence-contact-notes-label" for="influence-priorities-${contactId}">Strategic Priorities</label>
+                            <textarea
+                                id="influence-priorities-${contactId}"
+                                class="strategic-field strategic-textarea influence-card-field-textarea"
+                                data-influence-contact-id="${contactId}"
+                                data-influence-field="strategic_priorities"
+                                rows="2"
+                            >${strategicPriorities}</textarea>
+                        </div>
+                        <div class="influence-card-field influence-card-field--textarea">
+                            <label class="influence-contact-notes-label" for="influence-notes-${contactId}">Influence Notes</label>
+                            <textarea
+                                id="influence-notes-${contactId}"
+                                class="strategic-field strategic-textarea influence-card-notes"
+                                data-contact-id="${contactId}"
+                                rows="3"
+                            >${notes}</textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -1018,15 +1092,17 @@ function buildInfluenceContactCard(contact, entry, bucket) {
 function buildInfluenceBoardHtml(section, data) {
     const mapping = isPlainObject(data)
         ? data
-        : { executive: [], mid_level: [], invisible_org_chart: '' };
+        : { executive: [], mid_level: [], technical: [], invisible_org_chart: '', political_dynamics: '', access_path: {} };
     const contacts = getAccountContacts();
     const contactById = new Map(contacts.map((contact) => [String(contact.id), contact]));
 
     const executiveEntries = normalizeInfluenceEntries(mapping.executive);
     const midLevelEntries = normalizeInfluenceEntries(mapping.mid_level);
+    const technicalEntries = normalizeInfluenceEntries(mapping.technical);
     const assignedIds = new Set([
         ...executiveEntries.map((entry) => String(entry.id)),
         ...midLevelEntries.map((entry) => String(entry.id)),
+        ...technicalEntries.map((entry) => String(entry.id)),
     ]);
 
     const columnHints = section.columnHints || {};
@@ -1063,16 +1139,53 @@ function buildInfluenceBoardHtml(section, data) {
     const benchEntries = unassigned.map((contact) => ({ id: String(contact.id), notes: '' }));
 
     const invisibleValue = escapeHtml(String(mapping.invisible_org_chart ?? ''));
+    const politicalValue = escapeHtml(String(mapping.political_dynamics ?? ''));
+    const accessPath = isPlainObject(mapping.access_path) ? mapping.access_path : {};
+
+    const accessPathFields = [
+        { key: 'current', label: 'Current Access' },
+        { key: 'desired', label: 'Desired Access' },
+        { key: 'bridge', label: 'Bridge Contacts' },
+        { key: 'strategy', label: 'Access Strategy' },
+    ].map(({ key, label }) => `
+        <div class="influence-access-field">
+            <label for="influence-access-${key}">${escapeHtml(label)}</label>
+            <textarea
+                id="influence-access-${key}"
+                class="strategic-field strategic-textarea influence-access-textarea"
+                data-field="influence_mapping.access_path.${key}"
+                rows="2"
+            >${escapeHtml(String(accessPath[key] ?? ''))}</textarea>
+        </div>`).join('');
 
     return `
         <div class="influence-board">
             ${renderBucket('bench', 'Unassigned Contacts', benchEntries)}
             ${renderBucket('executive', 'Executive', executiveEntries)}
             ${renderBucket('mid_level', 'Mid-Level', midLevelEntries)}
+            ${renderBucket('technical', 'Technical', technicalEntries)}
+        </div>
+        <div class="strategic-composite-field influence-political-field strategic-composite-field--with-hint">
+            <div class="strategic-composite-field-body">
+                ${buildFieldHintHtml(columnHints.political_dynamics)}
+                <label for="strategic-field-influence-political">Political Dynamics</label>
+                <textarea
+                    id="strategic-field-influence-political"
+                    class="strategic-field strategic-textarea influence-political-textarea"
+                    data-field="influence_mapping.political_dynamics"
+                    rows="4"
+                >${politicalValue}</textarea>
+            </div>
+        </div>
+        <div class="influence-access-path">
+            <h5 class="influence-access-path-title">Access Path</h5>
+            ${buildFieldHintHtml(columnHints.access_path)}
+            <div class="influence-access-grid">${accessPathFields}</div>
         </div>
         <div class="strategic-composite-field influence-invisible-field strategic-composite-field--with-hint">
             <div class="strategic-composite-field-body">
                 ${buildFieldHintHtml(columnHints.invisible_org_chart)}
+                <label for="strategic-field-influence-invisible">Invisible Org Chart</label>
                 <textarea
                     id="strategic-field-influence-invisible"
                     class="strategic-field strategic-textarea influence-invisible-textarea"
@@ -1092,12 +1205,12 @@ function moveInfluenceContact(contactId, targetBucket) {
 
     const mapping = isPlainObject(_liveSections.influence_mapping)
         ? { ..._liveSections.influence_mapping }
-        : { executive: [], mid_level: [], invisible_org_chart: '' };
+        : { executive: [], mid_level: [], technical: [], invisible_org_chart: '' };
 
     const id = String(contactId);
     let entry = null;
 
-    ['executive', 'mid_level'].forEach((bucket) => {
+    ['executive', 'mid_level', 'technical'].forEach((bucket) => {
         const list = normalizeInfluenceEntries(mapping[bucket]);
         const index = list.findIndex((item) => String(item.id) === id);
         if (index >= 0) {
@@ -1109,15 +1222,43 @@ function moveInfluenceContact(contactId, targetBucket) {
 
     if (!entry) {
         entry = { id, notes: '' };
+        INFLUENCE_CONTACT_FIELD_KEYS.forEach((key) => {
+            entry[key] = '';
+        });
     }
 
-    if (targetBucket === 'executive' || targetBucket === 'mid_level') {
+    if (targetBucket === 'executive' || targetBucket === 'mid_level' || targetBucket === 'technical') {
         const list = normalizeInfluenceEntries(mapping[targetBucket]);
         if (!list.some((item) => String(item.id) === id)) {
             list.push(entry);
         }
         mapping[targetBucket] = list;
     }
+
+    _liveSections.influence_mapping = mapping;
+}
+
+/**
+ * @param {string} contactId
+ * @param {string} fieldKey
+ * @param {string} value
+ */
+function updateInfluenceContactField(contactId, fieldKey, value) {
+    if (!_liveSections || !contactId || !fieldKey) return;
+
+    const mapping = isPlainObject(_liveSections.influence_mapping)
+        ? { ..._liveSections.influence_mapping }
+        : { executive: [], mid_level: [], technical: [], invisible_org_chart: '' };
+
+    const id = String(contactId);
+    ['executive', 'mid_level', 'technical'].forEach((bucket) => {
+        const list = normalizeInfluenceEntries(mapping[bucket]);
+        const index = list.findIndex((item) => String(item.id) === id);
+        if (index >= 0) {
+            list[index] = { ...list[index], [fieldKey]: value };
+            mapping[bucket] = list;
+        }
+    });
 
     _liveSections.influence_mapping = mapping;
 }
@@ -1134,7 +1275,7 @@ function updateInfluenceContactNotes(contactId, notes) {
         : { executive: [], mid_level: [], invisible_org_chart: '' };
 
     const id = String(contactId);
-    ['executive', 'mid_level'].forEach((bucket) => {
+    ['executive', 'mid_level', 'technical'].forEach((bucket) => {
         const list = normalizeInfluenceEntries(mapping[bucket]);
         const index = list.findIndex((item) => String(item.id) === id);
         if (index >= 0) {
@@ -1162,6 +1303,287 @@ function refreshInfluenceBoardSection() {
         ${bodyHtml}`;
 
     initAutoExpandTextareas(sectionEl);
+}
+
+/**
+ * @param {Record<string, string>} row
+ * @param {number} index
+ */
+function buildWhiteSpaceRowHtml(row, index) {
+    const area = String(row.area ?? '');
+    const opportunity = escapeHtml(String(row.opportunity ?? ''));
+    const operationalImportance = String(row.operational_importance ?? '');
+    const executiveVisibility = String(row.executive_visibility ?? '');
+    const confidence = String(row.confidence ?? '');
+    const valueNotes = escapeHtml(String(row.value_notes ?? ''));
+
+    const areaOptions = WHITE_SPACE_AREAS.map((option) => {
+        const selected = area === option ? ' selected' : '';
+        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
+    }).join('');
+
+    const levelSelect = (fieldKey, label, value) => {
+        const fieldId = `white-space-${index}-${fieldKey}`;
+        const optionsHtml = ACCOUNT_SNAPSHOT_LEVEL_OPTIONS.map((option) => {
+            const selected = value === option ? ' selected' : '';
+            const optionLabel = option === '' ? 'Select…' : option;
+            return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(optionLabel)}</option>`;
+        }).join('');
+        return `
+            <div class="white-space-field">
+                <label for="${fieldId}">${escapeHtml(label)}</label>
+                <select
+                    id="${fieldId}"
+                    class="strategic-field white-space-select"
+                    data-white-space-index="${index}"
+                    data-white-space-field="${fieldKey}"
+                >${optionsHtml}</select>
+            </div>`;
+    };
+
+    const confidenceOptions = WHITE_SPACE_CONFIDENCE_OPTIONS.map((option) => {
+        const selected = confidence === option ? ' selected' : '';
+        const optionLabel = option === '' ? 'Select…' : option;
+        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(optionLabel)}</option>`;
+    }).join('');
+
+    return `
+        <div class="white-space-row" data-white-space-row="${index}">
+            <div class="white-space-row-header">
+                <span class="white-space-row-label">Opportunity ${index + 1}</span>
+                <button type="button" class="white-space-row-remove" data-white-space-remove="${index}" aria-label="Remove row">Remove</button>
+            </div>
+            <div class="white-space-row-grid">
+                <div class="white-space-field">
+                    <label for="white-space-${index}-area">Area</label>
+                    <select
+                        id="white-space-${index}-area"
+                        class="strategic-field white-space-select"
+                        data-white-space-index="${index}"
+                        data-white-space-field="area"
+                    >
+                        <option value="">Select area…</option>
+                        ${areaOptions}
+                    </select>
+                </div>
+                ${levelSelect('operational_importance', 'Operational Importance', operationalImportance)}
+                ${levelSelect('executive_visibility', 'Executive Visibility', executiveVisibility)}
+                <div class="white-space-field">
+                    <label for="white-space-${index}-confidence">Confidence</label>
+                    <select
+                        id="white-space-${index}-confidence"
+                        class="strategic-field white-space-select"
+                        data-white-space-index="${index}"
+                        data-white-space-field="confidence"
+                    >${confidenceOptions}</select>
+                </div>
+                <div class="white-space-field white-space-field--wide">
+                    <label for="white-space-${index}-opportunity">Opportunity</label>
+                    <textarea
+                        id="white-space-${index}-opportunity"
+                        class="strategic-field strategic-textarea white-space-textarea"
+                        data-white-space-index="${index}"
+                        data-white-space-field="opportunity"
+                        rows="2"
+                    >${opportunity}</textarea>
+                </div>
+                <div class="white-space-field white-space-field--wide">
+                    <label for="white-space-${index}-value">Estimated Value / Sizing Notes</label>
+                    <textarea
+                        id="white-space-${index}-value"
+                        class="strategic-field strategic-textarea white-space-textarea"
+                        data-white-space-index="${index}"
+                        data-white-space-field="value_notes"
+                        rows="2"
+                    >${valueNotes}</textarea>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * @param {unknown} rows
+ */
+function buildWhiteSpaceMatrixHtml(rows) {
+    const list = Array.isArray(rows) && rows.length > 0
+        ? rows.filter(isPlainObject).map((row) => ({
+            area: row.area != null ? String(row.area) : '',
+            opportunity: row.opportunity != null ? String(row.opportunity) : '',
+            operational_importance: row.operational_importance != null ? String(row.operational_importance) : '',
+            executive_visibility: row.executive_visibility != null ? String(row.executive_visibility) : '',
+            confidence: row.confidence != null ? String(row.confidence) : '',
+            value_notes: row.value_notes != null ? String(row.value_notes) : '',
+        }))
+        : [];
+
+    const rowsHtml = list.length > 0
+        ? list.map((row, index) => buildWhiteSpaceRowHtml(row, index)).join('')
+        : '<p class="white-space-empty">No white space rows yet. Add an opportunity to begin mapping expansion areas.</p>';
+
+    return `
+        <div class="white-space-matrix" data-white-space-matrix>
+            <div class="white-space-rows">${rowsHtml}</div>
+            <button type="button" class="btn-secondary white-space-add-btn" data-white-space-add>
+                + Add Opportunity Row
+            </button>
+        </div>`;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} psychology
+ */
+function buildPsychologyGravityHtml(section, psychology) {
+    const psych = isPlainObject(psychology) ? psychology : {};
+    const gravityFields = section.gravityFields || [];
+
+    return gravityFields.map((field) => {
+        const value = String(psych[field.key] ?? '');
+        if (field.key === 'narrative') {
+            const fieldId = `psychology-gravity-${field.key}`;
+            return `
+                <div class="psychology-gravity-field psychology-gravity-field--narrative">
+                    <label for="${fieldId}">${escapeHtml(field.label || field.key)}</label>
+                    <textarea
+                        id="${fieldId}"
+                        class="strategic-field strategic-textarea"
+                        data-field="psychology.${field.key}"
+                        rows="3"
+                    >${escapeHtml(value)}</textarea>
+                </div>`;
+        }
+
+        const pillsHtml = PSYCHOLOGY_GRAVITY_PILLS.map((pill) => {
+            const active = value === pill ? ' psychology-gravity-pill--active' : '';
+            const pressed = value === pill ? 'true' : 'false';
+            return `
+                <button
+                    type="button"
+                    class="psychology-gravity-pill${active}"
+                    data-field="psychology.${field.key}"
+                    data-gravity-pill-value="${escapeHtml(pill)}"
+                    aria-pressed="${pressed}"
+                >${escapeHtml(pill)}</button>`;
+        }).join('');
+
+        return `
+            <div class="psychology-gravity-field">
+                <span class="psychology-gravity-label">${escapeHtml(field.label || field.key)}</span>
+                <div class="psychology-gravity-pills-wrap" role="group" aria-label="${escapeHtml(field.label || field.key)}">
+                    ${pillsHtml}
+                </div>
+            </div>`;
+    }).join('');
+}
+
+function syncWhiteSpaceFromCanvas() {
+    if (!_liveSections) return;
+    const matrix = document.querySelector('[data-white-space-matrix]');
+    if (!matrix) return;
+
+    /** @type {Record<string, string>[]} */
+    const rows = [];
+    matrix.querySelectorAll('[data-white-space-row]').forEach((rowEl) => {
+        if (!(rowEl instanceof HTMLElement)) return;
+        const row = { ...createEmptyWhiteSpaceRow() };
+        rowEl.querySelectorAll('[data-white-space-field]').forEach((fieldEl) => {
+            if (!(fieldEl instanceof HTMLInputElement || fieldEl instanceof HTMLTextAreaElement || fieldEl instanceof HTMLSelectElement)) return;
+            const fieldKey = fieldEl.dataset.whiteSpaceField;
+            if (!fieldKey) return;
+            row[fieldKey] = fieldEl.value;
+        });
+        rows.push(row);
+    });
+
+    _liveSections.white_space = rows.filter((row) => Object.values(row).some((value) => String(value).trim()));
+}
+
+function addWhiteSpaceRow() {
+    if (!_liveSections) return;
+    syncWhiteSpaceFromCanvas();
+    const rows = Array.isArray(_liveSections.white_space)
+        ? [..._liveSections.white_space]
+        : [];
+    rows.push(createEmptyWhiteSpaceRow());
+    _liveSections.white_space = rows;
+    refreshWhiteSpaceSection();
+    queueAutosave();
+}
+
+/**
+ * @param {number} index
+ */
+function removeWhiteSpaceRow(index) {
+    if (!_liveSections) return;
+    syncWhiteSpaceFromCanvas();
+    const rows = Array.isArray(_liveSections.white_space)
+        ? [..._liveSections.white_space]
+        : [];
+    rows.splice(index, 1);
+    _liveSections.white_space = rows;
+    refreshWhiteSpaceSection();
+    queueAutosave();
+}
+
+function refreshWhiteSpaceSection() {
+    const sectionEl = document.getElementById('strategic-section-white_space');
+    const sectionDef = PLAN_SECTIONS.find((section) => section.id === 'white_space');
+    if (!sectionEl || !sectionDef || !_liveSections) return;
+
+    const headingId = `strategic-heading-${sectionDef.id}`;
+    const headerContext = buildSectionHeaderContext(sectionDef);
+    const bodyHtml = buildWhiteSpaceMatrixHtml(_liveSections.white_space);
+
+    sectionEl.innerHTML = `
+        <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
+        ${headerContext.leadHtml}
+        ${headerContext.blockHtml}
+        ${bodyHtml}`;
+
+    initAutoExpandTextareas(sectionEl);
+}
+
+function selectPsychologyGravityPill(button) {
+    const field = button.dataset.field;
+    const pillValue = button.dataset.gravityPillValue ?? '';
+    if (!field || !_liveSections) return;
+
+    const wasActive = button.classList.contains('psychology-gravity-pill--active');
+    const newValue = wasActive ? '' : pillValue;
+    const group = button.closest('.psychology-gravity-pills-wrap');
+
+    group?.querySelectorAll('.psychology-gravity-pill').forEach((pillBtn) => {
+        if (!(pillBtn instanceof HTMLElement)) return;
+        const isSelected = !wasActive && pillBtn.dataset.gravityPillValue === pillValue;
+        pillBtn.classList.toggle('psychology-gravity-pill--active', isSelected);
+        pillBtn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
+
+    setNestedValue(_liveSections, field, newValue);
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+}
+
+function selectInfluenceContactFieldPill(button) {
+    const contactId = button.dataset.influenceContactId;
+    const fieldKey = button.dataset.influenceField;
+    const pillValue = button.dataset.influencePillValue ?? '';
+    if (!contactId || !fieldKey) return;
+
+    const wasActive = button.classList.contains('influence-field-pill--active');
+    const newValue = wasActive ? '' : pillValue;
+    const group = button.closest('.influence-field-pills-wrap');
+
+    group?.querySelectorAll('.influence-field-pill').forEach((pillBtn) => {
+        if (!(pillBtn instanceof HTMLElement)) return;
+        const isSelected = !wasActive && pillBtn.dataset.influencePillValue === pillValue;
+        pillBtn.classList.toggle('influence-field-pill--active', isSelected);
+        pillBtn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+    });
+
+    updateInfluenceContactField(contactId, fieldKey, newValue);
+    updateRailSummaries(_liveSections || {});
+    queueAutosave();
 }
 
 /**
@@ -1420,7 +1842,9 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
             const extraClass = section.pillNarrativeLayout === 'split'
                 ? 'strategic-section--tensions-split'
-                : '';
+                : section.id === 'strategic_tensions'
+                    ? 'strategic-section--strategic-tensions'
+                    : '';
             return wrapStrategicSection(
                 sectionId,
                 headingId,
@@ -1440,6 +1864,18 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
                 headerContext,
                 buildInfluenceBoardHtml(section, data),
                 'strategic-section--influence'
+            );
+        }
+
+        if (section.type === 'white_space_matrix') {
+            const rows = sections.white_space;
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildWhiteSpaceMatrixHtml(rows),
+                'strategic-section--white-space'
             );
         }
 
@@ -1480,7 +1916,11 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
             }).join('');
 
             return wrapStrategicSection(sectionId, headingId, section.title, headerContext, `
-                <div class="psychology-grid">${sliders}</div>`);
+                <div class="psychology-grid">${sliders}</div>
+                <div class="psychology-gravity-section">
+                    <h5 class="psychology-gravity-heading">Enterprise Gravity</h5>
+                    <div class="psychology-gravity-grid">${buildPsychologyGravityHtml(section, psychology)}</div>
+                </div>`);
         }
 
         if (section.type === 'momentum') {
@@ -1976,7 +2416,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select, .account-snapshot-select')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .account-snapshot-select, .white-space-select, .white-space-textarea')) return;
 
         if (target instanceof HTMLTextAreaElement) {
             autoExpandTextarea(target);
@@ -1994,7 +2434,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select, .account-snapshot-select')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .account-snapshot-select, .white-space-select, .white-space-textarea')) return;
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
         queueAutosave();
@@ -2025,6 +2465,34 @@ function bindCanvasFormEvents(canvas) {
             return;
         }
 
+        const gravityPill = target.closest('.psychology-gravity-pill');
+        if (gravityPill instanceof HTMLElement) {
+            event.preventDefault();
+            selectPsychologyGravityPill(gravityPill);
+            return;
+        }
+
+        const influencePill = target.closest('.influence-field-pill');
+        if (influencePill instanceof HTMLElement) {
+            event.preventDefault();
+            selectInfluenceContactFieldPill(influencePill);
+            return;
+        }
+
+        const whiteSpaceAdd = target.closest('[data-white-space-add]');
+        if (whiteSpaceAdd) {
+            event.preventDefault();
+            addWhiteSpaceRow();
+            return;
+        }
+
+        const whiteSpaceRemove = target.closest('[data-white-space-remove]');
+        if (whiteSpaceRemove instanceof HTMLElement) {
+            event.preventDefault();
+            removeWhiteSpaceRow(Number(whiteSpaceRemove.dataset.whiteSpaceRemove));
+            return;
+        }
+
         const entryTab = target.closest('.entry-point-tab[data-entry-index]');
         if (entryTab instanceof HTMLElement) {
             event.preventDefault();
@@ -2046,7 +2514,7 @@ function bindCanvasFormEvents(canvas) {
 
         const card = target.closest('.influence-contact-card.deal-card-flippable');
         if (card instanceof HTMLElement) {
-            if (target.closest('.influence-card-notes')) return;
+            if (target.closest('.influence-card-notes, .influence-card-field-textarea, .influence-field-pill, .influence-card-fields, .influence-card-field')) return;
             if (target.closest('.influence-contact-notes-label')) return;
             card.classList.toggle('deal-card-flipped');
         }
@@ -2055,7 +2523,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('dragstart', (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
-        if (target.closest('.influence-card-notes, textarea')) {
+        if (target.closest('.influence-card-notes, .influence-card-field-textarea, .influence-field-pill, textarea, select, button')) {
             event.preventDefault();
             return;
         }
@@ -2180,6 +2648,21 @@ function syncLiveSectionsFromCanvas() {
 function applyFieldToLiveSections(el) {
     if (el.classList.contains('influence-card-notes')) {
         updateInfluenceContactNotes(el.dataset.contactId || '', el.value);
+        return;
+    }
+
+    if (el.classList.contains('influence-card-field-textarea')) {
+        updateInfluenceContactField(
+            el.dataset.influenceContactId || '',
+            el.dataset.influenceField || '',
+            el.value
+        );
+        return;
+    }
+
+    if (el.dataset.whiteSpaceField && el.dataset.whiteSpaceIndex != null) {
+        syncWhiteSpaceFromCanvas();
+        updateRailSummaries(_liveSections || {});
         return;
     }
 
