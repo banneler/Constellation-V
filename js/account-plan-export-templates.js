@@ -48,9 +48,6 @@ export function buildDossierSectionTitleHtml(sectionId, title, continued = false
     return escapeHtml(label);
 }
 
-/** Top psychology metrics highlighted on the exec readout slide. */
-const EXEC_PSYCHOLOGY_IDS = ['bureaucracy_level', 'technical_sophistication', 'decision_velocity'];
-
 /**
  * @param {string} title
  * @param {string} sectionId
@@ -58,10 +55,294 @@ const EXEC_PSYCHOLOGY_IDS = ['bureaucracy_level', 'technical_sophistication', 'd
 function buildExecPanelHeading(title, sectionId) {
     const iconClass = DOSSIER_SECTION_ICONS[sectionId];
     const iconHtml = iconClass
-        ? `<i class="fas ${iconClass} ap-export-exec-panel-icon" aria-hidden="true"></i>`
+        ? `<i class="fas ${iconClass} ap-exec-panel-icon" aria-hidden="true"></i>`
         : '';
-    return `<h2>${iconHtml}${escapeHtml(title)}</h2>`;
+    return `<h2 class="ap-exec-panel-heading">${iconHtml}${escapeHtml(title)}</h2>`;
 }
+
+/** @typedef {{ pageNumber: number, totalPages: number }} ExecSlidePageInfo */
+
+const EXEC_SLIDE_COUNT = 3;
+
+/**
+ * @param {unknown} plan
+ * @param {{ name?: string } | null} account
+ */
+function resolveExecExportContext(plan, account) {
+    const normalized = normalizePlan(plan);
+    const sections = normalized.current_draft.sections;
+    const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
+
+    return {
+        sections,
+        accountName: account?.name ? String(account.name) : 'Account',
+        dateLabel: formatExportDate(new Date()),
+        psychology: isPlainObject(sections.psychology) ? sections.psychology : {},
+        plan306090: isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {},
+        score: clampScale(momentum.score, 3),
+        pursuitThesis: summarizePursuitThesis(sections.pursuit_thesis),
+        competitive: summarizeCompetitiveLandscape(sections.competitive_landscape)
+            || 'No competitive landscape captured yet.',
+        timelineNotes: getExportMomentumNotes(sections).slice(0, 3),
+    };
+}
+
+/**
+ * @param {string} slideKey
+ * @param {string} kicker
+ * @param {string} accountName
+ * @param {ExecSlidePageInfo} pageInfo
+ * @param {'brief' | 'standard'} [titleMode]
+ */
+function createExecSlideElement(slideKey, kicker, accountName, pageInfo, titleMode = 'standard') {
+    const slide = document.createElement('div');
+    slide.className = `ap-exec-slide ap-exec-slide--${slideKey}`;
+    slide.style.width = `${EXEC_WIDTH_PX}px`;
+    slide.style.height = `${EXEC_HEIGHT_PX}px`;
+
+    const titleHtml = titleMode === 'brief'
+        ? `<h1 class="ap-exec-slide-title">${escapeHtml(accountName)} <span class="ap-exec-slide-title-sub">Strategic Brief</span></h1>`
+        : `<h1 class="ap-exec-slide-title">${escapeHtml(accountName)}</h1>`;
+
+    slide.innerHTML = `
+        <img class="ap-exec-slide-logo" src="${GPC_LOGO_WHITE}" alt="Great Plains Communications" crossorigin="anonymous" />
+        <header class="ap-exec-slide-header">
+            <p class="ap-exec-slide-kicker">${escapeHtml(kicker)}</p>
+            ${titleHtml}
+            <p class="ap-exec-slide-date">${escapeHtml(formatExportDate(new Date()))}</p>
+        </header>
+        <div class="ap-exec-slide-body"></div>
+        <footer class="ap-exec-slide-footer">
+            <span class="ap-exec-slide-footer-left">${pageInfo.pageNumber} / ${escapeHtml(GPC_BRAND.companyName)}</span>
+            <span class="ap-exec-slide-footer-right">${escapeHtml(formatGpcFooterDate(new Date()))}</span>
+        </footer>`;
+
+    return slide;
+}
+
+/**
+ * @param {string} className
+ * @param {string} title
+ * @param {string} sectionId
+ */
+function createExecPanel(className, title, sectionId) {
+    const panel = document.createElement('div');
+    panel.className = `ap-exec-panel ${className}`;
+    panel.innerHTML = buildExecPanelHeading(title, sectionId);
+    return panel;
+}
+
+/**
+ * @param {Record<string, unknown>} psychology
+ */
+function buildExecPsychBarsHtml(psychology) {
+    return PSYCHOLOGY_SLIDERS.map((slider) => {
+        const value = clampScale(psychology[slider.id], 3);
+        const pct = ((value - 1) / 4) * 100;
+        return `
+            <div class="ap-exec-psych-row">
+                <div class="ap-exec-psych-row-head">
+                    <span>${escapeHtml(slider.label)}</span>
+                    <span>${value}/5</span>
+                </div>
+                <div class="ap-exec-psych-track">
+                    <div class="ap-exec-psych-fill" style="width:${pct}%"></div>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+/**
+ * @param {unknown} entries
+ */
+function buildExecInfluenceListHtml(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+        return '<li class="ap-exec-influence-item ap-exec-influence-item--empty">—</li>';
+    }
+
+    return entries.map((entry) => {
+        let label = 'Contact';
+        if (typeof entry === 'string' || typeof entry === 'number') {
+            label = `Contact ${entry}`;
+        } else if (isPlainObject(entry)) {
+            label = entry.id != null ? `Contact ${entry.id}` : 'Contact';
+            const notes = entry.notes ? `: ${String(entry.notes).trim()}` : '';
+            label += notes;
+        } else {
+            return '';
+        }
+        return `<li class="ap-exec-influence-item"><span class="ap-line-clamp-2">${escapeHtml(label)}</span></li>`;
+    }).filter(Boolean).join('');
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ * @param {number} [maxProfiles]
+ */
+function buildExecEntryPointsPanel(sections, maxProfiles = 2) {
+    const panel = createExecPanel('ap-exec-panel--entry-points', 'Entry Points', 'entry_points');
+    const body = buildEntryPointsTargetProfileBody(sections);
+    body.classList.add('ap-exec-entry-profiles');
+
+    const profiles = [...body.querySelectorAll('.ap-export-target-profile')];
+    profiles.slice(maxProfiles).forEach((node) => node.remove());
+
+    profiles.slice(0, maxProfiles).forEach((profile) => {
+        profile.querySelectorAll('.ap-export-profile-copy').forEach((el) => {
+            el.classList.add('ap-line-clamp-3');
+        });
+    });
+
+    panel.appendChild(body);
+    return panel;
+}
+
+/**
+ * @param {unknown} plan
+ * @param {{ name?: string } | null} account
+ * @param {ExecSlidePageInfo} [pageInfo]
+ */
+export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, totalPages: EXEC_SLIDE_COUNT }) {
+    const ctx = resolveExecExportContext(plan, account);
+    const slide = createExecSlideElement('situation', 'The Situation', ctx.accountName, pageInfo, 'brief');
+    const body = slide.querySelector('.ap-exec-slide-body');
+    if (!(body instanceof HTMLElement)) return slide;
+
+    const grid = document.createElement('div');
+    grid.className = 'ap-exec-grid ap-exec-grid--situation';
+
+    const strategyPanel = createExecPanel('ap-exec-panel--strategy', 'Pursuit Strategy', 'pursuit_thesis');
+    const strategyCopy = document.createElement('p');
+    strategyCopy.className = 'ap-exec-panel-copy ap-line-clamp-10';
+    strategyCopy.textContent = ctx.pursuitThesis;
+    strategyPanel.appendChild(strategyCopy);
+
+    const sideStack = document.createElement('div');
+    sideStack.className = 'ap-exec-stack';
+
+    const momentumPanel = createExecPanel('ap-exec-panel--momentum', 'Relationship Momentum', 'relationship_momentum');
+    const kpi = document.createElement('div');
+    kpi.className = 'ap-exec-kpi';
+    kpi.innerHTML = `
+        <div class="ap-exec-kpi-score">${ctx.score}</div>
+        <div class="ap-exec-kpi-label">${escapeHtml(MOMENTUM_LABELS[ctx.score - 1])}</div>`;
+    momentumPanel.appendChild(kpi);
+
+    const psychPanel = createExecPanel('ap-exec-panel--psych', 'Account Psychology', 'psychology');
+    const psychWrap = document.createElement('div');
+    psychWrap.className = 'ap-exec-psych-stack';
+    psychWrap.innerHTML = buildExecPsychBarsHtml(ctx.psychology);
+    psychPanel.appendChild(psychWrap);
+
+    sideStack.appendChild(momentumPanel);
+    sideStack.appendChild(psychPanel);
+
+    grid.appendChild(strategyPanel);
+    grid.appendChild(sideStack);
+    body.appendChild(grid);
+    return slide;
+}
+
+/**
+ * @param {unknown} plan
+ * @param {{ name?: string } | null} account
+ * @param {ExecSlidePageInfo} [pageInfo]
+ */
+export function buildSlide2Battlefield(plan, account, pageInfo = { pageNumber: 2, totalPages: EXEC_SLIDE_COUNT }) {
+    const ctx = resolveExecExportContext(plan, account);
+    const slide = createExecSlideElement('battlefield', 'The Battlefield', ctx.accountName, pageInfo);
+    const body = slide.querySelector('.ap-exec-slide-body');
+    if (!(body instanceof HTMLElement)) return slide;
+
+    const grid = document.createElement('div');
+    grid.className = 'ap-exec-grid ap-exec-grid--battlefield';
+
+    const competitivePanel = createExecPanel('ap-exec-panel--competitive', 'Competitive Landscape', 'competitive_landscape');
+    const competitiveCopy = document.createElement('p');
+    competitiveCopy.className = 'ap-exec-panel-copy ap-line-clamp-12';
+    competitiveCopy.textContent = ctx.competitive;
+    competitivePanel.appendChild(competitiveCopy);
+
+    const influencePanel = createExecPanel('ap-exec-panel--influence', 'Influence Board', 'influence_mapping');
+    const influenceData = isPlainObject(ctx.sections.influence_mapping) ? ctx.sections.influence_mapping : {};
+    influencePanel.innerHTML += `
+        <div class="ap-exec-influence-buckets">
+            <div class="ap-exec-influence-bucket">
+                <h3 class="ap-exec-influence-bucket-title">Executive Leadership</h3>
+                <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.executive)}</ul>
+            </div>
+            <div class="ap-exec-influence-bucket">
+                <h3 class="ap-exec-influence-bucket-title">Mid-Level Champions</h3>
+                <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.mid_level)}</ul>
+            </div>
+        </div>`;
+
+    grid.appendChild(competitivePanel);
+    grid.appendChild(influencePanel);
+    grid.appendChild(buildExecEntryPointsPanel(ctx.sections));
+    body.appendChild(grid);
+    return slide;
+}
+
+/**
+ * @param {unknown} plan
+ * @param {{ name?: string } | null} account
+ * @param {ExecSlidePageInfo} [pageInfo]
+ */
+export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, totalPages: EXEC_SLIDE_COUNT }) {
+    const ctx = resolveExecExportContext(plan, account);
+    const slide = createExecSlideElement('execution', 'The Execution', ctx.accountName, pageInfo);
+    const body = slide.querySelector('.ap-exec-slide-body');
+    if (!(body instanceof HTMLElement)) return slide;
+
+    const grid = document.createElement('div');
+    grid.className = 'ap-exec-grid ap-exec-grid--execution';
+
+    const planPanel = createExecPanel('ap-exec-panel--plan', '30 / 60 / 90', 'plan_30_60_90');
+    const planList = document.createElement('ul');
+    planList.className = 'ap-exec-plan-list';
+    [
+        ['30', ctx.plan306090.days_30],
+        ['60', ctx.plan306090.days_60],
+        ['90', ctx.plan306090.days_90],
+    ].forEach(([days, text]) => {
+        const line = String(text ?? '').trim() || 'Not defined';
+        const item = document.createElement('li');
+        item.className = 'ap-exec-plan-item';
+        item.innerHTML = `<strong>${days}d</strong><span class="ap-line-clamp-4">${escapeHtml(line)}</span>`;
+        planList.appendChild(item);
+    });
+    planPanel.appendChild(planList);
+
+    const signalsPanel = createExecPanel('ap-exec-panel--signals', 'Strategic Signals', 'momentum_timeline');
+    const signalsList = document.createElement('ul');
+    signalsList.className = 'ap-exec-signals-list';
+    if (ctx.timelineNotes.length === 0) {
+        signalsList.innerHTML = '<li class="ap-exec-signals-item ap-exec-signals-item--empty"><span class="ap-line-clamp-2">No strategic signals logged.</span></li>';
+    } else {
+        ctx.timelineNotes.forEach((note) => {
+            const item = document.createElement('li');
+            item.className = 'ap-exec-signals-item';
+            item.innerHTML = `
+                <time class="ap-exec-signals-date">${escapeHtml(formatMomentumNoteDateShort(note.date))}</time>
+                <span class="ap-line-clamp-3">${escapeHtml(note.text)}</span>`;
+            signalsList.appendChild(item);
+        });
+    }
+    signalsPanel.appendChild(signalsList);
+
+    grid.appendChild(planPanel);
+    grid.appendChild(signalsPanel);
+    body.appendChild(grid);
+    return slide;
+}
+
+/** @type {Array<(plan: unknown, account: { name?: string } | null, pageInfo?: ExecSlidePageInfo) => HTMLElement>} */
+export const EXEC_SLIDE_BUILDERS = [
+    buildSlide1Situation,
+    buildSlide2Battlefield,
+    buildSlide3Execution,
+];
 
 /**
  * @param {unknown} plan
@@ -553,116 +834,6 @@ function buildDossierSectionUnits(section, sections) {
 
     const prose = createEditorialProseBlock('', '', [{ kicker: section.title, text: '' }]);
     return [createDossierSectionBlock(section, prose)];
-}
-
-/**
- * @param {unknown} plan
- * @param {{ name?: string } | null} account
- * @returns {HTMLElement}
- */
-export function buildExecReadoutTemplate(plan, account) {
-    const normalized = normalizePlan(plan);
-    const sections = normalized.current_draft.sections;
-    const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
-    const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
-    const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-    const score = clampScale(momentum.score, 3);
-
-    const accountName = account?.name ? String(account.name) : 'Account';
-    const dateLabel = formatExportDate(new Date());
-    const pursuitThesis = summarizePursuitThesis(sections.pursuit_thesis);
-    const competitive = summarizeCompetitiveLandscape(sections.competitive_landscape)
-        || 'No competitive landscape captured yet.';
-
-    const root = document.createElement('div');
-    root.className = 'ap-export-exec-readout ap-export-exec-readout--gpc';
-    root.style.width = `${EXEC_WIDTH_PX}px`;
-    root.style.height = `${EXEC_HEIGHT_PX}px`;
-
-    const psychCards = EXEC_PSYCHOLOGY_IDS.map((id) => {
-        const def = PSYCHOLOGY_SLIDERS.find((s) => s.id === id);
-        if (!def) return '';
-        const value = clampScale(psychology[id], 3);
-        const pct = ((value - 1) / 4) * 100;
-        return `
-            <div class="ap-export-exec-psych-card">
-                <div class="ap-export-exec-psych-label">${escapeHtml(def.label)}</div>
-                <div class="ap-export-exec-psych-value">${value}<span>/5</span></div>
-                <div class="ap-export-exec-psych-track"><div class="ap-export-exec-psych-fill" style="width:${pct}%"></div></div>
-            </div>`;
-    }).join('');
-
-    const planBullets = [
-        ['30', plan306090.days_30],
-        ['60', plan306090.days_60],
-        ['90', plan306090.days_90],
-    ].map(([days, text]) => {
-        const line = String(text ?? '').trim() || 'Not defined';
-        return `<li class="ap-export-exec-plan-item"><strong>${days}d</strong><span class="ap-line-clamp-4">${escapeHtml(line)}</span></li>`;
-    }).join('');
-
-    const timelineNotes = getExportMomentumNotes(sections).slice(0, 3);
-    const timelineItems = timelineNotes.length === 0
-        ? '<li class="ap-export-exec-timeline-item ap-export-exec-timeline-item--empty"><span class="ap-line-clamp-2">No strategic signals logged.</span></li>'
-        : timelineNotes.map((note) => `
-            <li class="ap-export-exec-timeline-item">
-                <time class="ap-export-exec-timeline-date">${escapeHtml(formatMomentumNoteDateShort(note.date))}</time>
-                <span class="ap-line-clamp-3">${escapeHtml(note.text)}</span>
-            </li>`).join('');
-
-    const footerDate = formatGpcFooterDate(new Date());
-
-    root.innerHTML = `
-        <img class="ap-export-gpc-logo ap-export-gpc-logo--exec" src="${GPC_LOGO_WHITE}" alt="Great Plains Communications" crossorigin="anonymous" />
-        <div class="ap-export-exec-gpc-shell">
-            <div class="ap-export-exec-gpc-intro">
-                <p class="ap-export-exec-kicker">Strategic Account Exec Readout</p>
-                <h1 class="ap-export-exec-title">${escapeHtml(accountName)}</h1>
-                <p class="ap-export-exec-gpc-date">${escapeHtml(dateLabel)}</p>
-            </div>
-            <div class="ap-export-exec-grid">
-                <div class="ap-export-exec-col ap-export-exec-col--strategy">
-                    <div class="ap-export-exec-panel ap-export-exec-panel-thesis">
-                        ${buildExecPanelHeading('Pursuit Strategy', 'pursuit_thesis')}
-                        <p class="ap-line-clamp-6">${escapeHtml(pursuitThesis)}</p>
-                    </div>
-                    <div class="ap-export-exec-panel ap-export-exec-panel-competitive">
-                        ${buildExecPanelHeading('Competitive Landscape', 'competitive_landscape')}
-                        <p class="ap-line-clamp-6">${escapeHtml(competitive)}</p>
-                    </div>
-                </div>
-                <div class="ap-export-exec-col ap-export-exec-col--relationship">
-                    <div class="ap-export-exec-panel ap-export-exec-panel-momentum">
-                        ${buildExecPanelHeading('Relationship Momentum', 'relationship_momentum')}
-                        <div class="ap-export-exec-momentum-body">
-                            <div class="ap-export-exec-momentum-score">${score}</div>
-                            <div class="ap-export-exec-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</div>
-                        </div>
-                    </div>
-                    <div class="ap-export-exec-panel ap-export-exec-panel-psych">
-                        ${buildExecPanelHeading('Account Psychology', 'psychology')}
-                        <div class="ap-export-exec-psych-grid">${psychCards}</div>
-                    </div>
-                </div>
-                <div class="ap-export-exec-col ap-export-exec-col--plan">
-                    <div class="ap-export-exec-panel ap-export-exec-panel-plan">
-                        ${buildExecPanelHeading('30 / 60 / 90', 'plan_30_60_90')}
-                        <ul class="ap-export-exec-plan-list">${planBullets}</ul>
-                    </div>
-                    <div class="ap-export-exec-panel ap-export-exec-panel-timeline">
-                        <h2><i class="fas fa-bolt ap-export-exec-panel-icon" aria-hidden="true"></i>Strategic Signals</h2>
-                        <ul class="ap-export-exec-timeline-list">${timelineItems}</ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="ap-export-exec-gpc-footer">
-            <div class="ap-export-gpc-footer-accent ap-export-gpc-footer-accent--exec" aria-hidden="true"></div>
-            <span class="ap-export-gpc-footer-left">1 / ${escapeHtml(GPC_BRAND.companyName)}</span>
-            <span class="ap-export-gpc-footer-right">${escapeHtml(footerDate)}</span>
-        </div>`;
-
-    return root;
 }
 
 /**
@@ -1578,124 +1749,145 @@ export function ensureExportTemplateStyles() {
             white-space: pre-wrap;
         }
 
-        /* --- GPC exec readout (16:9) --- */
-        .ap-line-clamp-2 {
+        /* --- Exec presentation deck (16:9 × 3 slides) --- */
+        .ap-line-clamp-2,
+        .ap-line-clamp-3,
+        .ap-line-clamp-4,
+        .ap-line-clamp-6,
+        .ap-line-clamp-10,
+        .ap-line-clamp-12 {
             display: -webkit-box;
-            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        .ap-line-clamp-3 {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .ap-line-clamp-4 {
-            display: -webkit-box;
-            -webkit-line-clamp: 4;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .ap-line-clamp-6 {
-            display: -webkit-box;
-            -webkit-line-clamp: 6;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .ap-export-exec-readout--gpc {
+        .ap-line-clamp-2 { -webkit-line-clamp: 2; }
+        .ap-line-clamp-3 { -webkit-line-clamp: 3; }
+        .ap-line-clamp-4 { -webkit-line-clamp: 4; }
+        .ap-line-clamp-6 { -webkit-line-clamp: 6; }
+        .ap-line-clamp-10 { -webkit-line-clamp: 10; }
+        .ap-line-clamp-12 { -webkit-line-clamp: 12; }
+
+        .ap-exec-slide {
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            width: 1056px;
+            height: 594px;
             background: #0f172a;
+            padding: 40px 40px 48px;
             color: #f8fafc;
             font-family: ${GPC_BRAND.fontBody};
-            padding: 22px 32px 46px;
         }
-        .ap-export-gpc-logo--exec {
+        .ap-exec-slide-logo {
             position: absolute;
-            top: 20px;
-            right: 28px;
-            width: 132px;
+            top: 28px;
+            right: 36px;
+            width: 120px;
             height: auto;
             z-index: 3;
         }
-        .ap-export-exec-gpc-shell {
-            position: relative;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-            gap: 14px;
-        }
-        .ap-export-exec-gpc-intro {
+        .ap-exec-slide-header {
             flex-shrink: 0;
-            padding-right: 148px;
+            margin-bottom: 16px;
+            padding-right: 132px;
         }
-        .ap-export-exec-kicker {
+        .ap-exec-slide-kicker {
             margin: 0 0 6px;
-            font-size: 11px;
-            letter-spacing: 0.08em;
+            font-size: 12px;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
             color: #3b82f6;
             font-family: ${GPC_BRAND.fontHeading};
             font-weight: 700;
         }
-        .ap-export-exec-title {
+        .ap-exec-slide-title {
             margin: 0 0 4px;
-            font-size: 28px;
-            line-height: 1.1;
+            font-size: 26px;
+            line-height: 1.12;
             font-weight: 700;
             font-family: ${GPC_BRAND.fontHeading};
             color: #ffffff;
         }
-        .ap-export-exec-gpc-date {
+        .ap-exec-slide-title-sub {
+            font-weight: 600;
+            color: #93c5fd;
+        }
+        .ap-exec-slide-date {
             margin: 0;
             font-size: 12px;
             color: #94a3b8;
         }
-        .ap-export-exec-grid {
+        .ap-exec-slide-body {
             flex: 1;
             min-height: 0;
-            display: grid;
-            grid-template-columns: 1.2fr 0.9fr 0.9fr;
-            gap: 20px;
-            align-items: stretch;
-            height: 100%;
+            overflow: hidden;
         }
-        .ap-export-exec-col {
+        .ap-exec-slide-footer {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background: #0f172a;
+            border-top: 1px solid #334155;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .ap-exec-grid {
+            display: grid;
+            gap: 16px;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-grid--situation {
+            grid-template-columns: 1.35fr 0.65fr;
+        }
+        .ap-exec-grid--battlefield {
+            grid-template-columns: 1.1fr 0.85fr 1.05fr;
+        }
+        .ap-exec-grid--execution {
+            grid-template-columns: 1fr 1fr;
+        }
+        .ap-exec-stack {
             display: flex;
             flex-direction: column;
             gap: 12px;
             min-height: 0;
             height: 100%;
+            overflow: hidden;
         }
-        .ap-export-exec-col--plan .ap-export-exec-panel-plan {
-            flex: 1.15;
-        }
-        .ap-export-exec-col--plan .ap-export-exec-panel-timeline {
-            flex: 0.85;
-        }
-        .ap-export-exec-panel {
+        .ap-exec-panel {
             box-sizing: border-box;
-            flex: 1;
-            min-height: 0;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
             background: #1e293b;
             border: 1px solid #334155;
             border-radius: 8px;
-            padding: 12px 14px;
-            color: #e2e8f0;
-            overflow: hidden;
+            padding: 14px 16px;
         }
-        .ap-export-exec-panel h2 {
+        .ap-exec-stack .ap-exec-panel--momentum {
+            flex: 0 0 34%;
+            height: auto;
+        }
+        .ap-exec-stack .ap-exec-panel--psych {
+            flex: 1;
+        }
+        .ap-exec-panel-heading {
             margin: 0 0 10px;
-            font-size: 10px;
-            letter-spacing: 0.07em;
+            font-size: 14px;
+            line-height: 1.2;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
             color: #94a3b8;
             font-family: ${GPC_BRAND.fontHeading};
@@ -1704,92 +1896,158 @@ export function ensureExportTemplateStyles() {
             display: flex;
             align-items: center;
         }
-        .ap-export-exec-panel-icon {
+        .ap-exec-panel-icon {
             color: #3b82f6;
             margin-right: 8px;
-            font-size: 12px;
+            font-size: 14px;
             flex-shrink: 0;
         }
-        .ap-export-exec-panel p {
+        .ap-exec-panel-copy {
             margin: 0;
-            font-size: 11px;
-            line-height: 1.5;
+            font-size: 12px;
+            line-height: 1.55;
             color: #cbd5e1;
             white-space: pre-line;
             flex: 1;
             min-height: 0;
         }
-        .ap-export-exec-panel-momentum {
-            text-align: center;
-        }
-        .ap-export-exec-momentum-body {
+        .ap-exec-kpi {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 0;
+            text-align: center;
         }
-        .ap-export-exec-momentum-score {
-            font-size: 48px;
+        .ap-exec-kpi-score {
+            font-size: 56px;
             font-weight: 800;
             line-height: 1;
             color: #3b82f6;
         }
-        .ap-export-exec-momentum-label {
-            font-size: 12px;
-            color: #93c5fd;
+        .ap-exec-kpi-label {
             margin-top: 6px;
+            font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
+            color: #93c5fd;
         }
-        .ap-export-exec-psych-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
+        .ap-exec-psych-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
             flex: 1;
             min-height: 0;
+            overflow: hidden;
         }
-        .ap-export-exec-psych-card {
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 6px;
-            padding: 8px 10px;
+        .ap-exec-psych-row {
+            flex-shrink: 0;
         }
-        .ap-export-exec-psych-label {
-            font-size: 9px;
-            color: #94a3b8;
+        .ap-exec-psych-row-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
             margin-bottom: 4px;
-            font-weight: 600;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-        }
-        .ap-export-exec-psych-value {
-            font-size: 18px;
-            font-weight: 700;
-            line-height: 1;
-            color: #f8fafc;
-        }
-        .ap-export-exec-psych-value span {
             font-size: 10px;
-            opacity: 0.6;
-            margin-left: 2px;
             color: #94a3b8;
+            font-weight: 600;
         }
-        .ap-export-exec-psych-track {
-            margin-top: 6px;
+        .ap-exec-psych-track {
             height: 5px;
             border-radius: 999px;
             background: #334155;
             overflow: hidden;
         }
-        .ap-export-exec-psych-fill {
+        .ap-exec-psych-fill {
             height: 100%;
             border-radius: 999px;
             background: linear-gradient(90deg, #3b82f6 0%, #22d3ee 100%);
         }
-        .ap-export-exec-plan-list {
+        .ap-exec-influence-buckets {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-influence-bucket {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-influence-bucket-title {
+            margin: 0 0 6px;
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 700;
+        }
+        .ap-exec-influence-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .ap-exec-influence-item {
+            font-size: 12px;
+            line-height: 1.4;
+            color: #cbd5e1;
+        }
+        .ap-exec-influence-item--empty {
+            color: #64748b;
+        }
+        .ap-exec-entry-profiles {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .ap-exec-slide .ap-export-target-profile {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 12px;
+            flex-shrink: 0;
+        }
+        .ap-exec-slide .ap-export-target-profile + .ap-export-target-profile {
+            margin-top: 0;
+        }
+        .ap-exec-slide .ap-export-target-profile-name {
+            font-size: 13px;
+            color: #f8fafc;
+        }
+        .ap-exec-slide .ap-export-badge {
+            background: #334155;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            font-size: 9px;
+        }
+        .ap-exec-slide .ap-export-target-profile-group-title {
+            color: #64748b;
+            font-size: 9px;
+        }
+        .ap-exec-slide .ap-export-profile-kicker {
+            color: #64748b;
+            font-size: 9px;
+        }
+        .ap-exec-slide .ap-export-profile-copy {
+            color: #cbd5e1;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .ap-exec-slide .ap-export-target-profile-grid {
+            gap: 8px;
+        }
+        .ap-exec-plan-list,
+        .ap-exec-signals-list {
             list-style: none;
             margin: 0;
             padding: 0;
@@ -1798,67 +2056,49 @@ export function ensureExportTemplateStyles() {
             gap: 10px;
             flex: 1;
             min-height: 0;
+            overflow: hidden;
         }
-        .ap-export-exec-plan-item {
+        .ap-exec-plan-item {
             display: flex;
             align-items: flex-start;
             gap: 8px;
-            font-size: 11px;
+            font-size: 12px;
             line-height: 1.45;
             color: #cbd5e1;
             min-height: 0;
         }
-        .ap-export-exec-plan-item strong {
+        .ap-exec-plan-item strong {
             flex-shrink: 0;
             color: #3b82f6;
-            font-size: 10px;
+            font-size: 11px;
             letter-spacing: 0.04em;
-            margin-top: 1px;
         }
-        .ap-export-exec-plan-item span {
+        .ap-exec-plan-item span {
             flex: 1;
             min-width: 0;
         }
-        .ap-export-exec-timeline-list {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex: 1;
-            min-height: 0;
-        }
-        .ap-export-exec-timeline-item {
+        .ap-exec-signals-item {
             display: flex;
             flex-direction: column;
             gap: 2px;
             min-height: 0;
         }
-        .ap-export-exec-timeline-item--empty {
+        .ap-exec-signals-item--empty {
             color: #64748b;
-            font-size: 11px;
+            font-size: 12px;
         }
-        .ap-export-exec-timeline-date {
-            font-size: 9px;
+        .ap-exec-signals-date {
+            font-size: 10px;
             font-weight: 700;
             letter-spacing: 0.05em;
             text-transform: uppercase;
             color: #64748b;
         }
-        .ap-export-exec-timeline-item span {
-            font-size: 10px;
-            line-height: 1.4;
+        .ap-exec-signals-item span {
+            font-size: 12px;
+            line-height: 1.45;
             color: #cbd5e1;
             min-width: 0;
-        }
-        .ap-export-exec-gpc-footer {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #0f172a;
-            border-top: 1px solid #334155;
         }
     `;
     document.head.appendChild(style);

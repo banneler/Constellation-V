@@ -4,7 +4,7 @@
 
 import {
     buildDossierTemplate,
-    buildExecReadoutTemplate,
+    EXEC_SLIDE_BUILDERS,
     buildGpcCoverPage,
     buildDossierContentPage,
     buildDossierSectionTitleHtml,
@@ -158,13 +158,22 @@ async function buildDossierPdfBytes(plan, account, exportRoot) {
  * @param {HTMLElement} exportRoot
  */
 async function buildExecReadoutPdfBytes(plan, account, exportRoot) {
-    const template = buildExecReadoutTemplate(plan, account);
-    exportRoot.appendChild(template);
-    await waitForDomSettle();
-    await waitForImages(template);
+    const pageCanvases = [];
 
-    const pngDataUrl = await captureElementToPng(template);
-    return pngToPdf(pngDataUrl, {
+    for (let i = 0; i < EXEC_SLIDE_BUILDERS.length; i += 1) {
+        const buildSlide = EXEC_SLIDE_BUILDERS[i];
+        const slide = buildSlide(plan, account, {
+            pageNumber: i + 1,
+            totalPages: EXEC_SLIDE_BUILDERS.length,
+        });
+        exportRoot.appendChild(slide);
+        await waitForDomSettle();
+        await waitForImages(slide);
+        pageCanvases.push(await captureElementToPng(slide));
+        exportRoot.removeChild(slide);
+    }
+
+    return canvasesToPdf(pageCanvases, {
         pageWidthPt: EXEC_PAGE_WIDTH_PT,
         pageHeightPt: EXEC_PAGE_HEIGHT_PT,
     });
@@ -408,7 +417,7 @@ function measureDossierContentPage(blocks, meta, exportRoot) {
  */
 async function captureElementToPng(element) {
     const isDarkBg = element.classList.contains('ap-export-gpc-cover')
-        || element.classList.contains('ap-export-exec-readout--gpc');
+        || element.classList.contains('ap-exec-slide');
     const result = await snapdom(element, {
         scale: 2,
         backgroundColor: isDarkBg ? null : '#ffffff',
