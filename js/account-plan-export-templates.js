@@ -11,6 +11,8 @@ import {
     formatGpcFooterDate,
 } from './account-plan-export-brand.js';
 
+export const PLAN_SUMMARY_DOCUMENT_TITLE = 'Strategic Account Plan Summary';
+
 export const DOSSIER_WIDTH_PX = 816;
 export const DOSSIER_HEIGHT_PX = 1056;
 export const EXEC_WIDTH_PX = 1056;
@@ -82,9 +84,11 @@ function createDossierSectionBlock(section, bodyEl, titleOverride, bodyMode = 'e
     block.className = 'ap-export-dossier-section';
     block.dataset.sectionId = section.id;
 
+    const titleText = titleOverride || section.title;
+    block.dataset.sectionTitle = titleText;
+
     const title = document.createElement('h2');
     title.className = 'ap-export-dossier-section-title';
-    const titleText = titleOverride || section.title;
     title.innerHTML = buildDossierSectionTitleHtml(section.id, titleText);
     block.appendChild(title);
 
@@ -652,7 +656,7 @@ export function buildGpcCoverPage(meta) {
             <div class="ap-export-gpc-cover-title-frame">
                 <h1 class="ap-export-gpc-cover-title">${escapeHtml(meta.accountName)}</h1>
             </div>
-            <p class="ap-export-gpc-cover-subtitle">Strategic Account Dossier</p>
+            <p class="ap-export-gpc-cover-subtitle">${escapeHtml(PLAN_SUMMARY_DOCUMENT_TITLE)}</p>
             <p class="ap-export-gpc-cover-date">${escapeHtml(meta.dateLabel)}</p>
         </div>`;
     return page;
@@ -712,7 +716,7 @@ function getContentPageTitle(blocks) {
         const sectionTitle = blocks[0].querySelector('.ap-export-dossier-section-title');
         if (sectionTitle?.textContent) return sectionTitle.textContent.trim();
     }
-    return 'Strategic Account Dossier';
+    return PLAN_SUMMARY_DOCUMENT_TITLE;
 }
 
 /**

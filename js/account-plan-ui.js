@@ -1424,7 +1424,7 @@ function renderRail(sections) {
             </div>
             <div class="strategic-rail-body px-5 pb-5 flex flex-col gap-2">
                 <button type="button" id="plan-export-dossier-btn" class="btn-secondary plan-export-btn w-full">
-                    <i class="fas fa-file-pdf" aria-hidden="true"></i> Export Dossier (PDF)
+                    <i class="fas fa-file-pdf" aria-hidden="true"></i> Export Plan Summary (PDF)
                 </button>
                 <button type="button" id="plan-export-exec-btn" class="btn-secondary plan-export-btn w-full">
                     <i class="fas fa-display" aria-hidden="true"></i> Export Exec Readout (PDF)
@@ -1521,8 +1521,8 @@ function getPlanExportGeneratingCopy(type) {
         };
     }
     return {
-        title: 'Generating Dossier',
-        subtitle: 'Assembling your strategic account dossier…',
+        title: 'Generating Plan Summary',
+        subtitle: 'Assembling your Strategic Account Plan Summary…',
     };
 }
 

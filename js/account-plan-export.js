@@ -42,7 +42,7 @@ export async function generateAccountPlanPdf(plan, account, type) {
     try {
         if (normalizedType === 'dossier') {
             const bytes = await buildDossierPdfBytes(plan, account, exportRoot);
-            return { bytes, filename: buildFilename(account, 'Dossier') };
+            return { bytes, filename: buildFilename(account, 'Strategic_Account_Plan_Summary') };
         }
 
         const bytes = await buildExecReadoutPdfBytes(plan, account, exportRoot);
@@ -193,6 +193,20 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     };
 
     sectionBlocks.forEach((block) => {
+        const sectionId = block.dataset.sectionId || '';
+
+        if (sectionId === 'psychology') {
+            flush();
+        }
+
+        if (sectionId === 'entry_points') {
+            const entryPages = buildEntryPointsPageGroups(block);
+            entryPages.forEach((pageBlocks) => {
+                groups.push(pageBlocks.map((pageBlock) => pageBlock.cloneNode(true)));
+            });
+            return;
+        }
+
         if (pageFits([...current, block])) {
             current.push(block);
             return;
@@ -221,6 +235,37 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 }
 
 /**
+ * Paginate entry points two profiles per page so an odd last contact sits alone.
+ * @param {HTMLElement} block
+ * @returns {HTMLElement[][]}
+ */
+function buildEntryPointsPageGroups(block) {
+    const sectionId = block.dataset.sectionId || 'entry_points';
+    const sectionTitle = block.dataset.sectionTitle || 'Strategic Entry Points';
+    const profiles = [...block.querySelectorAll('.ap-export-target-profiles-body > .ap-export-target-profile')];
+
+    if (profiles.length === 0) {
+        return [[block]];
+    }
+
+    /** @type {HTMLElement[][]} */
+    const pages = [];
+    for (let i = 0; i < profiles.length; i += 2) {
+        const chunk = profiles.slice(i, i + 2);
+        pages.push([
+            buildDossierSectionFragment(
+                sectionId,
+                sectionTitle,
+                chunk,
+                i > 0,
+                'ap-export-target-profiles-body'
+            ),
+        ]);
+    }
+    return pages;
+}
+
+/**
  * Split an oversized section at panel / entry-point group boundaries.
  * @param {HTMLElement} block
  * @param {{ accountName: string, dateLabel: string }} meta
@@ -237,7 +282,7 @@ function splitDossierSectionBlock(block, meta, exportRoot) {
     const entryGroups = block.querySelectorAll(
         ':scope .ap-export-target-profiles-body > .ap-export-target-profile'
     );
-    if (entryGroups.length > 1) {
+    if (entryGroups.length > 1 && block.dataset.sectionId !== 'entry_points') {
         return [...entryGroups].map((group, index) => (
             buildDossierSectionFragment(
                 sectionId,
