@@ -6,18 +6,18 @@ Last updated: 2026-05-23
 |-------|--------|--------|--------|-------|
 | A0 Export Parity | `saos/a0-export-parity` | `4feaaaf` | **complete** | Contacts in influence export, entry-point v2 fields, measured pagination, section PDF headers, signals-only timeline comment, contacts in `handleExportPdf` |
 | A1 Schema v2 | `saos/a1-schema-v2` | `5ffe675` | **complete** | `PLAN_SCHEMA_VERSION = 2`, normalizers, section registry, `account-plan-contacts.js` |
-| Integration | `saos/integration` | — | **ready** | A0 + A1 + A2 + A3 + A4 + A5 + A6 merged |
+| Integration | `saos/integration` | `8cf8e48` | **ready** | A0 + A1 + A2 + A3 + A4 + A5 + A6 merged |
 | A2 Canvas P1 | `saos/a2-canvas-p1` | `fbe2504` | **merged** | Canvas renderers for snapshot, thesis hints, unknowns, entrenchment, pain signals; rail completeness widget |
 | A3 Canvas P2 | `saos/a3-canvas-p2` | `c6031a3` | **merged** | Influence v2 board, white space row editor, psychology gravity pills, 9 strategic tension groups |
 | A4 Export Deck | `saos/a4-export-deck` | `67e2ccf` | **merged** | Dossier PDF blocks for all v2 sections; PPTX/AI fallbacks; signals-only timeline |
 | A5 Interaction Log | `saos/a5-interaction-log` | `3672dfc` | **merged** | `interaction_log` quick-log + full form; promote-from-CRM; timeline overlay; signals-only PDF export; no new `momentum_notes` writes |
-| A6 AI Presentation | `saos/a6-ai-presentation` | — | **complete** | Edge function v2 prompt; `PresentationHighlight` schema extensions; normalize fallbacks; PPTX renders snapshot tier/priority, executive narrative, pain/unknowns, white space, access path, entrenchment moat, signal-only timeline |
+| A6 AI Presentation | `saos/a6-ai-presentation` | `b4b7313` | **merged** | Edge function v2 prompt; `PresentationHighlight` schema extensions; normalize fallbacks; PPTX renders snapshot tier/priority, executive narrative, pain/unknowns, white space, access path, entrenchment moat, signal-only timeline |
 | A7 QA & Docs | — | — | **ready to start** | Start after A6 merged to integration |
 
 ## Git notes
 
 - Base branch: **`deploy`** (`24f8dd0`), not `main`.
-- Integration branch: `saos/integration` — merge A6 from `saos/a6-ai-presentation`.
+- Integration branch: `saos/integration` at **`8cf8e48`** — A6 merged.
 - Merge commits: A2 → integration **`d7a688e`**; A3 fast-forward **`c6031a3`**; A5 fast-forward **`3672dfc`**.
 
 ## A6 deliverables
