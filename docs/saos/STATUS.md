@@ -6,7 +6,7 @@ Last updated: 2026-05-23
 |-------|--------|--------|--------|-------|
 | A0 Export Parity | `saos/a0-export-parity` | `4feaaaf` | **complete** | Contacts in influence export, entry-point v2 fields, measured pagination, section PDF headers, signals-only timeline comment, contacts in `handleExportPdf` |
 | A1 Schema v2 | `saos/a1-schema-v2` | `5ffe675` | **complete** | `PLAN_SCHEMA_VERSION = 2`, normalizers, section registry, `account-plan-contacts.js` |
-| Integration | `saos/integration` | `8cf8e48` | **ready** | A0 + A1 + A2 + A3 + A4 + A5 + A6 merged |
+| Integration | `saos/integration` | `b4b7313` | **ready** | A0–A6 merged (status doc at `8838d17`) |
 | A2 Canvas P1 | `saos/a2-canvas-p1` | `fbe2504` | **merged** | Canvas renderers for snapshot, thesis hints, unknowns, entrenchment, pain signals; rail completeness widget |
 | A3 Canvas P2 | `saos/a3-canvas-p2` | `c6031a3` | **merged** | Influence v2 board, white space row editor, psychology gravity pills, 9 strategic tension groups |
 | A4 Export Deck | `saos/a4-export-deck` | `67e2ccf` | **merged** | Dossier PDF blocks for all v2 sections; PPTX/AI fallbacks; signals-only timeline |
@@ -17,7 +17,7 @@ Last updated: 2026-05-23
 ## Git notes
 
 - Base branch: **`deploy`** (`24f8dd0`), not `main`.
-- Integration branch: `saos/integration` at **`8cf8e48`** — A6 merged.
+- Integration branch: `saos/integration` — A6 feature commit **`b4b7313`**, HEAD **`8838d17`**.
 - Merge commits: A2 → integration **`d7a688e`**; A3 fast-forward **`c6031a3`**; A5 fast-forward **`3672dfc`**.
 
 ## A6 deliverables
