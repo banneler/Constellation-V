@@ -22,6 +22,9 @@
     "url": "https://github.com/banneler/Constellation-V/issues"
   },
   "homepage": "https://github.com/banneler/Constellation-V#readme",
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@tailwindcss/cli": "^4.2.1",

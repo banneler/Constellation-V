@@ -16,8 +16,10 @@ import {
     generateAccountPlanPdf,
     openAccountPlanPdfPreview,
     closeAccountPlanPdfPreview,
+    downloadFileBytes,
 } from './account-plan-export.js';
 import { fetchPresentationHighlight } from './account-plan-presentation-ai.js';
+import { generateExecPresentationPptx } from './account-plan-presentation-pptx.js';
 
 const STORAGE_KEY = 'accounts_view_mode';
 const MOMENTUM_LABELS = Object.freeze(['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion']);
@@ -1429,7 +1431,7 @@ function renderRail(sections) {
                     <i class="fas fa-file-pdf" aria-hidden="true"></i> Export Plan Summary (PDF)
                 </button>
                 <button type="button" id="plan-export-exec-btn" class="btn-secondary plan-export-btn w-full">
-                    <i class="fas fa-display" aria-hidden="true"></i> Export Summary Presentation (PDF)
+                    <i class="fas fa-file-powerpoint" aria-hidden="true"></i> Export Summary Presentation (PowerPoint)
                 </button>
             </div>
         </div>
@@ -1603,12 +1605,22 @@ async function handleExportPdf(type) {
         }
 
         if (type === 'exec') {
-            setPlanExportGeneratingSubtitle('Rendering exec readout slides…');
+            setPlanExportGeneratingSubtitle('Building PowerPoint deck…');
+            const { bytes, filename } = await generateExecPresentationPptx(
+                planForExport,
+                account,
+                presentationHighlight
+            );
+            downloadFileBytes(
+                bytes,
+                filename,
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            );
+            _options.onToast?.('Presentation downloaded.', 'success');
+            return;
         }
 
-        const { bytes, filename } = await generateAccountPlanPdf(planForExport, account, type, {
-            presentationHighlight,
-        });
+        const { bytes, filename } = await generateAccountPlanPdf(planForExport, account, type);
         openAccountPlanPdfPreview(bytes, filename);
     } catch (err) {
         console.error('[account-plan-ui] PDF export failed:', err);

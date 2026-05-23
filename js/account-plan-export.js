@@ -4,7 +4,6 @@
 
 import {
     buildDossierTemplate,
-    createExecSlideBuilders,
     buildGpcCoverPage,
     buildDossierContentPage,
     buildDossierSectionTitleHtml,
@@ -13,17 +12,14 @@ import {
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
-const EXEC_PAGE_WIDTH_PT = 841.89;
-const EXEC_PAGE_HEIGHT_PT = EXEC_PAGE_WIDTH_PT * (9 / 16);
 
 /**
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @param {'dossier' | 'exec' | 'exec_readout'} type
- * @param {{ presentationHighlight?: import('./account-plan-presentation-types.js').PresentationHighlight | null }} [options]
  * @returns {Promise<{ bytes: Uint8Array, filename: string }>}
  */
-export async function generateAccountPlanPdf(plan, account, type, options = {}) {
+export async function generateAccountPlanPdf(plan, account, type) {
     if (typeof snapdom !== 'function') {
         throw new Error('Snapdom is not loaded.');
     }
@@ -46,8 +42,7 @@ export async function generateAccountPlanPdf(plan, account, type, options = {}) 
             return { bytes, filename: buildFilename(account, 'Strategic_Account_Plan_Summary') };
         }
 
-        const bytes = await buildExecReadoutPdfBytes(plan, account, exportRoot, options.presentationHighlight ?? null);
-        return { bytes, filename: buildFilename(account, 'Exec_Readout') };
+        throw new Error('Exec presentation export uses PowerPoint. Call generateExecPresentationPptx instead.');
     } finally {
         exportRoot.innerHTML = '';
     }
@@ -150,34 +145,6 @@ async function buildDossierPdfBytes(plan, account, exportRoot) {
     return canvasesToPdf(pageCanvases, {
         pageWidthPt: LETTER_WIDTH_PT,
         pageHeightPt: LETTER_HEIGHT_PT,
-    });
-}
-
-/**
- * @param {unknown} plan
- * @param {{ name?: string } | null} account
- * @param {HTMLElement} exportRoot
- * @param {import('./account-plan-presentation-types.js').PresentationHighlight | null} presentationHighlight
- */
-async function buildExecReadoutPdfBytes(plan, account, exportRoot, presentationHighlight) {
-    const pageCanvases = [];
-    const slideBuilders = createExecSlideBuilders(presentationHighlight);
-
-    for (let i = 0; i < slideBuilders.length; i += 1) {
-        const buildSlide = slideBuilders[i];
-        const slide = buildSlide(plan, account, {
-            pageNumber: i + 1,
-            totalPages: slideBuilders.length,
-        });
-        exportRoot.appendChild(slide);
-        await waitForExecSlideReady(slide);
-        pageCanvases.push(await captureElementToPng(slide));
-        exportRoot.removeChild(slide);
-    }
-
-    return canvasesToPdf(pageCanvases, {
-        pageWidthPt: EXEC_PAGE_WIDTH_PT,
-        pageHeightPt: EXEC_PAGE_HEIGHT_PT,
     });
 }
 
@@ -457,17 +424,6 @@ async function canvasesToPdf(pngDataUrls, dimensions) {
 }
 
 /**
- * @param {string} pngDataUrl
- * @param {{ pageWidthPt: number, pageHeightPt: number }} dimensions
- */
-async function pngToPdf(pngDataUrl, dimensions) {
-    const { PDFDocument } = window.PDFLib;
-    const pdfDoc = await PDFDocument.create();
-    await appendPngPage(pdfDoc, pngDataUrl, dimensions.pageWidthPt, dimensions.pageHeightPt);
-    return pdfDoc.save();
-}
-
-/**
  * @param {import('pdf-lib').PDFDocument} pdfDoc
  * @param {string} pngDataUrl
  * @param {number} pageWidthPt
@@ -512,7 +468,16 @@ function buildFilename(account, typeLabel) {
  * @param {string} filename
  */
 export function downloadPdfBytes(bytes, filename) {
-    const blob = new Blob([bytes], { type: 'application/pdf' });
+    downloadFileBytes(bytes, filename, 'application/pdf');
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {string} filename
+ * @param {string} [mimeType]
+ */
+export function downloadFileBytes(bytes, filename, mimeType = 'application/octet-stream') {
+    const blob = new Blob([bytes], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -529,26 +494,4 @@ function waitForDomSettle() {
             requestAnimationFrame(resolve);
         });
     });
-}
-
-async function waitForFontsReady() {
-    if (document.fonts?.ready) {
-        try {
-            await document.fonts.ready;
-        } catch {
-            /* ignore */
-        }
-    }
-}
-
-/**
- * @param {HTMLElement} slide
- */
-async function waitForExecSlideReady(slide) {
-    await waitForImages(slide);
-    await waitForFontsReady();
-    await waitForDomSettle();
-    void slide.getBoundingClientRect();
-    void slide.offsetHeight;
-    await waitForDomSettle();
 }
