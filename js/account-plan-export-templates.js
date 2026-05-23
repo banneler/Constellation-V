@@ -3,7 +3,7 @@
  */
 
 import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
-import { normalizePlan } from './account-plan-data.js';
+import { normalizePlan, INFLUENCE_CONTACT_FIELD_KEYS } from './account-plan-data.js';
 import { formatContactLabel, resolveContactById } from './account-plan-contacts.js';
 import { formatPlanHorizonRichHtml } from './account-plan-rich-text.js';
 import {
@@ -21,6 +21,15 @@ export const EXEC_WIDTH_PX = 1056;
 export const EXEC_HEIGHT_PX = 594;
 
 const MOMENTUM_LABELS = ['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion'];
+
+/** @type {Record<string, string>} */
+const INFLUENCE_CONTACT_FIELD_LABELS = {
+    influence_level: 'Influence Level',
+    political_influence: 'Political Influence',
+    relationship_temperature: 'Relationship Temperature',
+    strategic_priorities: 'Strategic Priorities',
+    personality_style: 'Personality Style',
+};
 
 /** @type {Record<string, string>} */
 const DOSSIER_SECTION_ICONS = {
@@ -1172,13 +1181,77 @@ function buildWhiteSpaceMatrixBody(rows) {
 }
 
 /**
+ * Signals-only interaction log for dossier export (excludes CRM-promoted activities).
+ * @param {Record<string, unknown>} sections
+ * @param {unknown[]} contacts
  * @returns {HTMLElement}
  */
-function buildInteractionLogStubBody() {
-    const empty = document.createElement('p');
-    empty.className = 'ap-export-editorial-copy ap-export-interaction-log-empty';
-    empty.textContent = 'No structured interactions logged yet.';
-    return empty;
+function buildInteractionLogExportBody(sections, contacts) {
+    const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    const exportEntries = log
+        .filter((entry) => {
+            if (!isPlainObject(entry)) return false;
+            const source = String(entry.source ?? '').toLowerCase();
+            if (source === 'activity' || source === 'crm') return false;
+            const text = String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim();
+            return text.length > 0;
+        })
+        .sort((a, b) => {
+            const aMs = new Date(String(a.date ?? '')).getTime();
+            const bMs = new Date(String(b.date ?? '')).getTime();
+            return (Number.isNaN(bMs) ? 0 : bMs) - (Number.isNaN(aMs) ? 0 : aMs);
+        });
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ap-export-interaction-log-wrap';
+
+    if (!exportEntries.length) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-copy ap-export-interaction-log-empty';
+        empty.textContent = 'No structured interactions logged yet.';
+        wrap.appendChild(empty);
+        return wrap;
+    }
+
+    exportEntries.forEach((entry) => {
+        const card = document.createElement('article');
+        card.className = 'ap-export-interaction-log-entry';
+
+        const head = document.createElement('div');
+        head.className = 'ap-export-interaction-log-head';
+        const sourceLabel = String(entry.source ?? 'signal') === 'manual' ? 'Interaction' : 'Strategic Signal';
+        const dateLabel = formatExportTableValue(entry.date);
+        head.innerHTML = `<strong>${escapeHtml(sourceLabel)}</strong><span>${escapeHtml(dateLabel)}</span>`;
+        card.appendChild(head);
+
+        const contact = entry.contact_id != null
+            ? resolveContactById(entry.contact_id, contacts)
+            : null;
+        if (contact) {
+            card.appendChild(createProfileField('Contact', formatInfluenceContactLabel(contact)));
+        }
+
+        const summaryFields = [
+            ['Interaction', entry.interaction],
+            ['Key Insight', entry.key_insight],
+            ['Signal', entry.text],
+            ['Political Signal', entry.political_signal],
+            ['Relationship Energy', entry.relationship_energy],
+            ['Trust Earned', entry.trust_earned],
+            ['Momentum Shift', entry.momentum_shift],
+            ['Next Move', entry.next_move],
+        ];
+
+        summaryFields.forEach(([label, value]) => {
+            const text = String(value ?? '').trim();
+            if (!text) return;
+            card.appendChild(createProfileField(label, text));
+        });
+
+        wrap.appendChild(card);
+    });
+
+    return wrap;
 }
 
 /**
@@ -1324,7 +1397,7 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
     }
 
     if (section.type === 'interaction_log') {
-        return [createDossierSectionBlock(section, buildInteractionLogStubBody())];
+        return [createDossierSectionBlock(section, buildInteractionLogExportBody(sections, contacts))];
     }
 
     if (section.type === 'composite_textarea') {
@@ -2385,6 +2458,30 @@ export function ensureExportTemplateStyles() {
             border-top: 2px solid #0f172a;
             padding-top: 14px;
             color: #64748b;
+        }
+        .ap-export-interaction-log-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+        }
+        .ap-export-interaction-log-entry {
+            border: 1px solid #e2e8f0;
+            background: #fafbfc;
+            padding: 10px 12px;
+        }
+        .ap-export-interaction-log-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 11px;
+            color: #0f172a;
+        }
+        .ap-export-interaction-log-entry .ap-export-profile-field {
+            margin-top: 6px;
         }
         .ap-export-influence-contact-list {
             display: flex;

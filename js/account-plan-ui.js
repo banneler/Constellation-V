@@ -25,6 +25,7 @@ import {
     createEmptyPlan,
     createEmptyEntryPoint,
     createEmptyWhiteSpaceRow,
+    createEmptyInteractionLogEntry,
     deepClonePlan,
     normalizePlan,
     savePlanDraft,
@@ -43,6 +44,8 @@ import { generateExecPresentationPptx } from './account-plan-presentation-pptx.j
 
 const STORAGE_KEY = 'accounts_view_mode';
 const MOMENTUM_LABELS = Object.freeze(['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion']);
+const INTERACTION_POLITICAL_SIGNAL_OPTIONS = Object.freeze(['', 'High', 'Medium', 'Low', 'Positive', 'Neutral', 'Negative']);
+const INTERACTION_MOMENTUM_SHIFT_OPTIONS = Object.freeze(['', 'Positive', 'Neutral', 'Negative']);
 
 /** @type {Record<string, unknown>} */
 let _options = {};
@@ -69,6 +72,7 @@ let _entryPointActiveIndex = 0;
 let _canvasEventsBound = false;
 let _versionPopoverBound = false;
 let _popoverOpen = false;
+let _showCrmActivities = true;
 
 /**
  * @param {{
@@ -1660,44 +1664,80 @@ function toggleStrategicPill(button) {
 }
 
 /**
- * @typedef {{ type: 'activity' | 'signal', date: Date, label: string, desc: string }} MomentumTimelineItem
+ * @typedef {{ type: 'activity' | 'signal' | 'manual', date: Date, label: string, desc: string }} MomentumTimelineItem
  */
+
+/**
+ * @param {Record<string, unknown>} entry
+ * @returns {string}
+ */
+function formatInteractionLogSummary(entry) {
+    const text = String(entry.text ?? '').trim();
+    const interaction = String(entry.interaction ?? '').trim();
+    const insight = String(entry.key_insight ?? '').trim();
+    if (interaction && insight) return `${interaction} — ${insight}`;
+    if (interaction) return interaction;
+    if (insight) return insight;
+    return text;
+}
+
+/**
+ * @param {string} source
+ * @returns {string}
+ */
+function interactionLogSourceLabel(source) {
+    if (source === 'activity') return 'CRM Activity';
+    if (source === 'manual') return 'Interaction';
+    return 'Strategic Signal';
+}
 
 /**
  * @returns {MomentumTimelineItem[]}
  */
 function collectMomentumTimelineItems() {
-    const activities = _options.getSelectedAccountDetails?.().activities || [];
-    const notes = Array.isArray(_liveSections?.momentum_notes) ? _liveSections.momentum_notes : [];
+    const log = Array.isArray(_liveSections?.interaction_log) ? _liveSections.interaction_log : [];
+    const activities = _showCrmActivities
+        ? (_options.getSelectedAccountDetails?.().activities || [])
+        : [];
+
+    const promotedActivityIds = new Set(
+        log
+            .filter((entry) => isPlainObject(entry) && entry.activity_id != null)
+            .map((entry) => String(entry.activity_id))
+    );
 
     /** @type {MomentumTimelineItem[]} */
     const items = [];
 
-    notes.forEach((note) => {
-        if (!isPlainObject(note)) return;
-        const date = new Date(String(note.date ?? ''));
+    log.forEach((entry) => {
+        if (!isPlainObject(entry)) return;
+        const date = new Date(String(entry.date ?? ''));
         if (Number.isNaN(date.getTime())) return;
-        const text = String(note.text ?? '').trim();
-        if (!text) return;
+        const summary = formatInteractionLogSummary(entry);
+        if (!summary) return;
+        const source = String(entry.source ?? 'signal');
         items.push({
-            type: 'signal',
+            type: source === 'activity' ? 'activity' : source === 'manual' ? 'manual' : 'signal',
             date,
-            label: 'Strategic Signal',
-            desc: text,
+            label: interactionLogSourceLabel(source),
+            desc: summary,
         });
     });
 
-    activities.forEach((act) => {
-        if (!isPlainObject(act)) return;
-        const date = new Date(String(act.date ?? ''));
-        if (Number.isNaN(date.getTime())) return;
-        items.push({
-            type: 'activity',
-            date,
-            label: String(act.type ?? 'Activity'),
-            desc: truncateText(String(act.description ?? ''), 120),
+    if (_showCrmActivities) {
+        activities.forEach((act) => {
+            if (!isPlainObject(act)) return;
+            if (act.id != null && promotedActivityIds.has(String(act.id))) return;
+            const date = new Date(String(act.date ?? ''));
+            if (Number.isNaN(date.getTime())) return;
+            items.push({
+                type: 'activity',
+                date,
+                label: String(act.type ?? 'Activity'),
+                desc: truncateText(String(act.description ?? ''), 120),
+            });
         });
-    });
+    }
 
     return items.sort((a, b) => b.date.getTime() - a.date.getTime());
 }
@@ -1706,12 +1746,16 @@ function buildMomentumTimelineDisplayHtml() {
     const items = collectMomentumTimelineItems();
 
     if (items.length === 0) {
-        return '<p class="momentum-timeline-empty">No strategic signals or CRM activities yet.</p>';
+        return '<p class="momentum-timeline-empty">No interaction log entries or CRM activities yet.</p>';
     }
 
     const rows = items.map((item) => {
-        const sideClass = item.type === 'signal' ? 'timeline-item-left' : 'timeline-item-right';
-        const typeClass = item.type === 'signal' ? 'timeline-item-signal' : 'timeline-item-activity';
+        const sideClass = item.type === 'activity' ? 'timeline-item-right' : 'timeline-item-left';
+        const typeClass = item.type === 'activity'
+            ? 'timeline-item-activity'
+            : item.type === 'manual'
+                ? 'timeline-item-manual'
+                : 'timeline-item-signal';
         const dateLabel = formatCommittedDate(item.date.toISOString());
 
         return `
@@ -1735,6 +1779,7 @@ function buildMomentumTimelineDisplayHtml() {
 }
 
 function buildMomentumTimelineHtml() {
+    const toggleChecked = _showCrmActivities ? ' checked' : '';
     return `
         <div class="momentum-timeline-body">
             <div class="momentum-timeline-log">
@@ -1747,6 +1792,12 @@ function buildMomentumTimelineHtml() {
                 <button type="button" class="btn-secondary momentum-signal-log-btn" data-momentum-signal-log>
                     Log Signal
                 </button>
+            </div>
+            <div class="momentum-timeline-controls">
+                <label class="momentum-timeline-toggle">
+                    <input type="checkbox" class="momentum-timeline-toggle-input" data-timeline-show-crm${toggleChecked} />
+                    Show CRM activities
+                </label>
             </div>
             <div class="momentum-timeline-display">${buildMomentumTimelineDisplayHtml()}</div>
         </div>`;
@@ -1762,7 +1813,186 @@ function refreshMomentumTimelineSection() {
     }
 }
 
-function logMomentumSignal() {
+/**
+ * @param {readonly string[]} options
+ * @param {string} label
+ * @param {string} fieldKey
+ * @param {string} value
+ */
+function buildInteractionFormSelect(options, label, fieldKey, value) {
+    const fieldId = `interaction-form-${fieldKey}`;
+    const optionsHtml = options.map((option) => {
+        const selected = value === option ? ' selected' : '';
+        const optionLabel = option === '' ? 'Select…' : option;
+        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(optionLabel)}</option>`;
+    }).join('');
+
+    return `
+        <div class="interaction-log-field">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <select id="${fieldId}" class="strategic-field interaction-log-select" data-interaction-field="${fieldKey}">
+                ${optionsHtml}
+            </select>
+        </div>`;
+}
+
+/**
+ * @param {string} label
+ * @param {string} fieldKey
+ * @param {string} value
+ * @param {number} [rows]
+ */
+function buildInteractionFormTextarea(label, fieldKey, value, rows = 3) {
+    const fieldId = `interaction-form-${fieldKey}`;
+    return `
+        <div class="interaction-log-field interaction-log-field--wide">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <textarea
+                id="${fieldId}"
+                class="strategic-field strategic-textarea interaction-log-textarea"
+                data-interaction-field="${fieldKey}"
+                rows="${rows}"
+            >${escapeHtml(value)}</textarea>
+        </div>`;
+}
+
+function buildInteractionLogFormHtml() {
+    const contacts = getAccountContacts();
+    const contactOptions = ['<option value="">No contact</option>'].concat(
+        contacts.map((contact) => {
+            const id = escapeHtml(String(contact.id));
+            const name = escapeHtml(`${contact.first_name || ''} ${contact.last_name || ''}`.trim() || `Contact ${contact.id}`);
+            return `<option value="${id}">${name}</option>`;
+        })
+    ).join('');
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    return `
+        <div class="interaction-log-form" data-interaction-form>
+            <h5 class="interaction-log-form-title">Add Interaction</h5>
+            <div class="interaction-log-form-grid">
+                <div class="interaction-log-field">
+                    <label for="interaction-form-date">Date</label>
+                    <input
+                        type="date"
+                        id="interaction-form-date"
+                        class="strategic-field interaction-log-input"
+                        data-interaction-field="date"
+                        value="${today}"
+                    />
+                </div>
+                <div class="interaction-log-field">
+                    <label for="interaction-form-contact">Contact</label>
+                    <select id="interaction-form-contact" class="strategic-field interaction-log-select" data-interaction-field="contact_id">
+                        ${contactOptions}
+                    </select>
+                </div>
+                ${buildInteractionFormSelect(INTERACTION_POLITICAL_SIGNAL_OPTIONS, 'Political Signal', 'political_signal', '')}
+                ${buildInteractionFormSelect(INTERACTION_MOMENTUM_SHIFT_OPTIONS, 'Momentum Shift', 'momentum_shift', '')}
+                ${buildInteractionFormTextarea('Interaction', 'interaction', '', 2)}
+                ${buildInteractionFormTextarea('Key Insight', 'key_insight', '', 2)}
+                ${buildInteractionFormTextarea('Relationship Energy', 'relationship_energy', '', 2)}
+                ${buildInteractionFormTextarea('Trust Earned', 'trust_earned', '', 2)}
+                ${buildInteractionFormTextarea('Next Move', 'next_move', '', 2)}
+            </div>
+            <button type="button" class="btn-secondary interaction-log-save-btn" data-interaction-save>
+                Save Interaction
+            </button>
+        </div>`;
+}
+
+/**
+ * @param {Record<string, unknown>} entry
+ */
+function buildInteractionLogEntryHtml(entry) {
+    const source = String(entry.source ?? 'signal');
+    const dateLabel = formatCommittedDate(String(entry.date ?? ''));
+    const summary = formatInteractionLogSummary(entry);
+    const sourceClass = source === 'activity'
+        ? 'interaction-log-entry--activity'
+        : source === 'manual'
+            ? 'interaction-log-entry--manual'
+            : 'interaction-log-entry--signal';
+
+    const detailFields = [
+        ['Political Signal', entry.political_signal],
+        ['Momentum Shift', entry.momentum_shift],
+        ['Relationship Energy', entry.relationship_energy],
+        ['Trust Earned', entry.trust_earned],
+        ['Next Move', entry.next_move],
+    ].filter(([, value]) => String(value ?? '').trim());
+
+    const detailsHtml = detailFields.length > 0
+        ? `<dl class="interaction-log-entry-details">${detailFields.map(([label, value]) => `
+            <div class="interaction-log-entry-detail">
+                <dt>${escapeHtml(label)}</dt>
+                <dd>${escapeHtml(String(value))}</dd>
+            </div>`).join('')}</dl>`
+        : '';
+
+    return `
+        <article class="interaction-log-entry ${sourceClass}">
+            <div class="interaction-log-entry-head">
+                <span class="interaction-log-entry-source">${escapeHtml(interactionLogSourceLabel(source))}</span>
+                <time datetime="${escapeHtml(String(entry.date ?? ''))}">${escapeHtml(dateLabel)}</time>
+            </div>
+            <p class="interaction-log-entry-summary">${escapeHtml(summary)}</p>
+            ${detailsHtml}
+        </article>`;
+}
+
+/**
+ * @param {unknown} log
+ */
+function buildInteractionLogHtml(log) {
+    const entries = Array.isArray(log)
+        ? [...log].filter(isPlainObject).sort((a, b) => {
+            const aMs = new Date(String(a.date ?? '')).getTime();
+            const bMs = new Date(String(b.date ?? '')).getTime();
+            return (Number.isNaN(bMs) ? 0 : bMs) - (Number.isNaN(aMs) ? 0 : aMs);
+        })
+        : [];
+
+    const listHtml = entries.length > 0
+        ? entries.map((entry) => buildInteractionLogEntryHtml(entry)).join('')
+        : '<p class="interaction-log-empty">No interactions logged yet. Use the form below or quick-log a signal from the timeline.</p>';
+
+    return `
+        <div class="interaction-log-section">
+            <div class="interaction-log-list">${listHtml}</div>
+            ${buildInteractionLogFormHtml()}
+        </div>`;
+}
+
+function refreshInteractionLogSection() {
+    const sectionEl = document.getElementById('strategic-section-interaction_log');
+    const sectionDef = PLAN_SECTIONS.find((section) => section.id === 'interaction_log');
+    if (!sectionEl || !sectionDef || !_liveSections) return;
+
+    const headingId = `strategic-heading-${sectionDef.id}`;
+    const headerContext = buildSectionHeaderContext(sectionDef);
+    const bodyHtml = buildInteractionLogHtml(_liveSections.interaction_log);
+
+    sectionEl.innerHTML = `
+        <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
+        ${headerContext.leadHtml}
+        ${headerContext.blockHtml}
+        ${bodyHtml}`;
+
+    initAutoExpandTextareas(sectionEl);
+}
+
+function appendInteractionLogEntry(entry) {
+    if (!_liveSections) return;
+    const log = Array.isArray(_liveSections.interaction_log)
+        ? [..._liveSections.interaction_log]
+        : [];
+    log.unshift(entry);
+    _liveSections.interaction_log = log;
+}
+
+function logInteractionSignal() {
     if (!_liveSections) return;
 
     const textarea = document.getElementById('momentum-signal-input');
@@ -1771,20 +2001,114 @@ function logMomentumSignal() {
     const text = textarea.value.trim();
     if (!text) return;
 
-    const notes = Array.isArray(_liveSections.momentum_notes)
-        ? [..._liveSections.momentum_notes]
-        : [];
-    notes.push({
-        id: crypto.randomUUID(),
+    appendInteractionLogEntry({
+        ...createEmptyInteractionLogEntry(),
+        source: 'signal',
         date: new Date().toISOString(),
         text,
     });
-    _liveSections.momentum_notes = notes;
 
     textarea.value = '';
     autoExpandTextarea(textarea);
     refreshMomentumTimelineSection();
+    refreshInteractionLogSection();
+    updateRailSummaries(_liveSections);
     queueAutosave();
+}
+
+function saveInteractionForm() {
+    if (!_liveSections) return;
+
+    const form = document.querySelector('[data-interaction-form]');
+    if (!form) return;
+
+    /** @type {Record<string, string>} */
+    const values = {};
+    form.querySelectorAll('[data-interaction-field]').forEach((el) => {
+        if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)) return;
+        const key = el.dataset.interactionField;
+        if (!key) return;
+        values[key] = el.value;
+    });
+
+    const interaction = String(values.interaction ?? '').trim();
+    const keyInsight = String(values.key_insight ?? '').trim();
+    const relationshipEnergy = String(values.relationship_energy ?? '').trim();
+    const trustEarned = String(values.trust_earned ?? '').trim();
+    const nextMove = String(values.next_move ?? '').trim();
+
+    if (!interaction && !keyInsight && !relationshipEnergy && !trustEarned && !nextMove) {
+        _options.onToast?.('Add at least one interaction field before saving.', 'error');
+        return;
+    }
+
+    const dateValue = String(values.date ?? '').trim();
+    const isoDate = dateValue ? new Date(`${dateValue}T12:00:00`).toISOString() : new Date().toISOString();
+
+    appendInteractionLogEntry({
+        ...createEmptyInteractionLogEntry(),
+        source: 'manual',
+        date: isoDate,
+        contact_id: values.contact_id ? String(values.contact_id) : null,
+        interaction,
+        key_insight: keyInsight,
+        political_signal: INTERACTION_POLITICAL_SIGNAL_OPTIONS.includes(values.political_signal)
+            ? values.political_signal
+            : '',
+        relationship_energy: relationshipEnergy,
+        trust_earned: trustEarned,
+        momentum_shift: INTERACTION_MOMENTUM_SHIFT_OPTIONS.includes(values.momentum_shift)
+            ? values.momentum_shift
+            : '',
+        next_move: nextMove,
+    });
+
+    refreshInteractionLogSection();
+    refreshMomentumTimelineSection();
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+    _options.onToast?.('Interaction saved.', 'success');
+}
+
+/**
+ * @param {object} activity
+ * @returns {boolean}
+ */
+export function promoteActivityToInteractionLog(activity) {
+    if (!_liveSections || !isPlainObject(activity)) {
+        _options.onToast?.('Open Strategic mode with a loaded plan first.', 'error');
+        return false;
+    }
+
+    const log = Array.isArray(_liveSections.interaction_log)
+        ? [..._liveSections.interaction_log]
+        : [];
+    const activityId = activity.id != null ? String(activity.id) : null;
+    if (activityId && log.some((entry) => isPlainObject(entry) && String(entry.activity_id) === activityId)) {
+        _options.onToast?.('Activity already promoted to the interaction log.', 'error');
+        return false;
+    }
+
+    const description = String(activity.description ?? '').trim();
+    const type = String(activity.type ?? 'Activity');
+    const contactId = activity.contact_id != null ? String(activity.contact_id) : null;
+
+    appendInteractionLogEntry({
+        ...createEmptyInteractionLogEntry(),
+        source: 'activity',
+        date: activity.date != null ? String(activity.date) : new Date().toISOString(),
+        contact_id: contactId,
+        interaction: description ? `${type}: ${description}` : type,
+        text: description,
+        activity_id: activityId,
+    });
+
+    refreshInteractionLogSection();
+    refreshMomentumTimelineSection();
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+    _options.onToast?.('Activity promoted to interaction log.', 'success');
+    return true;
 }
 
 /**
@@ -1960,6 +2284,18 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
                 </div>`);
         }
 
+        if (section.type === 'interaction_log') {
+            const log = sections.interaction_log;
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildInteractionLogHtml(log),
+                'strategic-section--interaction-log'
+            );
+        }
+
         if (section.type === 'timeline_view') {
             return wrapStrategicSection(
                 sectionId,
@@ -2077,11 +2413,9 @@ function isSectionFilled(section, sections) {
     }
 
     if (section.type === 'timeline_view') {
-        const notes = Array.isArray(sections.momentum_notes) ? sections.momentum_notes : [];
         const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
         const activities = _options.getSelectedAccountDetails?.()?.activities || [];
-        return notes.some((note) => isPlainObject(note) && String(note.text ?? '').trim())
-            || log.length > 0
+        return log.some((entry) => isPlainObject(entry) && formatInteractionLogSummary(entry))
             || activities.length > 0;
     }
 
@@ -2434,7 +2768,14 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .account-snapshot-select, .white-space-select, .white-space-textarea')) return;
+
+        if (target instanceof HTMLInputElement && target.matches('[data-timeline-show-crm]')) {
+            _showCrmActivities = target.checked;
+            refreshMomentumTimelineSection();
+            return;
+        }
+
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .account-snapshot-select, .white-space-select, .white-space-textarea, .interaction-log-select, .interaction-log-input')) return;
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
         queueAutosave();
@@ -2508,7 +2849,13 @@ function bindCanvasFormEvents(canvas) {
 
         if (target.closest('[data-momentum-signal-log]')) {
             event.preventDefault();
-            logMomentumSignal();
+            logInteractionSignal();
+            return;
+        }
+
+        if (target.closest('[data-interaction-save]')) {
+            event.preventDefault();
+            saveInteractionForm();
             return;
         }
 

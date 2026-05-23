@@ -1,6 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
 import { fetchPlanForAccount } from './account-plan-data.js';
-import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave } from './account-plan-ui.js';
+import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave, promoteActivityToInteractionLog } from './account-plan-ui.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -97,6 +97,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (accountActivitiesList) {
         accountActivitiesList.addEventListener("click", async (e) => {
+            const promoteBtn = e.target.closest(".btn-promote-activity");
+            if (promoteBtn) {
+                const id = promoteBtn.getAttribute("data-activity-id");
+                if (!id) return;
+                const act = state.selectedAccountDetails.activities.find((a) => String(a.id) === String(id));
+                if (act) {
+                    promoteActivityToInteractionLog(act);
+                }
+                return;
+            }
+
             const btn = e.target.closest(".btn-log-sf");
             if (!btn) return;
             const id = btn.getAttribute("data-activity-id");
@@ -818,6 +829,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const item = document.createElement("div");
                 item.className = "recent-activity-item";
                 const logSfBtnHtml = act.logged_to_sf ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
+                const promoteBtnHtml = `<button type="button" class="btn-promote-activity" data-activity-id="${act.id}" title="Promote to Strategic Interaction Log"><i class="fas fa-arrow-up-right-dots" aria-hidden="true"></i> Promote</button>`;
                 item.innerHTML = `
                     <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                     <div class="activity-body">
@@ -825,7 +837,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <div class="activity-description">${act.description}</div>
                         <div class="activity-date">${formatDate(act.date)}</div>
                     </div>
-                    <div class="activity-actions">${logSfBtnHtml}</div>
+                    <div class="activity-actions">${promoteBtnHtml}${logSfBtnHtml}</div>
                 `;
                 accountActivitiesList.appendChild(item);
             });
