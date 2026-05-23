@@ -2,9 +2,14 @@
  * Strategic Account OS — data layer (JSONB plan document, milestones, Supabase I/O).
  */
 
-import { STRATEGIC_TENSION_GROUPS } from './account-plan-sections.js';
+import {
+    STRATEGIC_TENSION_GROUPS,
+    PAIN_SIGNAL_PILLS,
+    CRITICAL_UNKNOWN_LANGUAGE_PILLS,
+    ENTRENCHMENT_MOAT_PILLS,
+} from './account-plan-sections.js';
 
-export const PLAN_SCHEMA_VERSION = 1;
+export const PLAN_SCHEMA_VERSION = 2;
 export const HISTORY_CAP = 50;
 export const MILESTONE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -14,7 +19,25 @@ const DEFAULT_PSYCHOLOGY = Object.freeze({
     technical_sophistication: 3,
     vendor_loyalty: 3,
     decision_velocity: 3,
+    organizational_gravity: '',
+    consensus_requirement: '',
+    procurement_friction: '',
+    innovation_friction: '',
+    narrative: '',
 });
+
+/** @type {readonly string[]} */
+export const INFLUENCE_CONTACT_FIELD_KEYS = Object.freeze([
+    'influence_level',
+    'political_influence',
+    'relationship_temperature',
+    'strategic_priorities',
+    'personality_style',
+]);
+
+const POLITICAL_SIGNAL_VALUES = new Set(['', 'High', 'Medium', 'Low', 'Positive', 'Neutral', 'Negative']);
+const MOMENTUM_SHIFT_VALUES = new Set(['', 'Positive', 'Neutral', 'Negative']);
+const INTERACTION_LOG_SOURCES = new Set(['signal', 'manual', 'activity']);
 
 /** @type {readonly string[]} */
 export const ENTRY_POINT_FIELD_KEYS = Object.freeze([
@@ -45,6 +68,68 @@ export function createEmptyEntryPoint() {
 }
 
 /**
+ * @returns {Record<string, string>}
+ */
+export function createEmptyAccessPath() {
+    return {
+        current: '',
+        desired: '',
+        bridge: '',
+        strategy: '',
+    };
+}
+
+/**
+ * @returns {Record<string, string>}
+ */
+export function createEmptyInfluenceContact(id = '') {
+    return {
+        id: String(id),
+        notes: '',
+        influence_level: '',
+        political_influence: '',
+        relationship_temperature: '',
+        strategic_priorities: '',
+        personality_style: '',
+    };
+}
+
+/**
+ * @returns {Record<string, string>}
+ */
+export function createEmptyWhiteSpaceRow() {
+    return {
+        area: '',
+        opportunity: '',
+        operational_importance: '',
+        executive_visibility: '',
+        confidence: '',
+        value_notes: '',
+    };
+}
+
+/**
+ * @returns {Record<string, string>}
+ */
+export function createEmptyInteractionLogEntry() {
+    return {
+        id: crypto.randomUUID(),
+        date: new Date().toISOString(),
+        source: 'signal',
+        contact_id: null,
+        interaction: '',
+        key_insight: '',
+        text: '',
+        political_signal: '',
+        relationship_energy: '',
+        trust_earned: '',
+        momentum_shift: '',
+        next_move: '',
+        activity_id: null,
+    };
+}
+
+/**
  * @returns {import('./account-plan-data.js').AccountPlanDocument}
  */
 export function createEmptyPlan() {
@@ -55,24 +140,53 @@ export function createEmptyPlan() {
             updated_at: now,
             last_milestone_at: null,
             sections: {
+                account_snapshot: {
+                    tier: '',
+                    relationship_status: '',
+                    ai_cloud_maturity: '',
+                    strategic_patience: '',
+                    pursuit_priority: '',
+                    existing_providers: '',
+                    expansion_potential: '',
+                },
                 pursuit_thesis: {
                     core: '',
+                    why_account_matters: '',
                     cost_of_standing_still: '',
                     timing: '',
+                    executive_narrative: '',
                 },
                 strategic_tensions: {
                     selected_pills: [],
                     narrative: '',
                 },
+                pain_signals: {
+                    selected: [],
+                    notes: '',
+                },
+                critical_unknowns: {
+                    unknowns: '',
+                    executive_language_pills: [],
+                    executive_language_notes: '',
+                },
                 influence_mapping: {
                     executive: [],
                     mid_level: [],
+                    technical: [],
                     invisible_org_chart: '',
+                    political_dynamics: '',
+                    access_path: createEmptyAccessPath(),
                 },
+                white_space: [],
                 competitive_landscape: {
                     incumbents: '',
                     positioning_pills: [],
                     narrative: '',
+                },
+                entrenchment: {
+                    compound_relationships: '',
+                    moat_pills: [],
+                    difficult_to_remove: '',
                 },
                 land_and_expand: {
                     initial_entry: '',
@@ -85,6 +199,7 @@ export function createEmptyPlan() {
                     narrative: '',
                 },
                 momentum_notes: [],
+                interaction_log: [],
                 plan_30_60_90: {
                     days_30: '',
                     days_60: '',
@@ -123,25 +238,31 @@ function migrateLegacySectionText(sections, newKey, legacyKeys) {
 
 /**
  * @param {unknown} entry
- * @returns {{ id: string, notes: string } | null}
+ * @returns {ReturnType<typeof createEmptyInfluenceContact> | null}
  */
 function normalizeInfluenceContactEntry(entry) {
     if (entry == null) return null;
+    const empty = createEmptyInfluenceContact();
     if (typeof entry === 'string' || typeof entry === 'number') {
-        return { id: String(entry), notes: '' };
+        return { ...empty, id: String(entry) };
     }
     if (isPlainObject(entry) && entry.id != null) {
-        return {
+        const normalized = {
+            ...empty,
             id: String(entry.id),
             notes: entry.notes != null ? String(entry.notes) : '',
         };
+        INFLUENCE_CONTACT_FIELD_KEYS.forEach((key) => {
+            normalized[key] = entry[key] != null ? String(entry[key]) : '';
+        });
+        return normalized;
     }
     return null;
 }
 
 /**
  * @param {unknown[]} value
- * @returns {{ id: string, notes: string }[]}
+ * @returns {ReturnType<typeof createEmptyInfluenceContact>[]}
  */
 function normalizeInfluenceContactList(value) {
     if (!Array.isArray(value)) return [];
@@ -153,7 +274,7 @@ function normalizeInfluenceContactList(value) {
  * @param {Record<string, unknown>} sections
  */
 function normalizePursuitThesis(raw, sections) {
-    const empty = { core: '', cost_of_standing_still: '', timing: '' };
+    const empty = createEmptyPlan().current_draft.sections.pursuit_thesis;
     if (typeof raw === 'string') {
         const legacy = raw.trim() || migrateLegacySectionText(sections, 'pursuit_thesis', ['executive_summary']);
         return legacy ? { ...empty, core: legacy } : empty;
@@ -164,8 +285,10 @@ function normalizePursuitThesis(raw, sections) {
     }
     return {
         core: raw.core != null ? String(raw.core) : '',
+        why_account_matters: raw.why_account_matters != null ? String(raw.why_account_matters) : '',
         cost_of_standing_still: raw.cost_of_standing_still != null ? String(raw.cost_of_standing_still) : '',
         timing: raw.timing != null ? String(raw.timing) : '',
+        executive_narrative: raw.executive_narrative != null ? String(raw.executive_narrative) : '',
     };
 }
 
@@ -267,7 +390,7 @@ function normalizeCompetitiveLandscape(raw, sections) {
  * @param {Record<string, unknown>} sections
  */
 function normalizeInfluenceMapping(raw, sections) {
-    const empty = { executive: [], mid_level: [], invisible_org_chart: '' };
+    const empty = createEmptyPlan().current_draft.sections.influence_mapping;
     if (typeof raw === 'string') {
         const legacy = raw.trim() || migrateLegacySectionText(sections, 'influence_mapping', ['stakeholder_map']);
         return legacy ? { ...empty, invisible_org_chart: legacy } : empty;
@@ -276,10 +399,19 @@ function normalizeInfluenceMapping(raw, sections) {
         const legacy = migrateLegacySectionText(sections, 'influence_mapping', ['stakeholder_map']);
         return legacy ? { ...empty, invisible_org_chart: legacy } : empty;
     }
+    const accessPathRaw = isPlainObject(raw.access_path) ? raw.access_path : {};
     return {
         executive: normalizeInfluenceContactList(raw.executive),
         mid_level: normalizeInfluenceContactList(raw.mid_level),
+        technical: normalizeInfluenceContactList(raw.technical),
         invisible_org_chart: raw.invisible_org_chart != null ? String(raw.invisible_org_chart) : '',
+        political_dynamics: raw.political_dynamics != null ? String(raw.political_dynamics) : '',
+        access_path: {
+            current: accessPathRaw.current != null ? String(accessPathRaw.current) : '',
+            desired: accessPathRaw.desired != null ? String(accessPathRaw.desired) : '',
+            bridge: accessPathRaw.bridge != null ? String(accessPathRaw.bridge) : '',
+            strategy: accessPathRaw.strategy != null ? String(accessPathRaw.strategy) : '',
+        },
     };
 }
 
@@ -345,6 +477,179 @@ function normalizeMomentumNotes(raw) {
 }
 
 /**
+ * @param {unknown} raw
+ * @returns {ReturnType<typeof createEmptyPlan>['current_draft']['sections']['account_snapshot']}
+ */
+function normalizeAccountSnapshot(raw) {
+    const empty = createEmptyPlan().current_draft.sections.account_snapshot;
+    if (!isPlainObject(raw)) return empty;
+    return {
+        tier: raw.tier != null ? String(raw.tier) : '',
+        relationship_status: raw.relationship_status != null ? String(raw.relationship_status) : '',
+        ai_cloud_maturity: raw.ai_cloud_maturity != null ? String(raw.ai_cloud_maturity) : '',
+        strategic_patience: raw.strategic_patience != null ? String(raw.strategic_patience) : '',
+        pursuit_priority: raw.pursuit_priority != null ? String(raw.pursuit_priority) : '',
+        existing_providers: raw.existing_providers != null ? String(raw.existing_providers) : '',
+        expansion_potential: raw.expansion_potential != null ? String(raw.expansion_potential) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ * @param {readonly string[]} validPills
+ */
+function normalizePillSelection(raw, validPills) {
+    const valid = new Set(validPills);
+    if (!Array.isArray(raw)) return [];
+    return raw.map(String).filter((pill) => valid.has(pill));
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizePainSignals(raw) {
+    const empty = createEmptyPlan().current_draft.sections.pain_signals;
+    if (!isPlainObject(raw)) return empty;
+    return {
+        selected: normalizePillSelection(raw.selected, PAIN_SIGNAL_PILLS),
+        notes: raw.notes != null ? String(raw.notes) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizeCriticalUnknowns(raw) {
+    const empty = createEmptyPlan().current_draft.sections.critical_unknowns;
+    if (!isPlainObject(raw)) return empty;
+    return {
+        unknowns: raw.unknowns != null ? String(raw.unknowns) : '',
+        executive_language_pills: normalizePillSelection(raw.executive_language_pills, CRITICAL_UNKNOWN_LANGUAGE_PILLS),
+        executive_language_notes: raw.executive_language_notes != null ? String(raw.executive_language_notes) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizeEntrenchment(raw) {
+    const empty = createEmptyPlan().current_draft.sections.entrenchment;
+    if (!isPlainObject(raw)) return empty;
+    return {
+        compound_relationships: raw.compound_relationships != null ? String(raw.compound_relationships) : '',
+        moat_pills: normalizePillSelection(raw.moat_pills, ENTRENCHMENT_MOAT_PILLS),
+        difficult_to_remove: raw.difficult_to_remove != null ? String(raw.difficult_to_remove) : '',
+    };
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {ReturnType<typeof createEmptyWhiteSpaceRow>[]}
+ */
+function normalizeWhiteSpace(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .filter(isPlainObject)
+        .map((row) => ({
+            area: row.area != null ? String(row.area) : '',
+            opportunity: row.opportunity != null ? String(row.opportunity) : '',
+            operational_importance: row.operational_importance != null ? String(row.operational_importance) : '',
+            executive_visibility: row.executive_visibility != null ? String(row.executive_visibility) : '',
+            confidence: row.confidence != null ? String(row.confidence) : '',
+            value_notes: row.value_notes != null ? String(row.value_notes) : '',
+        }))
+        .filter((row) => Object.values(row).some((value) => String(value).trim()));
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {ReturnType<typeof createEmptyInteractionLogEntry>[]}
+ */
+function normalizeInteractionLogEntry(raw) {
+    const empty = createEmptyInteractionLogEntry();
+    if (!isPlainObject(raw)) return empty;
+    const source = INTERACTION_LOG_SOURCES.has(String(raw.source)) ? String(raw.source) : 'signal';
+    const politicalSignal = POLITICAL_SIGNAL_VALUES.has(String(raw.political_signal ?? ''))
+        ? String(raw.political_signal)
+        : '';
+    const momentumShift = MOMENTUM_SHIFT_VALUES.has(String(raw.momentum_shift ?? ''))
+        ? String(raw.momentum_shift)
+        : '';
+    return {
+        id: raw.id != null ? String(raw.id) : crypto.randomUUID(),
+        date: raw.date != null ? String(raw.date) : new Date().toISOString(),
+        source,
+        contact_id: raw.contact_id != null && raw.contact_id !== '' ? String(raw.contact_id) : null,
+        interaction: raw.interaction != null ? String(raw.interaction) : '',
+        key_insight: raw.key_insight != null ? String(raw.key_insight) : '',
+        text: raw.text != null ? String(raw.text) : '',
+        political_signal: politicalSignal,
+        relationship_energy: raw.relationship_energy != null ? String(raw.relationship_energy) : '',
+        trust_earned: raw.trust_earned != null ? String(raw.trust_earned) : '',
+        momentum_shift: momentumShift,
+        next_move: raw.next_move != null ? String(raw.next_move) : '',
+        activity_id: raw.activity_id != null && raw.activity_id !== '' ? String(raw.activity_id) : null,
+    };
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {ReturnType<typeof createEmptyInteractionLogEntry>[]}
+ */
+function normalizeInteractionLog(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(isPlainObject).map(normalizeInteractionLogEntry);
+}
+
+/**
+ * @param {ReturnType<typeof normalizeMomentumNotes>} momentumNotes
+ * @param {ReturnType<typeof normalizeInteractionLog>} interactionLog
+ */
+function migrateMomentumNotesToInteractionLog(momentumNotes, interactionLog) {
+    const existingIds = new Set(interactionLog.map((entry) => entry.id));
+    const migrated = [...interactionLog];
+    momentumNotes.forEach((note) => {
+        if (existingIds.has(note.id)) return;
+        migrated.push({
+            id: note.id,
+            date: note.date,
+            source: 'signal',
+            contact_id: null,
+            interaction: '',
+            key_insight: '',
+            text: note.text,
+            political_signal: '',
+            relationship_energy: '',
+            trust_earned: '',
+            momentum_shift: '',
+            next_move: '',
+            activity_id: null,
+        });
+    });
+    return migrated;
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizePsychology(raw) {
+    const empty = { ...DEFAULT_PSYCHOLOGY };
+    if (!isPlainObject(raw)) return empty;
+    return {
+        bureaucracy_level: clampScale(raw.bureaucracy_level, DEFAULT_PSYCHOLOGY.bureaucracy_level),
+        risk_appetite: clampScale(raw.risk_appetite, DEFAULT_PSYCHOLOGY.risk_appetite),
+        technical_sophistication: clampScale(raw.technical_sophistication, DEFAULT_PSYCHOLOGY.technical_sophistication),
+        vendor_loyalty: clampScale(raw.vendor_loyalty, DEFAULT_PSYCHOLOGY.vendor_loyalty),
+        decision_velocity: clampScale(raw.decision_velocity, DEFAULT_PSYCHOLOGY.decision_velocity),
+        organizational_gravity: raw.organizational_gravity != null ? String(raw.organizational_gravity) : '',
+        consensus_requirement: raw.consensus_requirement != null ? String(raw.consensus_requirement) : '',
+        procurement_friction: raw.procurement_friction != null ? String(raw.procurement_friction) : '',
+        innovation_friction: raw.innovation_friction != null ? String(raw.innovation_friction) : '',
+        narrative: raw.narrative != null ? String(raw.narrative) : '',
+    };
+}
+
+/**
  * @param {unknown} plan
  * @returns {import('./account-plan-data.js').AccountPlanDocument}
  */
@@ -358,37 +663,39 @@ export function normalizePlan(plan) {
     const sections = isPlainObject(draft.sections) ? draft.sections : {};
     const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-    const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
+    const momentumNotes = normalizeMomentumNotes(sections.momentum_notes);
+    const interactionLogRaw = normalizeInteractionLog(sections.interaction_log);
+    const interactionLog = migrateMomentumNotesToInteractionLog(momentumNotes, interactionLogRaw);
 
     return {
-        schema_version: typeof plan.schema_version === 'number' ? plan.schema_version : PLAN_SCHEMA_VERSION,
+        schema_version: PLAN_SCHEMA_VERSION,
         current_draft: {
             updated_at: typeof draft.updated_at === 'string' ? draft.updated_at : empty.current_draft.updated_at,
             last_milestone_at: draft.last_milestone_at != null ? String(draft.last_milestone_at) : null,
             sections: {
+                account_snapshot: normalizeAccountSnapshot(sections.account_snapshot),
                 pursuit_thesis: normalizePursuitThesis(sections.pursuit_thesis, sections),
                 strategic_tensions: normalizeStrategicTensions(sections.strategic_tensions, sections),
+                pain_signals: normalizePainSignals(sections.pain_signals),
+                critical_unknowns: normalizeCriticalUnknowns(sections.critical_unknowns),
                 influence_mapping: normalizeInfluenceMapping(sections.influence_mapping, sections),
+                white_space: normalizeWhiteSpace(sections.white_space),
                 competitive_landscape: normalizeCompetitiveLandscape(sections.competitive_landscape, sections),
+                entrenchment: normalizeEntrenchment(sections.entrenchment),
                 land_and_expand: normalizeLandAndExpand(sections.land_and_expand, sections),
                 entry_points: normalizeEntryPoints(sections.entry_points),
                 relationship_momentum: {
                     score: clampScale(momentum.score, 3),
                     narrative: momentum.narrative != null ? String(momentum.narrative) : '',
                 },
-                momentum_notes: normalizeMomentumNotes(sections.momentum_notes),
+                momentum_notes: momentumNotes,
+                interaction_log: interactionLog,
                 plan_30_60_90: {
                     days_30: plan306090.days_30 != null ? String(plan306090.days_30) : '',
                     days_60: plan306090.days_60 != null ? String(plan306090.days_60) : '',
                     days_90: plan306090.days_90 != null ? String(plan306090.days_90) : '',
                 },
-                psychology: {
-                    bureaucracy_level: clampScale(psychology.bureaucracy_level, DEFAULT_PSYCHOLOGY.bureaucracy_level),
-                    risk_appetite: clampScale(psychology.risk_appetite, DEFAULT_PSYCHOLOGY.risk_appetite),
-                    technical_sophistication: clampScale(psychology.technical_sophistication, DEFAULT_PSYCHOLOGY.technical_sophistication),
-                    vendor_loyalty: clampScale(psychology.vendor_loyalty, DEFAULT_PSYCHOLOGY.vendor_loyalty),
-                    decision_velocity: clampScale(psychology.decision_velocity, DEFAULT_PSYCHOLOGY.decision_velocity),
-                },
+                psychology: normalizePsychology(sections.psychology),
             },
         },
         history: Array.isArray(plan.history)

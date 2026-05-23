@@ -2,7 +2,7 @@
  * Strategic Account OS — section registry (canvas, TOC, export metadata).
  */
 
-/** @typedef {'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel'} PlanSectionType */
+/** @typedef {'account_snapshot' | 'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel' | 'critical_unknowns' | 'entrenchment' | 'pain_signals' | 'white_space_matrix' | 'interaction_log'} PlanSectionType */
 
 /** @typedef {'none' | 'lead' | 'block'} SectionContextMode */
 
@@ -80,7 +80,77 @@ export const STRATEGIC_TENSION_GROUPS = Object.freeze([
     { id: 'cost_agility', options: ['Cost', 'Agility'] },
     { id: 'cloud_control', options: ['Cloud', 'Control'] },
     { id: 'automation_oversight', options: ['Automation', 'Human Oversight'] },
+    { id: 'speed_stability', options: ['Speed', 'Stability'] },
+    { id: 'agility_compliance', options: ['Agility', 'Compliance'] },
+    { id: 'centralization_flexibility', options: ['Centralization', 'Flexibility'] },
 ]);
+
+/** @type {readonly string[]} */
+export const ACCOUNT_SNAPSHOT_TIER_OPTIONS = Object.freeze(['', 'Tier 1', 'Tier 2', 'Tier 3']);
+
+/** @type {readonly string[]} */
+export const ACCOUNT_SNAPSHOT_LEVEL_OPTIONS = Object.freeze(['', 'Low', 'Medium', 'High']);
+
+/** @type {readonly string[]} */
+export const PAIN_SIGNAL_PILLS = Object.freeze([
+    'Operational fragility',
+    'Security exposure',
+    'Cloud cost pressure',
+    'Talent / skills gap',
+    'Vendor dissatisfaction',
+    'Executive mandate',
+    'Compliance risk',
+    'Legacy debt',
+]);
+
+/** @type {readonly string[]} */
+export const CRITICAL_UNKNOWN_LANGUAGE_PILLS = Object.freeze([
+    'Growth',
+    'Resiliency',
+    'Modernization',
+    'Cost optimization',
+    'Risk reduction',
+    'Innovation',
+    'Compliance',
+]);
+
+/** @type {readonly string[]} */
+export const ENTRENCHMENT_MOAT_PILLS = Object.freeze([
+    'Embedded integrations',
+    'Multi-year contracts',
+    'Operational dependency',
+    'Executive sponsorship',
+    'Data gravity',
+    'Switching cost narrative',
+]);
+
+/** @type {readonly string[]} */
+export const PSYCHOLOGY_GRAVITY_PILLS = Object.freeze(['Low', 'Medium', 'High']);
+
+/** @type {readonly string[]} */
+export const WHITE_SPACE_AREAS = Object.freeze([
+    'Cloud',
+    'Security',
+    'AI',
+    'Infrastructure',
+    'SD-WAN',
+    'DR',
+    'UCaaS',
+    'Wireless',
+    'Backup',
+]);
+
+/** @type {readonly string[]} */
+export const WHITE_SPACE_CONFIDENCE_OPTIONS = Object.freeze(['', 'High', 'Medium', 'Low']);
+
+/** @type {readonly string[]} */
+export const INFLUENCE_LEVEL_OPTIONS = Object.freeze(['', 'Low', 'Medium', 'High']);
+
+/** @type {readonly string[]} */
+export const INFLUENCE_RELATIONSHIP_TEMPERATURE_OPTIONS = Object.freeze(['', 'Cold', 'Warm', 'Hot']);
+
+/** @type {readonly string[]} */
+export const INFLUENCE_PERSONALITY_STYLE_OPTIONS = Object.freeze(['', 'Analytical', 'Driver', 'Amiable', 'Expressive']);
 
 /** @deprecated Legacy combined labels — use STRATEGIC_TENSION_GROUPS */
 export const STRATEGIC_TENSION_PILLS = Object.freeze(
@@ -166,12 +236,31 @@ export const ENTRY_POINT_EXPORT_LABELS = Object.freeze([
  * @property {'stack' | 'split'} [pillNarrativeLayout]
  * @property {readonly { key: string, badge: string, title: string, hint: string }[]} [horizons]
  * @property {PsychologySliderDef[]} [sliders]
+ * @property {PlanFieldDef[]} [gravityFields]
  * @property {boolean} [exportDossier]
  * @property {boolean} [exportExec]
  */
 
 /** @type {PlanSectionDef[]} */
 export const PLAN_SECTIONS = Object.freeze([
+    {
+        id: 'account_snapshot',
+        type: 'account_snapshot',
+        title: 'Account Snapshot',
+        contextMode: 'none',
+        description: 'Strategic pursuit context — firmographics from CRM; judgments stored in the plan.',
+        fields: [
+            { key: 'tier', label: 'Strategic Tier' },
+            { key: 'relationship_status', label: 'Relationship Status' },
+            { key: 'ai_cloud_maturity', label: 'AI / Cloud Maturity' },
+            { key: 'strategic_patience', label: 'Strategic Patience' },
+            { key: 'pursuit_priority', label: 'Pursuit Priority' },
+            { key: 'existing_providers', label: 'Existing Providers' },
+            { key: 'expansion_potential', label: 'Expansion Potential' },
+        ],
+        exportDossier: true,
+        exportExec: true,
+    },
     {
         id: 'pursuit_thesis',
         type: 'composite_textarea',
@@ -184,6 +273,11 @@ export const PLAN_SECTIONS = Object.freeze([
                 hint: 'Why they might change — operational pain, executive pressure, vendor dissatisfaction, cloud modernization.',
             },
             {
+                key: 'why_account_matters',
+                label: 'Why This Account Matters',
+                hint: 'Strategic importance to our business — logo, reference, expansion, or competitive displacement.',
+            },
+            {
                 key: 'cost_of_standing_still',
                 label: 'Cost of Standing Still',
                 hint: 'Fragility, scaling bottlenecks, and accumulating tech debt.',
@@ -192,6 +286,11 @@ export const PLAN_SECTIONS = Object.freeze([
                 key: 'timing',
                 label: 'Strategic Timing',
                 hint: 'Trigger events and timing factors that make now the right moment.',
+            },
+            {
+                key: 'executive_narrative',
+                label: 'Executive Narrative',
+                hint: 'How executives talk about change — growth, resiliency, modernization, cost.',
             },
         ],
         exportDossier: true,
@@ -212,6 +311,33 @@ export const PLAN_SECTIONS = Object.freeze([
         exportExec: false,
     },
     {
+        id: 'pain_signals',
+        type: 'pain_signals',
+        title: 'Pain Signals',
+        contextMode: 'lead',
+        description: 'Watchlist of operational and strategic pain indicators.',
+        pills: PAIN_SIGNAL_PILLS,
+        pillField: 'selected',
+        textFields: [{ key: 'notes', hint: 'Context on the pain signals you selected.' }],
+        exportDossier: true,
+        exportExec: false,
+    },
+    {
+        id: 'critical_unknowns',
+        type: 'critical_unknowns',
+        title: 'Critical Unknowns',
+        contextMode: 'lead',
+        description: 'What we still need to learn before advancing the pursuit.',
+        pills: CRITICAL_UNKNOWN_LANGUAGE_PILLS,
+        pillField: 'executive_language_pills',
+        textFields: [
+            { key: 'unknowns', hint: 'Open questions and intelligence gaps.' },
+            { key: 'executive_language_notes', hint: 'How executives frame uncertainty.' },
+        ],
+        exportDossier: true,
+        exportExec: false,
+    },
+    {
         id: 'influence_mapping',
         type: 'influence_board',
         title: 'Influence Mapping',
@@ -220,10 +346,23 @@ export const PLAN_SECTIONS = Object.freeze([
             bench: 'Contacts not yet mapped to a leadership tier.',
             executive: 'Executive leadership — strategic priorities and relationship temperature.',
             mid_level: 'Mid-level champions — operational influence and personal ambition.',
+            technical: 'Technical / operational influencers — architecture and day-to-day credibility.',
             invisible_org_chart: 'Who influences decisions quietly, outside the formal org chart?',
+            political_dynamics: 'Political dynamics, factions, and informal power shifts.',
+            access_path: 'Current access, desired access, bridge contacts, and strategy.',
         },
         exportDossier: true,
         exportExec: false,
+    },
+    {
+        id: 'white_space',
+        type: 'white_space_matrix',
+        title: 'White Space',
+        contextMode: 'lead',
+        description: 'Revenue and expansion opportunities by framework area.',
+        pills: WHITE_SPACE_AREAS,
+        exportDossier: true,
+        exportExec: true,
     },
     {
         id: 'competitive_landscape',
@@ -239,6 +378,21 @@ export const PLAN_SECTIONS = Object.freeze([
         ],
         exportDossier: true,
         exportExec: true,
+    },
+    {
+        id: 'entrenchment',
+        type: 'entrenchment',
+        title: 'Entrenchment',
+        contextMode: 'lead',
+        description: 'Incumbent moats and compound relationships that raise switching cost.',
+        pills: ENTRENCHMENT_MOAT_PILLS,
+        pillField: 'moat_pills',
+        textFields: [
+            { key: 'compound_relationships', hint: 'Relationships and dependencies that compound over time.' },
+            { key: 'difficult_to_remove', hint: 'Why incumbents are difficult to displace.' },
+        ],
+        exportDossier: true,
+        exportExec: false,
     },
     {
         id: 'land_and_expand',
@@ -268,6 +422,13 @@ export const PLAN_SECTIONS = Object.freeze([
         title: 'Account Psychology',
         contextMode: 'none',
         sliders: PSYCHOLOGY_SLIDERS,
+        gravityFields: [
+            { key: 'organizational_gravity', label: 'Organizational Gravity' },
+            { key: 'consensus_requirement', label: 'Consensus Requirement' },
+            { key: 'procurement_friction', label: 'Procurement Friction' },
+            { key: 'innovation_friction', label: 'Innovation Friction' },
+            { key: 'narrative', label: 'Gravity Narrative' },
+        ],
         exportDossier: true,
         exportExec: true,
     },
@@ -283,6 +444,15 @@ export const PLAN_SECTIONS = Object.freeze([
         ],
         exportDossier: true,
         exportExec: true,
+    },
+    {
+        id: 'interaction_log',
+        type: 'interaction_log',
+        title: 'Interaction Log',
+        contextMode: 'lead',
+        description: 'Structured relationship events and strategic signals.',
+        exportDossier: true,
+        exportExec: false,
     },
     {
         id: 'momentum_timeline',
