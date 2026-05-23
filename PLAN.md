@@ -1,6 +1,8 @@
 # Strategic Account Operating System
 
-The Strategic Account OS is an embedded module on the Constellation CRM **Accounts** page. It adds a second “Strategic” view alongside the existing tactical CRM layout: a JSONB-backed account plan document with debounced autosave, 24-hour milestone snapshots, interactive planning canvas, version history, and PDF export.
+The Strategic Account OS is an embedded module on the Constellation CRM **Accounts** page. It adds a second “Strategic” view alongside the existing tactical CRM layout: a JSONB-backed account plan document (`schema_version: 2`) with debounced autosave, 24-hour milestone snapshots, interactive planning canvas (16 Elite Framework sections), version history, dossier PDF export, and executive PowerPoint export with optional AI highlight synthesis.
+
+**Program coordination:** [docs/saos/PROJECT.md](./docs/saos/PROJECT.md) · **Agent status:** [docs/saos/STATUS.md](./docs/saos/STATUS.md)
 
 **Primary files**
 
@@ -11,9 +13,12 @@ The Strategic Account OS is an embedded module on the Constellation CRM **Accoun
 | Data layer | `js/account-plan-data.js` |
 | Autosave engine | `js/account-plan-autosave.js` |
 | Section registry | `js/account-plan-sections.js` |
+| Shared contacts | `js/account-plan-contacts.js` |
 | UI controller | `js/account-plan-ui.js` |
 | Export templates | `js/account-plan-export-templates.js` |
 | Export engine | `js/account-plan-export.js` |
+| PPTX deck builder | `js/account-plan-presentation-pptx.js` |
+| AI highlight client | `js/account-plan-presentation-ai.js` |
 | Page shell | `accounts.html` |
 | Orchestrator | `js/accounts.js` |
 | Styles | `input.css` / `output.css` |
@@ -38,10 +43,13 @@ flowchart TB
         Autosave[account-plan-autosave.js]
         PlanUI[account-plan-ui.js]
         Export[account-plan-export.js]
+        Pptx[account-plan-presentation-pptx.js]
+        AI[account-plan-presentation-ai.js]
     end
 
     subgraph db [Supabase]
         Table[account_plans.plan jsonb]
+        EdgeFn[generate-presentation-highlight]
     end
 
     Toggle --> PlanUI
@@ -51,6 +59,9 @@ flowchart TB
     Autosave --> PlanData
     PlanData -->|update plan column| Table
     Export -->|snapdom + pdf-lib| PDF[Browser download]
+    Pptx -->|pptxgenjs| PPTX[Browser download]
+    AI --> EdgeFn
+    EdgeFn --> Pptx
 ```
 
 ---
@@ -65,7 +76,7 @@ Run `sql/account_plans.sql` in Supabase after `public.accounts` exists. Re-run t
 CREATE TABLE public.account_plans (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id bigint NOT NULL UNIQUE REFERENCES public.accounts(id) ON DELETE CASCADE,
-    plan jsonb NOT NULL DEFAULT '{"schema_version":1,"current_draft":{},"history":[]}'::jsonb,
+    plan jsonb NOT NULL DEFAULT '{"schema_version":2,"current_draft":{},"history":[]}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
@@ -81,11 +92,11 @@ CREATE TABLE public.account_plans (
 
 ## JSONB document schema (`plan` column)
 
-Top-level structure:
+Top-level structure (`PLAN_SCHEMA_VERSION = 2` in `account-plan-data.js`):
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "current_draft": {
     "updated_at": "2026-05-19T12:00:00.000Z",
     "last_milestone_at": "2026-05-18T09:00:00.000Z",
@@ -99,26 +110,59 @@ Top-level structure:
 
 All user edits are stored under `current_draft.sections`. Autosave updates `current_draft` and the row’s `updated_at` timestamp; it does not rewrite unrelated columns.
 
+`normalizePlan()` on read migrates legacy v1 keys and `momentum_notes` into v2 shape. **`momentum_notes` is read-only legacy**; new events write to `interaction_log`.
+
+### Section registry (16 sections)
+
+Defined in `PLAN_SECTIONS` (`account-plan-sections.js`). Each section drives canvas render, TOC, and export flags (`exportDossier`, `exportExec`).
+
 | Section key | Type | Purpose |
 |-------------|------|---------|
-| `pursuit_thesis` | string | Core pursuit rationale |
-| `strategic_tensions` | string | Competing forces / constraints |
-| `influence_mapping` | string | Stakeholders and power map |
-| `competitive_landscape` | string | Incumbents and differentiation |
-| `land_and_expand` | string | Wedge and expansion paths |
-| `psychology` | object | Five 1–5 sliders (see below) |
-| `relationship_momentum` | `{ score, narrative }` | 1–5 score + narrative |
-| `plan_30_60_90` | `{ days_30, days_60, days_90 }` | Horizon plan text |
+| `account_snapshot` | account_snapshot | Hybrid CRM firmographics + plan judgments (tier, patience, priority, maturity, providers) |
+| `pursuit_thesis` | composite_textarea | Core thesis, why account matters, cost of standing still, timing, executive narrative |
+| `strategic_tensions` | pills_and_narrative | 9 either-or tension groups + narrative |
+| `pain_signals` | pain_signals | Pain watchlist pills + notes |
+| `critical_unknowns` | critical_unknowns | Open questions + executive language pills |
+| `influence_mapping` | influence_board | Executive / mid-level / technical columns, political dynamics, access path |
+| `white_space` | white_space_matrix | Framework-area opportunity rows (free-text value notes) |
+| `competitive_landscape` | pills_and_narrative | Positioning pills + incumbents / narrative |
+| `entrenchment` | entrenchment | Moat pills + compound relationships / displacement notes |
+| `land_and_expand` | composite_textarea | Entry wedge, trust creation, expansion path |
+| `entry_points` | entry_point_carousel | Per-contact pursuit playbooks (up to 5) |
+| `psychology` | psychology_grid | Five 1–5 sliders + gravity pill fields + narrative |
+| `relationship_momentum` | momentum | 1–5 score + narrative |
+| `interaction_log` | interaction_log | Structured manual interaction entries (`source: manual`) |
+| `momentum_timeline` | timeline_view | Unified timeline UI (quick-log signals + optional CRM overlay) |
+| `plan_30_60_90` | triple_textarea | 30 / 60 / 90 horizon plan text |
 
-**Psychology sliders** (`psychology` object):
+**Psychology sliders** (`psychology` object): `bureaucracy_level`, `risk_appetite`, `technical_sophistication`, `vendor_loyalty`, `decision_velocity`.
 
-- `bureaucracy_level`
-- `risk_appetite`
-- `technical_sophistication`
-- `vendor_loyalty`
-- `decision_velocity`
+Legacy v1 section keys (`executive_summary`, `stakeholder_map`, etc.) are migrated on read via `normalizePlan()`.
 
-Legacy section keys from early prototypes (`executive_summary`, `stakeholder_map`, etc.) are migrated into the new keys on read via `normalizePlan()` in `account-plan-data.js`.
+### `interaction_log`
+
+Array of structured relationship events. Each entry includes:
+
+| Field | Description |
+|-------|-------------|
+| `id` | UUID |
+| `source` | `signal` (quick-log), `manual` (full form), or `activity` (promoted CRM activity) |
+| `date` | ISO timestamp |
+| `text` | Quick-log body (signals) |
+| `interaction`, `key_insight`, … | Full-form fields (manual entries) |
+| `activity_id` | CRM activity reference when `source: activity` |
+
+**UX paths**
+
+- **Quick log** — Relationship Timeline “Log Signal” → `source: signal` (no new `momentum_notes` writes).
+- **Full form** — Interaction Log section “Add Interaction” → `source: manual`.
+- **Promote** — Tactical activities “Promote” → `source: activity` + `activity_id`.
+
+**Migrate-on-read:** existing `momentum_notes` entries are converted to `interaction_log` signal entries inside `normalizePlan()`.
+
+### Signals-only export policy
+
+**Locked product decision:** PDF dossier and PPTX exec deck export **signals and manual interactions only**. CRM activities (`source: activity`) appear in the canvas timeline when the overlay toggle is on, but are **excluded** from export via `getExportMomentumNotes()` / export template filters.
 
 ### `history` (milestone snapshots)
 
@@ -137,7 +181,7 @@ Append-only array of committed snapshots. Each entry:
 | Field | Description |
 |-------|-------------|
 | `reason` | `auto_milestone` or `manual_force_commit` |
-| `snapshot` | Deep copy of `current_draft` **at commit time** (before the in-flight edit that triggered the save after commit) |
+| `snapshot` | Deep copy of `current_draft` **at commit time** |
 | `label` | Human-readable timeline label |
 
 **Design rules**
@@ -169,16 +213,9 @@ Before merging new edits, `shouldCreateMilestone()` returns true when:
 now - last_milestone_at >= 24 hours
 ```
 
-`last_milestone_at` lives on `current_draft`; if missing, the last `history[].committed_at` is used as fallback.
+When true (or on manual force commit), `commitMilestone()` deep-clones `current_draft` into `history`, updates `last_milestone_at`, merges pending edits, and persists.
 
-When true (or on manual force commit), `commitMilestone()`:
-
-1. Deep-clones `current_draft` into a new `history` entry.
-2. Sets `current_draft.last_milestone_at` to the commit timestamp.
-3. Applies the pending section merge.
-4. Persists via Supabase update.
-
-**Manual Force Commit** (`#plan-force-commit-btn`) calls the same path with `forceCommit: true` and `reason: manual_force_commit`.
+**Manual Force Commit** (`#plan-force-commit-btn`) uses `reason: manual_force_commit`.
 
 ---
 
@@ -201,50 +238,39 @@ When true (or on manual force commit), `commitMilestone()`:
 - Switching to Strategic with a dirty tactical account form shows an unsaved-changes confirm modal.
 - Clearing account selection forces Tactical mode.
 
-### Module responsibilities
-
-| Module | Role |
-|--------|------|
-| `accounts.js` | Fetches plan in parallel with account details; owns `state.accountPlan` |
-| `account-plan-ui.js` | Mode toggle, canvas render, rail, version popover, wires autosave + export |
-| `account-plan-sections.js` | Section registry driving TOC, forms, and export inclusion flags |
-
 ---
 
-## PDF export engine
+## Export engine
 
 Dependencies in `accounts.html`:
 
 - `@zumer/snapdom` — DOM → canvas capture
-- `pdf-lib@1.17.1` — PDF assembly and download
+- `pdf-lib@1.17.1` — PDF assembly
+- `pptxgenjs` — PowerPoint deck assembly
 
 Hidden mount point: `#account-plan-export-root` (off-screen).
 
-### Flow (`exportAccountPlanPdf(plan, account, type)`)
+### Dossier PDF (`#plan-export-dossier-btn`)
 
-1. Build template via `buildDossierTemplate()` or `buildExecReadoutTemplate()`.
-2. Append to `#account-plan-export-root`.
-3. Wait two animation frames for layout settle.
-4. Capture with `snapdom(element, { scale: 2, backgroundColor: '#ffffff' })` → PNG data URL.
-5. Embed PNG in a new `PDFDocument` page via `pdf-lib`.
-6. Trigger download: `{AccountName}_Strategic_{Dossier|Exec_Readout}.pdf`.
-7. Clear export root DOM.
+`exportAccountPlanPdf(plan, account, 'dossier')`:
 
-### The Dossier (portrait)
+1. Build template via `buildDossierTemplate()` — all sections with `exportDossier: true`.
+2. Capture with snapdom, assemble US Letter PDF, trigger download.
+3. Includes structured `interaction_log` block; timeline uses signals-only filter.
 
-- Template width: **816 px** (8.5″ @ 96 DPI).
-- Page height: **1056 px** (11″).
-- PDF page size: US Letter (**612 × 792 pt**).
-- Content: all sections with `exportDossier: true` — full text, psychology as static progress bars, momentum score, 30/60/90 grid.
-- **Pagination**: section blocks are packed into fixed-height pages using a `scrollHeight` vs `clientHeight` measurement loop (same pattern as the proposals module).
+Portrait **816 × 1056 px** template; measured pagination for long sections.
 
-### The Exec Readout (landscape slide)
+### Executive PowerPoint (`#plan-export-exec-btn`)
 
-- Template: **1056 × 594 px** (16∶9).
-- PDF page: **841.89 × 473.56 pt** (16∶9).
-- Content: Pursuit Thesis, Relationship Momentum score, top three psychology metrics, 30/60/90 bullets, optional Competitive Landscape excerpt — styled as a single presentation slide.
+`handleExportPdf('exec')`:
 
-Export buttons in `#strategic-rail` use the live in-memory draft (including unsaved canvas edits).
+1. Optionally call Supabase edge function `generate-presentation-highlight` (Gemini) for a three-slide highlight reel.
+2. Build deck via `generateExecPresentationPptx()` — sections with `exportExec: true`, client fallbacks when AI unavailable.
+3. Download `{AccountName}_Strategic_Exec_Readout.pptx`.
+
+Export buttons enable when a plan row is loaded (`_planRowId`). Both exports use the live in-memory draft (including unsaved canvas edits).
+
+Generating overlay: `#plan-export-generating-overlay`.
 
 ---
 
@@ -253,7 +279,8 @@ Export buttons in `#strategic-rail` use the live in-memory draft (including unsa
 1. Run `sql/account_plans.sql` in Supabase SQL Editor.
 2. Apply manager RLS patch from `sql/rls_managers_manage_team_crm.sql` if needed.
 3. Deploy front-end assets (`accounts.html`, JS modules, CSS).
-4. Run Playwright: `npm run test:e2e -- tests/e2e/accounts.functional.spec.ts`
+4. Deploy `supabase/functions/generate-presentation-highlight` for AI exec decks (optional; fallbacks work offline).
+5. Run Playwright: `npm run test:e2e -- tests/e2e/accounts.functional.spec.ts`
 
 ---
 
@@ -262,7 +289,10 @@ Export buttons in `#strategic-rail` use the live in-memory draft (including unsa
 Playwright coverage in `tests/e2e/accounts.functional.spec.ts` (**Strategic Account OS** describe block):
 
 - Mode toggle hides tactical panels and shows strategic shell.
-- Canvas textarea edit cycles autosave chip through pending → saved.
+- Account snapshot tier select cycles autosave chip through pending → saved.
+- Quick-log signal appears on Relationship Timeline and autosaves.
+- Export dossier / exec / force-commit buttons enabled when plan loaded.
+- Canvas textarea edit (pursuit thesis) cycles autosave chip through pending → saved.
 - Force Commit adds a “Manual commit” entry in the version history popover.
 
 Page object locators: `tests/pages/accounts.page.ts`.
@@ -274,4 +304,4 @@ Page object locators: `tests/pages/accounts.page.ts`.
 - Scroll-spy active section highlighting in the TOC.
 - Manager “view as rep” verification in dedicated RLS integration tests.
 - Server-side milestone enforcement (currently client-orchestrated).
-- Additional export formats or Salesforce attachment upload.
+- Salesforce attachment upload for exported artifacts.

@@ -102,6 +102,61 @@ test.describe('Strategic Account OS', () => {
     await expect(acc.strategicAutosaveStatus()).toContainText('Saved', { timeout: 5_000 });
   });
 
+  test('account snapshot tier edit triggers autosave to Saved', async ({ page }) => {
+    const acc = new AccountsPage(page);
+    await createAndSelectAccount(page, acc);
+    await acc.switchToStrategicMode();
+    await acc.waitForPlanLoaded();
+
+    const tierSelect = acc.strategicSelect('account_snapshot.tier');
+    await tierSelect.waitFor({ state: 'visible', timeout: 15_000 });
+
+    guardian.step('Selecting Strategic Tier on account snapshot');
+    await tierSelect.selectOption('Tier 2');
+
+    guardian.step('Waiting for pending autosave status after tier change');
+    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'pending', { timeout: 5_000 });
+
+    guardian.step('Waiting for saved autosave status');
+    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'saved', { timeout: 20_000 });
+    await expect(acc.strategicAutosaveStatus()).toContainText('Saved', { timeout: 5_000 });
+  });
+
+  test('log signal writes to timeline and autosaves', async ({ page }) => {
+    const acc = new AccountsPage(page);
+    await createAndSelectAccount(page, acc);
+    await acc.switchToStrategicMode();
+    await acc.waitForPlanLoaded();
+
+    guardian.step('Scrolling to Relationship Timeline section');
+    await acc.scrollToStrategicSection('momentum_timeline');
+
+    const signalText = `E2E signal ${Date.now()}`;
+    guardian.step(`Logging strategic signal: ${signalText}`);
+    await acc.momentumSignalInput().fill(signalText);
+    await acc.momentumSignalLogBtn().click();
+
+    await expect(acc.momentumTimelineDisplay().getByText(signalText, { exact: false })).toBeVisible({
+      timeout: 10_000,
+    });
+
+    guardian.step('Waiting for autosave after signal log');
+    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'saved', { timeout: 20_000 });
+  });
+
+  test('export buttons enabled when plan is loaded', async ({ page }) => {
+    const acc = new AccountsPage(page);
+    await createAndSelectAccount(page, acc);
+    await acc.switchToStrategicMode();
+
+    guardian.step('Waiting for plan lazy-load');
+    await acc.waitForPlanLoaded();
+
+    await expect(acc.planExportDossierBtn()).toBeEnabled();
+    await expect(acc.planExportExecBtn()).toBeEnabled();
+    await expect(acc.planForceCommitBtn()).toBeEnabled();
+  });
+
   test('Force Commit Milestone adds entry to version history popover', async ({ page }) => {
     const acc = new AccountsPage(page);
     await createAndSelectAccount(page, acc);

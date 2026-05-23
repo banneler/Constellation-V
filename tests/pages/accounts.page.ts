@@ -91,10 +91,31 @@ export class AccountsPage {
   }
 
   /**
-   * Canvas textarea by section field id (e.g. pursuit_thesis).
+   * Canvas textarea by section field id (e.g. pursuit_thesis.core).
    */
   strategicTextarea(field: string): Locator {
     return this.page.locator(`#strategic-document-canvas textarea[data-field="${field}"]`);
+  }
+
+  /** Canvas select by section field id (e.g. account_snapshot.tier). */
+  strategicSelect(field: string): Locator {
+    return this.page.locator(`#strategic-document-canvas select[data-field="${field}"]`);
+  }
+
+  strategicSection(sectionId: string): Locator {
+    return this.page.locator(`#strategic-section-${sectionId}`);
+  }
+
+  momentumSignalInput(): Locator {
+    return this.page.locator('#momentum-signal-input');
+  }
+
+  momentumSignalLogBtn(): Locator {
+    return this.page.locator('[data-momentum-signal-log]');
+  }
+
+  momentumTimelineDisplay(): Locator {
+    return this.page.locator('.momentum-timeline-display');
   }
 
   async searchAccounts(query: string): Promise<void> {
@@ -143,6 +164,27 @@ export class AccountsPage {
     await this.planVersionPopover().waitFor({ state: 'visible', timeout: 10_000 });
   }
 
+  async scrollToStrategicSection(sectionId: string): Promise<void> {
+    await this.strategicSection(sectionId).scrollIntoViewIfNeeded();
+    await this.strategicSection(sectionId).waitFor({ state: 'visible', timeout: 10_000 });
+  }
+
+  /** Plan row lazy-loads on first account select; export buttons enable when ready. */
+  async waitForPlanLoaded(): Promise<void> {
+    await pollUntilEnabled(this.planExportDossierBtn(), 20_000);
+    await pollUntilEnabled(this.planExportExecBtn(), 5_000);
+    await pollUntilEnabled(this.planForceCommitBtn(), 5_000);
+  }
+
+  async waitForAutosaveSaved(): Promise<void> {
+    await this.strategicAutosaveStatus().waitFor({ state: 'visible', timeout: 10_000 });
+    await this.page.waitForFunction(
+      () => document.querySelector('#strategic-autosave-status')?.getAttribute('data-status') === 'saved',
+      undefined,
+      { timeout: 20_000 },
+    );
+  }
+
   async toggleToOrgChart(): Promise<void> {
     await this.contactOrgChartBtn().click();
   }
@@ -153,9 +195,15 @@ export class AccountsPage {
 }
 
 async function expectEnabled(locator: Locator): Promise<void> {
-  await locator.waitFor({ state: 'visible', timeout: 15_000 });
-  const disabled = await locator.isDisabled();
-  if (disabled) {
-    throw new Error('Expected locator to be enabled but it was disabled');
+  await pollUntilEnabled(locator, 15_000);
+}
+
+async function pollUntilEnabled(locator: Locator, timeout = 15_000): Promise<void> {
+  await locator.waitFor({ state: 'visible', timeout });
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (!(await locator.isDisabled())) return;
+    await locator.page().waitForTimeout(200);
   }
+  throw new Error('Expected locator to be enabled but it remained disabled');
 }

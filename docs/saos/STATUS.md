@@ -11,8 +11,8 @@ Last updated: 2026-05-23 (A7 QA sign-off)
 | A4 Export Deck | `saos/a4-export-deck` | `67e2ccf` | **complete** | Dossier PDF blocks for all v2 sections; PPTX/AI fallbacks; signals-only timeline |
 | A5 Interaction Log | `saos/a5-interaction-log` | `3672dfc` | **complete** | `interaction_log` quick-log + full form; promote-from-CRM; timeline overlay; signals-only PDF export; no new `momentum_notes` writes |
 | A6 AI Presentation | `saos/a6-ai-presentation` | `b4b7313` | **complete** | Edge function v2 prompt; `PresentationHighlight` schema extensions; normalize fallbacks; PPTX renders snapshot tier/priority, executive narrative, pain/unknowns, white space, access path, entrenchment moat, signal-only timeline |
-| A7 QA & Docs | `saos/a7-qa-docs` | `54fde04` | **complete** | `PLAN.md` v2 refresh, Strategic OS E2E extensions, G0–G6 release gate sign-off |
-| Integration | `saos/integration` | — | **ready for release** | A0–A7; merge A7 then PR to `deploy` / `main` |
+| A7 QA & Docs | `saos/a7-qa-docs` | `90e7e07` | **complete** | `PLAN.md` v2 refresh, Strategic OS E2E extensions, G0–G6 release gate sign-off |
+| Integration | `saos/integration` | — | **ready for release** | A0–A7 merged; PR to `deploy` / `main` |
 
 ## Release gates (G0–G6)
 
@@ -29,7 +29,7 @@ Last updated: 2026-05-23 (A7 QA sign-off)
 ## Git notes
 
 - Base branch: **`deploy`** (`24f8dd0`), not `main`.
-- Integration branch: `saos/integration` at **`8838d17`** (pre-A7 merge) — A6 merged.
+- Integration branch: `saos/integration` — A6 feature **`b4b7313`**, A7 merged post-`c7f690b`.
 - Merge commits: A2 → integration **`d7a688e`**; A3 fast-forward **`c6031a3`**; A5 fast-forward **`3672dfc`**.
 
 ## A6 deliverables (`b4b7313`)
@@ -39,7 +39,7 @@ Last updated: 2026-05-23 (A7 QA sign-off)
 - **`normalizePresentationHighlight()`** — v2 fallbacks from plan sections; signals via `getExportSignals()` (excludes CRM activities)
 - **PPTX builders** — situation slide shows tier/priority, executive narrative, pain/unknown strips; battlefield shows white space + access path hook; execution shows entrenchment moat + strategic signals
 
-## A7 deliverables (`54fde04`)
+## A7 deliverables (`90e7e07`)
 
 - **`PLAN.md`** — schema v2, all 16 sections, PPTX export path, `interaction_log`, signals-only policy, link to `docs/saos/PROJECT.md`
 - **E2E** — tier autosave, log signal + autosave, export buttons enabled when plan loaded (existing toggle / force-commit tests retained)
@@ -57,8 +57,7 @@ Last updated: 2026-05-23 (A7 QA sign-off)
 
 ## Handoff: release
 
-1. Merge `saos/a7-qa-docs` → `saos/integration`.
-2. PR `saos/integration` → `deploy` / `main`.
-3. Redeploy edge function: `supabase functions deploy generate-presentation-highlight`.
-4. Run `sql/account_plans.sql` on target Supabase if not already applied.
-5. Run E2E with `.env` credentials: `npm run test:e2e -- tests/e2e/accounts.functional.spec.ts`.
+1. PR `saos/integration` → `deploy` / `main`.
+2. Redeploy edge function: `supabase functions deploy generate-presentation-highlight`.
+3. Run `sql/account_plans.sql` on target Supabase if not already applied.
+4. Run E2E with `.env` credentials: `npm run test:e2e -- tests/e2e/accounts.functional.spec.ts`.
