@@ -763,20 +763,19 @@ function buildMomentumMetricPanel(score) {
 
     const track = document.createElement('div');
     track.className = 'ap-export-momentum-scale-track';
+    track.innerHTML = '<div class="ap-export-momentum-scale-line" aria-hidden="true"></div>';
 
-    const line = document.createElement('div');
-    line.className = 'ap-export-momentum-scale-line';
-    line.setAttribute('aria-hidden', 'true');
-    track.appendChild(line);
-
+    const dots = document.createElement('div');
+    dots.className = 'ap-export-momentum-scale-dots';
     for (let step = 1; step <= 5; step += 1) {
         const dot = document.createElement('span');
         dot.className = step === score
             ? 'ap-export-momentum-scale-dot is-active'
             : 'ap-export-momentum-scale-dot';
         dot.setAttribute('aria-hidden', 'true');
-        track.appendChild(dot);
+        dots.appendChild(dot);
     }
+    track.appendChild(dots);
     scale.appendChild(track);
 
     const endpoints = document.createElement('div');
@@ -1320,24 +1319,32 @@ export function ensureExportTemplateStyles() {
             max-width: 188px;
         }
         .ap-export-momentum-scale-track {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            position: relative;
+            display: flex;
             align-items: center;
-            padding: 8px 0 2px;
+            height: 14px;
+            padding: 4px 0;
         }
         .ap-export-momentum-scale-line {
-            grid-column: 1 / -1;
-            grid-row: 1;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
             height: 2px;
             background: #e2e8f0;
+            transform: translateY(-50%);
             z-index: 0;
-            align-self: center;
-            margin: 0 5px;
+        }
+        .ap-export-momentum-scale-dots {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
         }
         .ap-export-momentum-scale-dot {
-            grid-row: 1;
-            z-index: 1;
-            justify-self: center;
+            flex: 0 0 auto;
             width: 8px;
             height: 8px;
             border-radius: 999px;
