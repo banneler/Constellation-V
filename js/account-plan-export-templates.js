@@ -1017,12 +1017,316 @@ function createInfluenceList(entries, contacts = []) {
 }
 
 /**
+ * @param {string} title
+ * @param {Array<[string, unknown]>} rows
+ * @returns {HTMLElement}
+ */
+function createExportDataTable(title, rows) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ap-export-data-table-wrap';
+
+    const heading = document.createElement('h3');
+    heading.className = 'ap-export-editorial-kicker';
+    heading.textContent = title;
+    wrap.appendChild(heading);
+
+    const table = document.createElement('table');
+    table.className = 'ap-export-data-table';
+
+    const tbody = document.createElement('tbody');
+    rows.forEach(([label, value]) => {
+        const row = document.createElement('tr');
+        const labelCell = document.createElement('th');
+        labelCell.scope = 'row';
+        labelCell.textContent = label;
+        const valueCell = document.createElement('td');
+        valueCell.textContent = formatExportTableValue(value);
+        row.appendChild(labelCell);
+        row.appendChild(valueCell);
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function formatExportTableValue(value) {
+    if (value == null || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    const text = String(value).trim();
+    return text || '—';
+}
+
+/**
+ * @param {{ name?: string, industry?: string, employee_count?: number | null, quantity_of_sites?: number | null, address?: string, is_customer?: boolean } | null | undefined} account
+ * @param {Record<string, unknown>} snapshot
+ * @param {import('./account-plan-sections.js').PlanFieldDef[]} fields
+ * @returns {HTMLElement}
+ */
+function buildAccountSnapshotBody(account, snapshot, fields) {
+    const body = document.createElement('div');
+    body.className = 'ap-export-snapshot-body';
+
+    const customerStatus = account?.is_customer === true
+        ? 'Customer'
+        : account?.is_customer === false
+            ? 'Prospect'
+            : '';
+
+    body.appendChild(createExportDataTable('Firmographics (CRM)', [
+        ['Account Name', account?.name],
+        ['Industry', account?.industry],
+        ['Employees', account?.employee_count],
+        ['Sites', account?.quantity_of_sites],
+        ['Address', account?.address],
+        ['Customer Status', customerStatus],
+    ]));
+
+    body.appendChild(createExportDataTable('Strategic Judgments (Plan)', fields.map((field) => [
+        field.label || field.key,
+        snapshot[field.key],
+    ])));
+
+    return body;
+}
+
+/**
+ * @param {Record<string, unknown>} data
+ * @param {{ pillsLabel: string, pillField: string, textFields: import('./account-plan-sections.js').PlanFieldDef[] }} config
+ * @returns {HTMLElement}
+ */
+function buildPillsAndTextExportBody(data, config) {
+    const pills = Array.isArray(data[config.pillField]) ? data[config.pillField] : [];
+    const blocks = config.textFields.map((field) => ({
+        kicker: field.label || field.hint || field.key,
+        text: String(data[field.key] ?? '').trim(),
+    }));
+    return createEditorialProseBlock(config.pillsLabel, pills.join(', '), blocks);
+}
+
+/**
+ * @param {Record<string, unknown>[]} rows
+ * @returns {HTMLElement}
+ */
+function buildWhiteSpaceMatrixBody(rows) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ap-export-white-space-wrap';
+
+    if (!rows.length) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-copy';
+        empty.textContent = 'No white space opportunities captured.';
+        wrap.appendChild(empty);
+        return wrap;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'ap-export-data-table ap-export-data-table--matrix';
+
+    const headers = [
+        'Area',
+        'Opportunity',
+        'Operational Importance',
+        'Executive Visibility',
+        'Confidence',
+        'Estimated Value / Sizing Notes',
+    ];
+    const keys = [
+        'area',
+        'opportunity',
+        'operational_importance',
+        'executive_visibility',
+        'confidence',
+        'value_notes',
+    ];
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headers.forEach((header) => {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = header;
+        headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    rows.forEach((row) => {
+        const tr = document.createElement('tr');
+        keys.forEach((key) => {
+            const td = document.createElement('td');
+            td.textContent = formatExportTableValue(row[key]);
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+}
+
+/**
+ * @returns {HTMLElement}
+ */
+function buildInteractionLogStubBody() {
+    const empty = document.createElement('p');
+    empty.className = 'ap-export-editorial-copy ap-export-interaction-log-empty';
+    empty.textContent = 'No structured interactions logged yet.';
+    return empty;
+}
+
+/**
+ * @param {unknown} entry
+ * @param {unknown[]} contacts
+ * @returns {HTMLElement | null}
+ */
+function buildInfluenceContactCard(entry, contacts) {
+    if (entry == null) return null;
+
+    const card = document.createElement('div');
+    card.className = 'ap-export-influence-contact';
+
+    const contact = typeof entry === 'object' && entry != null && 'id' in entry
+        ? resolveContactById(entry.id, contacts)
+        : resolveContactById(entry, contacts);
+    const entryObj = isPlainObject(entry) ? entry : {};
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'ap-export-influence-contact-name';
+    nameEl.textContent = formatInfluenceContactLabel(contact)
+        || (entryObj.id != null ? `Contact ${entryObj.id}` : 'Contact');
+    card.appendChild(nameEl);
+
+    const notes = String(entryObj.notes ?? '').trim();
+    if (notes) {
+        card.appendChild(createProfileField('Notes', notes));
+    }
+
+    INFLUENCE_CONTACT_FIELD_KEYS.forEach((key) => {
+        const value = String(entryObj[key] ?? '').trim();
+        if (!value) return;
+        card.appendChild(createProfileField(
+            INFLUENCE_CONTACT_FIELD_LABELS[key] || key,
+            value
+        ));
+    });
+
+    return card;
+}
+
+/**
+ * @param {unknown} entries
+ * @param {unknown[]} contacts
+ * @returns {HTMLElement}
+ */
+function createInfluenceStructuredList(entries, contacts = []) {
+    const list = document.createElement('div');
+    list.className = 'ap-export-influence-contact-list';
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-copy';
+        empty.textContent = '—';
+        list.appendChild(empty);
+        return list;
+    }
+
+    entries.forEach((entry) => {
+        const card = buildInfluenceContactCard(entry, contacts);
+        if (card) list.appendChild(card);
+    });
+
+    if (!list.childElementCount) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-copy';
+        empty.textContent = '—';
+        list.appendChild(empty);
+    }
+
+    return list;
+}
+
+/**
+ * @param {Record<string, unknown>} psychology
+ * @param {import('./account-plan-sections.js').PlanFieldDef[]} gravityFields
+ * @returns {HTMLElement}
+ */
+function buildPsychologyGravityGrid(psychology, gravityFields) {
+    const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-psych-gravity-grid');
+    gravityFields.forEach((field) => {
+        grid.appendChild(createEditorialCell(
+            field.label || field.key,
+            String(psychology[field.key] ?? '').trim()
+        ));
+    });
+    return grid;
+}
+
+/**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
  * @param {Record<string, unknown>} sections
  * @param {unknown[]} [contacts]
+ * @param {{ name?: string, industry?: string, employee_count?: number | null, quantity_of_sites?: number | null, address?: string, is_customer?: boolean } | null} [account]
  * @returns {HTMLElement[]}
  */
-function buildDossierSectionUnits(section, sections, contacts = []) {
+function buildDossierSectionUnits(section, sections, contacts = [], account = null) {
+    if (section.type === 'account_snapshot') {
+        const snapshot = isPlainObject(sections.account_snapshot) ? sections.account_snapshot : {};
+        const body = buildAccountSnapshotBody(account, snapshot, section.fields || []);
+        return [createDossierSectionBlock(section, body)];
+    }
+
+    if (section.type === 'pain_signals') {
+        const data = isPlainObject(sections.pain_signals) ? sections.pain_signals : {};
+        const body = buildPillsAndTextExportBody(data, {
+            pillsLabel: 'Pain Signals',
+            pillField: section.pillField || 'selected',
+            textFields: section.textFields || [{ key: 'notes', hint: 'Notes' }],
+        });
+        return [createDossierSectionBlock(section, body)];
+    }
+
+    if (section.type === 'critical_unknowns') {
+        const data = isPlainObject(sections.critical_unknowns) ? sections.critical_unknowns : {};
+        const body = buildPillsAndTextExportBody(data, {
+            pillsLabel: 'Executive Language',
+            pillField: section.pillField || 'executive_language_pills',
+            textFields: section.textFields || [
+                { key: 'unknowns', hint: 'Open questions' },
+                { key: 'executive_language_notes', hint: 'Executive language notes' },
+            ],
+        });
+        return [createDossierSectionBlock(section, body)];
+    }
+
+    if (section.type === 'entrenchment') {
+        const data = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
+        const body = buildPillsAndTextExportBody(data, {
+            pillsLabel: 'Moat Factors',
+            pillField: section.pillField || 'moat_pills',
+            textFields: section.textFields || [
+                { key: 'compound_relationships', hint: 'Compound relationships' },
+                { key: 'difficult_to_remove', hint: 'Difficult to remove' },
+            ],
+        });
+        return [createDossierSectionBlock(section, body)];
+    }
+
+    if (section.type === 'white_space_matrix') {
+        const rows = Array.isArray(sections.white_space) ? sections.white_space.filter(isPlainObject) : [];
+        return [createDossierSectionBlock(section, buildWhiteSpaceMatrixBody(rows))];
+    }
+
+    if (section.type === 'interaction_log') {
+        return [createDossierSectionBlock(section, buildInteractionLogStubBody())];
+    }
+
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const fields = section.fields || [];
@@ -1048,9 +1352,14 @@ function buildDossierSectionUnits(section, sections, contacts = []) {
 
     if (section.type === 'pills_and_narrative') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-        const pillField = section.pillField || 'selected_pills';
+        const pillField = section.pillField
+            || (Array.isArray(data.positioning_pills) ? 'positioning_pills' : 'selected_pills');
         const pills = Array.isArray(data[pillField]) ? data[pillField] : [];
-        const pillsLabel = section.pillMode === 'either_or' ? 'Tension Choices' : 'Positioning';
+        const pillsLabel = section.pillMode === 'either_or'
+            ? 'Tension Choices'
+            : pillField === 'positioning_pills'
+                ? 'Positioning'
+                : 'Selected';
         const blocks = (section.textFields || []).map((field) => ({
             kicker: field.label || field.hint || field.key,
             text: String(data[field.key] ?? '').trim(),
@@ -1068,7 +1377,7 @@ function buildDossierSectionUnits(section, sections, contacts = []) {
     if (section.type === 'influence_board') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const body = document.createElement('div');
-        body.className = 'ap-export-editorial-influence';
+        body.className = 'ap-export-editorial-influence ap-export-editorial-influence--v2';
 
         const executiveTier = document.createElement('div');
         executiveTier.className = 'ap-export-editorial-influence-tier';
@@ -1076,7 +1385,7 @@ function buildDossierSectionUnits(section, sections, contacts = []) {
         executiveKicker.className = 'ap-export-editorial-kicker';
         executiveKicker.textContent = 'Executive Leadership';
         executiveTier.appendChild(executiveKicker);
-        executiveTier.appendChild(createInfluenceList(data.executive, contacts));
+        executiveTier.appendChild(createInfluenceStructuredList(data.executive, contacts));
         body.appendChild(executiveTier);
 
         const midTier = document.createElement('div');
@@ -1085,8 +1394,17 @@ function buildDossierSectionUnits(section, sections, contacts = []) {
         midKicker.className = 'ap-export-editorial-kicker';
         midKicker.textContent = 'Mid-Level Champions';
         midTier.appendChild(midKicker);
-        midTier.appendChild(createInfluenceList(data.mid_level, contacts));
+        midTier.appendChild(createInfluenceStructuredList(data.mid_level, contacts));
         body.appendChild(midTier);
+
+        const technicalTier = document.createElement('div');
+        technicalTier.className = 'ap-export-editorial-influence-tier ap-export-editorial-span-full';
+        const technicalKicker = document.createElement('h3');
+        technicalKicker.className = 'ap-export-editorial-kicker';
+        technicalKicker.textContent = 'Technical / Operational Influencers';
+        technicalTier.appendChild(technicalKicker);
+        technicalTier.appendChild(createInfluenceStructuredList(data.technical, contacts));
+        body.appendChild(technicalTier);
 
         const invisibleTier = document.createElement('div');
         invisibleTier.className = 'ap-export-editorial-influence-tier ap-export-editorial-span-full';
@@ -1095,6 +1413,26 @@ function buildDossierSectionUnits(section, sections, contacts = []) {
             String(data.invisible_org_chart ?? '').trim()
         ));
         body.appendChild(invisibleTier);
+
+        const politicalTier = document.createElement('div');
+        politicalTier.className = 'ap-export-editorial-influence-tier ap-export-editorial-span-full';
+        politicalTier.appendChild(createEditorialCell(
+            'Political Dynamics',
+            String(data.political_dynamics ?? '').trim()
+        ));
+        body.appendChild(politicalTier);
+
+        const accessPath = isPlainObject(data.access_path) ? data.access_path : {};
+        const accessGrid = createEditorialGrid('ap-export-editorial-grid--2 ap-export-editorial-span-full');
+        [
+            ['Current Access', accessPath.current],
+            ['Desired Access', accessPath.desired],
+            ['Bridge Contacts', accessPath.bridge],
+            ['Access Strategy', accessPath.strategy],
+        ].forEach(([label, value]) => {
+            accessGrid.appendChild(createEditorialCell(label, String(value ?? '').trim()));
+        });
+        body.appendChild(accessGrid);
 
         return [createDossierSectionBlock(section, body)];
     }
@@ -1114,6 +1452,9 @@ function buildDossierSectionUnits(section, sections, contacts = []) {
     if (section.type === 'psychology_grid') {
         const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
         const sliders = section.sliders || PSYCHOLOGY_SLIDERS;
+        const wrap = document.createElement('div');
+        wrap.className = 'ap-export-psych-export-wrap';
+
         const grid = document.createElement('div');
         grid.className = 'ap-export-psych-grid ap-export-psych-grid--dossier';
         sliders.forEach((slider) => {
@@ -1123,7 +1464,18 @@ function buildDossierSectionUnits(section, sections, contacts = []) {
             panel.appendChild(buildPsychologyBar(slider, value));
             grid.appendChild(panel);
         });
-        return [createDossierSectionBlock(section, grid, undefined, 'metric')];
+        wrap.appendChild(grid);
+
+        const gravityFields = section.gravityFields || [];
+        if (gravityFields.length > 0) {
+            const gravityHeading = document.createElement('h3');
+            gravityHeading.className = 'ap-export-editorial-kicker ap-export-psych-gravity-heading';
+            gravityHeading.textContent = 'Enterprise Gravity';
+            wrap.appendChild(gravityHeading);
+            wrap.appendChild(buildPsychologyGravityGrid(psychology, gravityFields));
+        }
+
+        return [createDossierSectionBlock(section, wrap, undefined, 'metric')];
     }
 
     if (section.type === 'momentum') {
@@ -1259,8 +1611,10 @@ function summarizePursuitThesis(value) {
 
     const parts = [
         value.core ? `Core Thesis: ${String(value.core).trim()}` : '',
+        value.why_account_matters ? `Why This Account Matters: ${String(value.why_account_matters).trim()}` : '',
         value.cost_of_standing_still ? `Cost of Standing Still: ${String(value.cost_of_standing_still).trim()}` : '',
         value.timing ? `Strategic Timing: ${String(value.timing).trim()}` : '',
+        value.executive_narrative ? `Executive Narrative: ${String(value.executive_narrative).trim()}` : '',
     ].filter(Boolean);
 
     return parts.join('\n\n') || 'No pursuit thesis captured yet.';
@@ -1362,27 +1716,58 @@ function buildPsychologyBar(slider, value) {
  * @returns {{ id: string, date: string, text: string, dateMs: number }[]}
  */
 function getExportMomentumNotes(sections) {
-    const raw = Array.isArray(sections.momentum_notes) ? sections.momentum_notes : [];
-    return raw
+    /** @type {Map<string, { id: string, date: string, text: string, dateMs: number }>} */
+    const byId = new Map();
+
+    const addNote = (note) => {
+        if (!note.text) return;
+        const existing = byId.get(note.id);
+        if (!existing || note.dateMs >= existing.dateMs) {
+            byId.set(note.id, note);
+        }
+    };
+
+    const rawNotes = Array.isArray(sections.momentum_notes) ? sections.momentum_notes : [];
+    rawNotes
         .filter((note) => {
             if (!isPlainObject(note)) return false;
             const source = note.source != null ? String(note.source).toLowerCase() : '';
             const type = note.type != null ? String(note.type).toLowerCase() : '';
-            // Exclude CRM-promoted activity rows (source: activity | crm).
             if (source === 'activity' || source === 'crm' || type === 'activity') return false;
             return String(note.text ?? '').trim().length > 0;
         })
-        .map((note) => {
+        .forEach((note) => {
             const dateStr = String(note.date ?? '');
             const dateMs = new Date(dateStr).getTime();
-            return {
-                id: note.id != null ? String(note.id) : '',
+            addNote({
+                id: note.id != null ? String(note.id) : crypto.randomUUID(),
                 date: dateStr,
                 text: String(note.text ?? '').trim(),
                 dateMs: Number.isNaN(dateMs) ? 0 : dateMs,
-            };
+            });
+        });
+
+    const interactionLog = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    interactionLog
+        .filter((entry) => {
+            if (!isPlainObject(entry)) return false;
+            const source = entry.source != null ? String(entry.source).toLowerCase() : '';
+            if (source === 'activity' || source === 'crm') return false;
+            const text = String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim();
+            return text.length > 0;
         })
-        .sort((a, b) => b.dateMs - a.dateMs);
+        .forEach((entry) => {
+            const dateStr = String(entry.date ?? '');
+            const dateMs = new Date(dateStr).getTime();
+            addNote({
+                id: entry.id != null ? String(entry.id) : crypto.randomUUID(),
+                date: dateStr,
+                text: String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim(),
+                dateMs: Number.isNaN(dateMs) ? 0 : dateMs,
+            });
+        });
+
+    return [...byId.values()].sort((a, b) => b.dateMs - a.dateMs);
 }
 
 /**
@@ -1946,6 +2331,99 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-editorial-list li {
             margin: 0 0 6px;
+        }
+        .ap-export-snapshot-body {
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+        }
+        .ap-export-data-table-wrap + .ap-export-data-table-wrap {
+            margin-top: 4px;
+        }
+        .ap-export-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .ap-export-data-table th,
+        .ap-export-data-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 10px;
+            vertical-align: top;
+            text-align: left;
+        }
+        .ap-export-data-table th {
+            width: 34%;
+            background: #f8fafc;
+            color: #64748b;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .ap-export-data-table td {
+            color: #1e293b;
+            white-space: pre-wrap;
+        }
+        .ap-export-data-table--matrix th {
+            width: auto;
+            font-size: 9px;
+        }
+        .ap-export-data-table--matrix td {
+            font-size: 11px;
+        }
+        .ap-export-white-space-wrap {
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+            overflow: hidden;
+        }
+        .ap-export-interaction-log-empty {
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+            color: #64748b;
+        }
+        .ap-export-influence-contact-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .ap-export-influence-contact {
+            border: 1px solid #e2e8f0;
+            background: #fafbfc;
+            padding: 10px 12px;
+        }
+        .ap-export-influence-contact-name {
+            margin: 0 0 8px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 12px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .ap-export-influence-contact .ap-export-profile-field {
+            margin-bottom: 8px;
+            padding-left: 8px;
+        }
+        .ap-export-influence-contact .ap-export-profile-field:last-child {
+            margin-bottom: 0;
+        }
+        .ap-export-editorial-influence--v2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .ap-export-psych-export-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .ap-export-psych-gravity-heading {
+            margin-top: 4px;
+        }
+        .ap-export-psych-gravity-grid {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 14px;
         }
         .ap-export-target-profiles-body {
             display: flex;

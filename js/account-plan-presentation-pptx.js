@@ -1,6 +1,7 @@
 /**
  * Strategic Account OS — native PowerPoint export (PptxGenJS).
  * Renders the AI highlight-reel deck as editable 16:9 slides.
+ * Fallback content is synthesized in normalizePresentationHighlight (account-plan-presentation-ai.js).
  */
 
 import { GPC_BRAND, GPC_LOGO_NAVY, formatGpcFooterDate } from './account-plan-export-brand.js';

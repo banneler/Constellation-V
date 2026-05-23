@@ -75,18 +75,32 @@ export function normalizePresentationHighlight(raw, meta) {
                 },
                 psychology: {
                     headline: pickText(psychology.headline, 'Enterprise Gravity'),
-                    callouts: pickCallouts(psychology.callouts, 3),
+                    callouts: pickCallouts(
+                        psychology.callouts,
+                        3,
+                        fallbackPsychologyCallouts(ctx.sections)
+                    ),
                 },
             },
             battlefield: {
                 headline: pickText(battlefield.headline, 'Competitive & Political Battlefield'),
                 competitive: {
                     headline: pickText(competitive.headline, 'Competitive Landscape'),
-                    bullets: pickBullets(competitive.bullets, 4, ['Map incumbent entrenchment', 'Define narrative differentiation']),
+                    bullets: pickBullets(
+                        competitive.bullets,
+                        4,
+                        fallbackCompetitiveBullets(ctx.sections)
+                    ),
                 },
                 influence: {
-                    executive_hook: pickText(influence.executive_hook, 'Executive access path is the gating factor'),
-                    champions_hook: pickText(influence.champions_hook, 'Mid-level champions can compound operational trust'),
+                    executive_hook: pickText(
+                        influence.executive_hook,
+                        fallbackInfluenceHook(ctx.sections, 'executive')
+                    ),
+                    champions_hook: pickText(
+                        influence.champions_hook,
+                        fallbackInfluenceHook(ctx.sections, 'mid_level')
+                    ),
                 },
                 entry_points: pickEntryPoints(battlefield.entry_points, ctx.sections),
             },
@@ -109,17 +123,60 @@ function resolvePlanContext(plan) {
     const sections = normalized.current_draft.sections;
     const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-    const notes = Array.isArray(sections.momentum_notes) ? sections.momentum_notes : [];
 
     return {
         sections,
         momentumNarrative: String(momentum.narrative ?? '').trim(),
         plan306090,
-        timelineNotes: notes
-            .filter((n) => isPlainObject(n) && String(n.text ?? '').trim())
-            .sort((a, b) => new Date(String(b.date)).getTime() - new Date(String(a.date)).getTime())
-            .slice(0, 3),
+        timelineNotes: getExportSignals(sections).slice(0, 3),
     };
+}
+
+/**
+ * User-logged strategic signals only — excludes CRM activity rows.
+ * @param {Record<string, unknown>} sections
+ */
+function getExportSignals(sections) {
+    /** @type {Map<string, Record<string, unknown>>} */
+    const byId = new Map();
+
+    const addEntry = (entry) => {
+        const text = String(entry.text ?? '').trim();
+        if (!text) return;
+        const id = entry.id != null ? String(entry.id) : crypto.randomUUID();
+        const dateMs = new Date(String(entry.date ?? '')).getTime();
+        const existing = byId.get(id);
+        if (!existing || dateMs >= new Date(String(existing.date ?? '')).getTime()) {
+            byId.set(id, { ...entry, id, text, dateMs: Number.isNaN(dateMs) ? 0 : dateMs });
+        }
+    };
+
+    const momentumNotes = Array.isArray(sections.momentum_notes) ? sections.momentum_notes : [];
+    momentumNotes.forEach((note) => {
+        if (!isPlainObject(note)) return;
+        const source = note.source != null ? String(note.source).toLowerCase() : '';
+        const type = note.type != null ? String(note.type).toLowerCase() : '';
+        if (source === 'activity' || source === 'crm' || type === 'activity') return;
+        addEntry({
+            id: note.id,
+            date: note.date,
+            text: note.text,
+        });
+    });
+
+    const interactionLog = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    interactionLog.forEach((entry) => {
+        if (!isPlainObject(entry)) return;
+        const source = entry.source != null ? String(entry.source).toLowerCase() : '';
+        if (source === 'activity' || source === 'crm') return;
+        addEntry({
+            id: entry.id,
+            date: entry.date,
+            text: entry.text ?? entry.interaction ?? entry.key_insight,
+        });
+    });
+
+    return [...byId.values()].sort((a, b) => (b.dateMs || 0) - (a.dateMs || 0));
 }
 
 /**
@@ -129,12 +186,72 @@ function fallbackPursuitBullets(sections) {
     const thesis = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
     return [
         thesis.core,
+        thesis.why_account_matters,
         thesis.cost_of_standing_still,
         thesis.timing,
+        thesis.executive_narrative,
     ]
         .map((v) => String(v ?? '').trim())
         .filter(Boolean)
+        .slice(0, 4);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackCompetitiveBullets(sections) {
+    const competitive = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
+    const entrenchment = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
+    const pills = Array.isArray(competitive.positioning_pills) ? competitive.positioning_pills : [];
+    return [
+        competitive.incumbents,
+        pills.length ? `Positioning: ${pills.join(', ')}` : '',
+        competitive.narrative,
+        entrenchment.difficult_to_remove,
+    ]
+        .map((v) => String(v ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 4);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackPsychologyCallouts(sections) {
+    const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
+    return [
+        { label: 'Organizational Gravity', insight: psychology.organizational_gravity },
+        { label: 'Consensus Requirement', insight: psychology.consensus_requirement },
+        { label: 'Procurement Friction', insight: psychology.procurement_friction },
+        { label: 'Innovation Friction', insight: psychology.innovation_friction },
+        { label: 'Gravity Narrative', insight: psychology.narrative },
+    ]
+        .map((item) => ({
+            label: item.label,
+            insight: String(item.insight ?? '').trim(),
+        }))
+        .filter((item) => item.insight)
         .slice(0, 3);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ * @param {'executive' | 'mid_level'} tier
+ */
+function fallbackInfluenceHook(sections, tier) {
+    const influence = isPlainObject(sections.influence_mapping) ? sections.influence_mapping : {};
+    const accessPath = isPlainObject(influence.access_path) ? influence.access_path : {};
+    const tierText = tier === 'executive'
+        ? String(influence.political_dynamics ?? influence.invisible_org_chart ?? '').trim()
+        : String(accessPath.strategy ?? accessPath.bridge ?? '').trim();
+
+    if (tierText) {
+        return truncatePresentationText(tierText, tier === 'executive' ? 120 : 100);
+    }
+
+    return tier === 'executive'
+        ? 'Executive access path is the gating factor'
+        : 'Mid-level champions can compound operational trust';
 }
 
 /**
@@ -162,17 +279,21 @@ function pickBullets(raw, max, fallback = []) {
 /**
  * @param {unknown} raw
  * @param {number} max
+ * @param {Array<{ label: string, insight: string }>} [fallback]
  */
-function pickCallouts(raw, max) {
-    if (!Array.isArray(raw)) return [];
-    return raw
+function pickCallouts(raw, max, fallback = []) {
+    if (!Array.isArray(raw)) {
+        return fallback.slice(0, max);
+    }
+    const parsed = raw
         .filter((item) => isPlainObject(item))
         .map((item) => ({
             label: pickText(item.label, 'Dynamic'),
             insight: pickText(item.insight, '—'),
         }))
-        .filter((item) => item.insight !== '—')
-        .slice(0, max);
+        .filter((item) => item.insight !== '—');
+    const merged = parsed.length > 0 ? parsed : fallback;
+    return merged.slice(0, max);
 }
 
 /**
@@ -198,7 +319,7 @@ function pickEntryPoints(raw, sections) {
         .map((p) => ({
             name: String(p.contact_name).trim(),
             headline: String(p.why_they_matter ?? p.likely_pressure ?? 'Key influencer').trim().slice(0, 80),
-            hook: String(p.most_strategic_next_move ?? p.useful_narrative_openings ?? '').trim().slice(0, 100),
+            hook: String(p.next_move ?? p.narrative_openings ?? '').trim().slice(0, 100),
             badges: [
                 p.trust_level ? `Trust: ${p.trust_level}` : '',
                 p.political_influence ? `Influence: ${p.political_influence}` : '',
@@ -255,6 +376,16 @@ function extractBulletLines(text) {
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => line.replace(/^[\u2022\u2023\u2043\u2219*\-–—]\s+|^\d+[.)]\s+/, ''));
+}
+
+/**
+ * @param {string} text
+ * @param {number} max
+ */
+function truncatePresentationText(text, max) {
+    const trimmed = String(text ?? '').trim();
+    if (trimmed.length <= max) return trimmed;
+    return `${trimmed.slice(0, max - 1)}…`;
 }
 
 /**
