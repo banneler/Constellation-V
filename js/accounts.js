@@ -215,11 +215,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    function waitForNextPaint() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(resolve));
+        });
+    }
+
     // --- Data Fetching ---
     async function loadInitialData() {
         if (!state.currentUser) return;
-        showGlobalLoader();
-        try {
         const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
             supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
             supabase.from("deals").select("id, account_id, stage").eq("user_id", getState().effectiveUserId),
@@ -241,9 +245,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.dealStages = dealStagesRes.data || [];
 
         renderAccountList();
-        } finally {
-            hideGlobalLoader();
-        }
     }
 
     async function loadDetailsForSelectedAccount() {
@@ -304,10 +305,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateStrategicModeControls();
     }
     
-    async function refreshData() {
-        await loadInitialData();
-        if (state.selectedAccountId) {
-            await loadDetailsForSelectedAccount();
+    async function refreshData(options = {}) {
+        const { manageLoader = true } = options;
+        if (manageLoader) showGlobalLoader();
+        try {
+            await loadInitialData();
+            if (state.selectedAccountId) {
+                await loadDetailsForSelectedAccount();
+            }
+        } finally {
+            if (manageLoader) {
+                await waitForNextPaint();
+                hideGlobalLoader();
+            }
         }
     }
 
@@ -562,7 +572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (taskErr) throw taskErr;
                     }
                     state.isFormDirty = false;
-                    await refreshData();
+                    await refreshData({ manageLoader: false });
                     state.selectedAccountId = account.id;
                     renderAccountList();
                     await loadDetailsForSelectedAccount();
@@ -583,6 +593,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     showModal('Reassign failed', msg, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                     return false;
                 } finally {
+                    await waitForNextPaint();
                     hideGlobalLoader();
                 }
             },
@@ -3225,17 +3236,23 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             await setupUserMenuAndAuth(supabase, getState());
             window.addEventListener('effectiveUserChanged', async () => {
-                await loadInitialData();
-                if (!state.selectedAccountId) {
-                    hideAccountDetails(false);
-                    return;
+                showGlobalLoader();
+                try {
+                    await loadInitialData();
+                    if (!state.selectedAccountId) {
+                        hideAccountDetails(false);
+                        return;
+                    }
+                    const stillMine = state.accounts.some(a => Number(a.id) === Number(state.selectedAccountId));
+                    if (!stillMine) {
+                        hideAccountDetails(true);
+                        return;
+                    }
+                    await loadDetailsForSelectedAccount();
+                } finally {
+                    await waitForNextPaint();
+                    hideGlobalLoader();
                 }
-                const stillMine = state.accounts.some(a => Number(a.id) === Number(state.selectedAccountId));
-                if (!stillMine) {
-                    hideAccountDetails(true);
-                    return;
-                }
-                await loadDetailsForSelectedAccount();
             });
             
             // --- THIS IS THE FIX ---
@@ -3255,6 +3272,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 false,
                 `<button id="modal-ok-btn" class="btn-primary">OK</button>`
             );
+        } finally {
+            await waitForNextPaint();
+            hideGlobalLoader();
         }
     }
     initializePage();
