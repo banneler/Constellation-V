@@ -97,9 +97,16 @@ export class AccountsPage {
     return this.page.locator(`#strategic-document-canvas textarea[data-field="${field}"]`);
   }
 
-  /** Canvas select by section field id (e.g. account_snapshot.tier). */
+  /** Canvas select by section field id (e.g. white_space rows). */
   strategicSelect(field: string): Locator {
     return this.page.locator(`#strategic-document-canvas select[data-field="${field}"]`);
+  }
+
+  /** Single-select pill group for account snapshot judgments (e.g. account_snapshot.tier). */
+  strategicSnapshotPill(field: string, value: string): Locator {
+    return this.page.locator(
+      `#strategic-document-canvas button.account-snapshot-pill[data-field="${field}"][data-pill-value="${value}"]`
+    );
   }
 
   strategicSection(sectionId: string): Locator {

@@ -394,15 +394,8 @@ function buildFieldHintHtml(hint) {
  */
 function buildCompositeFieldHtml(sectionId, field, rawValue) {
     const value = escapeHtml(String(rawValue ?? ''));
-    const hintHtml = buildFieldHintHtml(field.hint);
     const withHint = Boolean(field.hint);
     const fieldId = `strategic-field-${sectionId}-${field.key}`;
-    const nestedMeta = Boolean(field.label && field.hint);
-
-    const modifierClasses = [
-        withHint ? 'strategic-composite-field--with-hint' : '',
-        nestedMeta ? 'strategic-composite-field--nested-meta' : '',
-    ].filter(Boolean).join(' ');
 
     const textareaHtml = `
         <textarea
@@ -422,21 +415,19 @@ function buildCompositeFieldHtml(sectionId, field, rawValue) {
             </div>`;
     }
 
-    let asideContent = '';
-    if (nestedMeta) {
-        asideContent = `
-            <div class="strategic-composite-field-meta">
-                <label for="${fieldId}">${escapeHtml(field.label)}</label>
-                ${hintHtml}
-            </div>`;
-    } else if (field.hint) {
-        asideContent = hintHtml;
-    }
+    const kickerHtml = field.label
+        ? `<span class="strategic-field-context-kicker">${escapeHtml(field.label)}</span>`
+        : '';
+    const asideContent = `
+        <div class="strategic-field-context">
+            ${kickerHtml}
+            <p>${escapeHtml(field.hint || '')}</p>
+        </div>`;
 
     return `
-        <div class="strategic-composite-field${modifierClasses ? ` ${modifierClasses}` : ''}">
+        <div class="strategic-composite-field strategic-composite-field--with-hint">
             <div class="strategic-composite-field-body">
-                ${asideContent ? `<div class="strategic-composite-field-aside">${asideContent}</div>` : ''}
+                <div class="strategic-composite-field-aside">${asideContent}</div>
                 ${textareaHtml}
             </div>
         </div>`;
@@ -585,22 +576,27 @@ function buildAccountSnapshotCrmHtml(account) {
  * @param {readonly string[]} options
  * @param {string} value
  */
-function buildSnapshotSelectField(sectionId, fieldKey, label, options, value) {
-    const fieldId = `strategic-field-${sectionId}-${fieldKey}`;
-    const optionsHtml = options.map((option) => {
-        const selected = value === option ? ' selected' : '';
-        const optionLabel = option === '' ? 'Select…' : option;
-        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(optionLabel)}</option>`;
+function buildSnapshotPillField(sectionId, fieldKey, label, options, value) {
+    const pillOptions = options.filter((option) => option !== '');
+    const pillsHtml = pillOptions.map((option) => {
+        const active = value === option ? ' account-snapshot-pill--active' : '';
+        const pressed = value === option ? 'true' : 'false';
+        return `
+            <button
+                type="button"
+                class="account-snapshot-pill${active}"
+                data-field="${sectionId}.${fieldKey}"
+                data-pill-value="${escapeHtml(option)}"
+                aria-pressed="${pressed}"
+            >${escapeHtml(option)}</button>`;
     }).join('');
 
     return `
         <div class="account-snapshot-field">
-            <label for="${fieldId}">${escapeHtml(label)}</label>
-            <select
-                id="${fieldId}"
-                class="strategic-field account-snapshot-select"
-                data-field="${sectionId}.${fieldKey}"
-            >${optionsHtml}</select>
+            <span class="account-snapshot-field-label">${escapeHtml(label)}</span>
+            <div class="account-snapshot-pills-wrap" role="group" aria-label="${escapeHtml(label)}">
+                ${pillsHtml}
+            </div>
         </div>`;
 }
 
@@ -643,11 +639,11 @@ function buildAccountSnapshotHtml(section, data, account) {
         <div class="account-snapshot-plan">
             <h5 class="account-snapshot-subheading">Strategic Judgments</h5>
             <div class="account-snapshot-plan-grid">
-                ${buildSnapshotSelectField(section.id, 'tier', 'Strategic Tier', ACCOUNT_SNAPSHOT_TIER_OPTIONS, tier)}
-                ${buildSnapshotSelectField(section.id, 'relationship_status', 'Relationship Status', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, relationshipStatus)}
-                ${buildSnapshotSelectField(section.id, 'ai_cloud_maturity', 'AI / Cloud Maturity', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, aiCloudMaturity)}
-                ${buildSnapshotSelectField(section.id, 'strategic_patience', 'Strategic Patience', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, strategicPatience)}
-                ${buildSnapshotSelectField(section.id, 'pursuit_priority', 'Pursuit Priority', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, pursuitPriority)}
+                ${buildSnapshotPillField(section.id, 'tier', 'Strategic Tier', ACCOUNT_SNAPSHOT_TIER_OPTIONS, tier)}
+                ${buildSnapshotPillField(section.id, 'relationship_status', 'Relationship Status', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, relationshipStatus)}
+                ${buildSnapshotPillField(section.id, 'ai_cloud_maturity', 'AI / Cloud Maturity', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, aiCloudMaturity)}
+                ${buildSnapshotPillField(section.id, 'strategic_patience', 'Strategic Patience', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, strategicPatience)}
+                ${buildSnapshotPillField(section.id, 'pursuit_priority', 'Pursuit Priority', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, pursuitPriority)}
                 ${buildSnapshotTextareaField(section.id, 'existing_providers', 'Existing Providers', existingProviders)}
                 ${buildSnapshotTextareaField(section.id, 'expansion_potential', 'Expansion Potential', expansionPotential)}
             </div>
@@ -1594,24 +1590,40 @@ function selectInfluenceContactFieldPill(button) {
  * @param {HTMLElement} button
  */
 function selectEntryPointPill(button) {
+    selectSingleValuePill(button, 'entry-point-pill', 'entry-point-pills-wrap');
+}
+
+/**
+ * @param {HTMLElement} button
+ * @param {string} pillClass
+ * @param {string} wrapClass
+ */
+function selectSingleValuePill(button, pillClass, wrapClass) {
     const field = button.dataset.field;
     const pillValue = button.dataset.pillValue ?? '';
     if (!field || !_liveSections) return;
 
-    const wasActive = button.classList.contains('entry-point-pill--active');
+    const wasActive = button.classList.contains(`${pillClass}--active`);
     const newValue = wasActive ? '' : pillValue;
-    const group = button.closest('.entry-point-pills-wrap');
+    const group = button.closest(`.${wrapClass}`);
 
-    group?.querySelectorAll('.entry-point-pill').forEach((pillBtn) => {
+    group?.querySelectorAll(`.${pillClass}`).forEach((pillBtn) => {
         if (!(pillBtn instanceof HTMLElement)) return;
         const isSelected = !wasActive && pillBtn.dataset.pillValue === pillValue;
-        pillBtn.classList.toggle('entry-point-pill--active', isSelected);
+        pillBtn.classList.toggle(`${pillClass}--active`, isSelected);
         pillBtn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
     });
 
     setNestedValue(_liveSections, field, newValue);
     updateRailSummaries(_liveSections);
     queueAutosave();
+}
+
+/**
+ * @param {HTMLElement} button
+ */
+function selectAccountSnapshotPill(button) {
+    selectSingleValuePill(button, 'account-snapshot-pill', 'account-snapshot-pills-wrap');
 }
 
 function toggleStrategicPill(button) {
@@ -2750,7 +2762,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .account-snapshot-select, .white-space-select, .white-space-textarea')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .white-space-select, .white-space-textarea')) return;
 
         if (target instanceof HTMLTextAreaElement) {
             autoExpandTextarea(target);
@@ -2775,7 +2787,7 @@ function bindCanvasFormEvents(canvas) {
             return;
         }
 
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .account-snapshot-select, .white-space-select, .white-space-textarea, .interaction-log-select, .interaction-log-input')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .white-space-select, .white-space-textarea, .interaction-log-select, .interaction-log-input')) return;
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
         queueAutosave();
@@ -2789,6 +2801,13 @@ function bindCanvasFormEvents(canvas) {
         if (entryPointPill instanceof HTMLElement) {
             event.preventDefault();
             selectEntryPointPill(entryPointPill);
+            return;
+        }
+
+        const snapshotPill = target.closest('.account-snapshot-pill');
+        if (snapshotPill instanceof HTMLElement) {
+            event.preventDefault();
+            selectAccountSnapshotPill(snapshotPill);
             return;
         }
 

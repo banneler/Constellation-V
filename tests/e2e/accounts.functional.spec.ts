@@ -108,11 +108,11 @@ test.describe('Strategic Account OS', () => {
     await acc.switchToStrategicMode();
     await acc.waitForPlanLoaded();
 
-    const tierSelect = acc.strategicSelect('account_snapshot.tier');
-    await tierSelect.waitFor({ state: 'visible', timeout: 15_000 });
+    const tierPill = acc.strategicSnapshotPill('account_snapshot.tier', 'Tier 2');
+    await tierPill.waitFor({ state: 'visible', timeout: 15_000 });
 
     guardian.step('Selecting Strategic Tier on account snapshot');
-    await tierSelect.selectOption('Tier 2');
+    await tierPill.click();
 
     guardian.step('Waiting for pending autosave status after tier change');
     await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'pending', { timeout: 5_000 });
