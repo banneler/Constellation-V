@@ -183,9 +183,7 @@ function createExportPanelStack(className = 'ap-export-panel-stack') {
 }
 
 /**
- * @param {string} className
- */
-function createExportPanelStack(className = 'ap-export-panel-stack') {
+ * @param {unknown} rawPoint
  * @returns {HTMLElement | null}
  */
 function buildEntryPointEditorialBlock(rawPoint) {
