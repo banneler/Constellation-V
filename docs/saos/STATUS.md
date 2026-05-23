@@ -6,10 +6,10 @@ Last updated: 2026-05-23
 |-------|--------|--------|--------|-------|
 | A0 Export Parity | `saos/a0-export-parity` | `4feaaaf` | **complete** | Contacts in influence export, entry-point v2 fields, measured pagination, section PDF headers, signals-only timeline comment, contacts in `handleExportPdf` |
 | A1 Schema v2 | `saos/a1-schema-v2` | `5ffe675` | **complete** | `PLAN_SCHEMA_VERSION = 2`, normalizers, section registry, `account-plan-contacts.js` |
-| Integration | `saos/integration` | — | **ready** | A0 + A1 merged; A4 export deck pending merge |
+| Integration | `saos/integration` | `67e2ccf` | **ready** | A0 + A1 + A4 merged |
 | A2 Canvas P1 | — | — | **ready to start** | Branch from `saos/integration`; render v2 section canvases |
 | A3 Canvas P2 | — | — | blocked | Start after A2 merged to integration |
-| A4 Export Deck | `saos/a4-export-deck` | — | **complete** | Dossier PDF blocks for all v2 sections; PPTX/AI fallbacks; signals-only timeline |
+| A4 Export Deck | `saos/a4-export-deck` | `67e2ccf` | **merged** | Dossier PDF blocks for all v2 sections; PPTX/AI fallbacks; signals-only timeline |
 | A5 Interaction Log | — | — | blocked | Start after A3 merged |
 | A6 AI Presentation | — | — | **ready after A4+A5** | Edge function prompt; consume new section keys |
 | A7 QA & Docs | — | — | blocked | Start after A6 merged |
