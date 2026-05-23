@@ -517,14 +517,7 @@ function buildDossierSectionUnits(section, sections) {
         const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
         const score = clampScale(momentum.score, 3);
         const stack = createExportPanelStack('ap-export-panel-stack ap-export-panel-stack--momentum');
-        const metricPanel = document.createElement('div');
-        metricPanel.className = 'ap-export-panel ap-export-panel--metric';
-        metricPanel.innerHTML = `
-            <div class="ap-export-momentum-score-row">
-                <span class="ap-export-momentum-score">${score}</span>
-                <span class="ap-export-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</span>
-            </div>`;
-        stack.appendChild(metricPanel);
+        stack.appendChild(buildMomentumMetricPanel(score));
         stack.appendChild(createExportPanel('Momentum Narrative', String(momentum.narrative ?? '').trim()));
         return [createDossierSectionBlock(section, stack, undefined, 'metric')];
     }
@@ -748,6 +741,52 @@ function summarizeCompetitiveLandscape(value) {
     ].filter(Boolean);
 
     return parts.join('\n\n');
+}
+
+/**
+ * @param {number} score
+ * @returns {HTMLElement}
+ */
+function buildMomentumMetricPanel(score) {
+    const panel = document.createElement('div');
+    panel.className = 'ap-export-panel ap-export-panel--metric ap-export-panel--momentum-metric';
+
+    const scoreBlock = document.createElement('div');
+    scoreBlock.className = 'ap-export-momentum-score-block';
+    scoreBlock.innerHTML = `
+        <span class="ap-export-momentum-score">${score}</span>
+        <span class="ap-export-momentum-label">${escapeHtml(MOMENTUM_LABELS[score - 1])}</span>`;
+    panel.appendChild(scoreBlock);
+
+    const scale = document.createElement('div');
+    scale.className = 'ap-export-momentum-scale';
+
+    const track = document.createElement('div');
+    track.className = 'ap-export-momentum-scale-track';
+    track.innerHTML = '<div class="ap-export-momentum-scale-line" aria-hidden="true"></div>';
+
+    const dots = document.createElement('div');
+    dots.className = 'ap-export-momentum-scale-dots';
+    for (let step = 1; step <= 5; step += 1) {
+        const dot = document.createElement('span');
+        dot.className = step === score
+            ? 'ap-export-momentum-scale-dot is-active'
+            : 'ap-export-momentum-scale-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        dots.appendChild(dot);
+    }
+    track.appendChild(dots);
+    scale.appendChild(track);
+
+    const endpoints = document.createElement('div');
+    endpoints.className = 'ap-export-momentum-scale-endpoints';
+    endpoints.innerHTML = `
+        <span>${escapeHtml(MOMENTUM_LABELS[0])}</span>
+        <span>${escapeHtml(MOMENTUM_LABELS[4])}</span>`;
+    scale.appendChild(endpoints);
+
+    panel.appendChild(scale);
+    return panel;
 }
 
 /**
@@ -1240,15 +1279,24 @@ export function ensureExportTemplateStyles() {
             color: #64748b;
             margin-top: 3px;
         }
-        .ap-export-dossier-body--metric .ap-export-momentum-score-row {
+        .ap-export-dossier-body--metric .ap-export-panel--momentum-metric {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
+            justify-content: center;
+            text-align: center;
+            padding: 16px 14px 14px;
+        }
+        .ap-export-momentum-score-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 14px;
         }
         .ap-export-dossier-body--metric .ap-export-momentum-score {
-            width: 34px;
-            height: 34px;
+            width: 42px;
+            height: 42px;
             border-radius: 999px;
             background: ${GPC_BRAND.teal};
             color: #fff;
@@ -1256,12 +1304,64 @@ export function ensureExportTemplateStyles() {
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 18px;
+            line-height: 1;
         }
         .ap-export-dossier-body--metric .ap-export-momentum-label {
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
             color: ${GPC_BRAND.navyDeep};
+        }
+        .ap-export-momentum-scale {
+            width: 100%;
+            max-width: 188px;
+        }
+        .ap-export-momentum-scale-track {
+            position: relative;
+            padding: 7px 0;
+        }
+        .ap-export-momentum-scale-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            background: #e2e8f0;
+            transform: translateY(-50%);
+            z-index: 0;
+        }
+        .ap-export-momentum-scale-dots {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ap-export-momentum-scale-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            box-sizing: border-box;
+        }
+        .ap-export-momentum-scale-dot.is-active {
+            width: 14px;
+            height: 14px;
+            background: ${GPC_BRAND.teal};
+            border-color: ${GPC_BRAND.teal};
+            box-shadow: 0 0 0 3px color-mix(in srgb, ${GPC_BRAND.teal} 22%, #ffffff);
+        }
+        .ap-export-momentum-scale-endpoints {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            font-size: 9px;
+            line-height: 1.2;
+            color: #64748b;
+            letter-spacing: 0.02em;
         }
         .ap-export-dossier-body--metric .ap-export-panel-stack {
             display: flex;
@@ -1270,7 +1370,7 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-dossier-body--metric .ap-export-panel-stack--momentum {
             display: grid;
-            grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
             gap: 10px;
             align-items: stretch;
         }
