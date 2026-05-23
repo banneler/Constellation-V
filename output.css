@@ -5390,12 +5390,14 @@ body.theme-green {
     line-height: 1.25rem;
   }
   .plan-export-generating-overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 40;
+    z-index: 70;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
     background-color: color-mix(in srgb, var(--bg-dark, #0f1419) 45%, transparent);
     backdrop-filter: blur(4px);
   }

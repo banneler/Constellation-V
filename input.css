@@ -2713,12 +2713,14 @@ body.theme-green {
         @apply inline-flex items-center justify-center gap-2 text-sm;
     }
     .plan-export-generating-overlay {
-        position: absolute;
+        position: fixed;
         inset: 0;
-        z-index: 40;
+        z-index: 70;
         display: flex;
         align-items: center;
         justify-content: center;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
         background-color: color-mix(in srgb, var(--bg-dark, #0f1419) 45%, transparent);
         backdrop-filter: blur(4px);
     }
