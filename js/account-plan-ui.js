@@ -1561,6 +1561,7 @@ async function handleExportPdf(type) {
     }
 
     const account = _options.getSelectedAccount?.() ?? null;
+    syncLiveSectionsFromCanvas();
     const planForExport = deepClonePlan(_planBaseline);
     if (_liveSections) {
         planForExport.current_draft.sections = deepClonePlan({
@@ -1773,6 +1774,22 @@ function handleRangeInput(input) {
         const labelEl = document.querySelector('[data-momentum-label]');
         if (labelEl) labelEl.textContent = MOMENTUM_LABELS[value - 1];
     }
+}
+
+/**
+ * Pull the latest canvas field values into memory before export or save.
+ */
+function syncLiveSectionsFromCanvas() {
+    if (!_liveSections) return;
+    document.querySelectorAll('#strategic-document-canvas .strategic-field[data-field]').forEach((el) => {
+        if (
+            el instanceof HTMLInputElement
+            || el instanceof HTMLTextAreaElement
+            || el instanceof HTMLSelectElement
+        ) {
+            applyFieldToLiveSections(el);
+        }
+    });
 }
 
 /**

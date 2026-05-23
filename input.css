@@ -1798,13 +1798,14 @@ body.theme-green {
         cursor: not-allowed;
     }
     .account-plan-export-root {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-        width: 0;
-        height: 0;
-        overflow: hidden;
+        position: fixed;
+        top: 0;
+        left: -12000px;
+        width: auto;
+        height: auto;
+        overflow: visible;
         pointer-events: none;
+        z-index: -1;
     }
     .plan-pdf-preview-modal {
         position: fixed;

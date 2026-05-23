@@ -167,8 +167,7 @@ async function buildExecReadoutPdfBytes(plan, account, exportRoot) {
             totalPages: EXEC_SLIDE_BUILDERS.length,
         });
         exportRoot.appendChild(slide);
-        await waitForDomSettle();
-        await waitForImages(slide);
+        await waitForExecSlideReady(slide);
         pageCanvases.push(await captureElementToPng(slide));
         exportRoot.removeChild(slide);
     }
@@ -416,8 +415,7 @@ function measureDossierContentPage(blocks, meta, exportRoot) {
  * @param {HTMLElement} element
  */
 async function captureElementToPng(element) {
-    const isDarkBg = element.classList.contains('ap-export-gpc-cover')
-        || element.classList.contains('ap-exec-slide');
+    const isDarkBg = element.classList.contains('ap-export-gpc-cover');
     const result = await snapdom(element, {
         scale: 2,
         backgroundColor: isDarkBg ? null : '#ffffff',
@@ -528,4 +526,26 @@ function waitForDomSettle() {
             requestAnimationFrame(resolve);
         });
     });
+}
+
+async function waitForFontsReady() {
+    if (document.fonts?.ready) {
+        try {
+            await document.fonts.ready;
+        } catch {
+            /* ignore */
+        }
+    }
+}
+
+/**
+ * @param {HTMLElement} slide
+ */
+async function waitForExecSlideReady(slide) {
+    await waitForImages(slide);
+    await waitForFontsReady();
+    await waitForDomSettle();
+    void slide.getBoundingClientRect();
+    void slide.offsetHeight;
+    await waitForDomSettle();
 }

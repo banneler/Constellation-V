@@ -106,7 +106,7 @@ function createExecSlideElement(slideKey, kicker, accountName, pageInfo, titleMo
         : `<h1 class="ap-exec-slide-title">${escapeHtml(accountName)}</h1>`;
 
     slide.innerHTML = `
-        <img class="ap-exec-slide-logo" src="${GPC_LOGO_WHITE}" alt="Great Plains Communications" crossorigin="anonymous" />
+        <img class="ap-exec-slide-logo" src="${GPC_LOGO_NAVY}" alt="Great Plains Communications" crossorigin="anonymous" />
         <header class="ap-exec-slide-header">
             <p class="ap-exec-slide-kicker">${escapeHtml(kicker)}</p>
             ${titleHtml}
@@ -154,6 +154,83 @@ function buildExecPsychBarsHtml(psychology) {
 }
 
 /**
+ * @param {Record<string, unknown>} sections
+ */
+function buildExecStrategyBody(sections) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ap-exec-prose-stack';
+
+    const data = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : null;
+    const blocks = data
+        ? [
+            ['Core Thesis', data.core],
+            ['Cost of Standing Still', data.cost_of_standing_still],
+            ['Strategic Timing', data.timing],
+        ].filter(([, value]) => String(value ?? '').trim())
+        : [];
+
+    if (blocks.length > 0) {
+        blocks.forEach(([label, value]) => {
+            const block = document.createElement('div');
+            block.className = 'ap-exec-prose-block';
+            block.innerHTML = `
+                <h3 class="ap-exec-prose-kicker">${escapeHtml(label)}</h3>
+                <p class="ap-exec-prose-copy">${escapeHtml(String(value ?? '').trim())}</p>`;
+            wrap.appendChild(block);
+        });
+        return wrap;
+    }
+
+    const fallback = document.createElement('p');
+    fallback.className = 'ap-exec-prose-copy';
+    fallback.textContent = summarizePursuitThesis(sections.pursuit_thesis);
+    wrap.appendChild(fallback);
+    return wrap;
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function buildExecCompetitiveBody(sections) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ap-exec-prose-stack';
+
+    const data = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : null;
+    if (data) {
+        const pills = Array.isArray(data.positioning_pills) ? data.positioning_pills.filter(Boolean) : [];
+        if (pills.length > 0) {
+            const pillBlock = document.createElement('div');
+            pillBlock.className = 'ap-exec-prose-block';
+            pillBlock.innerHTML = `
+                <h3 class="ap-exec-prose-kicker">Positioning</h3>
+                <p class="ap-exec-prose-copy">${escapeHtml(pills.join(' · '))}</p>`;
+            wrap.appendChild(pillBlock);
+        }
+        [
+            ['Incumbents', data.incumbents],
+            ['Narrative', data.narrative],
+        ].filter(([, value]) => String(value ?? '').trim()).forEach(([label, value]) => {
+            const block = document.createElement('div');
+            block.className = 'ap-exec-prose-block';
+            block.innerHTML = `
+                <h3 class="ap-exec-prose-kicker">${escapeHtml(label)}</h3>
+                <p class="ap-exec-prose-copy">${escapeHtml(String(value ?? '').trim())}</p>`;
+            wrap.appendChild(block);
+        });
+    }
+
+    if (!wrap.childElementCount) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-exec-prose-copy';
+        empty.textContent = summarizeCompetitiveLandscape(sections.competitive_landscape)
+            || 'No competitive landscape captured yet.';
+        wrap.appendChild(empty);
+    }
+
+    return wrap;
+}
+
+/**
  * @param {unknown} entries
  */
 function buildExecInfluenceListHtml(entries) {
@@ -172,7 +249,7 @@ function buildExecInfluenceListHtml(entries) {
         } else {
             return '';
         }
-        return `<li class="ap-exec-influence-item"><span class="ap-line-clamp-2">${escapeHtml(label)}</span></li>`;
+        return `<li class="ap-exec-influence-item"><span class="ap-line-clamp-3">${escapeHtml(label)}</span></li>`;
     }).filter(Boolean).join('');
 }
 
@@ -190,7 +267,7 @@ function buildExecEntryPointsPanel(sections, maxProfiles = 2) {
 
     profiles.slice(0, maxProfiles).forEach((profile) => {
         profile.querySelectorAll('.ap-export-profile-copy').forEach((el) => {
-            el.classList.add('ap-line-clamp-3');
+            el.classList.add('ap-line-clamp-4');
         });
     });
 
@@ -213,10 +290,7 @@ export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, 
     grid.className = 'ap-exec-grid ap-exec-grid--situation';
 
     const strategyPanel = createExecPanel('ap-exec-panel--strategy', 'Pursuit Strategy', 'pursuit_thesis');
-    const strategyCopy = document.createElement('p');
-    strategyCopy.className = 'ap-exec-panel-copy ap-line-clamp-10';
-    strategyCopy.textContent = ctx.pursuitThesis;
-    strategyPanel.appendChild(strategyCopy);
+    strategyPanel.appendChild(buildExecStrategyBody(ctx.sections));
 
     const sideStack = document.createElement('div');
     sideStack.className = 'ap-exec-stack';
@@ -259,10 +333,7 @@ export function buildSlide2Battlefield(plan, account, pageInfo = { pageNumber: 2
     grid.className = 'ap-exec-grid ap-exec-grid--battlefield';
 
     const competitivePanel = createExecPanel('ap-exec-panel--competitive', 'Competitive Landscape', 'competitive_landscape');
-    const competitiveCopy = document.createElement('p');
-    competitiveCopy.className = 'ap-exec-panel-copy ap-line-clamp-12';
-    competitiveCopy.textContent = ctx.competitive;
-    competitivePanel.appendChild(competitiveCopy);
+    competitivePanel.appendChild(buildExecCompetitiveBody(ctx.sections));
 
     const influencePanel = createExecPanel('ap-exec-panel--influence', 'Influence Board', 'influence_mapping');
     const influenceData = isPlainObject(ctx.sections.influence_mapping) ? ctx.sections.influence_mapping : {};
@@ -1505,7 +1576,7 @@ export function ensureExportTemplateStyles() {
             background: #3b82f6;
         }
         .ap-exec-plan-horizon-body .plan-horizon-list li {
-            color: #cbd5e1;
+            color: #334155;
         }
         .ap-export-plan-horizon-body .plan-horizon-meta,
         .ap-exec-plan-horizon-body .plan-horizon-meta {
@@ -1513,7 +1584,7 @@ export function ensureExportTemplateStyles() {
             font-weight: 700;
         }
         .ap-exec-plan-horizon-body .plan-horizon-meta {
-            color: #93c5fd;
+            color: #2563eb;
         }
         .ap-export-plan-horizon-body .plan-horizon-empty,
         .ap-exec-plan-horizon-body .plan-horizon-empty {
@@ -1926,53 +1997,53 @@ export function ensureExportTemplateStyles() {
             flex-direction: column;
             width: 1056px;
             height: 594px;
-            background: #0f172a;
-            padding: 40px 40px 48px;
-            color: #f8fafc;
+            background: #f8fafc;
+            padding: 36px 40px 44px;
+            color: #0f172a;
             font-family: ${GPC_BRAND.fontBody};
         }
         .ap-exec-slide-logo {
             position: absolute;
             top: 28px;
             right: 36px;
-            width: 120px;
+            width: 118px;
             height: auto;
             z-index: 3;
         }
         .ap-exec-slide-header {
             flex-shrink: 0;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
             padding-right: 132px;
         }
         .ap-exec-slide-kicker {
             margin: 0 0 6px;
-            font-size: 12px;
-            letter-spacing: 0.1em;
+            font-size: 11px;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: #3b82f6;
+            color: #2563eb;
             font-family: ${GPC_BRAND.fontHeading};
             font-weight: 700;
         }
         .ap-exec-slide-title {
             margin: 0 0 4px;
-            font-size: 26px;
+            font-size: 28px;
             line-height: 1.12;
             font-weight: 700;
             font-family: ${GPC_BRAND.fontHeading};
-            color: #ffffff;
+            color: #0f172a;
         }
         .ap-exec-slide-title-sub {
             font-weight: 600;
-            color: #93c5fd;
+            color: #2563eb;
         }
         .ap-exec-slide-date {
             margin: 0;
             font-size: 12px;
-            color: #94a3b8;
+            color: #64748b;
         }
         .ap-exec-slide-body {
-            flex: 1;
-            min-height: 0;
+            flex: 1 1 auto;
+            min-height: 420px;
             overflow: hidden;
         }
         .ap-exec-slide-footer {
@@ -1980,23 +2051,24 @@ export function ensureExportTemplateStyles() {
             left: 0;
             right: 0;
             bottom: 0;
-            height: 36px;
+            height: 34px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 40px;
-            background: #0f172a;
-            border-top: 1px solid #334155;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 11px;
-            color: #94a3b8;
+            color: #64748b;
         }
         .ap-exec-grid {
             display: grid;
-            gap: 16px;
+            gap: 14px;
             height: 100%;
-            min-height: 0;
+            min-height: 420px;
             overflow: hidden;
+            align-items: stretch;
         }
         .ap-exec-grid--situation {
             grid-template-columns: 1.35fr 0.65fr;
@@ -2022,10 +2094,11 @@ export function ensureExportTemplateStyles() {
             min-height: 0;
             height: 100%;
             overflow: hidden;
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
             padding: 14px 16px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
         .ap-exec-stack .ap-exec-panel--momentum {
             flex: 0 0 34%;
@@ -2036,11 +2109,11 @@ export function ensureExportTemplateStyles() {
         }
         .ap-exec-panel-heading {
             margin: 0 0 10px;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1.2;
             letter-spacing: 0.05em;
             text-transform: uppercase;
-            color: #94a3b8;
+            color: #475569;
             font-family: ${GPC_BRAND.fontHeading};
             font-weight: 700;
             flex-shrink: 0;
@@ -2048,19 +2121,47 @@ export function ensureExportTemplateStyles() {
             align-items: center;
         }
         .ap-exec-panel-icon {
-            color: #3b82f6;
+            color: #2563eb;
             margin-right: 8px;
-            font-size: 14px;
+            font-size: 13px;
             flex-shrink: 0;
+        }
+        .ap-exec-prose-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+        .ap-exec-prose-block {
+            flex-shrink: 0;
+        }
+        .ap-exec-prose-kicker {
+            margin: 0 0 4px;
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 700;
+            font-family: ${GPC_BRAND.fontHeading};
+        }
+        .ap-exec-prose-copy {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.55;
+            color: #334155;
+            white-space: pre-line;
         }
         .ap-exec-panel-copy {
             margin: 0;
             font-size: 12px;
             line-height: 1.55;
-            color: #cbd5e1;
+            color: #334155;
             white-space: pre-line;
-            flex: 1;
+            flex: 1 1 auto;
             min-height: 0;
+            overflow: auto;
         }
         .ap-exec-kpi {
             flex: 1;
@@ -2072,18 +2173,18 @@ export function ensureExportTemplateStyles() {
             text-align: center;
         }
         .ap-exec-kpi-score {
-            font-size: 56px;
+            font-size: 52px;
             font-weight: 800;
             line-height: 1;
-            color: #3b82f6;
+            color: #2563eb;
         }
         .ap-exec-kpi-label {
             margin-top: 6px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: #93c5fd;
+            color: #64748b;
         }
         .ap-exec-psych-stack {
             display: flex;
@@ -2102,19 +2203,19 @@ export function ensureExportTemplateStyles() {
             gap: 8px;
             margin-bottom: 4px;
             font-size: 10px;
-            color: #94a3b8;
+            color: #64748b;
             font-weight: 600;
         }
         .ap-exec-psych-track {
             height: 5px;
             border-radius: 999px;
-            background: #334155;
+            background: #e2e8f0;
             overflow: hidden;
         }
         .ap-exec-psych-fill {
             height: 100%;
             border-radius: 999px;
-            background: linear-gradient(90deg, #3b82f6 0%, #22d3ee 100%);
+            background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
         }
         .ap-exec-influence-buckets {
             display: flex;
@@ -2147,8 +2248,8 @@ export function ensureExportTemplateStyles() {
         }
         .ap-exec-influence-item {
             font-size: 12px;
-            line-height: 1.4;
-            color: #cbd5e1;
+            line-height: 1.45;
+            color: #334155;
         }
         .ap-exec-influence-item--empty {
             color: #64748b;
@@ -2162,23 +2263,20 @@ export function ensureExportTemplateStyles() {
             gap: 10px;
         }
         .ap-exec-slide .ap-export-target-profile {
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 6px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
             padding: 10px 12px;
             flex-shrink: 0;
         }
-        .ap-exec-slide .ap-export-target-profile + .ap-export-target-profile {
-            margin-top: 0;
-        }
         .ap-exec-slide .ap-export-target-profile-name {
             font-size: 13px;
-            color: #f8fafc;
+            color: #0f172a;
         }
         .ap-exec-slide .ap-export-badge {
-            background: #334155;
-            color: #e2e8f0;
-            border: 1px solid #475569;
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
             font-size: 9px;
         }
         .ap-exec-slide .ap-export-target-profile-group-title {
@@ -2190,9 +2288,9 @@ export function ensureExportTemplateStyles() {
             font-size: 9px;
         }
         .ap-exec-slide .ap-export-profile-copy {
-            color: #cbd5e1;
+            color: #334155;
             font-size: 11px;
-            line-height: 1.4;
+            line-height: 1.45;
         }
         .ap-exec-slide .ap-export-target-profile-grid {
             gap: 8px;
@@ -2248,7 +2346,7 @@ export function ensureExportTemplateStyles() {
         .ap-exec-signals-item span {
             font-size: 12px;
             line-height: 1.45;
-            color: #cbd5e1;
+            color: #334155;
             min-width: 0;
         }
     `;
