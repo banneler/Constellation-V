@@ -690,9 +690,6 @@ export function buildDossierContentPage(blocks, meta, pageInfo) {
     const content = document.createElement('div');
     content.className = 'ap-export-dossier-content';
     blocks.forEach((block) => {
-        if (blocks.length === 1) {
-            block.querySelector('.ap-export-dossier-section-title')?.remove();
-        }
         content.appendChild(block);
     });
     page.appendChild(content);
@@ -712,10 +709,7 @@ export function buildDossierContentPage(blocks, meta, pageInfo) {
  * @param {HTMLElement[]} blocks
  */
 function getContentPageTitle(blocks) {
-    if (blocks.length === 1 && blocks[0] instanceof HTMLElement) {
-        const sectionTitle = blocks[0].querySelector('.ap-export-dossier-section-title');
-        if (sectionTitle?.textContent) return sectionTitle.textContent.trim();
-    }
+    void blocks;
     return PLAN_SUMMARY_DOCUMENT_TITLE;
 }
 

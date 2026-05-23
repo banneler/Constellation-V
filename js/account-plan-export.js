@@ -257,8 +257,9 @@ function buildEntryPointsPageGroups(block) {
                 sectionId,
                 sectionTitle,
                 chunk,
-                i > 0,
-                'ap-export-target-profiles-body'
+                false,
+                'ap-export-target-profiles-body',
+                i === 0
             ),
         ]);
     }
@@ -346,16 +347,20 @@ function splitDossierSectionBlock(block, meta, exportRoot) {
  * @param {Element[]} units
  * @param {boolean} continued
  * @param {string} [stackClass]
+ * @param {boolean} [includeTitle]
  */
-function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, stackClass = 'ap-export-editorial-grid') {
+function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, stackClass = 'ap-export-editorial-grid', includeTitle = true) {
     const block = document.createElement('section');
     block.className = 'ap-export-dossier-section';
     block.dataset.sectionId = sectionId;
+    block.dataset.sectionTitle = sectionTitle;
 
-    const title = document.createElement('h2');
-    title.className = 'ap-export-dossier-section-title';
-    title.innerHTML = buildDossierSectionTitleHtml(sectionId, sectionTitle, continued);
-    block.appendChild(title);
+    if (includeTitle) {
+        const title = document.createElement('h2');
+        title.className = 'ap-export-dossier-section-title';
+        title.innerHTML = buildDossierSectionTitleHtml(sectionId, sectionTitle, continued);
+        block.appendChild(title);
+    }
 
     const isMetric = stackClass.includes('ap-export-panel-stack') || stackClass.includes('ap-export-psych-grid');
     const bodyWrap = document.createElement('div');
