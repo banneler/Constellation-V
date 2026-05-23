@@ -18,6 +18,33 @@ export const EXEC_HEIGHT_PX = 594;
 
 const MOMENTUM_LABELS = ['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion'];
 
+/** @type {Record<string, string>} */
+const DOSSIER_SECTION_ICONS = {
+    pursuit_thesis: 'fa-bullseye',
+    strategic_tensions: 'fa-scale-balanced',
+    influence_mapping: 'fa-sitemap',
+    competitive_landscape: 'fa-chess-knight',
+    land_and_expand: 'fa-route',
+    psychology: 'fa-brain',
+    relationship_momentum: 'fa-arrow-trend-up',
+    plan_30_60_90: 'fa-calendar-check',
+    entry_points: 'fa-crosshairs',
+};
+
+/**
+ * @param {string} sectionId
+ * @param {string} title
+ * @param {boolean} [continued]
+ */
+export function buildDossierSectionTitleHtml(sectionId, title, continued = false) {
+    const iconClass = DOSSIER_SECTION_ICONS[sectionId];
+    const label = continued ? `${title} (continued)` : title;
+    if (iconClass) {
+        return `<i class="fas ${iconClass} ap-export-section-icon" aria-hidden="true"></i> ${escapeHtml(label)}`;
+    }
+    return escapeHtml(label);
+}
+
 /** Top psychology metrics highlighted on the exec readout slide. */
 const EXEC_PSYCHOLOGY_IDS = ['bureaucracy_level', 'technical_sophistication', 'decision_velocity'];
 
@@ -45,25 +72,35 @@ export function buildDossierTemplate(plan, account) {
 
 /**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
- * @param {HTMLElement} bodyEl
+ * @param {HTMLElement | null} bodyEl
  * @param {string} [titleOverride]
  * @param {'editorial' | 'metric'} [bodyMode]
+ * @param {Record<string, unknown>} [planSections]
  */
-function createDossierSectionBlock(section, bodyEl, titleOverride, bodyMode = 'editorial') {
+function createDossierSectionBlock(section, bodyEl, titleOverride, bodyMode = 'editorial', planSections = null) {
     const block = document.createElement('section');
     block.className = 'ap-export-dossier-section';
     block.dataset.sectionId = section.id;
 
     const title = document.createElement('h2');
     title.className = 'ap-export-dossier-section-title';
-    title.textContent = titleOverride || section.title;
+    const titleText = titleOverride || section.title;
+    title.innerHTML = buildDossierSectionTitleHtml(section.id, titleText);
     block.appendChild(title);
+
+    let resolvedBody = bodyEl;
+    if (section.type === 'entry_point_carousel') {
+        resolvedBody = buildEntryPointsTargetProfileBody(planSections || {});
+    }
+    if (!resolvedBody) {
+        resolvedBody = document.createElement('div');
+    }
 
     const bodyWrap = document.createElement('div');
     bodyWrap.className = bodyMode === 'metric'
         ? 'ap-export-dossier-body ap-export-dossier-body--metric'
         : 'ap-export-dossier-body ap-export-dossier-body--editorial';
-    bodyWrap.appendChild(bodyEl);
+    bodyWrap.appendChild(resolvedBody);
     block.appendChild(bodyWrap);
     return block;
 }
@@ -183,83 +220,142 @@ function createExportPanelStack(className = 'ap-export-panel-stack') {
 }
 
 /**
+ * @param {string} kicker
+ * @param {string} text
+ */
+function createProfileField(kicker, text) {
+    const field = document.createElement('div');
+    field.className = 'ap-export-profile-field';
+
+    const label = document.createElement('div');
+    label.className = 'ap-export-profile-kicker';
+    label.textContent = kicker;
+
+    const copy = document.createElement('p');
+    copy.className = 'ap-export-profile-copy';
+    copy.textContent = String(text ?? '').trim() || '—';
+
+    field.appendChild(label);
+    field.appendChild(copy);
+    return field;
+}
+
+/**
+ * @param {string} label
+ * @param {unknown} value
+ */
+function createStatusBadge(label, value) {
+    const badge = document.createElement('span');
+    badge.className = 'ap-export-badge';
+    badge.textContent = `${label}: ${String(value).trim()}`;
+    return badge;
+}
+
+/**
  * @param {unknown} rawPoint
  * @returns {HTMLElement | null}
  */
-function buildEntryPointEditorialBlock(rawPoint) {
+function buildTargetProfile(rawPoint) {
     if (!isPlainObject(rawPoint)) return null;
     const contactName = String(rawPoint.contact_name ?? '').trim();
     if (!contactName) return null;
 
-    const block = document.createElement('article');
-    block.className = 'ap-export-entry-point-block';
+    const profile = document.createElement('div');
+    profile.className = 'ap-export-target-profile';
+
+    const header = document.createElement('div');
+    header.className = 'ap-export-target-profile-header';
 
     const nameEl = document.createElement('h3');
-    nameEl.className = 'ap-export-entry-point-name';
+    nameEl.className = 'ap-export-target-profile-name';
     nameEl.textContent = contactName;
-    block.appendChild(nameEl);
+    header.appendChild(nameEl);
 
-    const attrDefs = [
+    const badgeDefs = [
         ['Trust', rawPoint.trust_level],
         ['Responsiveness', rawPoint.responsiveness],
         ['Influence', rawPoint.political_influence],
         ['Comm Style', rawPoint.comm_style],
-        ['Compound', rawPoint.compound_potential],
     ].filter(([, val]) => String(val ?? '').trim());
 
-    if (attrDefs.length > 0) {
-        const meta = document.createElement('p');
-        meta.className = 'ap-export-entry-point-meta';
-        meta.textContent = attrDefs.map(([label, val]) => `${label}: ${String(val).trim()}`).join(' · ');
-        block.appendChild(meta);
+    if (badgeDefs.length > 0) {
+        const badgeRow = document.createElement('div');
+        badgeRow.className = 'ap-export-badge-row';
+        badgeDefs.forEach(([label, val]) => {
+            badgeRow.appendChild(createStatusBadge(label, val));
+        });
+        header.appendChild(badgeRow);
     }
 
-    const grid = createEditorialGrid('ap-export-editorial-grid--entry-split');
+    profile.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.className = 'ap-export-target-profile-grid';
 
     const whyColumn = document.createElement('div');
-    whyColumn.className = 'ap-export-editorial-column';
+    whyColumn.className = 'ap-export-target-profile-column';
     const whyTitle = document.createElement('h4');
-    whyTitle.className = 'ap-export-editorial-column-title';
-    whyTitle.textContent = 'Why';
+    whyTitle.className = 'ap-export-target-profile-group-title';
+    whyTitle.textContent = 'The Why';
     whyColumn.appendChild(whyTitle);
 
     const howColumn = document.createElement('div');
-    howColumn.className = 'ap-export-editorial-column';
+    howColumn.className = 'ap-export-target-profile-column';
     const howTitle = document.createElement('h4');
-    howTitle.className = 'ap-export-editorial-column-title';
-    howTitle.textContent = 'How';
+    howTitle.className = 'ap-export-target-profile-group-title';
+    howTitle.textContent = 'The How';
     howColumn.appendChild(howTitle);
 
     const whyFields = [
         ['Why They Matter', rawPoint.why_they_matter],
         ['Likely Pressure', rawPoint.likely_pressure],
         ['What Failure Looks Like', rawPoint.what_failure_looks_like],
-        ['Human Context', rawPoint.human_context],
-        ['Mutual Connections', rawPoint.mutual_connections],
     ].filter(([, val]) => String(val ?? '').trim());
 
     const howFields = [
         ['Best Themes', rawPoint.best_themes],
         ['Narrative Openings', rawPoint.narrative_openings],
-        ['Tired of Hearing', rawPoint.tired_of_hearing],
         ['Next Move', rawPoint.next_move],
     ].filter(([, val]) => String(val ?? '').trim());
 
     whyFields.forEach(([label, val]) => {
-        whyColumn.appendChild(createEditorialCell(label, String(val)));
+        whyColumn.appendChild(createProfileField(label, String(val)));
     });
     howFields.forEach(([label, val]) => {
-        howColumn.appendChild(createEditorialCell(label, String(val)));
+        howColumn.appendChild(createProfileField(label, String(val)));
     });
 
     if (!whyFields.length && !howFields.length) {
-        whyColumn.appendChild(createEditorialCell('Details', 'No narrative details captured.'));
+        whyColumn.appendChild(createProfileField('Intelligence', 'No profile details captured.'));
     }
 
     grid.appendChild(whyColumn);
     grid.appendChild(howColumn);
-    block.appendChild(grid);
-    return block;
+    profile.appendChild(grid);
+    return profile;
+}
+
+/**
+ * @param {Record<string, unknown>} planSections
+ */
+function buildEntryPointsTargetProfileBody(planSections) {
+    const points = Array.isArray(planSections.entry_points) ? planSections.entry_points : [];
+    const body = document.createElement('div');
+    body.className = 'ap-export-target-profiles-body';
+
+    points.forEach((rawPoint) => {
+        const profile = buildTargetProfile(rawPoint);
+        if (profile) body.appendChild(profile);
+    });
+
+    if (!body.childElementCount) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-copy';
+        empty.textContent = 'No entry points defined.';
+        body.appendChild(empty);
+    }
+
+    return body;
 }
 
 /**
@@ -387,23 +483,7 @@ function buildDossierSectionUnits(section, sections) {
     }
 
     if (section.type === 'entry_point_carousel') {
-        const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
-        const body = document.createElement('div');
-        body.className = 'ap-export-entry-points-body';
-
-        points.forEach((rawPoint) => {
-            const entryBlock = buildEntryPointEditorialBlock(rawPoint);
-            if (entryBlock) body.appendChild(entryBlock);
-        });
-
-        if (!body.childElementCount) {
-            const empty = document.createElement('p');
-            empty.className = 'ap-export-editorial-copy';
-            empty.textContent = 'No entry points defined.';
-            body.appendChild(empty);
-        }
-
-        return [createDossierSectionBlock(section, body)];
+        return [createDossierSectionBlock(section, null, undefined, 'editorial', sections)];
     }
 
     if (section.type === 'textarea') {
@@ -923,6 +1003,12 @@ export function ensureExportTemplateStyles() {
             letter-spacing: 0.1em;
             font-weight: 700;
         }
+        .ap-export-section-icon {
+            color: #3b82f6;
+            margin-right: 8px;
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
         .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
             margin-top: 0;
         }
@@ -1027,64 +1113,98 @@ export function ensureExportTemplateStyles() {
         .ap-export-editorial-list li {
             margin: 0 0 6px;
         }
-        .ap-export-entry-points-body {
+        .ap-export-target-profiles-body {
             display: flex;
             flex-direction: column;
-            gap: 28px;
+            gap: 18px;
             border-top: 2px solid #0f172a;
             padding-top: 14px;
         }
-        .ap-export-entry-point-block + .ap-export-entry-point-block {
-            padding-top: 22px;
-            border-top: 1px solid #e2e8f0;
+        .ap-export-target-profile {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            border: 1px solid #e2e8f0;
+            background: #fafbfc;
+            padding: 16px 18px 18px;
         }
-        .ap-export-entry-point-name {
-            margin: 0 0 4px;
+        .ap-export-target-profile + .ap-export-target-profile {
+            margin-top: 0;
+        }
+        .ap-export-target-profile-header {
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .ap-export-target-profile-name {
+            margin: 0 0 8px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 700;
-            letter-spacing: 0.02em;
+            letter-spacing: 0.01em;
             color: #0f172a;
             text-transform: none;
         }
-        .ap-export-entry-point-meta {
-            margin: 0 0 12px;
-            font-size: 10px;
-            line-height: 1.45;
-            letter-spacing: 0.04em;
+        .ap-export-badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .ap-export-badge {
+            display: inline-block;
+            font-size: 9px;
             text-transform: uppercase;
-            color: #64748b;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 0;
+            color: #475569;
             font-weight: 600;
+            letter-spacing: 0.03em;
         }
-        .ap-export-editorial-grid--entry-split {
+        .ap-export-target-profile-grid {
+            display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            border-top: 1px solid #e2e8f0;
-            padding-top: 12px;
+            gap: 0 20px;
         }
-        .ap-export-editorial-column {
-            padding: 0 18px 0 0;
+        .ap-export-target-profile-column {
+            min-width: 0;
         }
-        .ap-export-editorial-column:first-child {
+        .ap-export-target-profile-column:first-child {
             border-right: 1px solid #e2e8f0;
             padding-right: 18px;
-            margin-right: 18px;
         }
-        .ap-export-editorial-column-title {
+        .ap-export-target-profile-group-title {
             margin: 0 0 10px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 10px;
+            font-weight: 700;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: #0f172a;
-            font-weight: 700;
         }
-        .ap-export-editorial-column .ap-export-editorial-cell {
-            border: none;
-            padding: 0;
-            margin: 0 0 14px;
+        .ap-export-profile-field {
+            margin-bottom: 12px;
+            padding-left: 10px;
+            border-left: 2px solid #3b82f6;
         }
-        .ap-export-editorial-column .ap-export-editorial-cell:last-child {
+        .ap-export-profile-field:last-child {
             margin-bottom: 0;
+        }
+        .ap-export-profile-kicker {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            letter-spacing: 0.04em;
+        }
+        .ap-export-profile-copy {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #1e293b;
+            white-space: pre-wrap;
         }
 
         /* --- Account Psychology (unchanged visual treatment) --- */

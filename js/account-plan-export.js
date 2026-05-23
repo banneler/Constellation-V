@@ -7,6 +7,7 @@ import {
     buildExecReadoutTemplate,
     buildGpcCoverPage,
     buildDossierContentPage,
+    buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
 } from './account-plan-export-templates.js';
 
@@ -220,48 +221,6 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 }
 
 /**
- * @param {HTMLElement} entryBlock
- * @param {Element[]} whyUnits
- * @param {Element[]} howUnits
- */
-function buildEntryPointSplitColumnsChunk(entryBlock, whyUnits, howUnits) {
-    const chunkBlock = entryBlock.cloneNode(false);
-
-    const nameEl = entryBlock.querySelector('.ap-export-entry-point-name');
-    if (nameEl) chunkBlock.appendChild(nameEl.cloneNode(true));
-
-    const metaEl = entryBlock.querySelector('.ap-export-entry-point-meta');
-    if (metaEl) chunkBlock.appendChild(metaEl.cloneNode(true));
-
-    const splitGrid = document.createElement('div');
-    splitGrid.className = 'ap-export-editorial-grid ap-export-editorial-grid--entry-split';
-
-    if (whyUnits.length > 0) {
-        const whyColumn = document.createElement('div');
-        whyColumn.className = 'ap-export-editorial-column';
-        const whyTitle = document.createElement('h4');
-        whyTitle.className = 'ap-export-editorial-column-title';
-        whyTitle.textContent = 'Why';
-        whyColumn.appendChild(whyTitle);
-        whyUnits.forEach((unit) => whyColumn.appendChild(unit.cloneNode(true)));
-        splitGrid.appendChild(whyColumn);
-    }
-
-    if (howUnits.length > 0) {
-        const howColumn = document.createElement('div');
-        howColumn.className = 'ap-export-editorial-column';
-        const howTitle = document.createElement('h4');
-        howTitle.className = 'ap-export-editorial-column-title';
-        howTitle.textContent = 'How';
-        howUnits.forEach((unit) => howColumn.appendChild(unit.cloneNode(true)));
-        splitGrid.appendChild(howColumn);
-    }
-
-    chunkBlock.appendChild(splitGrid);
-    return chunkBlock;
-}
-
-/**
  * Split an oversized section at panel / entry-point group boundaries.
  * @param {HTMLElement} block
  * @param {{ accountName: string, dateLabel: string }} meta
@@ -276,7 +235,7 @@ function splitDossierSectionBlock(block, meta, exportRoot) {
     const sectionId = block.dataset.sectionId || '';
 
     const entryGroups = block.querySelectorAll(
-        ':scope .ap-export-entry-points-body > .ap-export-entry-point-block'
+        ':scope .ap-export-target-profiles-body > .ap-export-target-profile'
     );
     if (entryGroups.length > 1) {
         return [...entryGroups].map((group, index) => (
@@ -285,74 +244,9 @@ function splitDossierSectionBlock(block, meta, exportRoot) {
                 sectionTitle,
                 [group],
                 index > 0,
-                'ap-export-entry-points-body'
+                'ap-export-target-profiles-body'
             )
         ));
-    }
-
-    const entryBlock = block.querySelector(':scope .ap-export-entry-points-body > .ap-export-entry-point-block');
-    if (entryBlock) {
-        const columns = [...entryBlock.querySelectorAll(':scope > .ap-export-editorial-grid--entry-split > .ap-export-editorial-column')];
-        if (columns.length > 0) {
-            const whyColumn = columns.find((col) => col.querySelector('.ap-export-editorial-column-title')?.textContent === 'Why');
-            const howColumn = columns.find((col) => col.querySelector('.ap-export-editorial-column-title')?.textContent === 'How');
-            const whyUnits = whyColumn
-                ? [...whyColumn.querySelectorAll(':scope > .ap-export-editorial-cell')]
-                : [];
-            const howUnits = howColumn
-                ? [...howColumn.querySelectorAll(':scope > .ap-export-editorial-cell')]
-                : [];
-            const allUnits = [...whyUnits, ...howUnits];
-
-            if (allUnits.length > 1) {
-                const entryPointsBodyClass = 'ap-export-entry-points-body';
-                const chunks = [];
-                let currentWhy = [];
-                let currentHow = [];
-
-                allUnits.forEach((unit) => {
-                    const isWhy = whyUnits.includes(unit);
-                    const trialWhy = isWhy ? [...currentWhy, unit] : [...currentWhy];
-                    const trialHow = isWhy ? [...currentHow] : [...currentHow, unit];
-                    const trialBlock = buildDossierSectionFragment(
-                        sectionId,
-                        sectionTitle,
-                        [buildEntryPointSplitColumnsChunk(entryBlock, trialWhy, trialHow)],
-                        chunks.length > 0,
-                        entryPointsBodyClass
-                    );
-
-                    if ((currentWhy.length + currentHow.length) === 0 || pageFitsFragment(trialBlock, meta, exportRoot)) {
-                        if (isWhy) currentWhy = trialWhy;
-                        else currentHow = trialHow;
-                    } else {
-                        if (currentWhy.length + currentHow.length > 0) {
-                            chunks.push(buildDossierSectionFragment(
-                                sectionId,
-                                sectionTitle,
-                                [buildEntryPointSplitColumnsChunk(entryBlock, currentWhy, currentHow)],
-                                chunks.length > 0,
-                                entryPointsBodyClass
-                            ));
-                        }
-                        if (isWhy) currentWhy = [unit];
-                        else currentHow = [unit];
-                    }
-                });
-
-                if (currentWhy.length + currentHow.length > 0) {
-                    chunks.push(buildDossierSectionFragment(
-                        sectionId,
-                        sectionTitle,
-                        [buildEntryPointSplitColumnsChunk(entryBlock, currentWhy, currentHow)],
-                        chunks.length > 0,
-                        entryPointsBodyClass
-                    ));
-                }
-
-                if (chunks.length > 0) return chunks;
-            }
-        }
     }
 
     const stack = block.querySelector(':scope .ap-export-editorial-grid')
@@ -415,7 +309,7 @@ function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, 
 
     const title = document.createElement('h2');
     title.className = 'ap-export-dossier-section-title';
-    title.textContent = continued ? `${sectionTitle} (continued)` : sectionTitle;
+    title.innerHTML = buildDossierSectionTitleHtml(sectionId, sectionTitle, continued);
     block.appendChild(title);
 
     const isMetric = stackClass.includes('ap-export-panel-stack') || stackClass.includes('ap-export-psych-grid');
