@@ -4,6 +4,7 @@
 
 import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
 import { normalizePlan } from './account-plan-data.js';
+import { formatContactLabel, resolveContactById } from './account-plan-contacts.js';
 import { formatPlanHorizonRichHtml } from './account-plan-rich-text.js';
 import {
     GPC_BRAND,
@@ -66,16 +67,58 @@ function buildExecPanelHeading(title, sectionId) {
 const EXEC_SLIDE_COUNT = 3;
 
 /**
+ * @param {{ name?: string, contacts?: unknown[] } | null | undefined} account
+ * @returns {unknown[]}
+ */
+function getExportContacts(account) {
+    return Array.isArray(account?.contacts) ? account.contacts : [];
+}
+
+/**
+ * @param {Record<string, unknown> | null} contact
+ * @returns {string}
+ */
+function formatInfluenceContactLabel(contact) {
+    if (!contact) return '';
+    return formatContactLabel({
+        ...contact,
+        title: contact.title ?? contact.job_title ?? '',
+    });
+}
+
+/**
+ * @param {unknown} entry
+ * @param {unknown[]} contacts
+ * @returns {string}
+ */
+function formatInfluenceEntryLabel(entry, contacts) {
+    if (typeof entry === 'string' || typeof entry === 'number') {
+        const contact = resolveContactById(entry, contacts);
+        return formatInfluenceContactLabel(contact) || `Contact ${entry}`;
+    }
+    if (isPlainObject(entry)) {
+        const contact = resolveContactById(entry.id, contacts);
+        const namePart = formatInfluenceContactLabel(contact)
+            || (entry.id != null ? `Contact ${entry.id}` : 'Contact');
+        const notes = String(entry.notes ?? '').trim();
+        return notes ? `${namePart}: ${notes}` : namePart;
+    }
+    return '';
+}
+
+/**
  * @param {unknown} plan
- * @param {{ name?: string } | null} account
+ * @param {{ name?: string, contacts?: unknown[] } | null} account
  */
 function resolveExecExportContext(plan, account) {
     const normalized = normalizePlan(plan);
     const sections = normalized.current_draft.sections;
     const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
+    const contacts = getExportContacts(account);
 
     return {
         sections,
+        contacts,
         accountName: account?.name ? String(account.name) : 'Account',
         dateLabel: formatExportDate(new Date()),
         psychology: isPlainObject(sections.psychology) ? sections.psychology : {},
@@ -239,22 +282,14 @@ function buildExecCompetitiveBody(sections) {
 /**
  * @param {unknown} entries
  */
-function buildExecInfluenceListHtml(entries) {
+function buildExecInfluenceListHtml(entries, contacts = []) {
     if (!Array.isArray(entries) || entries.length === 0) {
         return '<li class="ap-exec-influence-item ap-exec-influence-item--empty">—</li>';
     }
 
     return entries.map((entry) => {
-        let label = 'Contact';
-        if (typeof entry === 'string' || typeof entry === 'number') {
-            label = `Contact ${entry}`;
-        } else if (isPlainObject(entry)) {
-            label = entry.id != null ? `Contact ${entry.id}` : 'Contact';
-            const notes = entry.notes ? `: ${String(entry.notes).trim()}` : '';
-            label += notes;
-        } else {
-            return '';
-        }
+        const label = formatInfluenceEntryLabel(entry, contacts);
+        if (!label) return '';
         return `<li class="ap-exec-influence-item"><span class="ap-line-clamp-3">${escapeHtml(label)}</span></li>`;
     }).filter(Boolean).join('');
 }
@@ -478,11 +513,11 @@ export function buildSlide2Battlefield(plan, account, pageInfo = { pageNumber: 2
             <div class="ap-exec-influence-buckets">
                 <div class="ap-exec-influence-bucket">
                     <h3 class="ap-exec-influence-bucket-title">Executive Leadership</h3>
-                    <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.executive)}</ul>
+                    <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.executive, ctx.contacts)}</ul>
                 </div>
                 <div class="ap-exec-influence-bucket">
                     <h3 class="ap-exec-influence-bucket-title">Mid-Level Champions</h3>
-                    <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.mid_level)}</ul>
+                    <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.mid_level, ctx.contacts)}</ul>
                 </div>
             </div>`;
     }
@@ -608,7 +643,7 @@ export const EXEC_SLIDE_BUILDERS = createExecSlideBuilders();
 
 /**
  * @param {unknown} plan
- * @param {{ name?: string } | null} account
+ * @param {{ name?: string, contacts?: unknown[] } | null} account
  * @returns {{ sectionBlocks: HTMLElement[], meta: { accountName: string, dateLabel: string } }}
  */
 export function buildDossierTemplate(plan, account) {
@@ -616,10 +651,11 @@ export function buildDossierTemplate(plan, account) {
     const sections = normalized.current_draft.sections;
     const accountName = account?.name ? String(account.name) : 'Account';
     const dateLabel = formatExportDate(new Date());
+    const contacts = getExportContacts(account);
 
     const sectionBlocks = PLAN_SECTIONS
         .filter((section) => section.exportDossier !== false)
-        .flatMap((section) => buildDossierSectionUnits(section, sections))
+        .flatMap((section) => buildDossierSectionUnits(section, sections, contacts))
         .filter(Boolean);
 
     return {
@@ -857,6 +893,7 @@ function buildTargetProfile(rawPoint) {
         ['Responsiveness', rawPoint.responsiveness],
         ['Influence', rawPoint.political_influence],
         ['Comm Style', rawPoint.comm_style],
+        ['Compound Potential', rawPoint.compound_potential],
     ].filter(([, val]) => String(val ?? '').trim());
 
     if (badgeDefs.length > 0) {
@@ -891,11 +928,14 @@ function buildTargetProfile(rawPoint) {
         ['Why They Matter', rawPoint.why_they_matter],
         ['Likely Pressure', rawPoint.likely_pressure],
         ['What Failure Looks Like', rawPoint.what_failure_looks_like],
+        ['Human Context', rawPoint.human_context],
+        ['Mutual Connections', rawPoint.mutual_connections],
     ].filter(([, val]) => String(val ?? '').trim());
 
     const howFields = [
         ['Best Themes', rawPoint.best_themes],
         ['Narrative Openings', rawPoint.narrative_openings],
+        ['Tired of Hearing', rawPoint.tired_of_hearing],
         ['Next Move', rawPoint.next_move],
     ].filter(([, val]) => String(val ?? '').trim());
 
@@ -941,9 +981,10 @@ function buildEntryPointsTargetProfileBody(planSections) {
 
 /**
  * @param {unknown} entries
+ * @param {unknown[]} [contacts]
  * @returns {HTMLElement}
  */
-function createInfluenceList(entries) {
+function createInfluenceList(entries, contacts = []) {
     const list = document.createElement('ul');
     list.className = 'ap-export-editorial-list';
 
@@ -957,17 +998,11 @@ function createInfluenceList(entries) {
 
     entries.forEach((entry) => {
         if (entry == null) return;
+        const label = formatInfluenceEntryLabel(entry, contacts);
+        if (!label) return;
         const item = document.createElement('li');
         item.className = 'ap-export-editorial-copy';
-        if (typeof entry === 'string' || typeof entry === 'number') {
-            item.textContent = `Contact ${entry}`;
-        } else if (isPlainObject(entry)) {
-            const label = entry.id != null ? `Contact ${entry.id}` : 'Contact';
-            const notes = entry.notes ? `: ${String(entry.notes).trim()}` : '';
-            item.textContent = `${label}${notes}`;
-        } else {
-            return;
-        }
+        item.textContent = label;
         list.appendChild(item);
     });
 
@@ -984,9 +1019,10 @@ function createInfluenceList(entries) {
 /**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
  * @param {Record<string, unknown>} sections
+ * @param {unknown[]} [contacts]
  * @returns {HTMLElement[]}
  */
-function buildDossierSectionUnits(section, sections) {
+function buildDossierSectionUnits(section, sections, contacts = []) {
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const fields = section.fields || [];
@@ -1040,7 +1076,7 @@ function buildDossierSectionUnits(section, sections) {
         executiveKicker.className = 'ap-export-editorial-kicker';
         executiveKicker.textContent = 'Executive Leadership';
         executiveTier.appendChild(executiveKicker);
-        executiveTier.appendChild(createInfluenceList(data.executive));
+        executiveTier.appendChild(createInfluenceList(data.executive, contacts));
         body.appendChild(executiveTier);
 
         const midTier = document.createElement('div');
@@ -1049,7 +1085,7 @@ function buildDossierSectionUnits(section, sections) {
         midKicker.className = 'ap-export-editorial-kicker';
         midKicker.textContent = 'Mid-Level Champions';
         midTier.appendChild(midKicker);
-        midTier.appendChild(createInfluenceList(data.mid_level));
+        midTier.appendChild(createInfluenceList(data.mid_level, contacts));
         body.appendChild(midTier);
 
         const invisibleTier = document.createElement('div');
@@ -1191,7 +1227,24 @@ export function buildDossierContentPage(blocks, meta, pageInfo) {
  * @param {HTMLElement[]} blocks
  */
 function getContentPageTitle(blocks) {
-    void blocks;
+    if (!Array.isArray(blocks) || blocks.length === 0) {
+        return PLAN_SUMMARY_DOCUMENT_TITLE;
+    }
+
+    const titles = [...new Set(
+        blocks
+            .map((block) => (block instanceof HTMLElement ? block.dataset.sectionTitle : ''))
+            .filter(Boolean)
+    )];
+
+    if (titles.length === 1) {
+        const continued = blocks.some((block) => {
+            if (!(block instanceof HTMLElement)) return false;
+            return Boolean(block.querySelector('.ap-export-dossier-section-title')?.textContent?.includes('(continued)'));
+        });
+        return continued ? `${titles[0]} (continued)` : titles[0];
+    }
+
     return PLAN_SUMMARY_DOCUMENT_TITLE;
 }
 
@@ -1302,7 +1355,9 @@ function buildPsychologyBar(slider, value) {
 }
 
 /**
- * User-logged strategic signals only — excludes automated CRM activity records.
+ * User-logged strategic signals only for client-facing export.
+ * Per docs/saos/DECISIONS.md #1 (signals-only timeline): CRM activities may appear
+ * in the canvas timeline but are never included in dossier PDF or exec deck output.
  * @param {Record<string, unknown>} sections
  * @returns {{ id: string, date: string, text: string, dateMs: number }[]}
  */
@@ -1313,6 +1368,7 @@ function getExportMomentumNotes(sections) {
             if (!isPlainObject(note)) return false;
             const source = note.source != null ? String(note.source).toLowerCase() : '';
             const type = note.type != null ? String(note.type).toLowerCase() : '';
+            // Exclude CRM-promoted activity rows (source: activity | crm).
             if (source === 'activity' || source === 'crm' || type === 'activity') return false;
             return String(note.text ?? '').trim().length > 0;
         })

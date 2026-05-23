@@ -178,7 +178,7 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
         }
 
         if (sectionId === 'entry_points') {
-            const entryPages = buildEntryPointsPageGroups(block);
+            const entryPages = buildEntryPointsPageGroups(block, meta, exportRoot);
             entryPages.forEach((pageBlocks) => {
                 groups.push(pageBlocks.map((pageBlock) => pageBlock.cloneNode(true)));
             });
@@ -213,11 +213,13 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 }
 
 /**
- * Paginate entry points two profiles per page so an odd last contact sits alone.
+ * Pack entry-point profiles using page measurement; merge trailing singleton pages when possible.
  * @param {HTMLElement} block
+ * @param {{ accountName: string, dateLabel: string }} meta
+ * @param {HTMLElement} exportRoot
  * @returns {HTMLElement[][]}
  */
-function buildEntryPointsPageGroups(block) {
+function buildEntryPointsPageGroups(block, meta, exportRoot) {
     const sectionId = block.dataset.sectionId || 'entry_points';
     const sectionTitle = block.dataset.sectionTitle || 'Strategic Entry Points';
     const profiles = [...block.querySelectorAll('.ap-export-target-profiles-body > .ap-export-target-profile')];
@@ -226,22 +228,95 @@ function buildEntryPointsPageGroups(block) {
         return [[block]];
     }
 
-    /** @type {HTMLElement[][]} */
-    const pages = [];
-    for (let i = 0; i < profiles.length; i += 2) {
-        const chunk = profiles.slice(i, i + 2);
-        pages.push([
-            buildDossierSectionFragment(
-                sectionId,
-                sectionTitle,
-                chunk,
-                false,
-                'ap-export-target-profiles-body',
-                i === 0
-            ),
-        ]);
+    /**
+     * @param {number} count
+     * @param {number} startIndex
+     */
+    const chunkFits = (count, startIndex) => {
+        const slice = profiles.slice(startIndex, startIndex + count);
+        const trialBlock = buildDossierSectionFragment(
+            sectionId,
+            sectionTitle,
+            slice,
+            startIndex > 0,
+            'ap-export-target-profiles-body',
+            true
+        );
+        return measureDossierContentPage([trialBlock], meta, exportRoot);
+    };
+
+    /** @type {{ start: number, count: number }[]} */
+    let pageRanges = [];
+    let start = 0;
+    while (start < profiles.length) {
+        let maxFit = 1;
+        const remaining = profiles.length - start;
+        for (let tryCount = Math.min(remaining, 6); tryCount >= 1; tryCount -= 1) {
+            if (chunkFits(tryCount, start)) {
+                maxFit = tryCount;
+                break;
+            }
+        }
+        pageRanges.push({ start, count: maxFit });
+        start += maxFit;
     }
-    return pages;
+
+    pageRanges = rebalanceEntryPointPageRanges(pageRanges, profiles.length, chunkFits);
+
+    return pageRanges.map(({ start: rangeStart, count }, pageIndex) => [
+        buildDossierSectionFragment(
+            sectionId,
+            sectionTitle,
+            profiles.slice(rangeStart, rangeStart + count),
+            pageIndex > 0,
+            'ap-export-target-profiles-body',
+            true
+        ),
+    ]);
+}
+
+/**
+ * Avoid a lone profile on the final page when merging or shifting can fix it.
+ * @param {{ start: number, count: number }[]} pageRanges
+ * @param {number} totalProfiles
+ * @param {(count: number, startIndex: number) => boolean} chunkFits
+ * @returns {{ start: number, count: number }[]}
+ */
+function rebalanceEntryPointPageRanges(pageRanges, totalProfiles, chunkFits) {
+    if (pageRanges.length <= 1) return pageRanges;
+
+    const last = pageRanges[pageRanges.length - 1];
+    if (last.count !== 1) return pageRanges;
+
+    const prev = pageRanges[pageRanges.length - 2];
+    const mergedCount = prev.count + last.count;
+    if (chunkFits(mergedCount, prev.start)) {
+        return [
+            ...pageRanges.slice(0, -2),
+            { start: prev.start, count: mergedCount },
+        ];
+    }
+
+    if (prev.count > 1) {
+        for (let shift = 1; shift < prev.count; shift += 1) {
+            const newPrevCount = prev.count - shift;
+            const newLastStart = prev.start + newPrevCount;
+            const newLastCount = totalProfiles - newLastStart;
+            if (
+                newLastCount > 1
+                && chunkFits(newPrevCount, prev.start)
+                && chunkFits(newLastCount, newLastStart)
+            ) {
+                return [
+                    ...pageRanges.slice(0, -2),
+                    { start: prev.start, count: newPrevCount },
+                    { start: newLastStart, count: newLastCount },
+                ];
+            }
+        }
+    }
+
+    return pageRanges;
 }
 
 /**

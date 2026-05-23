@@ -1568,7 +1568,11 @@ async function handleExportPdf(type) {
         return;
     }
 
-    const account = _options.getSelectedAccount?.() ?? null;
+    const accountBase = _options.getSelectedAccount?.() ?? null;
+    const accountDetails = _options.getSelectedAccountDetails?.();
+    const account = accountBase
+        ? { ...accountBase, contacts: accountDetails?.contacts ?? [] }
+        : null;
     syncLiveSectionsFromCanvas();
     const planForExport = deepClonePlan(_planBaseline);
     if (_liveSections) {
