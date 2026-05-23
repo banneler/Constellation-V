@@ -3,6 +3,7 @@
  */
 
 import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS, MAX_ENTRY_POINTS, ENTRY_POINT_TRUST_LEVELS, ENTRY_POINT_LEVEL_OPTIONS, ENTRY_POINT_COMM_STYLES } from './account-plan-sections.js';
+import { formatPlanHorizonRailPreviewHtml } from './account-plan-rich-text.js';
 import {
     createEmptyPlan,
     createEmptyEntryPoint,
@@ -1415,7 +1416,7 @@ function renderRail(sections) {
                 <h2 class="section-title">Next 30 Days</h2>
             </div>
             <div class="strategic-rail-body px-5 pb-5">
-                <p class="rail-plan-preview" data-rail-plan-30>${escapeHtml(truncateText(String(plan306090.days_30 ?? ''), 160) || '—')}</p>
+                <div class="rail-plan-preview" data-rail-plan-30>${formatPlanHorizonRailPreviewHtml(plan306090.days_30)}</div>
             </div>
         </div>
         <div class="section-card strategic-rail-card">
@@ -1604,7 +1605,7 @@ function updateRailSummaries(sections) {
     }
 
     const plan30 = document.querySelector('[data-rail-plan-30]');
-    if (plan30) plan30.textContent = truncateText(String(plan306090.days_30 ?? ''), 160) || '—';
+    if (plan30) plan30.innerHTML = formatPlanHorizonRailPreviewHtml(plan306090.days_30);
 
     const momentumLabel = document.querySelector('[data-momentum-label]');
     if (momentumLabel) momentumLabel.textContent = MOMENTUM_LABELS[score - 1];

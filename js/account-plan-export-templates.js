@@ -4,6 +4,7 @@
 
 import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
 import { normalizePlan } from './account-plan-data.js';
+import { formatPlanHorizonRichHtml } from './account-plan-rich-text.js';
 import {
     GPC_BRAND,
     GPC_LOGO_NAVY,
@@ -299,20 +300,19 @@ export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, 
     grid.className = 'ap-exec-grid ap-exec-grid--execution';
 
     const planPanel = createExecPanel('ap-exec-panel--plan', '30 / 60 / 90', 'plan_30_60_90');
-    const planList = document.createElement('ul');
-    planList.className = 'ap-exec-plan-list';
-    [
-        ['30', ctx.plan306090.days_30],
-        ['60', ctx.plan306090.days_60],
-        ['90', ctx.plan306090.days_90],
-    ].forEach(([days, text]) => {
-        const line = String(text ?? '').trim() || 'Not defined';
-        const item = document.createElement('li');
-        item.className = 'ap-exec-plan-item';
-        item.innerHTML = `<strong>${days}d</strong><span class="ap-line-clamp-4">${escapeHtml(line)}</span>`;
-        planList.appendChild(item);
+    const planGrid = document.createElement('div');
+    planGrid.className = 'ap-exec-plan-horizons';
+    PLAN_306090_HORIZONS.forEach((horizon) => {
+        const col = document.createElement('div');
+        col.className = 'ap-exec-plan-horizon-col';
+        col.innerHTML = `<h3 class="ap-exec-plan-horizon-title">${escapeHtml(horizon.title)}</h3>`;
+        const body = document.createElement('div');
+        body.className = 'ap-exec-plan-horizon-body';
+        body.innerHTML = formatPlanHorizonRichHtml(ctx.plan306090[horizon.key]);
+        col.appendChild(body);
+        planGrid.appendChild(col);
     });
-    planPanel.appendChild(planList);
+    planPanel.appendChild(planGrid);
 
     const signalsPanel = createExecPanel('ap-exec-panel--signals', 'Strategic Signals', 'momentum_timeline');
     const signalsList = document.createElement('ul');
@@ -436,6 +436,27 @@ function createEditorialCell(kicker, text, options = {}) {
 
     cell.appendChild(label);
     cell.appendChild(copy);
+    return cell;
+}
+
+/**
+ * @param {string} kicker
+ * @param {unknown} text
+ */
+function createEditorialPlanHorizonCell(kicker, text) {
+    const cell = document.createElement('div');
+    cell.className = 'ap-export-editorial-cell';
+
+    const label = document.createElement('h3');
+    label.className = 'ap-export-editorial-kicker';
+    label.textContent = kicker;
+
+    const body = document.createElement('div');
+    body.className = 'ap-export-plan-horizon-body';
+    body.innerHTML = formatPlanHorizonRichHtml(text);
+
+    cell.appendChild(label);
+    cell.appendChild(body);
     return cell;
 }
 
@@ -824,9 +845,9 @@ function buildDossierSectionUnits(section, sections) {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
         const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-editorial-grid--plan');
         PLAN_306090_HORIZONS.forEach((horizon) => {
-            grid.appendChild(createEditorialCell(
+            grid.appendChild(createEditorialPlanHorizonCell(
                 horizon.title,
-                String(plan306090[horizon.key] ?? '').trim()
+                plan306090[horizon.key]
             ));
         });
         return [createDossierSectionBlock(section, grid)];
@@ -1063,23 +1084,46 @@ function buildDossierMomentumTimelineBody(sections) {
         return wrap;
     }
 
+    const tree = document.createElement('div');
+    tree.className = 'ap-export-momentum-timeline-tree';
+
+    const trunk = document.createElement('div');
+    trunk.className = 'ap-export-momentum-timeline-trunk';
+    trunk.setAttribute('aria-hidden', 'true');
+
+    const items = document.createElement('div');
+    items.className = 'ap-export-momentum-timeline-items';
+
     notes.forEach((note) => {
         const entry = document.createElement('article');
-        entry.className = 'ap-export-momentum-timeline-entry';
+        entry.className = 'ap-export-momentum-timeline-item timeline-item-signal';
 
-        const dateEl = document.createElement('p');
+        const node = document.createElement('div');
+        node.className = 'ap-export-momentum-timeline-node';
+        node.setAttribute('aria-hidden', 'true');
+
+        const card = document.createElement('div');
+        card.className = 'ap-export-momentum-timeline-card';
+
+        const dateEl = document.createElement('time');
         dateEl.className = 'ap-export-momentum-timeline-date';
+        dateEl.dateTime = note.date;
         dateEl.textContent = formatMomentumNoteDate(note.date);
 
         const textEl = document.createElement('p');
         textEl.className = 'ap-export-momentum-timeline-text';
         textEl.textContent = note.text;
 
-        entry.appendChild(dateEl);
-        entry.appendChild(textEl);
-        wrap.appendChild(entry);
+        card.appendChild(dateEl);
+        card.appendChild(textEl);
+        entry.appendChild(node);
+        entry.appendChild(card);
+        items.appendChild(entry);
     });
 
+    tree.appendChild(trunk);
+    tree.appendChild(items);
+    wrap.appendChild(tree);
     return wrap;
 }
 
@@ -1382,15 +1426,43 @@ export function ensureExportTemplateStyles() {
             margin: 0;
             color: #64748b;
         }
-        .ap-export-momentum-timeline-entry {
-            border-left: 2px solid #e2e8f0;
-            padding-left: 12px;
-            margin-bottom: 16px;
+        .ap-export-momentum-timeline-tree {
+            position: relative;
+            padding: 4px 0 4px 28px;
         }
-        .ap-export-momentum-timeline-entry:last-child {
-            margin-bottom: 0;
+        .ap-export-momentum-timeline-trunk {
+            position: absolute;
+            left: 11px;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            background: #e2e8f0;
+        }
+        .ap-export-momentum-timeline-items {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .ap-export-momentum-timeline-item {
+            position: relative;
+        }
+        .ap-export-momentum-timeline-node {
+            position: absolute;
+            left: -22px;
+            top: 8px;
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: #3b82f6;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 1px #cbd5e1;
+            z-index: 1;
+        }
+        .ap-export-momentum-timeline-card {
+            padding-left: 4px;
         }
         .ap-export-momentum-timeline-date {
+            display: block;
             margin: 0 0 4px;
             font-size: 10px;
             font-weight: 700;
@@ -1403,7 +1475,86 @@ export function ensureExportTemplateStyles() {
             font-size: 13px;
             line-height: 1.55;
             color: #1e293b;
-            white-space: pre-wrap;
+        }
+        .ap-export-plan-horizon-body .plan-horizon-list,
+        .ap-exec-plan-horizon-body .plan-horizon-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ap-export-plan-horizon-body .plan-horizon-list li,
+        .ap-exec-plan-horizon-body .plan-horizon-list li {
+            position: relative;
+            padding-left: 14px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+        .ap-export-plan-horizon-body .plan-horizon-list li::before,
+        .ap-exec-plan-horizon-body .plan-horizon-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.55em;
+            width: 5px;
+            height: 5px;
+            border-radius: 999px;
+            background: #3b82f6;
+        }
+        .ap-exec-plan-horizon-body .plan-horizon-list li {
+            color: #cbd5e1;
+        }
+        .ap-export-plan-horizon-body .plan-horizon-meta,
+        .ap-exec-plan-horizon-body .plan-horizon-meta {
+            color: #2563eb;
+            font-weight: 700;
+        }
+        .ap-exec-plan-horizon-body .plan-horizon-meta {
+            color: #93c5fd;
+        }
+        .ap-export-plan-horizon-body .plan-horizon-empty,
+        .ap-exec-plan-horizon-body .plan-horizon-empty {
+            margin: 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .ap-exec-plan-horizons {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-plan-horizon-col {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-plan-horizon-title {
+            margin: 0 0 8px;
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .ap-exec-plan-horizon-body {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-plan-horizon-body .plan-horizon-list {
+            gap: 6px;
+        }
+        .ap-exec-plan-horizon-body .plan-horizon-list li {
+            font-size: 10px;
+            line-height: 1.4;
         }
         .ap-export-editorial-pills-line {
             margin: 0 0 12px;

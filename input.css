@@ -2690,9 +2690,38 @@ body.theme-green {
         line-height: 1.45;
     }
     .rail-plan-preview {
-        @apply text-sm m-0 whitespace-pre-line;
+        @apply text-sm m-0;
         color: var(--text-medium);
         line-height: 1.45;
+    }
+    .plan-horizon-list {
+        @apply list-none m-0 p-0 flex flex-col gap-2;
+    }
+    .plan-horizon-list--compact {
+        @apply gap-1.5;
+    }
+    .plan-horizon-list li {
+        @apply text-sm relative pl-4;
+        color: var(--text-medium);
+        line-height: 1.45;
+    }
+    .plan-horizon-list li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.55em;
+        width: 5px;
+        height: 5px;
+        border-radius: 9999px;
+        background-color: var(--primary-blue);
+    }
+    .plan-horizon-meta {
+        color: var(--text-light);
+        font-weight: 700;
+    }
+    .plan-horizon-empty {
+        @apply text-sm m-0;
+        color: var(--text-medium);
     }
     .rail-plan-list {
         @apply list-none m-0 p-0 flex flex-col gap-2;
