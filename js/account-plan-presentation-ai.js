@@ -48,12 +48,18 @@ export function normalizePresentationHighlight(raw, meta) {
     const execution = isPlainObject(slidesRaw.execution) ? slidesRaw.execution : {};
 
     const pursuit = isPlainObject(situation.pursuit_thesis) ? situation.pursuit_thesis : {};
+    const accountContextRaw = isPlainObject(situation.account_context) ? situation.account_context : {};
+    const painSignalsRaw = isPlainObject(situation.pain_signals) ? situation.pain_signals : {};
+    const criticalUnknownsRaw = isPlainObject(situation.critical_unknowns) ? situation.critical_unknowns : {};
     const momentum = isPlainObject(situation.momentum) ? situation.momentum : {};
     const psychology = isPlainObject(situation.psychology) ? situation.psychology : {};
     const competitive = isPlainObject(battlefield.competitive) ? battlefield.competitive : {};
+    const whiteSpaceRaw = isPlainObject(battlefield.white_space) ? battlefield.white_space : {};
     const influence = isPlainObject(battlefield.influence) ? battlefield.influence : {};
 
     const ctx = resolvePlanContext(meta.plan);
+    const fallbackAccountContext = fallbackAccountContextFromSnapshot(ctx.sections);
+    const fallbackSubheadline = buildAccountContextLabel(fallbackAccountContext);
 
     return {
         generated_at: meta.generatedAt,
@@ -62,11 +68,29 @@ export function normalizePresentationHighlight(raw, meta) {
         slides: {
             situation: {
                 headline: pickText(situation.headline, `${meta.accountName}: Strategic Pursuit Brief`),
-                subheadline: pickText(situation.subheadline, ''),
+                subheadline: pickText(situation.subheadline, fallbackSubheadline),
+                account_context: {
+                    tier: pickText(accountContextRaw.tier, fallbackAccountContext.tier),
+                    priority: pickText(accountContextRaw.priority, fallbackAccountContext.priority),
+                },
                 pursuit_thesis: {
                     headline: pickText(pursuit.headline, 'Why This Account Matters Now'),
                     bullets: pickBullets(pursuit.bullets, 4, fallbackPursuitBullets(ctx.sections)),
                 },
+                executive_narrative: pickText(
+                    situation.executive_narrative,
+                    fallbackExecutiveNarrative(ctx.sections)
+                ),
+                pain_signals: normalizeSignalBlock(
+                    painSignalsRaw,
+                    'Pain Signals',
+                    fallbackPainSignalBullets(ctx.sections)
+                ),
+                critical_unknowns: normalizeSignalBlock(
+                    criticalUnknownsRaw,
+                    'Critical Unknowns',
+                    fallbackCriticalUnknownBullets(ctx.sections)
+                ),
                 momentum: {
                     insight: pickText(
                         momentum.insight,
@@ -92,6 +116,13 @@ export function normalizePresentationHighlight(raw, meta) {
                         fallbackCompetitiveBullets(ctx.sections)
                     ),
                 },
+                white_space: {
+                    headline: pickText(whiteSpaceRaw.headline, fallbackWhiteSpaceHook(ctx.sections).headline),
+                    opportunity: pickText(
+                        whiteSpaceRaw.opportunity,
+                        fallbackWhiteSpaceHook(ctx.sections).opportunity
+                    ),
+                },
                 influence: {
                     executive_hook: pickText(
                         influence.executive_hook,
@@ -101,6 +132,10 @@ export function normalizePresentationHighlight(raw, meta) {
                         influence.champions_hook,
                         fallbackInfluenceHook(ctx.sections, 'mid_level')
                     ),
+                    access_path_hook: pickText(
+                        influence.access_path_hook,
+                        fallbackAccessPathHook(ctx.sections)
+                    ),
                 },
                 entry_points: pickEntryPoints(battlefield.entry_points, ctx.sections),
             },
@@ -109,6 +144,10 @@ export function normalizePresentationHighlight(raw, meta) {
                 plan_30: normalizePlanHorizon(execution.plan_30, 'Next 30 Days', ctx.plan306090.days_30),
                 plan_60: normalizePlanHorizon(execution.plan_60, 'Day 31–60', ctx.plan306090.days_60),
                 plan_90: normalizePlanHorizon(execution.plan_90, 'Day 61–90', ctx.plan306090.days_90),
+                entrenchment_moat: pickText(
+                    execution.entrenchment_moat,
+                    fallbackEntrenchmentMoat(ctx.sections)
+                ),
                 signals: pickSignals(execution.signals, ctx.timelineNotes),
             },
         },
@@ -134,6 +173,7 @@ function resolvePlanContext(plan) {
 
 /**
  * User-logged strategic signals only — excludes CRM activity rows.
+ * Per docs/saos/DECISIONS.md #1: never include source: activity in presentation signals.
  * @param {Record<string, unknown>} sections
  */
 function getExportSignals(sections) {
@@ -182,6 +222,65 @@ function getExportSignals(sections) {
 /**
  * @param {Record<string, unknown>} sections
  */
+function fallbackAccountContextFromSnapshot(sections) {
+    const snapshot = isPlainObject(sections.account_snapshot) ? sections.account_snapshot : {};
+    return {
+        tier: String(snapshot.tier ?? '').trim(),
+        priority: String(snapshot.pursuit_priority ?? '').trim(),
+    };
+}
+
+/**
+ * @param {{ tier: string, priority: string }} accountContext
+ */
+function buildAccountContextLabel(accountContext) {
+    return [accountContext.tier, accountContext.priority].filter(Boolean).join(' · ');
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackExecutiveNarrative(sections) {
+    const thesis = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
+    return truncatePresentationText(String(thesis.executive_narrative ?? '').trim(), 140);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackPainSignalBullets(sections) {
+    const pain = isPlainObject(sections.pain_signals) ? sections.pain_signals : {};
+    const selected = Array.isArray(pain.selected) ? pain.selected : [];
+    const pills = selected.map((pill) => String(pill ?? '').trim()).filter(Boolean);
+    const notes = String(pain.notes ?? '').trim();
+    const bullets = [...pills];
+    if (notes) bullets.push(truncatePresentationText(notes, 90));
+    return bullets.slice(0, 3);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackCriticalUnknownBullets(sections) {
+    const unknowns = isPlainObject(sections.critical_unknowns) ? sections.critical_unknowns : {};
+    const pills = Array.isArray(unknowns.executive_language_pills)
+        ? unknowns.executive_language_pills
+        : [];
+    const lines = extractBulletLines(unknowns.unknowns);
+    const bullets = [
+        ...lines,
+        ...pills.map((pill) => String(pill ?? '').trim()).filter(Boolean),
+        String(unknowns.executive_language_notes ?? '').trim(),
+    ]
+        .map((line) => String(line).trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    return bullets;
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
 function fallbackPursuitBullets(sections) {
     const thesis = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
     return [
@@ -189,7 +288,6 @@ function fallbackPursuitBullets(sections) {
         thesis.why_account_matters,
         thesis.cost_of_standing_still,
         thesis.timing,
-        thesis.executive_narrative,
     ]
         .map((v) => String(v ?? '').trim())
         .filter(Boolean)
@@ -201,17 +299,65 @@ function fallbackPursuitBullets(sections) {
  */
 function fallbackCompetitiveBullets(sections) {
     const competitive = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
-    const entrenchment = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
     const pills = Array.isArray(competitive.positioning_pills) ? competitive.positioning_pills : [];
     return [
         competitive.incumbents,
         pills.length ? `Positioning: ${pills.join(', ')}` : '',
         competitive.narrative,
-        entrenchment.difficult_to_remove,
     ]
         .map((v) => String(v ?? '').trim())
         .filter(Boolean)
         .slice(0, 4);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackWhiteSpaceHook(sections) {
+    const rows = Array.isArray(sections.white_space) ? sections.white_space.filter(isPlainObject) : [];
+    const ranked = [...rows]
+        .map((row) => ({
+            row,
+            score: scoreWhiteSpaceRow(row),
+        }))
+        .sort((a, b) => b.score - a.score);
+
+    const top = ranked.find((item) => {
+        const opportunity = String(item.row.opportunity ?? '').trim();
+        const area = String(item.row.area ?? '').trim();
+        return opportunity || area;
+    });
+
+    if (!top) {
+        return { headline: 'Top White Space', opportunity: '' };
+    }
+
+    return {
+        headline: String(top.row.area ?? 'Top White Space').trim() || 'Top White Space',
+        opportunity: truncatePresentationText(String(top.row.opportunity ?? '').trim(), 120),
+    };
+}
+
+/**
+ * @param {Record<string, unknown>} row
+ */
+function scoreWhiteSpaceRow(row) {
+    const importance = String(row.operational_importance ?? '').toLowerCase();
+    const visibility = String(row.executive_visibility ?? '').toLowerCase();
+    const scoreMap = { high: 3, medium: 2, low: 1 };
+    return (scoreMap[importance] || 0) * 2 + (scoreMap[visibility] || 0);
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackEntrenchmentMoat(sections) {
+    const entrenchment = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
+    const pills = Array.isArray(entrenchment.moat_pills) ? entrenchment.moat_pills : [];
+    const pillText = pills.map((pill) => String(pill ?? '').trim()).filter(Boolean).join(', ');
+    const narrative = String(entrenchment.difficult_to_remove ?? '').trim();
+    const combined = [pillText, narrative].filter(Boolean).join(' — ');
+    return truncatePresentationText(combined, 140);
 }
 
 /**
@@ -240,10 +386,9 @@ function fallbackPsychologyCallouts(sections) {
  */
 function fallbackInfluenceHook(sections, tier) {
     const influence = isPlainObject(sections.influence_mapping) ? sections.influence_mapping : {};
-    const accessPath = isPlainObject(influence.access_path) ? influence.access_path : {};
     const tierText = tier === 'executive'
         ? String(influence.political_dynamics ?? influence.invisible_org_chart ?? '').trim()
-        : String(accessPath.strategy ?? accessPath.bridge ?? '').trim();
+        : '';
 
     if (tierText) {
         return truncatePresentationText(tierText, tier === 'executive' ? 120 : 100);
@@ -252,6 +397,40 @@ function fallbackInfluenceHook(sections, tier) {
     return tier === 'executive'
         ? 'Executive access path is the gating factor'
         : 'Mid-level champions can compound operational trust';
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function fallbackAccessPathHook(sections) {
+    const influence = isPlainObject(sections.influence_mapping) ? sections.influence_mapping : {};
+    const accessPath = isPlainObject(influence.access_path) ? influence.access_path : {};
+    const parts = [
+        accessPath.strategy,
+        accessPath.desired,
+        accessPath.bridge,
+        accessPath.current,
+    ]
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean);
+
+    if (parts.length > 0) {
+        return truncatePresentationText(parts[0], 120);
+    }
+
+    return 'Define the executive access path and bridge contacts';
+}
+
+/**
+ * @param {Record<string, unknown>} raw
+ * @param {string} defaultHeadline
+ * @param {string[]} fallbackBullets
+ */
+function normalizeSignalBlock(raw, defaultHeadline, fallbackBullets) {
+    return {
+        headline: pickText(raw.headline, defaultHeadline),
+        bullets: pickBullets(raw.bullets, 3, fallbackBullets),
+    };
 }
 
 /**

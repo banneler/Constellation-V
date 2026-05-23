@@ -88,6 +88,7 @@ function resolvePptxPlanContext(plan) {
 function buildSituationSlide(pptx, accountName, highlight, ctx, logoData) {
     const slide = pptx.addSlide();
     const situation = highlight.slides.situation;
+    const accountContextLabel = buildAccountContextLabel(situation.account_context, situation.subheadline);
     addSlideBackground(slide);
     addSlideChrome(slide, {
         pageNumber: 1,
@@ -95,15 +96,24 @@ function buildSituationSlide(pptx, accountName, highlight, ctx, logoData) {
         accountName,
         titleSuffix: 'Strategic Brief',
         hook: situation.headline,
+        subheadline: accountContextLabel,
         logoData,
     });
 
-    const contentTop = 1.52;
+    const contentTop = accountContextLabel ? 1.62 : 1.52;
     const contentH = SLIDE_H - contentTop - FOOTER_H - 0.12;
     const contentW = SLIDE_W - MARGIN_X * 2;
     const leftW = contentW * (1.22 / 2);
     const rightW = contentW - leftW - GAP;
     const rightX = MARGIN_X + leftW + GAP;
+
+    const leftExtras = [
+        situation.executive_narrative,
+        ...situation.pain_signals.bullets,
+        ...situation.critical_unknowns.bullets,
+    ].filter(Boolean);
+    const leftFooterH = leftExtras.length > 0 ? Math.min(1.55, 0.34 + leftExtras.length * 0.18) : 0;
+    const thesisListH = contentH - 0.58 - leftFooterH;
 
     addPanel(slide, MARGIN_X, contentTop, leftW, contentH);
     addPanelTitle(slide, situation.pursuit_thesis.headline, MARGIN_X + 0.14, contentTop + 0.12, leftW - 0.28, {
@@ -111,15 +121,48 @@ function buildSituationSlide(pptx, accountName, highlight, ctx, logoData) {
         bold: true,
         color: THEME.navy,
     });
+    if (situation.executive_narrative) {
+        slide.addText(situation.executive_narrative, {
+            x: MARGIN_X + 0.16,
+            y: contentTop + 0.4,
+            w: leftW - 0.32,
+            h: 0.34,
+            fontSize: 9,
+            italic: true,
+            color: THEME.blue,
+            fontFace: THEME.font,
+            valign: 'top',
+            margin: 0,
+        });
+    }
     addBulletList(
         slide,
         situation.pursuit_thesis.bullets,
         MARGIN_X + 0.16,
-        contentTop + 0.48,
+        contentTop + (situation.executive_narrative ? 0.74 : 0.48),
         leftW - 0.32,
-        contentH - 0.58,
+        thesisListH,
         { fontSize: 11, lineSpacing: 18 }
     );
+    if (leftFooterH > 0) {
+        const footerY = contentTop + contentH - leftFooterH + 0.06;
+        addSituationSignalStrip(
+            slide,
+            situation.pain_signals,
+            MARGIN_X + 0.14,
+            footerY,
+            (leftW - 0.28) / 2 - 0.04,
+            leftFooterH - 0.08
+        );
+        addSituationSignalStrip(
+            slide,
+            situation.critical_unknowns,
+            MARGIN_X + 0.14 + (leftW - 0.28) / 2 + 0.04,
+            footerY,
+            (leftW - 0.28) / 2 - 0.04,
+            leftFooterH - 0.08
+        );
+    }
 
     const momentumH = contentH * 0.36;
     const psychH = contentH - momentumH - GAP;
@@ -220,15 +263,49 @@ function buildBattlefieldSlide(pptx, accountName, highlight, logoData) {
         bold: true,
         color: THEME.navy,
     });
+
+    const competitiveFooterH = battlefield.white_space.opportunity ? 0.82 : 0;
     addBulletList(
         slide,
         battlefield.competitive.bullets,
         MARGIN_X + 0.14,
         contentTop + 0.46,
         col1W - 0.28,
-        contentH - 0.56,
+        contentH - 0.56 - competitiveFooterH,
         { fontSize: 10.5, lineSpacing: 17 }
     );
+    if (battlefield.white_space.opportunity) {
+        const whiteSpaceY = contentTop + contentH - competitiveFooterH + 0.04;
+        slide.addShape('roundRect', {
+            x: MARGIN_X + 0.1,
+            y: whiteSpaceY,
+            w: col1W - 0.2,
+            h: competitiveFooterH - 0.08,
+            fill: { color: THEME.panelFill },
+            line: { color: THEME.border, width: 0.75 },
+            rectRadius: 0.04,
+        });
+        addPanelTitle(
+            slide,
+            battlefield.white_space.headline || 'Top White Space',
+            MARGIN_X + 0.14,
+            whiteSpaceY + 0.06,
+            col1W - 0.28,
+            { fontSize: 7.5, color: THEME.muted, uppercase: true }
+        );
+        slide.addText(battlefield.white_space.opportunity, {
+            x: MARGIN_X + 0.14,
+            y: whiteSpaceY + 0.28,
+            w: col1W - 0.28,
+            h: competitiveFooterH - 0.36,
+            fontSize: 9,
+            bold: true,
+            color: THEME.navy,
+            fontFace: THEME.font,
+            valign: 'top',
+            margin: 0,
+        });
+    }
 
     addPanel(slide, col2X, contentTop, col2W, contentH);
     addPanelTitle(slide, 'Influence Board', col2X + 0.12, contentTop + 0.1, col2W - 0.24, {
@@ -236,24 +313,23 @@ function buildBattlefieldSlide(pptx, accountName, highlight, logoData) {
         color: THEME.muted,
         uppercase: true,
     });
-    addInfluenceHook(
-        slide,
-        'Executive Leadership',
-        battlefield.influence.executive_hook,
-        col2X + 0.12,
-        contentTop + 0.48,
-        col2W - 0.24,
-        (contentH - 0.58) * 0.48
-    );
-    addInfluenceHook(
-        slide,
-        'Mid-Level Champions',
-        battlefield.influence.champions_hook,
-        col2X + 0.12,
-        contentTop + 0.48 + (contentH - 0.58) * 0.52,
-        col2W - 0.24,
-        (contentH - 0.58) * 0.48
-    );
+    const influenceHooks = [
+        { label: 'Executive Leadership', copy: battlefield.influence.executive_hook },
+        { label: 'Mid-Level Champions', copy: battlefield.influence.champions_hook },
+        { label: 'Access Path', copy: battlefield.influence.access_path_hook },
+    ].filter((hook) => hook.copy);
+    const hookBlockH = (contentH - 0.58) / Math.max(influenceHooks.length, 1);
+    influenceHooks.forEach((hook, index) => {
+        addInfluenceHook(
+            slide,
+            hook.label,
+            hook.copy,
+            col2X + 0.12,
+            contentTop + 0.48 + index * hookBlockH,
+            col2W - 0.24,
+            hookBlockH - 0.04
+        );
+    });
 
     addPanel(slide, col3X, contentTop, col3W, contentH);
     addPanelTitle(slide, 'Entry Points', col3X + 0.12, contentTop + 0.1, col3W - 0.24, {
@@ -358,13 +434,42 @@ function buildExecutionSlide(pptx, accountName, highlight, logoData) {
     });
 
     addPanel(slide, signalsX, contentTop, signalsW, contentH);
+    const moatH = execution.entrenchment_moat ? 0.72 : 0;
     addPanelTitle(slide, 'Strategic Signals', signalsX + 0.12, contentTop + 0.1, signalsW - 0.24, {
         fontSize: 9,
         color: THEME.muted,
         uppercase: true,
     });
+    if (execution.entrenchment_moat) {
+        slide.addShape('roundRect', {
+            x: signalsX + 0.1,
+            y: contentTop + 0.36,
+            w: signalsW - 0.2,
+            h: moatH - 0.06,
+            fill: { color: THEME.panelFill },
+            line: { color: THEME.border, width: 0.75 },
+            rectRadius: 0.04,
+        });
+        addPanelTitle(slide, 'Entrenchment Moat', signalsX + 0.14, contentTop + 0.4, signalsW - 0.28, {
+            fontSize: 7,
+            color: THEME.muted,
+            uppercase: true,
+        });
+        slide.addText(execution.entrenchment_moat, {
+            x: signalsX + 0.14,
+            y: contentTop + 0.56,
+            w: signalsW - 0.28,
+            h: moatH - 0.24,
+            fontSize: 8.5,
+            bold: true,
+            color: THEME.navy,
+            fontFace: THEME.font,
+            valign: 'top',
+            margin: 0,
+        });
+    }
     execution.signals.slice(0, 3).forEach((signal, index) => {
-        const y = contentTop + 0.44 + index * 0.95;
+        const y = contentTop + 0.44 + moatH + index * 0.95;
         slide.addText(String(signal.date_label || '').toUpperCase(), {
             x: signalsX + 0.12,
             y,
@@ -407,6 +512,7 @@ function addSlideBackground(slide) {
  *   accountName: string,
  *   titleSuffix?: string,
  *   hook?: string,
+ *   subheadline?: string,
  *   logoData: string | null,
  * }} chrome
  */
@@ -445,12 +551,26 @@ function addSlideChrome(slide, chrome) {
             x: MARGIN_X,
             y: 0.98,
             w: 10.2,
-            h: 0.48,
+            h: chrome.subheadline ? 0.38 : 0.48,
             fontSize: 13,
             bold: true,
             color: THEME.navy,
             fontFace: THEME.font,
             valign: 'top',
+            margin: 0,
+        });
+    }
+    if (chrome.subheadline) {
+        slide.addText(chrome.subheadline.toUpperCase(), {
+            x: MARGIN_X,
+            y: 1.36,
+            w: 10.2,
+            h: 0.18,
+            fontSize: 7.5,
+            bold: true,
+            color: THEME.muted,
+            fontFace: THEME.font,
+            charSpacing: 0.8,
             margin: 0,
         });
     }
@@ -617,6 +737,48 @@ function addPsychCallouts(slide, callouts, x, y, w, h) {
             margin: 0,
         });
     });
+}
+
+/**
+ * @param {{ tier: string, priority: string }} accountContext
+ * @param {string} subheadline
+ */
+function buildAccountContextLabel(accountContext, subheadline) {
+    const structured = [accountContext?.tier, accountContext?.priority]
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean)
+        .join(' · ');
+    return structured || String(subheadline ?? '').trim();
+}
+
+/**
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {{ headline: string, bullets: string[] }} block
+ */
+function addSituationSignalStrip(slide, block, x, y, w, h) {
+    const bullets = (block.bullets || []).filter(Boolean).slice(0, 2);
+    if (bullets.length === 0 && !block.headline) return;
+
+    slide.addShape('roundRect', {
+        x,
+        y,
+        w,
+        h,
+        fill: { color: THEME.panelFill },
+        line: { color: THEME.border, width: 0.75 },
+        rectRadius: 0.04,
+    });
+    addPanelTitle(slide, block.headline, x + 0.06, y + 0.04, w - 0.12, {
+        fontSize: 6.5,
+        color: THEME.muted,
+        uppercase: true,
+    });
+    if (bullets.length > 0) {
+        addBulletList(slide, bullets, x + 0.06, y + 0.22, w - 0.12, h - 0.28, {
+            fontSize: 7.5,
+            lineSpacing: 12,
+        });
+    }
 }
 
 /**
