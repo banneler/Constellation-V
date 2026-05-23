@@ -2,7 +2,18 @@
  * Strategic Account OS — UI controller (canvas forms, rail, versioning, autosave).
  */
 
-import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS, MAX_ENTRY_POINTS, ENTRY_POINT_TRUST_LEVELS, ENTRY_POINT_LEVEL_OPTIONS, ENTRY_POINT_COMM_STYLES } from './account-plan-sections.js';
+import {
+    PLAN_SECTIONS,
+    PSYCHOLOGY_SLIDERS,
+    PLAN_306090_HORIZONS,
+    MAX_ENTRY_POINTS,
+    ENTRY_POINT_TRUST_LEVELS,
+    ENTRY_POINT_LEVEL_OPTIONS,
+    ENTRY_POINT_COMM_STYLES,
+    ACCOUNT_SNAPSHOT_TIER_OPTIONS,
+    ACCOUNT_SNAPSHOT_LEVEL_OPTIONS,
+    CRITICAL_UNKNOWN_LANGUAGE_PILLS,
+} from './account-plan-sections.js';
 import { formatPlanHorizonRailPreviewHtml } from './account-plan-rich-text.js';
 import {
     createEmptyPlan,
@@ -10,6 +21,7 @@ import {
     deepClonePlan,
     normalizePlan,
     savePlanDraft,
+    ENTRY_POINT_FIELD_KEYS,
 } from './account-plan-data.js';
 import { createAccountPlanAutosave } from './account-plan-autosave.js';
 import {
@@ -491,9 +503,137 @@ function normalizeInfluenceEntries(value) {
 function buildCompositeTextareaHtml(section, data) {
     const obj = isPlainObject(data) ? data : {};
     const fields = section.fields || [];
-    return `<div class="strategic-composite-grid">${fields.map((field) => (
-        buildCompositeFieldHtml(section.id, field, obj[field.key])
-    )).join('')}</div>`;
+    return `<div class="strategic-composite-grid">${fields.map((field) => {
+        const fieldHtml = buildCompositeFieldHtml(section.id, field, obj[field.key]);
+        if (section.id === 'pursuit_thesis' && field.key === 'executive_narrative') {
+            return `${fieldHtml}${buildExecutiveNarrativeHintPillsHtml()}`;
+        }
+        return fieldHtml;
+    }).join('')}</div>`;
+}
+
+function buildExecutiveNarrativeHintPillsHtml() {
+    const pillsHtml = CRITICAL_UNKNOWN_LANGUAGE_PILLS.map((pill) => (
+        `<button type="button" class="strategic-hint-pill" data-hint-pill-target="pursuit_thesis.executive_narrative" data-hint-pill-value="${escapeHtml(pill)}">${escapeHtml(pill)}</button>`
+    )).join('');
+
+    return `
+        <div class="strategic-hint-pills-group" aria-label="Executive language hints">
+            <span class="strategic-hint-pills-label">Language hints</span>
+            <div class="strategic-hint-pills-wrap">${pillsHtml}</div>
+        </div>`;
+}
+
+/**
+ * @param {object | null | undefined} account
+ */
+function buildAccountSnapshotCrmHtml(account) {
+    const acct = isPlainObject(account) ? account : {};
+    const rows = [
+        { label: 'Account Name', value: acct.name },
+        { label: 'Industry', value: acct.industry },
+        { label: 'Employees', value: acct.employee_count },
+        { label: 'Sites', value: acct.quantity_of_sites },
+        { label: 'Address', value: acct.address },
+        {
+            label: 'Customer Status',
+            value: acct.is_customer === true ? 'Customer' : acct.is_customer === false ? 'Prospect' : '',
+        },
+    ];
+
+    const items = rows.map(({ label, value }) => {
+        const display = value != null && String(value).trim() !== '' ? String(value) : '—';
+        return `
+            <div class="account-snapshot-crm-item">
+                <span class="account-snapshot-crm-label">${escapeHtml(label)}</span>
+                <span class="account-snapshot-crm-value">${escapeHtml(display)}</span>
+            </div>`;
+    }).join('');
+
+    return `
+        <div class="account-snapshot-crm">
+            <h5 class="account-snapshot-subheading">Firmographics (CRM)</h5>
+            <p class="account-snapshot-crm-note">Read-only — edit in Tactical view.</p>
+            <div class="account-snapshot-crm-grid">${items}</div>
+        </div>`;
+}
+
+/**
+ * @param {string} sectionId
+ * @param {string} fieldKey
+ * @param {string} label
+ * @param {readonly string[]} options
+ * @param {string} value
+ */
+function buildSnapshotSelectField(sectionId, fieldKey, label, options, value) {
+    const fieldId = `strategic-field-${sectionId}-${fieldKey}`;
+    const optionsHtml = options.map((option) => {
+        const selected = value === option ? ' selected' : '';
+        const optionLabel = option === '' ? 'Select…' : option;
+        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(optionLabel)}</option>`;
+    }).join('');
+
+    return `
+        <div class="account-snapshot-field">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <select
+                id="${fieldId}"
+                class="strategic-field account-snapshot-select"
+                data-field="${sectionId}.${fieldKey}"
+            >${optionsHtml}</select>
+        </div>`;
+}
+
+/**
+ * @param {string} sectionId
+ * @param {string} fieldKey
+ * @param {string} label
+ * @param {string} value
+ */
+function buildSnapshotTextareaField(sectionId, fieldKey, label, value) {
+    const fieldId = `strategic-field-${sectionId}-${fieldKey}`;
+    return `
+        <div class="account-snapshot-field account-snapshot-field--wide">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <textarea
+                id="${fieldId}"
+                class="strategic-field strategic-textarea"
+                data-field="${sectionId}.${fieldKey}"
+                rows="3"
+            >${escapeHtml(value)}</textarea>
+        </div>`;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} data
+ * @param {object | null | undefined} account
+ */
+function buildAccountSnapshotHtml(section, data, account) {
+    const snapshot = isPlainObject(data) ? data : {};
+    const tier = String(snapshot.tier ?? '');
+    const relationshipStatus = String(snapshot.relationship_status ?? '');
+    const aiCloudMaturity = String(snapshot.ai_cloud_maturity ?? '');
+    const strategicPatience = String(snapshot.strategic_patience ?? '');
+    const pursuitPriority = String(snapshot.pursuit_priority ?? '');
+    const existingProviders = String(snapshot.existing_providers ?? '');
+    const expansionPotential = String(snapshot.expansion_potential ?? '');
+
+    const planFields = `
+        <div class="account-snapshot-plan">
+            <h5 class="account-snapshot-subheading">Strategic Judgments</h5>
+            <div class="account-snapshot-plan-grid">
+                ${buildSnapshotSelectField(section.id, 'tier', 'Strategic Tier', ACCOUNT_SNAPSHOT_TIER_OPTIONS, tier)}
+                ${buildSnapshotSelectField(section.id, 'relationship_status', 'Relationship Status', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, relationshipStatus)}
+                ${buildSnapshotSelectField(section.id, 'ai_cloud_maturity', 'AI / Cloud Maturity', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, aiCloudMaturity)}
+                ${buildSnapshotSelectField(section.id, 'strategic_patience', 'Strategic Patience', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, strategicPatience)}
+                ${buildSnapshotSelectField(section.id, 'pursuit_priority', 'Pursuit Priority', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, pursuitPriority)}
+                ${buildSnapshotTextareaField(section.id, 'existing_providers', 'Existing Providers', existingProviders)}
+                ${buildSnapshotTextareaField(section.id, 'expansion_potential', 'Expansion Potential', expansionPotential)}
+            </div>
+        </div>`;
+
+    return `${buildAccountSnapshotCrmHtml(account)}${planFields}`;
 }
 
 /**
@@ -1093,6 +1233,7 @@ function toggleStrategicPill(button) {
     }
 
     _liveSections[sectionId] = { ...sectionData, [pillField]: selected };
+    updateRailSummaries(_liveSections);
     queueAutosave();
 }
 
@@ -1245,6 +1386,36 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
             );
         }
 
+        if (section.type === 'account_snapshot') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            const account = _options.getSelectedAccount?.() ?? null;
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildAccountSnapshotHtml(section, data, account),
+                'strategic-section--account-snapshot'
+            );
+        }
+
+        if (section.type === 'pain_signals' || section.type === 'critical_unknowns' || section.type === 'entrenchment') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            const extraClass = section.type === 'critical_unknowns'
+                ? 'strategic-section--critical-unknowns'
+                : section.type === 'entrenchment'
+                    ? 'strategic-section--entrenchment'
+                    : 'strategic-section--pain-signals';
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildPillsAndNarrativeHtml(section, data),
+                extraClass
+            );
+        }
+
         if (section.type === 'pills_and_narrative') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
             const extraClass = section.pillNarrativeLayout === 'split'
@@ -1389,6 +1560,119 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
 }
 
 /**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} sections
+ */
+function isSectionFilled(section, sections) {
+    const data = sections[section.id];
+
+    if (section.type === 'account_snapshot') {
+        const snap = isPlainObject(data) ? data : {};
+        return (section.fields || []).some((field) => String(snap[field.key] ?? '').trim());
+    }
+
+    if (section.type === 'composite_textarea' || section.type === 'triple_textarea') {
+        const obj = isPlainObject(data) ? data : {};
+        const fields = section.fields || section.horizons || [];
+        return fields.some((field) => String(obj[field.key] ?? '').trim());
+    }
+
+    if (
+        section.type === 'pills_and_narrative'
+        || section.type === 'pain_signals'
+        || section.type === 'critical_unknowns'
+        || section.type === 'entrenchment'
+    ) {
+        const obj = isPlainObject(data) ? data : {};
+        const pillField = section.pillField || 'selected_pills';
+        const pills = Array.isArray(obj[pillField]) ? obj[pillField] : [];
+        const textFilled = (section.textFields || []).some(
+            (field) => String(obj[field.key] ?? '').trim()
+        );
+        if (section.type === 'pills_and_narrative' && section.id === 'competitive_landscape') {
+            return pills.length > 0
+                || String(obj.incumbents ?? '').trim()
+                || String(obj.narrative ?? '').trim();
+        }
+        return pills.length > 0 || textFilled;
+    }
+
+    if (section.type === 'influence_board') {
+        const mapping = isPlainObject(data) ? data : {};
+        const hasContacts = ['executive', 'mid_level', 'technical'].some(
+            (key) => Array.isArray(mapping[key]) && mapping[key].length > 0
+        );
+        const accessPath = isPlainObject(mapping.access_path) ? mapping.access_path : {};
+        const hasText = [
+            mapping.invisible_org_chart,
+            mapping.political_dynamics,
+            accessPath.current,
+            accessPath.desired,
+            accessPath.bridge,
+            accessPath.strategy,
+        ].some((value) => String(value ?? '').trim());
+        return hasContacts || hasText;
+    }
+
+    if (section.type === 'white_space_matrix') {
+        return Array.isArray(data) && data.length > 0;
+    }
+
+    if (section.type === 'psychology_grid') {
+        const psych = isPlainObject(data) ? data : {};
+        const gravityFilled = (section.gravityFields || []).some(
+            (field) => String(psych[field.key] ?? '').trim()
+        );
+        const sliderMoved = PSYCHOLOGY_SLIDERS.some((slider) => {
+            const value = parseInt(String(psych[slider.id] ?? ''), 10);
+            return !Number.isNaN(value) && value !== 3;
+        });
+        return gravityFilled || sliderMoved || String(psych.narrative ?? '').trim();
+    }
+
+    if (section.type === 'momentum') {
+        const momentum = isPlainObject(data) ? data : {};
+        const score = clampScale(momentum.score, 3);
+        return score !== 3 || String(momentum.narrative ?? '').trim();
+    }
+
+    if (section.type === 'timeline_view') {
+        const notes = Array.isArray(sections.momentum_notes) ? sections.momentum_notes : [];
+        const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+        const activities = _options.getSelectedAccountDetails?.()?.activities || [];
+        return notes.some((note) => isPlainObject(note) && String(note.text ?? '').trim())
+            || log.length > 0
+            || activities.length > 0;
+    }
+
+    if (section.type === 'interaction_log') {
+        return Array.isArray(data) && data.length > 0;
+    }
+
+    if (section.type === 'entry_point_carousel') {
+        const points = Array.isArray(data) ? data : [];
+        return points.some((point) => {
+            if (!isPlainObject(point)) return false;
+            return ENTRY_POINT_FIELD_KEYS.some((key) => String(point[key] ?? '').trim());
+        });
+    }
+
+    return false;
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function computePlanCompleteness(sections) {
+    const total = PLAN_SECTIONS.length;
+    if (total === 0) return { filled: 0, total: 0, percent: 0 };
+
+    const filled = PLAN_SECTIONS.filter((section) => isSectionFilled(section, sections)).length;
+    const percent = Math.round((filled / total) * 100);
+    return { filled, total, percent };
+}
+
+/**
  * @param {Record<string, unknown>} sections
  */
 function renderRail(sections) {
@@ -1400,8 +1684,23 @@ function renderRail(sections) {
     const score = clampScale(momentum.score, 3);
     const narrative = String(momentum.narrative ?? '').trim();
     const narrativePreview = narrative ? truncateText(narrative, 120) : 'No narrative yet.';
+    const completeness = computePlanCompleteness(sections);
 
     rail.innerHTML = `
+        <div class="section-card strategic-rail-card" id="rail-completeness-card">
+            <div class="section-card-header">
+                <h2 class="section-title">Plan Completeness</h2>
+            </div>
+            <div class="strategic-rail-body px-5 pb-5">
+                <div class="rail-completeness-header">
+                    <span class="rail-completeness-percent" data-rail-completeness-percent>${completeness.percent}%</span>
+                    <span class="rail-completeness-count" data-rail-completeness-count>${completeness.filled} / ${completeness.total} sections</span>
+                </div>
+                <div class="rail-completeness-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completeness.percent}" data-rail-completeness-bar>
+                    <div class="rail-completeness-bar-fill" data-rail-completeness-fill style="width: ${completeness.percent}%"></div>
+                </div>
+            </div>
+        </div>
         <div class="section-card strategic-rail-card" id="rail-momentum-card">
             <div class="section-card-header">
                 <h2 class="section-title">Relationship Momentum</h2>
@@ -1656,6 +1955,16 @@ function updateRailSummaries(sections) {
 
     const momentumLabel = document.querySelector('[data-momentum-label]');
     if (momentumLabel) momentumLabel.textContent = MOMENTUM_LABELS[score - 1];
+
+    const completeness = computePlanCompleteness(sections);
+    const percentEl = document.querySelector('[data-rail-completeness-percent]');
+    const countEl = document.querySelector('[data-rail-completeness-count]');
+    const barEl = document.querySelector('[data-rail-completeness-bar]');
+    const fillEl = document.querySelector('[data-rail-completeness-fill]');
+    if (percentEl) percentEl.textContent = `${completeness.percent}%`;
+    if (countEl) countEl.textContent = `${completeness.filled} / ${completeness.total} sections`;
+    if (barEl) barEl.setAttribute('aria-valuenow', String(completeness.percent));
+    if (fillEl) fillEl.style.width = `${completeness.percent}%`;
 }
 
 let _draggedInfluenceContactId = null;
@@ -1667,7 +1976,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select, .account-snapshot-select')) return;
 
         if (target instanceof HTMLTextAreaElement) {
             autoExpandTextarea(target);
@@ -1685,7 +1994,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .entry-point-select, .account-snapshot-select')) return;
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
         queueAutosave();
@@ -1706,6 +2015,13 @@ function bindCanvasFormEvents(canvas) {
         if (pill instanceof HTMLElement) {
             event.preventDefault();
             toggleStrategicPill(pill);
+            return;
+        }
+
+        const hintPill = target.closest('.strategic-hint-pill');
+        if (hintPill instanceof HTMLElement) {
+            event.preventDefault();
+            appendHintPillToField(hintPill);
             return;
         }
 
@@ -1789,6 +2105,26 @@ function bindCanvasFormEvents(canvas) {
         refreshInfluenceBoardSection();
         queueAutosave();
     });
+}
+
+/**
+ * @param {HTMLElement} button
+ */
+function appendHintPillToField(button) {
+    const fieldPath = button.dataset.hintPillTarget;
+    const pillValue = button.dataset.hintPillValue;
+    if (!fieldPath || !pillValue || !_liveSections) return;
+
+    const fieldEl = document.querySelector(`#strategic-document-canvas [data-field="${fieldPath}"]`);
+    if (!(fieldEl instanceof HTMLTextAreaElement)) return;
+
+    const current = fieldEl.value.trim();
+    const next = current ? `${current}, ${pillValue}` : pillValue;
+    fieldEl.value = next;
+    autoExpandTextarea(fieldEl);
+    setNestedValue(_liveSections, fieldPath, next);
+    updateRailSummaries(_liveSections);
+    queueAutosave();
 }
 
 /**

@@ -1765,6 +1765,25 @@ body.theme-green {
     .strategic-rail-card {
         @apply flex-shrink-0;
     }
+    .rail-completeness-header {
+        @apply flex items-baseline justify-between gap-2 mb-2;
+    }
+    .rail-completeness-percent {
+        @apply text-2xl font-semibold tabular-nums;
+        color: var(--primary-blue);
+    }
+    .rail-completeness-count {
+        @apply text-xs;
+        color: var(--text-muted);
+    }
+    .rail-completeness-bar {
+        @apply w-full h-2 rounded-full overflow-hidden;
+        background-color: color-mix(in srgb, var(--bg-medium) 80%, var(--border-color));
+    }
+    .rail-completeness-bar-fill {
+        @apply h-full rounded-full transition-all duration-300;
+        background: linear-gradient(90deg, var(--primary-blue), color-mix(in srgb, var(--primary-blue) 70%, #22c55e));
+    }
     .strategic-autosave-status {
         @apply inline-flex items-center gap-2 text-xs font-medium px-2.5 py-1 rounded-full border;
         color: var(--text-medium);
@@ -2232,6 +2251,77 @@ body.theme-green {
     .strategic-section--entry-points {
         @apply pb-6;
     }
+    .strategic-section--account-snapshot .account-snapshot-subheading {
+        @apply text-sm font-semibold m-0 mb-2;
+        color: var(--text-light);
+    }
+    .strategic-section--account-snapshot .account-snapshot-crm {
+        @apply mb-5 pb-5 border-b;
+        border-color: var(--border-color);
+    }
+    .strategic-section--account-snapshot .account-snapshot-crm-note {
+        @apply text-xs m-0 mb-3;
+        color: var(--text-muted);
+    }
+    .strategic-section--account-snapshot .account-snapshot-crm-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem 1.25rem;
+    }
+    .strategic-section--account-snapshot .account-snapshot-crm-item {
+        @apply flex flex-col gap-0.5;
+    }
+    .strategic-section--account-snapshot .account-snapshot-crm-label {
+        @apply text-xs font-medium;
+        color: var(--text-muted);
+    }
+    .strategic-section--account-snapshot .account-snapshot-crm-value {
+        @apply text-sm;
+        color: var(--text-light);
+    }
+    .strategic-section--account-snapshot .account-snapshot-plan-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .strategic-section--account-snapshot .account-snapshot-field label {
+        @apply block text-xs font-semibold mb-1.5;
+        color: var(--text-light);
+    }
+    .strategic-section--account-snapshot .account-snapshot-field--wide {
+        grid-column: 1 / -1;
+    }
+    .strategic-section--account-snapshot .account-snapshot-select {
+        @apply w-full py-2 px-3 rounded-lg text-sm border;
+        color: var(--text-light);
+        background-color: var(--bg-medium);
+        border-color: var(--border-color);
+    }
+    .strategic-section--account-snapshot .account-snapshot-select:focus {
+        outline: 2px solid color-mix(in srgb, var(--primary-blue) 45%, transparent);
+        outline-offset: 1px;
+    }
+    .strategic-hint-pills-group {
+        @apply mt-2 mb-1;
+    }
+    .strategic-hint-pills-label {
+        @apply block text-xs font-medium mb-1.5;
+        color: var(--text-muted);
+    }
+    .strategic-hint-pills-wrap {
+        @apply flex flex-wrap gap-1.5;
+    }
+    .strategic-hint-pill {
+        @apply text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors;
+        color: var(--text-medium);
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 70%, transparent);
+    }
+    .strategic-hint-pill:hover {
+        color: var(--text-light);
+        border-color: color-mix(in srgb, var(--primary-blue) 40%, var(--border-color));
+        background-color: color-mix(in srgb, var(--primary-blue) 8%, var(--bg-medium));
+    }
     .entry-point-carousel {
         @apply flex flex-col gap-4;
     }
@@ -2418,6 +2508,10 @@ body.theme-green {
             grid-template-columns: 1fr;
         }
         .influence-board {
+            grid-template-columns: 1fr;
+        }
+        .strategic-section--account-snapshot .account-snapshot-crm-grid,
+        .strategic-section--account-snapshot .account-snapshot-plan-grid {
             grid-template-columns: 1fr;
         }
     }
