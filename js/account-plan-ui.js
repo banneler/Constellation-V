@@ -17,6 +17,7 @@ import {
     openAccountPlanPdfPreview,
     closeAccountPlanPdfPreview,
 } from './account-plan-export.js';
+import { fetchPresentationHighlight } from './account-plan-presentation-ai.js';
 
 const STORAGE_KEY = 'accounts_view_mode';
 const MOMENTUM_LABELS = Object.freeze(['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion']);
@@ -1518,13 +1519,18 @@ function getPlanExportGeneratingCopy(type) {
     if (type === 'exec') {
         return {
             title: 'Generating Presentation',
-            subtitle: 'Building your exec readout PDF…',
+            subtitle: 'Synthesizing AI highlight reel…',
         };
     }
     return {
         title: 'Generating Plan Summary',
         subtitle: 'Assembling your Strategic Account Plan Summary…',
     };
+}
+
+function setPlanExportGeneratingSubtitle(text) {
+    const subtitleEl = document.getElementById('plan-export-generating-subtitle');
+    if (subtitleEl) subtitleEl.textContent = text;
 }
 
 function showPlanExportGeneratingOverlay(type) {
@@ -1578,7 +1584,31 @@ async function handleExportPdf(type) {
     });
 
     try {
-        const { bytes, filename } = await generateAccountPlanPdf(planForExport, account, type);
+        /** @type {import('./account-plan-presentation-types.js').PresentationHighlight | null} */
+        let presentationHighlight = null;
+
+        if (type === 'exec' && _supabase) {
+            setPlanExportGeneratingSubtitle('Synthesizing highlight reel with Gemini…');
+            try {
+                presentationHighlight = await fetchPresentationHighlight(_supabase, planForExport, account);
+            } catch (err) {
+                console.warn('[account-plan-ui] AI presentation synthesis failed:', err);
+                _options.onToast?.(
+                    err?.message || 'AI synthesis unavailable — using plan content.',
+                    'error'
+                );
+            }
+        } else if (type === 'exec' && !_supabase) {
+            _options.onToast?.('Sign in to enable AI highlight reel synthesis.', 'error');
+        }
+
+        if (type === 'exec') {
+            setPlanExportGeneratingSubtitle('Rendering exec readout slides…');
+        }
+
+        const { bytes, filename } = await generateAccountPlanPdf(planForExport, account, type, {
+            presentationHighlight,
+        });
         openAccountPlanPdfPreview(bytes, filename);
     } catch (err) {
         console.error('[account-plan-ui] PDF export failed:', err);

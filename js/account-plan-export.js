@@ -4,7 +4,7 @@
 
 import {
     buildDossierTemplate,
-    EXEC_SLIDE_BUILDERS,
+    createExecSlideBuilders,
     buildGpcCoverPage,
     buildDossierContentPage,
     buildDossierSectionTitleHtml,
@@ -20,9 +20,10 @@ const EXEC_PAGE_HEIGHT_PT = EXEC_PAGE_WIDTH_PT * (9 / 16);
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @param {'dossier' | 'exec' | 'exec_readout'} type
+ * @param {{ presentationHighlight?: import('./account-plan-presentation-types.js').PresentationHighlight | null }} [options]
  * @returns {Promise<{ bytes: Uint8Array, filename: string }>}
  */
-export async function generateAccountPlanPdf(plan, account, type) {
+export async function generateAccountPlanPdf(plan, account, type, options = {}) {
     if (typeof snapdom !== 'function') {
         throw new Error('Snapdom is not loaded.');
     }
@@ -45,7 +46,7 @@ export async function generateAccountPlanPdf(plan, account, type) {
             return { bytes, filename: buildFilename(account, 'Strategic_Account_Plan_Summary') };
         }
 
-        const bytes = await buildExecReadoutPdfBytes(plan, account, exportRoot);
+        const bytes = await buildExecReadoutPdfBytes(plan, account, exportRoot, options.presentationHighlight ?? null);
         return { bytes, filename: buildFilename(account, 'Exec_Readout') };
     } finally {
         exportRoot.innerHTML = '';
@@ -156,15 +157,17 @@ async function buildDossierPdfBytes(plan, account, exportRoot) {
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @param {HTMLElement} exportRoot
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight | null} presentationHighlight
  */
-async function buildExecReadoutPdfBytes(plan, account, exportRoot) {
+async function buildExecReadoutPdfBytes(plan, account, exportRoot, presentationHighlight) {
     const pageCanvases = [];
+    const slideBuilders = createExecSlideBuilders(presentationHighlight);
 
-    for (let i = 0; i < EXEC_SLIDE_BUILDERS.length; i += 1) {
-        const buildSlide = EXEC_SLIDE_BUILDERS[i];
+    for (let i = 0; i < slideBuilders.length; i += 1) {
+        const buildSlide = slideBuilders[i];
         const slide = buildSlide(plan, account, {
             pageNumber: i + 1,
-            totalPages: EXEC_SLIDE_BUILDERS.length,
+            totalPages: slideBuilders.length,
         });
         exportRoot.appendChild(slide);
         await waitForExecSlideReady(slide);

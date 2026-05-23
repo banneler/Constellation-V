@@ -94,22 +94,28 @@ function resolveExecExportContext(plan, account) {
  * @param {string} accountName
  * @param {ExecSlidePageInfo} pageInfo
  * @param {'brief' | 'standard'} [titleMode]
+ * @param {string} [slideHook]
  */
-function createExecSlideElement(slideKey, kicker, accountName, pageInfo, titleMode = 'standard') {
+function createExecSlideElement(slideKey, kicker, accountName, pageInfo, titleMode = 'standard', slideHook = '') {
     const slide = document.createElement('div');
-    slide.className = `ap-exec-slide ap-exec-slide--${slideKey}`;
+    const hasHighlight = Boolean(slideHook.trim());
+    slide.className = `ap-exec-slide ap-exec-slide--${slideKey}${hasHighlight ? ' ap-exec-slide--highlight' : ''}`;
     slide.style.width = `${EXEC_WIDTH_PX}px`;
     slide.style.height = `${EXEC_HEIGHT_PX}px`;
 
     const titleHtml = titleMode === 'brief'
         ? `<h1 class="ap-exec-slide-title">${escapeHtml(accountName)} <span class="ap-exec-slide-title-sub">Strategic Brief</span></h1>`
         : `<h1 class="ap-exec-slide-title">${escapeHtml(accountName)}</h1>`;
+    const hookHtml = hasHighlight
+        ? `<p class="ap-exec-slide-hook">${escapeHtml(slideHook.trim())}</p>`
+        : '';
 
     slide.innerHTML = `
         <img class="ap-exec-slide-logo" src="${GPC_LOGO_NAVY}" alt="Great Plains Communications" crossorigin="anonymous" />
         <header class="ap-exec-slide-header">
             <p class="ap-exec-slide-kicker">${escapeHtml(kicker)}</p>
             ${titleHtml}
+            ${hookHtml}
             <p class="ap-exec-slide-date">${escapeHtml(formatExportDate(new Date()))}</p>
         </header>
         <div class="ap-exec-slide-body"></div>
@@ -276,21 +282,87 @@ function buildExecEntryPointsPanel(sections, maxProfiles = 2) {
 }
 
 /**
+ * @param {string[]} bullets
+ */
+function buildHighlightBulletsHtml(bullets) {
+    return bullets
+        .map((bullet) => `<li>${escapeHtml(String(bullet ?? '').trim())}</li>`)
+        .join('');
+}
+
+/**
+ * @param {Array<{ label: string, insight: string }>} callouts
+ */
+function buildHighlightCalloutsHtml(callouts) {
+    return callouts.map((callout) => `
+        <div class="ap-exec-psych-callout">
+            <div class="ap-exec-psych-callout-label">${escapeHtml(callout.label)}</div>
+            <div class="ap-exec-psych-callout-insight">${escapeHtml(callout.insight)}</div>
+        </div>`).join('');
+}
+
+/**
+ * @param {Array<{ name: string, headline: string, hook: string, badges: string }>} entryPoints
+ */
+function buildHighlightEntryCardsHtml(entryPoints) {
+    return entryPoints.map((entry) => `
+        <article class="ap-exec-highlight-entry">
+            <div class="ap-exec-highlight-entry-name">${escapeHtml(entry.name)}</div>
+            <div class="ap-exec-highlight-entry-headline">${escapeHtml(entry.headline)}</div>
+            <p class="ap-exec-highlight-entry-hook">${escapeHtml(entry.hook)}</p>
+            ${entry.badges ? `<div class="ap-exec-highlight-entry-badges">${escapeHtml(entry.badges)}</div>` : ''}
+        </article>`).join('');
+}
+
+/**
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight | null} presentationHighlight
+ * @returns {Array<(plan: unknown, account: { name?: string } | null, pageInfo?: ExecSlidePageInfo) => HTMLElement>}
+ */
+export function createExecSlideBuilders(presentationHighlight = null) {
+    return [
+        (plan, account, pageInfo) => buildSlide1Situation(plan, account, pageInfo, presentationHighlight),
+        (plan, account, pageInfo) => buildSlide2Battlefield(plan, account, pageInfo, presentationHighlight),
+        (plan, account, pageInfo) => buildSlide3Execution(plan, account, pageInfo, presentationHighlight),
+    ];
+}
+
+/**
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @param {ExecSlidePageInfo} [pageInfo]
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight | null} [presentationHighlight]
  */
-export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, totalPages: EXEC_SLIDE_COUNT }) {
+export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, totalPages: EXEC_SLIDE_COUNT }, presentationHighlight = null) {
     const ctx = resolveExecExportContext(plan, account);
-    const slide = createExecSlideElement('situation', 'The Situation', ctx.accountName, pageInfo, 'brief');
+    const situation = presentationHighlight?.slides?.situation ?? null;
+    const slide = createExecSlideElement(
+        'situation',
+        'The Situation',
+        ctx.accountName,
+        pageInfo,
+        'brief',
+        situation?.headline ?? ''
+    );
     const body = slide.querySelector('.ap-exec-slide-body');
     if (!(body instanceof HTMLElement)) return slide;
 
     const grid = document.createElement('div');
     grid.className = 'ap-exec-grid ap-exec-grid--situation';
 
-    const strategyPanel = createExecPanel('ap-exec-panel--strategy', 'Pursuit Strategy', 'pursuit_thesis');
-    strategyPanel.appendChild(buildExecStrategyBody(ctx.sections));
+    const strategyPanel = createExecPanel(
+        'ap-exec-panel--strategy',
+        situation?.pursuit_thesis?.headline ?? 'Pursuit Strategy',
+        'pursuit_thesis'
+    );
+    if (situation) {
+        strategyPanel.querySelector('.ap-exec-panel-heading')?.classList.add('ap-exec-panel-heading--highlight');
+        const bullets = document.createElement('ul');
+        bullets.className = 'ap-exec-highlight-list';
+        bullets.innerHTML = buildHighlightBulletsHtml(situation.pursuit_thesis.bullets);
+        strategyPanel.appendChild(bullets);
+    } else {
+        strategyPanel.appendChild(buildExecStrategyBody(ctx.sections));
+    }
 
     const sideStack = document.createElement('div');
     sideStack.className = 'ap-exec-stack';
@@ -301,13 +373,31 @@ export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, 
     kpi.innerHTML = `
         <div class="ap-exec-kpi-score">${ctx.score}</div>
         <div class="ap-exec-kpi-label">${escapeHtml(MOMENTUM_LABELS[ctx.score - 1])}</div>`;
+    if (situation?.momentum?.insight) {
+        const insight = document.createElement('p');
+        insight.className = 'ap-exec-kpi-insight';
+        insight.textContent = situation.momentum.insight;
+        kpi.appendChild(insight);
+    }
     momentumPanel.appendChild(kpi);
 
-    const psychPanel = createExecPanel('ap-exec-panel--psych', 'Account Psychology', 'psychology');
-    const psychWrap = document.createElement('div');
-    psychWrap.className = 'ap-exec-psych-stack';
-    psychWrap.innerHTML = buildExecPsychBarsHtml(ctx.psychology);
-    psychPanel.appendChild(psychWrap);
+    const psychPanel = createExecPanel(
+        'ap-exec-panel--psych',
+        situation?.psychology?.headline ?? 'Account Psychology',
+        'psychology'
+    );
+    if (situation?.psychology?.callouts?.length) {
+        psychPanel.querySelector('.ap-exec-panel-heading')?.classList.add('ap-exec-panel-heading--highlight');
+        const psychWrap = document.createElement('div');
+        psychWrap.className = 'ap-exec-psych-callouts';
+        psychWrap.innerHTML = buildHighlightCalloutsHtml(situation.psychology.callouts);
+        psychPanel.appendChild(psychWrap);
+    } else {
+        const psychWrap = document.createElement('div');
+        psychWrap.className = 'ap-exec-psych-stack';
+        psychWrap.innerHTML = buildExecPsychBarsHtml(ctx.psychology);
+        psychPanel.appendChild(psychWrap);
+    }
 
     sideStack.appendChild(momentumPanel);
     sideStack.appendChild(psychPanel);
@@ -322,36 +412,82 @@ export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, 
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @param {ExecSlidePageInfo} [pageInfo]
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight | null} [presentationHighlight]
  */
-export function buildSlide2Battlefield(plan, account, pageInfo = { pageNumber: 2, totalPages: EXEC_SLIDE_COUNT }) {
+export function buildSlide2Battlefield(plan, account, pageInfo = { pageNumber: 2, totalPages: EXEC_SLIDE_COUNT }, presentationHighlight = null) {
     const ctx = resolveExecExportContext(plan, account);
-    const slide = createExecSlideElement('battlefield', 'The Battlefield', ctx.accountName, pageInfo);
+    const battlefield = presentationHighlight?.slides?.battlefield ?? null;
+    const slide = createExecSlideElement(
+        'battlefield',
+        'The Battlefield',
+        ctx.accountName,
+        pageInfo,
+        'standard',
+        battlefield?.headline ?? ''
+    );
     const body = slide.querySelector('.ap-exec-slide-body');
     if (!(body instanceof HTMLElement)) return slide;
 
     const grid = document.createElement('div');
     grid.className = 'ap-exec-grid ap-exec-grid--battlefield';
 
-    const competitivePanel = createExecPanel('ap-exec-panel--competitive', 'Competitive Landscape', 'competitive_landscape');
-    competitivePanel.appendChild(buildExecCompetitiveBody(ctx.sections));
+    const competitivePanel = createExecPanel(
+        'ap-exec-panel--competitive',
+        battlefield?.competitive?.headline ?? 'Competitive Landscape',
+        'competitive_landscape'
+    );
+    if (battlefield?.competitive?.bullets?.length) {
+        competitivePanel.querySelector('.ap-exec-panel-heading')?.classList.add('ap-exec-panel-heading--highlight');
+        const bullets = document.createElement('ul');
+        bullets.className = 'ap-exec-highlight-list';
+        bullets.innerHTML = buildHighlightBulletsHtml(battlefield.competitive.bullets);
+        competitivePanel.appendChild(bullets);
+    } else {
+        competitivePanel.appendChild(buildExecCompetitiveBody(ctx.sections));
+    }
 
     const influencePanel = createExecPanel('ap-exec-panel--influence', 'Influence Board', 'influence_mapping');
-    const influenceData = isPlainObject(ctx.sections.influence_mapping) ? ctx.sections.influence_mapping : {};
-    influencePanel.innerHTML += `
-        <div class="ap-exec-influence-buckets">
-            <div class="ap-exec-influence-bucket">
-                <h3 class="ap-exec-influence-bucket-title">Executive Leadership</h3>
-                <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.executive)}</ul>
-            </div>
-            <div class="ap-exec-influence-bucket">
-                <h3 class="ap-exec-influence-bucket-title">Mid-Level Champions</h3>
-                <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.mid_level)}</ul>
-            </div>
-        </div>`;
+    if (battlefield?.influence) {
+        influencePanel.innerHTML += `
+            <div class="ap-exec-influence-hooks">
+                <div class="ap-exec-influence-hook">
+                    <h3 class="ap-exec-influence-hook-title">Executive Leadership</h3>
+                    <p class="ap-exec-influence-hook-copy">${escapeHtml(battlefield.influence.executive_hook)}</p>
+                </div>
+                <div class="ap-exec-influence-hook">
+                    <h3 class="ap-exec-influence-hook-title">Mid-Level Champions</h3>
+                    <p class="ap-exec-influence-hook-copy">${escapeHtml(battlefield.influence.champions_hook)}</p>
+                </div>
+            </div>`;
+    } else {
+        const influenceData = isPlainObject(ctx.sections.influence_mapping) ? ctx.sections.influence_mapping : {};
+        influencePanel.innerHTML += `
+            <div class="ap-exec-influence-buckets">
+                <div class="ap-exec-influence-bucket">
+                    <h3 class="ap-exec-influence-bucket-title">Executive Leadership</h3>
+                    <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.executive)}</ul>
+                </div>
+                <div class="ap-exec-influence-bucket">
+                    <h3 class="ap-exec-influence-bucket-title">Mid-Level Champions</h3>
+                    <ul class="ap-exec-influence-list">${buildExecInfluenceListHtml(influenceData.mid_level)}</ul>
+                </div>
+            </div>`;
+    }
 
-    grid.appendChild(competitivePanel);
-    grid.appendChild(influencePanel);
-    grid.appendChild(buildExecEntryPointsPanel(ctx.sections));
+    if (battlefield?.entry_points?.length) {
+        const entryPanel = createExecPanel('ap-exec-panel--entry-points', 'Entry Points', 'entry_points');
+        const cards = document.createElement('div');
+        cards.className = 'ap-exec-highlight-entries';
+        cards.innerHTML = buildHighlightEntryCardsHtml(battlefield.entry_points);
+        entryPanel.appendChild(cards);
+        grid.appendChild(competitivePanel);
+        grid.appendChild(influencePanel);
+        grid.appendChild(entryPanel);
+    } else {
+        grid.appendChild(competitivePanel);
+        grid.appendChild(influencePanel);
+        grid.appendChild(buildExecEntryPointsPanel(ctx.sections));
+    }
     body.appendChild(grid);
     return slide;
 }
@@ -360,10 +496,19 @@ export function buildSlide2Battlefield(plan, account, pageInfo = { pageNumber: 2
  * @param {unknown} plan
  * @param {{ name?: string } | null} account
  * @param {ExecSlidePageInfo} [pageInfo]
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight | null} [presentationHighlight]
  */
-export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, totalPages: EXEC_SLIDE_COUNT }) {
+export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, totalPages: EXEC_SLIDE_COUNT }, presentationHighlight = null) {
     const ctx = resolveExecExportContext(plan, account);
-    const slide = createExecSlideElement('execution', 'The Execution', ctx.accountName, pageInfo);
+    const execution = presentationHighlight?.slides?.execution ?? null;
+    const slide = createExecSlideElement(
+        'execution',
+        'The Execution',
+        ctx.accountName,
+        pageInfo,
+        'standard',
+        execution?.headline ?? ''
+    );
     const body = slide.querySelector('.ap-exec-slide-body');
     if (!(body instanceof HTMLElement)) return slide;
 
@@ -373,22 +518,56 @@ export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, 
     const planPanel = createExecPanel('ap-exec-panel--plan', '30 / 60 / 90', 'plan_30_60_90');
     const planGrid = document.createElement('div');
     planGrid.className = 'ap-exec-plan-horizons';
-    PLAN_306090_HORIZONS.forEach((horizon) => {
-        const col = document.createElement('div');
-        col.className = 'ap-exec-plan-horizon-col';
-        col.innerHTML = `<h3 class="ap-exec-plan-horizon-title">${escapeHtml(horizon.title)}</h3>`;
-        const body = document.createElement('div');
-        body.className = 'ap-exec-plan-horizon-body';
-        body.innerHTML = formatPlanHorizonRichHtml(ctx.plan306090[horizon.key]);
-        col.appendChild(body);
-        planGrid.appendChild(col);
-    });
+
+    const highlightHorizons = execution
+        ? [
+            { key: 'plan_30', fallbackTitle: 'Next 30 Days' },
+            { key: 'plan_60', fallbackTitle: 'Day 31–60' },
+            { key: 'plan_90', fallbackTitle: 'Day 61–90' },
+        ]
+        : null;
+
+    if (highlightHorizons) {
+        highlightHorizons.forEach(({ key, fallbackTitle }) => {
+            const block = execution[key];
+            const col = document.createElement('div');
+            col.className = 'ap-exec-plan-horizon-col';
+            col.innerHTML = `<h3 class="ap-exec-plan-horizon-title ap-exec-plan-horizon-headline">${escapeHtml(block?.headline ?? fallbackTitle)}</h3>`;
+            const colBody = document.createElement('ul');
+            colBody.className = 'ap-exec-highlight-list ap-exec-highlight-list--compact';
+            colBody.innerHTML = buildHighlightBulletsHtml(block?.bullets ?? []);
+            col.appendChild(colBody);
+            planGrid.appendChild(col);
+        });
+    } else {
+        PLAN_306090_HORIZONS.forEach((horizon) => {
+            const col = document.createElement('div');
+            col.className = 'ap-exec-plan-horizon-col';
+            col.innerHTML = `<h3 class="ap-exec-plan-horizon-title">${escapeHtml(horizon.title)}</h3>`;
+            const colBody = document.createElement('div');
+            colBody.className = 'ap-exec-plan-horizon-body';
+            colBody.innerHTML = formatPlanHorizonRichHtml(ctx.plan306090[horizon.key]);
+            col.appendChild(colBody);
+            planGrid.appendChild(col);
+        });
+    }
     planPanel.appendChild(planGrid);
 
     const signalsPanel = createExecPanel('ap-exec-panel--signals', 'Strategic Signals', 'momentum_timeline');
     const signalsList = document.createElement('ul');
     signalsList.className = 'ap-exec-signals-list';
-    if (ctx.timelineNotes.length === 0) {
+    const signals = execution?.signals?.length ? execution.signals : null;
+
+    if (signals && signals.length > 0) {
+        signals.forEach((signal) => {
+            const item = document.createElement('li');
+            item.className = 'ap-exec-signals-item ap-exec-signals-item--highlight';
+            item.innerHTML = `
+                <time class="ap-exec-signals-date">${escapeHtml(signal.date_label)}</time>
+                <span class="ap-exec-signals-headline">${escapeHtml(signal.headline)}</span>`;
+            signalsList.appendChild(item);
+        });
+    } else if (ctx.timelineNotes.length === 0) {
         signalsList.innerHTML = '<li class="ap-exec-signals-item ap-exec-signals-item--empty"><span class="ap-line-clamp-2">No strategic signals logged.</span></li>';
     } else {
         ctx.timelineNotes.forEach((note) => {
@@ -409,11 +588,7 @@ export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, 
 }
 
 /** @type {Array<(plan: unknown, account: { name?: string } | null, pageInfo?: ExecSlidePageInfo) => HTMLElement>} */
-export const EXEC_SLIDE_BUILDERS = [
-    buildSlide1Situation,
-    buildSlide2Battlefield,
-    buildSlide3Execution,
-];
+export const EXEC_SLIDE_BUILDERS = createExecSlideBuilders();
 
 /**
  * @param {unknown} plan
@@ -2348,6 +2523,157 @@ export function ensureExportTemplateStyles() {
             line-height: 1.45;
             color: #334155;
             min-width: 0;
+        }
+        .ap-exec-slide--highlight .ap-exec-slide-header {
+            margin-bottom: 10px;
+        }
+        .ap-exec-slide-hook {
+            margin: 8px 0 0;
+            font-size: 17px;
+            line-height: 1.32;
+            font-weight: 600;
+            color: #1e3a5f;
+            font-family: ${GPC_BRAND.fontHeading};
+        }
+        .ap-exec-panel-heading--highlight {
+            font-size: 15px;
+            line-height: 1.25;
+            margin-bottom: 10px;
+        }
+        .ap-exec-highlight-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-highlight-list li {
+            position: relative;
+            padding-left: 14px;
+            font-size: 13px;
+            line-height: 1.42;
+            color: #334155;
+        }
+        .ap-exec-highlight-list li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.55em;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #2563eb;
+        }
+        .ap-exec-highlight-list--compact {
+            gap: 6px;
+        }
+        .ap-exec-highlight-list--compact li {
+            font-size: 11.5px;
+            line-height: 1.38;
+        }
+        .ap-exec-kpi-insight {
+            margin: 10px 0 0;
+            font-size: 11px;
+            line-height: 1.45;
+            color: #475569;
+            text-align: center;
+        }
+        .ap-exec-psych-callouts {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-psych-callout {
+            border-left: 3px solid #2563eb;
+            padding: 0 0 0 10px;
+        }
+        .ap-exec-psych-callout-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+        .ap-exec-psych-callout-insight {
+            font-size: 12px;
+            line-height: 1.4;
+            color: #334155;
+        }
+        .ap-exec-influence-hooks {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-influence-hook-title {
+            margin: 0 0 4px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ap-exec-influence-hook-copy {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.42;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .ap-exec-highlight-entries {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .ap-exec-highlight-entry {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #f8fafc;
+        }
+        .ap-exec-highlight-entry-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+        .ap-exec-highlight-entry-headline {
+            font-size: 11px;
+            font-weight: 600;
+            color: #2563eb;
+            margin-bottom: 4px;
+        }
+        .ap-exec-highlight-entry-hook {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #334155;
+        }
+        .ap-exec-highlight-entry-badges {
+            margin-top: 6px;
+            font-size: 9px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ap-exec-plan-horizon-headline {
+            color: #0f172a;
+            font-size: 12px;
+        }
+        .ap-exec-signals-headline {
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 600;
+            color: #1e293b;
         }
     `;
     document.head.appendChild(style);
