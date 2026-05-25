@@ -117,7 +117,6 @@ export function initStrategicMode(options = {}) {
     bindVersionPopoverControls();
     bindRailControls();
     bindPlanPdfPreviewModal();
-    injectStrategicCoachingStyles();
 
     const toggleBtn = document.getElementById('account-mode-toggle');
     if (toggleBtn && !toggleBtn.dataset.strategicBound) {
@@ -760,118 +759,11 @@ function updateInsightDensityState(textarea) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Scoped CSS — injected once per session
-// ---------------------------------------------------------------------------
-// We inject a <style> tag from JS rather than touching the Tailwind input.css
-// pipeline so this feature stays self-contained. The styles are scoped to the
-// strategic workspace and use existing design tokens (border-color, primary
-// blue) so they inherit theme changes.
-// ---------------------------------------------------------------------------
-
-function injectStrategicCoachingStyles() {
-    if (document.getElementById('strategic-coaching-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'strategic-coaching-styles';
-    style.textContent = `
-        .strategic-ghost-reminder {
-            display: block;
-            margin: 0 0 1rem 0;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            border: 1px dashed color-mix(in srgb, var(--primary-blue) 45%, transparent);
-            background: color-mix(in srgb, var(--primary-blue) 6%, transparent);
-            color: color-mix(in srgb, var(--text-light) 78%, transparent);
-            font-size: 0.8125rem;
-            line-height: 1.45;
-        }
-        .strategic-ghost-headline {
-            margin: 0;
-            color: color-mix(in srgb, var(--text-light) 85%, transparent);
-        }
-        .strategic-ghost-headline--empty {
-            color: color-mix(in srgb, var(--text-muted) 90%, transparent);
-            font-style: italic;
-        }
-        .strategic-ghost-pills {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.375rem;
-            margin-top: 0.5rem;
-        }
-        .strategic-ghost-pill {
-            display: inline-flex;
-            align-items: baseline;
-            gap: 0.25rem;
-            padding: 0.125rem 0.5rem;
-            border-radius: 999px;
-            background: color-mix(in srgb, var(--primary-blue) 14%, transparent);
-            border: 1px solid color-mix(in srgb, var(--primary-blue) 35%, transparent);
-            font-size: 0.75rem;
-        }
-        .strategic-ghost-pill strong {
-            font-weight: 600;
-            color: var(--text-light);
-        }
-        .strategic-ghost-pill-alt {
-            color: var(--text-muted);
-            font-size: 0.7rem;
-        }
-
-        .strategic-insight-wrap {
-            position: relative;
-            width: 100%;
-        }
-        .strategic-insight-textarea {
-            transition: border-color 200ms ease, box-shadow 200ms ease;
-        }
-        .strategic-insight-textarea--dense {
-            border-color: rgba(234, 179, 8, 0.65) !important;
-            box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.35);
-        }
-        .strategic-insight-textarea--dense:focus {
-            border-color: rgba(234, 179, 8, 0.9) !important;
-            box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.35);
-        }
-        .strategic-insight-counter {
-            position: absolute;
-            right: 0.5rem;
-            bottom: 0.35rem;
-            font-size: 0.6875rem;
-            line-height: 1;
-            padding: 0.125rem 0.375rem;
-            border-radius: 4px;
-            color: var(--text-muted);
-            background: color-mix(in srgb, var(--bg-dark) 60%, transparent);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 200ms ease, color 200ms ease;
-        }
-        .strategic-insight-wrap:hover .strategic-insight-counter,
-        .strategic-insight-wrap:focus-within .strategic-insight-counter {
-            opacity: 0.85;
-        }
-        .strategic-insight-counter--dense {
-            color: rgb(234, 179, 8);
-            opacity: 1 !important;
-        }
-
-        .entry-point-tab--unmapped {
-            border-color: rgba(234, 179, 8, 0.6) !important;
-        }
-        .entry-point-tab-unmapped-dot {
-            display: inline-block;
-            width: 0.5rem;
-            height: 0.5rem;
-            margin-left: 0.4rem;
-            border-radius: 50%;
-            background: rgb(234, 179, 8);
-            box-shadow: 0 0 0 2px color-mix(in srgb, rgb(234, 179, 8) 25%, transparent);
-            vertical-align: middle;
-        }
-    `;
-    document.head.appendChild(style);
-}
+// All Active Coaching Workspace styling (ghost reminder, Insight Density
+// nudge, Unmapped tab flag) lives in css/saos-strategic.css — the project's
+// plain-CSS override layer loaded after output.css. This keeps the cascade
+// predictable (active tab beats unmapped, no !important needed) and matches
+// the convention for new SAOS visuals.
 
 const ENTRY_POINT_OTHER_LABEL = 'Other / External';
 
