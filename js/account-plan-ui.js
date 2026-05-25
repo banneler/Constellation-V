@@ -78,6 +78,14 @@ let _versionPopoverBound = false;
 let _popoverOpen = false;
 let _showCrmActivities = true;
 
+// TomSelect instance bound to #interaction-form-contact. Tracked at module
+// scope because refreshInteractionLogSection() blows away the form's HTML on
+// every save, so we have to destroy the previous instance before re-init.
+// Kept here (not inside the function) to avoid leaking detached instances on
+// each re-render and to mirror how accounts.js owns its tomSelectIndustry.
+/** @type {{ destroy?: () => void } | null} */
+let _interactionContactTomSelect = null;
+
 /**
  * @param {{
  *   getSelectedAccountId?: () => number | null,
@@ -506,6 +514,7 @@ function paintCanvas() {
     canvas.innerHTML = `<div class="strategic-document-inner">${buildCanvasHtml(_liveSections, _entryPointActiveIndex)}</div>`;
     initAutoExpandTextareas(canvas);
     initPsychologySliders(canvas);
+    initInteractionLogControls(canvas);
 }
 
 // ---------------------------------------------------------------------------
@@ -2176,6 +2185,56 @@ function buildInteractionFormSelect(options, label, fieldKey, value) {
 }
 
 /**
+ * Pill-style toggles for short categorical interaction-log fields (Political
+ * Signal, Momentum Shift). Why pills instead of <select>:
+ *   - The same one-tap interaction the rep already uses in strategic_tensions,
+ *     keeping the section's "tap, don't type" rhythm.
+ *   - Native <select> requires two clicks to set a value and forces the user
+ *     to scan a dropdown they've memorized — pure friction for a 4-option set.
+ *
+ * Storage shape: pills write into a hidden <input data-interaction-field>, so
+ * saveInteractionForm's existing reader keeps working unchanged. We avoid
+ * the global .strategic-pill class on purpose — that handler writes pill
+ * selections directly into _liveSections, which is wrong for ephemeral form
+ * state.
+ *
+ * @param {readonly string[]} options - includes '' as the "cleared" sentinel
+ *   which we intentionally drop from the rendered pill set (toggling an
+ *   active pill is the way to clear).
+ * @param {string} label
+ * @param {string} fieldKey
+ * @param {string} value
+ */
+function buildInteractionFormPills(options, label, fieldKey, value) {
+    const fieldId = `interaction-form-${fieldKey}`;
+    const visibleOptions = options.filter((option) => option !== '');
+    const pillsHtml = visibleOptions.map((option) => {
+        const active = value === option ? ' interaction-log-pill--active' : '';
+        return `<button
+            type="button"
+            class="interaction-log-pill${active}"
+            data-interaction-pill-field="${escapeHtml(fieldKey)}"
+            data-interaction-pill-value="${escapeHtml(option)}"
+            aria-pressed="${value === option ? 'true' : 'false'}"
+        >${escapeHtml(option)}</button>`;
+    }).join('');
+
+    return `
+        <div class="interaction-log-field">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <input
+                type="hidden"
+                id="${fieldId}"
+                data-interaction-field="${escapeHtml(fieldKey)}"
+                value="${escapeHtml(value)}"
+            />
+            <div class="interaction-log-pills-wrap" role="group" aria-label="${escapeHtml(label)}">
+                ${pillsHtml}
+            </div>
+        </div>`;
+}
+
+/**
  * @param {string} label
  * @param {string} fieldKey
  * @param {string} value
@@ -2227,8 +2286,8 @@ function buildInteractionLogFormHtml() {
                         ${contactOptions}
                     </select>
                 </div>
-                ${buildInteractionFormSelect(INTERACTION_POLITICAL_SIGNAL_OPTIONS, 'Political Signal', 'political_signal', '')}
-                ${buildInteractionFormSelect(INTERACTION_MOMENTUM_SHIFT_OPTIONS, 'Momentum Shift', 'momentum_shift', '')}
+                ${buildInteractionFormPills(INTERACTION_POLITICAL_SIGNAL_OPTIONS, 'Political Signal', 'political_signal', '')}
+                ${buildInteractionFormPills(INTERACTION_MOMENTUM_SHIFT_OPTIONS, 'Momentum Shift', 'momentum_shift', '')}
                 ${buildInteractionFormTextarea('Interaction', 'interaction', '', 2)}
                 ${buildInteractionFormTextarea('Key Insight', 'key_insight', '', 2)}
                 ${buildInteractionFormTextarea('Relationship Energy', 'relationship_energy', '', 2)}
@@ -2241,65 +2300,35 @@ function buildInteractionLogFormHtml() {
         </div>`;
 }
 
-/**
- * @param {Record<string, unknown>} entry
- */
-function buildInteractionLogEntryHtml(entry) {
-    const source = String(entry.source ?? 'signal');
-    const dateLabel = formatCommittedDate(String(entry.date ?? ''));
-    const summary = formatInteractionLogSummary(entry);
-    const sourceClass = source === 'activity'
-        ? 'interaction-log-entry--activity'
-        : source === 'manual'
-            ? 'interaction-log-entry--manual'
-            : 'interaction-log-entry--signal';
-
-    const detailFields = [
-        ['Political Signal', entry.political_signal],
-        ['Momentum Shift', entry.momentum_shift],
-        ['Relationship Energy', entry.relationship_energy],
-        ['Trust Earned', entry.trust_earned],
-        ['Next Move', entry.next_move],
-    ].filter(([, value]) => String(value ?? '').trim());
-
-    const detailsHtml = detailFields.length > 0
-        ? `<dl class="interaction-log-entry-details">${detailFields.map(([label, value]) => `
-            <div class="interaction-log-entry-detail">
-                <dt>${escapeHtml(label)}</dt>
-                <dd>${escapeHtml(String(value))}</dd>
-            </div>`).join('')}</dl>`
-        : '';
-
-    return `
-        <article class="interaction-log-entry ${sourceClass}">
-            <div class="interaction-log-entry-head">
-                <span class="interaction-log-entry-source">${escapeHtml(interactionLogSourceLabel(source))}</span>
-                <time datetime="${escapeHtml(String(entry.date ?? ''))}">${escapeHtml(dateLabel)}</time>
-            </div>
-            <p class="interaction-log-entry-summary">${escapeHtml(summary)}</p>
-            ${detailsHtml}
-        </article>`;
-}
+// buildInteractionLogEntryHtml() previously rendered a single past entry as
+// an <article> card stacked above the form. Removed when the Interaction Log
+// section was reduced to its input form only (Relationship Timeline below is
+// now the single canonical chronologic view). formatInteractionLogSummary +
+// interactionLogSourceLabel are kept because the timeline tree still consumes
+// them via collectMomentumTimelineItems().
 
 /**
- * @param {unknown} log
+ * Render the Interaction Log section body.
+ *
+ * Historical context: this used to render a chronological list of every
+ * logged entry directly above the form. That duplicated the Relationship
+ * Timeline section (id: momentum_timeline) which renders the same entries
+ * — plus CRM activities — as a vertical timeline tree. Carrying both means
+ * the rep sees the entries twice on a single document and scrolls past
+ * dozens of strategic-signal lines to reach the form. We keep the entries
+ * in state (still picked up by collectMomentumTimelineItems()) and drop
+ * the duplicate list here. The input form is the only thing that belongs
+ * in this section now; the timeline below is the canonical chronologic view.
+ *
+ * The `log` parameter is intentionally kept for caller signature
+ * compatibility (renderCanvas + refreshInteractionLogSection both pass it),
+ * but is no longer read.
+ *
+ * @param {unknown} _log
  */
-function buildInteractionLogHtml(log) {
-    const entries = Array.isArray(log)
-        ? [...log].filter(isPlainObject).sort((a, b) => {
-            const aMs = new Date(String(a.date ?? '')).getTime();
-            const bMs = new Date(String(b.date ?? '')).getTime();
-            return (Number.isNaN(bMs) ? 0 : bMs) - (Number.isNaN(aMs) ? 0 : aMs);
-        })
-        : [];
-
-    const listHtml = entries.length > 0
-        ? entries.map((entry) => buildInteractionLogEntryHtml(entry)).join('')
-        : '<p class="interaction-log-empty">No interactions logged yet. Use the form below or quick-log a signal from the timeline.</p>';
-
+function buildInteractionLogHtml(_log) {
     return `
         <div class="interaction-log-section">
-            <div class="interaction-log-list">${listHtml}</div>
             ${buildInteractionLogFormHtml()}
         </div>`;
 }
@@ -2320,6 +2349,97 @@ function refreshInteractionLogSection() {
         ${bodyHtml}`;
 
     initAutoExpandTextareas(sectionEl);
+    initInteractionLogControls(sectionEl);
+}
+
+/**
+ * Wire the post-render behaviors for the Interaction Log form:
+ *   1) Replace the contact <select> with a TomSelect instance so the rep gets
+ *      type-ahead + clear button parity with the rest of the app.
+ *   2) Toggle .interaction-log-pill buttons (single-select per field) and
+ *      mirror their value into the matching hidden <input data-interaction-
+ *      field>, which is what saveInteractionForm already reads.
+ *
+ * Called from both paintCanvas (initial render) and refreshInteractionLog
+ * Section (post-save / data refresh). Idempotent — we always destroy any
+ * prior TomSelect before re-binding.
+ *
+ * @param {ParentNode} root
+ */
+function initInteractionLogControls(root) {
+    const contactSelect = root.querySelector('#interaction-form-contact');
+
+    // Destroy the previous instance no matter what — even if the new render
+    // didn't include the form (e.g. an unrelated section refreshed the canvas).
+    // Skipping this leaks DOM under the old select element and breaks the next
+    // bind because TomSelect refuses to re-wrap a select it already owns.
+    if (_interactionContactTomSelect && typeof _interactionContactTomSelect.destroy === 'function') {
+        try { _interactionContactTomSelect.destroy(); } catch (_err) { /* noop */ }
+        _interactionContactTomSelect = null;
+    }
+
+    if (contactSelect instanceof HTMLSelectElement && typeof window.TomSelect === 'function') {
+        try {
+            _interactionContactTomSelect = new window.TomSelect(contactSelect, {
+                // No create — contacts must come from the account's contact list,
+                // never typed freely. Search by name (the visible option text).
+                create: false,
+                allowEmptyOption: true,
+                placeholder: 'No contact',
+                searchField: ['text'],
+                dropdownParent: 'body',
+            });
+        } catch (_err) {
+            _interactionContactTomSelect = null;
+        }
+    }
+
+    // Pill click handling for political_signal / momentum_shift. We bind on
+    // each pill button rather than the form root to avoid duplicate handlers
+    // when the canvas-level click delegate also runs (pills use a distinct
+    // class so the global .strategic-pill handler ignores them).
+    const pills = root.querySelectorAll('.interaction-log-pill');
+    pills.forEach((pill) => {
+        if (!(pill instanceof HTMLButtonElement)) return;
+        pill.addEventListener('click', (event) => {
+            event.preventDefault();
+            toggleInteractionLogPill(pill);
+        });
+    });
+}
+
+/**
+ * Single-select toggle: clicking a pill activates it (and clears any sibling
+ * in the same field group); clicking the already-active pill clears the field.
+ * Writes the resulting value into the hidden <input data-interaction-field>
+ * so saveInteractionForm reads it transparently.
+ *
+ * @param {HTMLButtonElement} pill
+ */
+function toggleInteractionLogPill(pill) {
+    const fieldKey = pill.dataset.interactionPillField;
+    const value = pill.dataset.interactionPillValue ?? '';
+    if (!fieldKey) return;
+
+    const wasActive = pill.classList.contains('interaction-log-pill--active');
+
+    const group = pill.closest('.interaction-log-field');
+    group?.querySelectorAll('.interaction-log-pill').forEach((sibling) => {
+        if (!(sibling instanceof HTMLButtonElement)) return;
+        sibling.classList.remove('interaction-log-pill--active');
+        sibling.setAttribute('aria-pressed', 'false');
+    });
+
+    const hiddenInput = group?.querySelector(`input[data-interaction-field="${fieldKey}"]`);
+    if (hiddenInput instanceof HTMLInputElement) {
+        if (wasActive) {
+            hiddenInput.value = '';
+        } else {
+            hiddenInput.value = value;
+            pill.classList.add('interaction-log-pill--active');
+            pill.setAttribute('aria-pressed', 'true');
+        }
+    }
 }
 
 function appendInteractionLogEntry(entry) {
