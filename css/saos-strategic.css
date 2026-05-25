@@ -186,3 +186,143 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, rgb(234, 179, 8) 25%, transparent);
     vertical-align: middle;
 }
+
+/* ===========================================================================
+ * Tailwind v4 nested-@supports cascade fix (parity with commit 1f6ce2b).
+ *
+ * Why these rules are duplicated here as plain CSS:
+ *   Tailwind v4 compiles any @apply'd or hand-written rule that contains a
+ *   color-mix(in srgb, ...) call into a structure like
+ *
+ *     .selector {
+ *         background: <fallback>;
+ *         @supports (color: color-mix(in lab, red, red)) {
+ *             background: <color-mix gradient>;
+ *         }
+ *         color: white;           // <- this lands AFTER a nested at-rule
+ *         box-shadow: 0 2px 8px var(--primary-blue);
+ *         @supports (...) { ... } // <- second nested at-rule
+ *     }
+ *
+ *   In browsers whose CSS Nesting + @supports interop is imperfect (we have
+ *   observed it in real users' Chromiums via the SAOS), properties that
+ *   appear AFTER a nested at-rule inside a regular ruleset are silently
+ *   dropped during parse. The visible symptoms on the 30/60/90 badge are
+ *   exactly what we get when the trailing declarations are eaten:
+ *     - color: white  -> dropped, badge text falls back to inherited black
+ *     - box-shadow    -> dropped, badge looks flat
+ *     - similar issue collapses .entry-point-tab into a near-default <button>.
+ *
+ *   The earlier commit (1f6ce2b "Fix SAOS descriptor styling with plain CSS
+ *   override layer") already hit this problem on .strategic-field-context.
+ *   The proven, low-risk fix is to re-author the affected rules as plain CSS
+ *   in this file (loaded AFTER output.css) so the cascade resolves to a
+ *   clean, un-nested ruleset that every browser parses identically.
+ *
+ *   We do NOT remove the Tailwind/@apply versions in input.css — keeping
+ *   both means the cascade still works if/when Tailwind's compiler stops
+ *   emitting trailing-property nesting, and grep-ability of class definitions
+ *   in input.css is preserved.
+ * ======================================================================== */
+
+/* 30/60/90 row container: keep the soft tinted card background. */
+.plan-306090-row {
+    display: grid;
+    grid-template-columns: minmax(11rem, 24%) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background-color: color-mix(in srgb, var(--bg-medium) 45%, transparent);
+}
+
+.plan-306090-row-meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* The 30/60/90 badge — blue rounded chip with white numerals.
+ * Trailing color/box-shadow were getting silently dropped after the
+ * @supports wrappers in output.css; this plain-CSS version makes them stick. */
+.plan-306090-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(
+        135deg,
+        var(--primary-blue),
+        color-mix(in srgb, var(--primary-blue) 65%, #6366f1)
+    );
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-blue) 35%, transparent);
+}
+
+.plan-306090-column-heading {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.plan-306090-column-title {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.plan-306090-column-hint {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+/* Entry Point carousel tabs — pill-shaped, bordered, with a clear active state.
+ * Same trailing-declaration issue: color/cursor on the base tab and color on
+ * the active tab were being dropped after the @supports background-color block. */
+.entry-point-tab {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    border: 1px solid var(--border-color);
+    padding: 0.375rem 0.875rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    font-weight: 500;
+    color: var(--text-medium);
+    background-color: color-mix(in srgb, var(--bg-medium) 65%, transparent);
+    cursor: pointer;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.entry-point-tab:hover {
+    border-color: var(--primary-blue);
+    color: var(--text-light);
+}
+
+.entry-point-tab--active {
+    border-color: var(--primary-blue);
+    color: var(--text-light);
+    background-color: color-mix(in srgb, var(--primary-blue) 16%, var(--bg-medium));
+}
+
+.entry-point-tab--add {
+    border-style: dashed;
+    color: var(--text-muted);
+}
+
+.entry-point-tab--add:hover {
+    color: var(--text-light);
+}
