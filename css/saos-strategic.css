@@ -414,6 +414,205 @@
 }
 
 /* ===========================================================================
+ * Firmographics (CRM) — upgraded card-grid presentation.
+ *
+ * Why this exists as a dedicated block:
+ *   The previous markup was a flat 2-column label/value list that read as a
+ *   generic spec sheet — visually indistinguishable from the editable
+ *   "Strategic Judgments" block underneath, so reps kept reflexively trying
+ *   to type into firmographics fields. New treatment makes three signals
+ *   explicit:
+ *     1. "This is sourced data" — small CRM badge in the header.
+ *     2. "These are facts, not opinions" — icon + card layout reads as a
+ *         data card stack rather than a form.
+ *     3. "Customer Status is the heaviest signal here" — rendered as a
+ *         colored pill so it pops over the surrounding rows.
+ *
+ *   All values come pre-escaped from the JS; no @apply, all plain CSS to
+ *   avoid the Tailwind v4 nested @supports trap we've hit elsewhere.
+ * ======================================================================== */
+
+.strategic-section--account-snapshot .account-snapshot-crm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-light);
+    letter-spacing: 0.01em;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-title-icon {
+    color: var(--primary-blue);
+    font-size: 0.875rem;
+}
+
+/* The "CRM" provenance chip — small, lowercase, non-interactive, sits to
+ * the right of the section title. Subtle linear-gradient gives it a soft
+ * tech-card vibe without competing with real action affordances on the page. */
+.strategic-section--account-snapshot .account-snapshot-crm-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--primary-blue) 14%, transparent),
+        color-mix(in srgb, var(--primary-blue) 6%, transparent)
+    );
+    color: color-mix(in srgb, var(--primary-blue) 75%, var(--text-light));
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: help;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-source i {
+    font-size: 0.625rem;
+    opacity: 0.85;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-note {
+    margin: 0 0 0.875rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Override the existing 2-col grid with a snug card grid. min(220px, 1fr)
+ * lets the grid collapse to a single column on narrow viewports without a
+ * media query — auto-fit handles the breakpoint behavior. */
+.strategic-section--account-snapshot .account-snapshot-crm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.5rem;
+}
+
+/* Each fact reads as a small card: icon on the left, label+value stacked
+ * on the right. Subtle inner border + soft tinted background — readable
+ * but visually demoted vs the editable judgments below. */
+.strategic-section--account-snapshot .account-snapshot-crm-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg-medium) 35%, transparent),
+        color-mix(in srgb, var(--bg-medium) 18%, transparent)
+    );
+    transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
+    min-width: 0;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-card:hover {
+    border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--primary-blue) 8%, transparent),
+        color-mix(in srgb, var(--bg-medium) 22%, transparent)
+    );
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--primary-blue) 12%, transparent);
+    color: color-mix(in srgb, var(--primary-blue) 80%, var(--text-light));
+    font-size: 0.8125rem;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-light);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-value--empty {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Customer Status — three visual states. The status pill replaces the
+ * "value" line for this single row; everything else (label, icon, hover)
+ * inherits from .account-snapshot-crm-card. */
+.strategic-section--account-snapshot .account-snapshot-crm-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    align-self: flex-start;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid transparent;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-status i {
+    font-size: 0.6875rem;
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-status--customer {
+    background-color: color-mix(in srgb, rgb(34, 197, 94) 18%, transparent);
+    border-color: color-mix(in srgb, rgb(34, 197, 94) 50%, transparent);
+    color: rgb(22, 163, 74);
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-status--prospect {
+    background-color: color-mix(in srgb, var(--primary-blue) 16%, transparent);
+    border-color: color-mix(in srgb, var(--primary-blue) 45%, transparent);
+    color: color-mix(in srgb, var(--primary-blue) 80%, var(--text-light));
+}
+
+.strategic-section--account-snapshot .account-snapshot-crm-status--unknown {
+    background-color: transparent;
+    border-color: color-mix(in srgb, var(--border-color) 80%, transparent);
+    border-style: dashed;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ===========================================================================
  * Accounts page — picker panel must not shrink when an account is selected.
  *
  * Symptom: clicking an account name made the left-hand .account-picker-panel

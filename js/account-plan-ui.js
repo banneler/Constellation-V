@@ -844,36 +844,98 @@ function buildExecutiveNarrativeHintPillsHtml() {
 }
 
 /**
+ * Render the read-only "Firmographics (CRM)" block at the top of the Account
+ * Snapshot. Visual goals (separate from data semantics):
+ *   - Make it unmistakably *sourced from CRM* — that's why the small "CRM"
+ *     badge sits beside the heading. Reps habitually try to edit this block
+ *     and the badge plus the inline note steer them to Tactical view instead.
+ *   - Use a card-grid with icon affordances so the section scans as
+ *     "structured facts" (vs the editable judgments below it which use pills
+ *     and free-text). The icons are decorative, hence aria-hidden.
+ *   - Render Customer Status as a colored pill instead of bare text so the
+ *     single most consequential field on this block reads at a glance.
+ *
+ * Empty values render as a muted em-dash in italic — visually quieter so the
+ * rep's eye is drawn to the populated rows.
+ *
  * @param {object | null | undefined} account
  */
 function buildAccountSnapshotCrmHtml(account) {
     const acct = isPlainObject(account) ? account : {};
+
+    /**
+     * Each row is data + an icon hint. Icon classes come from the Font Awesome
+     * 6 set that accounts.html already loads — no new dependency.
+     * @type {Array<{ label: string, value: unknown, icon: string }>}
+     */
     const rows = [
-        { label: 'Account Name', value: acct.name },
-        { label: 'Industry', value: acct.industry },
-        { label: 'Employees', value: acct.employee_count },
-        { label: 'Sites', value: acct.quantity_of_sites },
-        { label: 'Address', value: acct.address },
-        {
-            label: 'Customer Status',
-            value: acct.is_customer === true ? 'Customer' : acct.is_customer === false ? 'Prospect' : '',
-        },
+        { label: 'Account Name', value: acct.name, icon: 'fas fa-id-badge' },
+        { label: 'Industry', value: acct.industry, icon: 'fas fa-industry' },
+        { label: 'Employees', value: acct.employee_count, icon: 'fas fa-users' },
+        { label: 'Sites', value: acct.quantity_of_sites, icon: 'fas fa-map-pin' },
+        { label: 'Address', value: acct.address, icon: 'fas fa-location-dot' },
     ];
 
-    const items = rows.map(({ label, value }) => {
-        const display = value != null && String(value).trim() !== '' ? String(value) : '—';
+    const items = rows.map(({ label, value, icon }) => {
+        const hasValue = value != null && String(value).trim() !== '';
+        const display = hasValue ? String(value) : '—';
+        const valueClass = hasValue
+            ? 'account-snapshot-crm-value'
+            : 'account-snapshot-crm-value account-snapshot-crm-value--empty';
         return `
-            <div class="account-snapshot-crm-item">
-                <span class="account-snapshot-crm-label">${escapeHtml(label)}</span>
-                <span class="account-snapshot-crm-value">${escapeHtml(display)}</span>
+            <div class="account-snapshot-crm-card">
+                <span class="account-snapshot-crm-icon" aria-hidden="true"><i class="${icon}"></i></span>
+                <div class="account-snapshot-crm-card-body">
+                    <span class="account-snapshot-crm-label">${escapeHtml(label)}</span>
+                    <span class="${valueClass}" title="${escapeHtml(display)}">${escapeHtml(display)}</span>
+                </div>
             </div>`;
     }).join('');
 
+    // Customer Status is rendered as its own colored pill so it pops over the
+    // plain-text firmographics rows. Three visual states keep the cardinality
+    // honest: customer (active, success accent), prospect (neutral accent),
+    // unknown (dashed muted — signals "not set in CRM yet"). Inner pill icon
+    // is state-specific so the colorblind / dense-eye glance still parses.
+    let statusModifier = 'account-snapshot-crm-status--unknown';
+    let statusLabel = 'Unknown';
+    let statusIcon = 'fas fa-circle-question';
+    if (acct.is_customer === true) {
+        statusModifier = 'account-snapshot-crm-status--customer';
+        statusLabel = 'Customer';
+        statusIcon = 'fas fa-circle-check';
+    } else if (acct.is_customer === false) {
+        statusModifier = 'account-snapshot-crm-status--prospect';
+        statusLabel = 'Prospect';
+        statusIcon = 'fas fa-seedling';
+    }
+
+    const statusCard = `
+        <div class="account-snapshot-crm-card account-snapshot-crm-card--status">
+            <span class="account-snapshot-crm-icon" aria-hidden="true"><i class="fas fa-handshake"></i></span>
+            <div class="account-snapshot-crm-card-body">
+                <span class="account-snapshot-crm-label">Customer Status</span>
+                <span class="account-snapshot-crm-status ${statusModifier}">
+                    <i class="${statusIcon}" aria-hidden="true"></i>
+                    <span>${escapeHtml(statusLabel)}</span>
+                </span>
+            </div>
+        </div>`;
+
     return `
         <div class="account-snapshot-crm">
-            <h5 class="account-snapshot-subheading">Firmographics (CRM)</h5>
+            <div class="account-snapshot-crm-header">
+                <h5 class="account-snapshot-subheading account-snapshot-crm-title">
+                    <i class="fas fa-database account-snapshot-crm-title-icon" aria-hidden="true"></i>
+                    Firmographics
+                </h5>
+                <span class="account-snapshot-crm-source" title="Sourced from CRM — edit in Tactical view">
+                    <i class="fas fa-link" aria-hidden="true"></i>
+                    CRM
+                </span>
+            </div>
             <p class="account-snapshot-crm-note">Read-only — edit in Tactical view.</p>
-            <div class="account-snapshot-crm-grid">${items}</div>
+            <div class="account-snapshot-crm-grid">${items}${statusCard}</div>
         </div>`;
 }
 
