@@ -414,6 +414,141 @@
 }
 
 /* ===========================================================================
+ * Influence Mapping fixes
+ *
+ * Symptoms (all confirmed in the live SAOS canvas):
+ *
+ *   A. The "Unassigned Contacts" column was huge — ~16rem tall even when it
+ *      held nothing but a single row of pills. Caused by belt-and-braces
+ *      min-height on both .influence-board-column--bench (16rem) and the
+ *      inner .influence-board-dropzone--bench (12rem). The bench is meant
+ *      to be a spill area, not a sized dropzone like the leadership tiers.
+ *
+ *   B. The column-hint paragraph ("Contacts not yet mapped to a leadership
+ *      tier.") rendered as unstyled plain text. Same Tailwind v4 nested
+ *      @supports trap as the badge/tab/descriptor fixes earlier: the
+ *      compiled output.css has
+ *          @supports (color: color-mix(in lab, red, red)) { border-color: ... }
+ *          background-color: var(--bg-medium);       <-- DROPPED
+ *          @supports (color: color-mix(in lab, red, red)) { background-color: ... }
+ *      so the tinted background never applies in browsers with the parse
+ *      drop. We re-author the rule flat below.
+ *
+ *   C. Invisible Org Chart + Political Dynamics blocks had the textarea
+ *      wrapping into the 32% narrow hint column. That's a structural fix
+ *      in the JS (now uses .strategic-composite-field--nested-meta with
+ *      label + hint stacked in the aside) — nothing further needed in CSS
+ *      because the .strategic-composite-field-meta rules above already
+ *      cover that variant.
+ * ======================================================================== */
+
+/* Bench column: sized to its content. Padding gives the row of pills a
+ * little breathing room without forcing 16rem of empty pixels. */
+.influence-board-column--bench {
+    min-height: 0;
+}
+
+.influence-board-dropzone--bench {
+    min-height: 0;
+    padding: 0.5rem 0.75rem 0.625rem;
+}
+
+/* Restore the column-hint visual — tinted background, soft bottom border,
+ * left padding so it reads as a callout under the column title. Flat CSS,
+ * no nested @supports, so trailing declarations stay attached. */
+.influence-board-column-hint {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+    background-color: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+}
+
+/* ===========================================================================
+ * White Space matrix — pill-group selectors replace the old <select>s.
+ *
+ * Same one-tap pattern used for strategic_tensions, interaction_log, and
+ * snapshot pills: a single click sets/clears the value. The 9-area selector
+ * (Cloud / Security / AI / Infrastructure / SD-WAN / DR / UCaaS / Wireless /
+ * Backup) wraps onto two rows on narrow viewports; flex-wrap handles it
+ * without a media query.
+ * ======================================================================== */
+
+.white-space-pills-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.white-space-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    border-radius: 9999px;
+    border: 1px solid var(--border-color);
+    background-color: color-mix(in srgb, var(--bg-medium) 65%, transparent);
+    color: var(--text-medium);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.white-space-pill:hover {
+    border-color: var(--primary-blue);
+    color: var(--text-light);
+}
+
+.white-space-pill--active {
+    border-color: var(--primary-blue);
+    background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-medium));
+    color: var(--text-light);
+}
+
+/* ===========================================================================
+ * Entry Point contact header — was a <select> dropdown, now a read-only
+ * label. Contact assignment now happens upstream (influence-board drag or
+ * "+ Add Point" creation), so the card just displays who this profile
+ * belongs to. Unassigned state uses dashed/muted styling to signal "this
+ * profile is orphaned — drop a contact into Executive or Mid-Level".
+ * ======================================================================== */
+
+.entry-point-contact-row--inline {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.entry-point-contact-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.entry-point-contact-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-light);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.entry-point-contact-name--unassigned {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* ===========================================================================
  * Firmographics (CRM) — upgraded card-grid presentation.
  *
  * Why this exists as a dedicated block:

@@ -1183,36 +1183,49 @@ function buildEntryPointTextarea(index, fieldKey, label, value, placeholder = ''
 }
 
 /**
+ * Read-only contact-name header for an entry point card.
+ *
+ * Was a <select> dropdown; removed because contact selection now happens
+ * exclusively upstream — either at "+ Add Point" creation time, or
+ * automatically when a contact is dragged into Executive/Mid-Level on the
+ * influence board (ensureEntryPointForContact in the Influence Pipeline).
+ * Showing a dropdown inside the card invited reps to re-pick the same
+ * contact, and accidentally orphaned profile data when a misclick reassigned
+ * the entry point to a different person.
+ *
+ * Data shape unchanged: contact_name still lives on the entry point object
+ * and is read by exports and downstream renderers. We just stop letting the
+ * card itself edit it. To rename or reassign, the rep removes the entry
+ * point (Out of Play on the influence board) and remaps the correct
+ * contact — that path is the only one that also keeps contact_id in sync.
+ *
+ * The `contacts` and `index` parameters are kept on the signature so call
+ * sites need no refactor. The hidden input keeps contact_name bound to
+ * autosave's existing entry_points.${index}.contact_name path, so saved
+ * data round-trips without loss even if we ever bring an editor back.
+ *
  * @param {string} index
  * @param {string} value
- * @param {object[]} contacts
+ * @param {object[]} _contacts
  */
-function buildEntryPointContactSelect(index, value, contacts) {
+function buildEntryPointContactSelect(index, value, _contacts) {
     const fieldId = `entry-point-${index}-contact_name`;
-    const contactNames = contacts.map((contact) => `${contact.first_name || ''} ${contact.last_name || ''}`.trim()).filter(Boolean);
-    const knownValues = new Set([...contactNames, ENTRY_POINT_OTHER_LABEL]);
-
-    let options = '<option value="">Select contact…</option>';
-    contactNames.forEach((name) => {
-        const selected = value === name ? ' selected' : '';
-        options += `<option value="${escapeHtml(name)}"${selected}>${escapeHtml(name)}</option>`;
-    });
-
-    if (value && !knownValues.has(value)) {
-        options += `<option value="${escapeHtml(value)}" selected>${escapeHtml(value)}</option>`;
-    }
-
-    const otherSelected = value === ENTRY_POINT_OTHER_LABEL ? ' selected' : '';
-    options += `<option value="${escapeHtml(ENTRY_POINT_OTHER_LABEL)}"${otherSelected}>${escapeHtml(ENTRY_POINT_OTHER_LABEL)}</option>`;
+    const hasName = typeof value === 'string' && value.trim() !== '';
+    const displayName = hasName ? value : 'Unassigned';
+    const displayClass = hasName
+        ? 'entry-point-contact-name'
+        : 'entry-point-contact-name entry-point-contact-name--unassigned';
 
     return `
         <div class="entry-point-contact-row entry-point-contact-row--inline">
-            <label for="${fieldId}">Contact</label>
-            <select
+            <span class="entry-point-contact-label">Contact</span>
+            <span class="${displayClass}" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+            <input
+                type="hidden"
                 id="${fieldId}"
-                class="strategic-field entry-point-select entry-point-contact-select"
                 data-field="entry_points.${index}.contact_name"
-            >${options}</select>
+                value="${escapeHtml(typeof value === 'string' ? value : '')}"
+            />
         </div>`;
 }
 
@@ -1554,10 +1567,14 @@ function buildInfluenceBoardHtml(section, data) {
             ${renderBucket('mid_level', 'Mid-Level', midLevelEntries)}
             ${renderBucket('technical', 'Technical', technicalEntries)}
         </div>
-        <div class="strategic-composite-field influence-political-field strategic-composite-field--with-hint">
+        <div class="strategic-composite-field influence-political-field strategic-composite-field--with-hint strategic-composite-field--nested-meta">
             <div class="strategic-composite-field-body">
-                ${buildFieldHintHtml(columnHints.political_dynamics)}
-                <label for="strategic-field-influence-political">Political Dynamics</label>
+                <div class="strategic-composite-field-aside">
+                    <div class="strategic-composite-field-meta">
+                        <label for="strategic-field-influence-political">Political Dynamics</label>
+                        ${buildFieldHintHtml(columnHints.political_dynamics)}
+                    </div>
+                </div>
                 <textarea
                     id="strategic-field-influence-political"
                     class="strategic-field strategic-textarea influence-political-textarea"
@@ -1571,10 +1588,14 @@ function buildInfluenceBoardHtml(section, data) {
             ${buildFieldHintHtml(columnHints.access_path)}
             <div class="influence-access-grid">${accessPathFields}</div>
         </div>
-        <div class="strategic-composite-field influence-invisible-field strategic-composite-field--with-hint">
+        <div class="strategic-composite-field influence-invisible-field strategic-composite-field--with-hint strategic-composite-field--nested-meta">
             <div class="strategic-composite-field-body">
-                ${buildFieldHintHtml(columnHints.invisible_org_chart)}
-                <label for="strategic-field-influence-invisible">Invisible Org Chart</label>
+                <div class="strategic-composite-field-aside">
+                    <div class="strategic-composite-field-meta">
+                        <label for="strategic-field-influence-invisible">Invisible Org Chart</label>
+                        ${buildFieldHintHtml(columnHints.invisible_org_chart)}
+                    </div>
+                </div>
                 <textarea
                     id="strategic-field-influence-invisible"
                     class="strategic-field strategic-textarea influence-invisible-textarea"
@@ -1706,36 +1727,6 @@ function buildWhiteSpaceRowHtml(row, index) {
     const confidence = String(row.confidence ?? '');
     const valueNotes = escapeHtml(String(row.value_notes ?? ''));
 
-    const areaOptions = WHITE_SPACE_AREAS.map((option) => {
-        const selected = area === option ? ' selected' : '';
-        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
-    }).join('');
-
-    const levelSelect = (fieldKey, label, value) => {
-        const fieldId = `white-space-${index}-${fieldKey}`;
-        const optionsHtml = ACCOUNT_SNAPSHOT_LEVEL_OPTIONS.map((option) => {
-            const selected = value === option ? ' selected' : '';
-            const optionLabel = option === '' ? 'Select…' : option;
-            return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(optionLabel)}</option>`;
-        }).join('');
-        return `
-            <div class="white-space-field">
-                <label for="${fieldId}">${escapeHtml(label)}</label>
-                <select
-                    id="${fieldId}"
-                    class="strategic-field white-space-select"
-                    data-white-space-index="${index}"
-                    data-white-space-field="${fieldKey}"
-                >${optionsHtml}</select>
-            </div>`;
-    };
-
-    const confidenceOptions = WHITE_SPACE_CONFIDENCE_OPTIONS.map((option) => {
-        const selected = confidence === option ? ' selected' : '';
-        const optionLabel = option === '' ? 'Select…' : option;
-        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(optionLabel)}</option>`;
-    }).join('');
-
     return `
         <div class="white-space-row" data-white-space-row="${index}">
             <div class="white-space-row-header">
@@ -1743,29 +1734,10 @@ function buildWhiteSpaceRowHtml(row, index) {
                 <button type="button" class="white-space-row-remove" data-white-space-remove="${index}" aria-label="Remove row">Remove</button>
             </div>
             <div class="white-space-row-grid">
-                <div class="white-space-field">
-                    <label for="white-space-${index}-area">Area</label>
-                    <select
-                        id="white-space-${index}-area"
-                        class="strategic-field white-space-select"
-                        data-white-space-index="${index}"
-                        data-white-space-field="area"
-                    >
-                        <option value="">Select area…</option>
-                        ${areaOptions}
-                    </select>
-                </div>
-                ${levelSelect('operational_importance', 'Operational Importance', operationalImportance)}
-                ${levelSelect('executive_visibility', 'Executive Visibility', executiveVisibility)}
-                <div class="white-space-field">
-                    <label for="white-space-${index}-confidence">Confidence</label>
-                    <select
-                        id="white-space-${index}-confidence"
-                        class="strategic-field white-space-select"
-                        data-white-space-index="${index}"
-                        data-white-space-field="confidence"
-                    >${confidenceOptions}</select>
-                </div>
+                ${buildWhiteSpacePillField(index, 'area', 'Area', WHITE_SPACE_AREAS, area)}
+                ${buildWhiteSpacePillField(index, 'operational_importance', 'Operational Importance', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, operationalImportance)}
+                ${buildWhiteSpacePillField(index, 'executive_visibility', 'Executive Visibility', ACCOUNT_SNAPSHOT_LEVEL_OPTIONS, executiveVisibility)}
+                ${buildWhiteSpacePillField(index, 'confidence', 'Confidence', WHITE_SPACE_CONFIDENCE_OPTIONS, confidence)}
                 <div class="white-space-field white-space-field--wide">
                     <label for="white-space-${index}-opportunity">Opportunity</label>
                     <textarea
@@ -1788,6 +1760,101 @@ function buildWhiteSpaceRowHtml(row, index) {
                 </div>
             </div>
         </div>`;
+}
+
+/**
+ * Pill-group equivalent of the old <select> for a single White Space field.
+ * Tap-don't-type rhythm: rep sees every option at once instead of fishing in
+ * a dropdown that hides cardinality (especially helpful for the 9-area
+ * vertical-by-vertical Area selector, which used to require a hover-scan).
+ *
+ * Storage shape kept identical to the old <select>: a hidden <input
+ * data-white-space-field data-white-space-index> mirrors the selected value
+ * so the existing syncWhiteSpaceFromCanvas reader keeps working without any
+ * change. On pill click we dispatch an 'input' event from the hidden input
+ * so the canvas-level input listener fires sync + autosave.
+ *
+ * Single-select with toggle-off: clicking the active pill clears the value
+ * (parity with how the interaction-log pills behave).
+ *
+ * @param {number} index
+ * @param {string} fieldKey
+ * @param {string} label
+ * @param {readonly string[]} options - first '' (if present) is treated as
+ *   the "cleared" sentinel and dropped from the pill set.
+ * @param {string} value
+ */
+function buildWhiteSpacePillField(index, fieldKey, label, options, value) {
+    const fieldId = `white-space-${index}-${fieldKey}`;
+    const visibleOptions = options.filter((option) => option !== '');
+    const pillsHtml = visibleOptions.map((option) => {
+        const active = value === option ? ' white-space-pill--active' : '';
+        return `<button
+            type="button"
+            class="white-space-pill${active}"
+            data-white-space-pill-target="${escapeHtml(fieldId)}"
+            data-white-space-pill-value="${escapeHtml(option)}"
+            aria-pressed="${value === option ? 'true' : 'false'}"
+        >${escapeHtml(option)}</button>`;
+    }).join('');
+
+    return `
+        <div class="white-space-field">
+            <label for="${fieldId}">${escapeHtml(label)}</label>
+            <input
+                type="hidden"
+                id="${fieldId}"
+                data-white-space-index="${index}"
+                data-white-space-field="${escapeHtml(fieldKey)}"
+                value="${escapeHtml(value)}"
+            />
+            <div class="white-space-pills-wrap" role="group" aria-label="${escapeHtml(label)}">
+                ${pillsHtml}
+            </div>
+        </div>`;
+}
+
+/**
+ * Click handler for .white-space-pill buttons. Mirrors the active pill's
+ * value into the matching hidden input (data-white-space-pill-target points
+ * at the input id) and then triggers sync + autosave directly.
+ *
+ * We deliberately do NOT dispatch a synthetic 'input' event here — the
+ * canvas-level input listener filters by class selector (.strategic-field,
+ * .white-space-select, etc.) so it would early-return for a bare hidden
+ * input. Calling syncWhiteSpaceFromCanvas() + queueAutosave() directly is
+ * both simpler and avoids coupling pill behavior to that filter list.
+ *
+ * @param {HTMLButtonElement} pill
+ */
+function toggleWhiteSpacePill(pill) {
+    const targetId = pill.dataset.whiteSpacePillTarget;
+    const value = pill.dataset.whiteSpacePillValue ?? '';
+    if (!targetId) return;
+
+    const hiddenInput = document.getElementById(targetId);
+    if (!(hiddenInput instanceof HTMLInputElement)) return;
+
+    const wasActive = pill.classList.contains('white-space-pill--active');
+
+    const group = pill.closest('.white-space-field');
+    group?.querySelectorAll('.white-space-pill').forEach((sibling) => {
+        if (!(sibling instanceof HTMLButtonElement)) return;
+        sibling.classList.remove('white-space-pill--active');
+        sibling.setAttribute('aria-pressed', 'false');
+    });
+
+    if (wasActive) {
+        hiddenInput.value = '';
+    } else {
+        hiddenInput.value = value;
+        pill.classList.add('white-space-pill--active');
+        pill.setAttribute('aria-pressed', 'true');
+    }
+
+    syncWhiteSpaceFromCanvas();
+    updateRailSummaries(_liveSections || {});
+    queueAutosave();
 }
 
 /**
@@ -3362,6 +3429,13 @@ function bindCanvasFormEvents(canvas) {
         if (influencePill instanceof HTMLElement) {
             event.preventDefault();
             selectInfluenceContactFieldPill(influencePill);
+            return;
+        }
+
+        const whiteSpacePill = target.closest('.white-space-pill');
+        if (whiteSpacePill instanceof HTMLButtonElement) {
+            event.preventDefault();
+            toggleWhiteSpacePill(whiteSpacePill);
             return;
         }
 
