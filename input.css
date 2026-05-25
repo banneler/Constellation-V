@@ -1857,7 +1857,7 @@ body.theme-green {
     .plan-pdf-preview-modal {
         position: fixed;
         inset: 0;
-        z-index: 80;
+        z-index: 10000;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1867,12 +1867,17 @@ body.theme-green {
     .plan-pdf-preview-modal.hidden {
         display: none;
     }
+    /* Dialog must size from the LARGER viewport axis (width on landscape monitors)
+     * — the old `min(100%, calc(85vh * 0.82))` tied width to viewport HEIGHT, which
+     * crushed the iframe to ~535px wide on a 1366x768 laptop, making the PDF
+     * preview (rendered with view=FitH) unreadable. */
     .plan-pdf-preview-dialog {
         display: flex;
         flex-direction: column;
-        width: min(100%, calc(85vh * 0.82));
-        height: 85vh;
+        width: min(95vw, 1100px);
+        height: min(95vh, 1400px);
         max-width: 100%;
+        max-height: 100%;
     }
     .plan-pdf-preview-header {
         display: flex;
@@ -3180,10 +3185,14 @@ body.theme-green {
     .plan-export-btn {
         @apply inline-flex items-center justify-center gap-2 text-sm;
     }
+    /* Sits ABOVE the global page loader (z 9999) and the PDF preview modal
+     * (z 10000) so it never gets buried under nav chrome or other overlays
+     * while a long-running export is in flight. Markup lives at <body> level
+     * (see accounts.html) so `position: fixed` always anchors to the viewport. */
     .plan-export-generating-overlay {
         position: fixed;
         inset: 0;
-        z-index: 70;
+        z-index: 10010;
         display: flex;
         align-items: center;
         justify-content: center;

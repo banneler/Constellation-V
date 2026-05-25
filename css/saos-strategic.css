@@ -772,3 +772,71 @@
 .account-picker-panel {
     flex-shrink: 0;
 }
+
+/* ===========================================================================
+ * Plan export overlay + PDF preview modal — z-index lift, true viewport anchor,
+ * and a usable preview dialog size.
+ *
+ * Why this is here (and not just left in input.css):
+ *   1. The export overlay was nested inside `.strategic-workspace`, whose
+ *      ancestor chain (`.content-area` with `overflow-y: auto`,
+ *      `.strategic-workspace` itself `position: relative` with a `max-height`
+ *      clamp) was confining the supposedly-fixed overlay to the workspace box
+ *      on Chromium. We moved the markup to <body> level in accounts.html so
+ *      `position: fixed; inset: 0` once again anchors to the viewport. The CSS
+ *      below codifies the z-index lift so the spinner card sits on TOP of the
+ *      global loader (z 9999), nav chrome, and any other overlay.
+ *
+ *   2. The PDF preview dialog used `width: min(100%, calc(85vh * 0.82))` —
+ *      width tied to viewport HEIGHT. On a typical 1366x768 laptop that
+ *      resolves to ~535px wide, and since the iframe is opened with
+ *      `view=FitH` (fit to width), the rendered page was shrunk to that 535px
+ *      box and effectively unreadable. New sizing uses viewport WIDTH (capped
+ *      at 1100px so it doesn't run away on ultra-wide displays) and 92vh tall,
+ *      which yields a comfortable letter-portrait preview on every screen.
+ *
+ *   3. Both rules are duplicated here as plain CSS so the cascade resolves
+ *      cleanly without nested @supports — see the long-form note about the
+ *      Tailwind v4 nested-@supports parse drop earlier in this file. We do
+ *      NOT want a future regression where `backdrop-filter` (currently the
+ *      trailing declaration after a color-mix @supports block in output.css)
+ *      gets silently dropped in some Chromium build.
+ * ======================================================================== */
+
+.plan-export-generating-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10010;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    background-color: color-mix(in srgb, var(--bg-dark, #0f1419) 45%, transparent);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.plan-pdf-preview-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background-color: rgba(5, 27, 45, 0.92);
+}
+
+.plan-pdf-preview-modal.hidden {
+    display: none;
+}
+
+.plan-pdf-preview-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(95vw, 1100px);
+    height: min(95vh, 1400px);
+    max-width: 100%;
+    max-height: 100%;
+}

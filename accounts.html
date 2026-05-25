@@ -214,13 +214,6 @@
                         <div id="strategic-document-canvas" class="strategic-document-canvas"></div>
                         <aside id="strategic-rail" class="strategic-rail"></aside>
                     </div>
-                    <div id="plan-export-generating-overlay" class="plan-export-generating-overlay hidden" aria-hidden="true" aria-live="polite">
-                        <div class="plan-export-generating-state">
-                            <div class="plan-export-generating-spinner" aria-hidden="true"></div>
-                            <p id="plan-export-generating-title" class="plan-export-generating-title">Generating…</p>
-                            <p id="plan-export-generating-subtitle" class="plan-export-generating-subtitle"></p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </main>
@@ -228,6 +221,18 @@
     <div id="account-plan-export-root" class="account-plan-export-root" aria-hidden="true">
         <div id="export-dossier-template"></div>
         <div id="export-exec-readout-template"></div>
+    </div>
+    <!-- Export progress overlay — lifted to <body> so `position: fixed` cannot be
+         trapped by any ancestor (`.strategic-workspace` is `position: relative`
+         and `.content-area` has `overflow-y: auto`; nesting a fixed overlay inside
+         that combo confined it to the workspace box on Chromium, leaving the
+         spinner off-center and behind other UI). -->
+    <div id="plan-export-generating-overlay" class="plan-export-generating-overlay hidden" aria-hidden="true" aria-live="polite">
+        <div class="plan-export-generating-state">
+            <div class="plan-export-generating-spinner" aria-hidden="true"></div>
+            <p id="plan-export-generating-title" class="plan-export-generating-title">Generating…</p>
+            <p id="plan-export-generating-subtitle" class="plan-export-generating-subtitle"></p>
+        </div>
     </div>
     <div id="plan-pdf-preview-modal" class="plan-pdf-preview-modal hidden" aria-hidden="true" role="dialog" aria-labelledby="plan-pdf-preview-title" aria-modal="true">
         <div class="plan-pdf-preview-dialog">
