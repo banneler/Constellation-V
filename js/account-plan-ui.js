@@ -394,8 +394,9 @@ function buildFieldHintHtml(hint) {
  */
 function buildCompositeFieldHtml(sectionId, field, rawValue) {
     const value = escapeHtml(String(rawValue ?? ''));
-    const withHint = Boolean(field.hint);
+    const hintHtml = buildFieldHintHtml(field.hint);
     const fieldId = `strategic-field-${sectionId}-${field.key}`;
+    const nestedMeta = Boolean(field.label && field.hint);
 
     const textareaHtml = `
         <textarea
@@ -415,19 +416,25 @@ function buildCompositeFieldHtml(sectionId, field, rawValue) {
             </div>`;
     }
 
-    const kickerHtml = field.label
-        ? `<span class="strategic-field-context-kicker">${escapeHtml(field.label)}</span>`
-        : '';
-    const asideContent = `
-        <div class="strategic-field-context">
-            ${kickerHtml}
-            <p>${escapeHtml(field.hint || '')}</p>
-        </div>`;
+    if (nestedMeta) {
+        return `
+            <div class="strategic-composite-field strategic-composite-field--with-hint strategic-composite-field--nested-meta">
+                <div class="strategic-composite-field-body">
+                    <div class="strategic-composite-field-aside">
+                        <div class="strategic-composite-field-meta">
+                            <label for="${fieldId}">${escapeHtml(field.label)}</label>
+                            ${hintHtml}
+                        </div>
+                    </div>
+                    ${textareaHtml}
+                </div>
+            </div>`;
+    }
 
     return `
         <div class="strategic-composite-field strategic-composite-field--with-hint">
             <div class="strategic-composite-field-body">
-                <div class="strategic-composite-field-aside">${asideContent}</div>
+                <div class="strategic-composite-field-aside">${hintHtml}</div>
                 ${textareaHtml}
             </div>
         </div>`;
