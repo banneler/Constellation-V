@@ -19,6 +19,10 @@ import {
     WHITE_SPACE_AREAS,
     WHITE_SPACE_CONFIDENCE_OPTIONS,
     PSYCHOLOGY_GRAVITY_PILLS,
+    STRATEGIC_TENSION_GROUPS,
+    TENSION_GHOST_SECTIONS,
+    INSIGHT_DENSITY_SECTIONS,
+    INSIGHT_DENSITY_SOFT_LIMIT,
 } from './account-plan-sections.js';
 import { formatPlanHorizonRailPreviewHtml } from './account-plan-rich-text.js';
 import {
@@ -113,6 +117,7 @@ export function initStrategicMode(options = {}) {
     bindVersionPopoverControls();
     bindRailControls();
     bindPlanPdfPreviewModal();
+    injectStrategicCoachingStyles();
 
     const toggleBtn = document.getElementById('account-mode-toggle');
     if (toggleBtn && !toggleBtn.dataset.strategicBound) {
@@ -393,25 +398,56 @@ function buildFieldHintHtml(hint) {
  * @param {unknown} rawValue
  */
 function buildCompositeFieldHtml(sectionId, field, rawValue) {
-    const value = escapeHtml(String(rawValue ?? ''));
+    const rawString = String(rawValue ?? '');
+    const value = escapeHtml(rawString);
     const hintHtml = buildFieldHintHtml(field.hint);
     const fieldId = `strategic-field-${sectionId}-${field.key}`;
     const nestedMeta = Boolean(field.label && field.hint);
 
+    // Task 3 — Insight Density: only certain narrative sections (Pursuit
+    // Thesis, Competitive Landscape) earn the soft cap nudge. Everywhere else
+    // — gravity, narrative_openings, etc. — long-form writing is appropriate.
+    const isInsightField = INSIGHT_DENSITY_SECTIONS.includes(sectionId);
+    const len = rawString.length;
+    const isDense = isInsightField && len > INSIGHT_DENSITY_SOFT_LIMIT;
+
+    const textareaClassNames = [
+        'strategic-field',
+        'strategic-textarea',
+        isInsightField ? 'strategic-insight-textarea' : '',
+        isDense ? 'strategic-insight-textarea--dense' : '',
+    ].filter(Boolean).join(' ');
+
+    const insightAttrs = isInsightField
+        ? ` data-insight-soft-limit="${INSIGHT_DENSITY_SOFT_LIMIT}"`
+        : '';
+
     const textareaHtml = `
         <textarea
             id="${fieldId}"
-            class="strategic-field strategic-textarea"
+            class="${textareaClassNames}"
             data-field="${sectionId}.${field.key}"
-            rows="3"
+            rows="3"${insightAttrs}
         >${value}</textarea>`;
+
+    // The counter is purposely *only* visible when dense (via CSS class). We
+    // still render it always so the DOM is stable between renders — toggling
+    // the dense class is cheaper than inserting/removing the element.
+    const counterClass = `strategic-insight-counter${isDense ? ' strategic-insight-counter--dense' : ''}`;
+    const insightCounter = isInsightField
+        ? `<span class="${counterClass}" data-insight-counter aria-hidden="true">${len} / ${INSIGHT_DENSITY_SOFT_LIMIT}</span>`
+        : '';
+
+    const wrappedTextarea = isInsightField
+        ? `<div class="strategic-insight-wrap">${textareaHtml}${insightCounter}</div>`
+        : textareaHtml;
 
     if (field.label && !field.hint) {
         return `
             <div class="strategic-composite-field">
                 <label for="${fieldId}">${escapeHtml(field.label)}</label>
                 <div class="strategic-composite-field-body">
-                    ${textareaHtml}
+                    ${wrappedTextarea}
                 </div>
             </div>`;
     }
@@ -426,7 +462,7 @@ function buildCompositeFieldHtml(sectionId, field, rawValue) {
                             ${hintHtml}
                         </div>
                     </div>
-                    ${textareaHtml}
+                    ${wrappedTextarea}
                 </div>
             </div>`;
     }
@@ -435,7 +471,7 @@ function buildCompositeFieldHtml(sectionId, field, rawValue) {
         <div class="strategic-composite-field strategic-composite-field--with-hint">
             <div class="strategic-composite-field-body">
                 <div class="strategic-composite-field-aside">${hintHtml}</div>
-                ${textareaHtml}
+                ${wrappedTextarea}
             </div>
         </div>`;
 }
@@ -471,6 +507,370 @@ function paintCanvas() {
     canvas.innerHTML = `<div class="strategic-document-inner">${buildCanvasHtml(_liveSections, _entryPointActiveIndex)}</div>`;
     initAutoExpandTextareas(canvas);
     initPsychologySliders(canvas);
+}
+
+// ---------------------------------------------------------------------------
+// Task 1 — Strategic Ghosting (cross-section state awareness)
+// ---------------------------------------------------------------------------
+// Why this exists: reps default to brain-dumping 30/60/90 actions without
+// referencing the strategic contradictions they just selected one section up.
+// We render a non-editable "ghost" of the chosen tensions inside the plan
+// sections so the rep cannot *visually* escape them while drafting actions.
+//
+// Critical: this is a passive READ. The ghost must never write back to
+// strategic_tensions or re-trigger a full canvas paint — that would create a
+// pill-toggle -> repaint -> focus-loss -> autosave loop. We only mutate the
+// innerHTML of the ghost host node, which carries no event listeners.
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve each currently selected strategic_tensions pill back to its
+ * either_or group so the ghost can show "<chosen> over <alternative>" — that
+ * phrasing is what forces the rep to remember a decision was made.
+ *
+ * @param {string} pill
+ * @returns {{ chosen: string, alternative: string } | null}
+ */
+function resolveTensionGhostPair(pill) {
+    if (typeof pill !== 'string' || !pill.trim()) return null;
+    for (const group of STRATEGIC_TENSION_GROUPS) {
+        const options = group.options;
+        const idx = options.indexOf(pill);
+        if (idx >= 0) {
+            return { chosen: pill, alternative: options[idx === 0 ? 1 : 0] };
+        }
+    }
+    return { chosen: pill, alternative: '' };
+}
+
+/**
+ * Inner HTML for the ghost reminder (everything inside the <aside> wrapper).
+ * Split out so refresh can swap the body without touching the host element
+ * itself.
+ *
+ * @param {unknown} tensions
+ * @returns {string}
+ */
+function buildStrategicTensionGhostInner(tensions) {
+    const rawPills = isPlainObject(tensions) && Array.isArray(tensions.selected_pills)
+        ? tensions.selected_pills
+        : [];
+
+    // Defensive filtering — even though the autosave sanitizer (Task 4) cleans
+    // strategic_tensions before persisting, an in-memory pill toggle can leave a
+    // transient empty string in the array between toggles. We never want to
+    // render an empty ghost pill.
+    const pairs = rawPills
+        .map(resolveTensionGhostPair)
+        .filter((pair) => pair && pair.chosen);
+
+    if (pairs.length === 0) {
+        return `
+            <p class="strategic-ghost-headline strategic-ghost-headline--empty">
+                No strategic tensions captured yet — open the Strategic Tensions
+                section above so this plan is anchored to the deal's physics.
+            </p>`;
+    }
+
+    const headline = pairs.length === 1
+        ? `Reminder: this account is balancing <strong>${escapeHtml(pairs[0].chosen)}</strong>${pairs[0].alternative ? ` over <em>${escapeHtml(pairs[0].alternative)}</em>` : ''}.`
+        : `Reminder: this account is balancing the following tensions — every action below should reinforce these choices, not contradict them.`;
+
+    const pillsHtml = pairs.map((pair) => {
+        const altSuffix = pair.alternative
+            ? `<span class="strategic-ghost-pill-alt"> over ${escapeHtml(pair.alternative)}</span>`
+            : '';
+        return `<span class="strategic-ghost-pill"><strong>${escapeHtml(pair.chosen)}</strong>${altSuffix}</span>`;
+    }).join('');
+
+    return `
+        <p class="strategic-ghost-headline">${headline}</p>
+        <div class="strategic-ghost-pills">${pillsHtml}</div>`;
+}
+
+/**
+ * Full ghost reminder block (aside + inner). Called from buildCanvasHtml at
+ * paint time. The data-tension-ghost-host attribute lets refresh target the
+ * right hosts when pills change.
+ *
+ * @param {unknown} tensions
+ * @param {string} hostSectionId
+ * @returns {string}
+ */
+function buildStrategicTensionGhostHtml(tensions, hostSectionId) {
+    return `
+        <aside
+            class="strategic-ghost-reminder"
+            data-tension-ghost-host="${escapeHtml(hostSectionId)}"
+            aria-live="polite"
+            aria-label="Strategic tensions reminder"
+        >${buildStrategicTensionGhostInner(tensions)}</aside>`;
+}
+
+/**
+ * Cheap incremental refresh — replaces only the inner HTML of every ghost
+ * host, leaving the rest of the canvas (including the focused field) intact.
+ * Safe to call from inside a pill click handler.
+ */
+function refreshStrategicTensionGhosts() {
+    if (!_liveSections) return;
+    const tensions = _liveSections.strategic_tensions;
+    document.querySelectorAll('[data-tension-ghost-host]').forEach((host) => {
+        if (!(host instanceof HTMLElement)) return;
+        host.innerHTML = buildStrategicTensionGhostInner(tensions);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Task 2 — Influence Pipeline (zero-friction linkage)
+// ---------------------------------------------------------------------------
+// Why this exists: typing a contact's name twice (once on the influence board,
+// once in the entry-point carousel) is exactly the kind of busywork that makes
+// reps disengage from the plan. We auto-stub a Target Profile when they
+// promote a contact to Executive or Mid-Level. We deliberately do NOT auto-
+// delete when they later demote — narrative work (Best Themes, Why They
+// Matter) is expensive and shouldn't disappear because a rep is reorganizing
+// the org chart. Instead we flag the profile so the rep can decide whether to
+// keep, edit, or delete it manually.
+// ---------------------------------------------------------------------------
+
+/**
+ * Buckets that earn an auto-stubbed entry point. Technical contacts rarely
+ * become primary entry points, and stubbing one creates more clutter than
+ * value.
+ */
+const INFLUENCE_AUTO_STUB_BUCKETS = Object.freeze(['executive', 'mid_level']);
+
+/**
+ * Lookup helper used by the carousel to decide whether a profile is still in
+ * sync with the influence board.
+ *
+ * @param {string} contactId
+ * @returns {boolean}
+ */
+function isContactCurrentlyMappedToInfluence(contactId) {
+    if (!_liveSections || !contactId) return false;
+    const mapping = _liveSections.influence_mapping;
+    if (!isPlainObject(mapping)) return false;
+    const id = String(contactId);
+    return INFLUENCE_AUTO_STUB_BUCKETS.some((bucket) => {
+        const list = normalizeInfluenceEntries(mapping[bucket]);
+        return list.some((entry) => String(entry.id) === id);
+    });
+}
+
+/**
+ * Create a new entry point shell for a contact if one doesn't already exist.
+ * Returns true if a stub was inserted (so the caller knows whether to refresh
+ * the carousel).
+ *
+ * @param {string} contactId
+ * @param {string} contactName
+ * @returns {boolean}
+ */
+function ensureEntryPointForContact(contactId, contactName) {
+    if (!_liveSections || !contactId) return false;
+
+    const id = String(contactId);
+    const points = Array.isArray(_liveSections.entry_points)
+        ? [..._liveSections.entry_points]
+        : [];
+
+    const alreadyExists = points.some((point) => (
+        isPlainObject(point) && String(point.contact_id ?? '') === id
+    ));
+    if (alreadyExists) return false;
+
+    if (points.length >= MAX_ENTRY_POINTS) {
+        // Surface a toast — silently dropping the stub would be confusing
+        // ("I dragged the contact, why didn't anything happen?"). MAX_ENTRY_POINTS
+        // is intentionally low (5) because the AI/PPTX engines summarize a
+        // *focused* roster, not a dump of every contact.
+        _options.onToast?.(
+            `Entry-point roster is full (max ${MAX_ENTRY_POINTS}). Remove one before promoting another contact.`,
+            'error'
+        );
+        return false;
+    }
+
+    const stub = {
+        ...createEmptyEntryPoint(),
+        contact_id: id,
+        contact_name: String(contactName || '').trim(),
+    };
+    points.push(stub);
+    _liveSections.entry_points = points;
+    return true;
+}
+
+/**
+ * Full re-render of the entry-point carousel (used after auto-stub + after
+ * influence demotion so the "Unmapped" badge appears/disappears).
+ *
+ * This rebuilds the DOM inside the section but does NOT call paintCanvas —
+ * that preserves focus and slider positions elsewhere on the page.
+ */
+function refreshEntryPointsSection() {
+    const sectionEl = document.getElementById('strategic-section-entry_points');
+    const sectionDef = PLAN_SECTIONS.find((section) => section.id === 'entry_points');
+    if (!sectionEl || !sectionDef || !_liveSections) return;
+
+    const headingId = `strategic-heading-${sectionDef.id}`;
+    const headerContext = buildSectionHeaderContext(sectionDef);
+    const points = Array.isArray(_liveSections.entry_points) ? _liveSections.entry_points : [];
+    _entryPointActiveIndex = Math.min(_entryPointActiveIndex, Math.max(0, points.length - 1));
+    const bodyHtml = buildEntryPointCarouselHtml(sectionDef, points, _entryPointActiveIndex);
+
+    sectionEl.innerHTML = `
+        <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
+        ${headerContext.leadHtml}
+        ${headerContext.blockHtml}
+        ${bodyHtml}`;
+
+    initAutoExpandTextareas(sectionEl);
+}
+
+// ---------------------------------------------------------------------------
+// Task 3 — Insight Density nudge
+// ---------------------------------------------------------------------------
+// Why this exists: a 700-character Pursuit Thesis is not a thesis — it's a
+// summary the rep should have done themselves. The AI engine downstream
+// performs poorly when forced to re-synthesize prose; the PPTX engine
+// truncates mid-sentence. A soft border-color nudge at 400 characters trains
+// the rep to do the synthesis up front.
+// ---------------------------------------------------------------------------
+
+/**
+ * Toggle the "dense" visual state on a textarea and update its tiny counter
+ * label. Called from the canvas input listener on every keystroke.
+ *
+ * @param {HTMLTextAreaElement} textarea
+ */
+function updateInsightDensityState(textarea) {
+    if (!textarea.classList.contains('strategic-insight-textarea')) return;
+    const limit = Number(textarea.dataset.insightSoftLimit) || INSIGHT_DENSITY_SOFT_LIMIT;
+    const len = textarea.value.length;
+    const dense = len > limit;
+    textarea.classList.toggle('strategic-insight-textarea--dense', dense);
+    const wrap = textarea.parentElement;
+    const counter = wrap?.querySelector('[data-insight-counter]');
+    if (counter instanceof HTMLElement) {
+        counter.textContent = `${len} / ${limit}`;
+        counter.classList.toggle('strategic-insight-counter--dense', dense);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scoped CSS — injected once per session
+// ---------------------------------------------------------------------------
+// We inject a <style> tag from JS rather than touching the Tailwind input.css
+// pipeline so this feature stays self-contained. The styles are scoped to the
+// strategic workspace and use existing design tokens (border-color, primary
+// blue) so they inherit theme changes.
+// ---------------------------------------------------------------------------
+
+function injectStrategicCoachingStyles() {
+    if (document.getElementById('strategic-coaching-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'strategic-coaching-styles';
+    style.textContent = `
+        .strategic-ghost-reminder {
+            display: block;
+            margin: 0 0 1rem 0;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px dashed color-mix(in srgb, var(--primary-blue) 45%, transparent);
+            background: color-mix(in srgb, var(--primary-blue) 6%, transparent);
+            color: color-mix(in srgb, var(--text-light) 78%, transparent);
+            font-size: 0.8125rem;
+            line-height: 1.45;
+        }
+        .strategic-ghost-headline {
+            margin: 0;
+            color: color-mix(in srgb, var(--text-light) 85%, transparent);
+        }
+        .strategic-ghost-headline--empty {
+            color: color-mix(in srgb, var(--text-muted) 90%, transparent);
+            font-style: italic;
+        }
+        .strategic-ghost-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            margin-top: 0.5rem;
+        }
+        .strategic-ghost-pill {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.25rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--primary-blue) 14%, transparent);
+            border: 1px solid color-mix(in srgb, var(--primary-blue) 35%, transparent);
+            font-size: 0.75rem;
+        }
+        .strategic-ghost-pill strong {
+            font-weight: 600;
+            color: var(--text-light);
+        }
+        .strategic-ghost-pill-alt {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .strategic-insight-wrap {
+            position: relative;
+            width: 100%;
+        }
+        .strategic-insight-textarea {
+            transition: border-color 200ms ease, box-shadow 200ms ease;
+        }
+        .strategic-insight-textarea--dense {
+            border-color: rgba(234, 179, 8, 0.65) !important;
+            box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.35);
+        }
+        .strategic-insight-textarea--dense:focus {
+            border-color: rgba(234, 179, 8, 0.9) !important;
+            box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.35);
+        }
+        .strategic-insight-counter {
+            position: absolute;
+            right: 0.5rem;
+            bottom: 0.35rem;
+            font-size: 0.6875rem;
+            line-height: 1;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            color: var(--text-muted);
+            background: color-mix(in srgb, var(--bg-dark) 60%, transparent);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 200ms ease, color 200ms ease;
+        }
+        .strategic-insight-wrap:hover .strategic-insight-counter,
+        .strategic-insight-wrap:focus-within .strategic-insight-counter {
+            opacity: 0.85;
+        }
+        .strategic-insight-counter--dense {
+            color: rgb(234, 179, 8);
+            opacity: 1 !important;
+        }
+
+        .entry-point-tab--unmapped {
+            border-color: rgba(234, 179, 8, 0.6) !important;
+        }
+        .entry-point-tab-unmapped-dot {
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            margin-left: 0.4rem;
+            border-radius: 50%;
+            background: rgb(234, 179, 8);
+            box-shadow: 0 0 0 2px color-mix(in srgb, rgb(234, 179, 8) 25%, transparent);
+            vertical-align: middle;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 const ENTRY_POINT_OTHER_LABEL = 'Other / External';
@@ -927,14 +1327,33 @@ function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
         const contactLabel = String(pointData.contact_name ?? '').trim();
         const label = contactLabel || `Entry Point ${index + 1}`;
         const activeClass = index === safeActive ? ' entry-point-tab--active' : '';
+
+        // Task 2 — "Unmapped" flag.
+        // An entry point is considered unmapped when:
+        //   (a) it has a contact_id (i.e. it was originally stubbed from the
+        //       influence board, not hand-authored), AND
+        //   (b) that contact is no longer in the executive/mid_level buckets.
+        // We deliberately do NOT flag hand-authored entry points (no contact_id)
+        // because the rep may have intentionally written them up before mapping
+        // the contact on the influence board.
+        const contactId = String(pointData.contact_id ?? '').trim();
+        const isUnmapped = contactId && !isContactCurrentlyMappedToInfluence(contactId);
+        const unmappedClass = isUnmapped ? ' entry-point-tab--unmapped' : '';
+        const unmappedTitle = isUnmapped
+            ? ' title="This contact is no longer in Executive or Mid-Level on the influence board — re-promote them or remove this profile."'
+            : '';
+        const unmappedDot = isUnmapped
+            ? '<span class="entry-point-tab-unmapped-dot" aria-label="Unmapped from influence board"></span>'
+            : '';
+
         return `
             <button
                 type="button"
-                class="entry-point-tab${activeClass}"
+                class="entry-point-tab${activeClass}${unmappedClass}"
                 data-entry-index="${index}"
                 role="tab"
-                aria-selected="${index === safeActive ? 'true' : 'false'}"
-            >${escapeHtml(label)}</button>`;
+                aria-selected="${index === safeActive ? 'true' : 'false'}"${unmappedTitle}
+            >${escapeHtml(label)}${unmappedDot}</button>`;
     }).join('');
 
     const addButton = points.length < MAX_ENTRY_POINTS
@@ -1679,6 +2098,15 @@ function toggleStrategicPill(button) {
 
     _liveSections[sectionId] = { ...sectionData, [pillField]: selected };
     updateRailSummaries(_liveSections);
+
+    // Task 1 — keep the ghosted reminders in plan_30_60_90 / land_and_expand in
+    // sync with the user's latest tension choice. This is the only pill section
+    // that affects ghost content; we scope the refresh accordingly to avoid
+    // wasted DOM work on unrelated pill toggles (pain signals, etc.).
+    if (sectionId === 'strategic_tensions') {
+        refreshStrategicTensionGhosts();
+    }
+
     queueAutosave();
 }
 
@@ -2142,12 +2570,19 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
 
         if (section.type === 'composite_textarea') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            // Task 1 — Strategic Ghosting: land_and_expand is a composite_textarea
+            // section that needs the tension ghost prepended. The check is by
+            // sectionId so future sections can opt in via TENSION_GHOST_SECTIONS
+            // without touching this branch.
+            const ghostHtml = TENSION_GHOST_SECTIONS.includes(section.id)
+                ? buildStrategicTensionGhostHtml(sections.strategic_tensions, section.id)
+                : '';
             return wrapStrategicSection(
                 sectionId,
                 headingId,
                 section.title,
                 headerContext,
-                buildCompositeTextareaHtml(section, data)
+                `${ghostHtml}${buildCompositeTextareaHtml(section, data)}`
             );
         }
 
@@ -2328,12 +2763,18 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
 
         if (section.type === 'triple_textarea') {
             const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
+            // Task 1 — Strategic Ghosting on the 30/60/90 plan. This is the
+            // single most important place to enforce the linkage: the reason
+            // ghost reminders exist at all.
+            const ghostHtml = TENSION_GHOST_SECTIONS.includes(section.id)
+                ? buildStrategicTensionGhostHtml(sections.strategic_tensions, section.id)
+                : '';
             return wrapStrategicSection(
                 sectionId,
                 headingId,
                 section.title,
                 headerContext,
-                buildPlan306090Html(section, plan306090),
+                `${ghostHtml}${buildPlan306090Html(section, plan306090)}`,
                 'strategic-section--plan306090'
             );
         }
@@ -2773,6 +3214,10 @@ function bindCanvasFormEvents(canvas) {
 
         if (target instanceof HTMLTextAreaElement) {
             autoExpandTextarea(target);
+            // Task 3 — Insight Density nudge. Cheap O(1) check on every
+            // keystroke. updateInsightDensityState short-circuits unless the
+            // textarea opted in via the strategic-insight-textarea class.
+            updateInsightDensityState(target);
         }
 
         if (target instanceof HTMLInputElement && target.type === 'range') {
@@ -2943,7 +3388,36 @@ function bindCanvasFormEvents(canvas) {
         if (!contactId || !bucket) return;
 
         moveInfluenceContact(contactId, bucket);
+
+        // Task 2 — Influence Pipeline auto-stub.
+        // When the rep promotes a contact to an Executive or Mid-Level bucket
+        // we eagerly create the matching Entry Point shell so the strategic
+        // narrative work can begin immediately (no name-retyping). We do this
+        // BEFORE refreshing the influence board so the toast-on-cap path fires
+        // before the user's gaze leaves the drop target.
+        let stubbedNewEntryPoint = false;
+        if (INFLUENCE_AUTO_STUB_BUCKETS.includes(bucket)) {
+            const contact = getAccountContacts().find((c) => String(c.id) === String(contactId));
+            const contactName = contact
+                ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
+                : '';
+            stubbedNewEntryPoint = ensureEntryPointForContact(contactId, contactName);
+        }
+
         refreshInfluenceBoardSection();
+
+        // ALWAYS refresh the carousel after a drop — even if we didn't create
+        // a stub. A demotion (bench / technical) needs to flip the affected
+        // tab to "Unmapped", and that decision lives in the render path.
+        refreshEntryPointsSection();
+
+        if (stubbedNewEntryPoint) {
+            _options.onToast?.(
+                'Entry-point shell created — open the carousel to draft the strategy.',
+                'success'
+            );
+        }
+
         queueAutosave();
     });
 }
@@ -2963,6 +3437,10 @@ function appendHintPillToField(button) {
     const next = current ? `${current}, ${pillValue}` : pillValue;
     fieldEl.value = next;
     autoExpandTextarea(fieldEl);
+    // Programmatic value mutation does NOT fire 'input' — re-run the Insight
+    // Density check by hand so the counter and dense border stay accurate when
+    // hint pills are appended to executive_narrative.
+    updateInsightDensityState(fieldEl);
     setNestedValue(_liveSections, fieldPath, next);
     updateRailSummaries(_liveSections);
     queueAutosave();

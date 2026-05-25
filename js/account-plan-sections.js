@@ -167,6 +167,45 @@ export const POSITIONING_PILLS = Object.freeze([
     'Cost-efficient operator',
 ]);
 
+// ---------------------------------------------------------------------------
+// Strategic Ghosting + Insight Density configuration
+// ---------------------------------------------------------------------------
+// The sales psychology behind these constants: reps habitually treat the 30/60/90
+// and Land & Expand boxes as a generic to-do list, divorced from the strategic
+// contradictions ("tensions") that actually justify the pursuit. By forcing the
+// active tension pills to "ghost" alongside those sections, we make it cognitively
+// expensive to write an action plan that ignores the deal's underlying physics.
+//
+// Insight Density does the same thing for narrative boxes: reps tend to ramble in
+// the Pursuit Thesis and Competitive Landscape sections. A soft 400-char nudge is
+// long enough for a real "so what?" insight but short enough to discourage
+// brain-dump paragraphs that downstream AI/PPTX engines cannot synthesize.
+// ---------------------------------------------------------------------------
+
+/**
+ * Sections that should render the read-only "ghosted" reminder of currently
+ * selected strategic_tensions pills. Kept in section metadata (not the UI layer)
+ * so future developers can opt new sections in declaratively.
+ *
+ * @type {readonly string[]}
+ */
+export const TENSION_GHOST_SECTIONS = Object.freeze(['plan_30_60_90', 'land_and_expand']);
+
+/**
+ * Sections whose composite textareas should display the soft "Insight Density"
+ * border cue once a single box exceeds the synthesize-or-cut threshold below.
+ *
+ * @type {readonly string[]}
+ */
+export const INSIGHT_DENSITY_SECTIONS = Object.freeze(['pursuit_thesis', 'competitive_landscape']);
+
+/**
+ * Soft character ceiling per individual textarea before the Insight Density cue
+ * fires. Chosen empirically — ~400 chars equals roughly 60-80 words, which is
+ * enough room for a tight executive insight but actively hostile to fluff.
+ */
+export const INSIGHT_DENSITY_SOFT_LIMIT = 400;
+
 /** @type {readonly { key: string, badge: string, title: string, hint: string }[]} */
 export const PLAN_306090_HORIZONS = Object.freeze([
     {

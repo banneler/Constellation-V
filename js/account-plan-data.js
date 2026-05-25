@@ -41,6 +41,11 @@ const INTERACTION_LOG_SOURCES = new Set(['signal', 'manual', 'activity']);
 
 /** @type {readonly string[]} */
 export const ENTRY_POINT_FIELD_KEYS = Object.freeze([
+    // contact_id is the *durable* link back to the influence board (Task 2 —
+    // "Influence Pipeline"). contact_name is kept for display + back-compat with
+    // legacy plans that pre-date the auto-stubbing flow; both are written when an
+    // entry point is auto-created from a drag/drop on the influence board.
+    'contact_id',
     'contact_name',
     'why_they_matter',
     'likely_pressure',
@@ -942,6 +947,97 @@ export async function savePlanDraft(supabase, planRowId, plan) {
         console.error('[account-plan-data] savePlanDraft exception:', err);
         return { ok: false, error: err && err.message ? err.message : 'Unexpected error saving account plan.' };
     }
+}
+
+// ---------------------------------------------------------------------------
+// Strict pre-persistence sanitization (Task 4 — "Hardening for the AI/PPTX
+// Engines"). normalizePlan() is permissive and migration-friendly; this
+// function is an *explicit*, narrow validator that runs right before the
+// autosave debounce fires.
+//
+// Why a separate pass: the downstream AI presentation engine and the PPTX
+// builder both assume scalar shapes (integer 1..5 sliders, string-only pill
+// arrays). Loose types (NaN sliders, null pills, stray empty strings) leak in
+// from legacy data and pill toggles that ran during slow renders — they
+// silently corrupt prompts and break presentation parsing. We catch them here
+// instead of trusting the network round-trip.
+// ---------------------------------------------------------------------------
+
+const PSYCHOLOGY_SLIDER_KEYS = Object.freeze([
+    'bureaucracy_level',
+    'risk_appetite',
+    'technical_sophistication',
+    'vendor_loyalty',
+    'decision_velocity',
+]);
+
+/**
+ * Coerce psychology slider fields to integers in [1, 5]. Mutates and returns the
+ * provided psychology object so we can stay zero-alloc when nothing is wrong.
+ *
+ * @param {Record<string, unknown> | null | undefined} psychology
+ * @returns {Record<string, unknown>}
+ */
+function sanitizePsychologySliders(psychology) {
+    if (!isPlainObject(psychology)) return { ...DEFAULT_PSYCHOLOGY };
+    const cleaned = { ...psychology };
+    PSYCHOLOGY_SLIDER_KEYS.forEach((key) => {
+        // parseInt handles "3", 3, "3.7", and rejects "" / null gracefully.
+        const parsed = parseInt(String(cleaned[key]), 10);
+        const fallback = DEFAULT_PSYCHOLOGY[key];
+        if (Number.isNaN(parsed)) {
+            cleaned[key] = fallback;
+            return;
+        }
+        cleaned[key] = Math.min(5, Math.max(1, parsed));
+    });
+    return cleaned;
+}
+
+/**
+ * Strip null/undefined/empty/whitespace-only values from a pill array. Order is
+ * preserved because the strategic_tensions UI is order-sensitive (it dictates
+ * the read-out order in exports).
+ *
+ * @param {unknown} pills
+ * @returns {string[]}
+ */
+function stripEmptyPills(pills) {
+    if (!Array.isArray(pills)) return [];
+    return pills
+        .map((pill) => (pill == null ? '' : String(pill).trim()))
+        .filter((pill) => pill.length > 0);
+}
+
+/**
+ * Last-mile sanitization invoked by the autosave engine right before a write
+ * hits Supabase. This is intentionally cheap (shallow clone + spot fixes) so it
+ * can run on every debounce flush without measurable latency.
+ *
+ * @param {Record<string, unknown> | null | undefined} draftSections
+ * @returns {Record<string, unknown>}
+ */
+export function sanitizeDraftSectionsForPersistence(draftSections) {
+    if (!isPlainObject(draftSections)) return {};
+    const next = { ...draftSections };
+
+    // psychology — guarantee scalar integers for the AI engine's structured prompt.
+    if ('psychology' in next || isPlainObject(next.psychology)) {
+        next.psychology = sanitizePsychologySliders(next.psychology);
+    }
+
+    // strategic_tensions — drop empty pills BEFORE the JSONB write. These tend
+    // to creep in from rapid pill toggling (an interim state where the user
+    // briefly deselects but reselects — race conditions can persist '' in the
+    // either_or group).
+    if (isPlainObject(next.strategic_tensions)) {
+        next.strategic_tensions = {
+            ...next.strategic_tensions,
+            selected_pills: stripEmptyPills(next.strategic_tensions.selected_pills),
+        };
+    }
+
+    return next;
 }
 
 /**

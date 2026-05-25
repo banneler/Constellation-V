@@ -6,6 +6,7 @@ import {
     applyDraftToPlan,
     deepClonePlan,
     savePlanDraft,
+    sanitizeDraftSectionsForPersistence,
 } from './account-plan-data.js';
 
 /** @typedef {'idle' | 'pending' | 'saving' | 'saved' | 'error'} AutosaveStatus */
@@ -95,9 +96,18 @@ export function createAccountPlanAutosave(supabase, config = {}) {
 
         setStatus('saving');
 
+        // Task 4 — Hardening for the AI/PPTX engines.
+        // The debounce timer just fired; this is the last opportunity to scrub
+        // the payload before it leaves the browser. We do NOT mutate the caller's
+        // draftSections (autosave callers reuse the live state) — sanitizer
+        // returns a shallow clone with only the fragile fields fixed.
+        const sanitizedDraftSections = sanitizeDraftSectionsForPersistence(
+            context.draftSections
+        );
+
         const planToSave = applyDraftToPlan(
             context.plan,
-            context.draftSections,
+            sanitizedDraftSections,
             {
                 forceCommit: !!(context.options && context.options.forceCommit),
             }
