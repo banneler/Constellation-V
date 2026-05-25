@@ -1650,9 +1650,16 @@ body.theme-green {
     .account-details-content {
         min-width: 20rem;
     }
-    /* Fluid: 288/1920 ≈ 15% at 1080p; allow shrink with floor so details panel keeps space */
+    /* Fluid preferred width (288/1920 ≈ 15% at 1080p), but DO NOT shrink on
+     * selection. Previously this rule used `flex-shrink` so the picker would
+     * collapse from its preferred ~18rem down to the 12rem floor as soon as
+     * an account was clicked — the details panel's intrinsic min-content
+     * (form card + 320px fixed-width grid column in .account-details-top-row)
+     * grew under flexbox and stole horizontal space. Locking flex-shrink to 0
+     * keeps the picker at a stable width; the details panel already shrinks
+     * cleanly via its inner `minmax(0, 1fr)` grid track. */
     .account-picker-panel {
-        @apply flex flex-col flex-shrink rounded-2xl overflow-hidden;
+        @apply flex flex-col flex-shrink-0 rounded-2xl overflow-hidden;
         width: min(18rem, max(12rem, 15vw));
         min-width: 12rem;
         min-height: calc(100vh - 48px);

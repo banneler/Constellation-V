@@ -326,3 +326,29 @@
 .entry-point-tab--add:hover {
     color: var(--text-light);
 }
+
+/* ===========================================================================
+ * Accounts page — picker panel must not shrink when an account is selected.
+ *
+ * Symptom: clicking an account name made the left-hand .account-picker-panel
+ * jump narrower (sometimes down to its 12rem floor).
+ *
+ * Cause: .accounts-layout is `display: flex`. The picker had `flex-shrink: 1`
+ * with `width: min(18rem, max(12rem, 15vw))` and `min-width: 12rem`. When an
+ * account is selected, .account-details-content (the flex sibling) populates
+ * with the form, deals column, contacts, and activities cards. Its intrinsic
+ * min-content grows — particularly because .account-details-top-row is a CSS
+ * grid with a FIXED 320px right column (`grid-template-columns: minmax(0, 1fr)
+ * 320px`) and `flex-shrink: 0`. Flexbox then negotiates by shrinking the only
+ * shrinkable sibling: the picker.
+ *
+ * Fix: pin the picker with flex-shrink: 0 so its preferred width is stable
+ * regardless of details-panel content. The details panel still adapts via its
+ * own `minmax(0, 1fr)` internal grid track.
+ *
+ * input.css carries the same change; this override ensures the fix is live
+ * without waiting for a Tailwind rebuild of output.css.
+ * ======================================================================== */
+.account-picker-panel {
+    flex-shrink: 0;
+}
