@@ -1304,9 +1304,13 @@ function buildEntryPointTextarea(index, fieldKey, label, value, placeholder = ''
  */
 function buildEntryPointNameField(index, value) {
     const fieldId = `entry-point-${index}-name`;
+    // "Entry Point Name" (not "Opportunity Name") — opportunities live on the
+    // White Space matrix, where each row carries its own editable name. This
+    // field names the *access play* (e.g. "CFO Office ROI Bridge"), which
+    // may or may not map 1:1 to a White Space opportunity.
     return `
         <div class="entry-point-name-row">
-            <label class="entry-point-name-label" for="${fieldId}">Opportunity Name</label>
+            <label class="entry-point-name-label" for="${fieldId}">Entry Point Name</label>
             <input
                 type="text"
                 id="${fieldId}"
@@ -1314,7 +1318,7 @@ function buildEntryPointNameField(index, value) {
                 data-field="entry_points.${index}.name"
                 data-entry-name-input="${index}"
                 value="${escapeHtml(typeof value === 'string' ? value : '')}"
-                placeholder="e.g. Flagship SD-WAN Pilot"
+                placeholder="e.g. CFO Office ROI Bridge"
                 maxlength="120"
                 autocomplete="off"
             />
@@ -1900,17 +1904,36 @@ function refreshInfluenceBoardSection() {
  * @param {number} index
  */
 function buildWhiteSpaceRowHtml(row, index) {
+    const name = escapeHtml(String(row.name ?? ''));
     const area = String(row.area ?? '');
     const opportunity = escapeHtml(String(row.opportunity ?? ''));
     const operationalImportance = String(row.operational_importance ?? '');
     const executiveVisibility = String(row.executive_visibility ?? '');
     const confidence = String(row.confidence ?? '');
     const valueNotes = escapeHtml(String(row.value_notes ?? ''));
+    const nameInputId = `white-space-${index}-name`;
+    const fallbackLabel = `Opportunity ${index + 1}`;
 
+    // Row header is a single editable name input (no redundant caption +
+    // input pair). Placeholder doubles as the "Opportunity N" fallback when
+    // the rep hasn't typed a custom name yet, mirroring the entry-point name
+    // pattern.
     return `
         <div class="white-space-row" data-white-space-row="${index}">
             <div class="white-space-row-header">
-                <span class="white-space-row-label">Opportunity ${index + 1}</span>
+                <input
+                    type="text"
+                    id="${nameInputId}"
+                    class="strategic-field white-space-row-name-input"
+                    data-white-space-index="${index}"
+                    data-white-space-field="name"
+                    data-white-space-name-input="${index}"
+                    value="${name}"
+                    placeholder="${escapeHtml(fallbackLabel)}"
+                    maxlength="120"
+                    autocomplete="off"
+                    aria-label="${escapeHtml(fallbackLabel)} name"
+                />
                 <button type="button" class="white-space-row-remove" data-white-space-remove="${index}" aria-label="Remove row">Remove</button>
             </div>
             <div class="white-space-row-grid">
@@ -2043,6 +2066,7 @@ function toggleWhiteSpacePill(pill) {
 function buildWhiteSpaceMatrixHtml(rows) {
     const list = Array.isArray(rows) && rows.length > 0
         ? rows.filter(isPlainObject).map((row) => ({
+            name: row.name != null ? String(row.name) : '',
             area: row.area != null ? String(row.area) : '',
             opportunity: row.opportunity != null ? String(row.opportunity) : '',
             operational_importance: row.operational_importance != null ? String(row.operational_importance) : '',

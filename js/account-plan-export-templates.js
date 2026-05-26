@@ -18,9 +18,10 @@ export const PLAN_SUMMARY_DOCUMENT_TITLE = 'Strategic Account Plan Summary';
 /**
  * Short-form document label used in the per-page running header. Kept as a
  * literal string (instead of a substring of the long doc title) so the C-suite
- * crumb always reads exactly "Strategic Dossier".
+ * crumb always reads exactly "Strategic Account Plan" — we no longer call
+ * this artifact a "dossier" in any product-facing surface.
  */
-const DOSSIER_RUNNING_DOC_LABEL = 'Strategic Dossier';
+const DOSSIER_RUNNING_DOC_LABEL = 'Strategic Account Plan';
 
 export const DOSSIER_WIDTH_PX = 816;
 export const DOSSIER_HEIGHT_PX = 1056;
@@ -688,7 +689,11 @@ export function buildDossierTemplate(plan, account) {
 
     const rawBlocks = PLAN_SECTIONS
         .filter((section) => section.exportDossier !== false)
-        .flatMap((section) => buildDossierSectionUnits(section, sections, contacts))
+        // Thread `account` through — the account_snapshot section needs the
+        // raw account record to render the "Firmographics (CRM)" panel
+        // (name / industry / employee_count / sites / address / customer
+        // status). Without it those rows render empty.
+        .flatMap((section) => buildDossierSectionUnits(section, sections, contacts, account))
         .filter(Boolean);
 
     const sectionBlocks = applyDossierSectionGrouping(rawBlocks);
@@ -1240,20 +1245,26 @@ function buildWhiteSpaceMatrixBody(rows) {
     const table = document.createElement('table');
     table.className = 'ap-export-data-table ap-export-data-table--matrix';
 
+    // "Opportunity" leads as the named identifier (falls back to
+    // "Opportunity N" if the rep didn't author a name yet). The wide-text
+    // description moves into a separate "Description" column so the matrix
+    // reads cleanly: name → area → tier dials → description → sizing.
     const headers = [
-        'Area',
         'Opportunity',
+        'Area',
         'Operational Importance',
         'Executive Visibility',
         'Confidence',
+        'Description',
         'Estimated Value / Sizing Notes',
     ];
     const keys = [
+        'name',
         'area',
-        'opportunity',
         'operational_importance',
         'executive_visibility',
         'confidence',
+        'opportunity',
         'value_notes',
     ];
 
@@ -1269,11 +1280,17 @@ function buildWhiteSpaceMatrixBody(rows) {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    rows.forEach((row) => {
+    rows.forEach((row, index) => {
         const tr = document.createElement('tr');
         keys.forEach((key) => {
             const td = document.createElement('td');
-            td.textContent = formatExportTableValue(row[key]);
+            if (key === 'name') {
+                const named = String(row.name ?? '').trim();
+                td.textContent = named || `Opportunity ${index + 1}`;
+                td.className = 'ap-export-white-space-name-cell';
+            } else {
+                td.textContent = formatExportTableValue(row[key]);
+            }
             tr.appendChild(td);
         });
         tbody.appendChild(tr);
@@ -2554,6 +2571,11 @@ export function ensureExportTemplateStyles() {
             border-top: 2px solid #0f172a;
             padding-top: 14px;
             overflow: hidden;
+        }
+        .ap-export-white-space-name-cell {
+            font-weight: 700;
+            color: #0f172a;
+            min-width: 90px;
         }
         .ap-export-influence-contact-list {
             display: flex;

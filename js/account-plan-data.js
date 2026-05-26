@@ -112,6 +112,10 @@ export function createEmptyInfluenceContact(id = '') {
  */
 export function createEmptyWhiteSpaceRow() {
     return {
+        // Short, editable opportunity name (e.g. "Flagship SD-WAN Pilot").
+        // Used as the row header in the UI and as the leading column in the
+        // PDF export. Falls back to "Opportunity N" when blank.
+        name: '',
         area: '',
         opportunity: '',
         operational_importance: '',
@@ -564,6 +568,7 @@ function normalizeWhiteSpace(raw) {
     return raw
         .filter(isPlainObject)
         .map((row) => ({
+            name: row.name != null ? String(row.name) : '',
             area: row.area != null ? String(row.area) : '',
             opportunity: row.opportunity != null ? String(row.opportunity) : '',
             operational_importance: row.operational_importance != null ? String(row.operational_importance) : '',
