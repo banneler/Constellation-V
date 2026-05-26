@@ -1366,13 +1366,58 @@ function createInfluenceStructuredList(entries, contacts = []) {
  * @returns {HTMLElement}
  */
 function buildPsychologyGravityGrid(psychology, gravityFields) {
-    const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-psych-gravity-grid');
-    gravityFields.forEach((field) => {
-        grid.appendChild(createEditorialCell(
+    // Asymmetric 2-col layout:
+    //   - Left rail (narrower): the three "dial" fields stacked vertically
+    //     (Org Gravity / Innovation Friction / Procurement Friction). Short
+    //     single-word values, so a narrow column reads cleanly.
+    //   - Right rail (wider): Consensus Requirement + Gravity Narrative.
+    //     Narrative is multi-sentence prose, so the wider column keeps the
+    //     line length comfortable instead of forcing tight wraps.
+    // Falls back to a plain stack if any of the expected fields is missing.
+    const byKey = new Map(gravityFields.map((field) => [field.key, field]));
+    const cellFor = (key) => {
+        const field = byKey.get(key);
+        if (!field) return null;
+        return createEditorialCell(
             field.label || field.key,
             String(psychology[field.key] ?? '').trim()
-        ));
+        );
+    };
+
+    const grid = document.createElement('div');
+    grid.className = 'ap-export-psych-gravity-grid ap-export-psych-gravity-grid--split';
+
+    const leftRail = document.createElement('div');
+    leftRail.className = 'ap-export-psych-gravity-rail ap-export-psych-gravity-rail--left';
+    ['organizational_gravity', 'innovation_friction', 'procurement_friction'].forEach((key) => {
+        const cell = cellFor(key);
+        if (cell) leftRail.appendChild(cell);
     });
+
+    const rightRail = document.createElement('div');
+    rightRail.className = 'ap-export-psych-gravity-rail ap-export-psych-gravity-rail--right';
+    ['consensus_requirement', 'narrative'].forEach((key) => {
+        const cell = cellFor(key);
+        if (cell) rightRail.appendChild(cell);
+    });
+
+    grid.appendChild(leftRail);
+    grid.appendChild(rightRail);
+
+    // Defensive: if neither rail picked up any of the expected keys (e.g.
+    // gravityFields was reshaped), fall back to the legacy 3-col grid so
+    // we never silently drop content.
+    if (!leftRail.childElementCount && !rightRail.childElementCount) {
+        const fallback = createEditorialGrid('ap-export-editorial-grid--3 ap-export-psych-gravity-grid');
+        gravityFields.forEach((field) => {
+            fallback.appendChild(createEditorialCell(
+                field.label || field.key,
+                String(psychology[field.key] ?? '').trim()
+            ));
+        });
+        return fallback;
+    }
+
     return grid;
 }
 
@@ -2532,28 +2577,29 @@ export function ensureExportTemplateStyles() {
         .ap-export-data-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
-            line-height: 1.45;
+            font-size: 13px;
+            line-height: 1.5;
         }
         .ap-export-data-table th,
         .ap-export-data-table td {
-            border: 1px solid #e2e8f0;
-            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            padding: 9px 12px;
             vertical-align: top;
             text-align: left;
         }
         .ap-export-data-table th {
             width: 34%;
-            background: #f8fafc;
-            color: #64748b;
+            background: #f1f5f9;
+            color: #334155;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
         }
         .ap-export-data-table td {
-            color: #1e293b;
+            color: #0f172a;
+            font-weight: 500;
             white-space: pre-wrap;
         }
         .ap-export-data-table--matrix th {
@@ -2611,6 +2657,30 @@ export function ensureExportTemplateStyles() {
         .ap-export-psych-gravity-grid {
             border-top: 1px solid #e2e8f0;
             padding-top: 14px;
+        }
+        /* Asymmetric 2-col gravity layout: narrow left rail (3 dial fields
+         * stacked) + wider right rail (consensus + narrative prose). */
+        .ap-export-psych-gravity-grid--split {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+            column-gap: 22px;
+        }
+        .ap-export-psych-gravity-rail {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .ap-export-psych-gravity-rail--left {
+            border-right: 1px solid #e2e8f0;
+            padding-right: 18px;
+        }
+        .ap-export-psych-gravity-rail--right {
+            padding-left: 4px;
+        }
+        .ap-export-psych-gravity-rail > .ap-export-editorial-cell {
+            padding: 0;
+            border-right: none;
+            margin-right: 0;
         }
         /* --- Strategic Entry Points: 2-up target profiles --- */
         .ap-export-target-profiles-body {
