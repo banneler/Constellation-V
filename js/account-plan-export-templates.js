@@ -1245,61 +1245,71 @@ function buildWhiteSpaceMatrixBody(rows) {
         return wrap;
     }
 
-    const table = document.createElement('table');
-    table.className = 'ap-export-data-table ap-export-data-table--matrix';
-
-    // "Opportunity" leads as the named identifier (falls back to
-    // "Opportunity N" if the rep didn't author a name yet). The wide-text
-    // description moves into a separate "Description" column so the matrix
-    // reads cleanly: name → area → tier dials → description → sizing.
-    const headers = [
-        'Opportunity',
-        'Area',
-        'Operational Importance',
-        'Executive Visibility',
-        'Confidence',
-        'Description',
-        'Estimated Value / Sizing Notes',
+    // CSS Grid-based matrix (NOT an HTML <table>) so snapdom rasterizes it
+    // through the same code path as every other surface in the dossier.
+    // The <table>-based version produced visibly softer text/borders due
+    // to the table layout algorithm's sub-pixel cell positioning under
+    // foreignObject capture at scale 2.
+    //
+    // Column structure (matches the previous <table> exactly):
+    //   1. Opportunity              (wider — multi-word names)
+    //   2. Area
+    //   3. Operational Importance
+    //   4. Executive Visibility
+    //   5. Confidence
+    //   6. Description              (wider — sentence-length)
+    //   7. Estimated Value / Sizing Notes  (wider — sentence-length)
+    // "Opportunity" falls back to "Opportunity N" when the rep hasn't
+    // authored a name yet.
+    const columns = [
+        { header: 'Opportunity',                       key: 'name',                    flex: 1.2, isName: true },
+        { header: 'Area',                              key: 'area',                    flex: 0.9 },
+        { header: 'Operational Importance',            key: 'operational_importance',  flex: 0.9 },
+        { header: 'Executive Visibility',              key: 'executive_visibility',    flex: 0.9 },
+        { header: 'Confidence',                        key: 'confidence',              flex: 0.8 },
+        { header: 'Description',                       key: 'opportunity',             flex: 1.6 },
+        { header: 'Estimated Value / Sizing Notes',    key: 'value_notes',             flex: 1.4 },
     ];
-    const keys = [
-        'name',
-        'area',
-        'operational_importance',
-        'executive_visibility',
-        'confidence',
-        'opportunity',
-        'value_notes',
-    ];
 
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    headers.forEach((header) => {
-        const th = document.createElement('th');
-        th.scope = 'col';
-        th.textContent = header;
-        headRow.appendChild(th);
+    const matrix = document.createElement('div');
+    matrix.className = 'ap-export-ws-matrix';
+    matrix.style.gridTemplateColumns = columns.map((col) => `${col.flex}fr`).join(' ');
+
+    const lastColIdx = columns.length - 1;
+
+    columns.forEach((col, colIdx) => {
+        const headerCell = document.createElement('div');
+        const classes = ['ap-export-ws-matrix-cell', 'ap-export-ws-matrix-cell--header'];
+        if (colIdx === lastColIdx) classes.push('ap-export-ws-matrix-cell--last-col');
+        headerCell.className = classes.join(' ');
+        headerCell.textContent = col.header;
+        matrix.appendChild(headerCell);
     });
-    thead.appendChild(headRow);
-    table.appendChild(thead);
 
-    const tbody = document.createElement('tbody');
-    rows.forEach((row, index) => {
-        const tr = document.createElement('tr');
-        keys.forEach((key) => {
-            const td = document.createElement('td');
-            if (key === 'name') {
-                const named = String(row.name ?? '').trim();
-                td.textContent = named || `Opportunity ${index + 1}`;
-                td.className = 'ap-export-white-space-name-cell';
+    const lastRowIdx = rows.length - 1;
+    rows.forEach((row, rowIndex) => {
+        const rowOdd = rowIndex % 2 === 1;
+        const isLastRow = rowIndex === lastRowIdx;
+        columns.forEach((col, colIdx) => {
+            const cell = document.createElement('div');
+            const classes = ['ap-export-ws-matrix-cell', 'ap-export-ws-matrix-cell--body'];
+            if (rowOdd) classes.push('ap-export-ws-matrix-cell--alt');
+            if (col.isName) classes.push('ap-export-ws-matrix-cell--name');
+            if (colIdx === lastColIdx) classes.push('ap-export-ws-matrix-cell--last-col');
+            if (isLastRow) classes.push('ap-export-ws-matrix-cell--last-row');
+            cell.className = classes.join(' ');
+
+            if (col.isName) {
+                const named = String(row[col.key] ?? '').trim();
+                cell.textContent = named || `Opportunity ${rowIndex + 1}`;
             } else {
-                td.textContent = formatExportTableValue(row[key]);
+                cell.textContent = formatExportTableValue(row[col.key]);
             }
-            tr.appendChild(td);
+            matrix.appendChild(cell);
         });
-        tbody.appendChild(tr);
     });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
+
+    wrap.appendChild(matrix);
     return wrap;
 }
 
@@ -2663,22 +2673,63 @@ export function ensureExportTemplateStyles() {
             line-height: 1.5;
             white-space: pre-wrap;
         }
-        .ap-export-data-table--matrix th {
-            width: auto;
-            font-size: 9px;
-        }
-        .ap-export-data-table--matrix td {
-            font-size: 11px;
-        }
         .ap-export-white-space-wrap {
             border-top: 2px solid #0f172a;
             padding-top: 14px;
             overflow: hidden;
         }
-        .ap-export-white-space-name-cell {
+
+        /* --- Snapdom-friendly White Space matrix (CSS grid, not <table>) --- */
+        .ap-export-ws-matrix {
+            display: grid;
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            overflow: hidden;
+            font-family: ${GPC_BRAND.fontBody};
+        }
+        .ap-export-ws-matrix-cell {
+            padding: 8px 10px;
+            font-size: 11px;
+            line-height: 1.45;
+            color: #0f172a;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            min-width: 0;
+            white-space: pre-wrap;
+            word-break: normal;
+            overflow-wrap: break-word;
+        }
+        /* Strip the trailing borders on the last column / last row so the
+         * outer .ap-export-ws-matrix border carries the edge cleanly
+         * instead of doubling up. The classes are added explicitly in JS
+         * so the column count can change without breaking nth-child math. */
+        .ap-export-ws-matrix-cell--last-col {
+            border-right: none;
+        }
+        .ap-export-ws-matrix-cell--last-row {
+            border-bottom: none;
+        }
+        .ap-export-ws-matrix-cell--header {
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #334155;
+            background: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .ap-export-ws-matrix-cell--body {
+            background: #ffffff;
+            font-weight: 500;
+        }
+        .ap-export-ws-matrix-cell--alt {
+            background: #fafbfd;
+        }
+        .ap-export-ws-matrix-cell--name {
             font-weight: 700;
             color: #0f172a;
-            min-width: 90px;
         }
         .ap-export-influence-contact-list {
             display: flex;
