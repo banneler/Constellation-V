@@ -1553,10 +1553,24 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
                 : '';
         const grid = createEditorialGrid(gridClass);
 
-        fields.forEach((field) => {
+        // On a 3-column composite grid, any field beyond index 2 wraps
+        // to a new row. Without intervention the wrapped cell sits
+        // orphaned in column 1 of row 2 with no visual separator above
+        // it — the export reads as a continuation of the column above
+        // (e.g. Executive Narrative trailing under Pursuit Thesis),
+        // not as a new section. Forcing overflow cells into the
+        // existing `span: 'full'` mode reuses the
+        // `.ap-export-editorial-span-full` style (border-top: 1px
+        // solid #e2e8f0 + 18px top padding/margin), which is the same
+        // divider line used between sections at the top of the table.
+        // Bonus: span-full also widens the line-length, which is
+        // better for executive narrative prose.
+        const isThreeColGrid = gridClass.includes('ap-export-editorial-grid--3');
+        fields.forEach((field, index) => {
             const value = String(data[field.key] ?? '').trim();
             const heading = field.label || field.hint || field.key;
-            grid.appendChild(createEditorialCell(heading, value));
+            const cellOptions = isThreeColGrid && index >= 3 ? { span: 'full' } : {};
+            grid.appendChild(createEditorialCell(heading, value, cellOptions));
         });
 
         if (!grid.childElementCount) {
