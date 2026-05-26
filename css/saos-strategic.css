@@ -1000,11 +1000,77 @@ body.strategic-mode-active #strategic-workspace {
     display: none;
 }
 
-.plan-pdf-preview-dialog {
+/* Use id-scoped selector so the cascade can never fall back to the older
+ * `.plan-pdf-preview-dialog { width: min(100%, calc(85vh * 0.82)); height:
+ * 85vh }` block compiled into output.css (id specificity 1,0,0 beats class
+ * 0,1,0 regardless of file load order or browser cache state). */
+#plan-pdf-preview-modal .plan-pdf-preview-dialog {
     display: flex;
     flex-direction: column;
     width: min(95vw, 1100px);
     height: min(95vh, 1400px);
     max-width: 100%;
     max-height: 100%;
+}
+
+/* The iframe wrapper compiled in output.css drops `background` + `box-shadow`
+ * after a nested @supports block; we re-author flat here. Also ensures the
+ * wrapper actually claims the remaining flex space — `flex: 1; min-height: 0`
+ * was already in output.css but we restate it so a future Tailwind change
+ * cannot drop it. */
+#plan-pdf-preview-modal .plan-pdf-preview-frame-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border: 4px solid color-mix(in srgb, var(--border-color) 70%, #334155);
+    background: #525659;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+#plan-pdf-preview-modal .plan-pdf-preview-iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Export-generating spinner — animation kept getting dropped.
+ *
+ * Compiled output (output.css):
+ *     .plan-export-generating-spinner {
+ *         width: 2.25rem;
+ *         height: 2.25rem;
+ *         border-radius: 9999px;
+ *         border: 2px solid var(--primary-blue);
+ *         @supports (color: color-mix(...)) {
+ *             border: 2px solid color-mix(...);
+ *         }
+ *         border-top-color: var(--primary-blue);  <-- DROPPED
+ *         animation: spin 0.8s linear infinite;   <-- DROPPED
+ *     }
+ *
+ * Same Tailwind v4 nested-@supports trap as the badge / tab / descriptor /
+ * column-hint fixes earlier in this file. The `border-top-color` drop
+ * removes the notched edge that makes the ring readable as "spinning", and
+ * the `animation` drop is the obvious one — there is no rotation at all.
+ * Re-authored flat below; both declarations now land before any nested
+ * at-rule so every browser parses them consistently.
+ * ------------------------------------------------------------------------ */
+.plan-export-generating-spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    border: 2px solid color-mix(in srgb, var(--primary-blue) 26%, transparent);
+    border-top-color: var(--primary-blue);
+    animation: plan-export-spin 0.8s linear infinite;
+}
+
+/* Own keyframe namespace so we don't rely on a globally-defined `spin` from
+ * elsewhere in output.css (which could drift if Tailwind reorganizes the
+ * animation utilities in a future release). */
+@keyframes plan-export-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
