@@ -2215,9 +2215,19 @@ export function ensureExportTemplateStyles() {
             top: 92px;
             bottom: 64px;
             overflow: hidden;
-            /* Hard-clip any descendant that exceeds the box (defense against
-               synchronous-measurement vs. snapdom-render drift). */
-            contain: paint;
+            /*
+             * NOTE: do NOT add `contain: paint` here. It establishes an
+             * overflow clip edge that causes Chrome's `scrollHeight` to
+             * return the clipped (= clientHeight) value for content that is
+             * only modestly oversized, instead of the natural content
+             * height. That defeats the paginator entirely — every
+             * `pageFits()` check reads `scrollHeight === clientHeight` and
+             * concludes "doesn't fit", forcing each section onto its own
+             * page (and then splitting each into multiple chunks). Plain
+             * `overflow: hidden` is enough to visually clip during snapdom
+             * capture while keeping `scrollHeight` accurate for layout
+             * measurement.
+             */
         }
         .ap-export-gpc-page-footer,
         .ap-export-exec-gpc-footer {
