@@ -496,14 +496,23 @@ function pageFitsFragment(block, meta, exportRoot) {
  * @param {HTMLElement} exportRoot
  */
 /**
- * Number of pixels we conservatively shave off the available content height
- * during pagination measurement. Snapdom's actual render can be a few pixels
- * taller than the synchronous scrollHeight reading (font fallback metrics,
- * subpixel rounding across many flex/grid children) — this buffer ensures
- * the paginator never produces a page that overruns its content box at
- * capture time. Cheaper than a re-layout round-trip on every measurement.
+ * Tiny sub-pixel safety margin used during pagination measurement. The
+ * paginator already relies on `overflow: hidden` + `contain: paint` on
+ * `.ap-export-dossier-content` to hard-clip any descendant that would
+ * visually exceed the page box during snapdom capture, so the buffer here
+ * only needs to absorb sub-pixel rounding drift between layout reads and
+ * the eventual paint.
+ *
+ * Earlier this was set to 14px as a defensive overcorrection after a one-off
+ * "scroll overrun past the bottom" report; combined with a couple of
+ * content-growth changes (CRM firmographics, the 7-column White Space matrix,
+ * the new row-name input), several sections suddenly measured 4–10px over the
+ * effective threshold (`clientHeight - 14`) and the paginator started forcing
+ * each over-threshold section onto its own page AND splitting them into
+ * single-unit chunks — which is what produced the ~50-page export. A small
+ * buffer (~2px) is enough to absorb sub-pixel drift without that runaway.
  */
-const PAGINATION_SAFETY_BUFFER_PX = 14;
+const PAGINATION_SAFETY_BUFFER_PX = 2;
 
 function measureDossierContentPage(blocks, meta, exportRoot) {
     const pageEl = buildDossierContentPage(
