@@ -206,6 +206,7 @@ export function setAccountViewMode(mode, options = {}) {
     updateAutosaveVisibility(_activeMode);
     updateToggleDisabled();
     updateVersionTriggerVisibility(_activeMode);
+    updateAccountPickerForMode(_activeMode);
 
     localStorage.setItem(STORAGE_KEY, _activeMode);
     _options.setAccountViewModeInState?.(_activeMode);
@@ -214,6 +215,104 @@ export function setAccountViewMode(mode, options = {}) {
         syncAccountPlanContext(_options.getAccountPlan?.() ?? null);
         renderStrategicShell(_options.getSelectedAccount?.() ?? null, _planBaseline);
     }
+}
+
+/**
+ * Repurpose the left-hand account-picker chrome based on the active view mode.
+ *
+ * Tactical: shows the account list (search, filter icons, list, actions).
+ * Strategic: shows the plan TOC (jump-to-section nav for the active plan).
+ *
+ * The picker's outer flex column stays mounted so the layout doesn't reflow;
+ * we just hide the tactical body + actions and reveal the TOC body. The
+ * header <h2> text toggles to make the swap legible without an extra label.
+ *
+ * Rationale: now that the SAOS has 16+ sections, scrolling through the
+ * strategic doc to find Pain Signals or Critical Unknowns is painful. The
+ * picker already owns the left rail in this view; reusing it for navigation
+ * is zero-cost real estate.
+ *
+ * @param {'tactical' | 'strategic'} mode
+ */
+function updateAccountPickerForMode(mode) {
+    const isStrategic = mode === 'strategic';
+
+    const titleEl = document.getElementById('account-picker-title');
+    if (titleEl) titleEl.textContent = isStrategic ? 'Plan Sections' : 'Accounts';
+
+    const pickerBody = document.querySelector('.account-picker-panel .account-picker-body');
+    if (pickerBody instanceof HTMLElement) {
+        pickerBody.classList.toggle('hidden', isStrategic);
+    }
+
+    const pickerActions = document.querySelector('.account-picker-panel .account-picker-actions');
+    if (pickerActions instanceof HTMLElement) {
+        pickerActions.classList.toggle('hidden', isStrategic);
+    }
+
+    const tocBody = document.getElementById('strategic-toc-body');
+    if (tocBody instanceof HTMLElement) {
+        tocBody.classList.toggle('hidden', !isStrategic);
+    }
+
+    if (isStrategic) {
+        renderStrategicToc();
+        initStrategicTocClicks();
+    }
+}
+
+/**
+ * Populate the TOC nav with one link per registered plan section. Idempotent —
+ * safe to call on every strategic-mode entry; we just replace innerHTML.
+ *
+ * Click handling lives in a delegated listener (initStrategicTocClicks below)
+ * so re-rendering the nav doesn't drop any handlers.
+ */
+function renderStrategicToc() {
+    const nav = document.getElementById('strategic-toc-nav');
+    if (!nav) return;
+    nav.innerHTML = PLAN_SECTIONS.map((section) => (
+        `<a href="#strategic-section-${section.id}"`
+        + ` class="strategic-toc-link"`
+        + ` data-section-id="${section.id}">`
+        + escapeHtml(section.title)
+        + `</a>`
+    )).join('');
+}
+
+let _strategicTocClicksBound = false;
+
+/**
+ * One-time delegated click handler on the TOC nav. Smooth-scrolls the matching
+ * strategic-section into view inside the canvas, and updates the .active
+ * class so the rep always sees where they are.
+ *
+ * We delegate (rather than per-link listeners in renderStrategicToc) so the
+ * handler survives nav re-renders and a future feature that lets users
+ * filter / reorder TOC entries.
+ */
+function initStrategicTocClicks() {
+    if (_strategicTocClicksBound) return;
+    const nav = document.getElementById('strategic-toc-nav');
+    if (!nav) return;
+    _strategicTocClicksBound = true;
+
+    nav.addEventListener('click', (event) => {
+        const link = event.target instanceof Element
+            ? event.target.closest('.strategic-toc-link')
+            : null;
+        if (!(link instanceof HTMLAnchorElement)) return;
+        event.preventDefault();
+
+        const sectionId = link.dataset.sectionId;
+        if (!sectionId) return;
+        const sectionEl = document.getElementById(`strategic-section-${sectionId}`);
+        if (!sectionEl) return;
+
+        sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        nav.querySelectorAll('.strategic-toc-link').forEach((el) => el.classList.remove('active'));
+        link.classList.add('active');
+    });
 }
 
 function requestAccountViewMode(mode) {
@@ -1183,6 +1282,46 @@ function buildEntryPointTextarea(index, fieldKey, label, value, placeholder = ''
 }
 
 /**
+ * Editable OPPORTUNITY NAME field at the top of each entry-point card.
+ *
+ * Rationale: a single contact can anchor multiple opportunities ("Flagship
+ * SD-WAN Pilot" vs. "Q3 SASE Renewal"), and the carousel tabs were defaulting
+ * to "Entry Point 1 / 2 / 3" once you had more than a couple of plays in
+ * flight — useless for a rep scanning the strategy doc under pressure. This
+ * input lets the rep label each play with its actual strategic name; the tab
+ * label (see buildEntryPointCarouselHtml) prefers this value over the
+ * read-only contact name, falling back to "Entry Point N" only when both are
+ * empty.
+ *
+ * Wired into the existing canvas `input` listener via the
+ * `.strategic-field` class + `data-field="entry_points.${index}.name"`, so
+ * autosave + live-tab-update (see bindCanvasFormEvents) work without any new
+ * plumbing. The `data-entry-name-input` attribute tags it for the tab-text
+ * live updater specifically.
+ *
+ * @param {string} index
+ * @param {string} value
+ */
+function buildEntryPointNameField(index, value) {
+    const fieldId = `entry-point-${index}-name`;
+    return `
+        <div class="entry-point-name-row">
+            <label class="entry-point-name-label" for="${fieldId}">Opportunity Name</label>
+            <input
+                type="text"
+                id="${fieldId}"
+                class="strategic-field entry-point-name-input"
+                data-field="entry_points.${index}.name"
+                data-entry-name-input="${index}"
+                value="${escapeHtml(typeof value === 'string' ? value : '')}"
+                placeholder="e.g. Flagship SD-WAN Pilot"
+                maxlength="120"
+                autocomplete="off"
+            />
+        </div>`;
+}
+
+/**
  * Read-only contact-name header for an entry point card.
  *
  * Was a <select> dropdown; removed because contact selection now happens
@@ -1247,6 +1386,7 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
             aria-hidden="${isActive ? 'false' : 'true'}"
         >
             <div class="entry-point-card-header">
+                ${buildEntryPointNameField(String(index), String(data.name ?? ''))}
                 ${buildEntryPointContactSelect(String(index), String(data.contact_name ?? ''), contacts)}
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--profile">
@@ -1300,8 +1440,14 @@ function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
 
     const tabs = points.map((point, index) => {
         const pointData = isPlainObject(point) ? point : createEmptyEntryPoint();
+        // Tab label fallback chain: editable opportunity name → mapped contact
+        // → numeric fallback. Reps almost always set `name` once they have a
+        // play in mind; contact_name covers the auto-stubbed-from-influence
+        // case; the numeric fallback only fires for brand-new "+ Add Point"
+        // empties.
+        const opportunityName = String(pointData.name ?? '').trim();
         const contactLabel = String(pointData.contact_name ?? '').trim();
-        const label = contactLabel || `Entry Point ${index + 1}`;
+        const label = opportunityName || contactLabel || `Entry Point ${index + 1}`;
         const activeClass = index === safeActive ? ' entry-point-tab--active' : '';
 
         // Task 2 — "Unmapped" flag.
@@ -1348,6 +1494,40 @@ function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
             <div class="entry-point-tabs" role="tablist" aria-label="${escapeHtml(section.title)}">${tabs}${addButton}</div>
             <div class="entry-point-panels">${cards}</div>
         </div>`;
+}
+
+/**
+ * Patch a single carousel tab's visible text in place using the current
+ * `_liveSections` state. Used by applyFieldToLiveSections whenever the
+ * editable `name` or auto-populated `contact_name` of an entry point
+ * changes, so the user sees the tab relabel immediately without a full
+ * paintCanvas() (which would steal caret focus / interrupt IME composition).
+ *
+ * Fallback chain mirrors the initial render in buildEntryPointCarouselHtml:
+ *   opportunity name  →  contact name  →  "Entry Point N"
+ *
+ * The unmapped-dot child is preserved so the amber Influence-Pipeline flag
+ * does not get clobbered when only the text node is rewritten.
+ *
+ * @param {number} index
+ */
+function updateEntryPointTabLabel(index) {
+    if (!Number.isFinite(index)) return;
+    const section = document.getElementById('strategic-section-entry_points');
+    if (!section) return;
+
+    const tab = section.querySelector(`.entry-point-tab[data-entry-index="${index}"]`);
+    if (!(tab instanceof HTMLElement)) return;
+
+    const points = Array.isArray(_liveSections?.entry_points) ? _liveSections.entry_points : [];
+    const pointData = isPlainObject(points[index]) ? points[index] : {};
+    const opportunityName = String(pointData.name ?? '').trim();
+    const contactName = String(pointData.contact_name ?? '').trim();
+    const label = opportunityName || contactName || `Entry Point ${index + 1}`;
+
+    const unmappedDot = tab.querySelector('.entry-point-tab-unmapped-dot');
+    tab.textContent = label;
+    if (unmappedDot) tab.appendChild(unmappedDot);
 }
 
 function switchEntryPointTab(index) {
@@ -3365,6 +3545,12 @@ function bindCanvasFormEvents(canvas) {
             handleRangeInput(target);
         }
 
+        // Live carousel-tab relabel for editable opportunity names is handled
+        // inside applyFieldToLiveSections — the regex on entry_points.N.(name
+        // | contact_name) fires the patch after _liveSections is up to date.
+        // Done in-place rather than via paintCanvas() so the user keeps caret
+        // position + IME composition state while typing.
+
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
         queueAutosave();
@@ -3679,22 +3865,14 @@ function applyFieldToLiveSections(el) {
 
     setNestedValue(_liveSections, path, value);
 
-    const entryContactMatch = path.match(/^entry_points\.(\d+)\.contact_name$/);
-    if (entryContactMatch) {
-        updateEntryPointTabLabel(Number(entryContactMatch[1]), String(value));
+    // Re-label the carousel tab whenever the opportunity name or the
+    // auto-populated contact_name shifts. Single match covers both paths so
+    // the fallback chain (name → contact_name → "Entry Point N") stays
+    // consistent with the initial render.
+    const entryLabelMatch = path.match(/^entry_points\.(\d+)\.(name|contact_name)$/);
+    if (entryLabelMatch) {
+        updateEntryPointTabLabel(Number(entryLabelMatch[1]));
     }
-}
-
-/**
- * @param {number} index
- * @param {string} contactName
- */
-function updateEntryPointTabLabel(index, contactName) {
-    const section = document.getElementById('strategic-section-entry_points');
-    const tab = section?.querySelector(`.entry-point-tab[data-entry-index="${index}"]`);
-    if (!(tab instanceof HTMLElement)) return;
-    const label = contactName.trim() || `Entry Point ${index + 1}`;
-    tab.textContent = label;
 }
 
 function queueAutosave() {

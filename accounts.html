@@ -41,7 +41,11 @@
             <div id="accounts" class="content-view active-view accounts-layout">
                 <div class="account-picker-panel">
                     <div class="account-picker-header">
-                        <h2 class="section-title">Accounts</h2>
+                        <!-- Title swaps between "Accounts" (tactical) and "Plan Sections"
+                             (strategic) via JS in setAccountViewMode → renderStrategicToc.
+                             The same h2 is reused so the visual chrome (border, height,
+                             font weight) stays identical when toggling modes. -->
+                        <h2 id="account-picker-title" class="section-title">Accounts</h2>
                     </div>
                     <input type="file" id="account-csv-input" accept=".csv" class="hidden">
                     <div class="account-picker-body">
@@ -63,6 +67,13 @@
                             <button type="button" class="account-filter-icon" data-filter="prospect" title="Prospects"><i class="fas fa-user-plus"></i></button>
                         </div>
                         <div id="account-list" class="item-list"></div>
+                    </div>
+                    <!-- Strategic TOC body. Hidden in tactical mode; shown in strategic mode
+                         (.strategic-mode-active swap rules live in css/saos-strategic.css).
+                         Built dynamically by renderStrategicToc() from PLAN_SECTIONS so a
+                         new section added to the registry shows up here automatically. -->
+                    <div id="strategic-toc-body" class="strategic-toc-body hidden">
+                        <nav id="strategic-toc-nav" class="strategic-toc-nav" aria-label="Plan table of contents"></nav>
                     </div>
                     <div class="account-picker-actions">
                         <button id="add-account-btn" class="btn-icon account-picker-icon" title="Add New Account"><i class="fas fa-plus"></i></button>

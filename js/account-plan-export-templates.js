@@ -883,8 +883,13 @@ function createStatusBadge(label, value) {
  */
 function buildTargetProfile(rawPoint) {
     if (!isPlainObject(rawPoint)) return null;
+    const opportunityName = String(rawPoint.name ?? '').trim();
     const contactName = String(rawPoint.contact_name ?? '').trim();
-    if (!contactName) return null;
+    // Render the entry point when EITHER an opportunity name or a contact is
+    // present. Earlier this gated on contact_name alone, which silently dropped
+    // hand-authored opportunities (e.g. "Flagship SD-WAN Pilot") that hadn't
+    // been linked to a contact on the influence board yet.
+    if (!opportunityName && !contactName) return null;
 
     const profile = document.createElement('div');
     profile.className = 'ap-export-target-profile';
@@ -894,8 +899,17 @@ function buildTargetProfile(rawPoint) {
 
     const nameEl = document.createElement('h3');
     nameEl.className = 'ap-export-target-profile-name';
-    nameEl.textContent = contactName;
+    // Opportunity name leads the card; the contact is shown as a sub-label so
+    // the rep's chosen play title is what executives see in the printed plan.
+    nameEl.textContent = opportunityName || contactName;
     header.appendChild(nameEl);
+
+    if (opportunityName && contactName && opportunityName !== contactName) {
+        const contactEl = document.createElement('div');
+        contactEl.className = 'ap-export-target-profile-contact';
+        contactEl.textContent = `Contact: ${contactName}`;
+        header.appendChild(contactEl);
+    }
 
     const badgeDefs = [
         ['Trust', rawPoint.trust_level],
@@ -2552,6 +2566,14 @@ export function ensureExportTemplateStyles() {
             letter-spacing: 0.01em;
             color: #0f172a;
             text-transform: none;
+        }
+        .ap-export-target-profile-contact {
+            margin: -4px 0 8px;
+            font-family: ${GPC_BRAND.fontBody};
+            font-size: 10.5px;
+            font-weight: 500;
+            color: #64748b;
+            letter-spacing: 0.01em;
         }
         .ap-export-badge-row {
             display: flex;

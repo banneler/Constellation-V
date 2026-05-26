@@ -1725,18 +1725,30 @@ body.theme-green {
         border-color: var(--primary-blue);
         color: white;
     }
-    /* Strategic Account OS — layout shell (Phase 2) */
-    .strategic-workspace {
+    /* Strategic Account OS — layout shell (Phase 2)
+     *
+     * Display gating is scoped to the id selector (not .strategic-workspace)
+     * because the .class selector is reused below for sizing, and any later
+     * `@apply flex ...` on it would compile to `display: flex` and override
+     * the `display: none` default (same specificity, later wins). Locking the
+     * gate to `#strategic-workspace` lifts it out of that race.
+     *
+     * css/saos-strategic.css carries the same id-scoped gate as a runtime
+     * belt-and-braces in case output.css gets out of date.
+     */
+    #strategic-workspace {
         display: none;
     }
-    .strategic-mode-active .strategic-workspace {
+    .strategic-mode-active #strategic-workspace {
         display: flex;
     }
     .strategic-mode-active #account-details {
         display: none !important;
     }
+    /* Sizing only — display stays gated by the id rules above. We avoid
+     * `@apply flex` here for the same reason as the gate fix. */
     .strategic-workspace {
-        @apply flex flex-col flex-1 min-h-0 min-w-0;
+        @apply flex-col flex-1 min-h-0 min-w-0;
         position: relative;
         max-height: calc(100vh - 48px);
     }

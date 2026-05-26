@@ -516,6 +516,56 @@
  * profile is orphaned — drop a contact into Executive or Mid-Level".
  * ======================================================================== */
 
+/* Editable Opportunity Name — the prominent first row inside the card header.
+ * Larger / bolder than the rest of the card so the rep is clearly looking at a
+ * NAMED play (e.g. "Flagship SD-WAN Pilot"), not an anonymous entry point.
+ * Plain CSS (no @apply) to dodge the Tailwind v4 nested-@supports trap. */
+.entry-point-name-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.625rem;
+}
+
+.entry-point-name-label {
+    margin: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.entry-point-name-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background-color: color-mix(in srgb, var(--bg-medium) 35%, transparent);
+    color: var(--text-light);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.3;
+    transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.entry-point-name-input::placeholder {
+    color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+    font-weight: 400;
+    font-style: italic;
+}
+
+.entry-point-name-input:hover {
+    border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+}
+
+.entry-point-name-input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-blue) 25%, transparent);
+}
+
 .entry-point-contact-row--inline {
     display: flex;
     align-items: baseline;
@@ -771,6 +821,124 @@
  * ======================================================================== */
 .account-picker-panel {
     flex-shrink: 0;
+}
+
+/* ===========================================================================
+ * Strategic TOC inside the account picker
+ *
+ * When the user toggles into Strategic Account OS mode, the left-hand
+ * .account-picker-panel keeps its dimensions but swaps its body content from
+ * the account list to a jump-to-section nav. The chrome (header h2, panel
+ * border, picker actions area) was already correct at the panel level — we
+ * just need:
+ *
+ *   1. .strategic-toc-body to be hidden by default; visible when the
+ *      ancestor body has .strategic-mode-active.
+ *   2. .account-picker-body to be visually hidden inside .strategic-mode-active
+ *      so it stops competing with the TOC for the same flex slot.
+ *      (We already toggle a `hidden` class via JS for accessibility; the rule
+ *      below is a CSS belt-and-braces in case JS fires before paint.)
+ *   3. Link styling that reads as a list of section anchors — flat, calm,
+ *      hover affordance, clear active state.
+ *
+ * The TOC nav scrolls when sections overflow the panel height. The picker
+ * panel itself already clamps to calc(100vh - 48px), so internal scroll on
+ * .strategic-toc-nav is sufficient.
+ * ======================================================================== */
+
+.strategic-toc-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.strategic-toc-body.hidden {
+    display: none;
+}
+
+body.strategic-mode-active .account-picker-panel .account-picker-body {
+    display: none;
+}
+
+body.strategic-mode-active .account-picker-panel .account-picker-actions {
+    display: none;
+}
+
+body.strategic-mode-active .strategic-toc-body {
+    display: flex;
+}
+
+/* ---------------------------------------------------------------------------
+ * Hide the strategic workspace in tactical mode (cascade bug fix).
+ *
+ * input.css declares the workspace twice:
+ *
+ *     .strategic-workspace { display: none; }                  // gate
+ *     .strategic-mode-active .strategic-workspace {            // unlock
+ *         display: flex;
+ *     }
+ *     .strategic-workspace {                                    // sizing
+ *         @apply flex flex-col flex-1 min-h-0 min-w-0;
+ *         ...
+ *     }
+ *
+ * The third rule's `@apply flex` compiles to `display: flex`, which has the
+ * same specificity as the first rule and lands LATER in output.css — so the
+ * cascade promotes the workspace to display: flex even in tactical mode. The
+ * static <h3>Strategic Account Plan</h3> then renders as a sliver column
+ * inside .accounts-layout, competing with #account-details for space.
+ *
+ * Fix here uses the id selector (specificity 1,0,0) which beats the .class
+ * rules (0,1,0) so neither @apply flex nor any later same-class declaration
+ * can re-enable display. input.css gets the source-side fix in parallel so
+ * the next Tailwind rebuild produces clean output.
+ * ------------------------------------------------------------------------ */
+#strategic-workspace {
+    display: none;
+}
+
+body.strategic-mode-active #strategic-workspace {
+    display: flex;
+}
+
+.strategic-toc-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.25rem 0.125rem 0.5rem;
+}
+
+.strategic-toc-link {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-weight: 500;
+    color: var(--text-medium);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.strategic-toc-link:hover,
+.strategic-toc-link:focus-visible {
+    color: var(--text-light);
+    background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+    border-color: color-mix(in srgb, var(--border-color) 80%, transparent);
+    outline: none;
+}
+
+.strategic-toc-link.active {
+    color: var(--text-light);
+    background-color: color-mix(in srgb, var(--primary-blue) 14%, transparent);
+    border-color: color-mix(in srgb, var(--primary-blue) 45%, var(--border-color));
 }
 
 /* ===========================================================================
