@@ -158,9 +158,25 @@ async function buildDossierPdfBytes(plan, account, exportRoot) {
 function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     const groups = [];
     let current = [];
+    // Toggle via `window.__APP_PAGINATION_DEBUG__ = true` in the devtools
+    // console before clicking Export to print per-measurement trace lines.
+    // Lives behind a global so it can stay in production without spamming
+    // the console for regular users.
+    const debug = !!(typeof window !== 'undefined' && window.__APP_PAGINATION_DEBUG__);
+    const trace = (msg, data) => {
+        if (debug) console.log(`[paginator] ${msg}`, data || '');
+    };
+
+    trace(`received ${sectionBlocks.length} section block(s)`,
+        sectionBlocks.map((b) => ({
+            id: b.dataset?.sectionId || '(no-id)',
+            isGroup: b.classList?.contains?.('ap-export-section-group') || false,
+        }))
+    );
 
     const flush = () => {
         if (current.length > 0) {
+            trace(`flush: page ${groups.length + 1} = [${current.map((b) => b.dataset?.sectionId || '?').join(', ')}]`);
             groups.push(current.map((block) => block.cloneNode(true)));
             current = [];
         }
@@ -168,7 +184,7 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 
     const pageFits = (blocks) => {
         if (blocks.length === 0) return true;
-        return measureDossierContentPage(blocks, meta, exportRoot);
+        return measureDossierContentPage(blocks, meta, exportRoot, debug);
     };
 
     sectionBlocks.forEach((block) => {
@@ -250,6 +266,7 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     });
 
     flush();
+    trace(`done: produced ${groups.length} page group(s)`);
     return groups;
 }
 
@@ -514,7 +531,7 @@ function pageFitsFragment(block, meta, exportRoot) {
  */
 const PAGINATION_SAFETY_BUFFER_PX = 2;
 
-function measureDossierContentPage(blocks, meta, exportRoot) {
+function measureDossierContentPage(blocks, meta, exportRoot, debug = false) {
     const pageEl = buildDossierContentPage(
         blocks.map((block) => block.cloneNode(true)),
         meta,
@@ -522,9 +539,15 @@ function measureDossierContentPage(blocks, meta, exportRoot) {
     );
     exportRoot.appendChild(pageEl);
     const content = pageEl.querySelector('.ap-export-dossier-content');
+    const scrollH = content ? content.scrollHeight : 0;
+    const clientH = content ? content.clientHeight : 0;
     const fits = content
-        ? content.scrollHeight <= (content.clientHeight - PAGINATION_SAFETY_BUFFER_PX)
+        ? scrollH <= (clientH - PAGINATION_SAFETY_BUFFER_PX)
         : true;
+    if (debug) {
+        const ids = blocks.map((b) => b.dataset?.sectionId || '?').join(', ');
+        console.log(`[paginator]   measure [${ids}] -> scrollH=${scrollH} clientH=${clientH} fits=${fits}`);
+    }
     exportRoot.removeChild(pageEl);
     return fits;
 }
@@ -534,8 +557,12 @@ function measureDossierContentPage(blocks, meta, exportRoot) {
  */
 async function captureElementToPng(element) {
     const isDarkBg = element.classList.contains('ap-export-gpc-cover');
+    // Scale 3 yields ~288 DPI in the final 612×792pt PDF, which is enough to
+    // keep the small-font surfaces (data tables, badges, kicker captions on
+    // the Account Snapshot page especially) crisp under typical screen +
+    // print rendering. Scale 2 (~192 DPI) leaves those surfaces visibly soft.
     const result = await snapdom(element, {
-        scale: 2,
+        scale: 3,
         backgroundColor: isDarkBg ? null : '#ffffff',
     });
     const canvas = await result.toCanvas();
