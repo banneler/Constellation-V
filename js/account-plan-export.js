@@ -2,6 +2,12 @@
  * Strategic Account OS — PDF export engine (Snapdom + pdf-lib).
  */
 
+// Cache-bust query forces browsers to re-fetch the templates module instead
+// of serving the pre-cd9c20d cached copy that throws
+// `SyntaxError: Unexpected identifier 'contain'` at module load (the bug
+// where a CSS comment in the templates module used backticks that closed
+// the surrounding template literal). Bump the version any time we need
+// to force every client to drop a stale templates module.
 import {
     buildDossierTemplate,
     buildGpcCoverPage,
@@ -9,7 +15,7 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js';
+} from './account-plan-export-templates.js?v=2026-05-26-3';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
