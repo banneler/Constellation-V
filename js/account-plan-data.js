@@ -41,18 +41,17 @@ const INTERACTION_LOG_SOURCES = new Set(['signal', 'manual', 'activity']);
 
 /** @type {readonly string[]} */
 export const ENTRY_POINT_FIELD_KEYS = Object.freeze([
-    // `name` is the human-authored OPPORTUNITY label for this entry point.
-    // Reps think in terms of named plays ("Flagship SD-WAN Pilot", "CFO Office
-    // Bridge"), not "Entry Point 1/2/3". The field is decoupled from contact_name
-    // on purpose: a single contact can anchor multiple opportunities over time,
-    // and an opportunity can outlive its initial contact (re-mapping on the
-    // influence board doesn't reset the play's identity). UI fallback chain for
-    // the carousel tab label is: name -> contact_name -> "Entry Point N".
-    'name',
+    // Entry points are about CONTACTS, not opportunities. Opportunities live
+    // exclusively on the White Space matrix (where each row carries its own
+    // editable name). An entry point is the target-profile dossier for a
+    // single person we're working to access. Tab label fallback chain is now
+    // simply: contact_name -> "Entry Point N".
+    //
     // contact_id is the *durable* link back to the influence board (Task 2 —
-    // "Influence Pipeline"). contact_name is kept for display + back-compat with
-    // legacy plans that pre-date the auto-stubbing flow; both are written when an
-    // entry point is auto-created from a drag/drop on the influence board.
+    // "Influence Pipeline"). contact_name is kept for display + back-compat
+    // with legacy plans that pre-date the auto-stubbing flow; both are
+    // written when an entry point is auto-created from a drag/drop on the
+    // influence board.
     'contact_id',
     'contact_name',
     'why_they_matter',

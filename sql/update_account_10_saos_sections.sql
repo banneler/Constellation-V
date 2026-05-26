@@ -280,16 +280,13 @@ WHERE ap.account_id = 10;
 
 
 -- ---------------------------------------------------------------------------
--- Entry-point opportunity names (new `name` field on each entry point).
+-- Strip any legacy `name` field from existing entry points.
 --
--- The original timeline seed wrote contact-bound entry points labelled only
--- by contact_name; once we ship the editable Opportunity Name UI, the
--- carousel tabs default to "Entry Point 1/2/3" until the rep types something.
--- That gives the demo plan an unforced cold-open look. Patch in real play
--- names so the demo carousel reads as a strategy doc out of the box.
---
--- Maps by ordinal: entry point #1 = exec play, #2 = NOC wedge, #3 = CFO
--- bridge. Re-running this script overwrites in place; no array growth.
+-- Entry points are about contacts, not opportunities — the carousel tabs
+-- read off contact_name (with an "Entry Point N" numeric fallback). An
+-- earlier iteration patched a `name` field onto each entry point; this
+-- block removes it so the saved demo data matches the simplified schema.
+-- Safe to re-run: if `name` is already absent the `-` operator is a no-op.
 -- ---------------------------------------------------------------------------
 UPDATE public.account_plans ap
 SET plan = jsonb_set(
@@ -297,19 +294,10 @@ SET plan = jsonb_set(
     '{current_draft,sections,entry_points}',
     COALESCE(
         (
-            SELECT jsonb_agg(
-                CASE COALESCE(idx, 0)
-                    WHEN 0 THEN ep || jsonb_build_object('name', 'Flagship SD-WAN Pilot')
-                    WHEN 1 THEN ep || jsonb_build_object('name', 'NOC Runbook Co-Authorship')
-                    WHEN 2 THEN ep || jsonb_build_object('name', 'CFO Office ROI Bridge')
-                    ELSE ep
-                END
-                ORDER BY idx
-            )
+            SELECT jsonb_agg((ep - 'name') ORDER BY ord)
             FROM jsonb_array_elements(
                 COALESCE(ap.plan #> '{current_draft,sections,entry_points}', '[]'::jsonb)
             ) WITH ORDINALITY AS arr(ep, ord)
-            CROSS JOIN LATERAL (SELECT (ord - 1)::int AS idx) ix
         ),
         '[]'::jsonb
     ),
@@ -340,12 +328,12 @@ FROM public.account_plans ap
 JOIN public.accounts a ON a.id = ap.account_id
 WHERE ap.account_id = 10;
 
--- Entry-point opportunity names — confirms the carousel will render real labels
+-- Entry points — carousel labels read off contact_name; numeric fallback if blank.
 SELECT
     ep.ordinality AS entry_point_num,
-    ep.value ->> 'name' AS opportunity_name,
     ep.value ->> 'contact_name' AS contact_name,
-    ep.value ->> 'trust_level' AS trust_level
+    ep.value ->> 'trust_level' AS trust_level,
+    ep.value ? 'name' AS has_legacy_name_field
 FROM public.account_plans ap
 CROSS JOIN LATERAL jsonb_array_elements(
     COALESCE(ap.plan -> 'current_draft' -> 'sections' -> 'entry_points', '[]'::jsonb)

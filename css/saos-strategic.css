@@ -516,56 +516,6 @@
  * profile is orphaned — drop a contact into Executive or Mid-Level".
  * ======================================================================== */
 
-/* Editable Opportunity Name — the prominent first row inside the card header.
- * Larger / bolder than the rest of the card so the rep is clearly looking at a
- * NAMED play (e.g. "Flagship SD-WAN Pilot"), not an anonymous entry point.
- * Plain CSS (no @apply) to dodge the Tailwind v4 nested-@supports trap. */
-.entry-point-name-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 0.625rem;
-}
-
-.entry-point-name-label {
-    margin: 0;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-
-.entry-point-name-input {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--border-color);
-    background-color: color-mix(in srgb, var(--bg-medium) 35%, transparent);
-    color: var(--text-light);
-    font-size: 1.0625rem;
-    font-weight: 600;
-    line-height: 1.3;
-    transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
-}
-
-.entry-point-name-input::placeholder {
-    color: color-mix(in srgb, var(--text-muted) 75%, transparent);
-    font-weight: 400;
-    font-style: italic;
-}
-
-.entry-point-name-input:hover {
-    border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
-}
-
-.entry-point-name-input:focus {
-    outline: none;
-    border-color: var(--primary-blue);
-    background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-blue) 25%, transparent);
-}
-
 /* ============================================================================
  * White Space — editable opportunity name (row header).
  * The row's header was previously a static "Opportunity 1/2/3..." caption.

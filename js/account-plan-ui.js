@@ -1282,50 +1282,6 @@ function buildEntryPointTextarea(index, fieldKey, label, value, placeholder = ''
 }
 
 /**
- * Editable OPPORTUNITY NAME field at the top of each entry-point card.
- *
- * Rationale: a single contact can anchor multiple opportunities ("Flagship
- * SD-WAN Pilot" vs. "Q3 SASE Renewal"), and the carousel tabs were defaulting
- * to "Entry Point 1 / 2 / 3" once you had more than a couple of plays in
- * flight — useless for a rep scanning the strategy doc under pressure. This
- * input lets the rep label each play with its actual strategic name; the tab
- * label (see buildEntryPointCarouselHtml) prefers this value over the
- * read-only contact name, falling back to "Entry Point N" only when both are
- * empty.
- *
- * Wired into the existing canvas `input` listener via the
- * `.strategic-field` class + `data-field="entry_points.${index}.name"`, so
- * autosave + live-tab-update (see bindCanvasFormEvents) work without any new
- * plumbing. The `data-entry-name-input` attribute tags it for the tab-text
- * live updater specifically.
- *
- * @param {string} index
- * @param {string} value
- */
-function buildEntryPointNameField(index, value) {
-    const fieldId = `entry-point-${index}-name`;
-    // "Entry Point Name" (not "Opportunity Name") — opportunities live on the
-    // White Space matrix, where each row carries its own editable name. This
-    // field names the *access play* (e.g. "CFO Office ROI Bridge"), which
-    // may or may not map 1:1 to a White Space opportunity.
-    return `
-        <div class="entry-point-name-row">
-            <label class="entry-point-name-label" for="${fieldId}">Entry Point Name</label>
-            <input
-                type="text"
-                id="${fieldId}"
-                class="strategic-field entry-point-name-input"
-                data-field="entry_points.${index}.name"
-                data-entry-name-input="${index}"
-                value="${escapeHtml(typeof value === 'string' ? value : '')}"
-                placeholder="e.g. CFO Office ROI Bridge"
-                maxlength="120"
-                autocomplete="off"
-            />
-        </div>`;
-}
-
-/**
  * Read-only contact-name header for an entry point card.
  *
  * Was a <select> dropdown; removed because contact selection now happens
@@ -1390,7 +1346,6 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
             aria-hidden="${isActive ? 'false' : 'true'}"
         >
             <div class="entry-point-card-header">
-                ${buildEntryPointNameField(String(index), String(data.name ?? ''))}
                 ${buildEntryPointContactSelect(String(index), String(data.contact_name ?? ''), contacts)}
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--profile">
@@ -1444,14 +1399,13 @@ function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
 
     const tabs = points.map((point, index) => {
         const pointData = isPlainObject(point) ? point : createEmptyEntryPoint();
-        // Tab label fallback chain: editable opportunity name → mapped contact
-        // → numeric fallback. Reps almost always set `name` once they have a
-        // play in mind; contact_name covers the auto-stubbed-from-influence
-        // case; the numeric fallback only fires for brand-new "+ Add Point"
-        // empties.
-        const opportunityName = String(pointData.name ?? '').trim();
+        // Tab label fallback: contact name → numeric fallback. Entry points
+        // are about contacts now (opportunities live on White Space rows),
+        // so contact_name is the canonical identifier for the tab. The
+        // numeric fallback only fires for brand-new "+ Add Point" empties
+        // before a contact has been mapped on the influence board.
         const contactLabel = String(pointData.contact_name ?? '').trim();
-        const label = opportunityName || contactLabel || `Entry Point ${index + 1}`;
+        const label = contactLabel || `Entry Point ${index + 1}`;
         const activeClass = index === safeActive ? ' entry-point-tab--active' : '';
 
         // Task 2 — "Unmapped" flag.
@@ -1502,13 +1456,13 @@ function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
 
 /**
  * Patch a single carousel tab's visible text in place using the current
- * `_liveSections` state. Used by applyFieldToLiveSections whenever the
- * editable `name` or auto-populated `contact_name` of an entry point
- * changes, so the user sees the tab relabel immediately without a full
- * paintCanvas() (which would steal caret focus / interrupt IME composition).
+ * `_liveSections` state. Used by applyFieldToLiveSections whenever an entry
+ * point's auto-populated `contact_name` changes (e.g. after an influence
+ * board re-mapping), so the user sees the tab relabel immediately without a
+ * full paintCanvas() (which would steal caret focus / interrupt IME).
  *
  * Fallback chain mirrors the initial render in buildEntryPointCarouselHtml:
- *   opportunity name  →  contact name  →  "Entry Point N"
+ *   contact_name  →  "Entry Point N"
  *
  * The unmapped-dot child is preserved so the amber Influence-Pipeline flag
  * does not get clobbered when only the text node is rewritten.
@@ -1525,9 +1479,8 @@ function updateEntryPointTabLabel(index) {
 
     const points = Array.isArray(_liveSections?.entry_points) ? _liveSections.entry_points : [];
     const pointData = isPlainObject(points[index]) ? points[index] : {};
-    const opportunityName = String(pointData.name ?? '').trim();
     const contactName = String(pointData.contact_name ?? '').trim();
-    const label = opportunityName || contactName || `Entry Point ${index + 1}`;
+    const label = contactName || `Entry Point ${index + 1}`;
 
     const unmappedDot = tab.querySelector('.entry-point-tab-unmapped-dot');
     tab.textContent = label;
@@ -3569,11 +3522,11 @@ function bindCanvasFormEvents(canvas) {
             handleRangeInput(target);
         }
 
-        // Live carousel-tab relabel for editable opportunity names is handled
-        // inside applyFieldToLiveSections — the regex on entry_points.N.(name
-        // | contact_name) fires the patch after _liveSections is up to date.
-        // Done in-place rather than via paintCanvas() so the user keeps caret
-        // position + IME composition state while typing.
+        // Live carousel-tab relabel for entry-point contact_name is handled
+        // inside applyFieldToLiveSections — the regex on
+        // entry_points.N.contact_name fires the patch after _liveSections is
+        // up to date. Done in-place rather than via paintCanvas() so the user
+        // keeps caret position + IME composition state while typing.
 
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
@@ -3889,11 +3842,11 @@ function applyFieldToLiveSections(el) {
 
     setNestedValue(_liveSections, path, value);
 
-    // Re-label the carousel tab whenever the opportunity name or the
-    // auto-populated contact_name shifts. Single match covers both paths so
-    // the fallback chain (name → contact_name → "Entry Point N") stays
-    // consistent with the initial render.
-    const entryLabelMatch = path.match(/^entry_points\.(\d+)\.(name|contact_name)$/);
+    // Re-label the carousel tab whenever an entry point's contact_name
+    // shifts (e.g. after an influence-board re-mapping). The fallback chain
+    // (contact_name → "Entry Point N") is consistent with the initial
+    // render in buildEntryPointCarouselHtml.
+    const entryLabelMatch = path.match(/^entry_points\.(\d+)\.contact_name$/);
     if (entryLabelMatch) {
         updateEntryPointTabLabel(Number(entryLabelMatch[1]));
     }
