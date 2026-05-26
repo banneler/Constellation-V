@@ -519,23 +519,15 @@ function pageFitsFragment(block, meta, exportRoot) {
  * @param {HTMLElement} exportRoot
  */
 /**
- * Tiny sub-pixel safety margin used during pagination measurement. The
- * paginator already relies on `overflow: hidden` + `contain: paint` on
- * `.ap-export-dossier-content` to hard-clip any descendant that would
- * visually exceed the page box during snapdom capture, so the buffer here
- * only needs to absorb sub-pixel rounding drift between layout reads and
- * the eventual paint.
- *
- * Earlier this was set to 14px as a defensive overcorrection after a one-off
- * "scroll overrun past the bottom" report; combined with a couple of
- * content-growth changes (CRM firmographics, the 7-column White Space matrix,
- * the new row-name input), several sections suddenly measured 4–10px over the
- * effective threshold (`clientHeight - 14`) and the paginator started forcing
- * each over-threshold section onto its own page AND splitting them into
- * single-unit chunks — which is what produced the ~50-page export. A small
- * buffer (~2px) is enough to absorb sub-pixel drift without that runaway.
+ * No measurement buffer — the paginator compares `scrollHeight` directly
+ * against `clientHeight`. An earlier defensive 14px buffer (later 2px),
+ * paired with `contain: paint` on the content box, ended up causing the
+ * 50-page runaway export (every section measured "doesn't fit" against
+ * the artificially tightened threshold). Both have been removed; if any
+ * single page genuinely overruns by a pixel or two we accept that as
+ * preferable to fragmenting the dossier across dozens of pages.
  */
-const PAGINATION_SAFETY_BUFFER_PX = 2;
+const PAGINATION_SAFETY_BUFFER_PX = 0;
 
 function measureDossierContentPage(blocks, meta, exportRoot, debug = false) {
     const pageEl = buildDossierContentPage(
@@ -563,12 +555,12 @@ function measureDossierContentPage(blocks, meta, exportRoot, debug = false) {
  */
 async function captureElementToPng(element) {
     const isDarkBg = element.classList.contains('ap-export-gpc-cover');
-    // Scale 3 yields ~288 DPI in the final 612×792pt PDF, which is enough to
-    // keep the small-font surfaces (data tables, badges, kicker captions on
-    // the Account Snapshot page especially) crisp under typical screen +
-    // print rendering. Scale 2 (~192 DPI) leaves those surfaces visibly soft.
+    // Scale 2 (~192 DPI in the 612×792pt PDF) keeps capture fast. Scale 3
+    // looked sharper but ~2.25× the pixel count made each page noticeably
+    // slower to snapdom + base64-encode + embed, which compounded the
+    // perceived slowness when pagination was also producing extra pages.
     const result = await snapdom(element, {
-        scale: 3,
+        scale: 2,
         backgroundColor: isDarkBg ? null : '#ffffff',
     });
     const canvas = await result.toCanvas();
