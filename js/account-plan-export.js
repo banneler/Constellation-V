@@ -495,6 +495,16 @@ function pageFitsFragment(block, meta, exportRoot) {
  * @param {{ accountName: string, dateLabel: string }} meta
  * @param {HTMLElement} exportRoot
  */
+/**
+ * Number of pixels we conservatively shave off the available content height
+ * during pagination measurement. Snapdom's actual render can be a few pixels
+ * taller than the synchronous scrollHeight reading (font fallback metrics,
+ * subpixel rounding across many flex/grid children) — this buffer ensures
+ * the paginator never produces a page that overruns its content box at
+ * capture time. Cheaper than a re-layout round-trip on every measurement.
+ */
+const PAGINATION_SAFETY_BUFFER_PX = 14;
+
 function measureDossierContentPage(blocks, meta, exportRoot) {
     const pageEl = buildDossierContentPage(
         blocks.map((block) => block.cloneNode(true)),
@@ -503,7 +513,9 @@ function measureDossierContentPage(blocks, meta, exportRoot) {
     );
     exportRoot.appendChild(pageEl);
     const content = pageEl.querySelector('.ap-export-dossier-content');
-    const fits = content ? content.scrollHeight <= content.clientHeight : true;
+    const fits = content
+        ? content.scrollHeight <= (content.clientHeight - PAGINATION_SAFETY_BUFFER_PX)
+        : true;
     exportRoot.removeChild(pageEl);
     return fits;
 }

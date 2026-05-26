@@ -2196,8 +2196,11 @@ export function ensureExportTemplateStyles() {
             left: 48px;
             right: 48px;
             top: 92px;
-            bottom: 58px;
+            bottom: 64px;
             overflow: hidden;
+            /* Hard-clip any descendant that exceeds the box (defense against
+               synchronous-measurement vs. snapdom-render drift). */
+            contain: paint;
         }
         .ap-export-gpc-page-footer,
         .ap-export-exec-gpc-footer {
