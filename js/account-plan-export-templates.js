@@ -1128,31 +1128,45 @@ function createInfluenceList(entries, contacts = []) {
  * @returns {HTMLElement}
  */
 function createExportDataTable(title, rows) {
+    // NOTE: this used to render an actual <table>/<th>/<td> structure.
+    // Snapdom's SVG-foreignObject capture path produces visibly softer text
+    // for HTML table cells than for normal block/flex layouts (the table
+    // layout algorithm sub-pixel positions cells and borders, and the
+    // browser then anti-aliases at fractional offsets that don't survive
+    // rasterization cleanly at scale 2). Every other surface in the
+    // dossier renders with snapdom-crisp text because it's built from
+    // <div>/<h3>/<p>; this helper now mirrors that pattern with a flex
+    // key/value list so the Account Snapshot page matches the rest of the
+    // document's fidelity.
     const wrap = document.createElement('div');
-    wrap.className = 'ap-export-data-table-wrap';
+    wrap.className = 'ap-export-data-table-wrap ap-export-kv-list-wrap';
 
     const heading = document.createElement('h3');
     heading.className = 'ap-export-editorial-kicker';
     heading.textContent = title;
     wrap.appendChild(heading);
 
-    const table = document.createElement('table');
-    table.className = 'ap-export-data-table';
+    const list = document.createElement('div');
+    list.className = 'ap-export-kv-list';
 
-    const tbody = document.createElement('tbody');
     rows.forEach(([label, value]) => {
-        const row = document.createElement('tr');
-        const labelCell = document.createElement('th');
-        labelCell.scope = 'row';
-        labelCell.textContent = label;
-        const valueCell = document.createElement('td');
-        valueCell.textContent = formatExportTableValue(value);
-        row.appendChild(labelCell);
-        row.appendChild(valueCell);
-        tbody.appendChild(row);
+        const row = document.createElement('div');
+        row.className = 'ap-export-kv-row';
+
+        const labelEl = document.createElement('div');
+        labelEl.className = 'ap-export-kv-label';
+        labelEl.textContent = label;
+
+        const valueEl = document.createElement('div');
+        valueEl.className = 'ap-export-kv-value';
+        valueEl.textContent = formatExportTableValue(value);
+
+        row.appendChild(labelEl);
+        row.appendChild(valueEl);
+        list.appendChild(row);
     });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
+
+    wrap.appendChild(list);
     return wrap;
 }
 
@@ -2574,6 +2588,11 @@ export function ensureExportTemplateStyles() {
         .ap-export-data-table-wrap + .ap-export-data-table-wrap {
             margin-top: 4px;
         }
+        /* Legacy <table>-based renderer is no longer used for the Account
+         * Snapshot key/value tables (snapdom rasterizes HTML table cells
+         * with anti-aliased sub-pixel borders that look fuzzy). The matrix
+         * variant below still uses a real <table> because the white-space
+         * matrix is genuinely tabular (multi-column comparison grid). */
         .ap-export-data-table {
             width: 100%;
             border-collapse: collapse;
@@ -2600,6 +2619,48 @@ export function ensureExportTemplateStyles() {
         .ap-export-data-table td {
             color: #0f172a;
             font-weight: 500;
+            white-space: pre-wrap;
+        }
+
+        /* --- Snapdom-friendly key/value list (used by Account Snapshot) --- */
+        .ap-export-kv-list-wrap + .ap-export-kv-list-wrap {
+            margin-top: 18px;
+        }
+        .ap-export-kv-list {
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid #cbd5e1;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .ap-export-kv-row {
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .ap-export-kv-row:last-child {
+            border-bottom: none;
+        }
+        .ap-export-kv-label {
+            flex: 0 0 34%;
+            padding: 9px 14px;
+            background: #f1f5f9;
+            color: #334155;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            line-height: 1.4;
+            border-right: 1px solid #cbd5e1;
+        }
+        .ap-export-kv-value {
+            flex: 1 1 auto;
+            padding: 9px 14px;
+            color: #0f172a;
+            font-family: ${GPC_BRAND.fontBody};
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.5;
             white-space: pre-wrap;
         }
         .ap-export-data-table--matrix th {
