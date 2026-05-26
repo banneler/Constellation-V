@@ -8,6 +8,7 @@ import {
     buildDossierContentPage,
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
+    unwrapDossierSectionGroup,
 } from './account-plan-export-templates.js';
 
 const LETTER_WIDTH_PT = 612;
@@ -185,6 +186,46 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
             return;
         }
 
+        // Orphan-control wrapper: treat the entire group as a single
+        // indivisible unit so its members travel together on one page. If the
+        // combined group can't fit on its own page (rare with the configured
+        // short editorial sections), gracefully unwrap and let normal
+        // pagination flow handle each member individually.
+        if (block.classList && block.classList.contains('ap-export-section-group')) {
+            if (pageFits([...current, block])) {
+                current.push(block);
+                return;
+            }
+            flush();
+            if (pageFits([block])) {
+                current.push(block);
+                return;
+            }
+
+            const unwrapped = unwrapDossierSectionGroup(block);
+            unwrapped.forEach((memberBlock) => {
+                if (pageFits([...current, memberBlock])) {
+                    current.push(memberBlock);
+                    return;
+                }
+                flush();
+                if (pageFits([memberBlock])) {
+                    current.push(memberBlock);
+                    return;
+                }
+                const parts = splitDossierSectionBlock(memberBlock, meta, exportRoot);
+                parts.forEach((part) => {
+                    if (pageFits([...current, part])) {
+                        current.push(part);
+                    } else {
+                        flush();
+                        current.push(part);
+                    }
+                });
+            });
+            return;
+        }
+
         if (pageFits([...current, block])) {
             current.push(block);
             return;
@@ -245,13 +286,19 @@ function buildEntryPointsPageGroups(block, meta, exportRoot) {
         return measureDossierContentPage([trialBlock], meta, exportRoot);
     };
 
+    // Hard cap of TWO profiles per printed page. The condensed
+    // `.ap-export-target-profile` CSS is sized so a pair fits beautifully on
+    // a single 8.5×11; cramming more (even when it measurably fits) makes the
+    // cards visually noisy. Falling back to 1-per-page is preserved for the
+    // edge case where a single oversized profile cannot share a page.
+    const MAX_PROFILES_PER_PAGE = 2;
     /** @type {{ start: number, count: number }[]} */
     let pageRanges = [];
     let start = 0;
     while (start < profiles.length) {
         let maxFit = 1;
         const remaining = profiles.length - start;
-        for (let tryCount = Math.min(remaining, 6); tryCount >= 1; tryCount -= 1) {
+        for (let tryCount = Math.min(remaining, MAX_PROFILES_PER_PAGE); tryCount >= 1; tryCount -= 1) {
             if (chunkFits(tryCount, start)) {
                 maxFit = tryCount;
                 break;
@@ -285,12 +332,17 @@ function buildEntryPointsPageGroups(block, meta, exportRoot) {
 function rebalanceEntryPointPageRanges(pageRanges, totalProfiles, chunkFits) {
     if (pageRanges.length <= 1) return pageRanges;
 
+    // Keep the same 2-per-page contract during rebalancing — otherwise a
+    // trailing singleton could merge into a previous full page and create a
+    // 3-up layout, which we explicitly disallow.
+    const MAX_PROFILES_PER_PAGE = 2;
+
     const last = pageRanges[pageRanges.length - 1];
     if (last.count !== 1) return pageRanges;
 
     const prev = pageRanges[pageRanges.length - 2];
     const mergedCount = prev.count + last.count;
-    if (chunkFits(mergedCount, prev.start)) {
+    if (mergedCount <= MAX_PROFILES_PER_PAGE && chunkFits(mergedCount, prev.start)) {
         return [
             ...pageRanges.slice(0, -2),
             { start: prev.start, count: mergedCount },

@@ -15,6 +15,13 @@ import {
 
 export const PLAN_SUMMARY_DOCUMENT_TITLE = 'Strategic Account Plan Summary';
 
+/**
+ * Short-form document label used in the per-page running header. Kept as a
+ * literal string (instead of a substring of the long doc title) so the C-suite
+ * crumb always reads exactly "Strategic Dossier".
+ */
+const DOSSIER_RUNNING_DOC_LABEL = 'Strategic Dossier';
+
 export const DOSSIER_WIDTH_PX = 816;
 export const DOSSIER_HEIGHT_PX = 1056;
 export const EXEC_WIDTH_PX = 1056;
@@ -30,6 +37,23 @@ const INFLUENCE_CONTACT_FIELD_LABELS = {
     strategic_priorities: 'Strategic Priorities',
     personality_style: 'Personality Style',
 };
+
+/**
+ * Section IDs that should travel together on the same printed page to avoid
+ * orphan/widow placement of short, conceptually-linked editorial blocks.
+ * Each tuple is rendered as a single `.ap-export-section-group` wrapper that
+ * the paginator treats as an atomic unit (with a graceful fallback to
+ * un-grouping if the combined block cannot fit on one page).
+ *
+ * Current grouping mirrors the "deal context" trio:
+ *   - pain_signals     → Signals of internal pain
+ *   - critical_unknowns → Open questions the rep still needs answered
+ *   - entrenchment      → Compound human / political moat dynamics
+ * @type {ReadonlyArray<ReadonlyArray<string>>}
+ */
+const DOSSIER_SECTION_GROUPS = Object.freeze([
+    Object.freeze(['pain_signals', 'critical_unknowns', 'entrenchment']),
+]);
 
 /** @type {Record<string, string>} */
 const DOSSIER_SECTION_ICONS = {
@@ -662,15 +686,80 @@ export function buildDossierTemplate(plan, account) {
     const dateLabel = formatExportDate(new Date());
     const contacts = getExportContacts(account);
 
-    const sectionBlocks = PLAN_SECTIONS
+    const rawBlocks = PLAN_SECTIONS
         .filter((section) => section.exportDossier !== false)
         .flatMap((section) => buildDossierSectionUnits(section, sections, contacts))
         .filter(Boolean);
+
+    const sectionBlocks = applyDossierSectionGrouping(rawBlocks);
 
     return {
         sectionBlocks,
         meta: { accountName, dateLabel },
     };
+}
+
+/**
+ * Wrap configured DOSSIER_SECTION_GROUPS members in a single
+ * `.ap-export-section-group` block so the paginator keeps them on the same
+ * printed page. The group is positioned at the index of the first member in
+ * the original order, and the remaining members are pulled in (preserving
+ * their original relative order) and removed from their original positions.
+ *
+ * @param {HTMLElement[]} blocks
+ * @returns {HTMLElement[]}
+ */
+function applyDossierSectionGrouping(blocks) {
+    if (!Array.isArray(blocks) || blocks.length === 0) return blocks;
+
+    let result = blocks.slice();
+
+    DOSSIER_SECTION_GROUPS.forEach((groupIds) => {
+        if (!Array.isArray(groupIds) || groupIds.length < 2) return;
+
+        const memberIndexes = groupIds
+            .map((id) => result.findIndex(
+                (block) => block instanceof HTMLElement && block.dataset.sectionId === id
+            ))
+            .filter((idx) => idx >= 0);
+
+        if (memberIndexes.length < 2) return;
+
+        const orderedMembers = [...memberIndexes]
+            .sort((a, b) => a - b)
+            .map((idx) => result[idx]);
+
+        const insertionIndex = Math.min(...memberIndexes);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'ap-export-section-group';
+        wrapper.dataset.sectionId = `group:${groupIds.join('+')}`;
+        wrapper.dataset.sectionTitle = orderedMembers[0] instanceof HTMLElement
+            ? (orderedMembers[0].dataset.sectionTitle || 'Strategic Context')
+            : 'Strategic Context';
+        orderedMembers.forEach((member) => wrapper.appendChild(member));
+
+        result = result.filter((_, idx) => !memberIndexes.includes(idx));
+        result.splice(insertionIndex, 0, wrapper);
+    });
+
+    return result;
+}
+
+/**
+ * Unwrap a section-group block into its constituent
+ * `.ap-export-dossier-section` children. Used by the paginator as a graceful
+ * fallback when the combined group does not fit on a single page.
+ * @param {HTMLElement} groupBlock
+ * @returns {HTMLElement[]}
+ */
+export function unwrapDossierSectionGroup(groupBlock) {
+    if (!(groupBlock instanceof HTMLElement)) return [];
+    if (!groupBlock.classList.contains('ap-export-section-group')) {
+        return [groupBlock];
+    }
+    return [...groupBlock.querySelectorAll(':scope > .ap-export-dossier-section')]
+        .filter((child) => child instanceof HTMLElement);
 }
 
 /**
@@ -1195,80 +1284,6 @@ function buildWhiteSpaceMatrixBody(rows) {
 }
 
 /**
- * Signals-only interaction log for dossier export (excludes CRM-promoted activities).
- * @param {Record<string, unknown>} sections
- * @param {unknown[]} contacts
- * @returns {HTMLElement}
- */
-function buildInteractionLogExportBody(sections, contacts) {
-    const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
-    const exportEntries = log
-        .filter((entry) => {
-            if (!isPlainObject(entry)) return false;
-            const source = String(entry.source ?? '').toLowerCase();
-            if (source === 'activity' || source === 'crm') return false;
-            const text = String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim();
-            return text.length > 0;
-        })
-        .sort((a, b) => {
-            const aMs = new Date(String(a.date ?? '')).getTime();
-            const bMs = new Date(String(b.date ?? '')).getTime();
-            return (Number.isNaN(bMs) ? 0 : bMs) - (Number.isNaN(aMs) ? 0 : aMs);
-        });
-
-    const wrap = document.createElement('div');
-    wrap.className = 'ap-export-interaction-log-wrap';
-
-    if (!exportEntries.length) {
-        const empty = document.createElement('p');
-        empty.className = 'ap-export-editorial-copy ap-export-interaction-log-empty';
-        empty.textContent = 'No structured interactions logged yet.';
-        wrap.appendChild(empty);
-        return wrap;
-    }
-
-    exportEntries.forEach((entry) => {
-        const card = document.createElement('article');
-        card.className = 'ap-export-interaction-log-entry';
-
-        const head = document.createElement('div');
-        head.className = 'ap-export-interaction-log-head';
-        const sourceLabel = String(entry.source ?? 'signal') === 'manual' ? 'Interaction' : 'Strategic Signal';
-        const dateLabel = formatExportTableValue(entry.date);
-        head.innerHTML = `<strong>${escapeHtml(sourceLabel)}</strong><span>${escapeHtml(dateLabel)}</span>`;
-        card.appendChild(head);
-
-        const contact = entry.contact_id != null
-            ? resolveContactById(entry.contact_id, contacts)
-            : null;
-        if (contact) {
-            card.appendChild(createProfileField('Contact', formatInfluenceContactLabel(contact)));
-        }
-
-        const summaryFields = [
-            ['Interaction', entry.interaction],
-            ['Key Insight', entry.key_insight],
-            ['Signal', entry.text],
-            ['Political Signal', entry.political_signal],
-            ['Relationship Energy', entry.relationship_energy],
-            ['Trust Earned', entry.trust_earned],
-            ['Momentum Shift', entry.momentum_shift],
-            ['Next Move', entry.next_move],
-        ];
-
-        summaryFields.forEach(([label, value]) => {
-            const text = String(value ?? '').trim();
-            if (!text) return;
-            card.appendChild(createProfileField(label, text));
-        });
-
-        wrap.appendChild(card);
-    });
-
-    return wrap;
-}
-
-/**
  * @param {unknown} entry
  * @param {unknown[]} contacts
  * @returns {HTMLElement | null}
@@ -1410,10 +1425,6 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         return [createDossierSectionBlock(section, buildWhiteSpaceMatrixBody(rows))];
     }
 
-    if (section.type === 'interaction_log') {
-        return [createDossierSectionBlock(section, buildInteractionLogExportBody(sections, contacts))];
-    }
-
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const fields = section.fields || [];
@@ -1542,14 +1553,14 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         const wrap = document.createElement('div');
         wrap.className = 'ap-export-psych-export-wrap';
 
+        // McKinsey-style 2-column grid of slim horizontal bars. The row IS
+        // the card (no outer panel wrap) — keeps the visual treatment crisp
+        // and gives each metric maximum horizontal runway for the bar.
         const grid = document.createElement('div');
         grid.className = 'ap-export-psych-grid ap-export-psych-grid--dossier';
         sliders.forEach((slider) => {
             const value = clampScale(psychology[slider.id], 3);
-            const panel = document.createElement('div');
-            panel.className = 'ap-export-panel ap-export-panel--metric ap-export-panel--psych-compact';
-            panel.appendChild(buildPsychologyBar(slider, value));
-            grid.appendChild(panel);
+            grid.appendChild(buildPsychologyBar(slider, value));
         });
         wrap.appendChild(grid);
 
@@ -1635,12 +1646,21 @@ export function buildDossierContentPage(blocks, meta, pageInfo) {
     page.style.width = `${DOSSIER_WIDTH_PX}px`;
     page.style.height = `${DOSSIER_HEIGHT_PX}px`;
 
+    // Unified running header — identical structure on every interior page so
+    // there is no "first page is special" treatment. The three-part crumb
+    // (<Account> | Strategic Dossier | <Section>) reads like a tasteful
+    // newspaper running head and the logo anchors the right edge.
     const header = document.createElement('div');
     header.className = 'ap-export-gpc-page-header';
     header.innerHTML = `
+        <div class="ap-export-gpc-running" role="presentation">
+            <span class="ap-export-gpc-running-account">${escapeHtml(meta.accountName)}</span>
+            <span class="ap-export-gpc-running-sep" aria-hidden="true"></span>
+            <span class="ap-export-gpc-running-doc">${escapeHtml(DOSSIER_RUNNING_DOC_LABEL)}</span>
+            <span class="ap-export-gpc-running-sep" aria-hidden="true"></span>
+            <span class="ap-export-gpc-running-section">${escapeHtml(pageTitle)}</span>
+        </div>
         <img class="ap-export-gpc-logo ap-export-gpc-logo--content" src="${GPC_LOGO_NAVY}" alt="" crossorigin="anonymous" />
-        <h1 class="ap-export-gpc-page-title">${escapeHtml(pageTitle)}</h1>
-        <p class="ap-export-gpc-page-subtitle">${escapeHtml(meta.accountName)}</p>
         <div class="ap-export-gpc-page-rule"></div>`;
     page.appendChild(header);
 
@@ -1670,21 +1690,45 @@ function getContentPageTitle(blocks) {
         return PLAN_SUMMARY_DOCUMENT_TITLE;
     }
 
-    const titles = [...new Set(
-        blocks
-            .map((block) => (block instanceof HTMLElement ? block.dataset.sectionTitle : ''))
-            .filter(Boolean)
-    )];
+    // Collect the section titles in document order (including for grouped
+    // pages where multiple sections share a page). The running header reads
+    // best when it leads with the first section the reader's eye lands on,
+    // rather than falling back to the document title for multi-section pages.
+    const orderedTitles = blocks
+        .flatMap((block) => collectBlockSectionTitles(block))
+        .filter(Boolean);
 
-    if (titles.length === 1) {
-        const continued = blocks.some((block) => {
-            if (!(block instanceof HTMLElement)) return false;
-            return Boolean(block.querySelector('.ap-export-dossier-section-title')?.textContent?.includes('(continued)'));
-        });
-        return continued ? `${titles[0]} (continued)` : titles[0];
+    if (orderedTitles.length === 0) {
+        return PLAN_SUMMARY_DOCUMENT_TITLE;
     }
 
-    return PLAN_SUMMARY_DOCUMENT_TITLE;
+    const distinctTitles = [...new Set(orderedTitles)];
+    const continued = blocks.some((block) => {
+        if (!(block instanceof HTMLElement)) return false;
+        return Boolean(block.querySelector('.ap-export-dossier-section-title')?.textContent?.includes('(continued)'));
+    });
+
+    if (distinctTitles.length === 1) {
+        return continued ? `${distinctTitles[0]} (continued)` : distinctTitles[0];
+    }
+
+    // Multi-section page (e.g. an orphan-control group, or two packed shorts).
+    // Lead with the first section's title — that is what the reader sees at
+    // the top of the page — without a "continued" suffix.
+    return distinctTitles[0];
+}
+
+/**
+ * @param {Element | HTMLElement} block
+ * @returns {string[]}
+ */
+function collectBlockSectionTitles(block) {
+    if (!(block instanceof HTMLElement)) return [];
+    if (block.classList.contains('ap-export-section-group')) {
+        return [...block.querySelectorAll(':scope > .ap-export-dossier-section')]
+            .map((child) => (child instanceof HTMLElement ? child.dataset.sectionTitle || '' : ''));
+    }
+    return [block.dataset.sectionTitle || ''];
 }
 
 /**
@@ -1779,18 +1823,21 @@ function buildMomentumMetricPanel(score) {
 function buildPsychologyBar(slider, value) {
     const row = document.createElement('div');
     row.className = 'ap-export-psych-row';
-    const pct = ((value - 1) / 4) * 100;
+    // Map a 1-5 score to a 0-100% fill. Anchor 1 just inside the left edge
+    // (8%) so the fill is always visible — a true 0%-width div reads as
+    // "missing data" in print rather than "low score."
+    const pct = 8 + ((value - 1) / 4) * 92;
     row.innerHTML = `
         <div class="ap-export-psych-row-header">
             <span class="ap-export-psych-row-label">${escapeHtml(slider.label)}</span>
-            <span class="ap-export-psych-row-value">${value} / 5</span>
+            <span class="ap-export-psych-row-value">${value}<span class="ap-export-psych-row-value-divider">/</span><span class="ap-export-psych-row-value-max">5</span></span>
+        </div>
+        <div class="ap-export-psych-row-scale">
+            <span class="ap-export-psych-row-scale-low">${escapeHtml(slider.lowLabel)}</span>
+            <span class="ap-export-psych-row-scale-high">${escapeHtml(slider.highLabel)}</span>
         </div>
         <div class="ap-export-psych-track">
-            <div class="ap-export-psych-fill" style="width:${pct}%;background:${GPC_BRAND.teal}"></div>
-        </div>
-        <div class="ap-export-psych-scale">
-            <span>${escapeHtml(slider.lowLabel)}</span>
-            <span>${escapeHtml(slider.highLabel)}</span>
+            <div class="ap-export-psych-fill" style="width:${pct}%"></div>
         </div>`;
     return row;
 }
@@ -2075,43 +2122,80 @@ export function ensureExportTemplateStyles() {
             position: relative;
             overflow: hidden;
         }
+        /* --- Unified running header (identical on every interior page) --- */
         .ap-export-gpc-page-header {
             position: absolute;
             left: 48px;
             right: 48px;
-            top: 34px;
+            top: 38px;
         }
         .ap-export-gpc-logo--content {
             position: absolute;
-            top: 0;
+            top: -6px;
             right: 0;
-            width: 120px;
+            width: 96px;
             height: auto;
         }
-        .ap-export-gpc-page-title {
-            margin: 0 140px 6px 0;
+        .ap-export-gpc-running {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-right: 116px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 28px;
-            line-height: 1.15;
+            font-size: 10.5px;
+            line-height: 1.2;
             font-weight: 700;
-            color: ${GPC_BRAND.textDark};
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #0f172a;
+            min-height: 24px;
         }
-        .ap-export-gpc-page-subtitle {
-            margin: 0 140px 12px 0;
-            font-size: 16px;
-            line-height: 1.3;
-            color: ${GPC_BRAND.lime};
+        .ap-export-gpc-running-account {
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 38%;
+        }
+        .ap-export-gpc-running-doc {
+            color: ${GPC_BRAND.teal};
+            white-space: nowrap;
+        }
+        .ap-export-gpc-running-section {
+            color: #475569;
             font-weight: 600;
+            letter-spacing: 0.12em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .ap-export-gpc-running-sep {
+            display: inline-block;
+            width: 1px;
+            height: 12px;
+            background: #cbd5e1;
+            flex-shrink: 0;
         }
         .ap-export-gpc-page-rule {
+            margin-top: 12px;
             height: 2px;
-            background: ${GPC_BRAND.gray};
+            background: linear-gradient(
+                to right,
+                ${GPC_BRAND.navyDeep} 0%,
+                ${GPC_BRAND.navyDeep} 28%,
+                ${GPC_BRAND.teal} 28%,
+                ${GPC_BRAND.teal} 60%,
+                ${GPC_BRAND.lime} 60%,
+                ${GPC_BRAND.lime} 100%
+            );
         }
         .ap-export-dossier-content {
             position: absolute;
             left: 48px;
             right: 48px;
-            top: 148px;
+            top: 92px;
             bottom: 58px;
             overflow: hidden;
         }
@@ -2468,35 +2552,6 @@ export function ensureExportTemplateStyles() {
             padding-top: 14px;
             overflow: hidden;
         }
-        .ap-export-interaction-log-empty {
-            border-top: 2px solid #0f172a;
-            padding-top: 14px;
-            color: #64748b;
-        }
-        .ap-export-interaction-log-wrap {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            border-top: 2px solid #0f172a;
-            padding-top: 14px;
-        }
-        .ap-export-interaction-log-entry {
-            border: 1px solid #e2e8f0;
-            background: #fafbfc;
-            padding: 10px 12px;
-        }
-        .ap-export-interaction-log-head {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 8px;
-            font-family: ${GPC_BRAND.fontHeading};
-            font-size: 11px;
-            color: #0f172a;
-        }
-        .ap-export-interaction-log-entry .ap-export-profile-field {
-            margin-top: 6px;
-        }
         .ap-export-influence-contact-list {
             display: flex;
             flex-direction: column;
@@ -2536,41 +2591,45 @@ export function ensureExportTemplateStyles() {
             border-top: 1px solid #e2e8f0;
             padding-top: 14px;
         }
+        /* --- Strategic Entry Points: 2-up target profiles --- */
         .ap-export-target-profiles-body {
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 12px;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 12px;
         }
         .ap-export-target-profile {
             page-break-inside: avoid;
             break-inside: avoid;
             border: 1px solid #e2e8f0;
             background: #fafbfc;
-            padding: 16px 18px 18px;
+            padding: 11px 14px 12px;
+            border-radius: 4px;
         }
         .ap-export-target-profile + .ap-export-target-profile {
             margin-top: 0;
         }
         .ap-export-target-profile-header {
-            margin-bottom: 14px;
-            padding-bottom: 10px;
+            margin-bottom: 9px;
+            padding-bottom: 7px;
             border-bottom: 1px solid #e2e8f0;
         }
         .ap-export-target-profile-name {
-            margin: 0 0 8px;
+            margin: 0 0 5px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 15px;
+            font-size: 13.5px;
+            line-height: 1.2;
             font-weight: 700;
             letter-spacing: 0.01em;
             color: #0f172a;
             text-transform: none;
         }
         .ap-export-target-profile-contact {
-            margin: -4px 0 8px;
+            margin: -2px 0 6px;
             font-family: ${GPC_BRAND.fontBody};
-            font-size: 10.5px;
+            font-size: 10px;
+            line-height: 1.25;
             font-weight: 500;
             color: #64748b;
             letter-spacing: 0.01em;
@@ -2578,41 +2637,66 @@ export function ensureExportTemplateStyles() {
         .ap-export-badge-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 4px;
         }
         .ap-export-badge {
             display: inline-block;
-            font-size: 9px;
+            font-size: 8.5px;
             text-transform: uppercase;
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 2px 5px;
+            border-radius: 3px;
             margin-right: 0;
             color: #475569;
             font-weight: 600;
             letter-spacing: 0.03em;
+            line-height: 1.2;
         }
         .ap-export-target-profile-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0 20px;
+            gap: 0 14px;
         }
         .ap-export-target-profile-column {
             min-width: 0;
         }
         .ap-export-target-profile-column:first-child {
             border-right: 1px solid #e2e8f0;
-            padding-right: 18px;
+            padding-right: 14px;
         }
         .ap-export-target-profile-group-title {
-            margin: 0 0 10px;
+            margin: 0 0 7px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 10px;
+            font-size: 9.5px;
             font-weight: 700;
             letter-spacing: 0.08em;
             text-transform: uppercase;
             color: #0f172a;
+        }
+        .ap-export-target-profile .ap-export-profile-field {
+            margin-bottom: 7px;
+            padding-left: 8px;
+            border-left: 2px solid #3b82f6;
+        }
+        .ap-export-target-profile .ap-export-profile-field:last-child {
+            margin-bottom: 0;
+        }
+        .ap-export-target-profile .ap-export-profile-kicker {
+            font-size: 8.5px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
+        }
+        .ap-export-target-profile .ap-export-profile-copy {
+            margin: 0;
+            font-size: 10.5px;
+            line-height: 1.45;
+            color: #1e293b;
+            white-space: pre-wrap;
         }
         .ap-export-profile-field {
             margin-bottom: 12px;
@@ -2638,40 +2722,102 @@ export function ensureExportTemplateStyles() {
             white-space: pre-wrap;
         }
 
-        /* --- Account Psychology (unchanged visual treatment) --- */
-        .ap-export-psych-grid { display: flex; flex-direction: column; gap: 10px; }
+        /* --- Section group (orphan control wrapper) --- */
+        .ap-export-section-group {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            display: flex;
+            flex-direction: column;
+        }
+        .ap-export-section-group > .ap-export-dossier-section + .ap-export-dossier-section {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* --- Account Psychology (McKinsey/Gartner horizontal bars) --- */
+        .ap-export-psych-grid { display: flex; flex-direction: column; gap: 14px; }
         .ap-export-psych-grid--dossier {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px 14px;
+            gap: 16px 20px;
         }
-        .ap-export-dossier-body--metric .ap-export-panel--psych-compact {
-            padding: 10px 12px;
-        }
-        .ap-export-dossier-body--metric .ap-export-panel--psych-compact .ap-export-psych-row-header {
-            margin-bottom: 3px;
+        .ap-export-psych-row {
+            padding: 14px 16px 12px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
         .ap-export-psych-row-header {
             display: flex;
             justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+            margin: 0;
+        }
+        .ap-export-psych-row-label {
+            font-family: ${GPC_BRAND.fontHeading};
             font-size: 12px;
-            margin-bottom: 4px;
-            color: ${GPC_BRAND.textDark};
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #0f172a;
+            text-transform: none;
         }
-        .ap-export-psych-row-value { font-weight: 700; color: ${GPC_BRAND.navyDeep}; }
-        .ap-export-psych-track {
-            height: 8px;
-            border-radius: 999px;
-            background: ${GPC_BRAND.gray};
-            overflow: hidden;
+        .ap-export-psych-row-value {
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 12px;
+            font-weight: 700;
+            color: ${GPC_BRAND.teal};
+            letter-spacing: 0.02em;
+            white-space: nowrap;
         }
-        .ap-export-psych-fill { height: 100%; border-radius: 999px; }
-        .ap-export-psych-scale {
+        .ap-export-psych-row-value-divider,
+        .ap-export-psych-row-value-max {
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .ap-export-psych-row-value-divider {
+            margin: 0 2px;
+        }
+        .ap-export-psych-row-scale {
             display: flex;
             justify-content: space-between;
-            font-size: 10px;
+            gap: 12px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 8.5px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
             color: #64748b;
-            margin-top: 3px;
+            margin-top: 2px;
+        }
+        .ap-export-psych-row-scale-low,
+        .ap-export-psych-row-scale-high {
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 48%;
+        }
+        .ap-export-psych-row-scale-high {
+            text-align: right;
+        }
+        .ap-export-psych-track {
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 0;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .ap-export-psych-fill {
+            height: 100%;
+            background: ${GPC_BRAND.teal};
+            border-radius: 0;
         }
         .ap-export-dossier-body--metric .ap-export-panel--momentum-metric {
             display: flex;

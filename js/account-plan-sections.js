@@ -491,7 +491,10 @@ export const PLAN_SECTIONS = Object.freeze([
         title: 'Interaction Log',
         contextMode: 'lead',
         description: 'Structured relationship events and strategic signals.',
-        exportDossier: true,
+        // Excluded from the PDF dossier — the Relationship Timeline is the
+        // canonical client-facing view of signals + activities. The form
+        // remains in the canvas so reps can capture new signals.
+        exportDossier: false,
         exportExec: false,
     },
     {
