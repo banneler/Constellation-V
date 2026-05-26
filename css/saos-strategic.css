@@ -1072,3 +1072,138 @@ body.strategic-mode-active #strategic-workspace {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+/* -------------------------------------------------------------------------
+ * Task 3 — "The Blindspots" rapid-fire checklist UI.
+ *
+ * Sales-psychology rationale: by styling each blindspot as a small,
+ * checklist-row chip (with a discrete remove "×" button) and giving the
+ * Add input/button row visual weight, the section reads like a punch-
+ * list rather than a journal page. The visual mass is intentionally on
+ * the Add affordance — the rep should feel mild friction every time
+ * they have NOT yet captured an outstanding discovery question.
+ * ------------------------------------------------------------------------- */
+
+.strategic-section--blindspots .blindspots-list-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.blindspots-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.blindspots-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--bg-dark) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary-blue) 22%, transparent);
+    color: var(--text-light);
+    font-size: 0.875rem;
+    line-height: 1.35;
+}
+
+.blindspots-item-bullet {
+    font-size: 0.875rem;
+    color: color-mix(in srgb, var(--primary-blue) 75%, var(--text-muted));
+    transform: translateY(1px);
+    flex: 0 0 auto;
+}
+
+.blindspots-item-text {
+    flex: 1 1 auto;
+    word-break: break-word;
+}
+
+.blindspots-item-remove {
+    flex: 0 0 auto;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--text-muted) 45%, transparent);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.blindspots-item-remove:hover,
+.blindspots-item-remove:focus-visible {
+    background: color-mix(in srgb, #ef4444 18%, transparent);
+    border-color: color-mix(in srgb, #ef4444 60%, transparent);
+    color: #fecaca;
+    outline: none;
+}
+
+.blindspots-empty {
+    padding: 0.5rem 0;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.8125rem;
+}
+
+.blindspots-add-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.blindspots-add-input {
+    flex: 1 1 auto;
+    /* Inherit .strategic-field styles for borders/padding; only add the
+     * row-local layout tweaks here so the input matches surrounding
+     * textareas visually. */
+}
+
+.blindspots-add-btn {
+    flex: 0 0 auto;
+    padding: 0 1rem;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--primary-blue) 55%, transparent);
+    background: color-mix(in srgb, var(--primary-blue) 22%, transparent);
+    color: var(--text-light);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.blindspots-add-btn:hover,
+.blindspots-add-btn:focus-visible {
+    background: color-mix(in srgb, var(--primary-blue) 38%, transparent);
+    border-color: color-mix(in srgb, var(--primary-blue) 78%, transparent);
+    outline: none;
+}
+
+/* -------------------------------------------------------------------------
+ * Task 4 — Strategic Tension accountability prompt.
+ *
+ * Rendered as a follow-on paragraph inside the same ghost-reminder
+ * <aside> that already carries the read-only tension pills. The styling
+ * deliberately mimics a direct question (warm amber accent, slightly
+ * heavier weight) so the rep's eye lands on it before they start
+ * typing the Land & Expand strategy below.
+ * ------------------------------------------------------------------------- */
+
+.strategic-ghost-linkage-prompt {
+    margin: 0.625rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid rgba(234, 179, 8, 0.7);
+    background: color-mix(in srgb, rgba(234, 179, 8, 0.18) 60%, transparent);
+    color: var(--text-light);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    font-weight: 500;
+    border-radius: 0 4px 4px 0;
+}

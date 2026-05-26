@@ -244,10 +244,19 @@ function buildExecStrategyBody(sections) {
     wrap.className = 'ap-exec-prose-stack';
 
     const data = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : null;
+    // Post-Task-2: the merged `thesis` field replaces `core` +
+    // `cost_of_standing_still`. We coalesce legacy fields when the new
+    // one is empty so unmigrated plans still surface a paragraph.
+    const thesisText = data
+        ? (String(data.thesis ?? '').trim()
+            || [data.core, data.cost_of_standing_still]
+                .map((v) => String(v ?? '').trim())
+                .filter(Boolean)
+                .join('\n\n'))
+        : '';
     const blocks = data
         ? [
-            ['Core Thesis', data.core],
-            ['Cost of Standing Still', data.cost_of_standing_still],
+            ['Pursuit Thesis', thesisText],
             ['Strategic Timing', data.timing],
         ].filter(([, value]) => String(value ?? '').trim())
         : [];
@@ -1030,18 +1039,30 @@ function buildTargetProfile(rawPoint) {
     howTitle.textContent = 'The How';
     howColumn.appendChild(howTitle);
 
+    // Post-Task-1 the field set is tightened to the consolidated
+    // keys. We still fall back to legacy values when the merged field
+    // is empty so older exports continue to surface every paragraph
+    // the rep originally wrote — the data layer's normalizeEntryPoint
+    // will normally have merged these by now, but we keep the fallback
+    // in case the export is run against a raw payload.
+    const pickMerged = (mergedVal, ...legacyVals) => {
+        const merged = String(mergedVal ?? '').trim();
+        if (merged) return merged;
+        return legacyVals
+            .map((v) => String(v ?? '').trim())
+            .filter(Boolean)
+            .join('\n\n');
+    };
+
     const whyFields = [
         ['Why They Matter', rawPoint.why_they_matter],
-        ['Likely Pressure', rawPoint.likely_pressure],
-        ['What Failure Looks Like', rawPoint.what_failure_looks_like],
-        ['Human Context', rawPoint.human_context],
+        ['Operational Pain', pickMerged(rawPoint.operational_pain, rawPoint.likely_pressure, rawPoint.what_failure_looks_like)],
         ['Mutual Connections', rawPoint.mutual_connections],
+        ['Human Context', rawPoint.human_context],
     ].filter(([, val]) => String(val ?? '').trim());
 
     const howFields = [
-        ['Best Themes', rawPoint.best_themes],
-        ['Narrative Openings', rawPoint.narrative_openings],
-        ['Tired of Hearing', rawPoint.tired_of_hearing],
+        ['Conversation Wedge', pickMerged(rawPoint.conversation_wedge, rawPoint.best_themes, rawPoint.narrative_openings)],
         ['Next Move', rawPoint.next_move],
     ].filter(([, val]) => String(val ?? '').trim());
 
@@ -1469,16 +1490,38 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         return [createDossierSectionBlock(section, body)];
     }
 
-    if (section.type === 'critical_unknowns') {
+    if (section.type === 'critical_unknowns' || section.type === 'blindspots_list') {
+        // Post-Task-3 the section is "The Blindspots" — a flat string
+        // array under sections.critical_unknowns.blindspots. We still
+        // accept the legacy `critical_unknowns` type alias above so an
+        // older PLAN_SECTIONS configuration would not crash the export.
         const data = isPlainObject(sections.critical_unknowns) ? sections.critical_unknowns : {};
-        const body = buildPillsAndTextExportBody(data, {
-            pillsLabel: 'Executive Language',
-            pillField: section.pillField || 'executive_language_pills',
-            textFields: section.textFields || [
-                { key: 'unknowns', hint: 'Open questions' },
-                { key: 'executive_language_notes', hint: 'Executive language notes' },
-            ],
-        });
+        const items = Array.isArray(data.blindspots)
+            ? data.blindspots
+            // Legacy fallback: split the old `unknowns` rich-text on
+            // newlines so older plans still produce bullets in the PDF.
+            : String(data.unknowns ?? '')
+                .split(/\r?\n+/)
+                .map((line) => line.replace(/^[\s]*(?:[-*\u2022]\s+|\d+[.)]\s+)/, '').trim())
+                .filter(Boolean);
+        const body = document.createElement('div');
+        body.className = 'ap-export-blindspots-body';
+        if (items.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'ap-export-blindspots-empty';
+            empty.textContent = 'No discovery questions captured yet.';
+            body.appendChild(empty);
+        } else {
+            const list = document.createElement('ul');
+            list.className = 'ap-export-blindspots-list';
+            items.forEach((item) => {
+                const li = document.createElement('li');
+                li.className = 'ap-export-blindspots-item';
+                li.textContent = String(item ?? '').trim();
+                list.appendChild(li);
+            });
+            body.appendChild(list);
+        }
         return [createDossierSectionBlock(section, body)];
     }
 
@@ -1815,10 +1858,17 @@ function summarizePursuitThesis(value) {
     }
     if (!isPlainObject(value)) return 'No pursuit thesis captured yet.';
 
+    // Post-Task-2: prefer the merged `thesis` field but stitch the
+    // legacy `core` + `cost_of_standing_still` together when needed so
+    // older plans still produce a non-empty summary block.
+    const thesisText = String(value.thesis ?? '').trim()
+        || [value.core, value.cost_of_standing_still]
+            .map((v) => String(v ?? '').trim())
+            .filter(Boolean)
+            .join('\n\n');
     const parts = [
-        value.core ? `Core Thesis: ${String(value.core).trim()}` : '',
+        thesisText ? `Pursuit Thesis: ${thesisText}` : '',
         value.why_account_matters ? `Why This Account Matters: ${String(value.why_account_matters).trim()}` : '',
-        value.cost_of_standing_still ? `Cost of Standing Still: ${String(value.cost_of_standing_still).trim()}` : '',
         value.timing ? `Strategic Timing: ${String(value.timing).trim()}` : '',
         value.executive_narrative ? `Executive Narrative: ${String(value.executive_narrative).trim()}` : '',
     ].filter(Boolean);

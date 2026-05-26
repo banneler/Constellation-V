@@ -21,6 +21,8 @@ import {
     PSYCHOLOGY_GRAVITY_PILLS,
     STRATEGIC_TENSION_GROUPS,
     TENSION_GHOST_SECTIONS,
+    TENSION_LINKAGE_PROMPTS,
+    buildTensionLinkagePromptText,
     INSIGHT_DENSITY_SECTIONS,
     INSIGHT_DENSITY_SOFT_LIMIT,
 } from './account-plan-sections.js';
@@ -503,6 +505,63 @@ function buildFieldHintHtml(hint) {
  * @param {{ key: string, label?: string, hint?: string }} field
  * @param {unknown} rawValue
  */
+/**
+ * Build the rapid-fire "Blindspots" list UI (Task 3). The data shape is
+ * a flat string[] under sections.critical_unknowns.blindspots — see the
+ * Task 3 commentary in account-plan-data.js for the rename rationale.
+ *
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} data
+ */
+function buildBlindspotsListHtml(section, data) {
+    const obj = isPlainObject(data) ? data : {};
+    const items = Array.isArray(obj.blindspots) ? obj.blindspots : [];
+    const inputId = `blindspots-input-${section.id}`;
+
+    // Each row is keyed by its index so the surrounding canvas re-render
+    // (refreshBlindspotsSection) can rebuild the list cheaply. We use
+    // <button type="button"> for remove so the Enter-key handler on
+    // the input doesn't accidentally trigger a row removal.
+    const rowsHtml = items.length > 0
+        ? items.map((entry, index) => {
+            const text = String(entry ?? '').trim();
+            if (!text) return '';
+            return `
+                <li class="blindspots-item" data-blindspots-index="${index}">
+                    <span class="blindspots-item-bullet" aria-hidden="true">▢</span>
+                    <span class="blindspots-item-text">${escapeHtml(text)}</span>
+                    <button
+                        type="button"
+                        class="blindspots-item-remove"
+                        data-blindspots-remove="${index}"
+                        aria-label="Remove blindspot: ${escapeHtml(text)}"
+                    >×</button>
+                </li>`;
+        }).join('')
+        : `<li class="blindspots-empty">Add the open questions you must answer on your next discovery call.</li>`;
+
+    return `
+        <div class="blindspots-list-wrap" data-blindspots-host>
+            <ul class="blindspots-list" role="list">${rowsHtml}</ul>
+            <div class="blindspots-add-row">
+                <label class="sr-only" for="${inputId}">Add a blindspot</label>
+                <input
+                    type="text"
+                    id="${inputId}"
+                    class="strategic-field blindspots-add-input"
+                    data-blindspots-input
+                    placeholder="One question per line — e.g. Who actually signs the SOW?"
+                    autocomplete="off"
+                />
+                <button
+                    type="button"
+                    class="blindspots-add-btn"
+                    data-blindspots-add
+                >Add</button>
+            </div>
+        </div>`;
+}
+
 function buildCompositeFieldHtml(sectionId, field, rawValue) {
     const rawString = String(rawValue ?? '');
     const value = escapeHtml(rawString);
@@ -655,10 +714,20 @@ function resolveTensionGhostPair(pill) {
  * Split out so refresh can swap the body without touching the host element
  * itself.
  *
+ * The optional `hostSectionId` parameter is used to look up an opt-in
+ * "tension linkage" prompt (Task 4). When the host section is registered
+ * in TENSION_LINKAGE_PROMPTS we append a directive question that forces
+ * the rep to wire their selected tensions THROUGH the strategy below —
+ * e.g. "How does our Land & Expand strategy resolve your identified
+ * tension: Cloud?". Without this nudge reps habitually default to
+ * generic "build trust, expand footprint" prose that ignores the
+ * tension they just picked one section above.
+ *
  * @param {unknown} tensions
+ * @param {string} [hostSectionId]
  * @returns {string}
  */
-function buildStrategicTensionGhostInner(tensions) {
+function buildStrategicTensionGhostInner(tensions, hostSectionId = '') {
     const rawPills = isPlainObject(tensions) && Array.isArray(tensions.selected_pills)
         ? tensions.selected_pills
         : [];
@@ -690,9 +759,25 @@ function buildStrategicTensionGhostInner(tensions) {
         return `<span class="strategic-ghost-pill"><strong>${escapeHtml(pair.chosen)}</strong>${altSuffix}</span>`;
     }).join('');
 
+    // Task 4 — accountability prompt. Centralized in
+    // buildTensionLinkagePromptText so AI/export layers can reuse the
+    // exact phrasing later if they want to surface this prompt in a
+    // slide deck. We render it as a follow-on paragraph inside the same
+    // <aside> so the existing refresh path keeps it in sync.
+    const linkageSectionLabel = hostSectionId
+        ? (TENSION_LINKAGE_PROMPTS && TENSION_LINKAGE_PROMPTS[hostSectionId]) || ''
+        : '';
+    const linkagePromptText = linkageSectionLabel
+        ? buildTensionLinkagePromptText(linkageSectionLabel, pairs.map((p) => p.chosen))
+        : '';
+    const linkagePromptHtml = linkagePromptText
+        ? `<p class="strategic-ghost-linkage-prompt" data-tension-linkage-host="${escapeHtml(hostSectionId)}">${escapeHtml(linkagePromptText)}</p>`
+        : '';
+
     return `
         <p class="strategic-ghost-headline">${headline}</p>
-        <div class="strategic-ghost-pills">${pillsHtml}</div>`;
+        <div class="strategic-ghost-pills">${pillsHtml}</div>
+        ${linkagePromptHtml}`;
 }
 
 /**
@@ -711,7 +796,7 @@ function buildStrategicTensionGhostHtml(tensions, hostSectionId) {
             data-tension-ghost-host="${escapeHtml(hostSectionId)}"
             aria-live="polite"
             aria-label="Strategic tensions reminder"
-        >${buildStrategicTensionGhostInner(tensions)}</aside>`;
+        >${buildStrategicTensionGhostInner(tensions, hostSectionId)}</aside>`;
 }
 
 /**
@@ -724,7 +809,11 @@ function refreshStrategicTensionGhosts() {
     const tensions = _liveSections.strategic_tensions;
     document.querySelectorAll('[data-tension-ghost-host]').forEach((host) => {
         if (!(host instanceof HTMLElement)) return;
-        host.innerHTML = buildStrategicTensionGhostInner(tensions);
+        // Forward the section ID so the linkage prompt (Task 4) keeps
+        // its phrasing in sync as the host changes (e.g. if we add more
+        // linkage-enabled sections in the future).
+        const hostSectionId = host.dataset.tensionGhostHost || '';
+        host.innerHTML = buildStrategicTensionGhostInner(tensions, hostSectionId);
     });
 }
 
@@ -923,6 +1012,11 @@ function buildCompositeTextareaHtml(section, data) {
     const fields = section.fields || [];
     return `<div class="strategic-composite-grid">${fields.map((field) => {
         const fieldHtml = buildCompositeFieldHtml(section.id, field, obj[field.key]);
+        // The executive_narrative box pairs with a row of hint pills
+        // (Growth / Resiliency / Modernization / …). The pills are
+        // anchored to that specific subfield, so the special case is
+        // unchanged post-Task-2 — only the surrounding `thesis` field
+        // changed identity.
         if (section.id === 'pursuit_thesis' && field.key === 'executive_narrative') {
             return `${fieldHtml}${buildExecutiveNarrativeHintPillsHtml()}`;
         }
@@ -1362,24 +1456,21 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
                 <h5 class="entry-point-row-panel-title">Strategic Context</h5>
                 <div class="entry-point-grid entry-point-grid--why">
                     ${buildEntryPointTextarea(String(index), 'why_they_matter', 'Why They Matter', String(data.why_they_matter ?? ''), 'Strategic relevance and decision weight.')}
-                    ${buildEntryPointTextarea(String(index), 'likely_pressure', 'Likely Pressure', String(data.likely_pressure ?? ''), 'What keeps them up at night.')}
-                    ${buildEntryPointTextarea(String(index), 'what_failure_looks_like', 'What Failure Looks Like', String(data.what_failure_looks_like ?? ''), 'Risk if this entry point stalls.')}
+                    ${buildEntryPointTextarea(String(index), 'operational_pain', 'Operational Pain', String(data.operational_pain ?? ''), 'What keeps them up at night AND what happens if this stalls — one tight paragraph.')}
                 </div>
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--how">
                 <h5 class="entry-point-row-panel-title">Narrative &amp; Approach</h5>
                 <div class="entry-point-grid entry-point-grid--how">
-                    ${buildEntryPointTextarea(String(index), 'best_themes', 'Best Themes', String(data.best_themes ?? ''), 'Messaging angles that resonate.')}
-                    ${buildEntryPointTextarea(String(index), 'narrative_openings', 'Narrative Openings', String(data.narrative_openings ?? ''), 'How to open the conversation.')}
-                    ${buildEntryPointTextarea(String(index), 'tired_of_hearing', 'Tired of Hearing', String(data.tired_of_hearing ?? ''), 'Pitches or claims to avoid.')}
+                    ${buildEntryPointTextarea(String(index), 'conversation_wedge', 'Conversation Wedge', String(data.conversation_wedge ?? ''), 'One sharp angle to open the conversation — the message they will actually lean into.')}
                     ${buildEntryPointTextarea(String(index), 'next_move', 'Next Move', String(data.next_move ?? ''), 'Concrete next action.')}
+                    ${buildEntryPointTextarea(String(index), 'mutual_connections', 'Mutual Connections', String(data.mutual_connections ?? ''), 'Shared relationships or references.')}
                 </div>
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--human">
-                <h5 class="entry-point-row-panel-title">Human Intelligence</h5>
-                <div class="entry-point-grid entry-point-grid--human">
-                    ${buildEntryPointTextarea(String(index), 'human_context', 'Human Context', String(data.human_context ?? ''), 'Personal motivations and style cues.')}
-                    ${buildEntryPointTextarea(String(index), 'mutual_connections', 'Mutual Connections', String(data.mutual_connections ?? ''), 'Shared relationships or references.')}
+                <h5 class="entry-point-row-panel-title">Human Context</h5>
+                <div class="entry-point-grid entry-point-grid--human-context">
+                    ${buildEntryPointTextarea(String(index), 'human_context', 'Human Context', String(data.human_context ?? ''), 'Personal motivations and style cues — the colour commentary that closes the loop.')}
                 </div>
             </div>
         </div>`;
@@ -2897,13 +2988,11 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
             );
         }
 
-        if (section.type === 'pain_signals' || section.type === 'critical_unknowns' || section.type === 'entrenchment') {
+        if (section.type === 'pain_signals' || section.type === 'entrenchment') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-            const extraClass = section.type === 'critical_unknowns'
-                ? 'strategic-section--critical-unknowns'
-                : section.type === 'entrenchment'
-                    ? 'strategic-section--entrenchment'
-                    : 'strategic-section--pain-signals';
+            const extraClass = section.type === 'entrenchment'
+                ? 'strategic-section--entrenchment'
+                : 'strategic-section--pain-signals';
             return wrapStrategicSection(
                 sectionId,
                 headingId,
@@ -2911,6 +3000,21 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
                 headerContext,
                 buildPillsAndNarrativeHtml(section, data),
                 extraClass
+            );
+        }
+
+        // Task 3 — "The Blindspots" dedicated branch. The legacy
+        // critical_unknowns section.type was pills+narrative; the new
+        // blindspots_list type renders a focused checklist instead.
+        if (section.type === 'blindspots_list') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildBlindspotsListHtml(section, data),
+                'strategic-section--blindspots'
             );
         }
 
@@ -3111,10 +3215,15 @@ function isSectionFilled(section, sections) {
         return fields.some((field) => String(obj[field.key] ?? '').trim());
     }
 
+    if (section.type === 'blindspots_list') {
+        const obj = isPlainObject(data) ? data : {};
+        const items = Array.isArray(obj.blindspots) ? obj.blindspots : [];
+        return items.some((entry) => String(entry ?? '').trim());
+    }
+
     if (
         section.type === 'pills_and_narrative'
         || section.type === 'pain_signals'
-        || section.type === 'critical_unknowns'
         || section.type === 'entrenchment'
     ) {
         const obj = isPlainObject(data) ? data : {};
@@ -3501,6 +3610,88 @@ function updateRailSummaries(sections) {
 
 let _draggedInfluenceContactId = null;
 
+/**
+ * Push a new blindspot string into the live plan, persist, and re-render
+ * just the section. Trimmed empties and exact-match duplicates are
+ * silently dropped because a strict checklist UI must NOT accumulate
+ * noise — the whole point of the refactor is to keep the list short.
+ *
+ * @param {string} text
+ */
+function addBlindspotEntry(text) {
+    if (!_liveSections) return;
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return;
+    const current = isPlainObject(_liveSections.critical_unknowns)
+        ? _liveSections.critical_unknowns
+        : { blindspots: [] };
+    const existing = Array.isArray(current.blindspots) ? current.blindspots : [];
+    if (existing.some((entry) => String(entry ?? '').trim() === trimmed)) {
+        // Silent dedupe — the rep typed the same question twice. Toasting
+        // would be noisy; the input clearing below is signal enough.
+        return;
+    }
+    _liveSections.critical_unknowns = {
+        blindspots: [...existing, trimmed],
+    };
+    refreshBlindspotsSection();
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+}
+
+/**
+ * Remove a blindspot at the given index. Used by the per-row "×" remove
+ * button. Out-of-range indices are ignored defensively because the
+ * caller is reading dataset attributes off potentially-stale DOM.
+ *
+ * @param {number} index
+ */
+function removeBlindspotEntry(index) {
+    if (!_liveSections || !Number.isFinite(index)) return;
+    const current = isPlainObject(_liveSections.critical_unknowns)
+        ? _liveSections.critical_unknowns
+        : { blindspots: [] };
+    const existing = Array.isArray(current.blindspots) ? [...current.blindspots] : [];
+    if (index < 0 || index >= existing.length) return;
+    existing.splice(index, 1);
+    _liveSections.critical_unknowns = { blindspots: existing };
+    refreshBlindspotsSection();
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+}
+
+/**
+ * Re-render just the Blindspots section in place. We intentionally do
+ * NOT call paintCanvas() — that would steal caret focus from any other
+ * field the rep is editing. The Blindspots input is not stateful
+ * between renders (it's an ephemeral add buffer) so a hard innerHTML
+ * swap is safe here.
+ */
+function refreshBlindspotsSection() {
+    const sectionEl = document.getElementById('strategic-section-critical_unknowns');
+    const sectionDef = PLAN_SECTIONS.find((section) => section.id === 'critical_unknowns');
+    if (!sectionEl || !sectionDef || !_liveSections) return;
+
+    const headingId = `strategic-heading-${sectionDef.id}`;
+    const headerContext = buildSectionHeaderContext(sectionDef);
+    const data = isPlainObject(_liveSections.critical_unknowns)
+        ? _liveSections.critical_unknowns
+        : { blindspots: [] };
+    const bodyHtml = buildBlindspotsListHtml(sectionDef, data);
+
+    sectionEl.innerHTML = `
+        <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
+        ${headerContext.leadHtml}
+        ${headerContext.blockHtml}
+        ${bodyHtml}`;
+
+    // Re-focus the input so the rep can keep typing successive
+    // blindspots without re-clicking. This mirrors the "rapid-fire"
+    // checklist feel called for in the Task 3 spec.
+    const input = sectionEl.querySelector('[data-blindspots-input]');
+    if (input instanceof HTMLInputElement) input.focus();
+}
+
 function bindCanvasFormEvents(canvas) {
     if (_canvasEventsBound) return;
     _canvasEventsBound = true;
@@ -3549,9 +3740,47 @@ function bindCanvasFormEvents(canvas) {
         queueAutosave();
     });
 
+    // Task 3 — Enter key inside the Blindspots input fires the same
+    // add-flow as clicking the Add button. We bind keydown (not keypress)
+    // so the handler also fires inside IME composition modes — though we
+    // skip composing events so Asian-language input doesn't eat half a
+    // character.
+    canvas.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        if (!target.matches('[data-blindspots-input]')) return;
+        if (event.isComposing) return;
+        event.preventDefault();
+        const value = target.value;
+        target.value = '';
+        addBlindspotEntry(value);
+    });
+
     canvas.addEventListener('click', (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
+
+        // Task 3 — Blindspots Add / Remove buttons.
+        const blindspotAdd = target.closest('[data-blindspots-add]');
+        if (blindspotAdd instanceof HTMLElement) {
+            event.preventDefault();
+            const host = blindspotAdd.closest('[data-blindspots-host]');
+            const input = host?.querySelector('[data-blindspots-input]');
+            if (input instanceof HTMLInputElement) {
+                const value = input.value;
+                input.value = '';
+                addBlindspotEntry(value);
+            }
+            return;
+        }
+
+        const blindspotRemove = target.closest('[data-blindspots-remove]');
+        if (blindspotRemove instanceof HTMLElement) {
+            event.preventDefault();
+            removeBlindspotEntry(Number(blindspotRemove.dataset.blindspotsRemove));
+            return;
+        }
 
         const entryPointPill = target.closest('.entry-point-pill');
         if (entryPointPill instanceof HTMLElement) {

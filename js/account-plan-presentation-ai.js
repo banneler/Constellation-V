@@ -263,19 +263,27 @@ function fallbackPainSignalBullets(sections) {
  */
 function fallbackCriticalUnknownBullets(sections) {
     const unknowns = isPlainObject(sections.critical_unknowns) ? sections.critical_unknowns : {};
-    const pills = Array.isArray(unknowns.executive_language_pills)
-        ? unknowns.executive_language_pills
-        : [];
+    // Post-Task-3 the section stores `blindspots: string[]`. The
+    // legacy `unknowns` rich-text blob (and the now-deprecated
+    // executive_language_* fields) are still consulted as a fallback so
+    // a half-migrated plan continues to render bullets — see
+    // normalizeCriticalUnknowns in account-plan-data.js for the
+    // equivalent migration path on the data layer.
+    const arr = Array.isArray(unknowns.blindspots) ? unknowns.blindspots : null;
+    if (arr && arr.length > 0) {
+        return arr
+            .map((entry) => String(entry ?? '').trim())
+            .filter(Boolean)
+            .slice(0, 3);
+    }
     const lines = extractBulletLines(unknowns.unknowns);
-    const bullets = [
+    return [
         ...lines,
-        ...pills.map((pill) => String(pill ?? '').trim()).filter(Boolean),
         String(unknowns.executive_language_notes ?? '').trim(),
     ]
         .map((line) => String(line).trim())
         .filter(Boolean)
         .slice(0, 3);
-    return bullets;
 }
 
 /**
@@ -283,10 +291,17 @@ function fallbackCriticalUnknownBullets(sections) {
  */
 function fallbackPursuitBullets(sections) {
     const thesis = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
+    // Post-Task-2 the single `thesis` field replaces legacy `core` +
+    // `cost_of_standing_still`. We coalesce in that order so a
+    // half-migrated payload still surfaces SOMETHING in the bullets.
+    const merged = String(thesis.thesis ?? '').trim()
+        || [thesis.core, thesis.cost_of_standing_still]
+            .map((v) => String(v ?? '').trim())
+            .filter(Boolean)
+            .join(' — ');
     return [
-        thesis.core,
+        merged,
         thesis.why_account_matters,
-        thesis.cost_of_standing_still,
         thesis.timing,
     ]
         .map((v) => String(v ?? '').trim())
@@ -497,8 +512,15 @@ function pickEntryPoints(raw, sections) {
         .slice(0, 2)
         .map((p) => ({
             name: String(p.contact_name).trim(),
-            headline: String(p.why_they_matter ?? p.likely_pressure ?? 'Key influencer').trim().slice(0, 80),
-            hook: String(p.next_move ?? p.narrative_openings ?? '').trim().slice(0, 100),
+            // Headline prefers the structured `why_they_matter` field;
+            // post-Task-1 we also fall back to the merged
+            // `operational_pain` (and the legacy `likely_pressure` for
+            // un-migrated payloads).
+            headline: String(p.why_they_matter ?? p.operational_pain ?? p.likely_pressure ?? 'Key influencer').trim().slice(0, 80),
+            // Hook prefers the explicit `next_move`. The legacy
+            // `narrative_openings` and the new merged `conversation_wedge`
+            // are consulted as fallbacks.
+            hook: String(p.next_move ?? p.conversation_wedge ?? p.narrative_openings ?? '').trim().slice(0, 100),
             badges: [
                 p.trust_level ? `Trust: ${p.trust_level}` : '',
                 p.political_influence ? `Influence: ${p.political_influence}` : '',

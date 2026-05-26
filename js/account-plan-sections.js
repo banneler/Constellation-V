@@ -2,7 +2,7 @@
  * Strategic Account OS — section registry (canvas, TOC, export metadata).
  */
 
-/** @typedef {'account_snapshot' | 'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel' | 'critical_unknowns' | 'entrenchment' | 'pain_signals' | 'white_space_matrix' | 'interaction_log'} PlanSectionType */
+/** @typedef {'account_snapshot' | 'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel' | 'critical_unknowns' | 'blindspots_list' | 'entrenchment' | 'pain_signals' | 'white_space_matrix' | 'interaction_log'} PlanSectionType */
 
 /** @typedef {'none' | 'lead' | 'block'} SectionContextMode */
 
@@ -191,6 +191,53 @@ export const POSITIONING_PILLS = Object.freeze([
  */
 export const TENSION_GHOST_SECTIONS = Object.freeze(['plan_30_60_90', 'land_and_expand']);
 
+// ---------------------------------------------------------------------------
+// Task 4 — Strategic Tension accountability prompt
+// ---------------------------------------------------------------------------
+// Sales psychology: when a tension is selected on the Strategic Tensions
+// section (e.g. "Cloud" over "Control"), reps typically forget about that
+// choice by the time they're drafting the Land & Expand strategy. The plan
+// then drifts into a generic "build trust, expand footprint" template that
+// could apply to any account.
+//
+// To force the rep to wire the tension THROUGH the solution, we render a
+// short, direct prompt above the Land & Expand textareas whenever any
+// strategic tension pill is active. The prompt is data-driven (this map)
+// so future sections can be linked declaratively without touching the UI
+// rendering code.
+// ---------------------------------------------------------------------------
+
+/**
+ * Section IDs that should display the contextual "How does this resolve
+ * the identified tension?" prompt above their primary edit surface, keyed
+ * by the human-readable section label used inside the prompt template.
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+export const TENSION_LINKAGE_PROMPTS = Object.freeze({
+    land_and_expand: 'Land & Expand',
+});
+
+/**
+ * Build the contextual prompt sentence shown above a tension-linked
+ * section. Centralized here so AI/export layers can reuse the exact same
+ * phrasing if they ever want to forward this insight into a slide deck.
+ *
+ * @param {string} sectionLabel — pretty label, e.g. 'Land & Expand'
+ * @param {string[]} selectedTensions — array of pill values (already
+ *   filtered to truthy strings by the caller)
+ * @returns {string}
+ */
+export function buildTensionLinkagePromptText(sectionLabel, selectedTensions) {
+    const list = (selectedTensions || []).filter(Boolean);
+    if (list.length === 0) return '';
+    // Single tension → name it directly. Multiple → comma-join in
+    // selection order so the rep visually pairs the prompt back to the
+    // pill row above.
+    const joined = list.length === 1 ? list[0] : list.join(', ');
+    return `How does our ${sectionLabel} strategy resolve your identified tension: ${joined}?`;
+}
+
 /**
  * Sections whose composite textareas should display the soft "Insight Density"
  * border cue once a single box exceeds the synthesize-or-cut threshold below.
@@ -239,6 +286,24 @@ export const ENTRY_POINT_LEVEL_OPTIONS = Object.freeze(['', 'Low', 'Medium', 'Hi
 /** @type {readonly string[]} */
 export const ENTRY_POINT_COMM_STYLES = Object.freeze(['', 'Concise', 'Strategic', 'Conversational', 'Analytical']);
 
+// ---------------------------------------------------------------------------
+// Target Profile (Entry Point) export labels — post-consolidation
+// ---------------------------------------------------------------------------
+// Sales psychology: the previous 9-textarea interrogation generated
+// framework fatigue. Reps were answering the same question (operational
+// pain) twice under different banners ("Likely Pressure" + "What Failure
+// Looks Like"), and similarly for narrative angles ("Best Themes" +
+// "Narrative Openings"). The merged keys force a single, sharper answer
+// per dimension — which is what an executive actually responds to in a
+// discovery call.
+//
+// `tired_of_hearing` is gone entirely. It was a fishing prompt that
+// yielded "vendor pitches" 90% of the time and never made it into a
+// real strategy. `human_context` is preserved but is now rendered at
+// the bottom of the profile UI rather than in its own "Human
+// Intelligence" subsection.
+// ---------------------------------------------------------------------------
+
 /** @type {readonly { key: string, label: string }[]} */
 export const ENTRY_POINT_EXPORT_LABELS = Object.freeze([
     { key: 'trust_level', label: 'Trust Level' },
@@ -247,14 +312,15 @@ export const ENTRY_POINT_EXPORT_LABELS = Object.freeze([
     { key: 'comm_style', label: 'Comm Style' },
     { key: 'compound_potential', label: 'Compound Potential' },
     { key: 'why_they_matter', label: 'Why They Matter' },
-    { key: 'likely_pressure', label: 'Likely Pressure' },
-    { key: 'what_failure_looks_like', label: 'What Failure Looks Like' },
-    { key: 'best_themes', label: 'Best Themes' },
-    { key: 'narrative_openings', label: 'Narrative Openings' },
-    { key: 'tired_of_hearing', label: 'Tired of Hearing' },
+    // Merge of legacy `likely_pressure` + `what_failure_looks_like`.
+    { key: 'operational_pain', label: 'Operational Pain' },
+    // Merge of legacy `best_themes` + `narrative_openings`.
+    { key: 'conversation_wedge', label: 'Conversation Wedge' },
     { key: 'next_move', label: 'Next Move' },
-    { key: 'human_context', label: 'Human Context' },
     { key: 'mutual_connections', label: 'Mutual Connections' },
+    // Relocated — now appended at the bottom of the individual Target
+    // Profile UI as a final colour-commentary field.
+    { key: 'human_context', label: 'Human Context' },
 ]);
 
 /**
@@ -302,25 +368,41 @@ export const PLAN_SECTIONS = Object.freeze([
         exportExec: true,
     },
     {
+        // ----------------------------------------------------------------
+        // Pursuit Strategy (Task 2 — consolidation)
+        // ----------------------------------------------------------------
+        // Sales psychology behind the merge: in infrastructure / telecom
+        // pursuits, the "core thesis" and the "cost of standing still"
+        // are almost never two distinct stories — the thesis IS the pain
+        // of inaction. Splitting them into two boxes encouraged reps to
+        // produce duplicate prose (often a near-verbatim restatement)
+        // and diluted the message that downstream AI and PPTX engines
+        // try to synthesize.
+        //
+        // The merged `thesis` field is intentionally framed as a single
+        // forcing question — "Why is their status quo broken, and why
+        // are we the only logical fix right now?" — to compel a sharper,
+        // more confrontational answer.
+        //
+        // `why_account_matters`, `timing`, and `executive_narrative` are
+        // preserved because they answer materially different questions
+        // (account selection, trigger events, and executive language)
+        // that a thesis box on its own cannot.
+        // ----------------------------------------------------------------
         id: 'pursuit_thesis',
         type: 'composite_textarea',
         title: 'Pursuit Strategy',
         contextMode: 'none',
         fields: [
             {
-                key: 'core',
-                label: 'Core Thesis',
-                hint: 'Why they might change — operational pain, executive pressure, vendor dissatisfaction, cloud modernization.',
+                key: 'thesis',
+                label: 'Pursuit Thesis',
+                hint: 'Why is their status quo broken, and why are we the only logical fix right now?',
             },
             {
                 key: 'why_account_matters',
                 label: 'Why This Account Matters',
                 hint: 'Strategic importance to our business — logo, reference, expansion, or competitive displacement.',
-            },
-            {
-                key: 'cost_of_standing_still',
-                label: 'Cost of Standing Still',
-                hint: 'Fragility, scaling bottlenecks, and accumulating tech debt.',
             },
             {
                 key: 'timing',
@@ -363,17 +445,29 @@ export const PLAN_SECTIONS = Object.freeze([
         exportExec: false,
     },
     {
+        // ----------------------------------------------------------------
+        // The Blindspots (Task 3 — formerly "Critical Unknowns")
+        // ----------------------------------------------------------------
+        // Sales psychology behind this refactor: a giant paragraph
+        // textarea for "what we don't know" is a fluff trap. Reps either
+        // leave it blank or write meandering anxieties. By forcing each
+        // unknown into a single line in a rapid-fire bulleted list —
+        // with an explicit Add button — we get a discovery-call
+        // checklist instead of a journal entry. The UI shape ("a strict
+        // checklist of questions they must answer on their next
+        // discovery call") is designed to feel actionable, not academic.
+        //
+        // We deliberately keep section.id === 'critical_unknowns' for
+        // downstream compatibility (AI engine, PPTX, exports). The
+        // user-facing rename to "The Blindspots" lives in the title
+        // field, and the data shape under sections.critical_unknowns
+        // collapses to { blindspots: string[] }.
+        // ----------------------------------------------------------------
         id: 'critical_unknowns',
-        type: 'critical_unknowns',
-        title: 'Critical Unknowns',
+        type: 'blindspots_list',
+        title: 'The Blindspots',
         contextMode: 'lead',
-        description: 'What we still need to learn before advancing the pursuit.',
-        pills: CRITICAL_UNKNOWN_LANGUAGE_PILLS,
-        pillField: 'executive_language_pills',
-        textFields: [
-            { key: 'unknowns', hint: 'Open questions and intelligence gaps.' },
-            { key: 'executive_language_notes', hint: 'How executives frame uncertainty.' },
-        ],
+        description: 'A strict checklist of questions you must answer on your next discovery call.',
         exportDossier: true,
         exportExec: false,
     },

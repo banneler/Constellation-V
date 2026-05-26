@@ -5,7 +5,6 @@
 import {
     STRATEGIC_TENSION_GROUPS,
     PAIN_SIGNAL_PILLS,
-    CRITICAL_UNKNOWN_LANGUAGE_PILLS,
     ENTRENCHMENT_MOAT_PILLS,
 } from './account-plan-sections.js';
 
@@ -52,23 +51,44 @@ export const ENTRY_POINT_FIELD_KEYS = Object.freeze([
     // with legacy plans that pre-date the auto-stubbing flow; both are
     // written when an entry point is auto-created from a drag/drop on the
     // influence board.
+    //
+    // Field consolidation (Task 1 — Target Profile pruning):
+    //   - `operational_pain`   merges legacy `likely_pressure` +
+    //                          `what_failure_looks_like`
+    //   - `conversation_wedge` merges legacy `best_themes` +
+    //                          `narrative_openings`
+    //   - `tired_of_hearing`   deleted (low-signal fishing prompt)
+    //   - `human_context`      kept, but UI now renders it at the bottom
+    //                          of the profile (no standalone subsection)
     'contact_id',
     'contact_name',
     'why_they_matter',
-    'likely_pressure',
+    'operational_pain',
     'trust_level',
     'responsiveness',
     'political_influence',
-    'best_themes',
-    'narrative_openings',
-    'human_context',
+    'conversation_wedge',
     'mutual_connections',
-    'tired_of_hearing',
     'next_move',
     'comm_style',
     'compound_potential',
-    'what_failure_looks_like',
+    'human_context',
 ]);
+
+// Legacy entry-point field keys we still READ from saved plans so reps
+// don't lose past work. Kept out of ENTRY_POINT_FIELD_KEYS so they aren't
+// rendered as live fields; `normalizeEntryPoint` falls back to them only
+// when the merged keys are currently empty.
+const LEGACY_ENTRY_POINT_MERGE_MAP = Object.freeze({
+    operational_pain: Object.freeze(['likely_pressure', 'what_failure_looks_like']),
+    conversation_wedge: Object.freeze(['best_themes', 'narrative_openings']),
+});
+
+// Legacy entry-point fields that should be discarded entirely (no merge
+// target). `tired_of_hearing` is the only member today but the set is
+// kept extensible so future deprecations can be added without changing
+// normalizeEntryPoint.
+const LEGACY_ENTRY_POINT_DEAD_KEYS = Object.freeze(['tired_of_hearing']);
 
 export const MAX_ENTRY_POINTS = 5;
 
@@ -166,9 +186,11 @@ export function createEmptyPlan() {
                     expansion_potential: '',
                 },
                 pursuit_thesis: {
-                    core: '',
+                    // Task 2 — single merged thesis field. Replaces the
+                    // legacy `core` + `cost_of_standing_still` pair so the
+                    // section can no longer encourage duplicate prose.
+                    thesis: '',
                     why_account_matters: '',
-                    cost_of_standing_still: '',
                     timing: '',
                     executive_narrative: '',
                 },
@@ -181,9 +203,11 @@ export function createEmptyPlan() {
                     notes: '',
                 },
                 critical_unknowns: {
-                    unknowns: '',
-                    executive_language_pills: [],
-                    executive_language_notes: '',
+                    // Task 3 — "The Blindspots" rapid-fire checklist. The
+                    // section.id is preserved as `critical_unknowns` for
+                    // downstream AI/PPTX compatibility; the data shape is
+                    // now a flat string[] array of discovery questions.
+                    blindspots: [],
                 },
                 influence_mapping: {
                     executive: [],
@@ -286,23 +310,53 @@ function normalizeInfluenceContactList(value) {
 }
 
 /**
+ * Normalize the Pursuit Strategy section.
+ *
+ * Legacy fallback (Task 2 + Task 5): older plans stored two separate
+ * paragraphs under `core` and `cost_of_standing_still`. Post-
+ * consolidation, both collapse into a single `thesis` field. We stitch
+ * the two legacy paragraphs together when migrating so reps don't lose
+ * past work — the rep can edit down to a single punchy paragraph the
+ * next time they open the plan. The blank line between paragraphs is
+ * preserved so the visual break stays meaningful.
+ *
  * @param {unknown} raw
  * @param {Record<string, unknown>} sections
  */
 function normalizePursuitThesis(raw, sections) {
     const empty = createEmptyPlan().current_draft.sections.pursuit_thesis;
+
+    // Helper: stitch legacy `core` + `cost_of_standing_still` into the
+    // new `thesis` body. Both inputs may be undefined / blank — we
+    // filter before joining to avoid producing a leading blank-line
+    // artifact.
+    const mergeLegacyThesis = (rawObj) => {
+        const parts = [rawObj?.core, rawObj?.cost_of_standing_still]
+            .map((v) => (v != null ? String(v).trim() : ''))
+            .filter(Boolean);
+        return parts.join('\n\n');
+    };
+
     if (typeof raw === 'string') {
         const legacy = raw.trim() || migrateLegacySectionText(sections, 'pursuit_thesis', ['executive_summary']);
-        return legacy ? { ...empty, core: legacy } : empty;
+        return legacy ? { ...empty, thesis: legacy } : empty;
     }
     if (!isPlainObject(raw)) {
         const legacy = migrateLegacySectionText(sections, 'pursuit_thesis', ['executive_summary']);
-        return legacy ? { ...empty, core: legacy } : empty;
+        return legacy ? { ...empty, thesis: legacy } : empty;
     }
+
+    // If a `thesis` value already exists on the raw payload, keep it
+    // as-is (the rep has already migrated). Otherwise reconstruct from
+    // the legacy `core` + `cost_of_standing_still` pair so no past work
+    // is lost.
+    const thesis = raw.thesis != null && String(raw.thesis).trim()
+        ? String(raw.thesis)
+        : mergeLegacyThesis(raw);
+
     return {
-        core: raw.core != null ? String(raw.core) : '',
+        thesis,
         why_account_matters: raw.why_account_matters != null ? String(raw.why_account_matters) : '',
-        cost_of_standing_still: raw.cost_of_standing_still != null ? String(raw.cost_of_standing_still) : '',
         timing: raw.timing != null ? String(raw.timing) : '',
         executive_narrative: raw.executive_narrative != null ? String(raw.executive_narrative) : '',
     };
@@ -453,15 +507,59 @@ function normalizeLandAndExpand(raw, sections) {
 }
 
 /**
+ * Normalize a single entry-point payload to the post-consolidation
+ * schema.
+ *
+ * Sales psychology behind the legacy merge: a rep who already wrote
+ * prose into "Likely Pressure" and "What Failure Looks Like" should NOT
+ * see their work disappear because we tightened the framework. Instead
+ * we stitch those two paragraphs into the new `operational_pain` field
+ * with a blank line between them — a slightly verbose but recoverable
+ * seed that the rep can prune in 10 seconds, far better than asking
+ * them to re-author the dossier from scratch.
+ *
+ * The same logic applies to `best_themes` + `narrative_openings` →
+ * `conversation_wedge`. The dead-key `tired_of_hearing` is
+ * intentionally dropped on the floor with no fallback target — it was a
+ * low-value fishing prompt and migrating it would defeat the purpose of
+ * cutting it.
+ *
  * @param {unknown} raw
  * @returns {Record<string, string>}
  */
 function normalizeEntryPoint(raw) {
     const empty = createEmptyEntryPoint();
     if (!isPlainObject(raw)) return empty;
+
+    // 1. Copy through the canonical (post-consolidation) keys first.
+    //    Any explicit value on a new key wins over a legacy merge — a
+    //    rep who has already migrated to the new schema shouldn't have
+    //    their work overwritten by stale legacy fields.
     ENTRY_POINT_FIELD_KEYS.forEach((key) => {
         empty[key] = raw[key] != null ? String(raw[key]) : '';
     });
+
+    // 2. Backfill the merged keys from legacy sources only when the new
+    //    field is currently empty. Joining with two newlines preserves
+    //    a visual break between the originally-separate paragraphs so
+    //    the rep can see what each piece was without losing the seam.
+    Object.entries(LEGACY_ENTRY_POINT_MERGE_MAP).forEach(([targetKey, legacyKeys]) => {
+        if (empty[targetKey] && empty[targetKey].trim()) return;
+        const legacyParts = legacyKeys
+            .map((legacyKey) => (raw[legacyKey] != null ? String(raw[legacyKey]).trim() : ''))
+            .filter(Boolean);
+        if (legacyParts.length > 0) {
+            empty[targetKey] = legacyParts.join('\n\n');
+        }
+    });
+
+    // 3. Defensive cleanup: ensure no dead keys leak into the
+    //    normalized object even if a caller hand-crafted a stale
+    //    payload.
+    LEGACY_ENTRY_POINT_DEAD_KEYS.forEach((key) => {
+        if (key in empty) delete empty[key];
+    });
+
     return empty;
 }
 
@@ -533,16 +631,50 @@ function normalizePainSignals(raw) {
 }
 
 /**
+ * Normalize the (renamed) Blindspots section.
+ *
+ * Sales psychology behind the refactor: the old `unknowns` rich-text
+ * blob was where reps dumped vague anxieties — "not sure who the real
+ * decision-maker is, also not sure on budget." Converting the field
+ * into a strict string[] array forces one discrete question per line,
+ * which is exactly the granularity needed on a discovery call.
+ *
+ * Legacy fallback (Task 5): when a plan still carries the old
+ * `unknowns` rich-text blob, we split it into discrete lines and seed
+ * the new array. Markdown bullet prefixes ("-", "*", "•", "1.") are
+ * stripped so the rendered list does not double up the bullet marker.
+ * The orphaned `executive_language_notes` field is appended as
+ * additional lines if present — older plans frequently held a second
+ * unknown there. The legacy `executive_language_pills` selection is
+ * dropped intentionally; it was never a real unknown, just a tone tag.
+ *
  * @param {unknown} raw
  */
 function normalizeCriticalUnknowns(raw) {
     const empty = createEmptyPlan().current_draft.sections.critical_unknowns;
     if (!isPlainObject(raw)) return empty;
-    return {
-        unknowns: raw.unknowns != null ? String(raw.unknowns) : '',
-        executive_language_pills: normalizePillSelection(raw.executive_language_pills, CRITICAL_UNKNOWN_LANGUAGE_PILLS),
-        executive_language_notes: raw.executive_language_notes != null ? String(raw.executive_language_notes) : '',
-    };
+
+    const bulletPrefix = /^[\s]*(?:[-*\u2022]\s+|\d+[.)]\s+)/;
+    const splitToLines = (text) => String(text ?? '')
+        .split(/\r?\n+/)
+        .map((line) => line.replace(bulletPrefix, '').trim())
+        .filter(Boolean);
+
+    // Prefer an already-migrated array if present. Otherwise
+    // reconstruct from the legacy `unknowns` rich-text + tail-merge any
+    // orphaned `executive_language_notes` content so no past work is
+    // lost.
+    const rawArray = Array.isArray(raw.blindspots) ? raw.blindspots : null;
+    const blindspots = rawArray
+        ? rawArray
+            .map((entry) => (entry == null ? '' : String(entry).trim()))
+            .filter(Boolean)
+        : [
+            ...splitToLines(raw.unknowns),
+            ...splitToLines(raw.executive_language_notes),
+        ];
+
+    return { blindspots };
 }
 
 /**

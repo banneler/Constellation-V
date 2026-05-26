@@ -86,7 +86,11 @@ test.describe('Strategic Account OS', () => {
     await createAndSelectAccount(page, acc);
     await acc.switchToStrategicMode();
 
-    const textarea = acc.strategicTextarea('pursuit_thesis.core');
+    // Post-Task-2 the pursuit_thesis.core + cost_of_standing_still pair
+    // collapsed into a single `pursuit_thesis.thesis` textarea. The
+    // selector follows the new data-field path produced by the canvas
+    // renderer.
+    const textarea = acc.strategicTextarea('pursuit_thesis.thesis');
     await textarea.waitFor({ state: 'visible', timeout: 15_000 });
 
     guardian.step('Typing into Pursuit Thesis textarea');
@@ -162,7 +166,8 @@ test.describe('Strategic Account OS', () => {
     await createAndSelectAccount(page, acc);
     await acc.switchToStrategicMode();
 
-    const textarea = acc.strategicTextarea('pursuit_thesis.core');
+    // Post-Task-2 selector — see autosave test above for rationale.
+    const textarea = acc.strategicTextarea('pursuit_thesis.thesis');
     await textarea.waitFor({ state: 'visible', timeout: 15_000 });
     await textarea.fill(`E2E force commit ${Date.now()}`);
 
