@@ -2,7 +2,12 @@
  * Strategic Account OS — off-screen PDF render templates (Snapdom capture).
  */
 
-import { PLAN_SECTIONS, PSYCHOLOGY_SLIDERS, PLAN_306090_HORIZONS } from './account-plan-sections.js';
+import {
+    PLAN_SECTIONS,
+    PSYCHOLOGY_SLIDERS,
+    PLAN_306090_HORIZONS,
+    TACTICAL_UX_LABELS,
+} from './account-plan-sections.js';
 import { normalizePlan, INFLUENCE_CONTACT_FIELD_KEYS } from './account-plan-data.js';
 import { formatContactLabel, resolveContactById } from './account-plan-contacts.js';
 import { formatPlanHorizonRichHtml } from './account-plan-rich-text.js';
@@ -256,7 +261,8 @@ function buildExecStrategyBody(sections) {
         : '';
     const blocks = data
         ? [
-            ['Pursuit Thesis', thesisText],
+            [TACTICAL_UX_LABELS.pursuitThesis, thesisText],
+            [TACTICAL_UX_LABELS.actionForcingEvent, data.action_forcing_event],
             ['Strategic Timing', data.timing],
         ].filter(([, value]) => String(value ?? '').trim())
         : [];
@@ -442,7 +448,7 @@ export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, 
 
     const strategyPanel = createExecPanel(
         'ap-exec-panel--strategy',
-        situation?.pursuit_thesis?.headline ?? 'Pursuit Strategy',
+        situation?.pursuit_thesis?.headline ?? TACTICAL_UX_LABELS.pursuitThesis,
         'pursuit_thesis'
     );
     if (situation) {
@@ -474,7 +480,7 @@ export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, 
 
     const psychPanel = createExecPanel(
         'ap-exec-panel--psych',
-        situation?.psychology?.headline ?? 'Account Psychology',
+        situation?.psychology?.headline ?? TACTICAL_UX_LABELS.psychologySection,
         'psychology'
     );
     if (situation?.psychology?.callouts?.length) {
@@ -646,6 +652,23 @@ export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, 
         });
     }
     planPanel.appendChild(planGrid);
+
+    const commitments = Array.isArray(ctx.plan306090?.client_commitments)
+        ? ctx.plan306090.client_commitments
+        : [];
+    if (commitments.length > 0) {
+        const giveGet = document.createElement('div');
+        giveGet.className = 'ap-exec-client-commitments';
+        giveGet.innerHTML = `<h4 class="ap-exec-plan-horizon-title">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h4>`;
+        const list = document.createElement('ul');
+        list.className = 'ap-exec-highlight-list ap-exec-highlight-list--compact';
+        list.innerHTML = commitments
+            .map((entry) => `<li>${escapeHtml(String(entry ?? '').trim())}</li>`)
+            .filter(Boolean)
+            .join('');
+        giveGet.appendChild(list);
+        planPanel.appendChild(giveGet);
+    }
 
     const signalsPanel = createExecPanel('ap-exec-panel--signals', 'Strategic Signals', 'momentum_timeline');
     const signalsList = document.createElement('ul');
@@ -1058,7 +1081,7 @@ function buildTargetProfile(rawPoint) {
         ['Why They Matter', rawPoint.why_they_matter],
         ['Operational Pain', pickMerged(rawPoint.operational_pain, rawPoint.likely_pressure, rawPoint.what_failure_looks_like)],
         ['Mutual Connections', rawPoint.mutual_connections],
-        ['Human Context', rawPoint.human_context],
+        [TACTICAL_UX_LABELS.humanContext, rawPoint.human_context],
     ].filter(([, val]) => String(val ?? '').trim());
 
     const howFields = [
@@ -1723,6 +1746,9 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
 
     if (section.type === 'triple_textarea') {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
+        const stack = document.createElement('div');
+        stack.className = 'ap-export-plan306090-stack';
+
         const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-editorial-grid--plan');
         PLAN_306090_HORIZONS.forEach((horizon) => {
             grid.appendChild(createEditorialPlanHorizonCell(
@@ -1730,7 +1756,33 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
                 plan306090[horizon.key]
             ));
         });
-        return [createDossierSectionBlock(section, grid)];
+        stack.appendChild(grid);
+
+        const commitments = Array.isArray(plan306090.client_commitments) ? plan306090.client_commitments : [];
+        const giveGet = document.createElement('div');
+        giveGet.className = 'ap-export-client-commitments';
+        giveGet.innerHTML = `<h3 class="ap-export-editorial-kicker">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h3>`;
+        if (commitments.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'ap-export-editorial-empty';
+            empty.textContent = 'What does the customer owe us this month to keep the deal moving?';
+            giveGet.appendChild(empty);
+        } else {
+            const list = document.createElement('ul');
+            list.className = 'ap-export-blindspots-list';
+            commitments.forEach((entry) => {
+                const text = String(entry ?? '').trim();
+                if (!text) return;
+                const li = document.createElement('li');
+                li.className = 'ap-export-blindspots-item';
+                li.textContent = text;
+                list.appendChild(li);
+            });
+            giveGet.appendChild(list);
+        }
+        stack.appendChild(giveGet);
+
+        return [createDossierSectionBlock(section, stack)];
     }
 
     const prose = createEditorialProseBlock('', '', [{ kicker: section.title, text: '' }]);
@@ -1881,7 +1933,7 @@ function summarizePursuitThesis(value) {
             .filter(Boolean)
             .join('\n\n');
     const parts = [
-        thesisText ? `Pursuit Thesis: ${thesisText}` : '',
+        thesisText ? `${TACTICAL_UX_LABELS.pursuitThesis}: ${thesisText}` : '',
         value.why_account_matters ? `Why This Account Matters: ${String(value.why_account_matters).trim()}` : '',
         value.timing ? `Strategic Timing: ${String(value.timing).trim()}` : '',
         value.executive_narrative ? `Executive Narrative: ${String(value.executive_narrative).trim()}` : '',

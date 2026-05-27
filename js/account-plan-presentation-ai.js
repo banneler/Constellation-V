@@ -3,6 +3,7 @@
  */
 
 import { normalizePlan } from './account-plan-data.js';
+import { TACTICAL_UX_LABELS } from './account-plan-sections.js';
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
@@ -98,7 +99,7 @@ export function normalizePresentationHighlight(raw, meta) {
                     ),
                 },
                 psychology: {
-                    headline: pickText(psychology.headline, 'Enterprise Gravity'),
+                    headline: pickText(psychology.headline, TACTICAL_UX_LABELS.psychologySection),
                     callouts: pickCallouts(
                         psychology.callouts,
                         3,

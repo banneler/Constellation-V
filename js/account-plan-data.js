@@ -190,6 +190,7 @@ export function createEmptyPlan() {
                     // legacy `core` + `cost_of_standing_still` pair so the
                     // section can no longer encourage duplicate prose.
                     thesis: '',
+                    action_forcing_event: '',
                     why_account_matters: '',
                     timing: '',
                     executive_narrative: '',
@@ -244,6 +245,7 @@ export function createEmptyPlan() {
                     days_30: '',
                     days_60: '',
                     days_90: '',
+                    client_commitments: [],
                 },
                 psychology: { ...DEFAULT_PSYCHOLOGY },
             },
@@ -356,9 +358,40 @@ function normalizePursuitThesis(raw, sections) {
 
     return {
         thesis,
+        action_forcing_event: raw.action_forcing_event != null ? String(raw.action_forcing_event) : '',
         why_account_matters: raw.why_account_matters != null ? String(raw.why_account_matters) : '',
         timing: raw.timing != null ? String(raw.timing) : '',
         executive_narrative: raw.executive_narrative != null ? String(raw.executive_narrative) : '',
+    };
+}
+
+/**
+ * Normalize the 30/60/90 plan block, including the Give/Get checklist.
+ *
+ * @param {unknown} raw
+ */
+function normalizePlan306090(raw) {
+    const empty = createEmptyPlan().current_draft.sections.plan_30_60_90;
+    if (!isPlainObject(raw)) return empty;
+
+    const bulletPrefix = /^[\s]*(?:[-*\u2022]\s+|\d+[.)]\s+)/;
+    let clientCommitments = [];
+    if (Array.isArray(raw.client_commitments)) {
+        clientCommitments = raw.client_commitments
+            .map((entry) => (entry == null ? '' : String(entry).trim()))
+            .filter(Boolean);
+    } else if (raw.client_commitments != null && String(raw.client_commitments).trim()) {
+        clientCommitments = String(raw.client_commitments)
+            .split(/\r?\n+/)
+            .map((line) => line.replace(bulletPrefix, '').trim())
+            .filter(Boolean);
+    }
+
+    return {
+        days_30: raw.days_30 != null ? String(raw.days_30) : '',
+        days_60: raw.days_60 != null ? String(raw.days_60) : '',
+        days_90: raw.days_90 != null ? String(raw.days_90) : '',
+        client_commitments: clientCommitments.slice(0, 12),
     };
 }
 
@@ -811,8 +844,9 @@ export function normalizePlan(plan) {
     const draft = isPlainObject(plan.current_draft) ? plan.current_draft : {};
     const sections = isPlainObject(draft.sections) ? draft.sections : {};
     const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
-    const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
     const momentumNotes = normalizeMomentumNotes(sections.momentum_notes);
+    // Interaction Log UI is deprecated — legacy rows still normalize so the
+    // Relationship Timeline can render historical signals.
     const interactionLogRaw = normalizeInteractionLog(sections.interaction_log);
     const interactionLog = migrateMomentumNotesToInteractionLog(momentumNotes, interactionLogRaw);
 
@@ -839,11 +873,7 @@ export function normalizePlan(plan) {
                 },
                 momentum_notes: momentumNotes,
                 interaction_log: interactionLog,
-                plan_30_60_90: {
-                    days_30: plan306090.days_30 != null ? String(plan306090.days_30) : '',
-                    days_60: plan306090.days_60 != null ? String(plan306090.days_60) : '',
-                    days_90: plan306090.days_90 != null ? String(plan306090.days_90) : '',
-                },
+                plan_30_60_90: normalizePlan306090(sections.plan_30_60_90),
                 psychology: normalizePsychology(sections.psychology),
             },
         },

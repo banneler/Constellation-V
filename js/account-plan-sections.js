@@ -2,7 +2,21 @@
  * Strategic Account OS — section registry (canvas, TOC, export metadata).
  */
 
-/** @typedef {'account_snapshot' | 'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel' | 'critical_unknowns' | 'blindspots_list' | 'entrenchment' | 'pain_signals' | 'white_space_matrix' | 'interaction_log'} PlanSectionType */
+/** @typedef {'account_snapshot' | 'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel' | 'critical_unknowns' | 'blindspots_list' | 'entrenchment' | 'pain_signals' | 'white_space_matrix'} PlanSectionType */
+
+/**
+ * Tactical, locker-room labels for canvas + exports. Data keys stay stable
+ * (e.g. `pursuit_thesis`) — only user-facing copy changes.
+ */
+export const TACTICAL_UX_LABELS = Object.freeze({
+    pursuitThesis: 'The Big Play',
+    actionForcingEvent: 'Action-Forcing Event (Why Now?)',
+    psychologySection: 'How They Buy',
+    competingPriorities: 'Competing Priorities',
+    humanContext: 'The Off-the-Record Read',
+    incumbentGrip: "The Incumbent's Grip",
+    clientCommitments: 'Client Commitments (The Give/Get)',
+});
 
 /** @typedef {'none' | 'lead' | 'block'} SectionContextMode */
 
@@ -320,7 +334,7 @@ export const ENTRY_POINT_EXPORT_LABELS = Object.freeze([
     { key: 'mutual_connections', label: 'Mutual Connections' },
     // Relocated — now appended at the bottom of the individual Target
     // Profile UI as a final colour-commentary field.
-    { key: 'human_context', label: 'Human Context' },
+    { key: 'human_context', label: TACTICAL_UX_LABELS.humanContext },
 ]);
 
 /**
@@ -391,13 +405,18 @@ export const PLAN_SECTIONS = Object.freeze([
         // ----------------------------------------------------------------
         id: 'pursuit_thesis',
         type: 'composite_textarea',
-        title: 'Pursuit Strategy',
+        title: TACTICAL_UX_LABELS.pursuitThesis,
         contextMode: 'none',
         fields: [
             {
                 key: 'thesis',
-                label: 'Pursuit Thesis',
+                label: TACTICAL_UX_LABELS.pursuitThesis,
                 hint: 'Why is their status quo broken, and why are we the only logical fix right now?',
+            },
+            {
+                key: 'action_forcing_event',
+                label: TACTICAL_UX_LABELS.actionForcingEvent,
+                hint: 'The dated trigger that makes inaction painful — renewal, outage, board mandate, budget window.',
             },
             {
                 key: 'why_account_matters',
@@ -421,9 +440,9 @@ export const PLAN_SECTIONS = Object.freeze([
     {
         id: 'strategic_tensions',
         type: 'pills_and_narrative',
-        title: 'Strategic Tensions',
+        title: TACTICAL_UX_LABELS.competingPriorities,
         contextMode: 'lead',
-        description: 'What contradictions are they managing?',
+        description: 'What contradictions are they juggling — and which side are we betting on?',
         pillGroups: STRATEGIC_TENSION_GROUPS,
         pillMode: 'either_or',
         pillField: 'selected_pills',
@@ -516,9 +535,9 @@ export const PLAN_SECTIONS = Object.freeze([
     {
         id: 'entrenchment',
         type: 'entrenchment',
-        title: 'Entrenchment',
+        title: TACTICAL_UX_LABELS.incumbentGrip,
         contextMode: 'lead',
-        description: 'Incumbent moats and compound relationships that raise switching cost.',
+        description: 'How the incumbent is wired in — relationships, contracts, and habits that raise switching cost.',
         pills: ENTRENCHMENT_MOAT_PILLS,
         pillField: 'moat_pills',
         textFields: [
@@ -553,7 +572,7 @@ export const PLAN_SECTIONS = Object.freeze([
     {
         id: 'psychology',
         type: 'psychology_grid',
-        title: 'Account Psychology',
+        title: TACTICAL_UX_LABELS.psychologySection,
         contextMode: 'none',
         sliders: PSYCHOLOGY_SLIDERS,
         gravityFields: [
@@ -580,18 +599,6 @@ export const PLAN_SECTIONS = Object.freeze([
         exportExec: true,
     },
     {
-        id: 'interaction_log',
-        type: 'interaction_log',
-        title: 'Interaction Log',
-        contextMode: 'lead',
-        description: 'Structured relationship events and strategic signals.',
-        // Excluded from the PDF dossier — the Relationship Timeline is the
-        // canonical client-facing view of signals + activities. The form
-        // remains in the canvas so reps can capture new signals.
-        exportDossier: false,
-        exportExec: false,
-    },
-    {
         id: 'momentum_timeline',
         type: 'timeline_view',
         title: 'Relationship Timeline',
@@ -605,7 +612,7 @@ export const PLAN_SECTIONS = Object.freeze([
         type: 'triple_textarea',
         title: '30 / 60 / 90 Plan',
         contextMode: 'lead',
-        description: 'Define the immediate tactical steps to advance the strategic pursuit.',
+        description: 'Define the immediate tactical steps to advance the strategic pursuit — plus what the customer owes you each month.',
         horizons: PLAN_306090_HORIZONS,
         exportDossier: true,
         exportExec: true,

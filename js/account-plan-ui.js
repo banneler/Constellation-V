@@ -25,6 +25,7 @@ import {
     buildTensionLinkagePromptText,
     INSIGHT_DENSITY_SECTIONS,
     INSIGHT_DENSITY_SOFT_LIMIT,
+    TACTICAL_UX_LABELS,
 } from './account-plan-sections.js';
 import { formatPlanHorizonRailPreviewHtml } from './account-plan-rich-text.js';
 import {
@@ -743,7 +744,7 @@ function buildStrategicTensionGhostInner(tensions, hostSectionId = '') {
     if (pairs.length === 0) {
         return `
             <p class="strategic-ghost-headline strategic-ghost-headline--empty">
-                No strategic tensions captured yet — open the Strategic Tensions
+                No competing priorities captured yet — open the ${escapeHtml(TACTICAL_UX_LABELS.competingPriorities)}
                 section above so this plan is anchored to the deal's physics.
             </p>`;
     }
@@ -1300,7 +1301,7 @@ function buildPlan306090Html(section, data) {
     const planData = isPlainObject(data) ? data : {};
     const horizons = section.horizons || PLAN_306090_HORIZONS;
 
-    return `<div class="plan-306090-grid">${horizons.map((horizon) => {
+    const horizonsHtml = `<div class="plan-306090-grid">${horizons.map((horizon) => {
         const value = escapeHtml(String(planData[horizon.key] ?? ''));
         const fieldId = `plan-${horizon.key}`;
         return `
@@ -1321,6 +1322,55 @@ function buildPlan306090Html(section, data) {
                 >${value}</textarea>
             </div>`;
     }).join('')}</div>`;
+
+    return `${horizonsHtml}${buildClientCommitmentsHtml(planData)}`;
+}
+
+/**
+ * Give/Get checklist under the 30/60/90 horizons — what the customer owes
+ * us this month to keep the deal moving.
+ *
+ * @param {Record<string, unknown>} planData
+ */
+function buildClientCommitmentsHtml(planData) {
+    const items = Array.isArray(planData.client_commitments) ? planData.client_commitments : [];
+    const inputId = 'client-commitments-input-plan_30_60_90';
+
+    const rowsHtml = items.length > 0
+        ? items.map((entry, index) => {
+            const text = String(entry ?? '').trim();
+            if (!text) return '';
+            return `
+                <li class="blindspots-item client-commitments-item" data-client-commitments-index="${index}">
+                    <span class="blindspots-item-bullet" aria-hidden="true">▢</span>
+                    <span class="blindspots-item-text">${escapeHtml(text)}</span>
+                    <button
+                        type="button"
+                        class="blindspots-item-remove"
+                        data-client-commitments-remove="${index}"
+                        aria-label="Remove commitment: ${escapeHtml(text)}"
+                    >×</button>
+                </li>`;
+        }).join('')
+        : `<li class="blindspots-empty">What does the customer owe us this month to keep the deal moving?</li>`;
+
+    return `
+        <div class="plan-306090-commitments" data-client-commitments-host>
+            <h5 class="plan-306090-commitments-title">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h5>
+            <ul class="blindspots-list client-commitments-list" role="list">${rowsHtml}</ul>
+            <div class="blindspots-add-row">
+                <label class="sr-only" for="${inputId}">Add a client commitment</label>
+                <input
+                    type="text"
+                    id="${inputId}"
+                    class="strategic-field blindspots-add-input"
+                    data-client-commitments-input
+                    placeholder="What does the customer owe us this month to keep the deal moving?"
+                    autocomplete="off"
+                />
+                <button type="button" class="blindspots-add-btn" data-client-commitments-add>Add</button>
+            </div>
+        </div>`;
 }
 
 /**
@@ -1468,9 +1518,9 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
                 </div>
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--human">
-                <h5 class="entry-point-row-panel-title">Human Context</h5>
+                <h5 class="entry-point-row-panel-title">${escapeHtml(TACTICAL_UX_LABELS.humanContext)}</h5>
                 <div class="entry-point-grid entry-point-grid--human-context">
-                    ${buildEntryPointTextarea(String(index), 'human_context', 'Human Context', String(data.human_context ?? ''), 'Personal motivations and style cues — the colour commentary that closes the loop.')}
+                    ${buildEntryPointTextarea(String(index), 'human_context', TACTICAL_UX_LABELS.humanContext, String(data.human_context ?? ''), 'Personal motivations and style cues — the off-the-record read that closes the loop.')}
                 </div>
             </div>
         </div>`;
@@ -3140,18 +3190,6 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
                 </div>`);
         }
 
-        if (section.type === 'interaction_log') {
-            const log = sections.interaction_log;
-            return wrapStrategicSection(
-                sectionId,
-                headingId,
-                section.title,
-                headerContext,
-                buildInteractionLogHtml(log),
-                'strategic-section--interaction-log'
-            );
-        }
-
         if (section.type === 'timeline_view') {
             return wrapStrategicSection(
                 sectionId,
@@ -3209,10 +3247,19 @@ function isSectionFilled(section, sections) {
         return (section.fields || []).some((field) => String(snap[field.key] ?? '').trim());
     }
 
-    if (section.type === 'composite_textarea' || section.type === 'triple_textarea') {
+    if (section.type === 'composite_textarea') {
         const obj = isPlainObject(data) ? data : {};
-        const fields = section.fields || section.horizons || [];
+        const fields = section.fields || [];
         return fields.some((field) => String(obj[field.key] ?? '').trim());
+    }
+
+    if (section.type === 'triple_textarea') {
+        const obj = isPlainObject(data) ? data : {};
+        const horizons = section.horizons || [];
+        const horizonFilled = horizons.some((field) => String(obj[field.key] ?? '').trim());
+        const commitments = Array.isArray(obj.client_commitments) ? obj.client_commitments : [];
+        const commitmentsFilled = commitments.some((entry) => String(entry ?? '').trim());
+        return horizonFilled || commitmentsFilled;
     }
 
     if (section.type === 'blindspots_list') {
@@ -3284,10 +3331,6 @@ function isSectionFilled(section, sections) {
         const activities = _options.getSelectedAccountDetails?.()?.activities || [];
         return log.some((entry) => isPlainObject(entry) && formatInteractionLogSummary(entry))
             || activities.length > 0;
-    }
-
-    if (section.type === 'interaction_log') {
-        return Array.isArray(data) && data.length > 0;
     }
 
     if (section.type === 'entry_point_carousel') {
@@ -3667,6 +3710,66 @@ function removeBlindspotEntry(index) {
  * between renders (it's an ephemeral add buffer) so a hard innerHTML
  * swap is safe here.
  */
+/**
+ * @param {string} text
+ */
+function addClientCommitmentEntry(text) {
+    if (!_liveSections) return;
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return;
+    const current = isPlainObject(_liveSections.plan_30_60_90)
+        ? _liveSections.plan_30_60_90
+        : { client_commitments: [] };
+    const existing = Array.isArray(current.client_commitments) ? current.client_commitments : [];
+    if (existing.some((entry) => String(entry ?? '').trim() === trimmed)) return;
+    _liveSections.plan_30_60_90 = {
+        ...current,
+        client_commitments: [...existing, trimmed],
+    };
+    refreshPlan306090Section();
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+}
+
+/**
+ * @param {number} index
+ */
+function removeClientCommitmentEntry(index) {
+    if (!_liveSections || !Number.isFinite(index)) return;
+    const current = isPlainObject(_liveSections.plan_30_60_90)
+        ? _liveSections.plan_30_60_90
+        : { client_commitments: [] };
+    const existing = Array.isArray(current.client_commitments) ? [...current.client_commitments] : [];
+    if (index < 0 || index >= existing.length) return;
+    existing.splice(index, 1);
+    _liveSections.plan_30_60_90 = { ...current, client_commitments: existing };
+    refreshPlan306090Section();
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+}
+
+function refreshPlan306090Section() {
+    const sectionEl = document.getElementById('strategic-section-plan_30_60_90');
+    const sectionDef = PLAN_SECTIONS.find((section) => section.id === 'plan_30_60_90');
+    if (!sectionEl || !sectionDef || !_liveSections) return;
+
+    const headingId = `strategic-heading-${sectionDef.id}`;
+    const headerContext = buildSectionHeaderContext(sectionDef);
+    const plan306090 = isPlainObject(_liveSections.plan_30_60_90) ? _liveSections.plan_30_60_90 : {};
+    const ghostHtml = TENSION_GHOST_SECTIONS.includes(sectionDef.id)
+        ? buildStrategicTensionGhostHtml(_liveSections.strategic_tensions, sectionDef.id)
+        : '';
+
+    sectionEl.innerHTML = `
+        <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
+        ${headerContext.leadHtml}
+        ${headerContext.blockHtml}
+        ${ghostHtml}${buildPlan306090Html(sectionDef, plan306090)}`;
+
+    const input = sectionEl.querySelector('[data-client-commitments-input]');
+    if (input instanceof HTMLInputElement) input.focus();
+}
+
 function refreshBlindspotsSection() {
     const sectionEl = document.getElementById('strategic-section-critical_unknowns');
     const sectionDef = PLAN_SECTIONS.find((section) => section.id === 'critical_unknowns');
@@ -3749,12 +3852,21 @@ function bindCanvasFormEvents(canvas) {
         if (event.key !== 'Enter') return;
         const target = event.target;
         if (!(target instanceof HTMLInputElement)) return;
-        if (!target.matches('[data-blindspots-input]')) return;
-        if (event.isComposing) return;
-        event.preventDefault();
-        const value = target.value;
-        target.value = '';
-        addBlindspotEntry(value);
+        if (target.matches('[data-blindspots-input]')) {
+            if (event.isComposing) return;
+            event.preventDefault();
+            const value = target.value;
+            target.value = '';
+            addBlindspotEntry(value);
+            return;
+        }
+        if (target.matches('[data-client-commitments-input]')) {
+            if (event.isComposing) return;
+            event.preventDefault();
+            const value = target.value;
+            target.value = '';
+            addClientCommitmentEntry(value);
+        }
     });
 
     canvas.addEventListener('click', (event) => {
@@ -3779,6 +3891,26 @@ function bindCanvasFormEvents(canvas) {
         if (blindspotRemove instanceof HTMLElement) {
             event.preventDefault();
             removeBlindspotEntry(Number(blindspotRemove.dataset.blindspotsRemove));
+            return;
+        }
+
+        const commitmentAdd = target.closest('[data-client-commitments-add]');
+        if (commitmentAdd instanceof HTMLElement) {
+            event.preventDefault();
+            const host = commitmentAdd.closest('[data-client-commitments-host]');
+            const input = host?.querySelector('[data-client-commitments-input]');
+            if (input instanceof HTMLInputElement) {
+                const value = input.value;
+                input.value = '';
+                addClientCommitmentEntry(value);
+            }
+            return;
+        }
+
+        const commitmentRemove = target.closest('[data-client-commitments-remove]');
+        if (commitmentRemove instanceof HTMLElement) {
+            event.preventDefault();
+            removeClientCommitmentEntry(Number(commitmentRemove.dataset.clientCommitmentsRemove));
             return;
         }
 

@@ -41,6 +41,7 @@ import {
     formatGpcFooterDate,
 } from './account-plan-export-brand.js';
 import { normalizePlan } from './account-plan-data.js';
+import { TACTICAL_UX_LABELS } from './account-plan-sections.js';
 import { normalizePresentationHighlight } from './account-plan-presentation-ai.js';
 import { MOMENTUM_LABELS } from './account-plan-presentation-types.js';
 import { PSYCHOLOGY_SLIDERS } from './account-plan-sections.js';
@@ -252,7 +253,6 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
 
     // Exec deck: exactly five content slides (no entry-point pagination).
     const contentSlideCount = 5;
-    const entryProfiles = collectEntryProfiles(ctx, highlight);
 
     // Define the master FIRST so every subsequent addSlide({ masterName })
     // call inherits it. We pass the per-deck running header text into
@@ -273,9 +273,8 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
     buildPsychologyTensionsSlide(pptx, ctx, pageNum++, contentSlideCount);
     buildBattlefieldSlide(pptx, highlight, ctx, pageNum++, contentSlideCount);
 
-    // Slide 4 — single 2-up Target Profiles slide (entry_points[0] left,
-    // entry_points[1] right; additional profiles are omitted for exec readout).
-    buildEntryPointsSlide(pptx, entryProfiles, pageNum++, contentSlideCount);
+    // Slide 4 — ONE slide, TWO columns (entry_points[0] + [1]); never paginate for exec.
+    buildEntryPointsSlide(pptx, ctx, highlight, pageNum++, contentSlideCount);
 
     buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum++, contentSlideCount);
 
@@ -597,10 +596,16 @@ function resolvePptxPlanContext(plan) {
         competitive,
         pursuit,
         blindspots: extractBlindspotsFromSections(sections),
+        actionForcingEvent: String(pursuit.action_forcing_event ?? '').trim(),
         plan306090: {
             days_30: String(plan306090.days_30 ?? '').trim(),
             days_60: String(plan306090.days_60 ?? '').trim(),
             days_90: String(plan306090.days_90 ?? '').trim(),
+            client_commitments: Array.isArray(plan306090.client_commitments)
+                ? plan306090.client_commitments
+                    .map((c) => String(c ?? '').trim())
+                    .filter(Boolean)
+                : [],
         },
         rawEntryPoints: Array.isArray(sections.entry_points) ? sections.entry_points : [],
     };
@@ -678,39 +683,6 @@ function resolveBattlefieldBlindspots(ctx, highlight) {
         .slice(0, MAX_BLINDSPOTS);
 }
 
-/**
- * Compose the slide-4 profile list (max two). The AI engine emits a tight
- * 2-field shape per profile (name + hook) but does NOT carry `human_context`
- * (which slide 4 needs per spec), so we source from raw entry_points by index.
- * AI badges remain useful as a tag row, so we look them up by contact name.
- *
- * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
- * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
- */
-function collectEntryProfiles(ctx, highlight) {
-    const aiByName = new Map();
-    (highlight.slides.battlefield.entry_points || []).forEach((entry) => {
-        if (entry && entry.name) {
-            aiByName.set(String(entry.name).trim().toLowerCase(), entry);
-        }
-    });
-
-    return ctx.rawEntryPoints
-        .filter(isPlainObject)
-        .slice(0, MAX_PROFILES_PER_SLIDE)
-        .map((point, index) => {
-            const name = String(point.contact_name ?? '').trim() || `Contact ${index + 1}`;
-            const aiMatch = aiByName.get(name.toLowerCase());
-            return {
-                name,
-                operational_pain: String(point.operational_pain ?? '').trim(),
-                conversation_wedge: String(point.conversation_wedge ?? '').trim(),
-                human_context: String(point.human_context ?? '').trim(),
-                badges: aiMatch ? String(aiMatch.badges ?? '').trim() : '',
-            };
-        });
-}
-
 // ---------------------------------------------------------------------------
 // Slide 1 — Executive Summary
 // ---------------------------------------------------------------------------
@@ -741,22 +713,59 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
     // LEFT COLUMN — Pursuit Thesis prose
     // -----------------------------------------------------------------
     const pursuitHeadline = String(highlight.slides.situation?.pursuit_thesis?.headline ?? '').trim()
-        || 'Pursuit Thesis';
+        || TACTICAL_UX_LABELS.pursuitThesis;
     const pursuitProse = resolvePursuitThesisProse(highlight, ctx);
+    const actionForcing = ctx.actionForcingEvent;
 
     addPanel(slide, MARGIN_X, BODY_TOP, leftW, BODY_H);
     const leftLayout = panelContentLayout(MARGIN_X, BODY_TOP, leftW, BODY_H);
-    addKicker(slide, 'PURSUIT THESIS', leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
+    addKicker(slide, TACTICAL_UX_LABELS.pursuitThesis.toUpperCase(), leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
     addHeadline(slide, pursuitHeadline, leftLayout.innerX, leftLayout.headlineY, leftLayout.innerW, PANEL_HEADLINE_H);
 
-    slide.addText(pursuitProse || 'No pursuit thesis captured yet.', {
+    const proseY = leftLayout.bodyY;
+    const proseH = actionForcing
+        ? leftLayout.bodyH * 0.72
+        : leftLayout.bodyH;
+
+    slide.addText(pursuitProse || 'No big play captured yet.', {
         x: leftLayout.innerX,
-        y: leftLayout.bodyY,
+        y: proseY,
         w: leftLayout.innerW,
-        h: leftLayout.bodyH,
+        h: proseH,
         ...BODY_TEXT_BASE,
         lineSpacing: 16,
     });
+
+    if (actionForcing) {
+        slide.addText([
+            {
+                text: `${TACTICAL_UX_LABELS.actionForcingEvent}:\n`,
+                options: {
+                    bold: true,
+                    fontSize: TYPO.body,
+                    color: themeHex('accent'),
+                    fontFace: THEME.font,
+                },
+            },
+            {
+                text: actionForcing,
+                options: {
+                    fontSize: TYPO.body,
+                    color: themeHex('secondary'),
+                    fontFace: THEME.font,
+                },
+            },
+        ], {
+            x: leftLayout.innerX,
+            y: proseY + proseH + 0.06,
+            w: leftLayout.innerW,
+            h: leftLayout.bodyH - proseH - 0.10,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+    }
 
     // -----------------------------------------------------------------
     // RIGHT COLUMN — Momentum KPI
@@ -869,7 +878,7 @@ function resolvePursuitThesisProse(highlight, ctx) {
  */
 function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
     const slide = addContentSlide(pptx);
-    addContentSlideChrome(slide, 'Psychology & Strategic Tensions', pageNum, totalSlides);
+    addContentSlideChrome(slide, `${TACTICAL_UX_LABELS.psychologySection} & ${TACTICAL_UX_LABELS.competingPriorities}`, pageNum, totalSlides);
 
     const halfH = (BODY_H - GAP) / 2;
     const topY = BODY_TOP;
@@ -879,7 +888,7 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
     // TOP HALF — Psychology track bars
     // -----------------------------------------------------------------
     addPanel(slide, MARGIN_X, topY, BODY_W, halfH);
-    addKicker(slide, 'ACCOUNT PSYCHOLOGY', MARGIN_X + 0.30, topY + 0.18, BODY_W - 0.6);
+    addKicker(slide, TACTICAL_UX_LABELS.psychologySection.toUpperCase(), MARGIN_X + 0.30, topY + 0.18, BODY_W - 0.6);
 
     const trackTop = topY + 0.65;
     const trackArea = halfH - 0.85;
@@ -1009,10 +1018,10 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
     // BOTTOM HALF — Strategic Tensions badges
     // -----------------------------------------------------------------
     addPanel(slide, MARGIN_X, bottomY, BODY_W, halfH);
-    addKicker(slide, 'STRATEGIC TENSIONS', MARGIN_X + 0.30, bottomY + 0.18, BODY_W - 0.6);
+    addKicker(slide, TACTICAL_UX_LABELS.competingPriorities.toUpperCase(), MARGIN_X + 0.30, bottomY + 0.18, BODY_W - 0.6);
 
     if (ctx.tensionPills.length === 0) {
-        slide.addText('No strategic tensions captured yet — open the Strategic Tensions section in the plan canvas.', {
+        slide.addText(`No competing priorities captured yet — open the ${TACTICAL_UX_LABELS.competingPriorities} section in the plan canvas.`, {
             x: '4%',
             y: '58%',
             w: '92%',
@@ -1166,16 +1175,22 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Strategic Entry Points — exactly ONE slide with two percent columns.
+ * entry_points[0] → left (5%), entry_points[1] → right (53%). Additional
+ * profiles are ignored for the exec readout (no addSlide pagination).
+ *
  * @param {PptxGenJS} pptx
- * @param {ReturnType<typeof collectEntryProfiles>} profiles
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
  * @param {number} pageNum
  * @param {number} totalSlides
  */
-function buildEntryPointsSlide(pptx, profiles, pageNum, totalSlides) {
+function buildEntryPointsSlide(pptx, ctx, highlight, pageNum, totalSlides) {
     const slide = addContentSlide(pptx);
     addContentSlideChrome(slide, 'Strategic Entry Points', pageNum, totalSlides);
 
-    if (profiles.length === 0) {
+    const rawPoints = ctx.rawEntryPoints.filter(isPlainObject);
+    if (rawPoints.length === 0) {
         slide.addText('No target profiles captured yet — open the Strategic Entry Points carousel in the plan canvas.', {
             x: '5%',
             y: '28%',
@@ -1189,38 +1204,59 @@ function buildEntryPointsSlide(pptx, profiles, pageNum, totalSlides) {
         return;
     }
 
-    const entryColW = (BODY_W - GAP) / 2;
-    const entryColumns = [
-        { x: MARGIN_X, profile: profiles[0] ?? null },
-        { x: MARGIN_X + entryColW + GAP, profile: profiles[1] ?? null },
+    // Hard-bind both columns on this single slide object — never loop addSlide.
+    const columns = [
+        { x: '5%', w: '42%', point: rawPoints[0] },
+        { x: '53%', w: '42%', point: rawPoints[1] },
     ];
 
-    entryColumns.forEach((col) => {
-        if (!col.profile) return;
-        renderEntryProfileColumn(slide, col.profile, col.x, entryColW);
+    columns.forEach((col, index) => {
+        if (!isPlainObject(col.point)) return;
+        const profile = mapEntryPointToProfile(col.point, index, highlight);
+        renderEntryProfileColumnPercent(slide, profile, col.x, col.w);
     });
 }
 
 /**
- * Render one Target Profile column on slide 4.
+ * @param {Record<string, unknown>} point
+ * @param {number} index
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ */
+function mapEntryPointToProfile(point, index, highlight) {
+    const name = String(point.contact_name ?? '').trim() || `Contact ${index + 1}`;
+    const aiByName = new Map();
+    (highlight.slides.battlefield.entry_points || []).forEach((entry) => {
+        if (entry && entry.name) {
+            aiByName.set(String(entry.name).trim().toLowerCase(), entry);
+        }
+    });
+    const aiMatch = aiByName.get(name.toLowerCase());
+    return {
+        name,
+        operational_pain: String(point.operational_pain ?? '').trim(),
+        conversation_wedge: String(point.conversation_wedge ?? '').trim(),
+        human_context: String(point.human_context ?? '').trim(),
+        badges: aiMatch ? String(aiMatch.badges ?? '').trim() : '',
+    };
+}
+
+/**
+ * Render one Target Profile column using percent geometry (slide 4 spec).
  *
  * @param {import('pptxgenjs').Slide} slide
- * @param {ReturnType<typeof collectEntryProfiles>[number]} profile
- * @param {number} colX
- * @param {number} colW
+ * @param {ReturnType<typeof mapEntryPointToProfile>} profile
+ * @param {string} colX
+ * @param {string} colW
  */
-function renderEntryProfileColumn(slide, profile, colX, colW) {
-    addPanel(slide, colX, BODY_TOP, colW, BODY_H);
+function renderEntryProfileColumnPercent(slide, profile, colX, colW) {
+    addPanel(slide, colX, '14%', colW, '78%');
 
-    const innerX = colX + PANEL_PAD_X;
-    const innerW = colW - PANEL_PAD_X * 2;
-    let cursorY = BODY_TOP + 0.22;
-
+    let bodyY = '20%';
     slide.addText(profile.name || 'Unnamed Contact', {
-        x: innerX,
-        y: cursorY,
-        w: innerW,
-        h: 0.36,
+        x: colX,
+        y: '15%',
+        w: colW,
+        h: '5%',
         fontSize: TYPO.subheader,
         bold: true,
         color: THEME.primary,
@@ -1230,14 +1266,13 @@ function renderEntryProfileColumn(slide, profile, colX, colW) {
         margin: 0,
         autoFit: false,
     });
-    cursorY += 0.40;
 
     if (profile.badges) {
         slide.addText(profile.badges.toUpperCase(), {
-            x: innerX,
-            y: cursorY,
-            w: innerW,
-            h: 0.24,
+            x: colX,
+            y: '19%',
+            w: colW,
+            h: '4%',
             fontSize: TYPO.kicker,
             bold: true,
             color: THEME.secondary,
@@ -1248,14 +1283,14 @@ function renderEntryProfileColumn(slide, profile, colX, colW) {
             margin: 0,
             autoFit: false,
         });
-        cursorY += 0.30;
+        bodyY = '24%';
     }
 
     slide.addText(buildEntryProfileRichRuns(profile), {
-        x: innerX,
-        y: cursorY,
-        w: innerW,
-        h: BODY_TOP + BODY_H - cursorY - PANEL_BOTTOM_PAD,
+        x: colX,
+        y: bodyY,
+        w: colW,
+        h: '68%',
         valign: 'top',
         breakLine: true,
         margin: 0,
@@ -1266,14 +1301,14 @@ function renderEntryProfileColumn(slide, profile, colX, colW) {
 /**
  * Build pptxgenjs rich-text runs for one target profile column.
  *
- * @param {ReturnType<typeof collectEntryProfiles>[number]} profile
+ * @param {ReturnType<typeof mapEntryPointToProfile>} profile
  * @returns {import('pptxgenjs').TextProps[]}
  */
 function buildEntryProfileRichRuns(profile) {
     const sections = [
         { label: 'Operational Pain', value: profile.operational_pain },
         { label: 'Conversation Wedge', value: profile.conversation_wedge },
-        { label: 'Human Context', value: profile.human_context },
+        { label: TACTICAL_UX_LABELS.humanContext, value: profile.human_context },
     ];
 
     const runs = [];
@@ -1335,10 +1370,12 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     ];
     const cellRows = horizons.map((h) => composePlanCellLines(h.block, h.fallback));
 
+    const commitments = ctx.plan306090.client_commitments;
+    const hasCommitments = commitments.length > 0;
     const tableX = MARGIN_X + 0.25;
     const tableY = topY + 0.65;
     const tableW = BODY_W - 0.50;
-    const tableH = topH - 0.85;
+    const tableH = hasCommitments ? topH - 1.55 : topH - 0.85;
     const colW = tableW / 3;
 
     // Header row — uppercase period labels with accent fill (brand teal).
@@ -1391,6 +1428,35 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
         fontFace: THEME.font,
         autoPage: false,
     });
+
+    if (hasCommitments) {
+        const giveGetY = tableY + tableH + 0.12;
+        slide.addText(TACTICAL_UX_LABELS.clientCommitments.toUpperCase(), {
+            x: MARGIN_X + 0.30,
+            y: giveGetY,
+            w: BODY_W - 0.60,
+            h: 0.22,
+            fontSize: TYPO.kicker,
+            bold: true,
+            color: THEME.accent,
+            fontFace: THEME.font,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+        addNativeBulletList(slide, commitments, {
+            x: MARGIN_X + 0.30,
+            y: giveGetY + 0.26,
+            w: BODY_W - 0.60,
+            h: topY + topH - (giveGetY + 0.26) - 0.12,
+            fontSize: TYPO.body,
+            lineSpacing: 16,
+            color: THEME.primary,
+            bullet: true,
+            fallbackItems: ['No client commitments documented.'],
+        });
+    }
 
     // BOTTOM — Strategic Signals.
     addPanel(slide, MARGIN_X, bottomY, BODY_W, bottomH);
