@@ -26,6 +26,7 @@ import {
     INSIGHT_DENSITY_SECTIONS,
     INSIGHT_DENSITY_SOFT_LIMIT,
     TACTICAL_UX_LABELS,
+    SAOS_CORE_HIDDEN_SECTION_IDS,
 } from './account-plan-sections.js';
 import { formatPlanHorizonRailPreviewHtml } from './account-plan-rich-text.js';
 import {
@@ -259,6 +260,7 @@ function updateAccountPickerForMode(mode) {
     }
 
     if (isStrategic) {
+        loadSaosViewMode();
         renderStrategicToc();
         initStrategicTocClicks();
     }
@@ -271,16 +273,84 @@ function updateAccountPickerForMode(mode) {
  * Click handling lives in a delegated listener (initStrategicTocClicks below)
  * so re-rendering the nav doesn't drop any handlers.
  */
+/**
+ * @returns {import('./account-plan-sections.js').PlanSectionDef[]}
+ */
+function getCanvasPlanSections() {
+    if (_saosViewMode === 'core') {
+        return PLAN_SECTIONS.filter((section) => !SAOS_CORE_HIDDEN_SECTION_IDS.includes(section.id));
+    }
+    return PLAN_SECTIONS;
+}
+
+function loadSaosViewMode() {
+    try {
+        const stored = localStorage.getItem(SAOS_VIEW_MODE_STORAGE_KEY);
+        _saosViewMode = stored === 'deep' ? 'deep' : 'core';
+    } catch {
+        _saosViewMode = 'core';
+    }
+}
+
+/**
+ * @param {SaosViewMode} mode
+ */
+function setSaosViewMode(mode) {
+    _saosViewMode = mode === 'deep' ? 'deep' : 'core';
+    try {
+        localStorage.setItem(SAOS_VIEW_MODE_STORAGE_KEY, _saosViewMode);
+    } catch {
+        /* ignore quota / private mode */
+    }
+    applySaosViewModeToCanvas();
+    renderStrategicToc();
+    paintCanvas();
+}
+
+function applySaosViewModeToCanvas() {
+    const canvas = document.getElementById('strategic-document-canvas');
+    if (!(canvas instanceof HTMLElement)) return;
+    canvas.classList.toggle('saos-mode-core', _saosViewMode === 'core');
+    canvas.classList.toggle('saos-mode-deep', _saosViewMode === 'deep');
+}
+
+function renderStrategicViewModeToggleHtml() {
+    const isCore = _saosViewMode === 'core';
+    return `
+        <div class="saos-view-mode" role="group" aria-label="Plan view mode">
+            <span class="saos-view-mode-label">View Mode:</span>
+            <button
+                type="button"
+                class="saos-view-mode-option${isCore ? ' saos-view-mode-option--active' : ''}"
+                data-view-mode="core"
+                aria-pressed="${isCore ? 'true' : 'false'}"
+            >Core</button>
+            <span class="saos-view-mode-sep" aria-hidden="true">|</span>
+            <button
+                type="button"
+                class="saos-view-mode-option${!isCore ? ' saos-view-mode-option--active' : ''}"
+                data-view-mode="deep"
+                aria-pressed="${!isCore ? 'true' : 'false'}"
+            >Deep Dive</button>
+        </div>`;
+}
+
 function renderStrategicToc() {
-    const nav = document.getElementById('strategic-toc-nav');
-    if (!nav) return;
-    nav.innerHTML = PLAN_SECTIONS.map((section) => (
-        `<a href="#strategic-section-${section.id}"`
-        + ` class="strategic-toc-link"`
-        + ` data-section-id="${section.id}">`
-        + escapeHtml(section.title)
-        + `</a>`
-    )).join('');
+    const tocBody = document.getElementById('strategic-toc-body');
+    if (!tocBody) return;
+
+    const sections = getCanvasPlanSections();
+    tocBody.innerHTML = `
+        ${renderStrategicViewModeToggleHtml()}
+        <nav id="strategic-toc-nav" class="strategic-toc-nav" aria-label="Plan table of contents">
+            ${sections.map((section) => (
+                `<a href="#strategic-section-${section.id}"`
+                + ` class="strategic-toc-link"`
+                + ` data-section-id="${section.id}">`
+                + escapeHtml(section.title)
+                + `</a>`
+            )).join('')}
+        </nav>`;
 }
 
 let _strategicTocClicksBound = false;
@@ -296,14 +366,25 @@ let _strategicTocClicksBound = false;
  */
 function initStrategicTocClicks() {
     if (_strategicTocClicksBound) return;
-    const nav = document.getElementById('strategic-toc-nav');
-    if (!nav) return;
+    const tocBody = document.getElementById('strategic-toc-body');
+    if (!tocBody) return;
     _strategicTocClicksBound = true;
 
-    nav.addEventListener('click', (event) => {
-        const link = event.target instanceof Element
-            ? event.target.closest('.strategic-toc-link')
-            : null;
+    tocBody.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const modeBtn = target.closest('[data-view-mode]');
+        if (modeBtn instanceof HTMLButtonElement) {
+            event.preventDefault();
+            const mode = modeBtn.dataset.viewMode === 'deep' ? 'deep' : 'core';
+            if (mode !== _saosViewMode) {
+                setSaosViewMode(mode);
+            }
+            return;
+        }
+
+        const link = target.closest('.strategic-toc-link');
         if (!(link instanceof HTMLAnchorElement)) return;
         event.preventDefault();
 
@@ -313,7 +394,7 @@ function initStrategicTocClicks() {
         if (!sectionEl) return;
 
         sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        nav.querySelectorAll('.strategic-toc-link').forEach((el) => el.classList.remove('active'));
+        tocBody.querySelectorAll('.strategic-toc-link').forEach((el) => el.classList.remove('active'));
         link.classList.add('active');
     });
 }
@@ -441,6 +522,8 @@ export function renderStrategicShell(account, plan) {
     }
 
     if (canvas) {
+        loadSaosViewMode();
+        applySaosViewModeToCanvas();
         paintCanvas();
         bindCanvasFormEvents(canvas);
     }
@@ -3002,7 +3085,7 @@ export function promoteActivityToInteractionLog(activity) {
  * @param {number} [entryPointActiveIndex]
  */
 function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
-    return PLAN_SECTIONS.map((section) => {
+    return getCanvasPlanSections().map((section) => {
         const headingId = `strategic-heading-${section.id}`;
         const sectionId = `strategic-section-${section.id}`;
         const headerContext = buildSectionHeaderContext(section);
@@ -3348,10 +3431,11 @@ function isSectionFilled(section, sections) {
  * @param {Record<string, unknown>} sections
  */
 function computePlanCompleteness(sections) {
-    const total = PLAN_SECTIONS.length;
+    const visibleSections = getCanvasPlanSections();
+    const total = visibleSections.length;
     if (total === 0) return { filled: 0, total: 0, percent: 0 };
 
-    const filled = PLAN_SECTIONS.filter((section) => isSectionFilled(section, sections)).length;
+    const filled = visibleSections.filter((section) => isSectionFilled(section, sections)).length;
     const percent = Math.round((filled / total) * 100);
     return { filled, total, percent };
 }
@@ -3652,6 +3736,13 @@ function updateRailSummaries(sections) {
 }
 
 let _draggedInfluenceContactId = null;
+
+/** @typedef {'core' | 'deep'} SaosViewMode */
+
+const SAOS_VIEW_MODE_STORAGE_KEY = 'saos-view-mode';
+
+/** @type {SaosViewMode} */
+let _saosViewMode = 'core';
 
 /**
  * Push a new blindspot string into the live plan, persist, and re-render

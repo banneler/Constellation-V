@@ -7,6 +7,7 @@ import {
     PSYCHOLOGY_SLIDERS,
     PLAN_306090_HORIZONS,
     TACTICAL_UX_LABELS,
+    ENTRY_POINT_FIELD_KEYS,
 } from './account-plan-sections.js';
 import { normalizePlan, INFLUENCE_CONTACT_FIELD_KEYS } from './account-plan-data.js';
 import { formatContactLabel, resolveContactById } from './account-plan-contacts.js';
@@ -19,6 +20,185 @@ import {
 } from './account-plan-export-brand.js';
 
 export const PLAN_SUMMARY_DOCUMENT_TITLE = 'Strategic Account Plan Summary';
+
+// ---------------------------------------------------------------------------
+// Smart Drop — export presence (null / whitespace / empty arrays)
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {unknown} value
+ */
+export function hasMeaningfulText(value) {
+    if (value == null) return false;
+    if (Array.isArray(value)) {
+        return value.some((entry) => hasMeaningfulText(entry));
+    }
+    if (typeof value === 'object') {
+        return Object.values(value).some((entry) => hasMeaningfulText(entry));
+    }
+    return String(value).replace(/\s+/g, ' ').trim().length > 0;
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {string[]}
+ */
+export function sanitizeStringArray(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .map((entry) => String(entry ?? '').trim())
+        .filter(Boolean);
+}
+
+/**
+ * @param {unknown} value
+ */
+function isPlanHorizonTextEmpty(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return true;
+    const stripped = raw
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return stripped.length === 0;
+}
+
+/**
+ * True when a section has no rep-authored content — export engines should
+ * omit the entire block (no title, no empty-state placeholder).
+ *
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} sections
+ * @param {unknown[]} [contacts]
+ * @param {{ name?: string } | null} [account]
+ */
+export function isPlanSectionEmptyForExport(section, sections, contacts = [], account = null) {
+    const data = sections[section.id];
+
+    if (section.type === 'account_snapshot') {
+        const snap = isPlainObject(data) ? data : {};
+        const fields = section.fields || [];
+        const snapFilled = fields.some((field) => hasMeaningfulText(snap[field.key]));
+        const accountFilled = account && (
+            hasMeaningfulText(account.name)
+            || hasMeaningfulText(account.industry)
+            || account.employee_count != null
+            || account.quantity_of_sites != null
+            || hasMeaningfulText(account.address)
+        );
+        return !snapFilled && !accountFilled;
+    }
+
+    if (section.type === 'composite_textarea') {
+        const obj = isPlainObject(data) ? data : {};
+        return !(section.fields || []).some((field) => hasMeaningfulText(obj[field.key]));
+    }
+
+    if (section.type === 'triple_textarea') {
+        const obj = isPlainObject(data) ? data : {};
+        const horizons = section.horizons || PLAN_306090_HORIZONS;
+        const horizonFilled = horizons.some((field) => !isPlanHorizonTextEmpty(obj[field.key]));
+        const commitmentsFilled = sanitizeStringArray(obj.client_commitments).length > 0;
+        return !horizonFilled && !commitmentsFilled;
+    }
+
+    if (section.type === 'blindspots_list' || section.id === 'critical_unknowns') {
+        const obj = isPlainObject(sections.critical_unknowns) ? sections.critical_unknowns : {};
+        const items = sanitizeStringArray(obj.blindspots);
+        if (items.length > 0) return false;
+        const legacy = String(obj.unknowns ?? '')
+            .split(/\r?\n+/)
+            .map((line) => line.replace(/^[\s]*(?:[-*\u2022]\s+|\d+[.)]\s+)/, '').trim())
+            .filter(Boolean);
+        return legacy.length === 0;
+    }
+
+    if (section.type === 'pain_signals' || section.type === 'entrenchment') {
+        const obj = isPlainObject(data) ? data : {};
+        const pillField = section.pillField || 'selected_pills';
+        const pills = sanitizeStringArray(obj[pillField]);
+        const textFilled = (section.textFields || []).some(
+            (field) => hasMeaningfulText(obj[field.key])
+        );
+        if (section.type === 'entrenchment') {
+            return pills.length === 0 && !textFilled;
+        }
+        return pills.length === 0 && !textFilled;
+    }
+
+    if (section.type === 'pills_and_narrative') {
+        const obj = isPlainObject(data) ? data : {};
+        const pillField = section.pillField
+            || (Array.isArray(obj.positioning_pills) ? 'positioning_pills' : 'selected_pills');
+        const pills = sanitizeStringArray(obj[pillField]);
+        const textFilled = (section.textFields || []).some(
+            (field) => hasMeaningfulText(obj[field.key])
+        );
+        if (section.id === 'competitive_landscape') {
+            return pills.length === 0 && !textFilled;
+        }
+        return pills.length === 0 && !textFilled;
+    }
+
+    if (section.type === 'white_space_matrix') {
+        const rows = Array.isArray(sections.white_space) ? sections.white_space : [];
+        return !rows.some((row) => isPlainObject(row) && Object.values(row).some((v) => hasMeaningfulText(v)));
+    }
+
+    if (section.type === 'influence_board') {
+        const mapping = isPlainObject(data) ? data : {};
+        const hasContacts = ['executive', 'mid_level', 'technical'].some(
+            (key) => Array.isArray(mapping[key]) && mapping[key].length > 0
+        );
+        const accessPath = isPlainObject(mapping.access_path) ? mapping.access_path : {};
+        const hasText = [
+            mapping.invisible_org_chart,
+            mapping.political_dynamics,
+            accessPath.current,
+            accessPath.desired,
+            accessPath.bridge,
+            accessPath.strategy,
+        ].some((value) => hasMeaningfulText(value));
+        return !hasContacts && !hasText;
+    }
+
+    if (section.type === 'entry_point_carousel') {
+        const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
+        return !points.some((point) => {
+            if (!isPlainObject(point)) return false;
+            return ENTRY_POINT_FIELD_KEYS.some((key) => hasMeaningfulText(point[key]));
+        });
+    }
+
+    if (section.type === 'psychology_grid') {
+        const psych = isPlainObject(sections.psychology) ? sections.psychology : {};
+        const sliderMoved = PSYCHOLOGY_SLIDERS.some((slider) => {
+            const value = Number(psych[slider.id]);
+            return Number.isFinite(value) && Math.round(value) !== 3;
+        });
+        if (sliderMoved) return false;
+        const gravityFilled = (section.gravityFields || []).some(
+            (field) => hasMeaningfulText(psych[field.key])
+        );
+        if (gravityFilled) return false;
+        return !hasMeaningfulText(psych.narrative);
+    }
+
+    if (section.type === 'momentum') {
+        const momentum = isPlainObject(data) ? data : {};
+        const score = Number(momentum.score);
+        const scoreMoved = Number.isFinite(score) && Math.round(score) !== 3;
+        return !scoreMoved && !hasMeaningfulText(momentum.narrative);
+    }
+
+    if (section.type === 'timeline_view') {
+        const notes = getExportMomentumNotes(sections);
+        return notes.length === 0;
+    }
+
+    return !hasMeaningfulText(data);
+}
 
 /**
  * Short-form document label used in the per-page running header. Kept as a
@@ -721,6 +901,7 @@ export function buildDossierTemplate(plan, account) {
 
     const rawBlocks = PLAN_SECTIONS
         .filter((section) => section.exportDossier !== false)
+        .filter((section) => !isPlanSectionEmptyForExport(section, sections, contacts, account))
         // Thread `account` through — the account_snapshot section needs the
         // raw account record to render the "Firmographics (CRM)" panel
         // (name / industry / employee_count / sites / address / customer

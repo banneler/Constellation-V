@@ -852,6 +852,69 @@
     padding: 0.5rem 0.75rem 0.75rem;
 }
 
+/* Core vs. Deep Dive — TOC toggle (framework fatigue reducer) */
+.saos-view-mode {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    flex-shrink: 0;
+    margin-bottom: 0.65rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
+    background: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+}
+
+.saos-view-mode-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-right: 0.15rem;
+}
+
+.saos-view-mode-option {
+    appearance: none;
+    border: none;
+    background: transparent;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-medium);
+    cursor: pointer;
+    border-radius: 0.35rem;
+    line-height: 1.2;
+    transition: color 150ms ease, background-color 150ms ease;
+}
+
+.saos-view-mode-option:hover,
+.saos-view-mode-option:focus-visible {
+    color: var(--text-light);
+    background: color-mix(in srgb, var(--bg-medium) 65%, transparent);
+    outline: none;
+}
+
+.saos-view-mode-option--active {
+    color: var(--primary-blue);
+    background: color-mix(in srgb, var(--primary-blue) 12%, transparent);
+}
+
+.saos-view-mode-sep {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    user-select: none;
+}
+
+/* Core view — hide Deep Dive-only framework sections on the canvas */
+#strategic-document-canvas.saos-mode-core #strategic-section-psychology,
+#strategic-document-canvas.saos-mode-core #strategic-section-strategic_tensions,
+#strategic-document-canvas.saos-mode-core #strategic-section-critical_unknowns,
+#strategic-document-canvas.saos-mode-core #strategic-section-entrenchment {
+    display: none !important;
+}
+
 .strategic-toc-body.hidden {
     display: none;
 }

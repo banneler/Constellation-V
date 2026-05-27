@@ -42,6 +42,7 @@ import {
 } from './account-plan-export-brand.js';
 import { normalizePlan } from './account-plan-data.js';
 import { TACTICAL_UX_LABELS } from './account-plan-sections.js';
+import { hasMeaningfulText, sanitizeStringArray } from './account-plan-export-templates.js';
 import { normalizePresentationHighlight } from './account-plan-presentation-ai.js';
 import { MOMENTUM_LABELS } from './account-plan-presentation-types.js';
 import { PSYCHOLOGY_SLIDERS } from './account-plan-sections.js';
@@ -251,9 +252,6 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
     pptx.subject = `${accountName} — ${DOC_TITLE}`;
     pptx.title = `${accountName} — ${DOC_TITLE}`;
 
-    // Exec deck: exactly five content slides (no entry-point pagination).
-    const contentSlideCount = 5;
-
     // Define the master FIRST so every subsequent addSlide({ masterName })
     // call inherits it. We pass the per-deck running header text into
     // the master closure so the account name shows on every content slide
@@ -266,17 +264,28 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
     buildCoverSlide(pptx, accountName, whiteLogo);
 
     // -----------------------------------------------------------------
-    // SLIDES 1–5 — content (all attach to MASTER_NAME)
+    // Content slides — Smart Drop omits empty psychology/tensions slide.
     // -----------------------------------------------------------------
+    /** @type {Array<(pageNum: number, totalSlides: number) => void>} */
+    const contentSlideBuilders = [
+        (pageNum, totalSlides) => buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides),
+    ];
+    if (!isPsychologyTensionsSlideEmpty(ctx)) {
+        contentSlideBuilders.push(
+            (pageNum, totalSlides) => buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides)
+        );
+    }
+    contentSlideBuilders.push(
+        (pageNum, totalSlides) => buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides),
+        (pageNum, totalSlides) => buildEntryPointsSlide(pptx, ctx, highlight, pageNum, totalSlides),
+        (pageNum, totalSlides) => buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides),
+    );
+
+    const contentSlideCount = contentSlideBuilders.length;
     let pageNum = 1;
-    buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum++, contentSlideCount);
-    buildPsychologyTensionsSlide(pptx, ctx, pageNum++, contentSlideCount);
-    buildBattlefieldSlide(pptx, highlight, ctx, pageNum++, contentSlideCount);
-
-    // Slide 4 — ONE slide, TWO columns (entry_points[0] + [1]); never paginate for exec.
-    buildEntryPointsSlide(pptx, ctx, highlight, pageNum++, contentSlideCount);
-
-    buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum++, contentSlideCount);
+    contentSlideBuilders.forEach((buildSlide) => {
+        buildSlide(pageNum++, contentSlideCount);
+    });
 
     const arrayBuffer = await pptx.write({ outputType: 'arraybuffer' });
     return {
@@ -863,6 +872,45 @@ function resolvePursuitThesisProse(highlight, ctx) {
     return legacyParts.join('\n\n');
 }
 
+/**
+ * Psychology is "empty" when every slider is still at default (3) and no
+ * gravity narrative fields were authored.
+ *
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ */
+function isPsychologyDataEmpty(ctx) {
+    const psych = ctx.psychology;
+    const slidersDefault = PSYCHOLOGY_SLIDERS.every(
+        (slider) => clampScale(psych[slider.id], 3) === 3
+    );
+    if (!slidersDefault) return false;
+
+    const gravityFilled = [
+        'organizational_gravity',
+        'consensus_requirement',
+        'procurement_friction',
+        'innovation_friction',
+        'narrative',
+    ].some((key) => hasMeaningfulText(psych[key]));
+
+    return !gravityFilled;
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ */
+function isStrategicTensionsDataEmpty(ctx) {
+    if (sanitizeStringArray(ctx.tensionPills).length > 0) return false;
+    return !hasMeaningfulText(ctx.tensionNarrative);
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ */
+function isPsychologyTensionsSlideEmpty(ctx) {
+    return isPsychologyDataEmpty(ctx) && isStrategicTensionsDataEmpty(ctx);
+}
+
 // ---------------------------------------------------------------------------
 // Slide 2 — Psychology & Strategic Tensions
 // ---------------------------------------------------------------------------
@@ -1113,18 +1161,8 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     const slide = addContentSlide(pptx);
     addContentSlideChrome(slide, 'The Battlefield', pageNum, totalSlides);
 
-    const colW = (BODY_W - GAP) / 2;
-    const leftX = MARGIN_X;
-    const rightX = MARGIN_X + colW + GAP;
-
-    // LEFT — Competitive Landscape narrative.
-    addPanel(slide, leftX, BODY_TOP, colW, BODY_H);
-    const leftLayout = panelContentLayout(leftX, BODY_TOP, colW, BODY_H);
-    addKicker(slide, 'COMPETITIVE LANDSCAPE', leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
-
-    const competitiveHeadline = String(highlight.slides.battlefield?.competitive?.headline ?? '').trim()
-        || 'Competitive Landscape';
-    addHeadline(slide, competitiveHeadline, leftLayout.innerX, leftLayout.headlineY, leftLayout.innerW, PANEL_HEADLINE_H);
+    const blindspotItems = resolveBattlefieldBlindspots(ctx, highlight);
+    const hasBlindspots = blindspotItems.length > 0;
 
     const aiBullets = Array.isArray(highlight.slides.battlefield?.competitive?.bullets)
         ? highlight.slides.battlefield.competitive.bullets
@@ -1138,35 +1176,62 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
             String(ctx.competitive.narrative ?? '').trim(),
         ].filter(Boolean);
 
+    const competitiveHeadline = String(highlight.slides.battlefield?.competitive?.headline ?? '').trim()
+        || 'Competitive Landscape';
+
+    if (hasBlindspots) {
+        const colW = (BODY_W - GAP) / 2;
+        const leftX = MARGIN_X;
+        const rightX = MARGIN_X + colW + GAP;
+
+        addPanel(slide, leftX, BODY_TOP, colW, BODY_H);
+        const leftLayout = panelContentLayout(leftX, BODY_TOP, colW, BODY_H);
+        addKicker(slide, 'COMPETITIVE LANDSCAPE', leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
+        addHeadline(slide, competitiveHeadline, leftLayout.innerX, leftLayout.headlineY, leftLayout.innerW, PANEL_HEADLINE_H);
+        addNativeBulletList(slide, competitiveBullets, {
+            x: leftLayout.innerX,
+            y: leftLayout.bodyY,
+            w: leftLayout.innerW,
+            h: leftLayout.bodyH,
+            fontSize: TYPO.body,
+            lineSpacing: 16,
+            color: THEME.primary,
+            bulletColor: THEME.accent,
+            emptyText: 'No competitive landscape captured yet.',
+        });
+
+        addPanel(slide, rightX, BODY_TOP, colW, BODY_H);
+        const rightLayout = panelContentLayout(rightX, BODY_TOP, colW, BODY_H);
+        addKicker(slide, 'THE BLINDSPOTS', rightLayout.innerX, rightLayout.kickerY, rightLayout.innerW);
+        addHeadline(slide, 'Questions we must answer next', rightLayout.innerX, rightLayout.headlineY, rightLayout.innerW, PANEL_HEADLINE_H);
+        addNativeBulletList(slide, blindspotItems, {
+            x: rightLayout.innerX,
+            y: rightLayout.bodyY,
+            w: rightLayout.innerW,
+            h: rightLayout.bodyH,
+            fontSize: TYPO.body,
+            lineSpacing: 16,
+            color: THEME.primary,
+            bullet: true,
+        });
+        return;
+    }
+
+    // No blindspots — expand competitive narrative to full slide width.
+    addPanel(slide, MARGIN_X, BODY_TOP, BODY_W, BODY_H);
+    const fullLayout = panelContentLayout(MARGIN_X, BODY_TOP, BODY_W, BODY_H);
+    addKicker(slide, 'COMPETITIVE LANDSCAPE', fullLayout.innerX, fullLayout.kickerY, fullLayout.innerW);
+    addHeadline(slide, competitiveHeadline, fullLayout.innerX, fullLayout.headlineY, fullLayout.innerW, PANEL_HEADLINE_H);
     addNativeBulletList(slide, competitiveBullets, {
-        x: leftLayout.innerX,
-        y: leftLayout.bodyY,
-        w: leftLayout.innerW,
-        h: leftLayout.bodyH,
+        x: '5%',
+        y: fullLayout.bodyY,
+        w: '90%',
+        h: fullLayout.bodyH,
         fontSize: TYPO.body,
         lineSpacing: 16,
         color: THEME.primary,
         bulletColor: THEME.accent,
         emptyText: 'No competitive landscape captured yet.',
-    });
-
-    // RIGHT — The Blindspots.
-    addPanel(slide, rightX, BODY_TOP, colW, BODY_H);
-    const rightLayout = panelContentLayout(rightX, BODY_TOP, colW, BODY_H);
-    addKicker(slide, 'THE BLINDSPOTS', rightLayout.innerX, rightLayout.kickerY, rightLayout.innerW);
-    addHeadline(slide, 'Questions we must answer next', rightLayout.innerX, rightLayout.headlineY, rightLayout.innerW, PANEL_HEADLINE_H);
-
-    const blindspotItems = resolveBattlefieldBlindspots(ctx, highlight);
-    addNativeBulletList(slide, blindspotItems, {
-        x: rightLayout.innerX,
-        y: rightLayout.bodyY,
-        w: rightLayout.innerW,
-        h: rightLayout.bodyH,
-        fontSize: TYPO.body,
-        lineSpacing: 16,
-        color: THEME.primary,
-        bullet: true,
-        fallbackItems: ['No blindspots documented.'],
     });
 }
 

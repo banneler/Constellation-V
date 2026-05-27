@@ -8,6 +8,14 @@
  * Tactical, locker-room labels for canvas + exports. Data keys stay stable
  * (e.g. `pursuit_thesis`) — only user-facing copy changes.
  */
+/** Section ids hidden in Core view mode (Deep Dive shows all). */
+export const SAOS_CORE_HIDDEN_SECTION_IDS = Object.freeze([
+    'psychology',
+    'strategic_tensions',
+    'critical_unknowns',
+    'entrenchment',
+]);
+
 export const TACTICAL_UX_LABELS = Object.freeze({
     pursuitThesis: 'The Big Play',
     actionForcingEvent: 'Action-Forcing Event (Why Now?)',
