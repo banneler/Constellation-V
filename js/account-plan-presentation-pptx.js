@@ -13,7 +13,7 @@
  *   1. Executive Summary              — Pursuit Thesis + Momentum KPI
  *   2. Psychology & Strategic Tensions — slider tracks + tension badges
  *   3. The Battlefield                — Competitive narrative + Blindspots
- *   4. Strategic Entry Points         — up to 2 target profiles / slide
+ *   4. Strategic Entry Points         — 2 target profiles on one slide
  *   5. Execution Roadmap              — 30/60/90 table + Strategic Signals
  *
  * Theming (Task 1 + Task 3):
@@ -214,13 +214,9 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
     pptx.subject = `${accountName} — ${DOC_TITLE}`;
     pptx.title = `${accountName} — ${DOC_TITLE}`;
 
-    // Plan how many content slides will be emitted up front. Slide 4
-    // (Strategic Entry Points) paginates when there are more than two
-    // profiles, so totalSlides is dynamic; we need the total before we
-    // start emitting in order to render "1 / N" page numbers correctly.
+    // Exec deck: exactly five content slides (no entry-point pagination).
+    const contentSlideCount = 5;
     const entryProfiles = collectEntryProfiles(ctx, highlight);
-    const profileSlideCount = Math.max(1, Math.ceil(entryProfiles.length / MAX_PROFILES_PER_SLIDE) || 1);
-    const contentSlideCount = 4 + profileSlideCount;
 
     // Define the master FIRST so every subsequent addSlide({ masterName })
     // call inherits it. We pass the per-deck running header text into
@@ -241,22 +237,9 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
     buildPsychologyTensionsSlide(pptx, ctx, pageNum++, contentSlideCount);
     buildBattlefieldSlide(pptx, highlight, ctx, pageNum++, contentSlideCount);
 
-    // Slide 4 may emit multiple physical slides. Each gets its own page
-    // number and the title suffix "(M of N)" so the audience tracks the
-    // pagination.
-    for (let i = 0; i < profileSlideCount; i += 1) {
-        const profilesForSlide = entryProfiles.slice(
-            i * MAX_PROFILES_PER_SLIDE,
-            (i + 1) * MAX_PROFILES_PER_SLIDE
-        );
-        buildEntryPointsSlide(
-            pptx,
-            profilesForSlide,
-            { index: i + 1, total: profileSlideCount },
-            pageNum++,
-            contentSlideCount
-        );
-    }
+    // Slide 4 — single 2-up Target Profiles slide (entry_points[0] left,
+    // entry_points[1] right; additional profiles are omitted for exec readout).
+    buildEntryPointsSlide(pptx, entryProfiles, pageNum++, contentSlideCount);
 
     buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum++, contentSlideCount);
 
@@ -566,7 +549,6 @@ function resolvePptxPlanContext(plan) {
     const tensions = isPlainObject(sections.strategic_tensions) ? sections.strategic_tensions : {};
     const competitive = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
     const pursuit = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
-    const blindspots = isPlainObject(sections.critical_unknowns) ? sections.critical_unknowns : {};
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
 
     return {
@@ -579,15 +561,7 @@ function resolvePptxPlanContext(plan) {
         tensionNarrative: String(tensions.narrative ?? '').trim(),
         competitive,
         pursuit,
-        // The data layer guarantees this is a string[] under
-        // sections.critical_unknowns.blindspots after normalizePlan runs.
-        // We cap defensively for slide overflow.
-        blindspots: Array.isArray(blindspots.blindspots)
-            ? blindspots.blindspots
-                .map((b) => String(b ?? '').trim())
-                .filter(Boolean)
-                .slice(0, MAX_BLINDSPOTS)
-            : [],
+        blindspots: extractBlindspotsFromSections(sections),
         plan306090: {
             days_30: String(plan306090.days_30 ?? '').trim(),
             days_60: String(plan306090.days_60 ?? '').trim(),
@@ -598,11 +572,82 @@ function resolvePptxPlanContext(plan) {
 }
 
 /**
- * Compose the slide-4 profile list. The AI engine emits a tight 2-field
- * shape per profile (name + hook) but does NOT carry `human_context`
- * (which slide 4 needs per spec), so we source from raw entry points.
- * AI badges remain useful as a tag row, so we look them up by contact
- * name when available.
+ * Pull the consolidated blindspots string[] from normalized plan sections.
+ * Accepts the post-migration `{ blindspots: string[] }` object, a direct
+ * array on `critical_unknowns`, and the legacy `unknowns` rich-text blob.
+ *
+ * @param {Record<string, unknown>} sections
+ * @returns {string[]}
+ */
+function extractBlindspotsFromSections(sections) {
+    const unknowns = sections.critical_unknowns;
+
+    if (Array.isArray(unknowns)) {
+        return unknowns
+            .map((b) => String(b ?? '').trim())
+            .filter(Boolean)
+            .slice(0, MAX_BLINDSPOTS);
+    }
+
+    if (Array.isArray(sections.blindspots)) {
+        return sections.blindspots
+            .map((b) => String(b ?? '').trim())
+            .filter(Boolean)
+            .slice(0, MAX_BLINDSPOTS);
+    }
+
+    const unknownsObj = isPlainObject(unknowns) ? unknowns : {};
+    if (Array.isArray(unknownsObj.blindspots)) {
+        return unknownsObj.blindspots
+            .map((b) => String(b ?? '').trim())
+            .filter(Boolean)
+            .slice(0, MAX_BLINDSPOTS);
+    }
+
+    const legacyText = String(unknownsObj.unknowns ?? '').trim();
+    if (legacyText) {
+        return legacyText
+            .split(/\r?\n+/)
+            .map((line) => line.replace(/^[\s]*(?:[-*\u2022]\s+|\d+[.)]\s+)/, '').trim())
+            .filter(Boolean)
+            .slice(0, MAX_BLINDSPOTS);
+    }
+
+    return [];
+}
+
+/**
+ * Resolve blindspots for the Battlefield slide — plan data first, then the
+ * AI-synthesized critical_unknowns bullets from the presentation payload.
+ *
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @returns {string[]}
+ */
+function resolveBattlefieldBlindspots(ctx, highlight) {
+    if (ctx.blindspots.length > 0) return ctx.blindspots;
+
+    const aiBlock = highlight?.slides?.situation?.critical_unknowns;
+    const aiBullets = Array.isArray(aiBlock?.bullets) ? aiBlock.bullets : [];
+    if (aiBullets.length > 0) {
+        return aiBullets
+            .map((b) => String(b ?? '').trim())
+            .filter(Boolean)
+            .slice(0, MAX_BLINDSPOTS);
+    }
+
+    const aiBlindspots = Array.isArray(aiBlock?.blindspots) ? aiBlock.blindspots : [];
+    return aiBlindspots
+        .map((b) => String(b ?? '').trim())
+        .filter(Boolean)
+        .slice(0, MAX_BLINDSPOTS);
+}
+
+/**
+ * Compose the slide-4 profile list (max two). The AI engine emits a tight
+ * 2-field shape per profile (name + hook) but does NOT carry `human_context`
+ * (which slide 4 needs per spec), so we source from raw entry_points by index.
+ * AI badges remain useful as a tag row, so we look them up by contact name.
  *
  * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
  * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
@@ -617,9 +662,9 @@ function collectEntryProfiles(ctx, highlight) {
 
     return ctx.rawEntryPoints
         .filter(isPlainObject)
-        .map((point) => {
-            const name = String(point.contact_name ?? '').trim();
-            if (!name) return null;
+        .slice(0, MAX_PROFILES_PER_SLIDE)
+        .map((point, index) => {
+            const name = String(point.contact_name ?? '').trim() || `Contact ${index + 1}`;
             const aiMatch = aiByName.get(name.toLowerCase());
             return {
                 name,
@@ -628,8 +673,7 @@ function collectEntryProfiles(ctx, highlight) {
                 human_context: String(point.human_context ?? '').trim(),
                 badges: aiMatch ? String(aiMatch.badges ?? '').trim() : '',
             };
-        })
-        .filter(Boolean);
+        });
 }
 
 // ---------------------------------------------------------------------------
@@ -1060,35 +1104,33 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     addKicker(slide, 'THE BLINDSPOTS', rightX + 0.25, BODY_TOP + 0.20, colW - 0.5);
     addHeadline(slide, 'Questions we must answer next', rightX + 0.25, BODY_TOP + 0.42, colW - 0.5, 0.55);
 
-    addNativeBulletList(slide, ctx.blindspots, {
-        x: '52%',
-        y: '22%',
-        w: '44%',
-        h: '68%',
+    const blindspotItems = resolveBattlefieldBlindspots(ctx, highlight);
+    addNativeBulletList(slide, blindspotItems, {
+        x: '53%',
+        y: '20%',
+        w: '42%',
+        h: '65%',
         fontSize: TYPO.body,
         lineSpacing: 16,
         color: THEME.primary,
-        bulletColor: THEME.accent,
-        emptyText: 'No discovery questions captured yet.',
+        bullet: true,
+        fallbackItems: ['No blindspots documented.'],
     });
 }
 
 // ---------------------------------------------------------------------------
-// Slide 4 — Strategic Entry Points (paginated, max 2 profiles/slide)
+// Slide 4 — Strategic Entry Points (single 2-up slide)
 // ---------------------------------------------------------------------------
 
 /**
  * @param {PptxGenJS} pptx
  * @param {ReturnType<typeof collectEntryProfiles>} profiles
- * @param {{ index: number, total: number }} pagination
  * @param {number} pageNum
  * @param {number} totalSlides
  */
-function buildEntryPointsSlide(pptx, profiles, pagination, pageNum, totalSlides) {
+function buildEntryPointsSlide(pptx, profiles, pageNum, totalSlides) {
     const slide = addContentSlide(pptx);
-
-    const titleSuffix = pagination.total > 1 ? ` (${pagination.index} of ${pagination.total})` : '';
-    addContentSlideChrome(slide, `Strategic Entry Points${titleSuffix}`, pageNum, totalSlides);
+    addContentSlideChrome(slide, 'Strategic Entry Points', pageNum, totalSlides);
 
     if (profiles.length === 0) {
         slide.addText('No target profiles captured yet — open the Strategic Entry Points carousel in the plan canvas.', {
@@ -1104,64 +1146,71 @@ function buildEntryPointsSlide(pptx, profiles, pagination, pageNum, totalSlides)
         return;
     }
 
-    // Two-column layout — first two entry_points per slide, locked to
-    // percent boxes so copy never bleeds past the slide edge.
+    // Fixed 2-up grid — entry_points[0] left, entry_points[1] right.
     const columns = [
-        { x: '5%', w: '42%' },
-        { x: '53%', w: '42%' },
+        { x: '5%', w: '42%', profile: profiles[0] ?? null },
+        { x: '53%', w: '42%', profile: profiles[1] ?? null },
     ];
 
-    profiles.slice(0, MAX_PROFILES_PER_SLIDE).forEach((profile, index) => {
-        const col = columns[index];
-        if (!col) return;
+    columns.forEach((col) => {
+        if (!col.profile) return;
+        renderEntryProfileColumn(slide, col.profile, col.x, col.w);
+    });
+}
 
-        addPanel(slide, col.x, '14%', col.w, '78%');
+/**
+ * Render one Target Profile column on slide 4.
+ *
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {ReturnType<typeof collectEntryProfiles>[number]} profile
+ * @param {string} colX
+ * @param {string} colW
+ */
+function renderEntryProfileColumn(slide, profile, colX, colW) {
+    addPanel(slide, colX, '14%', colW, '78%');
 
-        // Sub-header — contact name.
-        slide.addText(profile.name || 'Unnamed Contact', {
-            x: col.x,
-            y: '15%',
-            w: col.w,
-            h: '5%',
-            fontSize: TYPO.subheader,
+    slide.addText(profile.name || 'Unnamed Contact', {
+        x: colX,
+        y: '15%',
+        w: colW,
+        h: '5%',
+        fontSize: TYPO.subheader,
+        bold: true,
+        color: THEME.primary,
+        fontFace: THEME.font,
+        valign: 'top',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+
+    if (profile.badges) {
+        slide.addText(profile.badges.toUpperCase(), {
+            x: colX,
+            y: '19%',
+            w: colW,
+            h: '3%',
+            fontSize: TYPO.kicker,
             bold: true,
-            color: THEME.primary,
+            color: THEME.secondary,
             fontFace: THEME.font,
+            charSpacing: 1.5,
             valign: 'top',
             breakLine: true,
             margin: 0,
             autoFit: false,
         });
+    }
 
-        if (profile.badges) {
-            slide.addText(profile.badges.toUpperCase(), {
-                x: col.x,
-                y: '19%',
-                w: col.w,
-                h: '3%',
-                fontSize: TYPO.kicker,
-                bold: true,
-                color: THEME.secondary,
-                fontFace: THEME.font,
-                charSpacing: 1.5,
-                valign: 'top',
-                breakLine: true,
-                margin: 0,
-                autoFit: false,
-            });
-        }
-
-        // Rich-text stack — Operational Pain, Conversation Wedge, Human Context.
-        slide.addText(buildEntryProfileRichRuns(profile), {
-            x: col.x,
-            y: '20%',
-            w: col.w,
-            h: '70%',
-            valign: 'top',
-            breakLine: true,
-            margin: 0,
-            autoFit: false,
-        });
+    slide.addText(buildEntryProfileRichRuns(profile), {
+        x: colX,
+        y: '20%',
+        w: colW,
+        h: '70%',
+        valign: 'top',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
     });
 }
 
@@ -1533,11 +1582,15 @@ function addHeadline(slide, text, x, y, w, h) {
  *
  * @param {import('pptxgenjs').Slide} slide
  * @param {string[]} items
- * @param {{ x: number, y: number, w: number, h: number, fontSize?: number, lineSpacing?: number, color?: string, bulletColor?: string, emptyText?: string }} opts
+ * @param {{ x: number | string, y: number | string, w: number | string, h: number | string, fontSize?: number, lineSpacing?: number, color?: string, bullet?: boolean, bulletColor?: string, emptyText?: string, fallbackItems?: string[] }} opts
  */
 function addNativeBulletList(slide, items, opts) {
     const clean = (items || []).map((i) => String(i ?? '').trim()).filter(Boolean);
-    if (clean.length === 0) {
+    const lines = clean.length > 0
+        ? clean
+        : (opts.fallbackItems || []).map((i) => String(i ?? '').trim()).filter(Boolean);
+
+    if (lines.length === 0) {
         slide.addText(opts.emptyText || '—', {
             x: opts.x,
             y: opts.y,
@@ -1555,12 +1608,16 @@ function addNativeBulletList(slide, items, opts) {
         return;
     }
 
+    const bulletOpt = opts.bullet === true
+        ? true
+        : { code: '2022', color: opts.bulletColor ?? THEME.accent };
+
     slide.addText(
-        clean.map((line, idx) => ({
+        lines.map((line, idx) => ({
             text: line,
             options: {
-                bullet: { code: '2022', color: opts.bulletColor ?? THEME.accent },
-                breakLine: idx < clean.length - 1,
+                bullet: bulletOpt,
+                breakLine: idx < lines.length - 1,
                 color: opts.color ?? THEME.primary,
                 fontSize: opts.fontSize ?? TYPO.body,
                 fontFace: THEME.font,

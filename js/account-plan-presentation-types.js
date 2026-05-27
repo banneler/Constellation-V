@@ -8,7 +8,7 @@
 
 /** @typedef {{ tier: string, priority: string }} PresentationAccountContext */
 
-/** @typedef {{ headline: string, bullets: string[] }} PresentationSignalBlock */
+/** @typedef {{ headline: string, bullets: string[], blindspots?: string[] }} PresentationSignalBlock */
 
 /** @typedef {{ headline: string, opportunity: string }} PresentationWhiteSpaceHook */
 

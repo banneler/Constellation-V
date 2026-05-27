@@ -269,12 +269,18 @@ function fallbackCriticalUnknownBullets(sections) {
     // a half-migrated plan continues to render bullets — see
     // normalizeCriticalUnknowns in account-plan-data.js for the
     // equivalent migration path on the data layer.
+    if (Array.isArray(unknowns)) {
+        return unknowns
+            .map((entry) => String(entry ?? '').trim())
+            .filter(Boolean)
+            .slice(0, 8);
+    }
     const arr = Array.isArray(unknowns.blindspots) ? unknowns.blindspots : null;
     if (arr && arr.length > 0) {
         return arr
             .map((entry) => String(entry ?? '').trim())
             .filter(Boolean)
-            .slice(0, 3);
+            .slice(0, 8);
     }
     const lines = extractBulletLines(unknowns.unknowns);
     return [
@@ -283,7 +289,7 @@ function fallbackCriticalUnknownBullets(sections) {
     ]
         .map((line) => String(line).trim())
         .filter(Boolean)
-        .slice(0, 3);
+        .slice(0, 8);
 }
 
 /**
@@ -442,9 +448,18 @@ function fallbackAccessPathHook(sections) {
  * @param {string[]} fallbackBullets
  */
 function normalizeSignalBlock(raw, defaultHeadline, fallbackBullets) {
+    const block = isPlainObject(raw) ? raw : {};
+    // AI payloads may emit either `bullets` or the consolidated `blindspots`
+    // array from sections.critical_unknowns — accept both so the PPTX engine
+    // can render The Blindspots on the Battlefield slide.
+    const bulletSource = Array.isArray(block.bullets)
+        ? block.bullets
+        : Array.isArray(block.blindspots)
+            ? block.blindspots
+            : [];
     return {
-        headline: pickText(raw.headline, defaultHeadline),
-        bullets: pickBullets(raw.bullets, 3, fallbackBullets),
+        headline: pickText(block.headline, defaultHeadline),
+        bullets: pickBullets(bulletSource, 8, fallbackBullets),
     };
 }
 
