@@ -27,8 +27,9 @@
  *
  * Typography & overflow:
  *   • TYPO scale — body 11pt, slide headers 24pt, sub-headers 14pt.
- *   • Every narrative addText uses percent w/h, breakLine:true,
- *     valign:'top', and autoFit:false so copy never bleeds off-slide.
+ *   • Panel content uses inch-based vertical stacking (kicker → headline
+ *     → body) so headers never collide with body copy.
+ *   • breakLine:true, valign:'top', autoFit:false on all narrative blocks.
  *   • Slide 4 (Target Profiles) uses a locked 5%/42% | 53%/42% column
  *     grid with pptxgenjs rich-text runs per profile field.
  */
@@ -120,7 +121,7 @@ function themeHex(key) {
     return `#${THEME[key]}`;
 }
 
-/** Shared options for narrative body copy inside rigid percent boxes. */
+/** Shared options for narrative body copy inside rigid bounding boxes. */
 const BODY_TEXT_BASE = Object.freeze({
     fontSize: TYPO.body,
     fontFace: THEME.font,
@@ -131,6 +132,41 @@ const BODY_TEXT_BASE = Object.freeze({
     margin: 0,
     autoFit: false,
 });
+
+// Panel interior rhythm (inches) — kicker, headline, and body must share
+// one coordinate system. Mixing inch headers with percent body Y caused
+// headline/body overlap in PowerPoint.
+const PANEL_PAD_X = 0.25;
+const PANEL_KICKER_Y_OFF = 0.18;
+const PANEL_HEADLINE_Y_OFF = 0.38;
+const PANEL_HEADLINE_H = 0.48;
+const PANEL_BODY_GAP = 0.10;
+const PANEL_BOTTOM_PAD = 0.18;
+
+/**
+ * Compute stacked Y positions for kicker → headline → body inside a panel.
+ *
+ * @param {number} panelX
+ * @param {number} panelY
+ * @param {number} panelW
+ * @param {number} panelH
+ */
+function panelContentLayout(panelX, panelY, panelW, panelH) {
+    const innerX = panelX + PANEL_PAD_X;
+    const innerW = panelW - PANEL_PAD_X * 2;
+    const kickerY = panelY + PANEL_KICKER_Y_OFF;
+    const headlineY = panelY + PANEL_HEADLINE_Y_OFF;
+    const bodyY = headlineY + PANEL_HEADLINE_H + PANEL_BODY_GAP;
+    const bodyH = panelY + panelH - bodyY - PANEL_BOTTOM_PAD;
+    return {
+        innerX,
+        innerW,
+        kickerY,
+        headlineY,
+        bodyY,
+        bodyH: Math.max(bodyH, 0.45),
+    };
+}
 
 // Tension badges (Task 3 — "retain GPC brand blue/green"). We cycle the
 // brand teal, brand lime, and brand navy-deep so each row reads as an
@@ -444,25 +480,25 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
     // LEFT-SIDE TITLE BLOCK — premium editorial stack: accent bar (shape
     // first for z-index) then vertically centred account name.
     // -----------------------------------------------------------------
-    const titleX = '5%';
-    const titleW = '55%';
+    const titleX = 0.75;
+    const titleW = 6.25;
+    const titleCenterY = SLIDE_H / 2;
 
-    // Slim brand accent — drawn before text so it sits beneath the title.
+    // Slim brand accent — shape before text (z-order).
     slide.addShape('rect', {
         x: titleX,
-        y: '40%',
-        w: '15%',
-        h: '2%',
+        y: titleCenterY - 0.95,
+        w: 1.85,
+        h: 0.12,
         fill: { color: THEME.accent },
         line: { width: 0 },
     });
 
-    // Massive account name — vertically centred in the left field.
     slide.addText(accountName, {
         x: titleX,
-        y: '44%',
+        y: titleCenterY - 0.75,
         w: titleW,
-        h: '14%',
+        h: 1.35,
         fontSize: 44,
         bold: true,
         color: 'FFFFFF',
@@ -474,12 +510,11 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
         autoFit: false,
     });
 
-    // Subtitle — lime, uppercase, tracked.
     slide.addText(DOC_TITLE.toUpperCase(), {
         x: titleX,
-        y: '60%',
+        y: titleCenterY + 0.72,
         w: titleW,
-        h: '6%',
+        h: 0.45,
         fontSize: TYPO.subheader,
         bold: true,
         color: THEME.accentAlt,
@@ -494,9 +529,9 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
 
     slide.addText(formatGpcFooterDate(new Date()), {
         x: titleX,
-        y: '67%',
+        y: titleCenterY + 1.22,
         w: titleW,
-        h: '4%',
+        h: 0.30,
         fontSize: TYPO.body,
         color: 'CBD5E1',
         fontFace: THEME.font,
@@ -509,9 +544,9 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
 
     slide.addText(GPC_BRAND.companyName.toUpperCase(), {
         x: titleX,
-        y: '92%',
+        y: SLIDE_H - 0.55,
         w: titleW,
-        h: '4%',
+        h: 0.25,
         fontSize: TYPO.kicker,
         bold: true,
         color: 'CBD5E1',
@@ -710,14 +745,15 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
     const pursuitProse = resolvePursuitThesisProse(highlight, ctx);
 
     addPanel(slide, MARGIN_X, BODY_TOP, leftW, BODY_H);
-    addKicker(slide, 'PURSUIT THESIS', MARGIN_X + 0.25, BODY_TOP + 0.20, leftW - 0.5);
-    addHeadline(slide, pursuitHeadline, MARGIN_X + 0.25, BODY_TOP + 0.42, leftW - 0.5, 0.55);
+    const leftLayout = panelContentLayout(MARGIN_X, BODY_TOP, leftW, BODY_H);
+    addKicker(slide, 'PURSUIT THESIS', leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
+    addHeadline(slide, pursuitHeadline, leftLayout.innerX, leftLayout.headlineY, leftLayout.innerW, PANEL_HEADLINE_H);
 
     slide.addText(pursuitProse || 'No pursuit thesis captured yet.', {
-        x: '4%',
-        y: '22%',
-        w: '52%',
-        h: '68%',
+        x: leftLayout.innerX,
+        y: leftLayout.bodyY,
+        w: leftLayout.innerW,
+        h: leftLayout.bodyH,
         ...BODY_TEXT_BASE,
         lineSpacing: 16,
     });
@@ -726,13 +762,17 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
     // RIGHT COLUMN — Momentum KPI
     // -----------------------------------------------------------------
     addPanel(slide, rightX, BODY_TOP, rightW, BODY_H);
-    addKicker(slide, 'RELATIONSHIP MOMENTUM', rightX + 0.25, BODY_TOP + 0.20, rightW - 0.5);
+    const rightInnerX = rightX + PANEL_PAD_X;
+    const rightInnerW = rightW - PANEL_PAD_X * 2;
+    addKicker(slide, 'RELATIONSHIP MOMENTUM', rightInnerX, BODY_TOP + PANEL_KICKER_Y_OFF, rightInnerW);
 
+    const kpiScoreY = BODY_TOP + 0.55;
+    const kpiScoreH = 1.55;
     slide.addText(String(ctx.score), {
-        x: '72%',
-        y: '22%',
-        w: '24%',
-        h: '22%',
+        x: rightX,
+        y: kpiScoreY,
+        w: rightW,
+        h: kpiScoreH,
         align: 'center',
         valign: 'middle',
         fontSize: 72,
@@ -744,10 +784,10 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
         autoFit: false,
     });
     slide.addText(MOMENTUM_LABELS[ctx.score - 1].toUpperCase(), {
-        x: '72%',
-        y: '44%',
-        w: '24%',
-        h: '5%',
+        x: rightInnerX,
+        y: kpiScoreY + kpiScoreH + 0.04,
+        w: rightInnerW,
+        h: 0.30,
         align: 'center',
         fontSize: TYPO.subheader,
         bold: true,
@@ -760,9 +800,10 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
         autoFit: false,
     });
 
+    const ruleY = kpiScoreY + kpiScoreH + 0.48;
     slide.addShape('line', {
         x: rightX + 0.50,
-        y: BODY_TOP + 2.70,
+        y: ruleY,
         w: rightW - 1.00,
         h: 0,
         line: { color: THEME.accent, width: 0.75 },
@@ -772,10 +813,10 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
         || String(highlight.slides.situation?.momentum?.insight ?? '').trim();
     if (narrative) {
         slide.addText(truncate(narrative, 320), {
-            x: '72%',
-            y: '52%',
-            w: '24%',
-            h: '38%',
+            x: rightInnerX,
+            y: ruleY + 0.14,
+            w: rightInnerW,
+            h: BODY_TOP + BODY_H - (ruleY + 0.14) - PANEL_BOTTOM_PAD,
             ...BODY_TEXT_BASE,
             color: THEME.secondary,
             lineSpacing: 16,
@@ -1032,10 +1073,10 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
         const narrativeMaxH = bottomY + halfH - narrativeY - 0.25;
         if (narrativeMaxH > 0.3) {
             slide.addText(truncate(ctx.tensionNarrative, 260), {
-                x: '4%',
-                y: `${((narrativeY / SLIDE_H) * 100).toFixed(1)}%`,
-                w: '92%',
-                h: `${((narrativeMaxH / SLIDE_H) * 100).toFixed(1)}%`,
+                x: MARGIN_X + 0.30,
+                y: narrativeY,
+                w: BODY_W - 0.60,
+                h: narrativeMaxH,
                 ...BODY_TEXT_BASE,
                 italic: true,
                 color: THEME.secondary,
@@ -1069,11 +1110,12 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
 
     // LEFT — Competitive Landscape narrative.
     addPanel(slide, leftX, BODY_TOP, colW, BODY_H);
-    addKicker(slide, 'COMPETITIVE LANDSCAPE', leftX + 0.25, BODY_TOP + 0.20, colW - 0.5);
+    const leftLayout = panelContentLayout(leftX, BODY_TOP, colW, BODY_H);
+    addKicker(slide, 'COMPETITIVE LANDSCAPE', leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
 
     const competitiveHeadline = String(highlight.slides.battlefield?.competitive?.headline ?? '').trim()
         || 'Competitive Landscape';
-    addHeadline(slide, competitiveHeadline, leftX + 0.25, BODY_TOP + 0.42, colW - 0.5, 0.55);
+    addHeadline(slide, competitiveHeadline, leftLayout.innerX, leftLayout.headlineY, leftLayout.innerW, PANEL_HEADLINE_H);
 
     const aiBullets = Array.isArray(highlight.slides.battlefield?.competitive?.bullets)
         ? highlight.slides.battlefield.competitive.bullets
@@ -1088,10 +1130,10 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
         ].filter(Boolean);
 
     addNativeBulletList(slide, competitiveBullets, {
-        x: '4%',
-        y: '22%',
-        w: '44%',
-        h: '68%',
+        x: leftLayout.innerX,
+        y: leftLayout.bodyY,
+        w: leftLayout.innerW,
+        h: leftLayout.bodyH,
         fontSize: TYPO.body,
         lineSpacing: 16,
         color: THEME.primary,
@@ -1101,15 +1143,16 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
 
     // RIGHT — The Blindspots.
     addPanel(slide, rightX, BODY_TOP, colW, BODY_H);
-    addKicker(slide, 'THE BLINDSPOTS', rightX + 0.25, BODY_TOP + 0.20, colW - 0.5);
-    addHeadline(slide, 'Questions we must answer next', rightX + 0.25, BODY_TOP + 0.42, colW - 0.5, 0.55);
+    const rightLayout = panelContentLayout(rightX, BODY_TOP, colW, BODY_H);
+    addKicker(slide, 'THE BLINDSPOTS', rightLayout.innerX, rightLayout.kickerY, rightLayout.innerW);
+    addHeadline(slide, 'Questions we must answer next', rightLayout.innerX, rightLayout.headlineY, rightLayout.innerW, PANEL_HEADLINE_H);
 
     const blindspotItems = resolveBattlefieldBlindspots(ctx, highlight);
     addNativeBulletList(slide, blindspotItems, {
-        x: '53%',
-        y: '20%',
-        w: '42%',
-        h: '65%',
+        x: rightLayout.innerX,
+        y: rightLayout.bodyY,
+        w: rightLayout.innerW,
+        h: rightLayout.bodyH,
         fontSize: TYPO.body,
         lineSpacing: 16,
         color: THEME.primary,
@@ -1146,15 +1189,15 @@ function buildEntryPointsSlide(pptx, profiles, pageNum, totalSlides) {
         return;
     }
 
-    // Fixed 2-up grid — entry_points[0] left, entry_points[1] right.
-    const columns = [
-        { x: '5%', w: '42%', profile: profiles[0] ?? null },
-        { x: '53%', w: '42%', profile: profiles[1] ?? null },
+    const entryColW = (BODY_W - GAP) / 2;
+    const entryColumns = [
+        { x: MARGIN_X, profile: profiles[0] ?? null },
+        { x: MARGIN_X + entryColW + GAP, profile: profiles[1] ?? null },
     ];
 
-    columns.forEach((col) => {
+    entryColumns.forEach((col) => {
         if (!col.profile) return;
-        renderEntryProfileColumn(slide, col.profile, col.x, col.w);
+        renderEntryProfileColumn(slide, col.profile, col.x, entryColW);
     });
 }
 
@@ -1163,17 +1206,21 @@ function buildEntryPointsSlide(pptx, profiles, pageNum, totalSlides) {
  *
  * @param {import('pptxgenjs').Slide} slide
  * @param {ReturnType<typeof collectEntryProfiles>[number]} profile
- * @param {string} colX
- * @param {string} colW
+ * @param {number} colX
+ * @param {number} colW
  */
 function renderEntryProfileColumn(slide, profile, colX, colW) {
-    addPanel(slide, colX, '14%', colW, '78%');
+    addPanel(slide, colX, BODY_TOP, colW, BODY_H);
+
+    const innerX = colX + PANEL_PAD_X;
+    const innerW = colW - PANEL_PAD_X * 2;
+    let cursorY = BODY_TOP + 0.22;
 
     slide.addText(profile.name || 'Unnamed Contact', {
-        x: colX,
-        y: '15%',
-        w: colW,
-        h: '5%',
+        x: innerX,
+        y: cursorY,
+        w: innerW,
+        h: 0.36,
         fontSize: TYPO.subheader,
         bold: true,
         color: THEME.primary,
@@ -1183,13 +1230,14 @@ function renderEntryProfileColumn(slide, profile, colX, colW) {
         margin: 0,
         autoFit: false,
     });
+    cursorY += 0.40;
 
     if (profile.badges) {
         slide.addText(profile.badges.toUpperCase(), {
-            x: colX,
-            y: '19%',
-            w: colW,
-            h: '3%',
+            x: innerX,
+            y: cursorY,
+            w: innerW,
+            h: 0.24,
             fontSize: TYPO.kicker,
             bold: true,
             color: THEME.secondary,
@@ -1200,13 +1248,14 @@ function renderEntryProfileColumn(slide, profile, colX, colW) {
             margin: 0,
             autoFit: false,
         });
+        cursorY += 0.30;
     }
 
     slide.addText(buildEntryProfileRichRuns(profile), {
-        x: colX,
-        y: '20%',
-        w: colW,
-        h: '70%',
+        x: innerX,
+        y: cursorY,
+        w: innerW,
+        h: BODY_TOP + BODY_H - cursorY - PANEL_BOTTOM_PAD,
         valign: 'top',
         breakLine: true,
         margin: 0,
@@ -1366,52 +1415,36 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
         return;
     }
 
-    const runs = [];
-    signals.forEach((signal, idx) => {
+    const signalsX = MARGIN_X + 0.30;
+    const signalsW = BODY_W - 0.60;
+    const signalsY = bottomY + 0.55;
+    const signalsH = bottomY + bottomH - signalsY - 0.22;
+
+    const runs = signals.map((signal, idx) => {
         const dateLabel = String(signal.date_label ?? '').trim();
-        if (dateLabel) {
-            runs.push({
-                text: `${dateLabel.toUpperCase()}  `,
-                options: {
-                    bullet: { code: '2022' },
-                    bold: true,
-                    color: THEME.accent,
-                    fontSize: 11,
-                    fontFace: THEME.font,
-                },
-            });
-            runs.push({
-                text: String(signal.headline ?? '').trim(),
-                options: {
-                    breakLine: idx < signals.length - 1,
-                    color: THEME.primary,
-                    fontSize: TYPO.body,
-                    fontFace: THEME.font,
-                },
-            });
-        } else {
-            runs.push({
-                text: String(signal.headline ?? '').trim(),
-                options: {
-                    bullet: { code: '2022' },
-                    breakLine: idx < signals.length - 1,
-                    color: THEME.primary,
-                    fontSize: TYPO.body,
-                    fontFace: THEME.font,
-                },
-            });
-        }
+        const headline = String(signal.headline ?? '').trim();
+        const line = dateLabel ? `${dateLabel.toUpperCase()}  ${headline}` : headline;
+        return {
+            text: line,
+            options: {
+                bullet: { code: '2022', color: THEME.accent },
+                breakLine: idx < signals.length - 1,
+                color: THEME.primary,
+                fontSize: TYPO.body,
+                fontFace: THEME.font,
+            },
+        };
     });
 
     slide.addText(runs, {
-        x: '4%',
-        y: '72%',
-        w: '92%',
-        h: '22%',
+        x: signalsX,
+        y: signalsY,
+        w: signalsW,
+        h: signalsH,
         valign: 'top',
         breakLine: true,
         lineSpacing: 16,
-        margin: 0,
+        margin: [0, 0, 0, 0.12],
         autoFit: false,
     });
 }
@@ -1562,7 +1595,7 @@ function addHeadline(slide, text, x, y, w, h) {
         x,
         y,
         w,
-        h: typeof h === 'number' ? h : '6%',
+        h: typeof h === 'number' ? h : PANEL_HEADLINE_H,
         fontSize: TYPO.subheader,
         bold: true,
         color: THEME.primary,
