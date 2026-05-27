@@ -26,6 +26,7 @@ import {
     INSIGHT_DENSITY_SECTIONS,
     INSIGHT_DENSITY_SOFT_LIMIT,
     TACTICAL_UX_LABELS,
+    ENTRY_POINT_ATTRIBUTE_SHORT_LABELS,
 } from './account-plan-sections.js';
 import { formatPlanHorizonRailPreviewHtml } from './account-plan-rich-text.js';
 import {
@@ -1301,12 +1302,12 @@ function buildPlan306090Html(section, data) {
     const planData = isPlainObject(data) ? data : {};
     const horizons = section.horizons || PLAN_306090_HORIZONS;
 
-    const horizonsHtml = `<div class="plan-306090-grid">${horizons.map((horizon) => {
+    const horizonColumns = horizons.map((horizon) => {
         const value = escapeHtml(String(planData[horizon.key] ?? ''));
         const fieldId = `plan-${horizon.key}`;
         return `
-            <div class="plan-306090-row">
-                <div class="plan-306090-row-meta">
+            <div class="plan-306090-column">
+                <div class="plan-306090-column-head">
                     <span class="plan-306090-badge" aria-hidden="true">${escapeHtml(horizon.badge)}</span>
                     <div class="plan-306090-column-heading">
                         <h5 class="plan-306090-column-title">${escapeHtml(horizon.title)}</h5>
@@ -1317,58 +1318,68 @@ function buildPlan306090Html(section, data) {
                     id="${fieldId}"
                     class="strategic-field strategic-textarea plan-306090-textarea"
                     data-field="plan_30_60_90.${horizon.key}"
-                    rows="5"
+                    rows="6"
                     placeholder="List key actions, owners, and outcomes…"
                 >${value}</textarea>
             </div>`;
-    }).join('')}</div>`;
+    }).join('');
 
-    return `${horizonsHtml}${buildClientCommitmentsHtml(planData)}`;
+    return `
+        <div class="plan-306090-board">
+            <div class="plan-306090-columns">
+                ${horizonColumns}
+                ${buildClientCommitmentsColumnHtml(planData)}
+            </div>
+        </div>`;
 }
 
 /**
- * Give/Get checklist under the 30/60/90 horizons — what the customer owes
- * us this month to keep the deal moving.
+ * Give/Get column — peer to the 30/60/90 horizons (not a footer band).
  *
  * @param {Record<string, unknown>} planData
  */
-function buildClientCommitmentsHtml(planData) {
+function buildClientCommitmentsColumnHtml(planData) {
     const items = Array.isArray(planData.client_commitments) ? planData.client_commitments : [];
     const inputId = 'client-commitments-input-plan_30_60_90';
 
-    const rowsHtml = items.length > 0
+    const chipsHtml = items.length > 0
         ? items.map((entry, index) => {
             const text = String(entry ?? '').trim();
             if (!text) return '';
             return `
-                <li class="blindspots-item client-commitments-item" data-client-commitments-index="${index}">
-                    <span class="blindspots-item-bullet" aria-hidden="true">▢</span>
-                    <span class="blindspots-item-text">${escapeHtml(text)}</span>
+                <li class="client-commitment-chip" data-client-commitments-index="${index}">
+                    <span class="client-commitment-chip__text">${escapeHtml(text)}</span>
                     <button
                         type="button"
-                        class="blindspots-item-remove"
+                        class="client-commitment-chip__remove"
                         data-client-commitments-remove="${index}"
                         aria-label="Remove commitment: ${escapeHtml(text)}"
                     >×</button>
                 </li>`;
         }).join('')
-        : `<li class="blindspots-empty">What does the customer owe us this month to keep the deal moving?</li>`;
+        : `<li class="client-commitment-chip client-commitment-chip--empty">What does the customer owe us this month to keep the deal moving?</li>`;
 
     return `
-        <div class="plan-306090-commitments" data-client-commitments-host>
-            <h5 class="plan-306090-commitments-title">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h5>
-            <ul class="blindspots-list client-commitments-list" role="list">${rowsHtml}</ul>
-            <div class="blindspots-add-row">
+        <div class="plan-306090-column plan-306090-column--give-get" data-client-commitments-host>
+            <div class="plan-306090-column-head">
+                <span class="plan-306090-badge plan-306090-badge--give-get" aria-hidden="true">G↔</span>
+                <div class="plan-306090-column-heading">
+                    <h5 class="plan-306090-column-title">${escapeHtml(TACTICAL_UX_LABELS.giveGetColumn)}</h5>
+                    <p class="plan-306090-column-hint">What the customer owes us to keep momentum.</p>
+                </div>
+            </div>
+            <ul class="client-commitment-chips" role="list">${chipsHtml}</ul>
+            <div class="client-commitment-add-row">
                 <label class="sr-only" for="${inputId}">Add a client commitment</label>
                 <input
                     type="text"
                     id="${inputId}"
-                    class="strategic-field blindspots-add-input"
+                    class="strategic-field client-commitment-add-input"
                     data-client-commitments-input
-                    placeholder="What does the customer owe us this month to keep the deal moving?"
+                    placeholder="Add a give/get commitment…"
                     autocomplete="off"
                 />
-                <button type="button" class="blindspots-add-btn" data-client-commitments-add>Add</button>
+                <button type="button" class="client-commitment-add-btn" data-client-commitments-add>Add</button>
             </div>
         </div>`;
 }
@@ -1382,6 +1393,7 @@ function buildClientCommitmentsHtml(planData) {
  */
 function buildEntryPointPills(index, fieldKey, options, label, value) {
     const fieldPath = `entry_points.${index}.${fieldKey}`;
+    const shortLabel = ENTRY_POINT_ATTRIBUTE_SHORT_LABELS[fieldKey] || label;
     const pillOptions = options.filter((option) => option !== '');
     const pillsHtml = pillOptions.map((option) => {
         const active = value === option ? ' entry-point-pill--active' : '';
@@ -1397,8 +1409,8 @@ function buildEntryPointPills(index, fieldKey, options, label, value) {
     }).join('');
 
     return `
-        <div class="entry-point-field entry-point-field--pills">
-            <span class="entry-point-field-label">${escapeHtml(label)}</span>
+        <div class="entry-point-attribute-chip">
+            <span class="entry-point-attribute-chip__label">${escapeHtml(shortLabel)}</span>
             <div class="entry-point-pills-wrap" role="group" aria-label="${escapeHtml(label)}">${pillsHtml}</div>
         </div>`;
 }

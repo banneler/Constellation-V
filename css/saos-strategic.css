@@ -289,6 +289,186 @@
     color: var(--text-muted);
 }
 
+/* 30/60/90 + Give/Get — four peer columns (matches summary export grid). */
+.plan-306090-board {
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: color-mix(in srgb, var(--bg-medium) 40%, transparent);
+    padding: 0.75rem;
+}
+
+.plan-306090-columns {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.plan-306090-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    min-width: 0;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+    background: color-mix(in srgb, var(--bg-light) 92%, transparent);
+}
+
+.plan-306090-column:not(:last-child) {
+    border-right: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+}
+
+.plan-306090-column-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    min-width: 0;
+}
+
+.plan-306090-badge--give-get {
+    font-size: 0.8125rem;
+    letter-spacing: -0.02em;
+}
+
+.plan-306090-column--give-get .plan-306090-textarea {
+    display: none;
+}
+
+.client-commitment-chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.client-commitment-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid color-mix(in srgb, var(--primary-blue) 28%, var(--border-color));
+    background: color-mix(in srgb, var(--primary-blue) 8%, var(--bg-medium));
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--text-light);
+}
+
+.client-commitment-chip--empty {
+    border-style: dashed;
+    color: var(--text-muted);
+    font-style: italic;
+    background: transparent;
+}
+
+.client-commitment-chip__text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.client-commitment-chip__remove {
+    flex-shrink: 0;
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.125rem;
+}
+
+.client-commitment-chip__remove:hover {
+    color: var(--text-light);
+}
+
+.client-commitment-add-row {
+    display: flex;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+}
+
+.client-commitment-add-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border-color);
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8125rem;
+    background: var(--bg-light);
+    color: var(--text-light);
+}
+
+.client-commitment-add-btn {
+    flex-shrink: 0;
+    border-radius: 0.375rem;
+    border: 1px solid var(--primary-blue);
+    background: color-mix(in srgb, var(--primary-blue) 12%, transparent);
+    color: var(--primary-blue);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.375rem 0.625rem;
+    cursor: pointer;
+}
+
+.client-commitment-add-btn:hover {
+    background: color-mix(in srgb, var(--primary-blue) 20%, transparent);
+}
+
+@media (max-width: 1100px) {
+    .plan-306090-columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .plan-306090-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Entry Point relationship profile — label nested inside attribute chip. */
+.entry-point-grid--attributes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.entry-point-attribute-chip {
+    flex: 1 1 7.5rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.45rem 0.55rem 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+}
+
+.entry-point-attribute-chip__label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    line-height: 1.2;
+}
+
+.entry-point-attribute-chip .entry-point-pills-wrap {
+    gap: 0.25rem;
+}
+
+.entry-point-attribute-chip .entry-point-pill {
+    padding: 0.15rem 0.45rem;
+    font-size: 0.6875rem;
+}
+
 /* Entry Point carousel tabs — pill-shaped, bordered, with a clear active state.
  * Same trailing-declaration issue: color/cursor on the base tab and color on
  * the active tab were being dropped after the @supports background-color block. */

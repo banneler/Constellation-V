@@ -651,24 +651,12 @@ export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, 
             planGrid.appendChild(col);
         });
     }
-    planPanel.appendChild(planGrid);
-
     const commitments = Array.isArray(ctx.plan306090?.client_commitments)
         ? ctx.plan306090.client_commitments
         : [];
-    if (commitments.length > 0) {
-        const giveGet = document.createElement('div');
-        giveGet.className = 'ap-exec-client-commitments';
-        giveGet.innerHTML = `<h4 class="ap-exec-plan-horizon-title">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h4>`;
-        const list = document.createElement('ul');
-        list.className = 'ap-exec-highlight-list ap-exec-highlight-list--compact';
-        list.innerHTML = commitments
-            .map((entry) => `<li>${escapeHtml(String(entry ?? '').trim())}</li>`)
-            .filter(Boolean)
-            .join('');
-        giveGet.appendChild(list);
-        planPanel.appendChild(giveGet);
-    }
+    planGrid.classList.add('ap-exec-plan-horizons--with-give-get');
+    planGrid.appendChild(createExecGiveGetColumn(commitments));
+    planPanel.appendChild(planGrid);
 
     const signalsPanel = createExecPanel('ap-exec-panel--signals', 'Strategic Signals', 'momentum_timeline');
     const signalsList = document.createElement('ul');
@@ -996,11 +984,104 @@ function createProfileField(kicker, text) {
  * @param {string} label
  * @param {unknown} value
  */
-function createStatusBadge(label, value) {
-    const badge = document.createElement('span');
-    badge.className = 'ap-export-badge';
-    badge.textContent = `${label}: ${String(value).trim()}`;
-    return badge;
+/**
+ * Relationship-profile chip: label nested above the selected value.
+ *
+ * @param {string} label
+ * @param {unknown} value
+ */
+function createAttributePill(label, value) {
+    const pill = document.createElement('span');
+    pill.className = 'ap-export-attribute-pill';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'ap-export-attribute-pill__label';
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'ap-export-attribute-pill__value';
+    valueEl.textContent = String(value ?? '').trim() || '—';
+
+    pill.appendChild(labelEl);
+    pill.appendChild(valueEl);
+    return pill;
+}
+
+/**
+ * @param {string[]} commitments
+ */
+function createEditorialGiveGetCell(commitments) {
+    const cell = document.createElement('div');
+    cell.className = 'ap-export-editorial-cell ap-export-editorial-cell--give-get';
+
+    const label = document.createElement('h3');
+    label.className = 'ap-export-editorial-kicker';
+    label.textContent = TACTICAL_UX_LABELS.giveGetColumn;
+    cell.appendChild(label);
+
+    const pills = document.createElement('div');
+    pills.className = 'ap-export-commitment-pills';
+
+    const items = commitments
+        .map((entry) => String(entry ?? '').trim())
+        .filter(Boolean);
+
+    if (items.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-empty ap-export-commitment-pills-empty';
+        empty.textContent = 'What does the customer owe us this month to keep the deal moving?';
+        pills.appendChild(empty);
+    } else {
+        items.forEach((text) => {
+            const pill = document.createElement('span');
+            pill.className = 'ap-export-commitment-pill';
+            pill.textContent = text;
+            pills.appendChild(pill);
+        });
+    }
+
+    cell.appendChild(pills);
+    return cell;
+}
+
+/**
+ * @param {string[]} commitments
+ */
+function createExecGiveGetColumn(commitments) {
+    const col = document.createElement('div');
+    col.className = 'ap-exec-plan-horizon-col ap-exec-plan-horizon-col--give-get';
+
+    const title = document.createElement('h3');
+    title.className = 'ap-exec-plan-horizon-title';
+    title.textContent = TACTICAL_UX_LABELS.giveGetColumn;
+    col.appendChild(title);
+
+    const body = document.createElement('div');
+    body.className = 'ap-exec-plan-horizon-body ap-exec-plan-horizon-body--give-get';
+
+    const items = commitments
+        .map((entry) => String(entry ?? '').trim())
+        .filter(Boolean);
+
+    if (items.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-exec-plan-give-get-empty';
+        empty.textContent = 'What does the customer owe us this month to keep the deal moving?';
+        body.appendChild(empty);
+    } else {
+        const pills = document.createElement('div');
+        pills.className = 'ap-export-commitment-pills';
+        items.forEach((text) => {
+            const pill = document.createElement('span');
+            pill.className = 'ap-export-commitment-pill';
+            pill.textContent = text;
+            pills.appendChild(pill);
+        });
+        body.appendChild(pills);
+    }
+
+    col.appendChild(body);
+    return col;
 }
 
 /**
@@ -1038,7 +1119,7 @@ function buildTargetProfile(rawPoint) {
         const badgeRow = document.createElement('div');
         badgeRow.className = 'ap-export-badge-row';
         badgeDefs.forEach(([label, val]) => {
-            badgeRow.appendChild(createStatusBadge(label, val));
+            badgeRow.appendChild(createAttributePill(label, val));
         });
         header.appendChild(badgeRow);
     }
@@ -1749,38 +1830,16 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         const stack = document.createElement('div');
         stack.className = 'ap-export-plan306090-stack';
 
-        const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-editorial-grid--plan');
+        const commitments = Array.isArray(plan306090.client_commitments) ? plan306090.client_commitments : [];
+        const grid = createEditorialGrid('ap-export-editorial-grid--4 ap-export-editorial-grid--plan');
         PLAN_306090_HORIZONS.forEach((horizon) => {
             grid.appendChild(createEditorialPlanHorizonCell(
                 horizon.title,
                 plan306090[horizon.key]
             ));
         });
+        grid.appendChild(createEditorialGiveGetCell(commitments));
         stack.appendChild(grid);
-
-        const commitments = Array.isArray(plan306090.client_commitments) ? plan306090.client_commitments : [];
-        const giveGet = document.createElement('div');
-        giveGet.className = 'ap-export-client-commitments';
-        giveGet.innerHTML = `<h3 class="ap-export-editorial-kicker">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h3>`;
-        if (commitments.length === 0) {
-            const empty = document.createElement('p');
-            empty.className = 'ap-export-editorial-empty';
-            empty.textContent = 'What does the customer owe us this month to keep the deal moving?';
-            giveGet.appendChild(empty);
-        } else {
-            const list = document.createElement('ul');
-            list.className = 'ap-export-blindspots-list';
-            commitments.forEach((entry) => {
-                const text = String(entry ?? '').trim();
-                if (!text) return;
-                const li = document.createElement('li');
-                li.className = 'ap-export-blindspots-item';
-                li.textContent = text;
-                list.appendChild(li);
-            });
-            giveGet.appendChild(list);
-        }
-        stack.appendChild(giveGet);
 
         return [createDossierSectionBlock(section, stack)];
     }
@@ -2657,9 +2716,12 @@ export function ensureExportTemplateStyles() {
         .ap-export-editorial-grid--2 {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        .ap-export-editorial-grid--3,
-        .ap-export-editorial-grid--plan {
+        .ap-export-editorial-grid--3 {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .ap-export-editorial-grid--4,
+        .ap-export-editorial-grid--plan {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
         }
         .ap-export-editorial-cell {
             padding: 0 18px 0 0;
@@ -2670,8 +2732,33 @@ export function ensureExportTemplateStyles() {
             margin-right: 0;
         }
         .ap-export-editorial-grid--3 > .ap-export-editorial-cell,
+        .ap-export-editorial-grid--4 > .ap-export-editorial-cell,
         .ap-export-editorial-grid--plan > .ap-export-editorial-cell {
             padding: 0 18px;
+        }
+        .ap-export-editorial-cell--give-get .ap-export-commitment-pills {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .ap-export-commitment-pill {
+            display: block;
+            padding: 6px 9px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            font-size: 10.5px;
+            line-height: 1.45;
+            color: #0f172a;
+            font-weight: 500;
+        }
+        .ap-export-commitment-pills-empty {
+            margin: 4px 0 0;
+            font-size: 10.5px;
+            line-height: 1.45;
+            color: #94a3b8;
+            font-style: italic;
         }
         .ap-export-editorial-span-full {
             grid-column: 1 / -1;
@@ -2947,21 +3034,33 @@ export function ensureExportTemplateStyles() {
         .ap-export-badge-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 4px;
+            gap: 5px;
         }
-        .ap-export-badge {
-            display: inline-block;
-            font-size: 8.5px;
-            text-transform: uppercase;
-            background: #f1f5f9;
+        .ap-export-attribute-pill {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+            min-width: 4.25rem;
+            padding: 3px 7px 4px;
+            border-radius: 4px;
             border: 1px solid #cbd5e1;
-            padding: 2px 5px;
-            border-radius: 3px;
-            margin-right: 0;
-            color: #475569;
-            font-weight: 600;
-            letter-spacing: 0.03em;
-            line-height: 1.2;
+            background: #f8fafc;
+            line-height: 1.15;
+        }
+        .ap-export-attribute-pill__label {
+            font-size: 7px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ap-export-attribute-pill__value {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #0f172a;
         }
         .ap-export-target-profile-grid {
             display: grid;
@@ -3573,11 +3672,35 @@ export function ensureExportTemplateStyles() {
             font-size: 13px;
             color: #0f172a;
         }
-        .ap-exec-slide .ap-export-badge {
+        .ap-exec-slide .ap-export-attribute-pill {
             background: #eff6ff;
-            color: #1e40af;
             border: 1px solid #bfdbfe;
-            font-size: 9px;
+        }
+        .ap-exec-slide .ap-export-attribute-pill__label {
+            color: #64748b;
+        }
+        .ap-exec-slide .ap-export-attribute-pill__value {
+            color: #1e40af;
+        }
+        .ap-exec-plan-horizons--with-give-get {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .ap-exec-plan-horizon-col--give-get {
+            border-left: 1px solid #334155;
+            padding-left: 12px;
+        }
+        .ap-exec-plan-give-get-empty {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.45;
+            color: #64748b;
+            font-style: italic;
+        }
+        .ap-exec-slide .ap-export-commitment-pill {
+            background: #1e293b;
+            border-color: #334155;
+            color: #e2e8f0;
+            font-size: 10px;
         }
         .ap-exec-slide .ap-export-target-profile-group-title {
             color: #64748b;
