@@ -16,6 +16,16 @@ export const TACTICAL_UX_LABELS = Object.freeze({
     humanContext: 'The Off-the-Record Read',
     incumbentGrip: "The Incumbent's Grip",
     clientCommitments: 'Client Commitments (The Give/Get)',
+    giveGetColumn: 'Give / Get',
+});
+
+/** Short labels for relationship-profile attribute chips (canvas + export). */
+export const ENTRY_POINT_ATTRIBUTE_SHORT_LABELS = Object.freeze({
+    trust_level: 'Trust',
+    responsiveness: 'Response',
+    political_influence: 'Influence',
+    comm_style: 'Comm',
+    compound_potential: 'Compound',
 });
 
 /** @typedef {'none' | 'lead' | 'block'} SectionContextMode */

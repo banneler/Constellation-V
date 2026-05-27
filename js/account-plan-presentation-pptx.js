@@ -1370,31 +1370,38 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     ];
     const cellRows = horizons.map((h) => composePlanCellLines(h.block, h.fallback));
 
-    const commitments = ctx.plan306090.client_commitments;
-    const hasCommitments = commitments.length > 0;
+    const commitments = ctx.plan306090.client_commitments
+        .map((entry) => String(entry ?? '').trim())
+        .filter(Boolean);
+    const giveGetLines = commitments.length > 0
+        ? commitments
+        : ['What does the customer owe us this month to keep the deal moving?'];
+
     const tableX = MARGIN_X + 0.25;
     const tableY = topY + 0.65;
     const tableW = BODY_W - 0.50;
-    const tableH = hasCommitments ? topH - 1.55 : topH - 0.85;
-    const colW = tableW / 3;
+    const tableH = topH - 0.85;
+    const colCount = 4;
+    const colW = tableW / colCount;
 
-    // Header row — uppercase period labels with accent fill (brand teal).
-    const headerRow = horizons.map((h) => ({
-        text: h.period,
-        options: {
-            bold: true,
-            color: 'FFFFFF',
-            fill: { color: THEME.accent },
-            align: 'center',
-            valign: 'middle',
-            fontSize: 11,
-            fontFace: THEME.font,
-            charSpacing: 1.5,
-        },
-    }));
+    const headerCellOptions = {
+        bold: true,
+        color: 'FFFFFF',
+        fill: { color: THEME.accent },
+        align: 'center',
+        valign: 'middle',
+        fontSize: 11,
+        fontFace: THEME.font,
+        charSpacing: 1.5,
+    };
 
-    // Body row — each cell holds a small bulleted prose block.
-    const bodyRow = cellRows.map((lines) => ({
+    // Header row — 30/60/90 + Give/Get as peer columns.
+    const headerRow = [
+        ...horizons.map((h) => ({ text: h.period, options: headerCellOptions })),
+        { text: TACTICAL_UX_LABELS.giveGetColumn.toUpperCase(), options: headerCellOptions },
+    ];
+
+    const buildBulletedCell = (lines, emptyText) => ({
         text: lines.length > 0
             ? lines.map((line, idx) => ({
                 text: line,
@@ -1407,7 +1414,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
                 },
             }))
             : [{
-                text: 'No actions captured yet.',
+                text: emptyText,
                 options: { italic: true, color: THEME.softMuted, fontFace: THEME.font, fontSize: 10 },
             }],
         options: {
@@ -1415,48 +1422,27 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
             valign: 'top',
             margin: 6,
         },
-    }));
+    });
+
+    const bodyRow = [
+        ...cellRows.map((lines) => buildBulletedCell(lines, 'No actions captured yet.')),
+        buildBulletedCell(
+            giveGetLines,
+            'What does the customer owe us this month to keep the deal moving?'
+        ),
+    ];
 
     slide.addTable([headerRow, bodyRow], {
         x: tableX,
         y: tableY,
         w: tableW,
         h: tableH,
-        colW: [colW, colW, colW],
+        colW: Array(colCount).fill(colW),
         rowH: [0.40, tableH - 0.40],
         border: { type: 'solid', color: THEME.panelBorder, pt: 0.75 },
         fontFace: THEME.font,
         autoPage: false,
     });
-
-    if (hasCommitments) {
-        const giveGetY = tableY + tableH + 0.12;
-        slide.addText(TACTICAL_UX_LABELS.clientCommitments.toUpperCase(), {
-            x: MARGIN_X + 0.30,
-            y: giveGetY,
-            w: BODY_W - 0.60,
-            h: 0.22,
-            fontSize: TYPO.kicker,
-            bold: true,
-            color: THEME.accent,
-            fontFace: THEME.font,
-            valign: 'top',
-            breakLine: true,
-            margin: 0,
-            autoFit: false,
-        });
-        addNativeBulletList(slide, commitments, {
-            x: MARGIN_X + 0.30,
-            y: giveGetY + 0.26,
-            w: BODY_W - 0.60,
-            h: topY + topH - (giveGetY + 0.26) - 0.12,
-            fontSize: TYPO.body,
-            lineSpacing: 16,
-            color: THEME.primary,
-            bullet: true,
-            fallbackItems: ['No client commitments documented.'],
-        });
-    }
 
     // BOTTOM — Strategic Signals.
     addPanel(slide, MARGIN_X, bottomY, BODY_W, bottomH);
