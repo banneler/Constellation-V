@@ -25,11 +25,12 @@
  *   • Cover slide does NOT use the master; it carries its own dark
  *     geometric background and the white logo variant.
  *
- * Geometry (Task 4):
- *   • Strict named coordinate constants (BODY_TOP, BODY_W, GAP, …).
- *   • Every addText / addShape / addTable call has explicit
- *     x / y / w / h. autoFit:false is always passed so PowerPoint
- *     never silently shrinks typography.
+ * Typography & overflow:
+ *   • TYPO scale — body 11pt, slide headers 24pt, sub-headers 14pt.
+ *   • Every narrative addText uses percent w/h, breakLine:true,
+ *     valign:'top', and autoFit:false so copy never bleeds off-slide.
+ *   • Slide 4 (Target Profiles) uses a locked 5%/42% | 53%/42% column
+ *     grid with pptxgenjs rich-text runs per profile field.
  */
 
 import {
@@ -103,6 +104,32 @@ const THEME = Object.freeze({
     coverBg: stripHash(GPC_BRAND.navyDark),  // cover slide background
     hazard: 'B45309',       // amber-700 — restrained warning hue for inverse-high sliders
     font: 'Arial',
+});
+
+// Strict typographic scale — every content slide honors these sizes so
+// PowerPoint never inflates body copy past the bounding box.
+const TYPO = Object.freeze({
+    body: 11,
+    header: 24,
+    subheader: 14,
+    kicker: 9,
+});
+
+/** Hex color with leading "#" for rich-text runs. */
+function themeHex(key) {
+    return `#${THEME[key]}`;
+}
+
+/** Shared options for narrative body copy inside rigid percent boxes. */
+const BODY_TEXT_BASE = Object.freeze({
+    fontSize: TYPO.body,
+    fontFace: THEME.font,
+    color: THEME.primary,
+    valign: 'top',
+    align: 'left',
+    breakLine: true,
+    margin: 0,
+    autoFit: false,
 });
 
 // Tension badges (Task 3 — "retain GPC brand blue/green"). We cycle the
@@ -431,90 +458,85 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
     }
 
     // -----------------------------------------------------------------
-    // LEFT-SIDE TITLE BLOCK — sits centred vertically against the
-    // navyDark field. The white-bordered frame mirrors the PDF cover's
-    // `.ap-export-gpc-cover-title-frame` motif.
+    // LEFT-SIDE TITLE BLOCK — premium editorial stack: accent bar (shape
+    // first for z-index) then vertically centred account name.
     // -----------------------------------------------------------------
+    const titleX = '5%';
+    const titleW = '55%';
 
-    // White-border title frame (transparent fill so the navyDark shows through).
-    const titleFrameX = 0.75;
-    const titleFrameY = 2.40;
-    const titleFrameW = 6.50;
-    const titleFrameH = 1.80;
+    // Slim brand accent — drawn before text so it sits beneath the title.
     slide.addShape('rect', {
-        x: titleFrameX,
-        y: titleFrameY,
-        w: titleFrameW,
-        h: titleFrameH,
-        fill: { type: 'solid', color: THEME.coverBg },  // matches background so border reads as outline
-        line: { color: 'FFFFFF', width: 2.5 },
+        x: titleX,
+        y: '40%',
+        w: '15%',
+        h: '2%',
+        fill: { color: THEME.accent },
+        line: { width: 0 },
     });
 
-    // Massive account name inside the frame.
+    // Massive account name — vertically centred in the left field.
     slide.addText(accountName, {
-        x: titleFrameX + 0.30,
-        y: titleFrameY + 0.10,
-        w: titleFrameW - 0.60,
-        h: titleFrameH - 0.20,
-        fontSize: 36,
+        x: titleX,
+        y: '44%',
+        w: titleW,
+        h: '14%',
+        fontSize: 44,
         bold: true,
         color: 'FFFFFF',
         fontFace: THEME.font,
         align: 'left',
         valign: 'middle',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
 
-    // Subtitle — lime, uppercase, tracked. Matches the PDF cover
-    // subtitle colour (GPC lime).
+    // Subtitle — lime, uppercase, tracked.
     slide.addText(DOC_TITLE.toUpperCase(), {
-        x: titleFrameX,
-        y: titleFrameY + titleFrameH + 0.20,
-        w: titleFrameW,
-        h: 0.50,
-        fontSize: 22,
+        x: titleX,
+        y: '60%',
+        w: titleW,
+        h: '6%',
+        fontSize: TYPO.subheader,
         bold: true,
         color: THEME.accentAlt,
         fontFace: THEME.font,
         charSpacing: 3,
         align: 'left',
         valign: 'top',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
 
-    // Date stamp under the subtitle — soft white so it reads as
-    // colophon rather than body copy.
     slide.addText(formatGpcFooterDate(new Date()), {
-        x: titleFrameX,
-        y: titleFrameY + titleFrameH + 0.80,
-        w: titleFrameW,
-        h: 0.32,
-        fontSize: 13,
-        color: 'CBD5E1',   // slate-300, ~82% white equivalent
+        x: titleX,
+        y: '67%',
+        w: titleW,
+        h: '4%',
+        fontSize: TYPO.body,
+        color: 'CBD5E1',
         fontFace: THEME.font,
         align: 'left',
         valign: 'top',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
 
-    // Bottom-left brand strap — small uppercase company name. Anchors
-    // the cover's lower edge with the same brand voice as the master
-    // footer used on content slides.
     slide.addText(GPC_BRAND.companyName.toUpperCase(), {
-        x: titleFrameX,
-        y: SLIDE_H - 0.55,
-        w: titleFrameW,
-        h: 0.25,
-        fontSize: 9,
+        x: titleX,
+        y: '92%',
+        w: titleW,
+        h: '4%',
+        fontSize: TYPO.kicker,
         bold: true,
         color: 'CBD5E1',
         fontFace: THEME.font,
         charSpacing: 2.5,
         align: 'left',
         valign: 'middle',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
@@ -634,7 +656,7 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
     const leftW = BODY_W * 0.60;
     const rightW = BODY_W * 0.35;
     const gutter = BODY_W - leftW - rightW;
-    const rightX = MARGIN_X + leftW + gutter;
+    const rightX = MARGIN_X + leftW + gutter; // panel anchor (inch-based)
 
     // -----------------------------------------------------------------
     // LEFT COLUMN — Pursuit Thesis prose
@@ -648,19 +670,12 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
     addHeadline(slide, pursuitHeadline, MARGIN_X + 0.25, BODY_TOP + 0.42, leftW - 0.5, 0.55);
 
     slide.addText(pursuitProse || 'No pursuit thesis captured yet.', {
-        x: MARGIN_X + 0.25,
-        y: BODY_TOP + 1.05,
-        w: leftW - 0.5,
-        h: BODY_H - 1.25,
-        fontSize: 16,           // Task 2 spec — 16pt body copy.
-        lineSpacing: 24,        // Task 2 spec — 24pt leading.
-        color: THEME.primary,
-        fontFace: THEME.font,
-        valign: 'top',
-        align: 'left',
-        margin: 0,
-        breakLine: true,
-        autoFit: false,
+        x: '4%',
+        y: '22%',
+        w: '52%',
+        h: '68%',
+        ...BODY_TEXT_BASE,
+        lineSpacing: 16,
     });
 
     // -----------------------------------------------------------------
@@ -669,43 +684,41 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
     addPanel(slide, rightX, BODY_TOP, rightW, BODY_H);
     addKicker(slide, 'RELATIONSHIP MOMENTUM', rightX + 0.25, BODY_TOP + 0.20, rightW - 0.5);
 
-    // KPI score — 72pt accent. Centered horizontally and vertically
-    // inside its allocated cell (1.85" tall).
-    const kpiScoreY = BODY_TOP + 0.75;
-    const kpiScoreH = 1.85;
     slide.addText(String(ctx.score), {
-        x: rightX,
-        y: kpiScoreY,
-        w: rightW,
-        h: kpiScoreH,
+        x: '72%',
+        y: '22%',
+        w: '24%',
+        h: '22%',
         align: 'center',
         valign: 'middle',
-        fontSize: 72,           // Task 2 spec.
+        fontSize: 72,
         bold: true,
-        color: THEME.accent,    // GPC teal (brand blue/green per Task 3).
+        color: THEME.accent,
         fontFace: THEME.font,
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
     slide.addText(MOMENTUM_LABELS[ctx.score - 1].toUpperCase(), {
-        x: rightX + 0.25,
-        y: kpiScoreY + kpiScoreH + 0.05,
-        w: rightW - 0.5,
-        h: 0.32,
+        x: '72%',
+        y: '44%',
+        w: '24%',
+        h: '5%',
         align: 'center',
-        fontSize: 13,
+        fontSize: TYPO.subheader,
         bold: true,
         color: THEME.primary,
         fontFace: THEME.font,
         charSpacing: 2,
+        valign: 'top',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
 
-    // Accent rule between the KPI block and the optional narrative.
     slide.addShape('line', {
         x: rightX + 0.50,
-        y: kpiScoreY + kpiScoreH + 0.55,
+        y: BODY_TOP + 2.70,
         w: rightW - 1.00,
         h: 0,
         line: { color: THEME.accent, width: 0.75 },
@@ -715,19 +728,13 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
         || String(highlight.slides.situation?.momentum?.insight ?? '').trim();
     if (narrative) {
         slide.addText(truncate(narrative, 320), {
-            x: rightX + 0.25,
-            y: kpiScoreY + kpiScoreH + 0.70,
-            w: rightW - 0.5,
-            h: BODY_H - (kpiScoreY + kpiScoreH + 0.70 - BODY_TOP) - 0.25,
-            fontSize: 11,
-            lineSpacing: 17,
+            x: '72%',
+            y: '52%',
+            w: '24%',
+            h: '38%',
+            ...BODY_TEXT_BASE,
             color: THEME.secondary,
-            fontFace: THEME.font,
-            valign: 'top',
-            align: 'left',
-            margin: 0,
-            breakLine: true,
-            autoFit: false,
+            lineSpacing: 16,
         });
     }
 }
@@ -811,11 +818,12 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
             y: rowY,
             w: labelW,
             h: rowH,
-            fontSize: 11,
+            fontSize: TYPO.body,
             bold: true,
             color: THEME.primary,
             fontFace: THEME.font,
             valign: 'middle',
+            breakLine: true,
             margin: 0,
             autoFit: false,
         });
@@ -870,10 +878,12 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
             y: trackY + trackBarH + 0.02,
             w: trackW / 2,
             h: 0.16,
-            fontSize: 7,
+            fontSize: TYPO.kicker,
             color: THEME.softMuted,
             fontFace: THEME.font,
             align: 'left',
+            valign: 'top',
+            breakLine: true,
             margin: 0,
             autoFit: false,
         });
@@ -882,10 +892,12 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
             y: trackY + trackBarH + 0.02,
             w: trackW / 2,
             h: 0.16,
-            fontSize: 7,
+            fontSize: TYPO.kicker,
             color: THEME.softMuted,
             fontFace: THEME.font,
             align: 'right',
+            valign: 'top',
+            breakLine: true,
             margin: 0,
             autoFit: false,
         });
@@ -896,12 +908,13 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
             y: rowY,
             w: valueW,
             h: rowH,
-            fontSize: 14,
+            fontSize: TYPO.subheader,
             bold: true,
             color: THEME.accent,
             fontFace: THEME.font,
             align: 'right',
             valign: 'middle',
+            breakLine: true,
             margin: 0,
             autoFit: false,
         });
@@ -915,17 +928,13 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
 
     if (ctx.tensionPills.length === 0) {
         slide.addText('No strategic tensions captured yet — open the Strategic Tensions section in the plan canvas.', {
-            x: MARGIN_X + 0.30,
-            y: bottomY + 0.70,
-            w: BODY_W - 0.60,
-            h: 0.5,
-            fontSize: 12,
+            x: '4%',
+            y: '58%',
+            w: '92%',
+            h: '8%',
+            ...BODY_TEXT_BASE,
             italic: true,
             color: THEME.softMuted,
-            fontFace: THEME.font,
-            valign: 'top',
-            margin: 0,
-            autoFit: false,
         });
         return;
     }
@@ -961,12 +970,13 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
             y: by,
             w: badgeW - 0.24,
             h: badgeH,
-            fontSize: 12,
+            fontSize: TYPO.body,
             bold: true,
             color: palette.text,
             fontFace: THEME.font,
             align: 'center',
             valign: 'middle',
+            breakLine: true,
             margin: 0,
             autoFit: false,
         });
@@ -978,18 +988,13 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
         const narrativeMaxH = bottomY + halfH - narrativeY - 0.25;
         if (narrativeMaxH > 0.3) {
             slide.addText(truncate(ctx.tensionNarrative, 260), {
-                x: MARGIN_X + 0.30,
-                y: narrativeY,
-                w: BODY_W - 0.60,
-                h: narrativeMaxH,
-                fontSize: 10,
+                x: '4%',
+                y: `${((narrativeY / SLIDE_H) * 100).toFixed(1)}%`,
+                w: '92%',
+                h: `${((narrativeMaxH / SLIDE_H) * 100).toFixed(1)}%`,
+                ...BODY_TEXT_BASE,
                 italic: true,
                 color: THEME.secondary,
-                fontFace: THEME.font,
-                valign: 'top',
-                margin: 0,
-                breakLine: true,
-                autoFit: false,
             });
         }
     }
@@ -1039,12 +1044,12 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
         ].filter(Boolean);
 
     addNativeBulletList(slide, competitiveBullets, {
-        x: leftX + 0.25,
-        y: BODY_TOP + 1.05,
-        w: colW - 0.5,
-        h: BODY_H - 1.25,
-        fontSize: 12,
-        lineSpacing: 20,
+        x: '4%',
+        y: '22%',
+        w: '44%',
+        h: '68%',
+        fontSize: TYPO.body,
+        lineSpacing: 16,
         color: THEME.primary,
         bulletColor: THEME.accent,
         emptyText: 'No competitive landscape captured yet.',
@@ -1056,12 +1061,12 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     addHeadline(slide, 'Questions we must answer next', rightX + 0.25, BODY_TOP + 0.42, colW - 0.5, 0.55);
 
     addNativeBulletList(slide, ctx.blindspots, {
-        x: rightX + 0.25,
-        y: BODY_TOP + 1.05,
-        w: colW - 0.5,
-        h: BODY_H - 1.25,
-        fontSize: 13,
-        lineSpacing: 22,
+        x: '52%',
+        y: '22%',
+        w: '44%',
+        h: '68%',
+        fontSize: TYPO.body,
+        lineSpacing: 16,
         color: THEME.primary,
         bulletColor: THEME.accent,
         emptyText: 'No discovery questions captured yet.',
@@ -1087,130 +1092,115 @@ function buildEntryPointsSlide(pptx, profiles, pagination, pageNum, totalSlides)
 
     if (profiles.length === 0) {
         slide.addText('No target profiles captured yet — open the Strategic Entry Points carousel in the plan canvas.', {
-            x: MARGIN_X,
-            y: BODY_TOP + 1.0,
-            w: BODY_W,
-            h: 0.6,
-            fontSize: 14,
+            x: '5%',
+            y: '28%',
+            w: '90%',
+            h: '12%',
+            ...BODY_TEXT_BASE,
             italic: true,
             color: THEME.softMuted,
-            fontFace: THEME.font,
             align: 'center',
-            valign: 'top',
-            margin: 0,
-            autoFit: false,
         });
         return;
     }
 
-    const cardW = profiles.length === 1 ? BODY_W : (BODY_W - GAP) / 2;
-    profiles.forEach((profile, index) => {
-        const cardX = MARGIN_X + index * (cardW + GAP);
-        renderEntryProfileCard(slide, profile, cardX, BODY_TOP, cardW, BODY_H);
+    // Two-column layout — first two entry_points per slide, locked to
+    // percent boxes so copy never bleeds past the slide edge.
+    const columns = [
+        { x: '5%', w: '42%' },
+        { x: '53%', w: '42%' },
+    ];
+
+    profiles.slice(0, MAX_PROFILES_PER_SLIDE).forEach((profile, index) => {
+        const col = columns[index];
+        if (!col) return;
+
+        addPanel(slide, col.x, '14%', col.w, '78%');
+
+        // Sub-header — contact name.
+        slide.addText(profile.name || 'Unnamed Contact', {
+            x: col.x,
+            y: '15%',
+            w: col.w,
+            h: '5%',
+            fontSize: TYPO.subheader,
+            bold: true,
+            color: THEME.primary,
+            fontFace: THEME.font,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+
+        if (profile.badges) {
+            slide.addText(profile.badges.toUpperCase(), {
+                x: col.x,
+                y: '19%',
+                w: col.w,
+                h: '3%',
+                fontSize: TYPO.kicker,
+                bold: true,
+                color: THEME.secondary,
+                fontFace: THEME.font,
+                charSpacing: 1.5,
+                valign: 'top',
+                breakLine: true,
+                margin: 0,
+                autoFit: false,
+            });
+        }
+
+        // Rich-text stack — Operational Pain, Conversation Wedge, Human Context.
+        slide.addText(buildEntryProfileRichRuns(profile), {
+            x: col.x,
+            y: '20%',
+            w: col.w,
+            h: '70%',
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
     });
 }
 
 /**
- * Render a single Strategic Entry Point profile card.
+ * Build pptxgenjs rich-text runs for one target profile column.
  *
- * Sub-geometry:
- *   • Header strip   — top portion of the card (name + AI badge row)
- *   • Field grid     — remaining height divided into 3 equal blocks
- *                      for operational_pain / conversation_wedge /
- *                      human_context, each with its own kicker label
- *                      and body textarea.
- *
- * @param {import('pptxgenjs').Slide} slide
  * @param {ReturnType<typeof collectEntryProfiles>[number]} profile
+ * @returns {import('pptxgenjs').TextProps[]}
  */
-function renderEntryProfileCard(slide, profile, x, y, w, h) {
-    addPanel(slide, x, y, w, h);
-
-    const headerH = profile.badges ? 0.85 : 0.65;
-    const innerPadX = 0.30;
-    const innerW = w - innerPadX * 2;
-
-    slide.addText(profile.name || 'Unnamed Contact', {
-        x: x + innerPadX,
-        y: y + 0.20,
-        w: innerW,
-        h: 0.45,
-        fontSize: 18,
-        bold: true,
-        color: THEME.primary,
-        fontFace: THEME.font,
-        valign: 'middle',
-        margin: 0,
-        autoFit: false,
-    });
-    if (profile.badges) {
-        slide.addText(profile.badges.toUpperCase(), {
-            x: x + innerPadX,
-            y: y + 0.62,
-            w: innerW,
-            h: 0.20,
-            fontSize: 8.5,
-            bold: true,
-            color: THEME.secondary,
-            fontFace: THEME.font,
-            charSpacing: 1.5,
-            valign: 'middle',
-            margin: 0,
-            autoFit: false,
-        });
-    }
-
-    // Accent rule beneath the header strip — brand teal.
-    slide.addShape('line', {
-        x: x + innerPadX,
-        y: y + headerH,
-        w: innerW,
-        h: 0,
-        line: { color: THEME.accent, width: 0.75 },
-    });
-
-    const gridTop = y + headerH + 0.12;
-    const gridH = h - headerH - 0.30;
-    const blocks = [
-        { label: 'OPERATIONAL PAIN', value: profile.operational_pain },
-        { label: 'CONVERSATION WEDGE', value: profile.conversation_wedge },
-        { label: 'HUMAN CONTEXT', value: profile.human_context },
+function buildEntryProfileRichRuns(profile) {
+    const sections = [
+        { label: 'Operational Pain', value: profile.operational_pain },
+        { label: 'Conversation Wedge', value: profile.conversation_wedge },
+        { label: 'Human Context', value: profile.human_context },
     ];
-    const blockH = gridH / blocks.length;
-    blocks.forEach((block, index) => {
-        const blockY = gridTop + index * blockH;
 
-        slide.addText(block.label, {
-            x: x + innerPadX,
-            y: blockY,
-            w: innerW,
-            h: 0.22,
-            fontSize: 8.5,
-            bold: true,
-            color: THEME.accent,
-            fontFace: THEME.font,
-            charSpacing: 1.5,
-            valign: 'middle',
-            margin: 0,
-            autoFit: false,
+    const runs = [];
+    sections.forEach((section, index) => {
+        const body = String(section.value ?? '').trim() || '—';
+        runs.push({
+            text: `${section.label}:\n`,
+            options: {
+                bold: true,
+                fontSize: TYPO.body,
+                color: themeHex('accent'),
+                fontFace: THEME.font,
+            },
         });
-
-        slide.addText(block.value || '—', {
-            x: x + innerPadX,
-            y: blockY + 0.24,
-            w: innerW,
-            h: blockH - 0.32,
-            fontSize: 11,
-            lineSpacing: 16,
-            color: block.value ? THEME.primary : THEME.softMuted,
-            italic: !block.value,
-            fontFace: THEME.font,
-            valign: 'top',
-            margin: 0,
-            breakLine: true,
-            autoFit: false,
+        runs.push({
+            text: index < sections.length - 1 ? `${body}\n\n` : body,
+            options: {
+                fontSize: TYPO.body,
+                color: themeHex('secondary'),
+                fontFace: THEME.font,
+                italic: body === '—',
+            },
         });
     });
+    return runs;
 }
 
 // ---------------------------------------------------------------------------
@@ -1316,17 +1306,13 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
 
     if (signals.length === 0) {
         slide.addText('No recent strategic signals — log one from the Interaction Log to surface it here.', {
-            x: MARGIN_X + 0.30,
-            y: bottomY + 0.70,
-            w: BODY_W - 0.60,
-            h: 0.4,
-            fontSize: 11,
+            x: '4%',
+            y: '72%',
+            w: '92%',
+            h: '10%',
+            ...BODY_TEXT_BASE,
             italic: true,
             color: THEME.softMuted,
-            fontFace: THEME.font,
-            valign: 'top',
-            margin: 0,
-            autoFit: false,
         });
         return;
     }
@@ -1350,7 +1336,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
                 options: {
                     breakLine: idx < signals.length - 1,
                     color: THEME.primary,
-                    fontSize: 12,
+                    fontSize: TYPO.body,
                     fontFace: THEME.font,
                 },
             });
@@ -1361,7 +1347,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
                     bullet: { code: '2022' },
                     breakLine: idx < signals.length - 1,
                     color: THEME.primary,
-                    fontSize: 12,
+                    fontSize: TYPO.body,
                     fontFace: THEME.font,
                 },
             });
@@ -1369,12 +1355,13 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     });
 
     slide.addText(runs, {
-        x: MARGIN_X + 0.30,
-        y: bottomY + 0.65,
-        w: BODY_W - 0.60,
-        h: bottomH - 0.85,
+        x: '4%',
+        y: '72%',
+        w: '92%',
+        h: '22%',
         valign: 'top',
-        lineSpacing: 22,
+        breakLine: true,
+        lineSpacing: 16,
         margin: 0,
         autoFit: false,
     });
@@ -1429,15 +1416,16 @@ function addContentSlide(pptx) {
 function addContentSlideChrome(slide, slideTitle, pageNum, totalSlides) {
     // Slide-specific title.
     slide.addText(slideTitle, {
-        x: MARGIN_X,
-        y: HEADER_TITLE_Y,
-        w: BODY_W - LOGO_W - 0.20,    // never collide with the logo
-        h: 0.40,
-        fontSize: 24,
+        x: '4%',
+        y: '7%',
+        w: '78%',
+        h: '6%',
+        fontSize: TYPO.header,
         bold: true,
         color: THEME.primary,
         fontFace: THEME.font,
-        valign: 'middle',
+        valign: 'top',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
@@ -1457,16 +1445,17 @@ function addContentSlideChrome(slide, slideTitle, pageNum, totalSlides) {
     // "N / total" stamp without involving pptxgenjs's slideNumber
     // placeholder (which would include the cover slide in the count).
     slide.addText(`${pageNum} / ${totalSlides}`, {
-        x: MARGIN_X + BODY_W / 2,
-        y: FOOTER_TEXT_Y,
-        w: BODY_W / 2,
-        h: 0.22,
-        fontSize: 8,
+        x: '50%',
+        y: '96%',
+        w: '46%',
+        h: '3%',
+        fontSize: TYPO.kicker,
         bold: true,
         color: THEME.secondary,
         fontFace: THEME.font,
         align: 'right',
         valign: 'middle',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
@@ -1501,12 +1490,14 @@ function addKicker(slide, text, x, y, w) {
         x,
         y,
         w,
-        h: 0.22,
-        fontSize: 9,
+        h: '3%',
+        fontSize: TYPO.kicker,
         bold: true,
         color: THEME.accent,
         fontFace: THEME.font,
         charSpacing: 2,
+        valign: 'top',
+        breakLine: true,
         margin: 0,
         autoFit: false,
     });
@@ -1522,8 +1513,8 @@ function addHeadline(slide, text, x, y, w, h) {
         x,
         y,
         w,
-        h,
-        fontSize: 16,
+        h: typeof h === 'number' ? h : '6%',
+        fontSize: TYPO.subheader,
         bold: true,
         color: THEME.primary,
         fontFace: THEME.font,
@@ -1552,11 +1543,12 @@ function addNativeBulletList(slide, items, opts) {
             y: opts.y,
             w: opts.w,
             h: opts.h,
-            fontSize: opts.fontSize ?? 11,
+            fontSize: opts.fontSize ?? TYPO.body,
             italic: true,
             color: THEME.softMuted,
             fontFace: THEME.font,
             valign: 'top',
+            breakLine: true,
             margin: 0,
             autoFit: false,
         });
@@ -1570,7 +1562,7 @@ function addNativeBulletList(slide, items, opts) {
                 bullet: { code: '2022', color: opts.bulletColor ?? THEME.accent },
                 breakLine: idx < clean.length - 1,
                 color: opts.color ?? THEME.primary,
-                fontSize: opts.fontSize ?? 12,
+                fontSize: opts.fontSize ?? TYPO.body,
                 fontFace: THEME.font,
             },
         })),
@@ -1580,7 +1572,8 @@ function addNativeBulletList(slide, items, opts) {
             w: opts.w,
             h: opts.h,
             valign: 'top',
-            lineSpacing: opts.lineSpacing ?? 20,
+            breakLine: true,
+            lineSpacing: opts.lineSpacing ?? 16,
             margin: 0,
             autoFit: false,
         }
