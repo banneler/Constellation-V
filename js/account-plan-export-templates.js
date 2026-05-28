@@ -2705,6 +2705,10 @@ export function ensureExportTemplateStyles() {
             color: #64748b;
             font-weight: 600;
         }
+        .ap-export-client-commitments-body {
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+        }
         .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
             margin-top: 0;
         }
