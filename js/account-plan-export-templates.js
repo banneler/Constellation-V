@@ -7,9 +7,12 @@ import {
     PSYCHOLOGY_SLIDERS,
     PLAN_306090_HORIZONS,
     TACTICAL_UX_LABELS,
-    ENTRY_POINT_FIELD_KEYS,
 } from './account-plan-sections.js';
-import { normalizePlan, INFLUENCE_CONTACT_FIELD_KEYS } from './account-plan-data.js';
+import {
+    normalizePlan,
+    INFLUENCE_CONTACT_FIELD_KEYS,
+    ENTRY_POINT_FIELD_KEYS,
+} from './account-plan-data.js';
 import { formatContactLabel, resolveContactById } from './account-plan-contacts.js';
 import { formatPlanHorizonRichHtml } from './account-plan-rich-text.js';
 import {
