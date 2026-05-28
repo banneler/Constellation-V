@@ -1486,14 +1486,16 @@ function buildWhiteSpaceMatrixBody(rows) {
     //   7. Estimated Value / Sizing Notes  (wider — sentence-length)
     // "Opportunity" falls back to "Opportunity N" when the rep hasn't
     // authored a name yet.
+    // Header labels use explicit line breaks (\\n) so PDF capture wraps at
+    // phrase boundaries — never mid-word inside narrow grid tracks.
     const columns = [
-        { header: 'Opportunity',                       key: 'name',                    flex: 1.2, isName: true },
-        { header: 'Area',                              key: 'area',                    flex: 0.9 },
-        { header: 'Operational Importance',            key: 'operational_importance',  flex: 0.9 },
-        { header: 'Executive Visibility',              key: 'executive_visibility',    flex: 0.9 },
-        { header: 'Confidence',                        key: 'confidence',              flex: 0.8 },
-        { header: 'Description',                       key: 'opportunity',             flex: 1.6 },
-        { header: 'Estimated Value / Sizing Notes',    key: 'value_notes',             flex: 1.4 },
+        { header: 'Opportunity',              key: 'name',                   flex: 1.15, isName: true },
+        { header: 'Area',                     key: 'area',                   flex: 0.8 },
+        { header: 'Operational\nImportance', key: 'operational_importance', flex: 1.05 },
+        { header: 'Executive\nVisibility',    key: 'executive_visibility',   flex: 1.05 },
+        { header: 'Confidence',               key: 'confidence',             flex: 0.95 },
+        { header: 'Description',              key: 'opportunity',            flex: 1.55 },
+        { header: 'Estimated Value\n/ Sizing Notes', key: 'value_notes',       flex: 1.35 },
     ];
 
     const matrix = document.createElement('div');
@@ -3009,13 +3011,19 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-ws-matrix-cell--header {
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 9.5px;
+            font-size: 9px;
             font-weight: 700;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.04em;
+            line-height: 1.25;
             text-transform: uppercase;
             color: #334155;
             background: #f1f5f9;
             border-bottom: 1px solid #cbd5e1;
+            text-align: center;
+            white-space: pre-line;
+            overflow-wrap: normal;
+            word-break: normal;
+            hyphens: none;
         }
         .ap-export-ws-matrix-cell--body {
             background: #ffffff;
