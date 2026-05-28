@@ -256,6 +256,7 @@ const DOSSIER_SECTION_ICONS = {
     relationship_momentum: 'fa-arrow-trend-up',
     momentum_timeline: 'fa-bolt',
     plan_30_60_90: 'fa-calendar-check',
+    client_commitments: 'fa-handshake',
     entry_points: 'fa-crosshairs',
 };
 
@@ -265,6 +266,17 @@ const DOSSIER_SECTION_ICONS = {
  * @param {boolean} [continued]
  */
 export function buildDossierSectionTitleHtml(sectionId, title, continued = false) {
+    if (sectionId === 'client_commitments') {
+        const iconClass = DOSSIER_SECTION_ICONS.client_commitments;
+        const iconHtml = iconClass
+            ? `<i class="fas ${iconClass} ap-export-section-icon" aria-hidden="true"></i> `
+            : '';
+        const main = escapeHtml(TACTICAL_UX_LABELS.clientCommitments);
+        const qualifier = escapeHtml(TACTICAL_UX_LABELS.clientCommitmentsQualifier);
+        const continuedSuffix = continued ? ' (continued)' : '';
+        return `${iconHtml}${main} <span class="ap-export-section-title-qualifier">${qualifier}</span>${continued ? ' (continued)' : ''}`;
+    }
+
     const iconClass = DOSSIER_SECTION_ICONS[sectionId];
     const label = continued ? `${title} (continued)` : title;
     if (iconClass) {
@@ -982,6 +994,55 @@ export function unwrapDossierSectionGroup(groupBlock) {
     }
     return [...groupBlock.querySelectorAll(':scope > .ap-export-dossier-section')]
         .filter((child) => child instanceof HTMLElement);
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {HTMLElement | null} bodyEl
+ * @param {string} [titleOverride]
+ * @param {'editorial' | 'metric'} [bodyMode]
+ * @param {Record<string, unknown>} [planSections]
+ */
+/** @type {import('./account-plan-sections.js').PlanSectionDef} */
+const CLIENT_COMMITMENTS_DOSSIER_SECTION = {
+    id: 'client_commitments',
+    type: 'client_commitments',
+    title: TACTICAL_UX_LABELS.clientCommitments,
+    contextMode: 'none',
+};
+
+/**
+ * @param {string[]} commitments
+ * @returns {HTMLElement}
+ */
+function createClientCommitmentsDossierBlock(commitments) {
+    const body = document.createElement('div');
+    body.className = 'ap-export-client-commitments-body';
+
+    if (commitments.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'ap-export-editorial-empty';
+        empty.textContent = 'What does the customer owe us this month to keep the deal moving?';
+        body.appendChild(empty);
+    } else {
+        const list = document.createElement('ul');
+        list.className = 'ap-export-blindspots-list';
+        commitments.forEach((entry) => {
+            const text = String(entry ?? '').trim();
+            if (!text) return;
+            const li = document.createElement('li');
+            li.className = 'ap-export-blindspots-item';
+            li.textContent = text;
+            list.appendChild(li);
+        });
+        body.appendChild(list);
+    }
+
+    return createDossierSectionBlock(
+        CLIENT_COMMITMENTS_DOSSIER_SECTION,
+        body,
+        TACTICAL_UX_LABELS.clientCommitments
+    );
 }
 
 /**
@@ -1933,43 +1994,35 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
 
     if (section.type === 'triple_textarea') {
         const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-        const stack = document.createElement('div');
-        stack.className = 'ap-export-plan306090-stack';
+        const horizons = section.horizons || PLAN_306090_HORIZONS;
+        const horizonFilled = horizons.some((horizon) => !isPlanHorizonTextEmpty(plan306090[horizon.key]));
+        const commitments = sanitizeStringArray(plan306090.client_commitments);
 
-        const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-editorial-grid--plan');
-        PLAN_306090_HORIZONS.forEach((horizon) => {
-            grid.appendChild(createEditorialPlanHorizonCell(
-                horizon.title,
-                plan306090[horizon.key]
-            ));
-        });
-        stack.appendChild(grid);
-
-        const commitments = Array.isArray(plan306090.client_commitments) ? plan306090.client_commitments : [];
-        const giveGet = document.createElement('div');
-        giveGet.className = 'ap-export-client-commitments';
-        giveGet.innerHTML = `<h3 class="ap-export-editorial-kicker">${escapeHtml(formatClientCommitmentsLabel())}</h3>`;
-        if (commitments.length === 0) {
-            const empty = document.createElement('p');
-            empty.className = 'ap-export-editorial-empty';
-            empty.textContent = 'What does the customer owe us this month to keep the deal moving?';
-            giveGet.appendChild(empty);
-        } else {
-            const list = document.createElement('ul');
-            list.className = 'ap-export-blindspots-list';
-            commitments.forEach((entry) => {
-                const text = String(entry ?? '').trim();
-                if (!text) return;
-                const li = document.createElement('li');
-                li.className = 'ap-export-blindspots-item';
-                li.textContent = text;
-                list.appendChild(li);
+        const buildPlanGrid = () => {
+            const grid = createEditorialGrid('ap-export-editorial-grid--3 ap-export-editorial-grid--plan');
+            horizons.forEach((horizon) => {
+                grid.appendChild(createEditorialPlanHorizonCell(
+                    horizon.title,
+                    plan306090[horizon.key]
+                ));
             });
-            giveGet.appendChild(list);
-        }
-        stack.appendChild(giveGet);
+            return grid;
+        };
 
-        return [createDossierSectionBlock(section, stack)];
+        /** @type {HTMLElement[]} */
+        const blocks = [];
+
+        if (horizonFilled) {
+            blocks.push(createDossierSectionBlock(section, buildPlanGrid()));
+            blocks.push(createClientCommitmentsDossierBlock(commitments));
+        } else if (commitments.length > 0) {
+            blocks.push(createClientCommitmentsDossierBlock(commitments));
+        } else {
+            blocks.push(createDossierSectionBlock(section, buildPlanGrid()));
+            blocks.push(createClientCommitmentsDossierBlock([]));
+        }
+
+        return blocks;
     }
 
     const prose = createEditorialProseBlock('', '', [{ kicker: section.title, text: '' }]);
@@ -2647,6 +2700,10 @@ export function ensureExportTemplateStyles() {
             margin-right: 8px;
             font-size: 1.1em;
             opacity: 0.9;
+        }
+        .ap-export-section-title-qualifier {
+            color: #64748b;
+            font-weight: 600;
         }
         .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
             margin-top: 0;
