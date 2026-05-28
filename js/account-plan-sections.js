@@ -562,19 +562,6 @@ export const PLAN_SECTIONS = Object.freeze([
         exportExec: false,
     },
     {
-        id: 'land_and_expand',
-        type: 'composite_textarea',
-        title: 'Land & Expand',
-        contextMode: 'none',
-        fields: [
-            { key: 'initial_entry', hint: 'The initial entry opportunity and wedge.' },
-            { key: 'trust_creation', hint: 'Why this wedge creates trust.' },
-            { key: 'expansion_path', hint: 'Expansion path and strategic outcome.' },
-        ],
-        exportDossier: true,
-        exportExec: true,
-    },
-    {
         id: 'entry_points',
         type: 'entry_point_carousel',
         title: 'Strategic Entry Points',
@@ -613,13 +600,17 @@ export const PLAN_SECTIONS = Object.freeze([
         exportExec: true,
     },
     {
-        id: 'momentum_timeline',
-        type: 'timeline_view',
-        title: 'Relationship Timeline',
-        contextMode: 'lead',
-        description: 'A unified chronological view of CRM activities and strategic plan milestones.',
+        id: 'land_and_expand',
+        type: 'composite_textarea',
+        title: 'Land & Expand',
+        contextMode: 'none',
+        fields: [
+            { key: 'initial_entry', hint: 'The initial entry opportunity and wedge.' },
+            { key: 'trust_creation', hint: 'Why this wedge creates trust.' },
+            { key: 'expansion_path', hint: 'Expansion path and strategic outcome.' },
+        ],
         exportDossier: true,
-        exportExec: false,
+        exportExec: true,
     },
     {
         id: 'plan_30_60_90',
@@ -630,6 +621,15 @@ export const PLAN_SECTIONS = Object.freeze([
         horizons: PLAN_306090_HORIZONS,
         exportDossier: true,
         exportExec: true,
+    },
+    {
+        id: 'momentum_timeline',
+        type: 'timeline_view',
+        title: 'Relationship Timeline',
+        contextMode: 'lead',
+        description: 'A unified chronological view of CRM activities and strategic plan milestones.',
+        exportDossier: true,
+        exportExec: false,
     },
 ]);
 
