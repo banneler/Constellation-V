@@ -7,6 +7,7 @@ import {
     PSYCHOLOGY_SLIDERS,
     PLAN_306090_HORIZONS,
     TACTICAL_UX_LABELS,
+    formatClientCommitmentsLabel,
 } from './account-plan-sections.js';
 import {
     normalizePlan,
@@ -842,7 +843,7 @@ export function buildSlide3Execution(plan, account, pageInfo = { pageNumber: 3, 
     if (commitments.length > 0) {
         const giveGet = document.createElement('div');
         giveGet.className = 'ap-exec-client-commitments';
-        giveGet.innerHTML = `<h4 class="ap-exec-plan-horizon-title">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h4>`;
+        giveGet.innerHTML = `<h4 class="ap-exec-plan-horizon-title">${escapeHtml(formatClientCommitmentsLabel())}</h4>`;
         const list = document.createElement('ul');
         list.className = 'ap-exec-highlight-list ap-exec-highlight-list--compact';
         list.innerHTML = commitments
@@ -1947,7 +1948,7 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         const commitments = Array.isArray(plan306090.client_commitments) ? plan306090.client_commitments : [];
         const giveGet = document.createElement('div');
         giveGet.className = 'ap-export-client-commitments';
-        giveGet.innerHTML = `<h3 class="ap-export-editorial-kicker">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h3>`;
+        giveGet.innerHTML = `<h3 class="ap-export-editorial-kicker">${escapeHtml(formatClientCommitmentsLabel())}</h3>`;
         if (commitments.length === 0) {
             const empty = document.createElement('p');
             empty.className = 'ap-export-editorial-empty';
@@ -3106,31 +3107,31 @@ export function ensureExportTemplateStyles() {
         .ap-export-target-profiles-body {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 12px;
         }
         .ap-export-target-profile {
             page-break-inside: avoid;
             break-inside: avoid;
             border: 1px solid #e2e8f0;
             background: #fafbfc;
-            padding: 8px 10px 9px;
+            padding: 11px 14px 12px;
             border-radius: 4px;
         }
         .ap-export-target-profile + .ap-export-target-profile {
             margin-top: 0;
         }
         .ap-export-target-profile-header {
-            margin-bottom: 6px;
-            padding-bottom: 5px;
+            margin-bottom: 9px;
+            padding-bottom: 7px;
             border-bottom: 1px solid #e2e8f0;
         }
         .ap-export-target-profile-name {
-            margin: 0 0 4px;
+            margin: 0 0 5px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 12px;
-            line-height: 1.15;
+            font-size: 13.5px;
+            line-height: 1.2;
             font-weight: 700;
             letter-spacing: 0.01em;
             color: #0f172a;
@@ -3139,123 +3140,103 @@ export function ensureExportTemplateStyles() {
         .ap-export-badge-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 3px;
+            gap: 4px;
         }
         .ap-export-badge {
             display: inline-block;
-            font-size: 7.5px;
+            font-size: 8.5px;
             text-transform: uppercase;
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
-            padding: 1px 4px;
+            padding: 2px 5px;
             border-radius: 3px;
             margin-right: 0;
             color: #475569;
             font-weight: 600;
             letter-spacing: 0.03em;
-            line-height: 1.15;
+            line-height: 1.2;
         }
         .ap-export-target-profile-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0 10px;
+            gap: 0 14px;
         }
         .ap-export-target-profile-column {
             min-width: 0;
         }
         .ap-export-target-profile-column:first-child {
             border-right: 1px solid #e2e8f0;
-            padding-right: 10px;
+            padding-right: 14px;
         }
         .ap-export-target-profile-group-title {
-            margin: 0 0 4px;
+            margin: 0 0 7px;
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 8.5px;
+            font-size: 9.5px;
             font-weight: 700;
-            letter-spacing: 0.07em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: #0f172a;
         }
         .ap-export-target-profile .ap-export-profile-field {
-            margin-bottom: 4px;
-            padding-left: 6px;
+            margin-bottom: 7px;
+            padding-left: 8px;
             border-left: 2px solid #3b82f6;
         }
         .ap-export-target-profile .ap-export-profile-field:last-child {
             margin-bottom: 0;
         }
         .ap-export-target-profile .ap-export-profile-kicker {
-            font-size: 7.5px;
+            font-size: 8.5px;
             font-weight: 700;
             color: #64748b;
             text-transform: uppercase;
-            margin-bottom: 1px;
+            margin-bottom: 2px;
             letter-spacing: 0.04em;
-            line-height: 1.15;
+            line-height: 1.2;
         }
         .ap-export-target-profile .ap-export-profile-copy {
             margin: 0;
-            font-size: 9.5px;
-            line-height: 1.35;
+            font-size: 10.5px;
+            line-height: 1.45;
             color: #1e293b;
             white-space: pre-wrap;
         }
-        /* Two profiles on one page — slightly tighter than solo */
+        /* Two on one page — trim gap only; keep readable type */
         .ap-export-target-profiles-body--per-page-2 {
-            gap: 6px;
+            gap: 10px;
         }
-        .ap-export-target-profiles-body--per-page-2 .ap-export-target-profile {
-            padding: 6px 9px 7px;
-        }
-        .ap-export-target-profiles-body--per-page-2 .ap-export-target-profile-name {
-            font-size: 11px;
-        }
-        .ap-export-target-profiles-body--per-page-2 .ap-export-profile-copy {
-            font-size: 9px;
-            line-height: 1.32;
-        }
-        /* Three profiles on one page — compact summary layout */
+        /* Three on one page — light density pass (pagination falls back if too tall) */
         .ap-export-target-profiles-body--per-page-3 {
-            gap: 4px;
-            padding-top: 8px;
+            gap: 8px;
+            padding-top: 10px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile {
-            padding: 4px 7px 5px;
+            padding: 9px 12px 10px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-header {
-            margin-bottom: 3px;
-            padding-bottom: 3px;
+            margin-bottom: 7px;
+            padding-bottom: 6px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-name {
-            margin: 0 0 2px;
-            font-size: 10px;
-            line-height: 1.1;
+            font-size: 12.5px;
+            line-height: 1.2;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-badge {
-            font-size: 6.5px;
-            padding: 1px 3px;
-        }
-        .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-grid {
-            gap: 0 8px;
-        }
-        .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-column:first-child {
-            padding-right: 8px;
+            font-size: 8px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-group-title {
-            margin: 0 0 2px;
-            font-size: 7.5px;
+            margin: 0 0 5px;
+            font-size: 9px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-profile-field {
-            margin-bottom: 2px;
-            padding-left: 5px;
+            margin-bottom: 5px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-profile-kicker {
-            font-size: 6.5px;
-            margin-bottom: 0;
+            font-size: 8px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-profile-copy {
-            font-size: 8px;
-            line-height: 1.28;
+            font-size: 10px;
+            line-height: 1.4;
         }
         .ap-export-profile-field {
             margin-bottom: 12px;

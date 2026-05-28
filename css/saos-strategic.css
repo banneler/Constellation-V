@@ -289,6 +289,25 @@
     color: var(--text-muted);
 }
 
+.plan-306090-commitments {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.plan-306090-commitments-title {
+    margin: 0 0 0.75rem;
+    font-size: 1.125rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.plan-306090-commitments-title-qualifier {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
 /* Entry Point carousel tabs — pill-shaped, bordered, with a clear active state.
  * Same trailing-declaration issue: color/cursor on the base tab and color on
  * the active tab were being dropped after the @supports background-color block. */

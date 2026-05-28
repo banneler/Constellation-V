@@ -23,8 +23,14 @@ export const TACTICAL_UX_LABELS = Object.freeze({
     competingPriorities: 'Competing Priorities',
     humanContext: 'The Off-the-Record Read',
     incumbentGrip: "The Incumbent's Grip",
-    clientCommitments: 'Client Commitments (The Give/Get)',
+    clientCommitments: 'Client Commitments',
+    clientCommitmentsQualifier: '(The Give/Get)',
 });
+
+/** @returns {string} Full Give/Get label for exports and deck chrome. */
+export function formatClientCommitmentsLabel() {
+    return `${TACTICAL_UX_LABELS.clientCommitments} ${TACTICAL_UX_LABELS.clientCommitmentsQualifier}`;
+}
 
 /** @typedef {'none' | 'lead' | 'block'} SectionContextMode */
 

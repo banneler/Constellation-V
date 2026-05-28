@@ -4285,7 +4285,7 @@ body.theme-green {
   }
   .account-picker-panel {
     display: flex;
-    flex-shrink: 1;
+    flex-shrink: 0;
     flex-direction: column;
     overflow: hidden;
     border-radius: var(--radius-2xl);
@@ -4402,17 +4402,16 @@ body.theme-green {
     border-color: var(--primary-blue);
     color: white;
   }
-  .strategic-workspace {
+  #strategic-workspace {
     display: none;
   }
-  .strategic-mode-active .strategic-workspace {
+  .strategic-mode-active #strategic-workspace {
     display: flex;
   }
   .strategic-mode-active #account-details {
     display: none !important;
   }
   .strategic-workspace {
-    display: flex;
     min-height: calc(var(--spacing) * 0);
     min-width: calc(var(--spacing) * 0);
     flex: 1;
@@ -4602,7 +4601,7 @@ body.theme-green {
   .plan-pdf-preview-modal {
     position: fixed;
     inset: 0;
-    z-index: 80;
+    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4615,9 +4614,10 @@ body.theme-green {
   .plan-pdf-preview-dialog {
     display: flex;
     flex-direction: column;
-    width: min(100%, calc(85vh * 0.82));
-    height: 85vh;
+    width: min(95vw, 1100px);
+    height: min(95vh, 1400px);
     max-width: 100%;
+    max-height: 100%;
   }
   .plan-pdf-preview-header {
     display: flex;
@@ -5517,6 +5517,27 @@ body.theme-green {
     min-height: 6.5rem;
     font-size: 0.9375rem;
     line-height: 1.55;
+  }
+  .plan-306090-commitments {
+    margin-top: calc(var(--spacing) * 5);
+    border-top-style: var(--tw-border-style);
+    border-top-width: 1px;
+    padding-top: calc(var(--spacing) * 5);
+    border-color: var(--border-color);
+  }
+  .plan-306090-commitments-title {
+    margin: calc(var(--spacing) * 0);
+    margin-bottom: calc(var(--spacing) * 3);
+    font-size: var(--text-lg);
+    line-height: var(--tw-leading, var(--text-lg--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-light);
+  }
+  .plan-306090-commitments-title-qualifier {
+    --tw-font-weight: var(--font-weight-normal);
+    font-weight: var(--font-weight-normal);
+    color: var(--text-muted);
   }
   .strategic-section--plan306090 {
     padding-bottom: calc(var(--spacing) * 8);
@@ -6502,7 +6523,7 @@ body.theme-green {
   .plan-export-generating-overlay {
     position: fixed;
     inset: 0;
-    z-index: 70;
+    z-index: 10010;
     display: flex;
     align-items: center;
     justify-content: center;

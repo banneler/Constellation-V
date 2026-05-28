@@ -15,7 +15,7 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-05-27-2';
+} from './account-plan-export-templates.js?v=2026-05-27-4';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;

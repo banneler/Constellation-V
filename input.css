@@ -2485,6 +2485,18 @@ body.theme-green {
         font-size: 0.9375rem;
         line-height: 1.55;
     }
+    .plan-306090-commitments {
+        @apply mt-5 pt-5 border-t;
+        border-color: var(--border-color);
+    }
+    .plan-306090-commitments-title {
+        @apply text-lg font-semibold m-0 mb-3;
+        color: var(--text-light);
+    }
+    .plan-306090-commitments-title-qualifier {
+        @apply font-normal;
+        color: var(--text-muted);
+    }
     .strategic-section--plan306090 {
         @apply pb-8;
     }

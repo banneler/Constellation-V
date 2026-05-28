@@ -41,7 +41,7 @@ import {
     formatGpcFooterDate,
 } from './account-plan-export-brand.js';
 import { normalizePlan } from './account-plan-data.js';
-import { TACTICAL_UX_LABELS } from './account-plan-sections.js';
+import { TACTICAL_UX_LABELS, formatClientCommitmentsLabel } from './account-plan-sections.js';
 import { hasMeaningfulText, sanitizeStringArray } from './account-plan-export-templates.js';
 import { normalizePresentationHighlight } from './account-plan-presentation-ai.js';
 import { MOMENTUM_LABELS } from './account-plan-presentation-types.js';
@@ -1496,7 +1496,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
 
     if (hasCommitments) {
         const giveGetY = tableY + tableH + 0.12;
-        slide.addText(TACTICAL_UX_LABELS.clientCommitments.toUpperCase(), {
+        slide.addText(formatClientCommitmentsLabel().toUpperCase(), {
             x: MARGIN_X + 0.30,
             y: giveGetY,
             w: BODY_W - 0.60,

@@ -1439,7 +1439,9 @@ function buildClientCommitmentsHtml(planData) {
 
     return `
         <div class="plan-306090-commitments" data-client-commitments-host>
-            <h5 class="plan-306090-commitments-title">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</h5>
+            <h4 class="plan-306090-commitments-title">
+                <span class="plan-306090-commitments-title-main">${escapeHtml(TACTICAL_UX_LABELS.clientCommitments)}</span><span class="plan-306090-commitments-title-qualifier">${escapeHtml(TACTICAL_UX_LABELS.clientCommitmentsQualifier)}</span>
+            </h4>
             <ul class="blindspots-list client-commitments-list" role="list">${rowsHtml}</ul>
             <div class="blindspots-add-row">
                 <label class="sr-only" for="${inputId}">Add a client commitment</label>
