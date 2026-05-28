@@ -1270,3 +1270,75 @@ body.strategic-mode-active #strategic-workspace {
     font-weight: 500;
     border-radius: 0 4px 4px 0;
 }
+
+/* ===========================================================================
+ * Strategic mode scroll containment
+ *
+ * Symptom: at the bottom of the plan canvas, the user could pan horizontally
+ * and the whole page would drift sideways / upward off-screen.
+ *
+ * Causes:
+ *   • `.content-area { overflow-y: auto }` implicitly enables overflow-x: auto.
+ *   • `#strategic-workspace` reuses `.account-details-content`, so mobile
+ *     accounts rules set `overflow: visible !important` on the workspace.
+ *   • Wide section grids (influence board, white space rows) could exceed the
+ *     canvas track without `min-width: 0` clipping.
+ * ======================================================================== */
+
+body.strategic-mode-active.accounts-page .content-area {
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+}
+
+body.strategic-mode-active .accounts-layout {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+body.strategic-mode-active #strategic-workspace.account-details-content {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto;
+    min-width: 0 !important;
+    max-width: 100%;
+    overflow: hidden !important;
+    max-height: calc(100vh - 48px);
+}
+
+body.strategic-mode-active #strategic-workspace .strategic-workspace-body {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+body.strategic-mode-active #strategic-document-canvas {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-x: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+body.strategic-mode-active #strategic-document-canvas .strategic-document-inner {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+body.strategic-mode-active #strategic-document-canvas .strategic-section,
+body.strategic-mode-active #strategic-document-canvas .influence-board,
+body.strategic-mode-active #strategic-document-canvas .white-space-row-grid,
+body.strategic-mode-active #strategic-document-canvas .psychology-gravity-grid,
+body.strategic-mode-active #strategic-document-canvas .strategic-composite-field-body,
+body.strategic-mode-active #strategic-document-canvas .entry-point-grid--attributes {
+    min-width: 0;
+    max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+    body.strategic-mode-active #strategic-workspace.account-details-content {
+        display: flex !important;
+        grid-template-columns: unset !important;
+        grid-template-rows: unset !important;
+    }
+}
