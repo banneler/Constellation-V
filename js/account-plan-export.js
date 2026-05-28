@@ -15,7 +15,7 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-05-26-3';
+} from './account-plan-export-templates.js?v=2026-05-27-2';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -309,12 +309,11 @@ function buildEntryPointsPageGroups(block, meta, exportRoot) {
         return measureDossierContentPage([trialBlock], meta, exportRoot);
     };
 
-    // Hard cap of TWO profiles per printed page. The condensed
-    // `.ap-export-target-profile` CSS is sized so a pair fits beautifully on
-    // a single 8.5×11; cramming more (even when it measurably fits) makes the
-    // cards visually noisy. Falling back to 1-per-page is preserved for the
-    // edge case where a single oversized profile cannot share a page.
-    const MAX_PROFILES_PER_PAGE = 2;
+    // Up to three profiles per page when measurement confirms they fit.
+    // Condensed CSS (see `.ap-export-target-profiles-body--per-page-3` in
+    // export templates) keeps cards readable; pagination falls back to 2 or 1
+    // when copy is too long for a triple stack.
+    const MAX_PROFILES_PER_PAGE = 3;
     /** @type {{ start: number, count: number }[]} */
     let pageRanges = [];
     let start = 0;
@@ -355,10 +354,7 @@ function buildEntryPointsPageGroups(block, meta, exportRoot) {
 function rebalanceEntryPointPageRanges(pageRanges, totalProfiles, chunkFits) {
     if (pageRanges.length <= 1) return pageRanges;
 
-    // Keep the same 2-per-page contract during rebalancing — otherwise a
-    // trailing singleton could merge into a previous full page and create a
-    // 3-up layout, which we explicitly disallow.
-    const MAX_PROFILES_PER_PAGE = 2;
+    const MAX_PROFILES_PER_PAGE = 3;
 
     const last = pageRanges[pageRanges.length - 1];
     if (last.count !== 1) return pageRanges;
@@ -498,6 +494,13 @@ function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, 
 
     const container = document.createElement('div');
     container.className = stackClass;
+    if (stackClass.includes('ap-export-target-profiles-body')) {
+        if (units.length >= 3) {
+            container.classList.add('ap-export-target-profiles-body--per-page-3');
+        } else if (units.length === 2) {
+            container.classList.add('ap-export-target-profiles-body--per-page-2');
+        }
+    }
     units.forEach((unit) => container.appendChild(unit.cloneNode(true)));
     bodyWrap.appendChild(container);
     block.appendChild(bodyWrap);
