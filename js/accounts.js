@@ -3191,7 +3191,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             },
             onToast: (message, type) => {
                 if (typeof showToast === 'function') {
-                    showToast(message, type === 'error' ? 'error' : 'success');
+                    const toastType = type === 'error'
+                        ? 'error'
+                        : type === 'warning'
+                            ? 'info'
+                            : 'success';
+                    showToast(message, toastType);
                 }
             },
             onConfirmDiscardUnsaved: (onConfirm) => {

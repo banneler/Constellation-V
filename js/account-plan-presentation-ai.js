@@ -11,6 +11,36 @@ import { TACTICAL_UX_LABELS } from './account-plan-sections.js';
  * @param {{ name?: string } | null} account
  * @returns {Promise<import('./account-plan-presentation-types.js').PresentationHighlight>}
  */
+/**
+ * @param {import('@supabase/supabase-js').FunctionsError | null} error
+ * @param {unknown} data
+ */
+function presentationInvokeErrorMessage(error, data) {
+    if (data && typeof data === 'object' && data !== null && 'error' in data) {
+        const apiErr = /** @type {{ error?: unknown }} */ (data).error;
+        if (apiErr != null && String(apiErr).trim()) {
+            return String(apiErr).trim();
+        }
+    }
+
+    const ctx = error && typeof error === 'object' && 'context' in error
+        ? /** @type {{ context?: unknown }} */ (error).context
+        : null;
+    if (ctx && typeof ctx === 'object' && ctx !== null) {
+        const body = /** @type {{ body?: unknown }} */ (ctx).body;
+        if (typeof body === 'string' && body.trim()) {
+            try {
+                const parsed = JSON.parse(body);
+                if (parsed?.error) return String(parsed.error);
+            } catch {
+                return body.trim().slice(0, 280);
+            }
+        }
+    }
+
+    return error?.message || 'Presentation synthesis failed.';
+}
+
 export async function fetchPresentationHighlight(supabase, plan, account) {
     const normalized = normalizePlan(plan);
     const accountName = account?.name ? String(account.name) : 'Account';
@@ -23,7 +53,7 @@ export async function fetchPresentationHighlight(supabase, plan, account) {
     });
 
     if (error) {
-        throw new Error(error.message || 'Presentation synthesis failed.');
+        throw new Error(presentationInvokeErrorMessage(error, data));
     }
     if (data?.error) {
         throw new Error(String(data.error));

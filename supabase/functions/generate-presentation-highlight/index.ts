@@ -1,6 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
+const GEMINI_MODEL_FALLBACK = "gemini-2.0-flash";
 
 const SYSTEM_PROMPT = `You are the executive presentation strategist for Great Plains Communications (GPC), an enterprise connectivity and infrastructure partner.
 
@@ -15,17 +16,17 @@ Framework (Elite Strategic Enterprise Pursuit Operating System):
 
 Schema v2 section mapping (read these keys from the plan JSON):
 - account_snapshot.tier + account_snapshot.pursuit_priority → situation.account_context (room hook)
-- pursuit_thesis (core, why_account_matters, cost_of_standing_still, timing) → situation.pursuit_thesis bullets
-- pursuit_thesis.executive_narrative → situation.executive_narrative (one executive-facing line)
+- pursuit_thesis.thesis, action_forcing_event, why_account_matters, timing, executive_narrative → situation.pursuit_thesis bullets
 - pain_signals.selected + pain_signals.notes → situation.pain_signals
-- critical_unknowns.unknowns + critical_unknowns.executive_language_pills → situation.critical_unknowns
+- critical_unknowns.blindspots (string[]) → situation.critical_unknowns
 - psychology gravity fields → situation.psychology callouts
 - relationship_momentum → situation.momentum.insight (beyond the numeric score)
 - competitive_landscape + entrenchment → battlefield.competitive bullets
 - white_space[] → battlefield.white_space (single top opportunity by importance/visibility)
 - influence_mapping + influence_mapping.access_path → battlefield.influence hooks (executive, champions, access_path_hook)
 - entry_points[] → battlefield.entry_points (1-2 max)
-- plan_30_60_90 → execution plan horizons
+- plan_30_60_90.plan_30 / plan_60 / plan_90 → execution plan horizons
+- plan_30_60_90.client_commitments[] → optional give/get bullets on execution slide (max 3)
 - interaction_log ONLY (entries with source signal or manual) → execution.signals — NEVER use CRM activity rows
 - entrenchment.moat_pills + entrenchment.difficult_to_remove → execution.entrenchment_moat (one-liner on incumbent moat)
 
@@ -55,7 +56,7 @@ Output ONLY valid JSON matching this exact schema (no markdown fences):
       },
       "critical_unknowns": {
         "headline": "string",
-        "bullets": ["string"] // 2-3 bullets from open questions / language pills
+        "bullets": ["string"] // 2-3 bullets from blindspots list
       },
       "momentum": {
         "insight": "string — one sentence on relationship trajectory beyond the score"
@@ -131,6 +132,17 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value);
 }
 
+const MAX_TEXT_FIELD_CHARS = 2400;
+const MAX_ENTRY_POINTS = 8;
+const MAX_INTERACTION_LOG = 24;
+const MAX_CLIENT_COMMITMENTS = 12;
+
+function truncateText(value: unknown, max = MAX_TEXT_FIELD_CHARS): string {
+  const text = value != null ? String(value).trim() : "";
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
+}
+
 /**
  * Strip CRM activity rows from interaction_log before AI synthesis.
  * Client-facing exports are signals-only per docs/saos/DECISIONS.md #1.
@@ -166,6 +178,152 @@ function sanitizePlanForPresentation(plan: unknown): unknown {
   };
 }
 
+/**
+ * Shrink payload for Gemini — omit plan history and cap large arrays/strings.
+ */
+function compactPlanForPresentation(plan: unknown): unknown {
+  const sanitized = sanitizePlanForPresentation(plan);
+  if (!isPlainObject(sanitized)) return sanitized;
+
+  const draft = sanitized.current_draft;
+  if (!isPlainObject(draft) || !isPlainObject(draft.sections)) {
+    return sanitized;
+  }
+
+  const sections = { ...draft.sections };
+
+  if (Array.isArray(sections.entry_points)) {
+    sections.entry_points = sections.entry_points
+      .filter(isPlainObject)
+      .slice(0, MAX_ENTRY_POINTS)
+      .map((point) => {
+        const compact: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(point)) {
+          if (typeof value === "string") {
+            compact[key] = truncateText(value, 900);
+          } else {
+            compact[key] = value;
+          }
+        }
+        return compact;
+      });
+  }
+
+  if (Array.isArray(sections.interaction_log)) {
+    sections.interaction_log = sections.interaction_log
+      .filter(isPlainObject)
+      .slice(0, MAX_INTERACTION_LOG)
+      .map((entry) => ({
+        ...entry,
+        text: truncateText(entry.text ?? entry.interaction ?? entry.key_insight, 500),
+      }));
+  }
+
+  const plan306090 = isPlainObject(sections.plan_30_60_90)
+    ? { ...sections.plan_30_60_90 }
+    : null;
+  if (plan306090) {
+    for (const key of ["plan_30", "plan_60", "plan_90"]) {
+      if (key in plan306090) {
+        plan306090[key] = truncateText(plan306090[key]);
+      }
+    }
+    if (Array.isArray(plan306090.client_commitments)) {
+      plan306090.client_commitments = plan306090.client_commitments
+        .map((entry) => truncateText(entry, 280))
+        .filter(Boolean)
+        .slice(0, MAX_CLIENT_COMMITMENTS);
+    }
+    sections.plan_30_60_90 = plan306090;
+  }
+
+  const thesis = isPlainObject(sections.pursuit_thesis)
+    ? { ...sections.pursuit_thesis }
+    : null;
+  if (thesis) {
+    for (const key of Object.keys(thesis)) {
+      if (typeof thesis[key] === "string") {
+        thesis[key] = truncateText(thesis[key]);
+      }
+    }
+    sections.pursuit_thesis = thesis;
+  }
+
+  const unknowns = isPlainObject(sections.critical_unknowns)
+    ? { ...sections.critical_unknowns }
+    : null;
+  if (unknowns && Array.isArray(unknowns.blindspots)) {
+    unknowns.blindspots = unknowns.blindspots
+      .map((entry) => truncateText(entry, 280))
+      .filter(Boolean)
+      .slice(0, 12);
+    sections.critical_unknowns = unknowns;
+  }
+
+  return {
+    schema_version: sanitized.schema_version ?? 2,
+    current_draft: { sections },
+  };
+}
+
+async function callGemini(
+  apiKey: string,
+  model: string,
+  userMessage: string,
+): Promise<string> {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: SYSTEM_PROMPT }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: userMessage }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.45,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    const err = new Error(`Gemini API Error (${model}): ${errText}`);
+    (err as Error & { status?: number }).status = response.status;
+    throw err;
+  }
+
+  const data = await response.json() as {
+    candidates?: Array<{
+      finishReason?: string;
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+    promptFeedback?: { blockReason?: string };
+  };
+
+  if (data.promptFeedback?.blockReason) {
+    throw new Error(`Gemini blocked the request: ${data.promptFeedback.blockReason}`);
+  }
+
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.[0]?.text;
+  if (!text) {
+    const reason = candidate?.finishReason ?? "unknown";
+    throw new Error(`Gemini returned no content (finishReason: ${reason}).`);
+  }
+
+  return text;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -178,14 +336,16 @@ Deno.serve(async (req) => {
   try {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
-      return jsonResponse({ error: "GEMINI_API_KEY is not configured." }, 500);
+      return jsonResponse({
+        error: "GEMINI_API_KEY is not configured on the server. Redeploy the edge function with secrets set.",
+      }, 500);
     }
 
     const body = (await req.json().catch(() => ({}))) as RequestBody;
     const accountName = body.accountName != null
       ? String(body.accountName).trim()
       : "Account";
-    const plan = sanitizePlanForPresentation(body.plan ?? {});
+    const plan = compactPlanForPresentation(body.plan ?? {});
 
     const userMessage = [
       `Account: ${accountName}`,
@@ -194,44 +354,25 @@ Deno.serve(async (req) => {
       JSON.stringify(plan, null, 2),
     ].join("\n");
 
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    let text: string;
+    let modelUsed = GEMINI_MODEL_PRIMARY;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: userMessage }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.45,
-          maxOutputTokens: 4096,
-          responseMimeType: "application/json",
-        },
-      }),
-    });
+    try {
+      text = await callGemini(apiKey, GEMINI_MODEL_PRIMARY, userMessage);
+    } catch (primaryErr) {
+      const status = primaryErr instanceof Error &&
+          "status" in primaryErr
+        ? (primaryErr as Error & { status?: number }).status
+        : undefined;
+      const shouldFallback = status === 404 || status === 400 || status === 429;
+      if (!shouldFallback) throw primaryErr;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API Error: ${errText}`);
-    }
-
-    const data = await response.json() as {
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-      }>;
-    };
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      throw new Error("Gemini returned no content.");
+      console.warn(
+        "[generate-presentation-highlight] Primary model failed, trying fallback:",
+        primaryErr,
+      );
+      text = await callGemini(apiKey, GEMINI_MODEL_FALLBACK, userMessage);
+      modelUsed = GEMINI_MODEL_FALLBACK;
     }
 
     let highlight: unknown;
@@ -244,10 +385,11 @@ Deno.serve(async (req) => {
     return jsonResponse({
       highlight,
       generated_at: new Date().toISOString(),
-      model: GEMINI_MODEL,
+      model: modelUsed,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error("[generate-presentation-highlight]", message);
     return jsonResponse({ error: message }, 500);
   }
 });

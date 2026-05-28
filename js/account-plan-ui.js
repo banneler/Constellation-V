@@ -3669,8 +3669,10 @@ async function handleExportPdf(type) {
             } catch (err) {
                 console.warn('[account-plan-ui] AI presentation synthesis failed:', err);
                 _options.onToast?.(
-                    err?.message || 'AI synthesis unavailable — using plan content.',
-                    'error'
+                    err?.message
+                        ? `AI highlight skipped: ${err.message}`
+                        : 'AI highlight skipped — deck built from plan content.',
+                    'warning'
                 );
             }
         } else if (type === 'exec' && !_supabase) {
