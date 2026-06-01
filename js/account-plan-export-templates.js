@@ -263,12 +263,12 @@ const INFLUENCE_CONTACT_FIELD_LABELS = {
  * un-grouping if the combined block cannot fit on one page).
  *
  * Current groupings:
- *   - pursuit_thesis + critical_unknowns → Big Play + Blindspots (never split by rebalance)
+ *   - account_snapshot + pursuit_thesis → opening spread (account context + Big Play)
  *   - white_space + competitive_landscape → expansion + battlefield pair
  * @type {ReadonlyArray<ReadonlyArray<string>>}
  */
 const DOSSIER_SECTION_GROUPS = Object.freeze([
-    Object.freeze(['pursuit_thesis', 'critical_unknowns']),
+    Object.freeze(['account_snapshot', 'pursuit_thesis']),
     Object.freeze(['white_space', 'competitive_landscape']),
 ]);
 

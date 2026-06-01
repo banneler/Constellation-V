@@ -15,10 +15,21 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-06-01-4';
+} from './account-plan-export-templates.js?v=2026-06-01-5';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
+
+/** Sections that must not jump backward onto a prior page during pagination. */
+const DOSSIER_NO_TUCK_SECTION_IDS = new Set([
+    'strategic_tensions',
+    'influence_mapping',
+    'entry_points',
+    'psychology',
+    'plan_30_60_90',
+    'momentum_timeline',
+    'client_commitments',
+]);
 
 /**
  * @param {unknown} plan
@@ -204,6 +215,8 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
      */
     const tryTuckOntoPreviousPage = (block) => {
         if (groups.length === 0 || !(block instanceof HTMLElement)) return false;
+        const sectionId = block.dataset?.sectionId || '';
+        if (DOSSIER_NO_TUCK_SECTION_IDS.has(sectionId)) return false;
         const previous = groups[groups.length - 1];
         const trial = [...previous, block];
         if (!pageFits(trial)) return false;
