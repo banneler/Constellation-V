@@ -61,43 +61,18 @@
                 <div id="campaign-details" class="campaign-details-content details-panel">
                     <!-- Top row: tools + details side by side -->
                     <div class="campaign-top-row">
-                        <!-- Left: merged Create/Manage flip card -->
-                        <div id="campaign-tools-card" class="section-card campaign-tools-card">
-                            <div class="section-card-header campaign-tools-header">
-                                <h3 id="campaign-tools-title" class="details-panel-title">Create New Campaign</h3>
-                                <button type="button" id="campaign-tools-flip-btn" class="btn-icon-header campaign-tools-flip-btn" title="Manage Templates"><i class="fas fa-file-lines" id="campaign-tools-flip-icon"></i></button>
+                        <!-- ABM campaign builder — split-pane cart replaces mail-merge flip card -->
+                        <div id="campaign-abm-builder-card" class="section-card campaign-abm-builder-card">
+                            <div class="section-card-header campaign-abm-builder-header">
+                                <h3 class="details-panel-title">Create New Campaign</h3>
                             </div>
-                            <div class="section-card-body campaign-tools-body">
-                                <div id="campaign-tools-flippable" class="campaign-tools-flippable">
-                                    <div class="campaign-tools-flip-inner">
-                                        <div class="campaign-tools-front">
-                                            <div id="new-campaign-form-container"></div>
-                                            <div id="create-campaign-confirm" class="hidden create-campaign-confirm">
-                                                <p id="create-campaign-confirm-message"></p>
-                                                <div class="action-buttons">
-                                                    <button type="button" id="create-campaign-confirm-yes" class="btn-primary">Yes, Create</button>
-                                                    <button type="button" id="create-campaign-confirm-cancel" class="btn-secondary">Cancel</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="campaign-tools-back">
-                                            <div id="template-manager-container"></div>
-                                            <div id="template-form-inline-wrapper" class="hidden">
-                                                <h4 class="subsection-title" id="template-form-inline-title">New Template</h4>
-                                                <div id="template-form-inline"></div>
-                                                <div class="action-buttons">
-                                                    <button type="button" id="template-form-save-btn" class="btn-primary">Save</button>
-                                                    <button type="button" id="template-form-cancel-btn" class="btn-secondary">Cancel</button>
-                                                </div>
-                                            </div>
-                                            <div id="template-delete-confirm-inline" class="hidden template-delete-confirm-inline">
-                                                <p id="template-delete-confirm-message"></p>
-                                                <div class="action-buttons">
-                                                    <button type="button" id="template-delete-yes-btn" class="btn-danger">Delete</button>
-                                                    <button type="button" id="template-delete-cancel-btn" class="btn-secondary">Cancel</button>
-                                                </div>
-                                            </div>
-                                        </div>
+                            <div class="section-card-body campaign-abm-builder-body">
+                                <div id="new-campaign-form-container"></div>
+                                <div id="create-campaign-confirm" class="hidden create-campaign-confirm">
+                                    <p id="create-campaign-confirm-message"></p>
+                                    <div class="action-buttons">
+                                        <button type="button" id="create-campaign-confirm-yes" class="btn-primary">Yes, Launch</button>
+                                        <button type="button" id="create-campaign-confirm-cancel" class="btn-secondary">Cancel</button>
                                     </div>
                                 </div>
                             </div>

@@ -3046,6 +3046,36 @@ function buildMomentumTrendlineHtml() {
     return `<div class="momentum-trendline" role="img" aria-label="Relationship momentum trendline">${bars}</div>`;
 }
 
+/** Compact sparkline for the right rail — last six scored milestones. */
+function buildRailMomentumTrendlineHtml(sections = _liveSections) {
+    const log = Array.isArray(sections?.interaction_log) ? sections.interaction_log : [];
+    const points = log
+        .filter((entry) => isPlainObject(entry) && entry.momentum_score != null)
+        .map((entry) => ({
+            date: new Date(String(entry.date ?? '')),
+            score: clampScale(entry.momentum_score, 3),
+        }))
+        .filter((point) => !Number.isNaN(point.date.getTime()))
+        .sort((a, b) => a.date.getTime() - b.date.getTime())
+        .slice(-6);
+
+    if (points.length === 0) {
+        return '<p class="rail-momentum-trendline-empty">Trend builds as you log milestones.</p>';
+    }
+
+    const bars = points.map((point) => {
+        const height = ((point.score - 1) / 4) * 100;
+        return `<div class="rail-momentum-trendline-bar" style="--trend-height:${height}%" title="Score ${point.score} — ${MOMENTUM_LABELS[point.score - 1]}"><span>${point.score}</span></div>`;
+    }).join('');
+
+    return `<div class="rail-momentum-trendline" role="img" aria-label="Recent momentum trend">${bars}</div>`;
+}
+
+function refreshRailMomentumTrendline(sections = _liveSections) {
+    const host = document.querySelector('[data-rail-momentum-trendline]');
+    if (host) host.innerHTML = buildRailMomentumTrendlineHtml(sections);
+}
+
 function buildMomentumTimelineHtml() {
     const toggleChecked = _showCrmActivities ? ' checked' : '';
     return `
@@ -3098,6 +3128,8 @@ function refreshMomentumTimelineSection() {
     if (trendlineHost) {
         trendlineHost.innerHTML = buildMomentumTrendlineHtml();
     }
+
+    refreshRailMomentumTrendline(_liveSections || {});
 
     const display = sectionEl.querySelector('.momentum-timeline-display');
     if (display) {
@@ -3935,10 +3967,12 @@ function renderRail(sections) {
     const latestMomentum = resolveLatestMomentumFromLog(sections);
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
     const score = latestMomentum.score;
+    const meterWidth = ((score - 1) / 4) * 100;
     const narrativePreview = latestMomentum.narrative
         ? truncateText(latestMomentum.narrative, 120)
         : 'Log a strategic milestone to establish momentum trend.';
     const completeness = computePlanCompleteness(sections);
+    const momentumStyle = momentumSliderStyle(score);
 
     rail.innerHTML = `
         <div class="section-card strategic-rail-card" id="rail-completeness-card">
@@ -3960,11 +3994,20 @@ function renderRail(sections) {
                 <h2 class="section-title">Relationship Momentum</h2>
             </div>
             <div class="strategic-rail-body px-5 pb-5">
-                <div class="rail-momentum-score">
-                    <span class="rail-score-badge" data-rail-momentum-score>${score}</span>
-                    <span class="rail-score-label" data-rail-momentum-label>${MOMENTUM_LABELS[score - 1]}</span>
+                <div class="rail-momentum-panel" style="${momentumStyle}">
+                    <div class="rail-momentum-score">
+                        <span class="rail-score-badge" data-rail-momentum-score>${score}</span>
+                        <div class="rail-momentum-meta">
+                            <span class="rail-score-label" data-rail-momentum-label>${MOMENTUM_LABELS[score - 1]}</span>
+                            <span class="rail-momentum-scale-hint">Relationship momentum</span>
+                        </div>
+                    </div>
+                    <div class="rail-momentum-meter" role="presentation">
+                        <div class="rail-momentum-meter-fill" style="width: ${meterWidth}%"></div>
+                    </div>
+                    <div class="rail-momentum-trendline-host" data-rail-momentum-trendline>${buildRailMomentumTrendlineHtml(sections)}</div>
+                    <p class="rail-summary-text rail-momentum-narrative" data-rail-momentum-narrative>${escapeHtml(narrativePreview)}</p>
                 </div>
-                <p class="rail-summary-text" data-rail-momentum-narrative>${escapeHtml(narrativePreview)}</p>
             </div>
         </div>
         <div class="section-card strategic-rail-card" id="rail-plan-card">
@@ -4207,6 +4250,16 @@ function updateRailSummaries(sections) {
             ? truncateText(narrative, 120)
             : 'Log a strategic milestone to establish momentum trend.';
     }
+
+    const momentumPanel = document.querySelector('.rail-momentum-panel');
+    if (momentumPanel instanceof HTMLElement) {
+        momentumPanel.setAttribute('style', momentumSliderStyle(score));
+    }
+    const meterFill = document.querySelector('.rail-momentum-meter-fill');
+    if (meterFill instanceof HTMLElement) {
+        meterFill.style.width = `${((score - 1) / 4) * 100}%`;
+    }
+    refreshRailMomentumTrendline(sections);
 
     const plan30 = document.querySelector('[data-rail-plan-30]');
     if (plan30) plan30.innerHTML = formatPlanHorizonRailPreviewHtml(plan306090.days_30);

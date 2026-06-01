@@ -2676,7 +2676,7 @@ body.theme-green {
     }
     .strategic-section--account-snapshot .account-snapshot-plan-grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1rem;
     }
     .strategic-section--account-snapshot .account-snapshot-field label,
@@ -2765,7 +2765,7 @@ body.theme-green {
     .entry-point-card {
         @apply rounded-xl border p-0 overflow-hidden;
         border-color: var(--border-color);
-        background-color: color-mix(in srgb, var(--bg-medium) 30%, transparent);
+        background-color: var(--bg-light);
     }
     .entry-point-card.hidden {
         display: none;
@@ -2779,8 +2779,10 @@ body.theme-green {
         @apply mb-1.5;
     }
     .entry-point-row-panel {
-        @apply px-4 py-3 border-b;
-        border-color: color-mix(in srgb, var(--border-color) 70%, transparent);
+        @apply px-4 py-4;
+        border: none;
+        border-radius: 0;
+        background: transparent;
     }
     .entry-point-row-panel:last-child {
         @apply border-b-0;
@@ -3881,7 +3883,196 @@ body.theme-green {
     .campaign-top-row > .section-card {
         @apply flex-1 min-w-0 min-h-0;
     }
-    /* Merged Create Campaign + Manage Templates (flip card) */
+
+    /* ABM campaign builder — split-pane cart (replaces mail-merge flip card) */
+    .campaign-abm-builder-card {
+        @apply flex flex-col rounded-2xl overflow-hidden min-h-0 flex-[1.4];
+        background-color: var(--bg-light);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-card);
+    }
+    .campaign-abm-builder-body {
+        @apply flex flex-col flex-1 min-h-0 overflow-hidden px-5 pb-5 pt-0;
+    }
+    .abm-campaign-builder {
+        @apply flex flex-col gap-4 min-h-0 flex-1;
+    }
+    .abm-campaign-config {
+        @apply flex flex-wrap items-end gap-3 pb-3 border-b;
+        border-color: var(--border-color);
+    }
+    .abm-config-field {
+        @apply flex flex-col gap-1 min-w-[10rem] flex-1;
+    }
+    .abm-config-field label,
+    .abm-filter-field label {
+        @apply text-xs font-semibold uppercase tracking-wide;
+        color: var(--text-muted);
+    }
+    .abm-config-field input,
+    .abm-config-field select,
+    .abm-filter-field select,
+    .abm-filter-field input {
+        @apply text-sm w-full rounded-lg px-3 py-2;
+        background-color: var(--bg-medium);
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
+    .abm-guided-email-fields {
+        @apply flex flex-col gap-2 w-full;
+    }
+    .abm-launch-btn {
+        @apply flex-shrink-0;
+    }
+    .abm-split-pane {
+        @apply grid gap-4 min-h-0 flex-1;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .abm-explorer-pane,
+    .abm-cart-pane {
+        @apply flex flex-col min-h-0 min-w-0 rounded-xl border p-3;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 35%, transparent);
+    }
+    .abm-explorer-filters {
+        @apply grid gap-2 mb-3;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .abm-filter-field--search {
+        grid-column: 1 / -1;
+    }
+    .abm-account-explorer {
+        @apply flex flex-col gap-2 overflow-y-auto min-h-0 flex-1;
+    }
+    .abm-explorer-empty,
+    .abm-contact-empty,
+    .abm-cart-empty,
+    .abm-retired-merge-notice {
+        @apply text-sm italic m-0;
+        color: var(--text-muted);
+    }
+    .abm-account-accordion {
+        @apply rounded-lg border overflow-hidden;
+        border-color: var(--border-color);
+        background-color: var(--bg-light);
+    }
+    .abm-account-header {
+        @apply w-full flex items-center gap-2 px-3 py-2 text-left cursor-grab;
+        background: transparent;
+        border: none;
+        color: var(--text-light);
+    }
+    .abm-account-header:active {
+        cursor: grabbing;
+    }
+    .abm-account-chevron {
+        @apply flex-shrink-0 text-xs;
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+    .abm-account-name {
+        @apply font-semibold text-sm flex-1 min-w-0 truncate;
+    }
+    .abm-account-meta {
+        @apply text-xs flex-shrink-0;
+        color: var(--text-muted);
+    }
+    .abm-account-contacts {
+        @apply flex flex-col gap-1 px-2 pb-2;
+    }
+    .abm-contact-row {
+        @apply flex items-center gap-2 rounded-md px-2 py-1.5 cursor-grab;
+        background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
+    }
+    .abm-contact-row--in-cart {
+        opacity: 0.55;
+    }
+    .abm-contact-name {
+        @apply text-sm flex-1 min-w-0 truncate;
+    }
+    .abm-contact-add-btn {
+        @apply w-6 h-6 rounded-full text-sm font-bold flex-shrink-0;
+        border: 1px solid var(--border-color);
+        background-color: var(--bg-light);
+        color: var(--primary-blue);
+    }
+    .abm-cart-header {
+        @apply flex items-center gap-2 mb-2 flex-shrink-0;
+    }
+    .abm-cart-header .subsection-title {
+        @apply m-0 flex-1;
+    }
+    .abm-cart-count {
+        @apply text-xs font-semibold;
+        color: var(--text-muted);
+    }
+    .abm-campaign-cart {
+        @apply flex flex-col gap-2 overflow-y-auto min-h-[12rem] flex-1 rounded-lg border border-dashed p-2;
+        border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+        background-color: color-mix(in srgb, var(--primary-blue) 4%, transparent);
+    }
+    .abm-campaign-cart--drag-over {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, transparent);
+    }
+    .abm-cart-item {
+        @apply flex items-start gap-2 rounded-lg px-2 py-2;
+        background-color: var(--bg-light);
+        border: 1px solid var(--border-color);
+    }
+    .abm-cart-item-main {
+        @apply flex flex-col gap-1 min-w-0 flex-1;
+    }
+    .abm-cart-item-account {
+        @apply text-xs;
+        color: var(--text-muted);
+    }
+    .abm-cart-remove-btn {
+        @apply w-6 h-6 rounded-md text-lg leading-none flex-shrink-0;
+        border: 1px solid var(--border-color);
+        background: transparent;
+        color: var(--text-muted);
+    }
+    .abm-meddpicc-badges {
+        @apply inline-flex flex-wrap gap-1;
+    }
+    .abm-meddpicc-badge {
+        @apply inline-flex items-center px-1.5 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wide;
+    }
+    .abm-meddpicc-badge--champion {
+        color: #fff;
+        background-color: var(--primary-blue);
+    }
+    .abm-meddpicc-badge--buyer {
+        color: #fff;
+        background-color: #059669;
+    }
+
+    /* Strategic tier badge — shared by Accounts list and ABM explorer */
+    .account-tier-badge {
+        @apply inline-flex items-center px-1.5 py-0.5 rounded-full text-[0.625rem] font-semibold uppercase tracking-wide flex-shrink-0;
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        background-color: color-mix(in srgb, var(--bg-medium) 70%, transparent);
+    }
+    .account-tier-badge--tier-1 {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    }
+    .account-tier-badge--tier-2 {
+        color: var(--text-light);
+        border-color: color-mix(in srgb, var(--primary-blue) 45%, var(--border-color));
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, transparent);
+    }
+    .account-tier-badge--tier-3 {
+        color: var(--text-medium);
+    }
+    .account-tier-badge--unassigned {
+        opacity: 0.75;
+    }
+
+    /* Legacy flip-card styles (retained for cached clients; builder no longer uses these) */
     .campaign-tools-card {
         @apply flex flex-col rounded-2xl overflow-hidden min-h-0 flex-shrink-0;
         background-color: var(--bg-light);
@@ -9855,6 +10046,15 @@ body:not(.theme-green) .list-item.selected {
     }
     body.campaigns-page .campaign-tools-card {
         display: none !important;
+    }
+    body.campaigns-page .campaign-abm-builder-card {
+        display: flex !important;
+    }
+    body.campaigns-page .abm-split-pane {
+        grid-template-columns: 1fr !important;
+    }
+    body.campaigns-page .abm-explorer-filters {
+        grid-template-columns: 1fr 1fr !important;
     }
     body.campaigns-page .campaign-top-row > .section-card {
         width: 100%;

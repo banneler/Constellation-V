@@ -32,10 +32,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         contacts: [],
         accounts: [],
         activities: [],
-        emailTemplates: [],
-        user_quotas: [],
         campaignMembers: [],
-        selectedCampaignId: null
+        selectedCampaignId: null,
+        /** @type {Map<string, { champion: boolean, economicBuyer: boolean }>} */
+        meddpiccByContactId: new Map(),
+    };
+
+    /**
+     * ABM Cart state — explicit contact selection replaces filter-based spray-and-pray.
+     * Reps curate a spear-fishing list before launch; empty cart blocks creation.
+     */
+    const abmCartState = {
+        contactIds: new Set(),
+        expandedAccountIds: new Set(),
+        explorerTier: '',
+        explorerIndustry: '',
+        explorerSearch: '',
     };
 
     let originalModalContent = {
@@ -51,12 +63,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let tempCampaignFormState = {
         campaignName: '',
         campaignType: 'Call',
-        emailSourceType: 'write',
-        templateSelector: '',
         campaignEmailSubject: '',
         campaignEmailBody: '',
-        filterIndustry: '',
-        filterStatus: ''
     };
 
     const getInitials = (name) => {
@@ -86,7 +94,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const NULL_CONTACT_HTML = `
         <span class="run-campaign-null-placeholder">Select a campaign</span>
-        <small>Create a Call Blitz, Guided Email, or Email Merge campaign to get started.</small>`;
+        <small>Create a Call Blitz or Guided Email ABM campaign to get started.</small>`;
 
     const NULL_MIDDLE_HTML = `
         <span class="run-campaign-notes-placeholder">Notes</span>
@@ -139,15 +147,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
         </div>`;
 
-    const EMAIL_MERGE_SUMMARY_HTML = `
-        <div id="email-merge-ui">
-            <p id="email-summary-text"></p>
-            <div class="action-buttons">
-                <button id="export-txt-btn" class="btn-secondary">Download Email Template (.txt)</button>
-                <button id="export-csv-btn" class="btn-primary">Download Contacts (.csv)</button>
-            </div>
-        </div>`;
-
     const setNullState = () => {
         if (rcContactCard) rcContactCard.classList.add('run-campaign-null-contact');
         if (rcMiddlePanel) rcMiddlePanel.classList.add('rc-null');
@@ -166,8 +165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let createCampaignConfirmResolve = null;
 
     let tomSelectCampaignType = null;
-    let tomSelectEmailSource = null;
-    let tomSelectTemplate = null;
+    let tomSelectTier = null;
     let tomSelectIndustry = null;
 
     function initTomSelect(el, opts = {}) {
@@ -180,10 +178,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function destroyCampaignTomSelects() {
-        [tomSelectCampaignType, tomSelectEmailSource, tomSelectTemplate, tomSelectIndustry].forEach(ts => {
+        [tomSelectCampaignType, tomSelectTier, tomSelectIndustry].forEach(ts => {
             if (ts) { ts.destroy(); }
         });
-        tomSelectCampaignType = tomSelectEmailSource = tomSelectTemplate = tomSelectIndustry = null;
+        tomSelectCampaignType = tomSelectTier = tomSelectIndustry = null;
     }
 
     function getCampaignSelectValue(id) {
@@ -191,9 +189,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!el) return '';
         const map = {
             'campaign-type': tomSelectCampaignType,
-            'email-source-type': tomSelectEmailSource,
-            'template-selector': tomSelectTemplate,
-            'filter-industry': tomSelectIndustry
+            'abm-filter-tier': tomSelectTier,
+            'abm-filter-industry': tomSelectIndustry,
         };
         const ts = map[id];
         if (ts) {
@@ -203,36 +200,126 @@ document.addEventListener("DOMContentLoaded", async () => {
         return el.value ?? '';
     }
 
-    function getFilterStatus() {
-        const customerActive = document.querySelector('.customer-filter-customer.active');
-        const prospectActive = document.querySelector('.customer-filter-prospect.active');
-        if (customerActive && prospectActive) return ''; // both on = All
-        if (customerActive) return 'customer';
-        if (prospectActive) return 'prospect';
-        return '__none__'; // neither on = show none
+    /**
+     * Build MEDDPICC role lookup from SAOS influence boards.
+     * ABM targeting should prioritize Economic Buyers and Champions — the badges
+     * make that visible at cart-building time, not after launch.
+     *
+     * @param {Array<{ account_id: number, plan: object }>} planRows
+     */
+    function buildMeddpiccLookup(planRows) {
+        const lookup = new Map();
+        (planRows || []).forEach((row) => {
+            const sections = row?.plan?.current_draft?.sections;
+            const mapping = sections?.influence_mapping;
+            if (!mapping || typeof mapping !== 'object') return;
+
+            ['executive', 'mid_level', 'technical'].forEach((bucket) => {
+                const list = Array.isArray(mapping[bucket]) ? mapping[bucket] : [];
+                list.forEach((entry) => {
+                    if (!entry?.id) return;
+                    const id = String(entry.id);
+                    const champion = entry.is_champion === '1' || entry.is_champion === true;
+                    const economicBuyer = entry.is_economic_buyer === '1' || entry.is_economic_buyer === true;
+                    if (!champion && !economicBuyer) return;
+                    const existing = lookup.get(id) || { champion: false, economicBuyer: false };
+                    lookup.set(id, {
+                        champion: existing.champion || champion,
+                        economicBuyer: existing.economicBuyer || economicBuyer,
+                    });
+                });
+            });
+        });
+        return lookup;
     }
 
-    function getFilterStarredOnly() {
-        const btn = document.getElementById('filter-starred-btn');
-        return btn ? btn.classList.contains('is-organic') : false;
+    function getMeddpiccBadgeHtml(contactId) {
+        const roles = state.meddpiccByContactId.get(String(contactId));
+        if (!roles) return '';
+        const badges = [];
+        if (roles.champion) badges.push('<span class="abm-meddpicc-badge abm-meddpicc-badge--champion" title="SAOS Champion">Champion</span>');
+        if (roles.economicBuyer) badges.push('<span class="abm-meddpicc-badge abm-meddpicc-badge--buyer" title="SAOS Economic Buyer">EB</span>');
+        return badges.length ? `<span class="abm-meddpicc-badges">${badges.join('')}</span>` : '';
+    }
+
+    function getContactsForAccount(accountId) {
+        return state.contacts
+            .filter((contact) => Number(contact.account_id) === Number(accountId))
+            .sort((a, b) => `${a.last_name || ''} ${a.first_name || ''}`.localeCompare(`${b.last_name || ''} ${b.first_name || ''}`));
+    }
+
+    function getFilteredExplorerAccounts() {
+        const tierFilter = abmCartState.explorerTier;
+        const industryFilter = abmCartState.explorerIndustry;
+        const search = abmCartState.explorerSearch.trim().toLowerCase();
+
+        return state.accounts
+            .filter((account) => {
+                const tier = account.tier || 'Unassigned';
+                const tierMatch = !tierFilter || tier === tierFilter;
+                const industryMatch = !industryFilter || account.industry === industryFilter;
+                const searchMatch = !search || (account.name || '').toLowerCase().includes(search);
+                return tierMatch && industryMatch && searchMatch;
+            })
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    function buildAccountTierBadgeHtml(tier) {
+        const label = tier || 'Unassigned';
+        const slug = label.toLowerCase().replace(/\s+/g, '-');
+        return `<span class="account-tier-badge account-tier-badge--${slug}">${label}</span>`;
+    }
+
+    function isContactInCart(contactId) {
+        return abmCartState.contactIds.has(Number(contactId));
+    }
+
+    /** Add one contact to the ABM cart (deduped). */
+    function addContactToAbmCart(contactId) {
+        const id = Number(contactId);
+        if (!id) return;
+        abmCartState.contactIds.add(id);
+        renderAbmCartPane();
+        renderAbmAccountExplorer();
+    }
+
+    /** Bulk-add every contact under an account — the "account header drop" shortcut. */
+    function addAccountContactsToAbmCart(accountId) {
+        getContactsForAccount(accountId).forEach((contact) => {
+            abmCartState.contactIds.add(contact.id);
+        });
+        renderAbmCartPane();
+        renderAbmAccountExplorer();
+    }
+
+    function removeContactFromAbmCart(contactId) {
+        abmCartState.contactIds.delete(Number(contactId));
+        renderAbmCartPane();
+        renderAbmAccountExplorer();
+    }
+
+    function clearAbmCart() {
+        abmCartState.contactIds.clear();
+        renderAbmCartPane();
+        renderAbmAccountExplorer();
+    }
+
+    function toggleAbmAccountExpanded(accountId) {
+        const id = Number(accountId);
+        if (abmCartState.expandedAccountIds.has(id)) {
+            abmCartState.expandedAccountIds.delete(id);
+        } else {
+            abmCartState.expandedAccountIds.add(id);
+        }
+        renderAbmAccountExplorer();
     }
 
     function initCampaignTomSelects() {
         const campaignTypeEl = document.getElementById('campaign-type');
-        const emailSourceEl = document.getElementById('email-source-type');
-        const templateEl = document.getElementById('template-selector');
-        const industryEl = document.getElementById('filter-industry');
+        const tierEl = document.getElementById('abm-filter-tier');
+        const industryEl = document.getElementById('abm-filter-industry');
         if (campaignTypeEl && !campaignTypeEl.tomselect) tomSelectCampaignType = initTomSelect(campaignTypeEl);
-        if (emailSourceEl && !emailSourceEl.tomselect) {
-            tomSelectEmailSource = initTomSelect(emailSourceEl);
-            setTimeout(() => {
-                const input = emailSourceEl.closest('.ts-wrapper')?.querySelector('input');
-                if (input) {
-                    input.setAttribute('autocomplete', 'one-time-code');
-                }
-            }, 0);
-        }
-        if (templateEl && !templateEl.tomselect) tomSelectTemplate = initTomSelect(templateEl);
+        if (tierEl && !tierEl.tomselect) tomSelectTier = initTomSelect(tierEl);
         if (industryEl && !industryEl.tomselect) tomSelectIndustry = initTomSelect(industryEl);
     }
 
@@ -360,10 +447,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const hasStarted = state.campaignMembers.some(m => m.status !== 'Pending');
         const statusLabel = 'Active';
         const statusSlug = hasStarted ? 'active' : 'not-started';
-        const typeIcon = campaign.type === 'Call' ? 'fa-phone' : campaign.type === 'Guided Email' ? 'fa-paper-plane' : 'fa-envelope';
+        const typeIcon = campaign.type === 'Call'
+            ? 'fa-phone'
+            : campaign.type === 'Guided Email'
+                ? 'fa-paper-plane'
+                : 'fa-envelope';
 
         let emailCtaHtml = '';
-        if (campaign.type === 'Email' || campaign.type === 'Guided Email') {
+        if (campaign.type === 'Guided Email') {
             emailCtaHtml = `
                 <button type="button" id="show-email-details-btn" class="campaign-email-cta">
                     <i class="fas fa-envelope"></i>
@@ -399,7 +490,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (campaign.type === 'Call') {
             renderCallBlitzUI();
         } else if (campaign.type === 'Email') {
-            renderEmailMergeUI();
+            renderRetiredEmailMergeUI();
         } else if (campaign.type === 'Guided Email') {
             renderGuidedEmailUI();
         }
@@ -481,17 +572,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const renderEmailMergeUI = () => {
+    const renderRetiredEmailMergeUI = () => {
         if (!rcSummary) return;
-        activeRunMode = 'email-merge';
+        activeRunMode = null;
         clearNullState();
-        rcSummary.innerHTML = EMAIL_MERGE_SUMMARY_HTML;
+        rcSummary.innerHTML = '<p class="abm-retired-merge-notice">Email Merge campaigns are retired. Create a Guided Email ABM campaign for bespoke outreach.</p>';
         rcSummary.classList.remove('hidden');
         if (rcLayout) rcLayout.classList.add('hidden');
-        const summaryText = document.getElementById('email-summary-text');
-        if (summaryText) {
-            summaryText.textContent = `This campaign includes ${state.campaignMembers.length} contact(s).`;
-        }
     };
 
     const renderGuidedEmailUI = () => {
@@ -894,9 +981,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function createCampaignAndMembers() {
         const name = document.getElementById('campaign-name')?.value.trim();
         const type = getCampaignSelectValue('campaign-type');
-        const industry = getCampaignSelectValue('filter-industry');
-        const status = getFilterStatus();
-        const starredOnly = getFilterStarredOnly();
+        const tier = getCampaignSelectValue('abm-filter-tier');
+        const industry = getCampaignSelectValue('abm-filter-industry');
         let email_subject = '';
         let email_body = '';
 
@@ -905,43 +991,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         }
 
-            if (type === 'Email' || type === 'Guided Email') {
-                const emailSource = getCampaignSelectValue('email-source-type');
-                if (emailSource === 'template') {
-                    const templateId = Number(getCampaignSelectValue('template-selector'));
-                const selectedTemplate = state.emailTemplates.find(t => t.id === templateId);
-                if (selectedTemplate) {
-                    email_subject = selectedTemplate.subject;
-                    email_body = selectedTemplate.body;
-                } else {
-                    alert("Please select a valid template.");
-                    return false;
-                }
-            } else {
-                email_subject = document.getElementById('campaign-email-subject')?.value.trim();
-                email_body = document.getElementById('campaign-email-body')?.value;
+        if (type === 'Guided Email') {
+            email_subject = document.getElementById('campaign-email-subject')?.value.trim() || '';
+            email_body = document.getElementById('campaign-email-body')?.value || '';
+            if (!email_subject.trim() || !email_body.trim()) {
+                alert('Guided Email campaigns require a bespoke subject and body.');
+                return false;
             }
         }
 
-        const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
-        const matchingContacts = state.contacts.filter(contact => {
-            if (!contact.account_id) return false;
-            const account = state.accounts.find(a => a.id === contact.account_id);
-            if (!account) return false;
-            const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
-            const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
-            const starredMatch = !starredOnly || contact.is_organic === true;
-            return industryMatch && statusMatch && starredMatch;
-        });
-
-        if (matchingContacts.length === 0) {
-            alert('No contacts match the selected filters. Please adjust filters or add contacts/accounts.');
+        const cartContactIds = [...abmCartState.contactIds];
+        if (cartContactIds.length === 0) {
+            alert('Add at least one contact to the ABM cart before launching.');
             return false;
         }
 
+        const matchingContacts = cartContactIds
+            .map((id) => state.contacts.find((contact) => contact.id === id))
+            .filter(Boolean);
+
         const confirmEl = document.getElementById('create-campaign-confirm');
         const confirmMsg = document.getElementById('create-campaign-confirm-message');
-        if (confirmMsg) confirmMsg.textContent = `This campaign will include ${matchingContacts.length} contacts. Proceed?`;
+        if (confirmMsg) {
+            confirmMsg.textContent = `Launch "${name}" with ${matchingContacts.length} curated contact(s)?`;
+        }
         if (confirmEl) confirmEl.classList.remove('hidden');
         const confirmProceed = await new Promise(resolve => {
             createCampaignConfirmResolve = resolve;
@@ -950,10 +1023,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         createCampaignConfirmResolve = null;
         if (!confirmProceed) return false;
 
-        const filter_criteria = { industry, status, starred_only: starredOnly };
+        const filter_criteria = {
+            tier,
+            industry,
+            contact_ids: cartContactIds,
+            selection_mode: 'abm_cart',
+        };
+
         const { data: newCampaign, error: campaignError } = await supabase.from('campaigns').insert({
-            name, type, filter_criteria, email_subject, email_body, user_id: getState().effectiveUserId
+            name,
+            type,
+            filter_criteria,
+            email_subject,
+            email_body,
+            user_id: getState().effectiveUserId,
         }).select().single();
+
         if (campaignError) {
             alert('Error saving campaign: ' + campaignError.message);
             return false;
@@ -963,8 +1048,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             campaign_id: newCampaign.id,
             contact_id: c.id,
             user_id: getState().effectiveUserId,
-            status: 'Pending'
+            status: 'Pending',
         }));
+
         const { error: membersError } = await supabase.from('campaign_members').insert(membersToInsert);
         if (membersError) {
             alert('Error saving campaign members: ' + membersError.message);
@@ -972,264 +1058,300 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         }
 
-        alert(`Campaign "${name}" created successfully with ${matchingContacts.length} members.`);
+        alert(`Campaign "${name}" launched with ${matchingContacts.length} ABM target(s).`);
         state.selectedCampaignId = newCampaign.id;
+        clearAbmCart();
         await loadAllData();
         return true;
     }
 
-    function renderCreateCampaignForm() {
+    function renderAbmAccountExplorer() {
+        const container = document.getElementById('abm-account-explorer');
+        if (!container) return;
+
+        const accounts = getFilteredExplorerAccounts();
+        if (accounts.length === 0) {
+            container.innerHTML = '<p class="abm-explorer-empty">No accounts match your Tier and Industry filters.</p>';
+            return;
+        }
+
+        container.innerHTML = accounts.map((account) => {
+            const expanded = abmCartState.expandedAccountIds.has(account.id);
+            const contacts = getContactsForAccount(account.id);
+            const contactRows = contacts.map((contact) => {
+                const inCart = isContactInCart(contact.id);
+                const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unnamed';
+                return `
+                    <div
+                        class="abm-contact-row${inCart ? ' abm-contact-row--in-cart' : ''}"
+                        draggable="true"
+                        data-abm-drag="contact"
+                        data-contact-id="${contact.id}"
+                        data-account-id="${account.id}"
+                    >
+                        <span class="abm-contact-name">${name}</span>
+                        ${getMeddpiccBadgeHtml(contact.id)}
+                        <button type="button" class="abm-contact-add-btn" data-abm-add-contact="${contact.id}" title="Add to cart">+</button>
+                    </div>`;
+            }).join('') || '<p class="abm-contact-empty">No contacts on this account.</p>';
+
+            return `
+                <div class="abm-account-accordion${expanded ? ' abm-account-accordion--expanded' : ''}" data-account-id="${account.id}">
+                    <button
+                        type="button"
+                        class="abm-account-header"
+                        draggable="true"
+                        data-abm-drag="account"
+                        data-account-id="${account.id}"
+                    >
+                        <span class="abm-account-chevron" aria-hidden="true" title="Expand contacts">${expanded ? '▾' : '▸'}</span>
+                        <span class="abm-account-name">${account.name || 'Unnamed Account'}</span>
+                        ${buildAccountTierBadgeHtml(account.tier)}
+                        <span class="abm-account-meta">${contacts.length} contact${contacts.length === 1 ? '' : 's'}</span>
+                    </button>
+                    <div class="abm-account-contacts${expanded ? '' : ' hidden'}">${contactRows}</div>
+                </div>`;
+        }).join('');
+    }
+
+    function renderAbmCartPane() {
+        const cartEl = document.getElementById('abm-campaign-cart');
+        const countEl = document.getElementById('abm-cart-count');
+        if (!cartEl) return;
+
+        const ids = [...abmCartState.contactIds];
+        if (countEl) {
+            countEl.textContent = `${ids.length} contact${ids.length === 1 ? '' : 's'}`;
+        }
+
+        if (ids.length === 0) {
+            cartEl.innerHTML = '<p class="abm-cart-empty">Drag contacts — or an entire account header — here to build your ABM list.</p>';
+            return;
+        }
+
+        cartEl.innerHTML = ids.map((contactId) => {
+            const contact = state.contacts.find((row) => row.id === contactId);
+            if (!contact) return '';
+            const account = state.accounts.find((row) => row.id === contact.account_id);
+            const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unnamed';
+            return `
+                <div class="abm-cart-item" data-contact-id="${contact.id}">
+                    <div class="abm-cart-item-main">
+                        <strong>${name}</strong>
+                        <span class="abm-cart-item-account">${account?.name || 'No Account'}</span>
+                        ${getMeddpiccBadgeHtml(contact.id)}
+                    </div>
+                    <button type="button" class="abm-cart-remove-btn" data-abm-remove-contact="${contact.id}" title="Remove from cart">×</button>
+                </div>`;
+        }).join('');
+    }
+
+    /**
+     * Native HTML5 drag-and-drop for the ABM cart.
+     * Sales psychology: curating the cart is a forcing function — reps must
+     * consciously choose targets instead of exporting an entire filtered segment.
+     */
+    function setupAbmDragAndDrop() {
+        const explorer = document.getElementById('abm-account-explorer');
+        const cart = document.getElementById('abm-campaign-cart');
+        if (!explorer || !cart) return;
+
+        const setDragPayload = (event, payload) => {
+            event.dataTransfer.setData('application/x-abm-payload', JSON.stringify(payload));
+            event.dataTransfer.effectAllowed = 'copy';
+        };
+
+        explorer.addEventListener('dragstart', (event) => {
+            const contactRow = event.target.closest('[data-abm-drag="contact"]');
+            if (contactRow) {
+                setDragPayload(event, {
+                    kind: 'contact',
+                    contactId: Number(contactRow.dataset.contactId),
+                });
+                return;
+            }
+            const accountHeader = event.target.closest('[data-abm-drag="account"]');
+            if (accountHeader) {
+                setDragPayload(event, {
+                    kind: 'account',
+                    accountId: Number(accountHeader.dataset.accountId),
+                });
+            }
+        });
+
+        const handleCartDrop = (event) => {
+            event.preventDefault();
+            cart.classList.remove('abm-campaign-cart--drag-over');
+            let payload;
+            try {
+                payload = JSON.parse(event.dataTransfer.getData('application/x-abm-payload') || '{}');
+            } catch (_) {
+                return;
+            }
+            if (payload.kind === 'contact' && payload.contactId) {
+                addContactToAbmCart(payload.contactId);
+            } else if (payload.kind === 'account' && payload.accountId) {
+                addAccountContactsToAbmCart(payload.accountId);
+            }
+        };
+
+        cart.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            cart.classList.add('abm-campaign-cart--drag-over');
+        });
+        cart.addEventListener('dragleave', () => {
+            cart.classList.remove('abm-campaign-cart--drag-over');
+        });
+        cart.addEventListener('drop', handleCartDrop);
+    }
+
+    function setupAbmCampaignBuilderListeners() {
+        const launchBtn = document.getElementById('launch-campaign-btn');
+        if (launchBtn) {
+            launchBtn.addEventListener('click', async () => {
+                const ok = await createCampaignAndMembers();
+                if (ok) renderAbmCampaignBuilder();
+            });
+        }
+
+        const clearBtn = document.getElementById('abm-cart-clear');
+        if (clearBtn) clearBtn.addEventListener('click', clearAbmCart);
+
+        const campaignTypeSelect = document.getElementById('campaign-type');
+        const guidedFields = document.getElementById('abm-guided-email-fields');
+        const handleTypeChange = () => {
+            const type = getCampaignSelectValue('campaign-type');
+            if (guidedFields) guidedFields.classList.toggle('hidden', type !== 'Guided Email');
+        };
+        campaignTypeSelect?.addEventListener('change', handleTypeChange);
+        handleTypeChange();
+
+        document.getElementById('abm-filter-tier')?.addEventListener('change', () => {
+            abmCartState.explorerTier = getCampaignSelectValue('abm-filter-tier');
+            renderAbmAccountExplorer();
+        });
+        document.getElementById('abm-filter-industry')?.addEventListener('change', () => {
+            abmCartState.explorerIndustry = getCampaignSelectValue('abm-filter-industry');
+            renderAbmAccountExplorer();
+        });
+        document.getElementById('abm-explorer-search')?.addEventListener('input', (event) => {
+            abmCartState.explorerSearch = event.target.value || '';
+            renderAbmAccountExplorer();
+        });
+
+        const explorer = document.getElementById('abm-account-explorer');
+        explorer?.addEventListener('click', (event) => {
+            const chevron = event.target.closest('.abm-account-chevron');
+            if (chevron) {
+                event.preventDefault();
+                const accordion = chevron.closest('[data-account-id]');
+                if (accordion) toggleAbmAccountExpanded(accordion.dataset.accountId);
+                return;
+            }
+            const addBtn = event.target.closest('[data-abm-add-contact]');
+            if (addBtn) {
+                event.preventDefault();
+                addContactToAbmCart(addBtn.dataset.abmAddContact);
+            }
+        });
+
+        const cart = document.getElementById('abm-campaign-cart');
+        cart?.addEventListener('click', (event) => {
+            const removeBtn = event.target.closest('[data-abm-remove-contact]');
+            if (removeBtn) {
+                event.preventDefault();
+                removeContactFromAbmCart(removeBtn.dataset.abmRemoveContact);
+            }
+        });
+
+        setupAbmDragAndDrop();
+    }
+
+    function renderAbmCampaignBuilder() {
         const container = document.getElementById('new-campaign-form-container');
         if (!container) return;
         destroyCampaignTomSelects();
 
-        const visibleTemplates = state.emailTemplates.filter(t =>
-            !t.is_cloned || t.user_id === getState().effectiveUserId
-        );
-        const myTemplates = visibleTemplates.filter(t => t.user_id === getState().effectiveUserId).sort((a, b) => a.name.localeCompare(b.name));
-        const sharedTemplates = visibleTemplates.filter(t => t.user_id !== getState().effectiveUserId).sort((a, b) => a.name.localeCompare(b.name));
-
-        let myTemplatesOptions = myTemplates.length > 0
-            ? `<optgroup label="My Templates">${myTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</optgroup>`
-            : '';
-        let sharedTemplatesOptions = '';
-        if (sharedTemplates.length > 0) {
-            const sharedOptionsHtml = sharedTemplates.map(t => {
-                const creator = state.user_quotas.find(p => p && p.user_id === t.user_id);
-                const creatorName = creator ? creator.full_name : '';
-                const initials = getInitials(creatorName);
-                return `<option value="${t.id}">${t.name} ${initials ? `(${initials})` : ''}</option>`;
-            }).join('');
-            sharedTemplatesOptions = `<optgroup label="Shared Templates">${sharedOptionsHtml}</optgroup>`;
-        }
-        const templateOptions = myTemplatesOptions + sharedTemplatesOptions;
         const uniqueIndustries = [...new Set(state.accounts.map(a => a.industry).filter(Boolean))].sort();
         const industryOptions = uniqueIndustries.map(i => `<option value="${i}">${i}</option>`).join('');
+        const tierOptions = ['', 'Tier 1', 'Tier 2', 'Tier 3', 'Unassigned']
+            .map((tier) => `<option value="${tier}">${tier || 'All Tiers'}</option>`)
+            .join('');
 
-        const formHtml = `
-            <div id="new-campaign-form">
-                <div class="campaign-form-name-row">
-                    <label for="campaign-name">Campaign Name:</label>
-                    <input type="text" id="campaign-name" required placeholder="e.g., Q3 Tech Customer Outreach">
-                </div>
-                <div class="campaign-form-columns">
-                    <div class="campaign-form-col campaign-form-col-type">
-                        <label for="campaign-type">Campaign Type:</label>
-                        <select id="campaign-type"><option value="Call">Call Blitz</option><option value="Email">Email Merge</option><option value="Guided Email">Guided Email</option></select>
-                        <div id="email-section-container" class="hidden">
-                            <label for="email-source-type">Email Source:</label>
-                            <select id="email-source-type" autocomplete="one-time-code"><option value="write">Write New Email</option><option value="template">Use a Template</option></select>
-                            <div id="template-select-container" class="hidden">
-                                <label for="template-selector">Select Template:</label>
-                                <select id="template-selector"><option value="">--Select--</option>${templateOptions}</select>
+        container.innerHTML = `
+            <div id="abm-campaign-builder" class="abm-campaign-builder">
+                <div class="abm-campaign-config">
+                    <div class="abm-config-field">
+                        <label for="campaign-name">Campaign Name</label>
+                        <input type="text" id="campaign-name" required placeholder="e.g., Tier 1 FinServ Spear">
+                    </div>
+                    <div class="abm-config-field">
+                        <label for="campaign-type">Campaign Type</label>
+                        <select id="campaign-type">
+                            <option value="Call">Call Blitz</option>
+                            <option value="Guided Email">Guided Email</option>
+                        </select>
+                    </div>
+                    <div id="abm-guided-email-fields" class="abm-guided-email-fields hidden">
+                        <input type="text" id="campaign-email-subject" name="x-campaign-subject" placeholder="Bespoke subject" autocomplete="one-time-code">
+                        <div class="create-campaign-body-inner create-campaign-body-box">
+                            <span class="create-campaign-body-placeholder" id="campaign-email-body-placeholder">Bespoke body</span>
+                            <textarea id="campaign-email-body" rows="4" name="x-campaign-body" autocomplete="nope"></textarea>
+                            <div class="merge-fields-buttons" id="create-campaign-merge-pills">
+                                <button type="button" class="btn-secondary" data-field="[FirstName]">First</button>
+                                <button type="button" class="btn-secondary" data-field="[LastName]">Last</button>
+                                <button type="button" class="btn-secondary" data-field="[AccountName]">Account</button>
                             </div>
-                            <div id="email-write-container">
-                                <input type="text" id="campaign-email-subject" name="x-campaign-subject" placeholder="Subject" autocomplete="one-time-code">
-                                <div class="create-campaign-body-inner create-campaign-body-box">
-                                    <span class="create-campaign-body-placeholder" id="campaign-email-body-placeholder">Body</span>
-                                    <textarea id="campaign-email-body" rows="8" name="x-campaign-body" autocomplete="nope"></textarea>
-                                    <div class="merge-fields-buttons" id="create-campaign-merge-pills">
-                                        <button type="button" class="btn-secondary" data-field="[FirstName]">First</button>
-                                        <button type="button" class="btn-secondary" data-field="[LastName]">Last</button>
-                                        <button type="button" class="btn-secondary" data-field="[AccountName]">Account</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="template-email-preview" class="hidden">
-                                <p><strong>Subject:</strong> <span id="preview-template-subject"></span></p>
-                                <pre id="preview-template-body" class="email-body-summary"></pre>
-                            </div>
-                        </div>
-                        <div class="create-campaign-actions">
-                            <button type="button" id="create-campaign-submit-btn" class="btn-primary btn-icon-header" title="Create Campaign"><i class="fas fa-plus"></i></button>
                         </div>
                     </div>
-                    <div class="campaign-form-col campaign-form-col-filters">
-                        <label for="filter-industry">Account Industry</label>
-                        <select id="filter-industry"><option value="">All</option>${industryOptions}</select>
-                        <label>Customer / Prospect</label>
-                        <div class="customer-status-icon-row">
-                            <button type="button" class="customer-filter-btn customer-filter-customer" data-role="customer" title="Customers">
-                                <i class="fas fa-user-check"></i>
-                            </button>
-                            <button type="button" class="customer-filter-btn customer-filter-prospect" data-role="prospect" title="Prospects">
-                                <i class="fas fa-user"></i>
-                            </button>
-                            <button type="button" id="filter-starred-btn" class="organic-star campaign-filter-star" title="Show only starred contacts">★</button>
+                    <button type="button" id="launch-campaign-btn" class="btn-primary abm-launch-btn">Launch Campaign</button>
+                </div>
+                <div class="abm-split-pane">
+                    <div class="abm-explorer-pane">
+                        <div class="abm-explorer-filters">
+                            <div class="abm-filter-field">
+                                <label for="abm-filter-tier">Tier</label>
+                                <select id="abm-filter-tier">${tierOptions}</select>
+                            </div>
+                            <div class="abm-filter-field">
+                                <label for="abm-filter-industry">Industry</label>
+                                <select id="abm-filter-industry"><option value="">All</option>${industryOptions}</select>
+                            </div>
+                            <div class="abm-filter-field abm-filter-field--search">
+                                <label for="abm-explorer-search">Search</label>
+                                <input type="search" id="abm-explorer-search" placeholder="Filter accounts…">
+                            </div>
                         </div>
-                        <div id="contact-preview-container" class="contact-preview-container"></div>
+                        <div id="abm-account-explorer" class="abm-account-explorer"></div>
+                    </div>
+                    <div class="abm-cart-pane">
+                        <div class="abm-cart-header">
+                            <h4 class="subsection-title">The Cart</h4>
+                            <span id="abm-cart-count" class="abm-cart-count">0 contacts</span>
+                            <button type="button" id="abm-cart-clear" class="btn-secondary btn-sm">Clear</button>
+                        </div>
+                        <div id="abm-campaign-cart" class="abm-campaign-cart" data-abm-dropzone></div>
                     </div>
                 </div>
             </div>`;
-        container.innerHTML = formHtml;
-        setupCampaignFormListeners();
+
+        abmCartState.explorerTier = '';
+        abmCartState.explorerIndustry = '';
+        abmCartState.explorerSearch = '';
+
         initCampaignTomSelects();
+        setupAbmCampaignBuilderListeners();
+        renderAbmAccountExplorer();
+        renderAbmCartPane();
     }
 
-    function handleNewCampaignClick() {
-        renderCreateCampaignForm();
-        const flippable = document.getElementById('campaign-tools-flippable');
-        const card = document.getElementById('campaign-tools-card');
-        if (flippable) flippable.classList.remove('campaign-tools-flipped');
-        if (document.getElementById('campaign-tools-title')) document.getElementById('campaign-tools-title').textContent = 'Create New Campaign';
-        const flipBtn = document.getElementById('campaign-tools-flip-btn');
-        const flipIcon = document.getElementById('campaign-tools-flip-icon');
-        if (flipBtn) { flipBtn.title = 'Manage Templates'; flipBtn.setAttribute('aria-label', 'Manage Templates'); }
-        if (flipIcon) flipIcon.className = 'fas fa-file-lines';
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function setupCampaignFormListeners() {
-        const submitBtn = document.getElementById('create-campaign-submit-btn');
-        if (submitBtn) {
-            submitBtn.addEventListener('click', async () => {
-                const ok = await createCampaignAndMembers();
-                if (ok) renderCreateCampaignForm();
-            });
-        }
-
-        const campaignTypeSelect = document.getElementById('campaign-type');
-        const emailSectionContainer = document.getElementById('email-section-container');
-        const emailSourceSelect = document.getElementById('email-source-type');
-        const templateSelectContainer = document.getElementById('template-select-container');
-        const emailWriteContainer = document.getElementById('email-write-container');
-        const templateSelector = document.getElementById('template-selector');
-        const subjectInput = document.getElementById('campaign-email-subject');
-        const bodyTextarea = document.getElementById('campaign-email-body');
-        const templateEmailPreview = document.getElementById('template-email-preview');
-        const previewTemplateSubject = document.getElementById('preview-template-subject');
-        const previewTemplateBody = document.getElementById('preview-template-body');
-
-        const updateContactPreview = () => {
-            const industry = getCampaignSelectValue('filter-industry');
-            const status = getFilterStatus();
-            const starredOnly = getFilterStarredOnly();
-
-            const accountIdsByIndustry = industry ? new Set(state.accounts.filter(a => a.industry === industry).map(a => a.id)) : null;
-            const matchingContacts = state.contacts.filter(contact => {
-                const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
-                if (!account) return false;
-                const industryMatch = !accountIdsByIndustry || accountIdsByIndustry.has(account.id);
-                const statusMatch = !status || (status === 'customer' && account.is_customer) || (status === 'prospect' && !account.is_customer);
-                const starredMatch = !starredOnly || contact.is_organic === true;
-                return industryMatch && statusMatch && starredMatch;
-            });
-
-            const previewContainer = document.getElementById('contact-preview-container');
-            if (previewContainer) {
-                let previewHtml = `<p><strong>${matchingContacts.length}</strong> contacts match your filters.</p>`;
-                const listContent = matchingContacts.slice(0, 8).map(c => {
-                    const accountName = state.accounts.find(a => a.id === c.account_id)?.name || 'No Account';
-                    return `<li><strong>${c.first_name || ''} ${c.last_name || ''}</strong> <span class="text-medium">(${accountName})</span></li>`;
-                }).join('');
-                if (matchingContacts.length > 0) {
-                    previewHtml += `<div class="filtered-contact-list"><ul>${listContent}</ul></div>`;
-                }
-                previewContainer.innerHTML = previewHtml;
-            }
-        };
-
-        if (campaignTypeSelect) {
-            campaignTypeSelect.addEventListener('change', handleCampaignTypeChange);
-        }
-        if (subjectInput) {
-            subjectInput.setAttribute('readonly', '');
-            subjectInput.addEventListener('focus', () => subjectInput.removeAttribute('readonly'), { once: true });
-        }
-
-        function handleCampaignTypeChange() {
-            const showEmailSection = getCampaignSelectValue('campaign-type') === 'Email' || getCampaignSelectValue('campaign-type') === 'Guided Email';
-            if (emailSectionContainer) {
-                emailSectionContainer.classList.toggle('hidden', !showEmailSection);
-            }
-            const mergePills = document.getElementById('create-campaign-merge-pills');
-            if (mergePills) {
-                const useTemplate = getCampaignSelectValue('email-source-type') === 'template';
-                mergePills.classList.toggle('hidden', !showEmailSection || useTemplate);
-            }
-        }
-
-        if (emailSourceSelect) {
-            emailSourceSelect.addEventListener('change', handleEmailSourceChange);
-        }
-
-        function handleEmailSourceChange() {
-            const useTemplate = getCampaignSelectValue('email-source-type') === 'template';
-            if (templateSelectContainer) templateSelectContainer.classList.toggle('hidden', !useTemplate);
-            if (emailWriteContainer) {
-                emailWriteContainer.classList.toggle('hidden', useTemplate);
-            }
-            const mergePills = document.getElementById('create-campaign-merge-pills');
-            if (mergePills) {
-                const showEmailSection = getCampaignSelectValue('campaign-type') === 'Email' || getCampaignSelectValue('campaign-type') === 'Guided Email';
-                mergePills.classList.toggle('hidden', useTemplate || !showEmailSection);
-            }
-            if (templateEmailPreview) {
-                if (useTemplate) {
-                    templateEmailPreview.classList.remove('hidden');
-                    handleTemplateSelectChange();
-                } else {
-                    templateEmailPreview.classList.add('hidden');
-                    if (previewTemplateSubject) previewTemplateSubject.textContent = '';
-                    if (previewTemplateBody) previewTemplateBody.textContent = '';
-                }
-            }
-
-            if (subjectInput) subjectInput.readOnly = useTemplate;
-            if (bodyTextarea) bodyTextarea.readOnly = useTemplate;
-
-            if (useTemplate && templateSelector) {
-                templateSelector.dispatchEvent(new Event('change'));
-            }
-        }
-
-        if (templateSelector) {
-            templateSelector.addEventListener('change', handleTemplateSelectChange);
-        }
-
-        function handleTemplateSelectChange() {
-            if (getCampaignSelectValue('email-source-type') !== 'template') return;
-            const templateId = Number(getCampaignSelectValue('template-selector'));
-            const template = state.emailTemplates.find(t => t.id === templateId);
-
-            if (subjectInput) subjectInput.value = template ? template.subject || '' : '';
-            if (bodyTextarea) bodyTextarea.value = template ? template.body || '' : '';
-
-            if (previewTemplateSubject) {
-                previewTemplateSubject.textContent = template ? template.subject || '(No Subject)' : '';
-            }
-            if (previewTemplateBody) {
-                previewTemplateBody.textContent = template ? template.body || '(No Content)' : '';
-            }
-        }
-
-        document.getElementById('filter-industry')?.addEventListener('change', updateContactPreview);
-        const filterStarredBtn = document.getElementById('filter-starred-btn');
-        if (filterStarredBtn) {
-            filterStarredBtn.addEventListener('click', () => {
-                filterStarredBtn.classList.toggle('is-organic');
-                updateContactPreview();
-            });
-        }
-
-        document.getElementById('filter-industry')?.addEventListener('change', updateContactPreview);
-
-        document.querySelectorAll('.customer-filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                btn.classList.toggle('active');
-                updateContactPreview();
-            });
-        });
-
-        if (campaignTypeSelect) handleCampaignTypeChange();
-        if (emailSourceSelect) handleEmailSourceChange();
-
-        updateContactPreview();
+    function renderCreateCampaignForm() {
+        renderAbmCampaignBuilder();
     }
 
     function handleMergeFieldClick(e) {
         const field = e.target.dataset.field;
-        const activeTextarea = document.getElementById('template-body') || document.getElementById('campaign-email-body') || document.getElementById('email-body-textarea');
+        const activeTextarea = document.getElementById('campaign-email-body') || document.getElementById('email-body-textarea');
 
         if (!activeTextarea || activeTextarea.readOnly) {
             console.error("No editable textarea found for merge field insertion.");
@@ -1251,309 +1373,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (activeTextarea.id === 'email-body-textarea') {
             updateNotesPlaceholder('email-body-textarea', 'email-body-placeholder');
         }
-    }
-
-    function handleExportCsv() {
-        const campaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
-        if (!campaign) {
-            alert('No campaign selected for CSV export.');
-            return;
-        }
-        let csvContent = "data:text/csv;charset=utf-8,";
-        const headers = ["FirstName", "LastName", "Email", "AccountName", "Title"];
-        csvContent += headers.map(h => `"${h}"`).join(",") + "\r\n";
-
-        const membersToExport = state.campaignMembers.map(member => {
-            const contact = state.contacts.find(c => c.id === member.contact_id);
-            const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
-            return {
-                FirstName: contact?.first_name || '',
-                LastName: contact?.last_name || '',
-                Email: contact?.email || '',
-                AccountName: account?.name || '',
-                Title: contact?.title || ''
-            };
-        });
-
-        membersToExport.forEach(row => {
-            const csvRow = headers.map(header => `"${(row[header] || '').replace(/"/g, '""')}"`).join(",");
-            csvContent += csvRow + "\r\n";
-        });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `${campaign.name.replace(/[^a-z0-9]/gi, '_')}_contacts.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        logMailMergeActivity(campaign.name);
-    }
-
-    function handleExportTxt() {
-        const campaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
-        if (!campaign || !campaign.email_body) {
-            alert('No email body saved for this campaign to export as text.');
-            return;
-        }
-        const readme = `--- MAIL MERGE INSTRUCTIONS ---\n\n1. Open Microsoft Word and paste the email body below into a new document.\n2. Go to the "Mailings" tab and click "Start Mail Merge" -> "Step-by-Step Mail Merge Wizard".\n3. For "Select recipients", choose "Use an existing list" and browse to select the CSV file you downloaded.\n4. Edit the recipient list if needed, then click "Write your e-mail message".\n5. Use the "Insert Merge Field" button to place your fields like [FirstName].\n6. Preview your messages and complete the merge to send.\n\n--- YOUR EMAIL TEMPLATE ---\n\n`;
-        const textContent = readme + campaign.email_body;
-        const blob = new Blob([textContent], {
-            type: 'text/plain'
-        });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `${campaign.name.replace(/[^a-z0-9]/gi, '_')}_template.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    async function logMailMergeActivity(campaignName) {
-        const activitiesToLog = state.campaignMembers.map(member => {
-            const contact = state.contacts.find(c => c.id === member.contact_id);
-            return {
-                contact_id: member.contact_id,
-                account_id: contact?.account_id,
-                type: 'Email',
-                description: `Included in mail merge export for campaign: "${campaignName}".`,
-                user_id: getState().effectiveUserId,
-                date: new Date().toISOString()
-            };
-        });
-        if (activitiesToLog.length > 0) {
-            const {
-                error
-            } = await supabase.from('activities').insert(activitiesToLog);
-            if (error) console.error("Error logging mail merge activity:", error);
-        }
-    }
-
-    function handleManageTemplatesClick() {
-        renderTemplateManager();
-    }
-
-    function renderTemplateManager() {
-        const visibleTemplates = state.emailTemplates.filter(template =>
-            !template.is_cloned || template.user_id === getState().effectiveUserId
-        );
-
-        let templateListHtml = visibleTemplates.map(template => {
-            const templateId = template.id;
-            const templateName = template.name || 'Unnamed Template';
-            let actionButtonsHtml = '';
-            let attributionHtml = '';
-
-            const cloneButton = `<button class="btn-secondary btn-icon-header btn-clone-template" data-id="${templateId}" title="Clone"><i class="fas fa-copy"></i></button>`;
-
-            if (template.user_id === getState().effectiveUserId) {
-                actionButtonsHtml = `
-                    <button class="btn-secondary btn-icon-header btn-edit-template" data-id="${templateId}" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                    <button class="btn-danger btn-icon-header btn-delete-template" data-id="${templateId}" title="Delete"><i class="fas fa-trash"></i></button>
-                    ${cloneButton}
-                `;
-            } else {
-                const creator = state.user_quotas.find(p => p && p.user_id === template.user_id);
-                const creatorName = creator ? creator.full_name : 'an unknown user';
-                attributionHtml = `<small class="template-attribution">Shared by ${creatorName}</small>`;
-                actionButtonsHtml = cloneButton;
-            }
-
-            return `
-            <div class="template-list-item">
-                <div>
-                    <span>${templateName}</span>
-                    ${attributionHtml}
-                </div>
-                <div class="template-actions">
-                    ${actionButtonsHtml}
-                </div>
-            </div>`;
-        }).join('');
-
-        if (visibleTemplates.length === 0) {
-            templateListHtml = "<p>No templates available. Try creating one!</p>";
-        }
-
-        const managerBody = `<div id="template-manager">${templateListHtml}</div><hr><button id="create-new-template-btn" class="btn-primary full-width">Create New Template</button>`;
-        const container = document.getElementById('template-manager-container');
-        if (container) {
-            container.innerHTML = managerBody;
-            setupTemplateManagerListeners();
-        }
-    }
-
-    function setupTemplateManagerListeners() {
-        const createNewTemplateBtn = document.getElementById('create-new-template-btn');
-        if (createNewTemplateBtn) {
-            createNewTemplateBtn.addEventListener('click', () => openTemplateForm(null));
-        }
-
-        document.querySelectorAll('#template-manager .btn-edit-template').forEach(button => {
-            button.addEventListener('click', handleEditTemplateClick);
-        });
-
-        document.querySelectorAll('#template-manager .btn-delete-template').forEach(button => {
-            button.addEventListener('click', handleDeleteTemplateClick);
-        });
-
-        document.querySelectorAll('#template-manager .btn-clone-template').forEach(button => {
-            button.addEventListener('click', handleCloneTemplateClick);
-        });
-    }
-
-    async function handleCloneTemplateClick(e) {
-        const templateId = Number(e.target.dataset.id);
-        const originalTemplate = state.emailTemplates.find(t => t.id === templateId);
-
-        if (!originalTemplate) {
-            alert("Could not find the original template to clone.");
-            return;
-        }
-
-        const newName = prompt("Enter a name for your new cloned template:", `${originalTemplate.name} (Copy)`);
-        if (!newName || newName.trim() === '') {
-            return;
-        }
-
-        const {
-            data: newTemplate,
-            error
-        } = await supabase.from('email_templates').insert({
-            name: newName,
-            subject: originalTemplate.subject,
-            body: originalTemplate.body,
-            user_id: getState().effectiveUserId,
-            is_cloned: true
-        }).select().single();
-
-        if (error) {
-            alert("Error cloning template: " + error.message);
-            return;
-        }
-
-        alert(`Template "${newName}" created successfully!`);
-        await loadAllData();
-        renderTemplateManager();
-    }
-
-    function handleEditTemplateClick(e) {
-        const buttonElement = e.target.closest('.btn-edit-template');
-        if (!buttonElement) return;
-
-        const templateId = Number(buttonElement.dataset.id);
-        const template = state.emailTemplates.find(t => t.id === templateId);
-
-        if (template) {
-            openTemplateForm(template);
-        } else {
-            alert("Could not find the template for editing.");
-        }
-    }
-
-    function handleDeleteTemplateClick(e) {
-        const buttonElement = e.target.closest('.btn-delete-template');
-        if (!buttonElement) return;
-        const templateId = Number(buttonElement.dataset.id);
-        handleDeleteTemplate(templateId);
-    }
-
-    let templateFormEditing = null;
-
-    function openTemplateForm(templateToEdit = null) {
-        const isEditing = templateToEdit !== null;
-        templateFormEditing = templateToEdit;
-        const titleEl = document.getElementById('template-form-inline-title');
-        const formEl = document.getElementById('template-form-inline');
-        const wrapper = document.getElementById('template-form-inline-wrapper');
-        if (!titleEl || !formEl || !wrapper) return;
-
-        titleEl.textContent = isEditing ? "Edit Email Template" : "Create New Email Template";
-        const currentTemplateName = (templateToEdit?.name || '').replace(/"/g, '&quot;');
-        const currentTemplateSubject = (templateToEdit?.subject || '').replace(/"/g, '&quot;');
-        const currentTemplateBody = (templateToEdit?.body || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-        formEl.innerHTML = `
-            <div id="template-form-container">
-                <label for="template-name">Template Name:</label><input type="text" id="template-name" value="${currentTemplateName}" required>
-                <label for="template-subject">Subject:</label><input type="text" id="template-subject" name="x-template-subject" value="${currentTemplateSubject}" autocomplete="nope">
-                <label for="template-body">Email Body:</label>
-                <textarea id="template-body" rows="10" name="x-template-body" autocomplete="nope">${(templateToEdit?.body || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</textarea>
-                <div class="merge-fields-buttons">
-                    <button type="button" class="btn-secondary" data-field="[FirstName]">First</button>
-                    <button type="button" class="btn-secondary" data-field="[LastName]">Last</button>
-                    <button type="button" class="btn-secondary" data-field="[AccountName]">Account</button>
-                </div>
-            </div>`;
-
-        wrapper.classList.remove('hidden');
-
-        const saveBtn = document.getElementById('template-form-save-btn');
-        const cancelBtn = document.getElementById('template-form-cancel-btn');
-        const onSave = async () => {
-            const name = document.getElementById('template-name')?.value.trim();
-            if (!name) { alert('Template name is required.'); return; }
-            const templateData = {
-                name,
-                subject: document.getElementById('template-subject')?.value.trim(),
-                body: document.getElementById('template-body')?.value,
-                user_id: getState().effectiveUserId
-            };
-            let error;
-            if (templateFormEditing) {
-                const { error: updateError } = await supabase.from('email_templates').update(templateData).eq('id', templateFormEditing.id);
-                error = updateError;
-            } else {
-                const { error: insertError } = await supabase.from('email_templates').insert(templateData);
-                error = insertError;
-            }
-            if (error) {
-                alert("Error saving template: " + error.message);
-                return;
-            }
-            alert(`Template "${name}" saved successfully!`);
-            wrapper.classList.add('hidden');
-            templateFormEditing = null;
-            await loadAllData();
-            renderTemplateManager();
-        };
-        const onCancel = () => { wrapper.classList.add('hidden'); templateFormEditing = null; };
-
-        saveBtn.replaceWith(saveBtn.cloneNode(true));
-        cancelBtn.replaceWith(cancelBtn.cloneNode(true));
-        document.getElementById('template-form-save-btn').addEventListener('click', onSave);
-        document.getElementById('template-form-cancel-btn').addEventListener('click', onCancel);
-    }
-
-    let templateDeletePendingId = null;
-
-    function handleDeleteTemplate(templateId) {
-        templateDeletePendingId = templateId;
-        const msgEl = document.getElementById('template-delete-confirm-message');
-        const wrapper = document.getElementById('template-delete-confirm-inline');
-        if (msgEl) msgEl.textContent = "Are you sure you want to delete this template? This cannot be undone.";
-        if (wrapper) wrapper.classList.remove('hidden');
-    }
-
-    async function confirmTemplateDelete() {
-        if (templateDeletePendingId == null) return;
-        const id = templateDeletePendingId;
-        templateDeletePendingId = null;
-        const wrapper = document.getElementById('template-delete-confirm-inline');
-        if (wrapper) wrapper.classList.add('hidden');
-        const { error } = await supabase.from('email_templates').delete().eq('id', id);
-        if (error) {
-            alert("Error deleting template: " + error.message);
-            return;
-        }
-        alert("Template deleted successfully.");
-        await loadAllData();
-        renderTemplateManager();
-    }
-
-    function cancelTemplateDelete() {
-        templateDeletePendingId = null;
-        document.getElementById('template-delete-confirm-inline')?.classList.add('hidden');
     }
 
     const handleDeleteSelectedCampaign = () => {
@@ -1597,35 +1416,30 @@ document.addEventListener("DOMContentLoaded", async () => {
                  { data: contacts, error: contactsError },
                  { data: accounts, error: accountsError },
                  { data: activities, error: activitiesError },
-                 { data: emailTemplates, error: templatesError },
-                 { data: userQuotas, error: userQuotasError }
+                 { data: accountPlans, error: accountPlansError },
             ] = await Promise.all([
                 supabase.from("campaigns").select("*").eq("user_id", getState().effectiveUserId),
                 supabase.from("contacts").select("*").eq("user_id", getState().effectiveUserId),
                 supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
                 supabase.from("activities").select("*").eq("user_id", getState().effectiveUserId),
-                supabase.from("email_templates").select("*"),
-                supabase.from("user_quotas").select("user_id, full_name")
+                supabase.from("account_plans").select("account_id, plan"),
             ]);
 
             if (campaignsError) throw campaignsError;
             if (contactsError) throw contactsError;
             if (accountsError) throw accountsError;
             if (activitiesError) throw activitiesError;
-            if (templatesError) throw templatesError;
-            if (userQuotasError) throw userQuotasError;
+            if (accountPlansError) throw accountPlansError;
 
             state.campaigns = campaigns || [];
             state.contacts = contacts || [];
             state.accounts = accounts || [];
             state.activities = filterOutOwnershipOrphanedCrmRows(activities || [], state.accounts, state.contacts);
-            state.emailTemplates = emailTemplates || [];
-            state.user_quotas = userQuotas || [];
+            state.meddpiccByContactId = buildMeddpiccLookup(accountPlans || []);
 
             renderCampaignList();
             renderCampaignDetails();
             renderCreateCampaignForm();
-            renderTemplateManager();
         } catch (error) {
             console.error("Error loading data:", error.message);
             alert("Failed to load page data. Please try refreshing. Error: " + error.message);
@@ -1651,38 +1465,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         setupModalListeners();
         updateActiveNavLink();
 
-
-        const campaignToolsFlippable = document.getElementById('campaign-tools-flippable');
-        const campaignToolsTitle = document.getElementById('campaign-tools-title');
-        const campaignToolsFlipBtn = document.getElementById('campaign-tools-flip-btn');
-        function updateCampaignToolsHeader() {
-            const isTemplates = campaignToolsFlippable && campaignToolsFlippable.classList.contains('campaign-tools-flipped');
-            if (campaignToolsTitle) campaignToolsTitle.textContent = isTemplates ? 'Manage Email Templates' : 'Create New Campaign';
-            if (campaignToolsFlipBtn) {
-                campaignToolsFlipBtn.title = isTemplates ? 'Create Campaign' : 'Manage Templates';
-                campaignToolsFlipBtn.setAttribute('aria-label', campaignToolsFlipBtn.title);
-            }
-            const flipIcon = document.getElementById('campaign-tools-flip-icon');
-            if (flipIcon) flipIcon.className = isTemplates ? 'fas fa-plus' : 'fas fa-file-lines';
-        }
-        if (campaignToolsFlipBtn && campaignToolsFlippable) {
-            campaignToolsFlipBtn.addEventListener('click', () => {
-                campaignToolsFlippable.classList.toggle('campaign-tools-flipped');
-                updateCampaignToolsHeader();
-                if (campaignToolsFlippable.classList.contains('campaign-tools-flipped')) renderTemplateManager();
-            });
-        }
-
         const confirmYesBtn = document.getElementById('create-campaign-confirm-yes');
         const confirmCancelBtn = document.getElementById('create-campaign-confirm-cancel');
         const confirmEl = document.getElementById('create-campaign-confirm');
         if (confirmYesBtn) confirmYesBtn.addEventListener('click', () => { if (confirmEl) confirmEl.classList.add('hidden'); if (createCampaignConfirmResolve) createCampaignConfirmResolve(true); createCampaignConfirmResolve = null; });
         if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', () => { if (confirmEl) confirmEl.classList.add('hidden'); if (createCampaignConfirmResolve) createCampaignConfirmResolve(false); createCampaignConfirmResolve = null; });
-
-        const templateDeleteYes = document.getElementById('template-delete-yes-btn');
-        const templateDeleteCancel = document.getElementById('template-delete-cancel-btn');
-        if (templateDeleteYes) templateDeleteYes.addEventListener('click', confirmTemplateDelete);
-        if (templateDeleteCancel) templateDeleteCancel.addEventListener('click', cancelTemplateDelete);
         if (mobileCampaignSelect) {
             mobileCampaignSelect.addEventListener('change', () => {
                 const raw = mobileCampaignSelect.value;
@@ -1744,8 +1531,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const skipEmailBtn = e.target.closest('#skip-email-btn');
                 if (logBtn) handleLogCall({ target: logBtn });
                 else if (skipBtn) handleSkipCall({ target: skipBtn });
-                else if (e.target.id === 'export-csv-btn') handleExportCsv();
-                else if (e.target.id === 'export-txt-btn') handleExportTxt();
                 else if (openEmailBtn) handleOpenEmailClient({ target: openEmailBtn });
                 else if (skipEmailBtn) handleSkipEmail({ target: skipEmailBtn });
                 else if (e.target.closest('#show-email-details-btn') && campaignDetailsFlippable && campaignDetailsEmailBack && campaignDetailsEmailBack.innerHTML.trim() !== '') {

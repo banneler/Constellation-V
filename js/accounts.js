@@ -384,6 +384,50 @@ document.addEventListener("DOMContentLoaded", async () => {
         return active?.dataset.filter || "all";
     };
 
+    /** Map SAOS snapshot tier to the canonical accounts.tier column value. */
+    const mapSnapshotTierToAccountTier = (snapshotTier) => {
+        const normalized = String(snapshotTier ?? '').trim();
+        if (normalized === 'Tier 1' || normalized === 'Tier 2' || normalized === 'Tier 3') {
+            return normalized;
+        }
+        return 'Unassigned';
+    };
+
+    const buildAccountTierBadgeHtml = (tier) => {
+        const label = tier || 'Unassigned';
+        const slug = label.toLowerCase().replace(/\s+/g, '-');
+        return `<span class="account-tier-badge account-tier-badge--${slug}">${label}</span>`;
+    };
+
+    /**
+     * SAOS is the rep's strategic workspace; ABM list filters read accounts.tier.
+     * Mirror snapshot tier to the CRM row whenever the plan autosaves.
+     */
+    async function syncAccountTierFromPlan(plan) {
+        if (!state.selectedAccountId || !plan) return;
+        const sections = plan?.current_draft?.sections;
+        const snapshot = sections?.account_snapshot;
+        const tier = mapSnapshotTierToAccountTier(snapshot?.tier);
+        const account = state.accounts.find((row) => Number(row.id) === Number(state.selectedAccountId));
+        if (account && account.tier === tier) return;
+
+        const { error } = await supabase
+            .from('accounts')
+            .update({ tier })
+            .eq('id', state.selectedAccountId);
+
+        if (error) {
+            console.error('[accounts] Failed to sync tier from SAOS:', error);
+            return;
+        }
+
+        if (account) account.tier = tier;
+        if (state.selectedAccountDetails.account) {
+            state.selectedAccountDetails.account.tier = tier;
+        }
+        renderAccountList();
+    }
+
     const renderAccountList = () => {
         if (!accountList || !accountSearch || !accountFilterIcons) {
             console.error("Render failed: A required DOM element is missing.");
@@ -456,8 +500,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
                 const hotIcon = isHot ? '<span class="hot-contact-icon">🔥</span>' : '';
+                const tierBadge = buildAccountTierBadgeHtml(account.tier);
 
-                i.innerHTML = `<div class="account-list-item-row"><span class="account-list-name">${account.name}</span><div class="list-item-icons">${hotIcon}${dealIcon}</div></div>`;
+                i.innerHTML = `<div class="account-list-item-row"><span class="account-list-name">${account.name}</span><div class="list-item-icons">${tierBadge}${hotIcon}${dealIcon}</div></div>`;
 
                 if (account.id === state.selectedAccountId) {
                     i.classList.add("selected");
@@ -3188,6 +3233,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     plan,
                     updated_at: meta?.updated_at ?? state.accountPlan.updated_at,
                 };
+                syncAccountTierFromPlan(plan);
             },
             onToast: (message, type) => {
                 if (typeof showToast === 'function') {
