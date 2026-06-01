@@ -15,7 +15,7 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-06-01-3';
+} from './account-plan-export-templates.js?v=2026-06-01-4';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -197,6 +197,53 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
         return measureDossierContentPage(blocks, meta, exportRoot, debug);
     };
 
+    /**
+     * When a short section does not fit on the current page, try appending it
+     * to the previous flushed page before starting a new sparse page.
+     * @param {HTMLElement} block
+     */
+    const tryTuckOntoPreviousPage = (block) => {
+        if (groups.length === 0 || !(block instanceof HTMLElement)) return false;
+        const previous = groups[groups.length - 1];
+        const trial = [...previous, block];
+        if (!pageFits(trial)) return false;
+        groups[groups.length - 1] = trial.map((entry) => entry.cloneNode(true));
+        trace(`tucked ${block.dataset?.sectionId || '?'} onto previous page`);
+        return true;
+    };
+
+    /**
+     * @param {HTMLElement} block
+     */
+    const placeSectionBlock = (block) => {
+        if (pageFits([...current, block])) {
+            current.push(block);
+            return;
+        }
+        if (tryTuckOntoPreviousPage(block)) {
+            return;
+        }
+        flush();
+        if (pageFits([block])) {
+            current.push(block);
+            return;
+        }
+        if (tryTuckOntoPreviousPage(block)) {
+            return;
+        }
+        const parts = splitDossierSectionBlock(block, meta, exportRoot);
+        parts.forEach((part) => {
+            if (pageFits([...current, part])) {
+                current.push(part);
+            } else if (tryTuckOntoPreviousPage(part)) {
+                // placed on previous page
+            } else {
+                flush();
+                current.push(part);
+            }
+        });
+    };
+
     sectionBlocks.forEach((block) => {
         const sectionId = block.dataset.sectionId || '';
 
@@ -230,49 +277,12 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 
             const unwrapped = unwrapDossierSectionGroup(block);
             unwrapped.forEach((memberBlock) => {
-                if (pageFits([...current, memberBlock])) {
-                    current.push(memberBlock);
-                    return;
-                }
-                flush();
-                if (pageFits([memberBlock])) {
-                    current.push(memberBlock);
-                    return;
-                }
-                const parts = splitDossierSectionBlock(memberBlock, meta, exportRoot);
-                parts.forEach((part) => {
-                    if (pageFits([...current, part])) {
-                        current.push(part);
-                    } else {
-                        flush();
-                        current.push(part);
-                    }
-                });
+                placeSectionBlock(memberBlock);
             });
             return;
         }
 
-        if (pageFits([...current, block])) {
-            current.push(block);
-            return;
-        }
-
-        flush();
-
-        if (pageFits([block])) {
-            current.push(block);
-            return;
-        }
-
-        const parts = splitDossierSectionBlock(block, meta, exportRoot);
-        parts.forEach((part) => {
-            if (pageFits([...current, part])) {
-                current.push(part);
-            } else {
-                flush();
-                current.push(part);
-            }
-        });
+        placeSectionBlock(block);
     });
 
     flush();
@@ -306,24 +316,17 @@ function rebalanceDossierPageGroups(groups, meta, exportRoot) {
                     result[i - 1] = mergedPrev;
                     result.splice(i, 1);
                     changed = true;
-                    i -= 1;
                     continue;
                 }
             }
 
-            while (isSparseDossierPage(result[i], meta, exportRoot)) {
-                if (i + 1 >= result.length || result[i + 1].length === 0) break;
-
-                const nextBlock = result[i + 1][0];
-                const trial = [...result[i], nextBlock];
-                if (!measureDossierContentPage(trial, meta, exportRoot)) break;
-
-                result[i] = trial;
-                result[i + 1] = result[i + 1].slice(1);
-                if (result[i + 1].length === 0) {
+            if (i + 1 < result.length) {
+                const mergedNext = [...result[i], ...result[i + 1]];
+                if (measureDossierContentPage(mergedNext, meta, exportRoot)) {
+                    result[i] = mergedNext;
                     result.splice(i + 1, 1);
+                    changed = true;
                 }
-                changed = true;
             }
         }
     }

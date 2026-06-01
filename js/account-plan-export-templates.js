@@ -263,12 +263,12 @@ const INFLUENCE_CONTACT_FIELD_LABELS = {
  * un-grouping if the combined block cannot fit on one page).
  *
  * Current groupings:
- *   - pursuit_thesis, critical_unknowns, strategic_tensions → deal context stack
- *   - white_space, competitive_landscape → expansion + battlefield pair
+ *   - pursuit_thesis + critical_unknowns → Big Play + Blindspots (never split by rebalance)
+ *   - white_space + competitive_landscape → expansion + battlefield pair
  * @type {ReadonlyArray<ReadonlyArray<string>>}
  */
 const DOSSIER_SECTION_GROUPS = Object.freeze([
-    Object.freeze(['pursuit_thesis', 'critical_unknowns', 'strategic_tensions']),
+    Object.freeze(['pursuit_thesis', 'critical_unknowns']),
     Object.freeze(['white_space', 'competitive_landscape']),
 ]);
 
@@ -1612,6 +1612,65 @@ function formatExportTableValue(value) {
 }
 
 /**
+ * @param {HTMLElement} container
+ * @param {string} text
+ * @param {'default' | 'accent' | 'muted'} [variant]
+ */
+function appendSnapshotChip(container, text, variant = 'default') {
+    const trimmed = String(text ?? '').trim();
+    if (!trimmed || trimmed === '—') return;
+    const chip = document.createElement('span');
+    chip.className = `ap-export-snapshot-chip ap-export-snapshot-chip--${variant}`;
+    chip.textContent = trimmed;
+    container.appendChild(chip);
+}
+
+/**
+ * @param {string} label
+ * @param {unknown} value
+ * @returns {HTMLElement}
+ */
+function createSnapshotStatCell(label, value) {
+    const cell = document.createElement('div');
+    cell.className = 'ap-export-snapshot-stat';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'ap-export-snapshot-stat-label';
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement('div');
+    valueEl.className = 'ap-export-snapshot-stat-value';
+    valueEl.textContent = formatExportTableValue(value);
+
+    cell.appendChild(labelEl);
+    cell.appendChild(valueEl);
+    return cell;
+}
+
+/**
+ * @param {string} label
+ * @param {string} text
+ * @returns {HTMLElement}
+ */
+function createSnapshotNarrativeCell(label, text) {
+    const cell = document.createElement('div');
+    cell.className = 'ap-export-snapshot-narrative';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'ap-export-snapshot-narrative-label';
+    labelEl.textContent = label;
+
+    const copy = document.createElement('p');
+    copy.className = 'ap-export-snapshot-narrative-copy';
+    copy.textContent = text;
+
+    cell.appendChild(labelEl);
+    cell.appendChild(copy);
+    return cell;
+}
+
+/**
+ * Compact dashboard-style account snapshot — replaces the tall CRM key/value tables.
  * @param {{ name?: string, industry?: string, employee_count?: number | null, quantity_of_sites?: number | null, address?: string, is_customer?: boolean } | null | undefined} account
  * @param {Record<string, unknown>} snapshot
  * @param {import('./account-plan-sections.js').PlanFieldDef[]} fields
@@ -1619,7 +1678,7 @@ function formatExportTableValue(value) {
  */
 function buildAccountSnapshotBody(account, snapshot, fields) {
     const body = document.createElement('div');
-    body.className = 'ap-export-snapshot-body';
+    body.className = 'ap-export-snapshot-compact';
 
     const customerStatus = account?.is_customer === true
         ? 'Customer'
@@ -1627,19 +1686,62 @@ function buildAccountSnapshotBody(account, snapshot, fields) {
             ? 'Prospect'
             : '';
 
-    body.appendChild(createExportDataTable('Firmographics (CRM)', [
-        ['Account Name', account?.name],
-        ['Industry', account?.industry],
-        ['Employees', account?.employee_count],
-        ['Sites', account?.quantity_of_sites],
-        ['Address', account?.address],
-        ['Customer Status', customerStatus],
-    ]));
+    const hero = document.createElement('div');
+    hero.className = 'ap-export-snapshot-hero';
 
-    body.appendChild(createExportDataTable('Strategic Judgments (Plan)', fields.map((field) => [
-        field.label || field.key,
-        snapshot[field.key],
-    ])));
+    const identity = document.createElement('div');
+    identity.className = 'ap-export-snapshot-identity';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'ap-export-snapshot-account-name';
+    nameEl.textContent = formatExportTableValue(account?.name);
+    identity.appendChild(nameEl);
+
+    const chips = document.createElement('div');
+    chips.className = 'ap-export-snapshot-chips';
+    appendSnapshotChip(chips, account?.industry);
+    appendSnapshotChip(chips, account?.address, 'muted');
+    if (account?.quantity_of_sites != null && Number(account.quantity_of_sites) > 0) {
+        appendSnapshotChip(chips, `${account.quantity_of_sites} sites`, 'muted');
+    }
+    if (account?.employee_count != null && Number(account.employee_count) > 0) {
+        appendSnapshotChip(chips, `${account.employee_count} employees`, 'muted');
+    }
+    appendSnapshotChip(chips, customerStatus, customerStatus === 'Customer' ? 'accent' : 'default');
+    identity.appendChild(chips);
+    hero.appendChild(identity);
+    body.appendChild(hero);
+
+    const statFieldKeys = new Set(['existing_providers', 'expansion_potential']);
+    const statFields = fields.filter((field) => !statFieldKeys.has(field.key));
+    const filledStats = statFields.filter((field) => hasMeaningfulText(snapshot[field.key]));
+
+    if (filledStats.length > 0) {
+        const statGrid = document.createElement('div');
+        statGrid.className = 'ap-export-snapshot-stat-grid';
+        filledStats.forEach((field) => {
+            statGrid.appendChild(createSnapshotStatCell(
+                field.label || field.key,
+                snapshot[field.key]
+            ));
+        });
+        body.appendChild(statGrid);
+    }
+
+    const narrativeFields = fields.filter((field) => statFieldKeys.has(field.key));
+    const filledNarratives = narrativeFields.filter((field) => hasMeaningfulText(snapshot[field.key]));
+
+    if (filledNarratives.length > 0) {
+        const narratives = document.createElement('div');
+        narratives.className = 'ap-export-snapshot-narratives';
+        filledNarratives.forEach((field) => {
+            narratives.appendChild(createSnapshotNarrativeCell(
+                field.label || field.key,
+                String(snapshot[field.key] ?? '').trim()
+            ));
+        });
+        body.appendChild(narratives);
+    }
 
     return body;
 }
@@ -3330,12 +3432,122 @@ export function ensureExportTemplateStyles() {
         .ap-export-editorial-list li {
             margin: 0 0 6px;
         }
-        .ap-export-snapshot-body {
+        .ap-export-snapshot-body,
+        .ap-export-snapshot-compact {
             display: flex;
             flex-direction: column;
-            gap: 22px;
+            gap: 14px;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 12px;
+        }
+        .ap-export-snapshot-hero {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 14px;
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #2563eb;
+            border-radius: 6px;
+        }
+        .ap-export-snapshot-identity {
+            min-width: 0;
+            flex: 1;
+        }
+        .ap-export-snapshot-account-name {
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 20px;
+            line-height: 1.2;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+        .ap-export-snapshot-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .ap-export-snapshot-chip {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+        }
+        .ap-export-snapshot-chip--accent {
+            background: #dbeafe;
+            border-color: #93c5fd;
+            color: #1d4ed8;
+        }
+        .ap-export-snapshot-chip--muted {
+            text-transform: none;
+            letter-spacing: 0.01em;
+            font-weight: 600;
+            font-size: 10px;
+            color: #64748b;
+            background: rgba(255,255,255,0.72);
+        }
+        .ap-export-snapshot-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .ap-export-snapshot-stat {
+            padding: 8px 10px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-top: 2px solid #0f172a;
+            min-width: 0;
+        }
+        .ap-export-snapshot-stat-label {
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 4px;
+            line-height: 1.25;
+        }
+        .ap-export-snapshot-stat-value {
+            font-size: 11.5px;
+            line-height: 1.35;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .ap-export-snapshot-narratives {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .ap-export-snapshot-narrative {
+            padding: 10px 12px;
+            background: #fafbfc;
+            border: 1px solid #e2e8f0;
+            min-width: 0;
+        }
+        .ap-export-snapshot-narrative-label {
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        .ap-export-snapshot-narrative-copy {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.45;
+            color: #1e293b;
         }
         .ap-export-data-table-wrap + .ap-export-data-table-wrap {
             margin-top: 4px;
