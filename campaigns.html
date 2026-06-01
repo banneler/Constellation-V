@@ -38,9 +38,11 @@
                 <div class="campaign-picker-panel">
                     <div class="campaign-picker-header">
                         <h2 class="section-title">Campaigns</h2>
-                        <button type="button" id="new-campaign-picker-btn" class="btn-secondary btn-sm campaign-new-picker-btn" title="Start a new campaign">
-                            <i class="fas fa-plus" aria-hidden="true"></i> New
-                        </button>
+                        <div class="sort-pill campaign-workspace-pill">
+                            <button type="button" id="campaign-workspace-create-btn" class="sort-pill-btn active">Create</button>
+                            <div class="sort-pill-divider"></div>
+                            <button type="button" id="campaign-workspace-run-btn" class="sort-pill-btn">Run</button>
+                        </div>
                     </div>
                     <div class="campaign-picker-body">
                         <div class="campaigns-mobile-picker-wrap">
@@ -74,7 +76,7 @@
                                 <div id="create-campaign-confirm" class="hidden create-campaign-confirm">
                                     <p id="create-campaign-confirm-message"></p>
                                     <div class="action-buttons">
-                                        <button type="button" id="create-campaign-confirm-yes" class="btn-primary">Yes, Launch</button>
+                                        <button type="button" id="create-campaign-confirm-yes" class="btn-primary">Yes, Save</button>
                                         <button type="button" id="create-campaign-confirm-cancel" class="btn-secondary">Cancel</button>
                                     </div>
                                 </div>

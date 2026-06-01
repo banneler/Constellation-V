@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         activities: [],
         campaignMembers: [],
         selectedCampaignId: null,
+        campaignWorkspaceMode: 'create',
         /** @type {Map<string, { champion: boolean, economicBuyer: boolean }>} */
         meddpiccByContactId: new Map(),
     };
@@ -392,25 +393,58 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let activeRunMode = null; // 'call' | 'guided-email' | 'email-merge' | null
 
+    const updateCampaignWorkspacePillUI = () => {
+        const createBtn = document.getElementById('campaign-workspace-create-btn');
+        const runBtn = document.getElementById('campaign-workspace-run-btn');
+        if (!createBtn || !runBtn) return;
+        const isCreate = state.campaignWorkspaceMode === 'create';
+        createBtn.classList.toggle('active', isCreate);
+        runBtn.classList.toggle('active', !isCreate);
+    };
+
+    const setCampaignWorkspaceMode = (mode) => {
+        state.campaignWorkspaceMode = mode;
+        if (mode === 'create') activeRunMode = null;
+        updateCampaignWorkspacePillUI();
+        updateCampaignWorkspaceLayout();
+    };
+
     const updateCampaignWorkspaceLayout = () => {
         const panel = document.getElementById('campaign-details');
         if (!panel) return;
         const campaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
+        const isCreateMode = state.campaignWorkspaceMode === 'create';
+        const isRunMode = state.campaignWorkspaceMode === 'run';
         const hasSelection = Boolean(campaign);
         const isPast = Boolean(campaign?.completed_at);
-        const runActive = campaign && !isPast && activeRunMode !== null;
+        const runActive = isRunMode && campaign && !isPast && activeRunMode !== null;
 
-        panel.classList.toggle('campaign-view-create', !hasSelection);
-        panel.classList.toggle('campaign-view-selected', hasSelection);
-        panel.classList.toggle('campaign-view-past', hasSelection && isPast);
+        panel.classList.toggle('campaign-view-create', isCreateMode);
+        panel.classList.toggle('campaign-view-run-empty', isRunMode && !hasSelection);
+        panel.classList.toggle('campaign-view-selected', isRunMode && hasSelection);
+        panel.classList.toggle('campaign-view-past', isRunMode && hasSelection && isPast);
         panel.classList.toggle('campaign-run-active', runActive);
-        panel.classList.toggle('campaign-top-active', hasSelection && !runActive);
+        panel.classList.toggle('campaign-top-active', isRunMode && hasSelection && !runActive);
     };
 
     const showCampaignCreateView = () => {
-        state.selectedCampaignId = null;
-        activeRunMode = null;
+        setCampaignWorkspaceMode('create');
         resetCampaignDetailsFlip();
+        renderCampaignList();
+        if (!state.selectedCampaignId) {
+            setNullState();
+        }
+        updateCampaignWorkspaceLayout();
+    };
+
+    const showCampaignRunView = () => {
+        if (!state.selectedCampaignId) {
+            const activeCampaigns = state.campaigns
+                .filter((c) => !c.completed_at)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            state.selectedCampaignId = activeCampaigns[0]?.id ?? null;
+        }
+        setCampaignWorkspaceMode('run');
         renderCampaignList();
         renderCampaignDetails();
     };
@@ -694,7 +728,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).join('');
     };
 
-    const renderRunCampaignContactProfile = (contact, account) => {
+    const buildOnDeckContactHtml = (contact, account) => {
+        if (!contact) {
+            return `
+                <section class="run-campaign-on-deck run-campaign-on-deck-empty">
+                    <span class="run-campaign-on-deck-label">On deck</span>
+                    <p class="run-campaign-on-deck-empty-text">No one else in the queue.</p>
+                </section>`;
+        }
+
+        const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';
+        const title = String(contact.title ?? '').trim();
+        const accountName = account?.name || 'No Account';
+        const metaParts = [title, accountName].filter(Boolean);
+
+        return `
+            <section class="run-campaign-on-deck">
+                <span class="run-campaign-on-deck-label"><i class="fas fa-arrow-down" aria-hidden="true"></i> On deck</span>
+                <div class="run-campaign-on-deck-body">
+                    <span class="run-campaign-on-deck-name">${escapeCampaignHtml(name)}</span>
+                    ${metaParts.length ? `<span class="run-campaign-on-deck-meta">${escapeCampaignHtml(metaParts.join(' · '))}</span>` : ''}
+                </div>
+            </section>`;
+    };
+
+    const renderRunCampaignContactProfile = (contact, account, nextContact = null, nextAccount = null) => {
         if (!rcContactProfileContent || !contact) return;
 
         const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';
@@ -703,46 +761,51 @@ document.addEventListener("DOMContentLoaded", async () => {
         const email = String(contact.email ?? '').trim();
         const phone = String(contact.phone ?? '').trim();
         const notes = String(contact.notes ?? '').trim();
-        const metaParts = [title, accountName].filter(Boolean);
 
         rcContactProfileContent.innerHTML = `
-            <div class="run-campaign-profile-header">
-                <div class="run-campaign-profile-heading">
-                    <h4 class="run-campaign-profile-name">${escapeCampaignHtml(name)}</h4>
-                    ${metaParts.length ? `<p class="run-campaign-profile-meta">${escapeCampaignHtml(metaParts.join(' · '))}</p>` : ''}
-                </div>
-                <a href="contacts.html?contactId=${encodeURIComponent(contact.id)}" class="run-campaign-profile-open-link">Open in Contacts</a>
-            </div>
-            <div class="run-campaign-profile-grid">
-                <div class="run-campaign-profile-field">
-                    <span class="run-campaign-profile-label">Email</span>
-                    ${email
-                        ? `<a href="mailto:${escapeCampaignHtml(email)}" class="run-campaign-profile-value run-campaign-profile-link">${escapeCampaignHtml(email)}</a>`
-                        : '<span class="run-campaign-profile-value run-campaign-profile-muted">—</span>'}
-                </div>
-                <div class="run-campaign-profile-field">
-                    <span class="run-campaign-profile-label">Phone</span>
-                    ${phone
-                        ? `<a href="tel:${escapeCampaignHtml(phone)}" class="run-campaign-profile-value run-campaign-profile-link">${escapeCampaignHtml(phone)}</a>`
-                        : '<span class="run-campaign-profile-value run-campaign-profile-muted">—</span>'}
-                </div>
-                <div class="run-campaign-profile-field">
-                    <span class="run-campaign-profile-label">Account</span>
-                    <span class="run-campaign-profile-value">${escapeCampaignHtml(accountName)}</span>
-                </div>
-                <div class="run-campaign-profile-field">
-                    <span class="run-campaign-profile-label">Title</span>
-                    <span class="run-campaign-profile-value">${title ? escapeCampaignHtml(title) : '<span class="run-campaign-profile-muted">—</span>'}</span>
-                </div>
-            </div>
-            ${notes ? `
-                <div class="run-campaign-profile-notes">
-                    <span class="run-campaign-profile-label">Contact Notes</span>
-                    <p class="run-campaign-profile-notes-body">${escapeCampaignHtml(notes)}</p>
-                </div>` : ''}
-            <div class="run-campaign-profile-activities">
-                <h5 class="run-campaign-profile-activities-title">Recent Activity</h5>
-                <div class="recent-activities-list run-campaign-profile-activities-list">${buildRunCampaignRecentActivityHtml(contact.id)}</div>
+            <div class="run-campaign-profile-layout">
+                <section class="run-campaign-contact-info-card">
+                    <div class="run-campaign-profile-header">
+                        <div class="run-campaign-profile-heading">
+                            <span class="run-campaign-profile-now-label">Now</span>
+                            <h4 class="run-campaign-profile-name">${escapeCampaignHtml(name)}</h4>
+                            ${title ? `<p class="run-campaign-profile-meta">${escapeCampaignHtml(title)}</p>` : ''}
+                        </div>
+                        <a href="contacts.html?contactId=${encodeURIComponent(contact.id)}" class="run-campaign-profile-open-link">Open in Contacts</a>
+                    </div>
+                    <div class="run-campaign-profile-grid">
+                        <div class="run-campaign-profile-field">
+                            <span class="run-campaign-profile-label">Email</span>
+                            ${email
+                                ? `<a href="mailto:${escapeCampaignHtml(email)}" class="run-campaign-profile-value run-campaign-profile-link">${escapeCampaignHtml(email)}</a>`
+                                : '<span class="run-campaign-profile-value run-campaign-profile-muted">—</span>'}
+                        </div>
+                        <div class="run-campaign-profile-field">
+                            <span class="run-campaign-profile-label">Phone</span>
+                            ${phone
+                                ? `<a href="tel:${escapeCampaignHtml(phone)}" class="run-campaign-profile-value run-campaign-profile-link">${escapeCampaignHtml(phone)}</a>`
+                                : '<span class="run-campaign-profile-value run-campaign-profile-muted">—</span>'}
+                        </div>
+                        <div class="run-campaign-profile-field">
+                            <span class="run-campaign-profile-label">Account</span>
+                            <span class="run-campaign-profile-value">${escapeCampaignHtml(accountName)}</span>
+                        </div>
+                        <div class="run-campaign-profile-field">
+                            <span class="run-campaign-profile-label">Title</span>
+                            <span class="run-campaign-profile-value">${title ? escapeCampaignHtml(title) : '<span class="run-campaign-profile-muted">—</span>'}</span>
+                        </div>
+                    </div>
+                    ${notes ? `
+                        <div class="run-campaign-profile-notes">
+                            <span class="run-campaign-profile-label">Contact Notes</span>
+                            <p class="run-campaign-profile-notes-body">${escapeCampaignHtml(notes)}</p>
+                        </div>` : ''}
+                </section>
+                ${buildOnDeckContactHtml(nextContact, nextAccount)}
+                <section class="run-campaign-activity-card">
+                    <h5 class="run-campaign-profile-activities-title">Recent Activity</h5>
+                    <div class="recent-activities-list run-campaign-profile-activities-list">${buildRunCampaignRecentActivityHtml(contact.id)}</div>
+                </section>
             </div>`;
     };
 
@@ -780,7 +843,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         logBtn.dataset.memberId = currentMember.id;
         skipBtn.dataset.memberId = currentMember.id;
 
-        renderRunCampaignContactProfile(contact, account);
+        const nextMember = pendingCalls[1];
+        const nextContact = nextMember ? state.contacts.find(c => c.id === nextMember.contact_id) : null;
+        const nextAccount = nextContact ? state.accounts.find(a => a.id === nextContact.account_id) : null;
+        renderRunCampaignContactProfile(contact, account, nextContact, nextAccount);
 
         phoneLinkEl.href = contact.phone ? `tel:${contact.phone}` : '#';
         phoneLinkEl.innerHTML = contact.phone
@@ -931,7 +997,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         emailBody = emailBody.replace(/\[LastName\]/g, contact.last_name || '');
         emailBody = emailBody.replace(/\[AccountName\]/g, account ? account.name : '');
 
-        renderRunCampaignContactProfile(contact, account);
+        const nextMember = pending[1];
+        const nextContact = nextMember ? state.contacts.find(c => c.id === nextMember.contact_id) : null;
+        const nextAccount = nextContact ? state.accounts.find(a => a.id === nextContact.account_id) : null;
+        renderRunCampaignContactProfile(contact, account, nextContact, nextAccount);
 
         contactEmailGuided.href = contact.email ? `mailto:${contact.email}` : '#';
         contactEmailGuided.innerHTML = contact.email
@@ -1060,7 +1129,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const cartContactIds = [...abmCartState.contactIds];
         if (cartContactIds.length === 0) {
-            alert('Add at least one contact to the ABM cart before launching.');
+            alert('Add at least one contact to the ABM cart before saving.');
             return false;
         }
 
@@ -1071,7 +1140,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const confirmEl = document.getElementById('create-campaign-confirm');
         const confirmMsg = document.getElementById('create-campaign-confirm-message');
         if (confirmMsg) {
-            confirmMsg.textContent = `Launch "${name}" with ${matchingContacts.length} curated contact(s)?`;
+            confirmMsg.textContent = `Save "${name}" with ${matchingContacts.length} curated contact(s)?`;
         }
         if (confirmEl) confirmEl.classList.remove('hidden');
         const confirmProceed = await new Promise(resolve => {
@@ -1116,8 +1185,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         }
 
-        alert(`Campaign "${name}" launched with ${matchingContacts.length} ABM target(s).`);
+        alert(`Campaign "${name}" saved with ${matchingContacts.length} ABM target(s).`);
         state.selectedCampaignId = newCampaign.id;
+        state.campaignWorkspaceMode = 'run';
         clearAbmCart();
         await loadAllData();
         return true;
@@ -1362,7 +1432,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             </div>
                         </div>
                     </div>
-                    <button type="button" id="launch-campaign-btn" class="btn-primary abm-launch-btn">Launch Campaign</button>
+                    <button type="button" id="launch-campaign-btn" class="btn-primary abm-launch-btn">Save Campaign</button>
                 </div>
                 <div class="abm-split-pane">
                     <div class="abm-explorer-pane">
@@ -1456,7 +1526,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             await supabase.from('campaigns').delete().eq('id', campaignId);
             alert("Campaign and its members deleted successfully!");
             state.selectedCampaignId = null;
+            state.campaignWorkspaceMode = 'create';
             await loadAllData();
+            showCampaignCreateView();
             return true;
         });
     }
@@ -1498,6 +1570,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderCampaignList();
             renderCampaignDetails();
             renderCreateCampaignForm();
+            updateCampaignWorkspacePillUI();
+            updateCampaignWorkspaceLayout();
         } catch (error) {
             console.error("Error loading data:", error.message);
             alert("Failed to load page data. Please try refreshing. Error: " + error.message);
@@ -1532,14 +1606,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             mobileCampaignSelect.addEventListener('change', () => {
                 const raw = mobileCampaignSelect.value;
                 state.selectedCampaignId = raw ? Number(raw) : null;
+                state.campaignWorkspaceMode = raw ? 'run' : 'create';
+                updateCampaignWorkspacePillUI();
                 renderCampaignList();
                 renderCampaignDetails();
             });
         }
 
-        const newCampaignPickerBtn = document.getElementById('new-campaign-picker-btn');
-        newCampaignPickerBtn?.addEventListener('click', () => {
-            showCampaignCreateView();
+        const createWorkspaceBtn = document.getElementById('campaign-workspace-create-btn');
+        const runWorkspaceBtn = document.getElementById('campaign-workspace-run-btn');
+        createWorkspaceBtn?.addEventListener('click', () => {
+            if (state.campaignWorkspaceMode !== 'create') showCampaignCreateView();
+        });
+        runWorkspaceBtn?.addEventListener('click', () => {
+            if (state.campaignWorkspaceMode !== 'run') showCampaignRunView();
         });
 
         document.body.addEventListener('click', (e) => {
@@ -1552,6 +1632,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const newSelectedId = Number(campaignListItem.dataset.id);
                 if (newSelectedId !== state.selectedCampaignId) {
                     state.selectedCampaignId = newSelectedId;
+                    state.campaignWorkspaceMode = 'run';
+                    updateCampaignWorkspacePillUI();
                     renderCampaignList();
                     renderCampaignDetails();
                 }

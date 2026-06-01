@@ -3937,8 +3937,8 @@ body.theme-green {
     .campaign-picker-header {
         @apply px-5 pt-5 pb-2 flex-shrink-0 flex flex-col items-center gap-2;
     }
-    .campaign-new-picker-btn {
-        @apply inline-flex items-center gap-1.5;
+    .campaign-workspace-pill {
+        @apply mb-0 self-center;
     }
     .campaign-picker-header .section-title {
         @apply text-2xl font-semibold text-center mt-0 mb-0;
@@ -3993,6 +3993,14 @@ body.theme-green {
     .campaign-details-content.campaign-view-create .campaign-abm-builder-card {
         flex: 1 1 auto;
         max-width: none;
+    }
+    .campaign-details-content.campaign-view-run-empty .campaign-abm-builder-card,
+    .campaign-details-content.campaign-view-run-empty .campaign-details-card {
+        display: none;
+    }
+    .campaign-details-content.campaign-view-run-empty .campaign-engine-card {
+        flex: 1 1 auto;
+        min-height: 0;
     }
     .campaign-details-content.campaign-view-selected .campaign-abm-builder-card {
         display: none;
@@ -9390,11 +9398,54 @@ body:not(.theme-green) .list-item.selected {
         @apply flex flex-col gap-3 mb-0 min-h-0;
     }
     .run-campaign-contact-profile {
-        @apply flex-shrink-0 rounded-xl border border-[var(--border-color)] overflow-hidden;
-        background-color: var(--bg-medium);
+        @apply flex-shrink-0 overflow-hidden;
+        background-color: transparent;
+        border: none;
     }
     .run-campaign-contact-profile-content {
-        @apply p-4;
+        @apply p-0;
+    }
+    .run-campaign-profile-layout {
+        @apply flex flex-col gap-3;
+    }
+    .run-campaign-contact-info-card,
+    .run-campaign-activity-card {
+        @apply rounded-xl border border-[var(--border-color)] p-4;
+        background-color: var(--bg-medium);
+    }
+    .run-campaign-profile-now-label {
+        @apply block text-[0.6875rem] font-semibold uppercase tracking-wide mb-1;
+        color: var(--primary-blue);
+    }
+    .run-campaign-on-deck {
+        @apply rounded-xl border border-dashed border-[var(--border-color)] px-4 py-3 flex flex-col gap-1;
+        background-color: var(--bg-dark);
+    }
+    .run-campaign-on-deck-empty {
+        @apply items-start;
+    }
+    .run-campaign-on-deck-label {
+        @apply text-[0.6875rem] font-semibold uppercase tracking-wide inline-flex items-center gap-1.5;
+        color: var(--text-muted);
+    }
+    .run-campaign-on-deck-label i {
+        @apply text-[0.625rem];
+        color: var(--text-medium);
+    }
+    .run-campaign-on-deck-body {
+        @apply flex flex-col gap-0.5 min-w-0;
+    }
+    .run-campaign-on-deck-name {
+        @apply text-sm font-semibold;
+        color: var(--text-light);
+    }
+    .run-campaign-on-deck-meta {
+        @apply text-xs;
+        color: var(--text-medium);
+    }
+    .run-campaign-on-deck-empty-text {
+        @apply m-0 text-sm;
+        color: var(--text-muted);
     }
     .run-campaign-profile-empty {
         @apply text-sm m-0;
@@ -9444,21 +9495,18 @@ body:not(.theme-green) .list-item.selected {
         color: var(--text-muted);
     }
     .run-campaign-profile-notes {
-        @apply mb-3 pt-3 border-t border-[var(--border-color)];
+        @apply mb-0 pt-3 border-t border-[var(--border-color)];
     }
     .run-campaign-profile-notes-body {
         @apply m-0 mt-1 text-sm whitespace-pre-wrap;
         color: var(--text-medium);
-    }
-    .run-campaign-profile-activities {
-        @apply pt-3 border-t border-[var(--border-color)];
     }
     .run-campaign-profile-activities-title {
         @apply m-0 mb-2 text-xs font-semibold uppercase tracking-wide;
         color: var(--text-muted);
     }
     .run-campaign-profile-activities-list {
-        @apply max-h-40 overflow-y-auto;
+        @apply max-h-36 overflow-y-auto;
     }
     .run-campaign-workspace {
         @apply flex flex-col gap-3 flex-1 min-h-0;
@@ -10291,6 +10339,9 @@ body:not(.theme-green) .list-item.selected {
         min-width: 0;
         max-width: none;
         margin-bottom: 1rem;
+    }
+    body.campaigns-page .campaign-workspace-pill {
+        display: flex !important;
     }
     body.campaigns-page .run-campaign-active-layout {
         display: flex !important;
