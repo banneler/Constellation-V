@@ -222,32 +222,14 @@ export function setAccountViewMode(mode, options = {}) {
 }
 
 /**
- * Strategic mode keeps the account picker on the left rail for account
- * switching (same as tactical). Section navigation moved to the horizontal
- * Path (#strategic-path) above the canvas — see renderStrategicPath().
+ * Strategic mode: hide the left account picker (Path handles section nav;
+ * account switching happens via the mode toggle back to tactical). Show the
+ * horizontal Path above the canvas.
  *
  * @param {'tactical' | 'strategic'} mode
  */
 function updateAccountPickerForMode(mode) {
     const isStrategic = mode === 'strategic';
-
-    const titleEl = document.getElementById('account-picker-title');
-    if (titleEl) titleEl.textContent = 'Accounts';
-
-    const pickerBody = document.querySelector('.account-picker-panel .account-picker-body');
-    if (pickerBody instanceof HTMLElement) {
-        pickerBody.classList.remove('hidden');
-    }
-
-    const pickerActions = document.querySelector('.account-picker-panel .account-picker-actions');
-    if (pickerActions instanceof HTMLElement) {
-        pickerActions.classList.remove('hidden');
-    }
-
-    const tocBody = document.getElementById('strategic-toc-body');
-    if (tocBody instanceof HTMLElement) {
-        tocBody.classList.add('hidden');
-    }
 
     const pathEl = document.getElementById('strategic-path');
     if (pathEl instanceof HTMLElement) {

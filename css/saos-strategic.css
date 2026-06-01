@@ -1049,7 +1049,7 @@ body.strategic-mode-active .strategic-document-canvas {
 }
 
 body.strategic-mode-active .strategic-document-inner {
-    max-width: min(960px, 100%);
+    max-width: min(1080px, 100%);
     padding-left: 2.5rem;
     padding-right: 2.5rem;
 }
@@ -1348,6 +1348,11 @@ body.strategic-mode-active .accounts-layout {
     overflow-x: hidden;
 }
 
+/* SAOS: hide left account picker — Path + full-width workspace only */
+body.strategic-mode-active .account-picker-panel {
+    display: none !important;
+}
+
 body.strategic-mode-active #strategic-workspace.account-details-content {
     display: flex !important;
     flex-direction: column !important;
@@ -1372,7 +1377,7 @@ body.strategic-mode-active #strategic-document-canvas {
 }
 
 body.strategic-mode-active #strategic-document-canvas .strategic-document-inner {
-    max-width: 100%;
+    max-width: min(1080px, 100%);
     box-sizing: border-box;
     overflow-x: hidden;
 }
