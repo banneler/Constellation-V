@@ -99,6 +99,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 
+    const isEmailCampaignType = (type) => type === 'Guided Email' || type === 'Email';
+
+    const buildCampaignEmailInlineHtml = (campaign, { heading = 'Email Sent' } = {}) => {
+        if (!isEmailCampaignType(campaign.type)) return '';
+        const subj = escapeCampaignHtml(campaign.email_subject || '(Not set)');
+        const body = escapeCampaignHtml(campaign.email_body || '(Not set)');
+        return `
+            <section class="campaign-completed-email">
+                <h4>${heading}</h4>
+                <div class="campaign-completed-email-body">
+                    <p class="campaign-email-back-subject"><strong>Subject:</strong> ${subj}</p>
+                    <pre class="email-body-summary">${body}</pre>
+                </div>
+            </section>`;
+    };
+
     const NULL_CONTACT_HTML = `
         <span class="run-campaign-null-placeholder">Ready when you are</span>
         <small>Log or skip from here once a contact is loaded.</small>`;
@@ -558,23 +574,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }).join('');
         };
         const typeIcon = campaign.type === 'Call' ? 'fa-phone' : campaign.type === 'Guided Email' ? 'fa-paper-plane' : 'fa-envelope';
-        let emailCtaHtml = '';
-        if (campaign.email_body || campaign.email_subject) {
-            emailCtaHtml = `
-                <button type="button" id="show-email-details-btn" class="campaign-email-cta">
-                    <i class="fas fa-envelope"></i>
-                    <span>View email used</span>
-                </button>
-            `;
-            if (campaignDetailsEmailBack) {
-                const subj = (campaign.email_subject || '(Not set)').replace(/</g, '&lt;');
-                const body = (campaign.email_body || '').replace(/</g, '&lt;').replace(/&/g, '&amp;');
-                campaignDetailsEmailBack.innerHTML = `
-                    <p class="campaign-email-back-subject"><strong>Subject:</strong> ${subj}</p>
-                    <pre class="email-body-summary">${body || '(Not set)'}</pre>
-                `;
-            }
-        }
+        const emailSummaryHtml = buildCampaignEmailInlineHtml(campaign);
         activeRunMode = null;
         setNullState();
         if (campaignDetailsContent) {
@@ -585,6 +585,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <span class="campaign-details-status-pill campaign-details-status-completed">Completed</span>
                 </div>
                 <p class="campaign-details-meta"><strong>Completed On:</strong> ${formatDate(campaign.completed_at)}</p>
+                ${emailSummaryHtml}
                 <hr>
                 <h4>Contacts Engaged (${completedMembers.length})</h4>
                 <div class="campaign-details-contacts-wrap">
@@ -594,8 +595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <h4>Contacts Skipped (${skippedMembers.length})</h4>
                 <div class="campaign-details-contacts-wrap">
                     <ul class="summary-contact-list">${memberHtml(skippedMembers, 'Skipped')}</ul>
-                </div>
-                ${emailCtaHtml}`;
+                </div>`;
             campaignDetailsContent.classList.remove('hidden');
         }
     };

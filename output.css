@@ -8732,6 +8732,36 @@ body.theme-green {
     line-height: var(--tw-leading, var(--text-sm--line-height));
     white-space: pre-wrap;
   }
+  .campaign-completed-email {
+    margin-top: calc(var(--spacing) * 3);
+    margin-bottom: calc(var(--spacing) * 1);
+  }
+  .campaign-completed-email h4 {
+    margin-top: calc(var(--spacing) * 0);
+    margin-bottom: calc(var(--spacing) * 2);
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-light);
+  }
+  .campaign-completed-email-body {
+    overflow-y: auto;
+    border-radius: var(--radius-xl);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    border-color: var(--border-color);
+    padding: calc(var(--spacing) * 4);
+    background-color: var(--bg-medium);
+    max-height: 20rem;
+  }
+  .campaign-completed-email-body .email-body-summary {
+    margin: calc(var(--spacing) * 0);
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    white-space: pre-wrap;
+    color: var(--text-medium);
+  }
   .run-campaign-body {
     display: flex;
     min-height: calc(var(--spacing) * 0);

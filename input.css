@@ -4721,6 +4721,22 @@ body.theme-green {
     .campaign-email-back-content .email-body-summary {
         @apply text-sm whitespace-pre-wrap m-0;
     }
+    .campaign-completed-email {
+        @apply mt-3 mb-1;
+    }
+    .campaign-completed-email h4 {
+        @apply mt-0 mb-2 text-sm font-semibold;
+        color: var(--text-light);
+    }
+    .campaign-completed-email-body {
+        @apply rounded-xl border border-[var(--border-color)] p-4 overflow-y-auto;
+        background-color: var(--bg-medium);
+        max-height: 20rem;
+    }
+    .campaign-completed-email-body .email-body-summary {
+        @apply text-sm whitespace-pre-wrap m-0;
+        color: var(--text-medium);
+    }
     /* Run Campaign body – single container, content overwritten by campaign type */
     .run-campaign-body {
         @apply flex flex-col flex-1 min-h-0;
