@@ -349,6 +349,17 @@ function formatInfluenceContactLabel(contact) {
 }
 
 /**
+ * @param {Record<string, unknown> | null} contact
+ * @returns {{ name: string, title: string }}
+ */
+function formatInfluenceContactParts(contact) {
+    if (!contact) return { name: '', title: '' };
+    const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
+    const title = String(contact.title ?? contact.job_title ?? '').trim();
+    return { name, title };
+}
+
+/**
  * @param {unknown} entry
  * @param {unknown[]} contacts
  * @returns {string}
@@ -1221,7 +1232,7 @@ function createEditorialPillsRow(label, pills) {
     row.className = 'ap-export-editorial-pills-row';
 
     if (label) {
-        const labelEl = document.createElement('span');
+        const labelEl = document.createElement('div');
         labelEl.className = 'ap-export-editorial-pills-label';
         labelEl.textContent = label;
         row.appendChild(labelEl);
@@ -1233,7 +1244,7 @@ function createEditorialPillsRow(label, pills) {
         const trimmed = String(pill ?? '').trim();
         if (!trimmed) return;
         const badge = document.createElement('span');
-        badge.className = 'ap-export-badge';
+        badge.className = 'ap-export-badge ap-export-badge--editorial';
         badge.textContent = trimmed;
         badges.appendChild(badge);
     });
@@ -1361,8 +1372,18 @@ function createProfileField(kicker, text) {
  */
 function createStatusBadge(label, value) {
     const badge = document.createElement('span');
-    badge.className = 'ap-export-badge';
-    badge.textContent = `${label}: ${String(value).trim()}`;
+    badge.className = 'ap-export-badge ap-export-badge--status';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'ap-export-badge-label';
+    labelEl.textContent = `${label}:`;
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'ap-export-badge-value';
+    valueEl.textContent = String(value).trim();
+
+    badge.appendChild(labelEl);
+    badge.appendChild(valueEl);
     return badge;
 }
 
@@ -1652,7 +1673,12 @@ function buildBattlefieldPanel(title, pills, blocks) {
     panel.appendChild(heading);
 
     if (pills.length > 0) {
-        panel.appendChild(createEditorialPillsRow('', pills));
+        const pillsRow = createEditorialPillsRow('', pills);
+        const badgeRow = pillsRow.querySelector('.ap-export-badge-row');
+        if (badgeRow) {
+            badgeRow.classList.add('ap-export-badge-row--stacked');
+        }
+        panel.appendChild(pillsRow);
     }
 
     blocks.forEach(({ kicker, text }) => {
@@ -1775,11 +1801,11 @@ function buildWhiteSpaceMatrixBody(rows) {
     const columns = [
         { header: 'Opportunity',              key: 'name',                   flex: 1.15, isName: true },
         { header: 'Area',                     key: 'area',                   flex: 0.8 },
-        { header: 'Operational\nImportance', key: 'operational_importance', flex: 1.05 },
-        { header: 'Executive\nVisibility',    key: 'executive_visibility',   flex: 1.05 },
+        { header: 'Ops\nImportance',              key: 'operational_importance', flex: 1.05 },
+        { header: 'Exec\nVisibility',             key: 'executive_visibility',   flex: 1.05 },
         { header: 'Confidence',               key: 'confidence',             flex: 0.95 },
         { header: 'Description',              key: 'opportunity',            flex: 1.55 },
-        { header: 'Estimated Value\n/ Sizing Notes', key: 'value_notes',       flex: 1.35 },
+        { header: 'Value /\nSizing',              key: 'value_notes',            flex: 1.35 },
     ];
 
     const matrix = document.createElement('div');
@@ -1842,10 +1868,18 @@ function buildInfluenceContactCard(entry, contacts) {
 
     const nameEl = document.createElement('div');
     nameEl.className = 'ap-export-influence-contact-name';
+    const { name, title } = formatInfluenceContactParts(contact);
     const contactLabel = formatInfluenceContactLabel(contact)
         || (entryObj.id != null ? `Contact ${entryObj.id}` : 'Contact');
-    nameEl.textContent = contactLabel;
+    nameEl.textContent = name || contactLabel;
     card.appendChild(nameEl);
+
+    if (title && name) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'ap-export-influence-contact-title';
+        titleEl.textContent = title;
+        card.appendChild(titleEl);
+    }
 
     const notes = normalizeInfluenceNotes(entryObj.notes, contactLabel);
     if (notes) {
@@ -3128,11 +3162,12 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-plan-horizon-body .plan-horizon-meta,
         .ap-exec-plan-horizon-body .plan-horizon-meta {
+            display: inline-block;
+            white-space: nowrap;
             color: #2563eb;
             font-weight: 700;
-        }
-        .ap-exec-plan-horizon-body .plan-horizon-meta {
-            color: #2563eb;
+            font-size: 10.5px;
+            margin-left: 0.35em;
         }
         .ap-export-plan-horizon-body .plan-horizon-empty,
         .ap-exec-plan-horizon-body .plan-horizon-empty {
@@ -3190,9 +3225,9 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-editorial-pills-row {
             display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px 10px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
             margin: 0 0 14px;
         }
         .ap-export-editorial-pills-label {
@@ -3204,8 +3239,7 @@ export function ensureExportTemplateStyles() {
             color: #64748b;
         }
         .ap-export-badge-row--editorial {
-            flex: 1;
-            min-width: 0;
+            width: 100%;
         }
         .ap-export-battlefield-body {
             display: grid;
@@ -3455,11 +3489,18 @@ export function ensureExportTemplateStyles() {
             padding: 10px 12px;
         }
         .ap-export-influence-contact-name {
-            margin: 0 0 8px;
+            margin: 0 0 2px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 12px;
             font-weight: 700;
+            line-height: 1.25;
             color: #0f172a;
+        }
+        .ap-export-influence-contact-title {
+            margin: 0 0 8px;
+            font-size: 10.5px;
+            line-height: 1.35;
+            color: #475569;
         }
         .ap-export-influence-contact .ap-export-profile-field {
             margin-bottom: 8px;
@@ -3544,21 +3585,47 @@ export function ensureExportTemplateStyles() {
         .ap-export-badge-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 4px;
+            gap: 5px 6px;
+            align-items: flex-start;
+        }
+        .ap-export-badge-row--stacked {
+            flex-direction: column;
+            align-items: flex-start;
         }
         .ap-export-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.28em;
+            white-space: nowrap;
+            flex-shrink: 0;
+            max-width: 100%;
+            box-sizing: border-box;
             font-size: 8.5px;
             text-transform: uppercase;
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
-            padding: 2px 5px;
-            border-radius: 3px;
+            padding: 3px 7px;
+            border-radius: 999px;
             margin-right: 0;
             color: #475569;
             font-weight: 600;
             letter-spacing: 0.03em;
-            line-height: 1.2;
+            line-height: 1.35;
+        }
+        .ap-export-badge--editorial {
+            text-transform: none;
+            letter-spacing: 0.01em;
+            font-size: 9px;
+            font-weight: 600;
+            color: #334155;
+        }
+        .ap-export-badge-label {
+            color: #64748b;
+            font-weight: 700;
+        }
+        .ap-export-badge-value {
+            color: #0f172a;
+            font-weight: 700;
         }
         .ap-export-target-profile-grid {
             display: grid;

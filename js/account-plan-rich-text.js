@@ -22,11 +22,11 @@ function enrichPlanHorizonInline(text) {
     let html = escapeHtml(text);
     html = html.replace(
         /\((owners?:\s*[^)]+)\)/gi,
-        '(<strong class="plan-horizon-meta">$1</strong>)'
+        ' <span class="plan-horizon-meta">($1)</span>'
     );
     html = html.replace(
         /\b(owners?:\s*[\w\s+&/,-]+)$/i,
-        '<strong class="plan-horizon-meta">$1</strong>'
+        '<span class="plan-horizon-meta">$1</span>'
     );
     return html;
 }
