@@ -410,14 +410,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 
-    /** Large faint tier label behind the account name — replaces inline tier pills. */
-    const buildAccountListNameHtml = (name, tier) => {
-        const normalizedTier = normalizeAccountTier(tier);
-        const watermark = normalizedTier !== 'Unassigned'
-            ? `<span class="account-list-tier-watermark" aria-hidden="true">${escapeAccountListHtml(normalizedTier)}</span>`
-            : '';
-        return `<span class="account-list-name-wrap">${watermark}<span class="account-list-name">${escapeAccountListHtml(name || 'Unnamed Account')}</span></span>`;
-    };
+    const buildAccountListNameHtml = (name) => (
+        `<span class="account-list-name">${escapeAccountListHtml(name || 'Unnamed Account')}</span>`
+    );
 
     /** Map SAOS snapshot tier to the canonical accounts.tier column value. */
     const mapSnapshotTierToAccountTier = (snapshotTier) => {
@@ -535,7 +530,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
                 const hotIcon = isHot ? '<span class="hot-contact-icon">🔥</span>' : '';
 
-                i.innerHTML = `<div class="account-list-item-row">${buildAccountListNameHtml(account.name, account.tier)}<div class="list-item-icons">${hotIcon}${dealIcon}</div></div>`;
+                i.innerHTML = `<div class="account-list-item-row">${buildAccountListNameHtml(account.name)}<div class="list-item-icons">${hotIcon}${dealIcon}</div></div>`;
 
                 if (account.id === state.selectedAccountId) {
                     i.classList.add("selected");

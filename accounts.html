@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="output.css">
     <!-- Cache-bust query string bumped whenever this file changes so users
          don't end up with a stale dialog/spinner from a previous deploy. -->
-    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-06-01-polish">
+    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-06-01-rail-tier">
     <link rel="stylesheet" href="css/global-loader.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -59,10 +59,10 @@
                         <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
                         <div id="account-tier-filters" class="account-tier-filters" role="group" aria-label="Filter by strategic tier">
                             <button type="button" class="account-tier-filter active" data-tier-filter="all" title="All tiers">All</button>
-                            <button type="button" class="account-tier-filter account-tier-filter--tier-1" data-tier-filter="Tier 1" title="Tier 1 accounts">T1</button>
-                            <button type="button" class="account-tier-filter account-tier-filter--tier-2" data-tier-filter="Tier 2" title="Tier 2 accounts">T2</button>
-                            <button type="button" class="account-tier-filter account-tier-filter--tier-3" data-tier-filter="Tier 3" title="Tier 3 accounts">T3</button>
-                            <button type="button" class="account-tier-filter account-tier-filter--unassigned" data-tier-filter="Unassigned" title="Unassigned tier">—</button>
+                            <button type="button" class="account-tier-filter account-tier-filter--tier-1" data-tier-filter="Tier 1" title="Tier 1 accounts" aria-label="Tier 1"><span class="account-tier-swatch" aria-hidden="true"></span></button>
+                            <button type="button" class="account-tier-filter account-tier-filter--tier-2" data-tier-filter="Tier 2" title="Tier 2 accounts" aria-label="Tier 2"><span class="account-tier-swatch" aria-hidden="true"></span></button>
+                            <button type="button" class="account-tier-filter account-tier-filter--tier-3" data-tier-filter="Tier 3" title="Tier 3 accounts" aria-label="Tier 3"><span class="account-tier-swatch" aria-hidden="true"></span></button>
+                            <button type="button" class="account-tier-filter account-tier-filter--unassigned" data-tier-filter="Unassigned" title="Unassigned tier" aria-label="Unassigned"><span class="account-tier-swatch" aria-hidden="true"></span></button>
                         </div>
                         <div id="account-filter-icons" class="account-filter-icons" role="group" aria-label="Filter accounts">
                             <button type="button" class="account-filter-icon active" data-filter="all" title="All Accounts"><i class="fas fa-layer-group"></i></button>
