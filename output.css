@@ -7500,10 +7500,16 @@ body.theme-green {
   }
   .campaign-details-content.campaign-view-create .campaign-top-row {
     flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
   }
   .campaign-details-content.campaign-view-create .campaign-abm-builder-card {
     flex: 1 1 auto;
+    min-height: 0;
     max-width: none;
+  }
+  .campaign-details-content.campaign-view-create.details-panel {
+    overflow: hidden;
   }
   .campaign-details-content.campaign-view-run-empty .campaign-abm-builder-card, .campaign-details-content.campaign-view-run-empty .campaign-details-card {
     display: none;
@@ -7587,6 +7593,13 @@ body.theme-green {
     padding-top: calc(var(--spacing) * 0);
     padding-bottom: calc(var(--spacing) * 5);
   }
+  .campaign-abm-builder-body #new-campaign-form-container {
+    display: flex;
+    min-height: calc(var(--spacing) * 0);
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+  }
   .abm-campaign-builder {
     display: flex;
     min-height: calc(var(--spacing) * 0);
@@ -7652,7 +7665,9 @@ body.theme-green {
     display: flex;
     min-height: calc(var(--spacing) * 0);
     min-width: calc(var(--spacing) * 0);
+    flex: 1;
     flex-direction: column;
+    overflow: hidden;
     border-radius: var(--radius-xl);
     border-style: var(--tw-border-style);
     border-width: 1px;
@@ -7679,6 +7694,8 @@ body.theme-green {
     flex-direction: column;
     gap: calc(var(--spacing) * 2);
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .abm-explorer-empty, .abm-contact-empty, .abm-cart-empty, .abm-retired-merge-notice {
     margin: calc(var(--spacing) * 0);
@@ -16179,6 +16196,18 @@ body:not(.theme-green) .list-item.selected {
     padding: calc(var(--spacing) * 4);
     padding-top: calc(var(--spacing) * 0);
     overflow: visible !important;
+  }
+  body.campaigns-page .campaign-details-content.campaign-view-create {
+    overflow: hidden !important;
+  }
+  body.campaigns-page .campaign-abm-builder-body #new-campaign-form-container {
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  body.campaigns-page .abm-account-explorer, body.campaigns-page .abm-campaign-cart {
+    max-height: min(24rem, 50vh);
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
   body.campaigns-page .campaign-details-content {
     display: block !important;
