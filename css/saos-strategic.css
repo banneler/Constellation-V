@@ -1120,9 +1120,9 @@ body.strategic-mode-active #strategic-document-canvas .strategic-document-inner 
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-    max-width: min(1080px, 100%);
-    padding-left: 2.5rem;
-    padding-right: 2.5rem;
+    max-width: min(1180px, 100%);
+    padding-left: 1.75rem;
+    padding-right: 1.75rem;
     background-color: transparent;
     border: none;
     box-shadow: none;
@@ -1469,7 +1469,7 @@ body.strategic-mode-active #strategic-document-canvas {
 }
 
 body.strategic-mode-active #strategic-document-canvas .strategic-document-inner {
-    max-width: min(1080px, 100%);
+    max-width: min(1180px, 100%);
     box-sizing: border-box;
     overflow-x: hidden;
     background-color: transparent;
