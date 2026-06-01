@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="output.css">
     <!-- Cache-bust query string bumped whenever this file changes so users
          don't end up with a stale dialog/spinner from a previous deploy. -->
-    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-05-27-picker">
+    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-06-01-path">
     <link rel="stylesheet" href="css/global-loader.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -209,7 +209,10 @@
                     </div>
                 <div id="strategic-workspace" class="strategic-workspace details-panel account-details-content" aria-hidden="true">
                     <div class="strategic-workspace-header">
-                        <h3 id="strategic-account-title" class="strategic-account-title details-panel-title">Strategic Account Plan</h3>
+                        <div class="strategic-workspace-header-main">
+                            <h3 id="strategic-account-title" class="strategic-account-title details-panel-title">Strategic Account Plan</h3>
+                            <div id="strategic-view-mode-host" class="strategic-view-mode-host"></div>
+                        </div>
                         <div id="strategic-header-actions" class="strategic-header-actions flex items-center gap-2">
                             <button type="button" id="plan-version-trigger" class="btn-icon-header plan-version-trigger hidden" title="Version history" aria-expanded="false" aria-controls="plan-version-popover">
                                 <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
@@ -221,7 +224,6 @@
                          scrollable canvas. Built from PLAN_SECTIONS by
                          renderStrategicPath(); scroll-spy keeps the active step in sync. -->
                     <nav id="strategic-path" class="strategic-path hidden" aria-label="Plan sections">
-                        <div id="strategic-path-toolbar" class="strategic-path-toolbar"></div>
                         <ol id="strategic-path-track" class="strategic-path-track"></ol>
                     </nav>
                     <div class="strategic-workspace-body">

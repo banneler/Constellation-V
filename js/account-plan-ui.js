@@ -239,8 +239,10 @@ function updateAccountPickerForMode(mode) {
     if (isStrategic) {
         loadSaosViewMode();
         applySaosViewModeToCanvas();
+        renderStrategicViewMode();
         renderStrategicPath();
         initStrategicPathNavigation();
+        initStrategicViewModeNavigation();
     } else {
         teardownStrategicPathNavigation();
     }
@@ -276,6 +278,7 @@ function setSaosViewMode(mode) {
         /* ignore quota / private mode */
     }
     applySaosViewModeToCanvas();
+    renderStrategicViewMode();
     renderStrategicPath();
     paintCanvas();
 }
@@ -308,32 +311,36 @@ function renderStrategicViewModeToggleHtml() {
         </div>`;
 }
 
+/** Core/Deep Dive toggle beside the Strategic Plan header. */
+function renderStrategicViewMode() {
+    const host = document.getElementById('strategic-view-mode-host');
+    if (!host) return;
+    host.innerHTML = renderStrategicViewModeToggleHtml();
+}
+
 /**
  * Populate the horizontal Path with one step per visible plan section.
- * Core/Deep Dive toggle sits in the path toolbar (not the left rail).
  */
 function renderStrategicPath() {
-    const path = document.getElementById('strategic-path');
     const track = document.getElementById('strategic-path-track');
-    const toolbar = document.getElementById('strategic-path-toolbar');
-    if (!path || !track || !toolbar) return;
-
-    toolbar.innerHTML = renderStrategicViewModeToggleHtml();
+    if (!track) return;
 
     const sections = getCanvasPlanSections();
-    track.innerHTML = sections.map((section, index) => {
-        const isLast = index === sections.length - 1;
-        return `<li class="strategic-path-item${isLast ? ' strategic-path-item--last' : ''}">`
-            + `<button type="button" class="strategic-path-step" data-section-id="${section.id}"`
-            + ` title="${escapeHtml(section.title)}" aria-current="false">`
-            + `<span class="strategic-path-step-label">${escapeHtml(section.title)}</span>`
-            + `</button></li>`;
-    }).join('');
+    track.classList.toggle('strategic-path-track--core', _saosViewMode === 'core');
+    track.classList.toggle('strategic-path-track--deep', _saosViewMode === 'deep');
+    track.innerHTML = sections.map((section, index) => (
+        `<li class="strategic-path-item" style="--path-index:${index}">`
+        + `<button type="button" class="strategic-path-step" data-section-id="${section.id}"`
+        + ` title="${escapeHtml(section.title)}" aria-current="false">`
+        + `<span class="strategic-path-step-label">${escapeHtml(section.title)}</span>`
+        + `</button></li>`
+    )).join('');
 
     syncStrategicPathActive();
 }
 
 let _strategicPathNavBound = false;
+let _strategicViewModeNavBound = false;
 /** @type {((event: Event) => void) | null} */
 let _strategicPathScrollHandler = null;
 /** Suppress scroll-spy flicker while a Path click smooth-scrolls. */
@@ -342,6 +349,13 @@ let _pathScrollLockUntil = 0;
 /**
  * One-time delegated click + scroll-spy on the canvas scroll container.
  */
+function initStrategicViewModeNavigation() {
+    const header = document.querySelector('.strategic-workspace-header');
+    if (!header || _strategicViewModeNavBound) return;
+    _strategicViewModeNavBound = true;
+    header.addEventListener('click', onStrategicViewModeClick);
+}
+
 function initStrategicPathNavigation() {
     const path = document.getElementById('strategic-path');
     const canvas = document.getElementById('strategic-document-canvas');
@@ -377,19 +391,23 @@ function teardownStrategicPathNavigation() {
 /**
  * @param {Event} event
  */
-function onStrategicPathClick(event) {
+function onStrategicViewModeClick(event) {
     const target = event.target instanceof Element ? event.target : null;
     if (!target) return;
 
     const modeBtn = target.closest('[data-view-mode]');
-    if (modeBtn instanceof HTMLButtonElement) {
-        event.preventDefault();
-        const mode = modeBtn.dataset.viewMode === 'deep' ? 'deep' : 'core';
-        if (mode !== _saosViewMode) {
-            setSaosViewMode(mode);
-        }
-        return;
+    if (!(modeBtn instanceof HTMLButtonElement)) return;
+
+    event.preventDefault();
+    const mode = modeBtn.dataset.viewMode === 'deep' ? 'deep' : 'core';
+    if (mode !== _saosViewMode) {
+        setSaosViewMode(mode);
     }
+}
+
+function onStrategicPathClick(event) {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
 
     const btn = target.closest('.strategic-path-step');
     if (!(btn instanceof HTMLButtonElement)) return;
@@ -603,6 +621,7 @@ export function renderStrategicShell(account, plan) {
     renderVersionTimeline(_planBaseline);
     updateVersionTriggerLabel(_planBaseline);
     updateToggleDisabled();
+    renderStrategicViewMode();
     renderStrategicPath();
     requestAnimationFrame(() => syncStrategicPathActive());
 }
