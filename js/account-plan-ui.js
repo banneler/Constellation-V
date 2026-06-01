@@ -2119,14 +2119,14 @@ function buildInfluenceContactCard(contact, entry, bucket) {
         <div class="influence-meddpicc-badges" role="group" aria-label="MEDDPICC roles">
             <button
                 type="button"
-                class="influence-meddpicc-badge${isChampion ? ' influence-meddpicc-badge--active' : ''}"
+                class="influence-meddpicc-badge influence-meddpicc-badge--champion${isChampion ? ' influence-meddpicc-badge--active' : ''}"
                 data-influence-contact-id="${contactId}"
                 data-influence-meddpicc="is_champion"
                 aria-pressed="${isChampion ? 'true' : 'false'}"
             >Champion</button>
             <button
                 type="button"
-                class="influence-meddpicc-badge${isEconomicBuyer ? ' influence-meddpicc-badge--active' : ''}"
+                class="influence-meddpicc-badge influence-meddpicc-badge--economic-buyer${isEconomicBuyer ? ' influence-meddpicc-badge--active' : ''}"
                 data-influence-meddpicc="is_economic_buyer"
                 data-influence-contact-id="${contactId}"
                 aria-pressed="${isEconomicBuyer ? 'true' : 'false'}"

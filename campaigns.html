@@ -38,12 +38,15 @@
                 <div class="campaign-picker-panel">
                     <div class="campaign-picker-header">
                         <h2 class="section-title">Campaigns</h2>
+                        <button type="button" id="new-campaign-picker-btn" class="btn-secondary btn-sm campaign-new-picker-btn" title="Start a new campaign">
+                            <i class="fas fa-plus" aria-hidden="true"></i> New
+                        </button>
                     </div>
                     <div class="campaign-picker-body">
                         <div class="campaigns-mobile-picker-wrap">
                             <label for="mobile-campaign-select" class="campaigns-mobile-picker-label">Campaign</label>
                             <select id="mobile-campaign-select" class="campaigns-mobile-picker-select">
-                                <option value="">Select a current campaign</option>
+                                <option value="">Create new campaign</option>
                             </select>
                         </div>
                         <div class="campaign-picker-block campaign-picker-active">
@@ -58,7 +61,7 @@
                 </div>
 
                 <!-- Right: tools + details + run engine -->
-                <div id="campaign-details" class="campaign-details-content details-panel">
+                <div id="campaign-details" class="campaign-details-content details-panel campaign-view-create">
                     <!-- Top row: tools + details side by side -->
                     <div class="campaign-top-row">
                         <!-- ABM campaign builder — split-pane cart replaces mail-merge flip card -->

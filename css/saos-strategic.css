@@ -1029,7 +1029,7 @@ body.strategic-mode-active #strategic-workspace {
     border: none;
     border-radius: 0;
     background-color: var(--bg-medium);
-    color: var(--text-medium);
+    color: #475569;
     font-family: inherit;
     font-size: 0.625rem;
     font-weight: 600;
@@ -1094,6 +1094,10 @@ body.strategic-mode-active #strategic-workspace {
     z-index: 100;
 }
 
+.strategic-path-step--active .strategic-path-step-label {
+    font-weight: 700;
+}
+
 .strategic-path-step-label {
     white-space: normal;
     text-align: center;
@@ -1107,6 +1111,11 @@ body.strategic-mode-active .strategic-document-canvas {
     max-height: calc(100vh - 168px);
 }
 
+body.strategic-mode-active #strategic-document-canvas {
+    background-color: #f1f5f9;
+    border-radius: 0.75rem;
+}
+
 body.strategic-mode-active #strategic-document-canvas .strategic-document-inner {
     display: flex;
     flex-direction: column;
@@ -1114,15 +1123,20 @@ body.strategic-mode-active #strategic-document-canvas .strategic-document-inner 
     max-width: min(1080px, 100%);
     padding-left: 2.5rem;
     padding-right: 2.5rem;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 body.strategic-mode-active #strategic-document-canvas .strategic-section-card {
     margin: 0;
     padding: 1.25rem 1.5rem 1.5rem;
-    border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+    border: 1px solid #e2e8f0;
     border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--bg-medium) 38%, transparent);
-    box-shadow: 0 1px 3px color-mix(in srgb, #000 10%, transparent);
+    background-color: #ffffff;
+    box-shadow:
+        0 4px 6px -1px rgb(15 23 42 / 0.08),
+        0 2px 4px -2px rgb(15 23 42 / 0.06);
 }
 
 body.strategic-mode-active #strategic-document-canvas .strategic-section-card .strategic-section-title {
@@ -1451,12 +1465,16 @@ body.strategic-mode-active #strategic-document-canvas {
     overflow-y: auto;
     overscroll-behavior-x: none;
     -webkit-overflow-scrolling: touch;
+    background-color: #f1f5f9;
 }
 
 body.strategic-mode-active #strategic-document-canvas .strategic-document-inner {
     max-width: min(1080px, 100%);
     box-sizing: border-box;
     overflow-x: hidden;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 body.strategic-mode-active #strategic-document-canvas .strategic-section,
@@ -1626,28 +1644,36 @@ body.strategic-mode-active #strategic-document-canvas .entry-point-grid--attribu
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.2rem 0.55rem;
-    border: 1px solid var(--border-color);
+    padding: 0.25rem 0.625rem;
+    border: 1px solid #cbd5e1;
     border-radius: 9999px;
     font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    font-weight: 700;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    color: var(--text-muted);
-    background: color-mix(in srgb, var(--bg-medium) 60%, transparent);
+    color: #64748b;
+    background: #f8fafc;
     cursor: pointer;
-    transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+    transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
 }
 
 .influence-meddpicc-badge:hover {
-    border-color: color-mix(in srgb, var(--primary-blue) 40%, var(--border-color));
-    color: var(--text-light);
+    border-color: #94a3b8;
+    color: #334155;
 }
 
-.influence-meddpicc-badge--active {
-    color: #fff;
-    border-color: var(--primary-blue);
-    background: var(--primary-blue);
+.influence-meddpicc-badge--champion.influence-meddpicc-badge--active {
+    color: #ffffff;
+    border-color: #059669;
+    background: #059669;
+    box-shadow: 0 1px 3px rgb(5 150 105 / 0.35);
+}
+
+.influence-meddpicc-badge--economic-buyer.influence-meddpicc-badge--active {
+    color: #ffffff;
+    border-color: #4f46e5;
+    background: #4f46e5;
+    box-shadow: 0 1px 3px rgb(79 70 229 / 0.35);
 }
 
 .psychology-bypass-trap {
@@ -1730,4 +1756,136 @@ body.strategic-mode-active #strategic-document-canvas .entry-point-grid--attribu
 /* Strategic Judgments — three-column pill grid on desktop */
 .strategic-section--account-snapshot .account-snapshot-plan-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* ===========================================================================
+ * Visual hierarchy polish — canvas contrast, hit zones, methodology pills
+ * ======================================================================== */
+
+body.strategic-mode-active #strategic-document-canvas .strategic-textarea,
+body.strategic-mode-active #strategic-document-canvas .strategic-field,
+body.strategic-mode-active #strategic-document-canvas .blindspots-add-input,
+body.strategic-mode-active #strategic-document-canvas .influence-card-notes,
+body.strategic-mode-active #strategic-document-canvas .influence-card-field-textarea,
+body.strategic-mode-active #strategic-document-canvas .entry-point-select,
+body.strategic-mode-active #strategic-document-canvas .white-space-select,
+body.strategic-mode-active #strategic-document-canvas .white-space-textarea,
+body.strategic-mode-active #strategic-document-canvas .momentum-signal-input,
+body.strategic-mode-active #strategic-document-canvas .entry-point-textarea,
+body.strategic-mode-active #strategic-document-canvas .psychology-bypass-textarea,
+body.strategic-mode-active #strategic-document-canvas select.strategic-field,
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="text"],
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="email"],
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="number"],
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="date"] {
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+body.strategic-mode-active #strategic-document-canvas .strategic-textarea:focus,
+body.strategic-mode-active #strategic-document-canvas .strategic-field:focus,
+body.strategic-mode-active #strategic-document-canvas .blindspots-add-input:focus,
+body.strategic-mode-active #strategic-document-canvas .influence-card-notes:focus,
+body.strategic-mode-active #strategic-document-canvas .influence-card-field-textarea:focus,
+body.strategic-mode-active #strategic-document-canvas .entry-point-select:focus,
+body.strategic-mode-active #strategic-document-canvas .white-space-select:focus,
+body.strategic-mode-active #strategic-document-canvas .white-space-textarea:focus,
+body.strategic-mode-active #strategic-document-canvas .momentum-signal-input:focus,
+body.strategic-mode-active #strategic-document-canvas .entry-point-textarea:focus,
+body.strategic-mode-active #strategic-document-canvas .psychology-bypass-textarea:focus,
+body.strategic-mode-active #strategic-document-canvas select.strategic-field:focus,
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="text"]:focus,
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="email"]:focus,
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="number"]:focus,
+body.strategic-mode-active #strategic-document-canvas input.strategic-field[type="date"]:focus {
+    outline: none;
+    background-color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px #2563eb;
+}
+
+body.strategic-mode-active #strategic-document-canvas .strategic-pill-active,
+body.strategic-mode-active #strategic-document-canvas .white-space-pill--active {
+    border-color: #2563eb;
+    background-color: #2563eb;
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(37 99 235 / 0.25);
+}
+
+body.strategic-mode-active #strategic-document-canvas .strategic-pill-active:hover,
+body.strategic-mode-active #strategic-document-canvas .white-space-pill--active:hover {
+    border-color: #1d4ed8;
+    background-color: #1d4ed8;
+    color: #ffffff;
+}
+
+/* Green easter-egg theme — keep elevation without hard-coded light palette */
+body.theme-green.strategic-mode-active #strategic-document-canvas {
+    background-color: color-mix(in srgb, var(--bg-dark) 88%, #000);
+}
+
+body.theme-green.strategic-mode-active #strategic-document-canvas .strategic-section-card {
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
+}
+
+body.theme-green.strategic-mode-active #strategic-document-canvas .strategic-textarea,
+body.theme-green.strategic-mode-active #strategic-document-canvas .strategic-field,
+body.theme-green.strategic-mode-active #strategic-document-canvas .blindspots-add-input,
+body.theme-green.strategic-mode-active #strategic-document-canvas .influence-card-notes,
+body.theme-green.strategic-mode-active #strategic-document-canvas .influence-card-field-textarea,
+body.theme-green.strategic-mode-active #strategic-document-canvas .entry-point-select,
+body.theme-green.strategic-mode-active #strategic-document-canvas .white-space-select,
+body.theme-green.strategic-mode-active #strategic-document-canvas .white-space-textarea,
+body.theme-green.strategic-mode-active #strategic-document-canvas .momentum-signal-input,
+body.theme-green.strategic-mode-active #strategic-document-canvas .entry-point-textarea,
+body.theme-green.strategic-mode-active #strategic-document-canvas .psychology-bypass-textarea,
+body.theme-green.strategic-mode-active #strategic-document-canvas select.strategic-field,
+body.theme-green.strategic-mode-active #strategic-document-canvas input.strategic-field {
+    background-color: color-mix(in srgb, var(--bg-medium) 70%, transparent);
+    border-color: var(--border-color);
+}
+
+body.theme-green.strategic-mode-active #strategic-document-canvas .strategic-textarea:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .strategic-field:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .blindspots-add-input:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .influence-card-notes:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .influence-card-field-textarea:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .entry-point-select:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .white-space-select:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .white-space-textarea:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .momentum-signal-input:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .entry-point-textarea:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas .psychology-bypass-textarea:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas select.strategic-field:focus,
+body.theme-green.strategic-mode-active #strategic-document-canvas input.strategic-field:focus {
+    background-color: var(--bg-light);
+    box-shadow: 0 0 0 2px var(--primary-blue);
+}
+
+body.theme-green.strategic-mode-active #strategic-document-canvas .strategic-pill-active,
+body.theme-green.strategic-mode-active #strategic-document-canvas .white-space-pill--active {
+    border-color: var(--primary-blue);
+    background-color: var(--primary-blue);
+    color: #020c02;
+}
+
+body.theme-green .strategic-path-step {
+    color: var(--text-medium);
+}
+
+body.theme-green .influence-meddpicc-badge--champion.influence-meddpicc-badge--active {
+    color: #020c02;
+    border-color: var(--completed-color);
+    background: var(--completed-color);
+}
+
+body.theme-green .influence-meddpicc-badge--economic-buyer.influence-meddpicc-badge--active {
+    color: #020c02;
+    border-color: var(--meeting-purple);
+    background: var(--meeting-purple);
 }

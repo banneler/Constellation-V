@@ -3935,7 +3935,10 @@ body.theme-green {
         box-shadow: var(--shadow-card);
     }
     .campaign-picker-header {
-        @apply px-5 pt-5 pb-2 flex-shrink-0 flex flex-col items-center;
+        @apply px-5 pt-5 pb-2 flex-shrink-0 flex flex-col items-center gap-2;
+    }
+    .campaign-new-picker-btn {
+        @apply inline-flex items-center gap-1.5;
     }
     .campaign-picker-header .section-title {
         @apply text-2xl font-semibold text-center mt-0 mb-0;
@@ -3977,6 +3980,44 @@ body.theme-green {
     }
     .campaign-top-row > .section-card {
         @apply flex-1 min-w-0 min-h-0;
+    }
+
+    /* Workspace modes: create-only vs selected campaign */
+    .campaign-details-content.campaign-view-create .campaign-details-card,
+    .campaign-details-content.campaign-view-create .campaign-engine-card {
+        display: none;
+    }
+    .campaign-details-content.campaign-view-create .campaign-top-row {
+        flex: 1 1 auto;
+    }
+    .campaign-details-content.campaign-view-create .campaign-abm-builder-card {
+        flex: 1 1 auto;
+        max-width: none;
+    }
+    .campaign-details-content.campaign-view-selected .campaign-abm-builder-card {
+        display: none;
+    }
+    .campaign-details-content.campaign-view-selected .campaign-top-row {
+        flex: 0 0 auto;
+    }
+    .campaign-details-content.campaign-view-selected .campaign-details-card {
+        flex: 1 1 auto;
+    }
+    .campaign-details-content.campaign-view-selected .campaign-engine-card {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+    .campaign-details-content.campaign-view-past .campaign-engine-card {
+        display: none;
+    }
+    .campaign-details-content.campaign-view-past .campaign-top-row {
+        flex: 1 1 auto;
+    }
+    .campaign-details-content.campaign-run-active .campaign-top-row {
+        display: none;
+    }
+    .campaign-details-content.campaign-run-active .campaign-engine-card {
+        flex: 1 1 auto;
     }
 
     /* ABM campaign builder — split-pane cart (replaces mail-merge flip card) */

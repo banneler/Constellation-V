@@ -363,7 +363,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (mobileCampaignSelect) {
-            mobileCampaignSelect.innerHTML = '<option value="">Select a current campaign</option>' + sortedActiveCampaigns
+            mobileCampaignSelect.innerHTML = '<option value="">Create new campaign</option>' + sortedActiveCampaigns
                 .map((campaign) => `<option value="${campaign.id}">${campaign.name}</option>`)
                 .join('');
             const selectedCampaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
@@ -390,13 +390,27 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let activeRunMode = null; // 'call' | 'guided-email' | 'email-merge' | null
 
-    const updateCampaignActiveRow = () => {
+    const updateCampaignWorkspaceLayout = () => {
         const panel = document.getElementById('campaign-details');
         if (!panel) return;
         const campaign = state.campaigns.find(c => c.id === state.selectedCampaignId);
-        const runActive = campaign && !campaign.completed_at && activeRunMode !== null;
+        const hasSelection = Boolean(campaign);
+        const isPast = Boolean(campaign?.completed_at);
+        const runActive = campaign && !isPast && activeRunMode !== null;
+
+        panel.classList.toggle('campaign-view-create', !hasSelection);
+        panel.classList.toggle('campaign-view-selected', hasSelection);
+        panel.classList.toggle('campaign-view-past', hasSelection && isPast);
         panel.classList.toggle('campaign-run-active', runActive);
-        panel.classList.toggle('campaign-top-active', !runActive);
+        panel.classList.toggle('campaign-top-active', hasSelection && !runActive);
+    };
+
+    const showCampaignCreateView = () => {
+        state.selectedCampaignId = null;
+        activeRunMode = null;
+        resetCampaignDetailsFlip();
+        renderCampaignList();
+        renderCampaignDetails();
     };
 
     const renderCampaignDetails = async () => {
@@ -411,7 +425,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             activeRunMode = null;
             setNullState();
-            updateCampaignActiveRow();
+            updateCampaignWorkspaceLayout();
             return;
         }
 
@@ -424,7 +438,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             renderActiveCampaignDetails(campaign);
         }
-        updateCampaignActiveRow();
+        updateCampaignWorkspaceLayout();
     };
 
     const resetCampaignDetailsFlip = () => {
@@ -1478,6 +1492,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 renderCampaignDetails();
             });
         }
+
+        const newCampaignPickerBtn = document.getElementById('new-campaign-picker-btn');
+        newCampaignPickerBtn?.addEventListener('click', () => {
+            showCampaignCreateView();
+        });
 
         document.body.addEventListener('click', (e) => {
             if (e.target.closest('.merge-fields-buttons button')) {
