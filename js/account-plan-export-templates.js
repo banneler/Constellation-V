@@ -262,13 +262,14 @@ const INFLUENCE_CONTACT_FIELD_LABELS = {
  * the paginator treats as an atomic unit (with a graceful fallback to
  * un-grouping if the combined block cannot fit on one page).
  *
- * Current grouping mirrors the "deal context" pair:
- *   - pursuit_thesis    → Big Play + operational pain watchlist
- *   - critical_unknowns → Open questions the rep still needs answered
+ * Current groupings:
+ *   - pursuit_thesis, critical_unknowns, strategic_tensions → deal context stack
+ *   - white_space, competitive_landscape → expansion + battlefield pair
  * @type {ReadonlyArray<ReadonlyArray<string>>}
  */
 const DOSSIER_SECTION_GROUPS = Object.freeze([
-    Object.freeze(['pursuit_thesis', 'critical_unknowns']),
+    Object.freeze(['pursuit_thesis', 'critical_unknowns', 'strategic_tensions']),
+    Object.freeze(['white_space', 'competitive_landscape']),
 ]);
 
 /** @type {Record<string, string>} */
@@ -1729,7 +1730,7 @@ function normalizeInfluenceNotes(notes, contactLabel) {
         }
     }
 
-    return text;
+    return text.replace(/^[\s.:\-—]+/, '').trim();
 }
 
 /**
@@ -3011,12 +3012,12 @@ export function ensureExportTemplateStyles() {
             margin-bottom: 0;
         }
         .ap-export-dossier-section + .ap-export-dossier-section {
-            margin-top: 28px;
-            padding-top: 22px;
+            margin-top: 22px;
+            padding-top: 16px;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-dossier-section-title {
-            margin: 0 0 14px;
+            margin: 0 0 12px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 11px;
             line-height: 1.25;
@@ -3227,8 +3228,8 @@ export function ensureExportTemplateStyles() {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            gap: 8px;
-            margin: 0 0 14px;
+            gap: 6px;
+            margin: 0 0 12px;
         }
         .ap-export-editorial-pills-label {
             font-family: ${GPC_BRAND.fontHeading};
@@ -3244,18 +3245,18 @@ export function ensureExportTemplateStyles() {
         .ap-export-battlefield-body {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 18px;
+            gap: 14px;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 12px;
         }
         .ap-export-battlefield-panel {
             border: 1px solid #e2e8f0;
             border-top: 3px solid #0f172a;
-            padding: 14px 16px 16px;
+            padding: 12px 14px 14px;
             background: #f8fafc;
         }
         .ap-export-battlefield-panel-title {
-            margin: 0 0 12px;
+            margin: 0 0 10px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 11px;
             font-weight: 700;
@@ -3270,7 +3271,7 @@ export function ensureExportTemplateStyles() {
             margin-top: 0;
         }
         .ap-export-editorial-prose .ap-export-editorial-kicker:not(:first-child) {
-            margin-top: 16px;
+            margin-top: 12px;
         }
         .ap-export-editorial-grid {
             display: grid;
@@ -3741,8 +3742,8 @@ export function ensureExportTemplateStyles() {
             flex-direction: column;
         }
         .ap-export-section-group > .ap-export-dossier-section + .ap-export-dossier-section {
-            margin-top: 22px;
-            padding-top: 18px;
+            margin-top: 18px;
+            padding-top: 14px;
             border-top: 1px solid #e2e8f0;
         }
 

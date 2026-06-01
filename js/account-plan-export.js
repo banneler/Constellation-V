@@ -15,7 +15,7 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-06-01-2';
+} from './account-plan-export-templates.js?v=2026-06-01-3';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -291,26 +291,40 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 function rebalanceDossierPageGroups(groups, meta, exportRoot) {
     if (groups.length <= 1) return groups;
 
-    const result = groups.map((group) => [...group]);
+    let result = groups.map((group) => [...group]);
+    let changed = true;
 
-    for (let i = 0; i < result.length; i += 1) {
-        if (!isSparseDossierPage(result[i], meta, exportRoot)) continue;
+    while (changed) {
+        changed = false;
 
-        let changed = true;
-        while (changed && isSparseDossierPage(result[i], meta, exportRoot)) {
-            changed = false;
-            if (i + 1 >= result.length || result[i + 1].length === 0) break;
+        for (let i = 0; i < result.length; i += 1) {
+            if (!isSparseDossierPage(result[i], meta, exportRoot)) continue;
 
-            const nextBlock = result[i + 1][0];
-            const trial = [...result[i], nextBlock];
-            if (!measureDossierContentPage(trial, meta, exportRoot)) break;
-
-            result[i] = trial;
-            result[i + 1] = result[i + 1].slice(1);
-            if (result[i + 1].length === 0) {
-                result.splice(i + 1, 1);
+            if (i > 0) {
+                const mergedPrev = [...result[i - 1], ...result[i]];
+                if (measureDossierContentPage(mergedPrev, meta, exportRoot)) {
+                    result[i - 1] = mergedPrev;
+                    result.splice(i, 1);
+                    changed = true;
+                    i -= 1;
+                    continue;
+                }
             }
-            changed = true;
+
+            while (isSparseDossierPage(result[i], meta, exportRoot)) {
+                if (i + 1 >= result.length || result[i + 1].length === 0) break;
+
+                const nextBlock = result[i + 1][0];
+                const trial = [...result[i], nextBlock];
+                if (!measureDossierContentPage(trial, meta, exportRoot)) break;
+
+                result[i] = trial;
+                result[i + 1] = result[i + 1].slice(1);
+                if (result[i + 1].length === 0) {
+                    result.splice(i + 1, 1);
+                }
+                changed = true;
+            }
         }
     }
 
@@ -336,7 +350,7 @@ function isSparseDossierPage(blocks, meta, exportRoot) {
     const clientH = content ? content.clientHeight : 1;
     exportRoot.removeChild(pageEl);
 
-    return scrollH < clientH * 0.42;
+    return scrollH < clientH * 0.52;
 }
 
 /**
