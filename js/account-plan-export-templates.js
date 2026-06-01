@@ -273,7 +273,9 @@ const DOSSIER_SECTION_GROUPS = Object.freeze([
 
 /** @type {Record<string, string>} */
 const DOSSIER_SECTION_ICONS = {
+    account_snapshot: 'fa-building',
     pursuit_thesis: 'fa-bullseye',
+    critical_unknowns: 'fa-circle-question',
     strategic_tensions: 'fa-scale-balanced',
     influence_mapping: 'fa-sitemap',
     white_space: 'fa-route',
@@ -1211,19 +1213,63 @@ function createEditorialPlanHorizonCell(kicker, text) {
 }
 
 /**
+ * @param {string} label
+ * @param {string[]} pills
+ */
+function createEditorialPillsRow(label, pills) {
+    const row = document.createElement('div');
+    row.className = 'ap-export-editorial-pills-row';
+
+    if (label) {
+        const labelEl = document.createElement('span');
+        labelEl.className = 'ap-export-editorial-pills-label';
+        labelEl.textContent = label;
+        row.appendChild(labelEl);
+    }
+
+    const badges = document.createElement('div');
+    badges.className = 'ap-export-badge-row ap-export-badge-row--editorial';
+    pills.forEach((pill) => {
+        const trimmed = String(pill ?? '').trim();
+        if (!trimmed) return;
+        const badge = document.createElement('span');
+        badge.className = 'ap-export-badge';
+        badge.textContent = trimmed;
+        badges.appendChild(badge);
+    });
+
+    if (badges.childElementCount > 0) {
+        row.appendChild(badges);
+    }
+    return row;
+}
+
+/**
+ * @param {string | string[]} pillsInput
+ * @returns {string[]}
+ */
+function normalizeEditorialPills(pillsInput) {
+    if (Array.isArray(pillsInput)) {
+        return pillsInput.map((pill) => String(pill ?? '').trim()).filter(Boolean);
+    }
+    return String(pillsInput ?? '')
+        .split(',')
+        .map((pill) => pill.trim())
+        .filter(Boolean);
+}
+
+/**
  * @param {string} pillsLabel
- * @param {string} pillsText
+ * @param {string | string[]} pillsInput
  * @param {{ kicker: string, text: string }[]} blocks
  */
-function createEditorialProseBlock(pillsLabel, pillsText, blocks) {
+function createEditorialProseBlock(pillsLabel, pillsInput, blocks) {
     const prose = document.createElement('div');
     prose.className = 'ap-export-editorial-prose';
 
-    if (pillsText) {
-        const pillsLine = document.createElement('p');
-        pillsLine.className = 'ap-export-editorial-pills-line';
-        pillsLine.innerHTML = `<strong>${escapeHtml(pillsLabel)}:</strong> ${escapeHtml(pillsText)}`;
-        prose.appendChild(pillsLine);
+    const pills = normalizeEditorialPills(pillsInput);
+    if (pills.length > 0) {
+        prose.appendChild(createEditorialPillsRow(pillsLabel, pills));
     }
 
     blocks.forEach(({ kicker, text }) => {
@@ -1587,7 +1633,109 @@ function buildPillsAndTextExportBody(data, config) {
         kicker: field.label || field.hint || field.key,
         text: String(data[field.key] ?? '').trim(),
     }));
-    return createEditorialProseBlock(config.pillsLabel, pills.join(', '), blocks);
+    return createEditorialProseBlock(config.pillsLabel, pills, blocks);
+}
+
+/**
+ * @param {string} title
+ * @param {string[]} pills
+ * @param {{ kicker: string, text: string }[]} blocks
+ * @returns {HTMLElement}
+ */
+function buildBattlefieldPanel(title, pills, blocks) {
+    const panel = document.createElement('div');
+    panel.className = 'ap-export-battlefield-panel';
+
+    const heading = document.createElement('h3');
+    heading.className = 'ap-export-battlefield-panel-title';
+    heading.textContent = title;
+    panel.appendChild(heading);
+
+    if (pills.length > 0) {
+        panel.appendChild(createEditorialPillsRow('', pills));
+    }
+
+    blocks.forEach(({ kicker, text }) => {
+        if (!String(text ?? '').trim() && kicker) return;
+        if (kicker) {
+            const label = document.createElement('h4');
+            label.className = 'ap-export-editorial-kicker';
+            label.textContent = kicker;
+            panel.appendChild(label);
+        }
+        const copy = document.createElement('p');
+        copy.className = 'ap-export-editorial-copy';
+        copy.textContent = String(text ?? '').trim() || '—';
+        panel.appendChild(copy);
+    });
+
+    if (panel.childElementCount === 1) {
+        const copy = document.createElement('p');
+        copy.className = 'ap-export-editorial-copy';
+        copy.textContent = '—';
+        panel.appendChild(copy);
+    }
+
+    return panel;
+}
+
+/**
+ * @param {string} notes
+ * @param {string} contactLabel
+ * @returns {string}
+ */
+function normalizeInfluenceNotes(notes, contactLabel) {
+    let text = String(notes ?? '').trim().replace(/''/g, "'");
+    if (!text || !contactLabel) return text;
+
+    const label = contactLabel.trim();
+    const lowerText = text.toLowerCase();
+    const lowerLabel = label.toLowerCase();
+    if (lowerText.startsWith(lowerLabel)) {
+        text = text.slice(label.length).replace(/^[\s:\-—]+/, '').trim();
+    }
+
+    const nameOnly = label.split(' — ')[0]?.trim();
+    if (nameOnly && nameOnly !== label) {
+        const lowerName = nameOnly.toLowerCase();
+        if (text.toLowerCase().startsWith(lowerName)) {
+            text = text.slice(nameOnly.length).replace(/^[\s:\-—]+/, '').trim();
+        }
+    }
+
+    return text;
+}
+
+/**
+ * @param {unknown[]} entries
+ * @returns {boolean}
+ */
+function hasInfluenceEntries(entries) {
+    return Array.isArray(entries) && entries.length > 0;
+}
+
+/**
+ * @param {HTMLElement} body
+ * @param {string} title
+ * @param {unknown[]} entries
+ * @param {unknown[]} contacts
+ * @param {{ fullWidth?: boolean, skipWhenEmpty?: boolean }} [options]
+ */
+function appendInfluenceTier(body, title, entries, contacts, options = {}) {
+    if (options.skipWhenEmpty && !hasInfluenceEntries(entries)) return;
+
+    const tier = document.createElement('div');
+    tier.className = 'ap-export-editorial-influence-tier';
+    if (options.fullWidth) {
+        tier.classList.add('ap-export-editorial-span-full');
+    }
+
+    const kicker = document.createElement('h3');
+    kicker.className = 'ap-export-editorial-kicker';
+    kicker.textContent = title;
+    tier.appendChild(kicker);
+    tier.appendChild(createInfluenceStructuredList(entries, contacts));
+    body.appendChild(tier);
 }
 
 /**
@@ -1694,11 +1842,12 @@ function buildInfluenceContactCard(entry, contacts) {
 
     const nameEl = document.createElement('div');
     nameEl.className = 'ap-export-influence-contact-name';
-    nameEl.textContent = formatInfluenceContactLabel(contact)
+    const contactLabel = formatInfluenceContactLabel(contact)
         || (entryObj.id != null ? `Contact ${entryObj.id}` : 'Contact');
+    nameEl.textContent = contactLabel;
     card.appendChild(nameEl);
 
-    const notes = String(entryObj.notes ?? '').trim();
+    const notes = normalizeInfluenceNotes(entryObj.notes, contactLabel);
     if (notes) {
         card.appendChild(createProfileField('Notes', notes));
     }
@@ -1838,7 +1987,7 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         const painNotes = String(data.operational_pain_notes ?? '').trim();
         const painBody = createEditorialProseBlock(
             'Operational Pain Signals',
-            painPills.join(', '),
+            painPills,
             painNotes ? [{ kicker: 'Pain Context', text: painNotes }] : []
         );
         painBody.classList.add('ap-export-editorial-span-full');
@@ -1920,8 +2069,8 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
 
         const wrap = document.createElement('div');
         wrap.className = 'ap-export-battlefield-body';
-        wrap.appendChild(createEditorialProseBlock('Positioning', positioningPills.join(', '), competitiveBlocks));
-        wrap.appendChild(createEditorialProseBlock('Incumbent Moat', moatPills.join(', '), moatBlocks));
+        wrap.appendChild(buildBattlefieldPanel('Positioning', positioningPills, competitiveBlocks));
+        wrap.appendChild(buildBattlefieldPanel('Incumbent Moat', moatPills, moatBlocks));
 
         return [createDossierSectionBlock(section, wrap)];
     }
@@ -1932,14 +2081,21 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         const wrap = document.createElement('div');
         wrap.className = 'ap-export-account-expansion-body';
 
-        const wedgeGrid = createEditorialGrid('ap-export-editorial-grid--3');
-        wedgeFields.forEach((field) => {
-            wedgeGrid.appendChild(createEditorialCell(
-                field.label || field.hint || field.key,
-                String(data[field.key] ?? '').trim()
-            ));
-        });
-        wrap.appendChild(wedgeGrid);
+        const hasWedgeContent = wedgeFields.some((field) => hasMeaningfulText(data[field.key]));
+        if (hasWedgeContent) {
+            const wedgeGrid = createEditorialGrid('ap-export-editorial-grid--3');
+            wedgeFields.forEach((field) => {
+                const value = String(data[field.key] ?? '').trim();
+                if (!hasMeaningfulText(value)) return;
+                wedgeGrid.appendChild(createEditorialCell(
+                    field.label || field.hint || field.key,
+                    value
+                ));
+            });
+            if (wedgeGrid.childElementCount > 0) {
+                wrap.appendChild(wedgeGrid);
+            }
+        }
 
         const rows = getWhiteSpaceRows(data);
         wrap.appendChild(buildWhiteSpaceMatrixBody(rows));
@@ -2019,7 +2175,7 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
 
         const prose = createEditorialProseBlock(
             pillsLabel,
-            pills.join(', '),
+            pills,
             blocks
         );
 
@@ -2031,32 +2187,15 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         const body = document.createElement('div');
         body.className = 'ap-export-editorial-influence ap-export-editorial-influence--v2';
 
-        const executiveTier = document.createElement('div');
-        executiveTier.className = 'ap-export-editorial-influence-tier';
-        const executiveKicker = document.createElement('h3');
-        executiveKicker.className = 'ap-export-editorial-kicker';
-        executiveKicker.textContent = 'Executive Leadership';
-        executiveTier.appendChild(executiveKicker);
-        executiveTier.appendChild(createInfluenceStructuredList(data.executive, contacts));
-        body.appendChild(executiveTier);
-
-        const midTier = document.createElement('div');
-        midTier.className = 'ap-export-editorial-influence-tier';
-        const midKicker = document.createElement('h3');
-        midKicker.className = 'ap-export-editorial-kicker';
-        midKicker.textContent = 'Mid-Level Champions';
-        midTier.appendChild(midKicker);
-        midTier.appendChild(createInfluenceStructuredList(data.mid_level, contacts));
-        body.appendChild(midTier);
-
-        const technicalTier = document.createElement('div');
-        technicalTier.className = 'ap-export-editorial-influence-tier ap-export-editorial-span-full';
-        const technicalKicker = document.createElement('h3');
-        technicalKicker.className = 'ap-export-editorial-kicker';
-        technicalKicker.textContent = 'Technical / Operational Influencers';
-        technicalTier.appendChild(technicalKicker);
-        technicalTier.appendChild(createInfluenceStructuredList(data.technical, contacts));
-        body.appendChild(technicalTier);
+        appendInfluenceTier(body, 'Executive Leadership', data.executive, contacts);
+        appendInfluenceTier(body, 'Mid-Level Champions', data.mid_level, contacts);
+        appendInfluenceTier(
+            body,
+            'Technical / Operational Influencers',
+            data.technical,
+            contacts,
+            { fullWidth: true, skipWhenEmpty: true }
+        );
 
         const invisibleTier = document.createElement('div');
         invisibleTier.className = 'ap-export-editorial-influence-tier ap-export-editorial-span-full';
@@ -2668,7 +2807,7 @@ export function ensureExportTemplateStyles() {
         .ap-export-gpc-cover-body {
             position: absolute;
             left: 56px;
-            right: 42%;
+            right: 50%;
             top: 50%;
             transform: translateY(-50%);
         }
@@ -2676,6 +2815,8 @@ export function ensureExportTemplateStyles() {
             border: 2px solid ${GPC_BRAND.white};
             padding: 18px 22px;
             margin-bottom: 18px;
+            max-width: 520px;
+            box-sizing: border-box;
         }
         .ap-export-gpc-cover-title {
             margin: 0;
@@ -3046,6 +3187,53 @@ export function ensureExportTemplateStyles() {
             text-transform: uppercase;
             font-size: 10px;
             color: #64748b;
+        }
+        .ap-export-editorial-pills-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 10px;
+            margin: 0 0 14px;
+        }
+        .ap-export-editorial-pills-label {
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .ap-export-badge-row--editorial {
+            flex: 1;
+            min-width: 0;
+        }
+        .ap-export-battlefield-body {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            border-top: 2px solid #0f172a;
+            padding-top: 14px;
+        }
+        .ap-export-battlefield-panel {
+            border: 1px solid #e2e8f0;
+            border-top: 3px solid #0f172a;
+            padding: 14px 16px 16px;
+            background: #f8fafc;
+        }
+        .ap-export-battlefield-panel-title {
+            margin: 0 0 12px;
+            font-family: ${GPC_BRAND.fontHeading};
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #0f172a;
+        }
+        .ap-export-battlefield-panel .ap-export-editorial-kicker {
+            margin-top: 12px;
+        }
+        .ap-export-battlefield-panel .ap-export-editorial-kicker:first-of-type {
+            margin-top: 0;
         }
         .ap-export-editorial-prose .ap-export-editorial-kicker:not(:first-child) {
             margin-top: 16px;

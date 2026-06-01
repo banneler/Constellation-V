@@ -15,7 +15,7 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-05-27-6';
+} from './account-plan-export-templates.js?v=2026-06-01-1';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -124,7 +124,11 @@ export function closeAccountPlanPdfPreview() {
  */
 async function buildDossierPdfBytes(plan, account, exportRoot) {
     const { sectionBlocks, meta } = buildDossierTemplate(plan, account);
-    const pageBlockGroups = paginateDossierSections(sectionBlocks, meta, exportRoot);
+    const pageBlockGroups = rebalanceDossierPageGroups(
+        paginateDossierSections(sectionBlocks, meta, exportRoot),
+        meta,
+        exportRoot
+    );
     const totalPages = 1 + pageBlockGroups.length;
     const pageCanvases = [];
 
@@ -196,7 +200,7 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     sectionBlocks.forEach((block) => {
         const sectionId = block.dataset.sectionId || '';
 
-        if (sectionId === 'psychology') {
+        if (sectionId === 'psychology' && current.length > 0 && !pageFits([...current, block])) {
             flush();
         }
 
@@ -274,6 +278,65 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     flush();
     trace(`done: produced ${groups.length} page group(s)`);
     return groups;
+}
+
+/**
+ * Pull content from the next page onto sparse pages so short sections
+ * (e.g. Competing Priorities) do not sit alone on a half-empty slide.
+ * @param {HTMLElement[][]} groups
+ * @param {{ accountName: string, dateLabel: string }} meta
+ * @param {HTMLElement} exportRoot
+ * @returns {HTMLElement[][]}
+ */
+function rebalanceDossierPageGroups(groups, meta, exportRoot) {
+    if (groups.length <= 1) return groups;
+
+    const result = groups.map((group) => [...group]);
+
+    for (let i = 0; i < result.length; i += 1) {
+        if (!isSparseDossierPage(result[i], meta, exportRoot)) continue;
+
+        let changed = true;
+        while (changed && isSparseDossierPage(result[i], meta, exportRoot)) {
+            changed = false;
+            if (i + 1 >= result.length || result[i + 1].length === 0) break;
+
+            const nextBlock = result[i + 1][0];
+            const trial = [...result[i], nextBlock];
+            if (!measureDossierContentPage(trial, meta, exportRoot)) break;
+
+            result[i] = trial;
+            result[i + 1] = result[i + 1].slice(1);
+            if (result[i + 1].length === 0) {
+                result.splice(i + 1, 1);
+            }
+            changed = true;
+        }
+    }
+
+    return result.filter((group) => group.length > 0);
+}
+
+/**
+ * @param {HTMLElement[]} blocks
+ * @param {{ accountName: string, dateLabel: string }} meta
+ * @param {HTMLElement} exportRoot
+ */
+function isSparseDossierPage(blocks, meta, exportRoot) {
+    if (!Array.isArray(blocks) || blocks.length === 0) return false;
+
+    const pageEl = buildDossierContentPage(
+        blocks.map((block) => block.cloneNode(true)),
+        meta,
+        { pageNumber: 2, totalPages: 2 }
+    );
+    exportRoot.appendChild(pageEl);
+    const content = pageEl.querySelector('.ap-export-dossier-content');
+    const scrollH = content ? content.scrollHeight : 0;
+    const clientH = content ? content.clientHeight : 1;
+    exportRoot.removeChild(pageEl);
+
+    return scrollH < clientH * 0.42;
 }
 
 /**
@@ -636,7 +699,7 @@ function dataUrlToUint8Array(dataUrl) {
  */
 function buildFilename(account, typeLabel) {
     const safeName = String(account?.name || 'Account').replace(/\s+/g, '_').replace(/[^\w.-]/g, '');
-    return `${safeName}_Strategic_${typeLabel}.pdf`;
+    return `${safeName}_${typeLabel}.pdf`;
 }
 
 /**
