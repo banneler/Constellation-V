@@ -4018,6 +4018,28 @@ body.theme-green {
     }
     .campaign-details-content.campaign-run-active .campaign-engine-card {
         flex: 1 1 auto;
+        min-height: 0;
+        @apply flex flex-col;
+    }
+    .campaign-details-content.campaign-run-active .campaign-engine-card .section-card-body {
+        @apply flex flex-col overflow-hidden;
+    }
+    .campaign-details-content.campaign-run-active .run-campaign-body,
+    .campaign-details-content.campaign-run-active .run-campaign-active-layout,
+    .campaign-details-content.campaign-run-active .run-campaign-workspace {
+        min-height: 0;
+    }
+    .campaign-details-content.campaign-run-active .run-campaign-body {
+        @apply flex flex-col flex-1;
+    }
+    .campaign-details-content.campaign-run-active .run-campaign-active-layout {
+        @apply flex flex-col flex-1;
+    }
+    .campaign-details-content.campaign-run-active .run-campaign-workspace {
+        @apply flex flex-col flex-1;
+    }
+    .campaign-details-content.campaign-run-active .run-campaign-notes-wrap {
+        flex: 1 1 auto;
     }
 
     /* ABM campaign builder — split-pane cart (replaces mail-merge flip card) */
@@ -9365,18 +9387,120 @@ body:not(.theme-green) .list-item.selected {
         background-color: var(--bg-dark);
     }
     .run-campaign-active-layout {
-        @apply flex gap-4 mb-0 items-stretch;
-        min-height: 200px;
+        @apply flex flex-col gap-3 mb-0 min-h-0;
+    }
+    .run-campaign-contact-profile {
+        @apply flex-shrink-0 rounded-xl border border-[var(--border-color)] overflow-hidden;
+        background-color: var(--bg-medium);
+    }
+    .run-campaign-contact-profile-content {
+        @apply p-4;
+    }
+    .run-campaign-profile-empty {
+        @apply text-sm m-0;
+        color: var(--text-muted);
+    }
+    .run-campaign-profile-header {
+        @apply flex items-start justify-between gap-3 mb-3;
+    }
+    .run-campaign-profile-name {
+        @apply m-0 text-lg font-semibold;
+        color: var(--text-light);
+    }
+    .run-campaign-profile-meta {
+        @apply mt-1 mb-0 text-sm;
+        color: var(--text-medium);
+    }
+    .run-campaign-profile-open-link {
+        @apply text-xs font-semibold no-underline whitespace-nowrap;
+        color: var(--primary-blue);
+    }
+    .run-campaign-profile-open-link:hover {
+        @apply underline;
+    }
+    .run-campaign-profile-grid {
+        @apply grid gap-3 mb-3;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .run-campaign-profile-field {
+        @apply flex flex-col gap-1 min-w-0;
+    }
+    .run-campaign-profile-label {
+        @apply text-[0.6875rem] font-semibold uppercase tracking-wide;
+        color: var(--text-muted);
+    }
+    .run-campaign-profile-value {
+        @apply text-sm break-words;
+        color: var(--text-light);
+    }
+    .run-campaign-profile-link {
+        @apply no-underline font-medium;
+        color: var(--primary-blue);
+    }
+    .run-campaign-profile-link:hover {
+        @apply underline;
+    }
+    .run-campaign-profile-muted {
+        color: var(--text-muted);
+    }
+    .run-campaign-profile-notes {
+        @apply mb-3 pt-3 border-t border-[var(--border-color)];
+    }
+    .run-campaign-profile-notes-body {
+        @apply m-0 mt-1 text-sm whitespace-pre-wrap;
+        color: var(--text-medium);
+    }
+    .run-campaign-profile-activities {
+        @apply pt-3 border-t border-[var(--border-color)];
+    }
+    .run-campaign-profile-activities-title {
+        @apply m-0 mb-2 text-xs font-semibold uppercase tracking-wide;
+        color: var(--text-muted);
+    }
+    .run-campaign-profile-activities-list {
+        @apply max-h-40 overflow-y-auto;
+    }
+    .run-campaign-workspace {
+        @apply flex flex-col gap-3 flex-1 min-h-0;
+    }
+    .run-campaign-action-bar {
+        @apply flex-shrink-0;
     }
     .run-campaign-contact-card {
-        @apply flex-shrink-0 rounded-xl border border-[var(--border-color)] flex flex-col items-center justify-center p-4 relative;
+        @apply w-full rounded-xl border border-[var(--border-color)] p-3;
         background-color: var(--bg-medium);
-        aspect-ratio: 1;
-        min-width: 180px;
-        max-width: 220px;
+        aspect-ratio: auto;
+        min-width: 0;
+        max-width: none;
+    }
+    .run-campaign-action-bar-inner {
+        @apply flex items-center justify-between gap-3 flex-wrap;
+    }
+    .run-campaign-primary-channel {
+        @apply inline-flex items-center gap-2 font-semibold no-underline text-sm min-w-0;
+        color: var(--completed-color);
+    }
+    .run-campaign-primary-channel span {
+        @apply truncate;
+    }
+    .run-campaign-primary-channel:hover {
+        color: var(--primary-blue);
+    }
+    .run-campaign-primary-channel-muted {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    body.theme-green .run-campaign-primary-channel {
+        color: var(--warning-yellow);
+        text-shadow: 0 0 5px var(--warning-yellow);
+    }
+    body.theme-green .run-campaign-primary-channel:hover {
+        color: var(--text-light);
+        text-shadow: 0 0 8px var(--text-light);
     }
     .run-campaign-contact-actions {
-        @apply flex gap-2 justify-center mt-3;
+        @apply flex gap-2 justify-end flex-shrink-0;
+        margin-top: 0;
     }
     .run-campaign-icon-btn {
         @apply w-9 h-9 flex items-center justify-center rounded-lg border cursor-pointer transition-colors;
@@ -9399,47 +9523,17 @@ body:not(.theme-green) .list-item.selected {
         @apply border-[var(--border-color)];
     }
     .run-campaign-contact-content {
-        @apply flex flex-col items-center justify-center text-center;
+        @apply w-full;
     }
-    .run-campaign-contact-name-row {
-        @apply flex flex-col items-center gap-0.5;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--text-light);
+    .run-campaign-null-contact .run-campaign-contact-content {
+        @apply flex flex-col items-center justify-center text-center py-2;
     }
-    .run-campaign-contact-content small {
+    .run-campaign-null-contact .run-campaign-contact-content small {
         @apply block mt-1 text-xs;
         color: var(--text-medium);
     }
-    .run-campaign-contact-link {
-        @apply font-bold underline;
-        color: var(--completed-color);
-        transition: color 0.2s, text-decoration 0.2s;
-    }
-    .run-campaign-contact-link:hover {
-        @apply no-underline;
-        color: var(--primary-blue);
-    }
-    body.theme-green .run-campaign-contact-link {
-        color: var(--warning-yellow);
-        text-shadow: 0 0 5px var(--warning-yellow);
-    }
-    body.theme-green .run-campaign-contact-link:hover {
-        color: var(--text-light);
-        text-shadow: 0 0 8px var(--text-light);
-    }
     .run-campaign-notes-wrap {
-        @apply flex-1 min-w-0 min-h-0 relative flex flex-col;
-    }
-    .run-campaign-recent-activity {
-        @apply flex flex-col flex-1 min-w-0 min-h-0 rounded-xl border border-[var(--border-color)] p-4 overflow-hidden;
-        background-color: var(--bg-medium);
-    }
-    .run-campaign-recent-activity .subsection-title {
-        @apply mt-0 mb-2 flex-shrink-0;
-    }
-    .run-campaign-recent-activity .recent-activities-list {
-        @apply flex-1 min-h-0 overflow-y-auto px-0 pb-0;
+        @apply flex-1 min-w-0 min-h-[280px] relative flex flex-col;
     }
     .run-campaign-notes-wrap:has(> textarea) {
         @apply relative;
@@ -9456,7 +9550,7 @@ body:not(.theme-green) .list-item.selected {
         @apply relative overflow-visible flex flex-col flex-1 min-h-0;
     }
     .run-campaign-body-box textarea {
-        @apply w-full flex-1 min-h-[100px] p-4 pb-12 resize-none rounded-xl border border-[var(--border-color)];
+        @apply w-full flex-1 min-h-[min(50vh,28rem)] p-4 pb-12 resize-none rounded-xl border border-[var(--border-color)];
         background-color: var(--bg-medium);
         color: var(--text-light);
         font-family: var(--font-main);
@@ -10204,19 +10298,20 @@ body:not(.theme-green) .list-item.selected {
         gap: 0.75rem;
         min-height: 0 !important;
     }
+    body.campaigns-page .run-campaign-profile-grid {
+        grid-template-columns: 1fr !important;
+    }
     body.campaigns-page .run-campaign-contact-card {
         width: 100%;
         min-width: 0;
         max-width: none;
-        aspect-ratio: auto;
-        min-height: 7.5rem;
     }
-    body.campaigns-page .run-campaign-notes-wrap,
-    body.campaigns-page .run-campaign-recent-activity {
+    body.campaigns-page .run-campaign-notes-wrap {
         width: 100%;
         min-width: 0;
         max-width: none;
-        flex: 0 0 auto !important;
+        flex: 1 1 auto !important;
+        min-height: 220px;
     }
 
     /* Accounts (mobile PWA): compact picker + simple vertical flow */

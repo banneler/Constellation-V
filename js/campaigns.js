@@ -87,30 +87,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     const runCampaignBody = document.getElementById('run-campaign-body');
     const rcSummary = document.getElementById('rc-summary');
     const rcLayout = document.getElementById('rc-layout');
+    const rcContactProfileContent = document.getElementById('rc-contact-profile-content');
     const rcContactCard = document.getElementById('rc-contact-card');
     const rcContactContent = rcContactCard ? rcContactCard.querySelector('.run-campaign-contact-content') : null;
     const rcMiddlePanel = document.getElementById('rc-middle-panel');
-    const rcActivitiesList = document.getElementById('rc-activities-list');
+
+    const escapeCampaignHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 
     const NULL_CONTACT_HTML = `
-        <span class="run-campaign-null-placeholder">Select a campaign</span>
-        <small>Create a Call Blitz or Guided Email ABM campaign to get started.</small>`;
+        <span class="run-campaign-null-placeholder">Ready when you are</span>
+        <small>Log or skip from here once a contact is loaded.</small>`;
 
     const NULL_MIDDLE_HTML = `
         <span class="run-campaign-notes-placeholder">Notes</span>
         <textarea disabled placeholder=" " aria-label="Notes (disabled until campaign selected)"></textarea>`;
 
-    const NULL_ACTIVITY_HTML = `<p class="run-campaign-null-activity-text">No contact selected.</p>`;
+    const NULL_PROFILE_HTML = '<p class="run-campaign-profile-empty">Select a campaign to begin outreach.</p>';
 
     const CALL_BLITZ_CONTACT_HTML = `
-        <div class="run-campaign-contact-name-row">
-            <span id="contact-name-call-blitz"></span>
-            <a href="#" id="contact-phone-call-blitz" class="run-campaign-contact-link"></a>
-        </div>
-        <small id="contact-company-call-blitz"></small>
-        <div class="run-campaign-contact-actions">
-            <button type="button" id="log-call-btn" class="run-campaign-icon-btn run-campaign-icon-log" title="Log Call & Next"><i class="fas fa-check"></i></button>
-            <button type="button" id="skip-call-btn" class="run-campaign-icon-btn run-campaign-icon-skip" title="Skip & Next"><i class="fas fa-forward"></i></button>
+        <div class="run-campaign-action-bar-inner">
+            <a href="#" id="contact-phone-call-blitz" class="run-campaign-primary-channel"></a>
+            <div class="run-campaign-contact-actions">
+                <button type="button" id="log-call-btn" class="run-campaign-icon-btn run-campaign-icon-log" title="Log Call & Next"><i class="fas fa-check"></i></button>
+                <button type="button" id="skip-call-btn" class="run-campaign-icon-btn run-campaign-icon-skip" title="Skip & Next"><i class="fas fa-forward"></i></button>
+            </div>
         </div>`;
 
     const CALL_BLITZ_MIDDLE_HTML = `
@@ -122,14 +126,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>`;
 
     const GUIDED_EMAIL_CONTACT_HTML = `
-        <div class="run-campaign-contact-name-row">
-            <span id="contact-name-guided-email"></span>
-            <a href="#" id="contact-email-guided-email" class="run-campaign-contact-link"></a>
-        </div>
-        <small id="contact-company-guided-email"></small>
-        <div class="run-campaign-contact-actions">
-            <button type="button" id="open-email-client-btn" class="run-campaign-icon-btn run-campaign-icon-log" title="Open in Email Client & Next"><i class="fas fa-envelope"></i></button>
-            <button type="button" id="skip-email-btn" class="run-campaign-icon-btn run-campaign-icon-skip" title="Skip & Next"><i class="fas fa-forward"></i></button>
+        <div class="run-campaign-action-bar-inner">
+            <a href="#" id="contact-email-guided-email" class="run-campaign-primary-channel"></a>
+            <div class="run-campaign-contact-actions">
+                <button type="button" id="open-email-client-btn" class="run-campaign-icon-btn run-campaign-icon-log" title="Open in Email Client & Next"><i class="fas fa-envelope"></i></button>
+                <button type="button" id="skip-email-btn" class="run-campaign-icon-btn run-campaign-icon-skip" title="Skip & Next"><i class="fas fa-forward"></i></button>
+            </div>
         </div>`;
 
     const GUIDED_EMAIL_MIDDLE_HTML = `
@@ -152,7 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (rcMiddlePanel) rcMiddlePanel.classList.add('rc-null');
         if (rcContactContent) rcContactContent.innerHTML = NULL_CONTACT_HTML;
         if (rcMiddlePanel) rcMiddlePanel.innerHTML = NULL_MIDDLE_HTML;
-        if (rcActivitiesList) rcActivitiesList.innerHTML = NULL_ACTIVITY_HTML;
+        if (rcContactProfileContent) rcContactProfileContent.innerHTML = NULL_PROFILE_HTML;
         if (rcSummary) { rcSummary.classList.add('hidden'); rcSummary.innerHTML = ''; }
         if (rcLayout) rcLayout.classList.remove('hidden');
     };
@@ -575,7 +577,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (rcLayout) rcLayout.classList.remove('hidden');
             rcContactContent.innerHTML = CALL_BLITZ_CONTACT_HTML;
             rcMiddlePanel.innerHTML = CALL_BLITZ_MIDDLE_HTML;
-            rcActivitiesList.innerHTML = '';
             displayCurrentCall();
         } else {
             if (rcSummary) {
@@ -606,7 +607,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (rcLayout) rcLayout.classList.remove('hidden');
             rcContactContent.innerHTML = GUIDED_EMAIL_CONTACT_HTML;
             rcMiddlePanel.innerHTML = GUIDED_EMAIL_MIDDLE_HTML;
-            rcActivitiesList.innerHTML = '';
             displayCurrentEmail();
         } else {
             if (rcSummary) {
@@ -647,7 +647,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (rcLayout) rcLayout.classList.remove('hidden');
         if (rcContactContent) rcContactContent.innerHTML = CALL_BLITZ_CONTACT_HTML;
         if (rcMiddlePanel) rcMiddlePanel.innerHTML = CALL_BLITZ_MIDDLE_HTML;
-        if (rcActivitiesList) rcActivitiesList.innerHTML = '';
         displayCurrentCall();
     };
 
@@ -667,51 +666,98 @@ document.addEventListener("DOMContentLoaded", async () => {
         else if (len > 16) el.style.fontSize = '0.75rem';
     };
 
-    const populateRunCampaignRecentActivity = (contactId, listElementId) => {
-        const listEl = document.getElementById(listElementId);
-        if (!listEl) return;
-        listEl.innerHTML = '';
+    const buildRunCampaignRecentActivityHtml = (contactId) => {
         const activities = (state.activities || [])
             .filter((act) => act.contact_id === contactId)
             .sort((a, b) => new Date(b.date) - new Date(a.date));
         if (activities.length === 0) {
-            listEl.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-2 py-4">No activities yet.</p>';
-        } else {
-            activities.forEach((act) => {
-                const typeLower = (act.type || '').toLowerCase();
-                let iconClass = 'icon-default', icon = 'fa-circle-info', iconPrefix;
-                if (typeLower.includes('cognito') || typeLower.includes('intelligence')) { icon = 'fa-magnifying-glass'; }
-                else if (typeLower.includes('email')) { iconClass = 'icon-email'; icon = 'fa-envelope'; }
-                else if (typeLower.includes('call')) { iconClass = 'icon-call'; icon = 'fa-phone'; }
-                else if (typeLower.includes('meeting')) { iconClass = 'icon-meeting'; icon = 'fa-video'; }
-                else if (typeLower.includes('linkedin')) { iconClass = 'icon-linkedin'; icon = 'fa-linkedin-in'; iconPrefix = 'fa-brands'; }
-                const item = document.createElement('div');
-                item.className = 'recent-activity-item';
-                item.innerHTML = `
-                    <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || 'fas'} ${icon}"></i></div>
-                    <div class="activity-body">
-                        <div class="activity-description">${act.type}: ${(act.description || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                        <div class="activity-date">${formatDate(act.date)}</div>
-                    </div>
-                `;
-                listEl.appendChild(item);
-            });
+            return '<p class="recent-activities-empty">No activities yet.</p>';
         }
+        return activities.map((act) => {
+            const typeLower = (act.type || '').toLowerCase();
+            let iconClass = 'icon-default';
+            let icon = 'fa-circle-info';
+            let iconPrefix = 'fas';
+            if (typeLower.includes('cognito') || typeLower.includes('intelligence')) { icon = 'fa-magnifying-glass'; }
+            else if (typeLower.includes('email')) { iconClass = 'icon-email'; icon = 'fa-envelope'; }
+            else if (typeLower.includes('call')) { iconClass = 'icon-call'; icon = 'fa-phone'; }
+            else if (typeLower.includes('meeting')) { iconClass = 'icon-meeting'; icon = 'fa-video'; }
+            else if (typeLower.includes('linkedin')) { iconClass = 'icon-linkedin'; icon = 'fa-linkedin-in'; iconPrefix = 'fa-brands'; }
+            return `
+                <div class="recent-activity-item">
+                    <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix} ${icon}"></i></div>
+                    <div class="activity-body">
+                        <div class="activity-description">${escapeCampaignHtml(act.type)}: ${escapeCampaignHtml(act.description || '')}</div>
+                        <div class="activity-date">${escapeCampaignHtml(formatDate(act.date))}</div>
+                    </div>
+                </div>`;
+        }).join('');
+    };
+
+    const renderRunCampaignContactProfile = (contact, account) => {
+        if (!rcContactProfileContent || !contact) return;
+
+        const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown Contact';
+        const title = String(contact.title ?? '').trim();
+        const accountName = account?.name || 'No Account';
+        const email = String(contact.email ?? '').trim();
+        const phone = String(contact.phone ?? '').trim();
+        const notes = String(contact.notes ?? '').trim();
+        const metaParts = [title, accountName].filter(Boolean);
+
+        rcContactProfileContent.innerHTML = `
+            <div class="run-campaign-profile-header">
+                <div class="run-campaign-profile-heading">
+                    <h4 class="run-campaign-profile-name">${escapeCampaignHtml(name)}</h4>
+                    ${metaParts.length ? `<p class="run-campaign-profile-meta">${escapeCampaignHtml(metaParts.join(' · '))}</p>` : ''}
+                </div>
+                <a href="contacts.html?contactId=${encodeURIComponent(contact.id)}" class="run-campaign-profile-open-link">Open in Contacts</a>
+            </div>
+            <div class="run-campaign-profile-grid">
+                <div class="run-campaign-profile-field">
+                    <span class="run-campaign-profile-label">Email</span>
+                    ${email
+                        ? `<a href="mailto:${escapeCampaignHtml(email)}" class="run-campaign-profile-value run-campaign-profile-link">${escapeCampaignHtml(email)}</a>`
+                        : '<span class="run-campaign-profile-value run-campaign-profile-muted">—</span>'}
+                </div>
+                <div class="run-campaign-profile-field">
+                    <span class="run-campaign-profile-label">Phone</span>
+                    ${phone
+                        ? `<a href="tel:${escapeCampaignHtml(phone)}" class="run-campaign-profile-value run-campaign-profile-link">${escapeCampaignHtml(phone)}</a>`
+                        : '<span class="run-campaign-profile-value run-campaign-profile-muted">—</span>'}
+                </div>
+                <div class="run-campaign-profile-field">
+                    <span class="run-campaign-profile-label">Account</span>
+                    <span class="run-campaign-profile-value">${escapeCampaignHtml(accountName)}</span>
+                </div>
+                <div class="run-campaign-profile-field">
+                    <span class="run-campaign-profile-label">Title</span>
+                    <span class="run-campaign-profile-value">${title ? escapeCampaignHtml(title) : '<span class="run-campaign-profile-muted">—</span>'}</span>
+                </div>
+            </div>
+            ${notes ? `
+                <div class="run-campaign-profile-notes">
+                    <span class="run-campaign-profile-label">Contact Notes</span>
+                    <p class="run-campaign-profile-notes-body">${escapeCampaignHtml(notes)}</p>
+                </div>` : ''}
+            <div class="run-campaign-profile-activities">
+                <h5 class="run-campaign-profile-activities-title">Recent Activity</h5>
+                <div class="recent-activities-list run-campaign-profile-activities-list">${buildRunCampaignRecentActivityHtml(contact.id)}</div>
+            </div>`;
     };
 
     const displayCurrentCall = () => {
         const pendingCalls = state.campaignMembers.filter(m => m.status === 'Pending');
-        const contactNameEl = document.getElementById('contact-name-call-blitz');
-        const contactCompanyEl = document.getElementById('contact-company-call-blitz');
         const phoneLinkEl = document.getElementById('contact-phone-call-blitz');
         const callNotesEl = document.getElementById('call-notes');
+        const logBtn = document.getElementById('log-call-btn');
+        const skipBtn = document.getElementById('skip-call-btn');
 
-        if (!contactNameEl || !contactCompanyEl || !phoneLinkEl || !callNotesEl) {
-            console.error("Missing call blitz contact info elements.");
+        if (!phoneLinkEl || !callNotesEl || !logBtn || !skipBtn) {
+            console.error("Missing call blitz elements.");
             return;
         }
 
-        // CORRECTED LOGIC: Check if there are any pending calls left.
         if (pendingCalls.length === 0) {
             renderCampaignDetails();
             showModal("Call Blitz Complete", "All calls for this campaign have been logged or skipped!", () => {
@@ -721,29 +767,31 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const currentMember = pendingCalls[0]; // Always take the first one
+        const currentMember = pendingCalls[0];
         const contact = state.contacts.find(c => c.id === currentMember.contact_id);
         const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
 
         if (!contact) {
             console.error("Contact not found for campaign member:", currentMember);
-            handleSkipCall(); // Skip this broken member
+            handleSkipCall({ target: skipBtn });
             return;
         }
 
-        // Set a data attribute on the action buttons to identify the current member
-        document.getElementById('log-call-btn').dataset.memberId = currentMember.id;
-        document.getElementById('skip-call-btn').dataset.memberId = currentMember.id;
+        logBtn.dataset.memberId = currentMember.id;
+        skipBtn.dataset.memberId = currentMember.id;
 
-        contactNameEl.textContent = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown';
-        contactCompanyEl.textContent = account ? account.name : 'No Company';
+        renderRunCampaignContactProfile(contact, account);
+
         phoneLinkEl.href = contact.phone ? `tel:${contact.phone}` : '#';
-        phoneLinkEl.textContent = contact.phone || 'No Phone';
+        phoneLinkEl.innerHTML = contact.phone
+            ? `<i class="fas fa-phone" aria-hidden="true"></i><span>${escapeCampaignHtml(contact.phone)}</span>`
+            : '<span class="run-campaign-primary-channel-muted">No phone on file</span>';
         if (contact.phone) phoneLinkEl.removeAttribute('tabindex');
         else phoneLinkEl.setAttribute('tabindex', '-1');
+        fitContactLink(phoneLinkEl.querySelector('span') || phoneLinkEl);
+
         callNotesEl.value = '';
         updateNotesPlaceholder('call-notes', 'call-notes-placeholder');
-        populateRunCampaignRecentActivity(contact.id, 'rc-activities-list');
         callNotesEl.focus();
     };
 
@@ -838,7 +886,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (rcLayout) rcLayout.classList.remove('hidden');
         if (rcContactContent) rcContactContent.innerHTML = GUIDED_EMAIL_CONTACT_HTML;
         if (rcMiddlePanel) rcMiddlePanel.innerHTML = GUIDED_EMAIL_MIDDLE_HTML;
-        if (rcActivitiesList) rcActivitiesList.innerHTML = '';
         displayCurrentEmail();
     };
 
@@ -847,13 +894,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const emailToAddressEl = document.getElementById('email-to-address');
         const emailSubjectEl = document.getElementById('email-subject');
         const emailBodyTextareaEl = document.getElementById('email-body-textarea');
+        const openEmailBtn = document.getElementById('open-email-client-btn');
+        const skipEmailBtn = document.getElementById('skip-email-btn');
+        const contactEmailGuided = document.getElementById('contact-email-guided-email');
 
-        if (!emailToAddressEl || !emailSubjectEl || !emailBodyTextareaEl) {
+        if (!emailToAddressEl || !emailSubjectEl || !emailBodyTextareaEl || !openEmailBtn || !skipEmailBtn || !contactEmailGuided) {
             console.error("Missing guided email elements.");
             return;
         }
 
-        // CORRECTED LOGIC: Check if any pending emails are left.
         if (pending.length === 0) {
             renderCampaignDetails();
             showModal("Guided Email Complete", "All guided emails for this campaign have been processed!", () => {
@@ -863,42 +912,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const currentMember = pending[0]; // Always take the first pending one
+        const currentMember = pending[0];
         const contact = state.contacts.find(c => c.id === currentMember.contact_id);
         const account = contact ? state.accounts.find(a => a.id === contact.account_id) : null;
         const campaign = state.campaigns.find(c => c.id === currentMember.campaign_id);
 
         if (!contact || !campaign) {
             console.error("Associated contact or campaign not found for guided email.");
-            handleSkipEmail(); // Skip this broken member
+            handleSkipEmail({ target: skipEmailBtn });
             return;
         }
-        
-        // Set a data attribute on the action buttons to identify the current member
-        document.getElementById('open-email-client-btn').dataset.memberId = currentMember.id;
-        document.getElementById('skip-email-btn').dataset.memberId = currentMember.id;
 
+        openEmailBtn.dataset.memberId = currentMember.id;
+        skipEmailBtn.dataset.memberId = currentMember.id;
 
         let emailBody = (campaign.email_body || '').trim();
         emailBody = emailBody.replace(/\[FirstName\]/g, contact.first_name || '');
         emailBody = emailBody.replace(/\[LastName\]/g, contact.last_name || '');
         emailBody = emailBody.replace(/\[AccountName\]/g, account ? account.name : '');
 
-        const contactNameGuided = document.getElementById('contact-name-guided-email');
-        const contactEmailGuided = document.getElementById('contact-email-guided-email');
-        const contactCompanyGuided = document.getElementById('contact-company-guided-email');
-        if (contactNameGuided) contactNameGuided.textContent = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown';
-        if (contactCompanyGuided) contactCompanyGuided.textContent = account ? account.name : 'No Company';
-        if (contactEmailGuided) {
-            contactEmailGuided.href = contact.email ? `mailto:${contact.email}` : '#';
-            contactEmailGuided.textContent = contact.email || 'No Email';
-            fitContactLink(contactEmailGuided);
-        }
+        renderRunCampaignContactProfile(contact, account);
+
+        contactEmailGuided.href = contact.email ? `mailto:${contact.email}` : '#';
+        contactEmailGuided.innerHTML = contact.email
+            ? `<i class="fas fa-envelope" aria-hidden="true"></i><span>${escapeCampaignHtml(contact.email)}</span>`
+            : '<span class="run-campaign-primary-channel-muted">No email on file</span>';
+        fitContactLink(contactEmailGuided.querySelector('span') || contactEmailGuided);
+
         emailToAddressEl.textContent = contact.email || 'No Email';
         emailSubjectEl.value = campaign.email_subject || '';
         emailBodyTextareaEl.value = emailBody;
         updateNotesPlaceholder('email-body-textarea', 'email-body-placeholder');
-        populateRunCampaignRecentActivity(contact.id, 'rc-activities-list');
         emailBodyTextareaEl.focus();
     };
 
@@ -1576,6 +1620,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await setupGlobalSearch(supabase, state.currentUser);
         await checkAndSetNotifications(supabase);
         await loadAllData();
+        showCampaignCreateView();
         window.addEventListener('effectiveUserChanged', loadAllData);
     }
 
