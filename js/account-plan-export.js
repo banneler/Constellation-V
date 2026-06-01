@@ -15,21 +15,10 @@ import {
     buildDossierSectionTitleHtml,
     ensureExportTemplateStyles,
     unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-06-01-5';
+} from './account-plan-export-templates.js?v=2026-06-01-6';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
-
-/** Sections that must not jump backward onto a prior page during pagination. */
-const DOSSIER_NO_TUCK_SECTION_IDS = new Set([
-    'strategic_tensions',
-    'influence_mapping',
-    'entry_points',
-    'psychology',
-    'plan_30_60_90',
-    'momentum_timeline',
-    'client_commitments',
-]);
 
 /**
  * @param {unknown} plan
@@ -209,23 +198,6 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     };
 
     /**
-     * When a short section does not fit on the current page, try appending it
-     * to the previous flushed page before starting a new sparse page.
-     * @param {HTMLElement} block
-     */
-    const tryTuckOntoPreviousPage = (block) => {
-        if (groups.length === 0 || !(block instanceof HTMLElement)) return false;
-        const sectionId = block.dataset?.sectionId || '';
-        if (DOSSIER_NO_TUCK_SECTION_IDS.has(sectionId)) return false;
-        const previous = groups[groups.length - 1];
-        const trial = [...previous, block];
-        if (!pageFits(trial)) return false;
-        groups[groups.length - 1] = trial.map((entry) => entry.cloneNode(true));
-        trace(`tucked ${block.dataset?.sectionId || '?'} onto previous page`);
-        return true;
-    };
-
-    /**
      * @param {HTMLElement} block
      */
     const placeSectionBlock = (block) => {
@@ -233,23 +205,15 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
             current.push(block);
             return;
         }
-        if (tryTuckOntoPreviousPage(block)) {
-            return;
-        }
         flush();
         if (pageFits([block])) {
             current.push(block);
-            return;
-        }
-        if (tryTuckOntoPreviousPage(block)) {
             return;
         }
         const parts = splitDossierSectionBlock(block, meta, exportRoot);
         parts.forEach((part) => {
             if (pageFits([...current, part])) {
                 current.push(part);
-            } else if (tryTuckOntoPreviousPage(part)) {
-                // placed on previous page
             } else {
                 flush();
                 current.push(part);
@@ -304,8 +268,8 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 }
 
 /**
- * Pull content from the next page onto sparse pages so short sections
- * (e.g. Competing Priorities) do not sit alone on a half-empty slide.
+ * Merge a sparse page with the following page when they fit together.
+ * Forward-only — never pulls sections backward out of document order.
  * @param {HTMLElement[][]} groups
  * @param {{ accountName: string, dateLabel: string }} meta
  * @param {HTMLElement} exportRoot
@@ -322,25 +286,14 @@ function rebalanceDossierPageGroups(groups, meta, exportRoot) {
 
         for (let i = 0; i < result.length; i += 1) {
             if (!isSparseDossierPage(result[i], meta, exportRoot)) continue;
+            if (i + 1 >= result.length) continue;
 
-            if (i > 0) {
-                const mergedPrev = [...result[i - 1], ...result[i]];
-                if (measureDossierContentPage(mergedPrev, meta, exportRoot)) {
-                    result[i - 1] = mergedPrev;
-                    result.splice(i, 1);
-                    changed = true;
-                    continue;
-                }
-            }
+            const mergedNext = [...result[i], ...result[i + 1]];
+            if (!measureDossierContentPage(mergedNext, meta, exportRoot)) continue;
 
-            if (i + 1 < result.length) {
-                const mergedNext = [...result[i], ...result[i + 1]];
-                if (measureDossierContentPage(mergedNext, meta, exportRoot)) {
-                    result[i] = mergedNext;
-                    result.splice(i + 1, 1);
-                    changed = true;
-                }
-            }
+            result[i] = mergedNext;
+            result.splice(i + 1, 1);
+            changed = true;
         }
     }
 

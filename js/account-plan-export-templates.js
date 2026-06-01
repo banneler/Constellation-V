@@ -259,8 +259,9 @@ const INFLUENCE_CONTACT_FIELD_LABELS = {
  * Section IDs that should travel together on the same printed page to avoid
  * orphan/widow placement of short, conceptually-linked editorial blocks.
  * Each tuple is rendered as a single `.ap-export-section-group` wrapper that
- * the paginator treats as an atomic unit (with a graceful fallback to
- * un-grouping if the combined block cannot fit on one page).
+ * the paginator unwraps sequentially (snapshot then Big Play on the opening
+ * spread when measurement confirms they fit). Rebalance may merge a sparse
+ * page with the *next* page only — never backward.
  *
  * Current groupings:
  *   - account_snapshot + pursuit_thesis → opening spread (account context + Big Play)
