@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const zoominfoAccountBtn = document.getElementById("zoominfo-account-btn");
     const salesforceAccountBtn = document.getElementById("salesforce-account-btn");
     const accountFilterIcons = document.getElementById("account-filter-icons");
+    const accountTierFilters = document.getElementById("account-tier-filters");
     const accountIndustrySelect = document.getElementById("account-industry");
     const draftAgendaBtn = document.getElementById("draft-agenda-btn");
     const agendaModalBackdrop = document.getElementById("agenda-modal-backdrop");
@@ -384,6 +385,40 @@ document.addEventListener("DOMContentLoaded", async () => {
         return active?.dataset.filter || "all";
     };
 
+    const getAccountTierFilter = () => {
+        const active = accountTierFilters?.querySelector(".account-tier-filter.active");
+        return active?.dataset.tierFilter || "all";
+    };
+
+    const normalizeAccountTier = (tier) => {
+        const value = String(tier ?? '').trim();
+        if (value === 'Tier 1' || value === 'Tier 2' || value === 'Tier 3') return value;
+        return 'Unassigned';
+    };
+
+    const resolveAccountTierSlug = (tier) => {
+        const normalized = normalizeAccountTier(tier);
+        if (normalized === 'Tier 1') return 'tier-1';
+        if (normalized === 'Tier 2') return 'tier-2';
+        if (normalized === 'Tier 3') return 'tier-3';
+        return 'tier-unassigned';
+    };
+
+    const escapeAccountListHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    /** Large faint tier label behind the account name — replaces inline tier pills. */
+    const buildAccountListNameHtml = (name, tier) => {
+        const normalizedTier = normalizeAccountTier(tier);
+        const watermark = normalizedTier !== 'Unassigned'
+            ? `<span class="account-list-tier-watermark" aria-hidden="true">${escapeAccountListHtml(normalizedTier)}</span>`
+            : '';
+        return `<span class="account-list-name-wrap">${watermark}<span class="account-list-name">${escapeAccountListHtml(name || 'Unnamed Account')}</span></span>`;
+    };
+
     /** Map SAOS snapshot tier to the canonical accounts.tier column value. */
     const mapSnapshotTierToAccountTier = (snapshotTier) => {
         const normalized = String(snapshotTier ?? '').trim();
@@ -393,14 +428,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return 'Unassigned';
     };
 
-    const buildAccountTierBadgeHtml = (tier) => {
-        const label = tier || 'Unassigned';
-        const slug = label.toLowerCase().replace(/\s+/g, '-');
-        return `<span class="account-tier-badge account-tier-badge--${slug}">${label}</span>`;
-    };
-
     /**
-     * SAOS is the rep's strategic workspace; ABM list filters read accounts.tier.
      * Mirror snapshot tier to the CRM row whenever the plan autosaves.
      */
     async function syncAccountTierFromPlan(plan) {
@@ -436,6 +464,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const searchTerm = accountSearch.value.toLowerCase();
         const statusFilter = getAccountFilter();
+        const tierFilter = getAccountTierFilter();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -472,6 +501,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const matchesSearch = (account.name || "").toLowerCase().includes(searchTerm);
             if (!matchesSearch) return false;
 
+            const accountTier = normalizeAccountTier(account.tier);
+            if (tierFilter !== 'all' && accountTier !== tierFilter) return false;
+
             switch (statusFilter) {
                 case 'hot':
                     return hotAccountIds.has(account.id);
@@ -492,17 +524,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         accountList.innerHTML = "";
         sortedAccounts.forEach((account) => {
                 const i = document.createElement("div");
-                i.className = "list-item";
+                const tierSlug = resolveAccountTierSlug(account.tier);
+                i.className = `list-item list-item--${tierSlug}`;
                 i.dataset.id = account.id;
+                i.dataset.tier = normalizeAccountTier(account.tier);
 
                 const hasOpenDeal = accountsWithOpenDealsIds.has(Number(account.id));
                 const isHot = hotAccountIds.has(account.id);
 
                 const dealIcon = hasOpenDeal ? '<span class="deal-open-icon">$</span>' : '';
                 const hotIcon = isHot ? '<span class="hot-contact-icon">🔥</span>' : '';
-                const tierBadge = buildAccountTierBadgeHtml(account.tier);
 
-                i.innerHTML = `<div class="account-list-item-row"><span class="account-list-name">${account.name}</span><div class="list-item-icons">${tierBadge}${hotIcon}${dealIcon}</div></div>`;
+                i.innerHTML = `<div class="account-list-item-row">${buildAccountListNameHtml(account.name, account.tier)}<div class="list-item-icons">${hotIcon}${dealIcon}</div></div>`;
 
                 if (account.id === state.selectedAccountId) {
                     i.classList.add("selected");
@@ -2537,6 +2570,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const btn = e.target.closest(".account-filter-icon");
                 if (btn) {
                     accountFilterIcons.querySelectorAll(".account-filter-icon").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    renderAccountList();
+                }
+            });
+        }
+        if (accountTierFilters) {
+            accountTierFilters.addEventListener("click", (e) => {
+                const btn = e.target.closest(".account-tier-filter");
+                if (btn) {
+                    accountTierFilters.querySelectorAll(".account-tier-filter").forEach(b => b.classList.remove("active"));
                     btn.classList.add("active");
                     renderAccountList();
                 }

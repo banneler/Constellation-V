@@ -57,6 +57,13 @@
                             </div>
                         </div>
                         <input type="text" id="account-search" placeholder="Search Accounts..." class="item-search-input">
+                        <div id="account-tier-filters" class="account-tier-filters" role="group" aria-label="Filter by strategic tier">
+                            <button type="button" class="account-tier-filter active" data-tier-filter="all" title="All tiers">All</button>
+                            <button type="button" class="account-tier-filter account-tier-filter--tier-1" data-tier-filter="Tier 1" title="Tier 1 accounts">T1</button>
+                            <button type="button" class="account-tier-filter account-tier-filter--tier-2" data-tier-filter="Tier 2" title="Tier 2 accounts">T2</button>
+                            <button type="button" class="account-tier-filter account-tier-filter--tier-3" data-tier-filter="Tier 3" title="Tier 3 accounts">T3</button>
+                            <button type="button" class="account-tier-filter account-tier-filter--unassigned" data-tier-filter="Unassigned" title="Unassigned tier">—</button>
+                        </div>
                         <div id="account-filter-icons" class="account-filter-icons" role="group" aria-label="Filter accounts">
                             <button type="button" class="account-filter-icon active" data-filter="all" title="All Accounts"><i class="fas fa-layer-group"></i></button>
                             <button type="button" class="account-filter-icon" data-filter="hot" title="Hot Accounts"><i class="fas fa-fire"></i></button>

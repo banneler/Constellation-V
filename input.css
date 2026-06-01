@@ -1701,6 +1701,7 @@ body.theme-green {
     }
     .account-picker-body > button,
     .account-picker-body > input[type="text"],
+    .account-picker-body > .account-tier-filters,
     .account-picker-body > .account-filter-icons {
         @apply flex-shrink-0;
     }
@@ -1724,6 +1725,119 @@ body.theme-green {
         background-color: var(--primary-blue);
         border-color: var(--primary-blue);
         color: white;
+    }
+
+    /* Strategic tier filters — ABM spear-fishing lens on the account picker */
+    .account-tier-filters {
+        @apply flex flex-wrap gap-1.5 items-center justify-center;
+        margin-top: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .account-tier-filter {
+        @apply rounded-full border px-2.5 py-1 text-[0.6875rem] font-semibold tracking-wide transition-colors;
+        border-color: var(--border-color);
+        background-color: var(--bg-medium);
+        color: var(--text-medium);
+    }
+    .account-tier-filter:hover {
+        color: var(--text-light);
+        border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    }
+    .account-tier-filter.active {
+        color: var(--text-light);
+        box-shadow: 0 1px 2px color-mix(in srgb, #000 12%, transparent);
+    }
+    .account-tier-filter.active[data-tier-filter="all"] {
+        background-color: var(--primary-blue);
+        border-color: var(--primary-blue);
+        color: #fff;
+    }
+    .account-tier-filter--tier-1.active {
+        background-color: color-mix(in srgb, #86efac 55%, var(--bg-medium));
+        border-color: color-mix(in srgb, #4ade80 65%, var(--border-color));
+        color: #14532d;
+    }
+    .account-tier-filter--tier-2.active {
+        background-color: color-mix(in srgb, #fde68a 55%, var(--bg-medium));
+        border-color: color-mix(in srgb, #facc15 65%, var(--border-color));
+        color: #713f12;
+    }
+    .account-tier-filter--tier-3.active {
+        background-color: color-mix(in srgb, #fca5a5 50%, var(--bg-medium));
+        border-color: color-mix(in srgb, #f87171 60%, var(--border-color));
+        color: #7f1d1d;
+    }
+    .account-tier-filter--unassigned.active {
+        background-color: color-mix(in srgb, var(--bg-dark) 70%, var(--bg-medium));
+        border-color: var(--border-color);
+        color: var(--text-light);
+    }
+
+    /* Account list rows — soft tier tint + watermark (replaces inline tier pills) */
+    #account-list .account-list-name-wrap {
+        position: relative;
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 0 0.35rem;
+    }
+    #account-list .account-list-tier-watermark {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: clamp(1.1rem, 4vw, 1.55rem);
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        pointer-events: none;
+        user-select: none;
+        white-space: nowrap;
+        z-index: 0;
+    }
+    #account-list .account-list-name {
+        position: relative;
+        z-index: 1;
+    }
+    #account-list .list-item--tier-1 {
+        background-color: color-mix(in srgb, #bbf7d0 28%, var(--bg-medium));
+        border-left: 3px solid color-mix(in srgb, #4ade80 50%, transparent);
+    }
+    #account-list .list-item--tier-2 {
+        background-color: color-mix(in srgb, #fef08a 26%, var(--bg-medium));
+        border-left: 3px solid color-mix(in srgb, #facc15 48%, transparent);
+    }
+    #account-list .list-item--tier-3 {
+        background-color: color-mix(in srgb, #fecaca 24%, var(--bg-medium));
+        border-left: 3px solid color-mix(in srgb, #f87171 45%, transparent);
+    }
+    #account-list .list-item--tier-unassigned {
+        background-color: var(--bg-medium);
+        border-left: 3px solid transparent;
+    }
+    #account-list .list-item--tier-1 .account-list-tier-watermark {
+        color: #15803d;
+        opacity: 0.13;
+    }
+    #account-list .list-item--tier-2 .account-list-tier-watermark {
+        color: #a16207;
+        opacity: 0.13;
+    }
+    #account-list .list-item--tier-3 .account-list-tier-watermark {
+        color: #b91c1c;
+        opacity: 0.11;
+    }
+    #account-list .list-item--tier-1.selected {
+        background-color: color-mix(in srgb, #86efac 35%, var(--selected-item-bg));
+    }
+    #account-list .list-item--tier-2.selected {
+        background-color: color-mix(in srgb, #fde68a 32%, var(--selected-item-bg));
+    }
+    #account-list .list-item--tier-3.selected {
+        background-color: color-mix(in srgb, #fca5a5 30%, var(--selected-item-bg));
     }
     /* Strategic Account OS — layout shell (Phase 2)
      *
@@ -10100,6 +10214,7 @@ body:not(.theme-green) .list-item.selected {
         padding-right: 0.5rem;
     }
     body.accounts-page #account-search,
+    body.accounts-page #account-tier-filters,
     body.accounts-page #account-filter-icons,
     body.accounts-page #account-list,
     body.accounts-page #bulk-import-accounts-btn,
