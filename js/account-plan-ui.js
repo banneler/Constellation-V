@@ -319,6 +319,27 @@ function renderStrategicViewMode() {
 }
 
 /**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {number} indexInRow
+ */
+function buildStrategicPathItemHtml(section, indexInRow) {
+    return `<li class="strategic-path-item" style="--path-index:${indexInRow}">`
+        + `<button type="button" class="strategic-path-step" data-section-id="${section.id}"`
+        + ` aria-current="false">`
+        + `<span class="strategic-path-step-label">${escapeHtml(section.title)}</span>`
+        + `</button></li>`;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef[]} sections
+ */
+function buildStrategicPathRowTrackHtml(sections) {
+    return `<ol class="strategic-path-row-track">${
+        sections.map((section, index) => buildStrategicPathItemHtml(section, index)).join('')
+    }</ol>`;
+}
+
+/**
  * Populate the horizontal Path with one step per visible plan section.
  */
 function renderStrategicPath() {
@@ -326,15 +347,19 @@ function renderStrategicPath() {
     if (!track) return;
 
     const sections = getCanvasPlanSections();
-    track.classList.toggle('strategic-path-track--core', _saosViewMode === 'core');
-    track.classList.toggle('strategic-path-track--deep', _saosViewMode === 'deep');
-    track.innerHTML = sections.map((section, index) => (
-        `<li class="strategic-path-item" style="--path-index:${index}">`
-        + `<button type="button" class="strategic-path-step" data-section-id="${section.id}"`
-        + ` title="${escapeHtml(section.title)}" aria-current="false">`
-        + `<span class="strategic-path-step-label">${escapeHtml(section.title)}</span>`
-        + `</button></li>`
-    )).join('');
+    const isCore = _saosViewMode === 'core';
+    track.classList.toggle('strategic-path-track--core', isCore);
+    track.classList.toggle('strategic-path-track--deep', !isCore);
+
+    if (isCore) {
+        track.innerHTML = `<li class="strategic-path-row">${buildStrategicPathRowTrackHtml(sections)}</li>`;
+    } else {
+        const midpoint = Math.ceil(sections.length / 2);
+        const row1 = sections.slice(0, midpoint);
+        const row2 = sections.slice(midpoint);
+        track.innerHTML = `<li class="strategic-path-row">${buildStrategicPathRowTrackHtml(row1)}</li>`
+            + `<li class="strategic-path-row">${buildStrategicPathRowTrackHtml(row2)}</li>`;
+    }
 
     syncStrategicPathActive();
 }
@@ -828,7 +853,7 @@ function buildCompositeFieldHtml(sectionId, field, rawValue) {
 function wrapStrategicSection(sectionId, headingId, title, headerContext, bodyHtml, extraClass = '') {
     const leadHtml = headerContext.leadHtml || '';
     const blockHtml = headerContext.blockHtml || '';
-    const classNames = ['strategic-section', extraClass].filter(Boolean).join(' ');
+    const classNames = ['strategic-section', 'strategic-section-card', extraClass].filter(Boolean).join(' ');
     return `
         <section id="${sectionId}" class="${classNames}" aria-labelledby="${headingId}">
             <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(title)}</h4>
