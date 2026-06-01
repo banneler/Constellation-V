@@ -7501,7 +7501,6 @@ body.theme-green {
   .campaign-details-content.campaign-view-create .campaign-top-row {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
   }
   .campaign-details-content.campaign-view-create .campaign-abm-builder-card {
     flex: 1 1 auto;
@@ -7509,7 +7508,8 @@ body.theme-green {
     max-width: none;
   }
   .campaign-details-content.campaign-view-create.details-panel {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   .campaign-details-content.campaign-view-run-empty .campaign-abm-builder-card, .campaign-details-content.campaign-view-run-empty .campaign-details-card {
     display: none;
@@ -7588,27 +7588,24 @@ body.theme-green {
     min-height: calc(var(--spacing) * 0);
     flex: 1;
     flex-direction: column;
-    overflow: hidden;
     padding-inline: calc(var(--spacing) * 5);
     padding-top: calc(var(--spacing) * 0);
     padding-bottom: calc(var(--spacing) * 5);
   }
   .campaign-abm-builder-body #new-campaign-form-container {
     display: flex;
-    min-height: calc(var(--spacing) * 0);
-    flex: 1;
+    flex-shrink: 0;
     flex-direction: column;
-    overflow: hidden;
   }
   .abm-campaign-builder {
     display: flex;
-    min-height: calc(var(--spacing) * 0);
-    flex: 1;
+    flex-shrink: 0;
     flex-direction: column;
     gap: calc(var(--spacing) * 4);
   }
   .abm-campaign-config {
     display: flex;
+    flex-shrink: 0;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: calc(var(--spacing) * 3);
@@ -7656,18 +7653,15 @@ body.theme-green {
   }
   .abm-split-pane {
     display: grid;
-    min-height: calc(var(--spacing) * 0);
-    flex: 1;
+    flex-shrink: 0;
     gap: calc(var(--spacing) * 4);
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
   }
   .abm-explorer-pane, .abm-cart-pane {
     display: flex;
-    min-height: calc(var(--spacing) * 0);
     min-width: calc(var(--spacing) * 0);
-    flex: 1;
     flex-direction: column;
-    overflow: hidden;
     border-radius: var(--radius-xl);
     border-style: var(--tw-border-style);
     border-width: 1px;
@@ -7681,6 +7675,7 @@ body.theme-green {
   .abm-explorer-filters {
     margin-bottom: calc(var(--spacing) * 3);
     display: grid;
+    flex-shrink: 0;
     gap: calc(var(--spacing) * 2);
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -7688,14 +7683,14 @@ body.theme-green {
     grid-column: 1 / -1;
   }
   .abm-account-explorer {
-    display: flex;
-    min-height: calc(var(--spacing) * 0);
-    flex: 1;
-    flex-direction: column;
-    gap: calc(var(--spacing) * 2);
     overflow-y: auto;
+    min-height: 14rem;
+    max-height: min(32rem, 52vh);
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+  .abm-account-explorer > .abm-account-accordion + .abm-account-accordion, .abm-account-explorer > .abm-explorer-empty + .abm-account-accordion, .abm-account-explorer > .abm-account-accordion + .abm-explorer-empty {
+    margin-top: 0.5rem;
   }
   .abm-explorer-empty, .abm-contact-empty, .abm-cart-empty, .abm-retired-merge-notice {
     margin: calc(var(--spacing) * 0);
@@ -7705,6 +7700,7 @@ body.theme-green {
     color: var(--text-muted);
   }
   .abm-account-accordion {
+    flex-shrink: 0;
     overflow: hidden;
     border-radius: var(--radius-lg);
     border-style: var(--tw-border-style);
@@ -7758,6 +7754,9 @@ body.theme-green {
     gap: calc(var(--spacing) * 1);
     padding-inline: calc(var(--spacing) * 2);
     padding-bottom: calc(var(--spacing) * 2);
+  }
+  .abm-account-contacts > * {
+    flex-shrink: 0;
   }
   .abm-contact-row {
     display: flex;
@@ -7817,8 +7816,7 @@ body.theme-green {
   }
   .abm-campaign-cart {
     display: flex;
-    min-height: 12rem;
-    flex: 1;
+    flex-shrink: 0;
     flex-direction: column;
     gap: calc(var(--spacing) * 2);
     overflow-y: auto;
@@ -7828,6 +7826,10 @@ body.theme-green {
     --tw-border-style: dashed;
     border-style: dashed;
     padding: calc(var(--spacing) * 2);
+    min-height: 12rem;
+    max-height: min(32rem, 52vh);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     border-color: var(--primary-blue);
     @supports (color: color-mix(in lab, red, red)) {
       border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
@@ -7836,6 +7838,9 @@ body.theme-green {
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in srgb, var(--primary-blue) 4%, transparent);
     }
+  }
+  .abm-campaign-cart > * {
+    flex-shrink: 0;
   }
   .abm-campaign-cart--drag-over {
     border-color: var(--primary-blue);
@@ -16198,14 +16203,15 @@ body:not(.theme-green) .list-item.selected {
     overflow: visible !important;
   }
   body.campaigns-page .campaign-details-content.campaign-view-create {
-    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
   }
   body.campaigns-page .campaign-abm-builder-body #new-campaign-form-container {
     min-height: 0 !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
   body.campaigns-page .abm-account-explorer, body.campaigns-page .abm-campaign-cart {
-    max-height: min(24rem, 50vh);
+    max-height: min(28rem, 55vh);
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
   }
