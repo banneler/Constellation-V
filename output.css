@@ -8755,12 +8755,52 @@ body.theme-green {
     background-color: var(--bg-medium);
     max-height: 20rem;
   }
-  .campaign-completed-email-body .email-body-summary {
+  .campaign-email-preview-content {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    --tw-leading: var(--leading-relaxed);
+    line-height: var(--leading-relaxed);
+    color: var(--text-light);
+  }
+  .campaign-email-preview-content p {
+    margin-block: calc(var(--spacing) * 2);
+  }
+  .campaign-email-preview-content p:first-child {
+    margin-top: calc(var(--spacing) * 0);
+  }
+  .campaign-email-preview-content p:last-child {
+    margin-bottom: calc(var(--spacing) * 0);
+  }
+  .campaign-email-preview-content ul, .campaign-email-preview-content ol {
+    margin-block: calc(var(--spacing) * 2);
+    padding-left: calc(var(--spacing) * 5);
+  }
+  .campaign-email-preview-content li {
+    margin-block: calc(var(--spacing) * 1);
+  }
+  .campaign-email-preview-content strong, .campaign-email-preview-content b {
+    color: var(--text-light);
+  }
+  .campaign-email-preview-empty {
     margin: calc(var(--spacing) * 0);
     font-size: var(--text-sm);
     line-height: var(--tw-leading, var(--text-sm--line-height));
-    white-space: pre-wrap;
-    color: var(--text-medium);
+    color: var(--text-muted);
+  }
+  .campaign-merge-token {
+    display: inline-block;
+    border-radius: 0.25rem;
+    padding-inline: calc(var(--spacing) * 1.5);
+    padding-block: calc(var(--spacing) * 0.5);
+    vertical-align: baseline;
+    font-size: 0.6875rem;
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    background-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--primary-blue) 16%, transparent);
+    }
+    color: var(--primary-blue);
   }
   .run-campaign-body {
     display: flex;

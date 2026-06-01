@@ -101,16 +101,56 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const isEmailCampaignType = (type) => type === 'Guided Email' || type === 'Email';
 
+    const decorateCampaignMergeTokens = (text) => String(text ?? '')
+        .replace(/\{FirstName\}/gi, '<span class="campaign-merge-token">First Name</span>')
+        .replace(/\{LastName\}/gi, '<span class="campaign-merge-token">Last Name</span>')
+        .replace(/\{AccountName\}/gi, '<span class="campaign-merge-token">Account Name</span>')
+        .replace(/\[FirstName\]/g, '<span class="campaign-merge-token">First Name</span>')
+        .replace(/\[LastName\]/g, '<span class="campaign-merge-token">Last Name</span>')
+        .replace(/\[AccountName\]/g, '<span class="campaign-merge-token">Account Name</span>');
+
+    const sanitizeCampaignEmailHtml = (html) => {
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        template.content.querySelectorAll('script, style, iframe, object, embed, form, input, button, link, meta').forEach((el) => el.remove());
+        template.content.querySelectorAll('*').forEach((el) => {
+            [...el.attributes].forEach((attr) => {
+                if (el.tagName === 'A' && attr.name === 'href' && /^(https?:|mailto:)/i.test(attr.value)) return;
+                if (el.tagName === 'SPAN' && attr.name === 'class' && attr.value === 'campaign-merge-token') return;
+                el.removeAttribute(attr.name);
+            });
+        });
+        return template.innerHTML;
+    };
+
+    const formatCampaignEmailPreviewHtml = (rawBody) => {
+        const trimmed = String(rawBody ?? '').trim();
+        if (!trimmed) {
+            return '<p class="campaign-email-preview-empty">(Not set)</p>';
+        }
+
+        const withTokens = decorateCampaignMergeTokens(trimmed);
+        if (!/<[a-z][\s\S]*>/i.test(trimmed)) {
+            return decorateCampaignMergeTokens(escapeCampaignHtml(trimmed)).replace(/\n/g, '<br>');
+        }
+        return sanitizeCampaignEmailHtml(withTokens);
+    };
+
+    const buildCampaignEmailPreviewBlockHtml = (campaign) => {
+        const subj = escapeCampaignHtml(campaign.email_subject || '(Not set)');
+        const bodyHtml = formatCampaignEmailPreviewHtml(campaign.email_body);
+        return `
+            <p class="campaign-email-back-subject"><strong>Subject:</strong> ${subj}</p>
+            <div class="campaign-email-preview-content">${bodyHtml}</div>`;
+    };
+
     const buildCampaignEmailInlineHtml = (campaign, { heading = 'Email Sent' } = {}) => {
         if (!isEmailCampaignType(campaign.type)) return '';
-        const subj = escapeCampaignHtml(campaign.email_subject || '(Not set)');
-        const body = escapeCampaignHtml(campaign.email_body || '(Not set)');
         return `
             <section class="campaign-completed-email">
                 <h4>${heading}</h4>
                 <div class="campaign-completed-email-body">
-                    <p class="campaign-email-back-subject"><strong>Subject:</strong> ${subj}</p>
-                    <pre class="email-body-summary">${body}</pre>
+                    ${buildCampaignEmailPreviewBlockHtml(campaign)}
                 </div>
             </section>`;
     };
@@ -528,12 +568,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </button>
             `;
             if (campaignDetailsEmailBack) {
-                const subj = (campaign.email_subject || '(Not set)').replace(/</g, '&lt;');
-                const body = (campaign.email_body || '(Not set)').replace(/</g, '&lt;').replace(/&/g, '&amp;');
                 campaignDetailsEmailBack.innerHTML = `
-                    <p class="campaign-email-back-subject"><strong>Subject:</strong> ${subj}</p>
-                    <pre class="email-body-summary">${body}</pre>
-                `;
+                    <div class="campaign-email-back-content">
+                        ${buildCampaignEmailPreviewBlockHtml(campaign)}
+                    </div>`;
             }
         }
 

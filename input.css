@@ -4733,9 +4733,38 @@ body.theme-green {
         background-color: var(--bg-medium);
         max-height: 20rem;
     }
-    .campaign-completed-email-body .email-body-summary {
-        @apply text-sm whitespace-pre-wrap m-0;
-        color: var(--text-medium);
+    .campaign-email-preview-content {
+        @apply text-sm leading-relaxed;
+        color: var(--text-light);
+    }
+    .campaign-email-preview-content p {
+        @apply my-2;
+    }
+    .campaign-email-preview-content p:first-child {
+        @apply mt-0;
+    }
+    .campaign-email-preview-content p:last-child {
+        @apply mb-0;
+    }
+    .campaign-email-preview-content ul,
+    .campaign-email-preview-content ol {
+        @apply my-2 pl-5;
+    }
+    .campaign-email-preview-content li {
+        @apply my-1;
+    }
+    .campaign-email-preview-content strong,
+    .campaign-email-preview-content b {
+        color: var(--text-light);
+    }
+    .campaign-email-preview-empty {
+        @apply m-0 text-sm;
+        color: var(--text-muted);
+    }
+    .campaign-merge-token {
+        @apply inline-block px-1.5 py-0.5 rounded text-[0.6875rem] font-semibold align-baseline;
+        background-color: color-mix(in srgb, var(--primary-blue) 16%, transparent);
+        color: var(--primary-blue);
     }
     /* Run Campaign body – single container, content overwritten by campaign type */
     .run-campaign-body {
