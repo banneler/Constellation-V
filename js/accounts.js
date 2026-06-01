@@ -1,6 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
 import { fetchPlanForAccount } from './account-plan-data.js';
-import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave, promoteActivityToInteractionLog } from './account-plan-ui.js';
+import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave, flushPlanAutosave, promoteActivityToInteractionLog } from './account-plan-ui.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -3222,6 +3222,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                     true,
                     '<button id="modal-confirm-btn" class="btn-primary">Restore</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>'
                 );
+            },
+            getAccountsList: () => state.accounts.map((account) => ({
+                id: account.id,
+                name: account.name,
+            })),
+            switchStrategicAccount: async (accountId) => {
+                if (Number(accountId) === Number(state.selectedAccountId)) return;
+                await flushPlanAutosave();
+                cancelPlanAutosave();
+                state.selectedAccountId = accountId;
+                renderAccountList();
+                await loadDetailsForSelectedAccount();
             },
         });
     }

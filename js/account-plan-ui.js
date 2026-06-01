@@ -37,6 +37,7 @@ import {
     deepClonePlan,
     normalizePlan,
     savePlanDraft,
+    getWhiteSpaceRows,
     ENTRY_POINT_FIELD_KEYS,
     INFLUENCE_CONTACT_FIELD_KEYS,
 } from './account-plan-data.js';
@@ -104,6 +105,8 @@ let _interactionContactTomSelect = null;
  *   onPlanUpdated?: (plan: object, meta?: { updated_at?: string }) => void,
  *   onToast?: (message: string, type?: string) => void,
  *   supabase?: object,
+ *   getAccountsList?: () => { id: number, name: string }[],
+ *   switchStrategicAccount?: (accountId: number) => void | Promise<void>,
  * }} [options]
  */
 export function initStrategicMode(options = {}) {
@@ -129,6 +132,7 @@ export function initStrategicMode(options = {}) {
     bindVersionPopoverControls();
     bindRailControls();
     bindPlanPdfPreviewModal();
+    initStrategicAccountSwitcher();
 
     const toggleBtn = document.getElementById('account-mode-toggle');
     if (toggleBtn && !toggleBtn.dataset.strategicBound) {
@@ -159,6 +163,16 @@ export function syncAccountPlanContext(accountPlan) {
 
 export function cancelPlanAutosave() {
     _autosave?.cancelAutosave();
+}
+
+/** Flush pending strategic plan edits before switching accounts in Strategic mode. */
+export async function flushPlanAutosave() {
+    if (!_autosave || !_planRowId || !_planBaseline || !_liveSections) return null;
+    return _autosave.flushAutosave({
+        planRowId: _planRowId,
+        plan: _planBaseline,
+        draftSections: deepClonePlan({ current_draft: { sections: _liveSections } }).current_draft.sections,
+    });
 }
 
 /**
@@ -370,6 +384,62 @@ let _strategicViewModeNavBound = false;
 let _strategicPathScrollHandler = null;
 /** Suppress scroll-spy flicker while a Path click smooth-scrolls. */
 let _pathScrollLockUntil = 0;
+let _strategicAccountSwitcherBound = false;
+
+/**
+ * In-strategic account switcher — reps stay in flow without dropping to Tactical
+ * mode and hunting the hidden account picker.
+ */
+function initStrategicAccountSwitcher() {
+    if (_strategicAccountSwitcherBound) return;
+    const trigger = document.getElementById('strategic-account-switcher-trigger');
+    const menu = document.getElementById('strategic-account-switcher-menu');
+    if (!trigger || !menu) return;
+
+    _strategicAccountSwitcherBound = true;
+
+    trigger.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isOpen = !menu.classList.contains('hidden');
+        menu.classList.toggle('hidden', isOpen);
+        trigger.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+        if (!isOpen) {
+            renderStrategicAccountSwitcherMenu();
+        }
+    });
+
+    menu.addEventListener('click', async (event) => {
+        const btn = event.target instanceof Element ? event.target.closest('[data-strategic-account-id]') : null;
+        if (!(btn instanceof HTMLButtonElement)) return;
+        const accountId = Number(btn.dataset.strategicAccountId);
+        if (!accountId) return;
+        menu.classList.add('hidden');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (typeof _options.switchStrategicAccount === 'function') {
+            await _options.switchStrategicAccount(accountId);
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) return;
+        if (event.target.closest('#strategic-account-switcher-trigger, #strategic-account-switcher-menu')) return;
+        menu.classList.add('hidden');
+        trigger.setAttribute('aria-expanded', 'false');
+    });
+}
+
+function renderStrategicAccountSwitcherMenu() {
+    const menu = document.getElementById('strategic-account-switcher-menu');
+    if (!menu) return;
+
+    const accounts = _options.getAccountsList?.() ?? [];
+    const activeId = _options.getSelectedAccountId?.();
+
+    menu.innerHTML = accounts.map((account) => {
+        const isActive = Number(account.id) === Number(activeId);
+        return `<button type="button" class="strategic-account-switcher-item${isActive ? ' strategic-account-switcher-item--active' : ''}" data-strategic-account-id="${account.id}" role="option" aria-selected="${isActive ? 'true' : 'false'}">${escapeHtml(account.name || 'Account')}</button>`;
+    }).join('') || '<p class="strategic-account-switcher-empty">No accounts available.</p>';
+}
 
 /**
  * One-time delegated click + scroll-spy on the canvas scroll container.
@@ -648,6 +718,7 @@ export function renderStrategicShell(account, plan) {
     updateToggleDisabled();
     renderStrategicViewMode();
     renderStrategicPath();
+    renderStrategicAccountSwitcherMenu();
     requestAnimationFrame(() => syncStrategicPathActive());
 }
 
@@ -1481,6 +1552,126 @@ function buildPillsAndNarrativeHtml(section, data) {
     return `${pillsBlock}${textHtml}`;
 }
 
+/**
+ * The Big Play + operational pain watchlist — pain pills sit directly under
+ * Action-Forcing Event so reps wire symptoms to urgency (Challenger teaching).
+ */
+function buildPursuitWithPainHtml(section, data) {
+    const obj = isPlainObject(data) ? data : {};
+    const fields = section.fields || [];
+    let html = '<div class="strategic-composite-grid">';
+
+    fields.forEach((field) => {
+        html += buildCompositeFieldHtml(section.id, field, obj[field.key]);
+        if (field.key === 'action_forcing_event') {
+            html += buildOperationalPainWatchlistHtml(section, obj);
+        }
+        if (section.id === 'pursuit_thesis' && field.key === 'executive_narrative') {
+            html += buildExecutiveNarrativeHintPillsHtml();
+        }
+    });
+
+    html += '</div>';
+    return html;
+}
+
+/**
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} obj
+ */
+function buildOperationalPainWatchlistHtml(section, obj) {
+    const pills = section.operationalPainPills || [];
+    const selected = Array.isArray(obj.operational_pain_selected) ? obj.operational_pain_selected : [];
+    const notes = escapeHtml(String(obj.operational_pain_notes ?? ''));
+
+    const pillsHtml = pills.map((pill) => {
+        const active = selected.includes(pill) ? ' strategic-pill-active' : '';
+        return `<button type="button" class="strategic-pill${active}" data-pill-section="pursuit_thesis" data-pill-field="operational_pain_selected" data-pill-value="${escapeHtml(pill)}">${escapeHtml(pill)}</button>`;
+    }).join('');
+
+    return `
+        <div class="strategic-composite-field strategic-operational-pain-block">
+            <div class="strategic-composite-field-meta">
+                <span class="strategic-composite-field-label">Operational Pain Watchlist</span>
+                ${buildFieldHintHtml(section.operationalPainNotesHint || 'Select the operational symptoms that make the Action-Forcing Event credible.')}
+            </div>
+            <div class="strategic-pills-wrap" role="group" aria-label="Operational pain watchlist">
+                ${pillsHtml}
+            </div>
+            <textarea
+                class="strategic-field strategic-textarea"
+                data-field="pursuit_thesis.operational_pain_notes"
+                rows="2"
+                placeholder="Context on selected pain signals…"
+            >${notes}</textarea>
+        </div>`;
+}
+
+/**
+ * The Battlefield — competitive positioning with incumbent moat directly below.
+ */
+function buildBattlefieldHtml(section, data) {
+    const obj = isPlainObject(data) ? data : {};
+    const positioningBlock = buildPillsAndNarrativeHtml(section, obj);
+    const moatPills = section.moatPills || [];
+    const moatSelected = Array.isArray(obj.moat_pills) ? obj.moat_pills : [];
+    const moatPillsHtml = moatPills.map((pill) => {
+        const active = moatSelected.includes(pill) ? ' strategic-pill-active' : '';
+        return `<button type="button" class="strategic-pill${active}" data-pill-section="competitive_landscape" data-pill-field="moat_pills" data-pill-value="${escapeHtml(pill)}">${escapeHtml(pill)}</button>`;
+    }).join('');
+
+    const compound = buildCompositeFieldHtml('competitive_landscape', { key: 'compound_relationships', hint: section.textFields?.find((f) => f.key === 'compound_relationships')?.hint }, obj.compound_relationships);
+    const difficult = buildCompositeFieldHtml('competitive_landscape', { key: 'difficult_to_remove', hint: section.textFields?.find((f) => f.key === 'difficult_to_remove')?.hint }, obj.difficult_to_remove);
+
+    return `
+        ${positioningBlock}
+        <div class="battlefield-moat-block">
+            <h5 class="battlefield-moat-heading">${escapeHtml(TACTICAL_UX_LABELS.incumbentGrip)}</h5>
+            <div class="strategic-pills-wrap" role="group" aria-label="Incumbent moat pills">
+                ${moatPillsHtml}
+            </div>
+            ${compound}
+            ${difficult}
+        </div>`;
+}
+
+/**
+ * Account Expansion — land wedge narrative then white-space matrix.
+ *
+ * @param {import('./account-plan-sections.js').PlanSectionDef} section
+ * @param {Record<string, unknown>} data
+ * @param {Record<string, unknown>} sections
+ */
+function buildAccountExpansionHtml(section, data, sections) {
+    const obj = isPlainObject(data) ? data : {};
+    const ghostHtml = TENSION_GHOST_SECTIONS.includes(section.id)
+        ? buildStrategicTensionGhostHtml(sections.strategic_tensions, section.id)
+        : '';
+    const wedgeHtml = (section.wedgeFields || []).map((field) => (
+        buildCompositeFieldHtml(section.id, field, obj[field.key])
+    )).join('');
+    const rows = getWhiteSpaceRows(obj);
+
+    return `
+        ${ghostHtml}
+        <div class="account-expansion-wedge strategic-composite-grid">${wedgeHtml}</div>
+        ${buildWhiteSpaceMatrixHtml(rows)}`;
+}
+
+function ensureAccountExpansionShape() {
+    if (!_liveSections) return;
+    if (!isPlainObject(_liveSections.white_space)) {
+        _liveSections.white_space = {
+            initial_entry: '',
+            trust_creation: '',
+            expansion_path: '',
+            rows: getWhiteSpaceRows(_liveSections.white_space),
+        };
+    } else if (!Array.isArray(_liveSections.white_space.rows)) {
+        _liveSections.white_space.rows = getWhiteSpaceRows(_liveSections.white_space);
+    }
+}
+
 function buildInfluenceContactPill(contact, entry) {
     const name = contact
         ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
@@ -1917,10 +2108,30 @@ function buildInfluenceContactCard(contact, entry, bucket) {
     const relationshipTemp = String(entry.relationship_temperature ?? '');
     const personalityStyle = String(entry.personality_style ?? '');
     const strategicPriorities = escapeHtml(String(entry.strategic_priorities ?? ''));
+    const isChampion = entry.is_champion === '1' || entry.is_champion === true;
+    const isEconomicBuyer = entry.is_economic_buyer === '1' || entry.is_economic_buyer === true;
 
     const frontBadges = [influenceLevel, relationshipTemp].filter(Boolean).map((badge) => (
         `<span class="influence-contact-badge">${escapeHtml(badge)}</span>`
     )).join('');
+
+    const meddpiccHtml = `
+        <div class="influence-meddpicc-badges" role="group" aria-label="MEDDPICC roles">
+            <button
+                type="button"
+                class="influence-meddpicc-badge${isChampion ? ' influence-meddpicc-badge--active' : ''}"
+                data-influence-contact-id="${contactId}"
+                data-influence-meddpicc="is_champion"
+                aria-pressed="${isChampion ? 'true' : 'false'}"
+            >Champion</button>
+            <button
+                type="button"
+                class="influence-meddpicc-badge${isEconomicBuyer ? ' influence-meddpicc-badge--active' : ''}"
+                data-influence-meddpicc="is_economic_buyer"
+                data-influence-contact-id="${contactId}"
+                aria-pressed="${isEconomicBuyer ? 'true' : 'false'}"
+            >Economic Buyer</button>
+        </div>`;
 
     return `
         <div
@@ -1933,6 +2144,7 @@ function buildInfluenceContactCard(contact, entry, bucket) {
                 <div class="deal-card-front influence-contact-card-front">
                     <div class="influence-contact-name">${escapeHtml(name || 'Contact')}</div>
                     ${title ? `<div class="influence-contact-title">${escapeHtml(title)}</div>` : ''}
+                    ${meddpiccHtml}
                     ${frontBadges ? `<div class="influence-contact-badges">${frontBadges}</div>` : ''}
                     <div class="influence-contact-hint">Click for influence profile</div>
                 </div>
@@ -2155,6 +2367,56 @@ function updateInfluenceContactField(contactId, fieldKey, value) {
     });
 
     _liveSections.influence_mapping = mapping;
+}
+
+/**
+ * Toggle MEDDPICC role badges (Champion / Economic Buyer) on influence cards.
+ *
+ * @param {HTMLButtonElement} button
+ */
+function toggleMeddpiccBadge(button) {
+    const contactId = button.dataset.influenceContactId;
+    const fieldKey = button.dataset.influenceMeddpicc;
+    if (!contactId || !fieldKey || !_liveSections) return;
+
+    const mapping = isPlainObject(_liveSections.influence_mapping)
+        ? { ..._liveSections.influence_mapping }
+        : { executive: [], mid_level: [], technical: [] };
+
+    ['executive', 'mid_level', 'technical'].forEach((bucket) => {
+        const list = normalizeInfluenceEntries(mapping[bucket]);
+        const index = list.findIndex((item) => String(item.id) === String(contactId));
+        if (index < 0) return;
+
+        if (fieldKey === 'is_economic_buyer') {
+            list.forEach((item, i) => {
+                list[i] = { ...item, is_economic_buyer: '' };
+            });
+        }
+
+        const current = list[index][fieldKey] === '1';
+        list[index] = { ...list[index], [fieldKey]: current ? '' : '1' };
+        mapping[bucket] = list;
+    });
+
+    _liveSections.influence_mapping = mapping;
+    refreshInfluenceBoardSection();
+    updateRailSummaries(_liveSections);
+    queueAutosave();
+}
+
+/** Show/hide the bureaucracy bypass trap when psychology sliders cross the threshold. */
+function updatePsychologyBypassTrapVisibility() {
+    if (!_liveSections) return;
+    const psych = isPlainObject(_liveSections.psychology) ? _liveSections.psychology : {};
+    const trap = document.querySelector('[data-psychology-bypass-trap]');
+    if (!(trap instanceof HTMLElement)) return;
+    const active = isBureaucracyBypassTrapActive(psych);
+    trap.classList.toggle('hidden', !active);
+    const textarea = trap.querySelector('.psychology-bypass-textarea');
+    if (textarea instanceof HTMLTextAreaElement) {
+        textarea.required = active;
+    }
 }
 
 /**
@@ -2438,6 +2700,7 @@ function buildPsychologyGravityHtml(section, psychology) {
 
 function syncWhiteSpaceFromCanvas() {
     if (!_liveSections) return;
+    ensureAccountExpansionShape();
     const matrix = document.querySelector('[data-white-space-matrix]');
     if (!matrix) return;
 
@@ -2455,17 +2718,16 @@ function syncWhiteSpaceFromCanvas() {
         rows.push(row);
     });
 
-    _liveSections.white_space = rows.filter((row) => Object.values(row).some((value) => String(value).trim()));
+    _liveSections.white_space.rows = rows.filter((row) => Object.values(row).some((value) => String(value).trim()));
 }
 
 function addWhiteSpaceRow() {
     if (!_liveSections) return;
+    ensureAccountExpansionShape();
     syncWhiteSpaceFromCanvas();
-    const rows = Array.isArray(_liveSections.white_space)
-        ? [..._liveSections.white_space]
-        : [];
+    const rows = [...getWhiteSpaceRows(_liveSections.white_space)];
     rows.push(createEmptyWhiteSpaceRow());
-    _liveSections.white_space = rows;
+    _liveSections.white_space.rows = rows;
     refreshWhiteSpaceSection();
     queueAutosave();
 }
@@ -2475,12 +2737,11 @@ function addWhiteSpaceRow() {
  */
 function removeWhiteSpaceRow(index) {
     if (!_liveSections) return;
+    ensureAccountExpansionShape();
     syncWhiteSpaceFromCanvas();
-    const rows = Array.isArray(_liveSections.white_space)
-        ? [..._liveSections.white_space]
-        : [];
+    const rows = [...getWhiteSpaceRows(_liveSections.white_space)];
     rows.splice(index, 1);
-    _liveSections.white_space = rows;
+    _liveSections.white_space.rows = rows;
     refreshWhiteSpaceSection();
     queueAutosave();
 }
@@ -2492,7 +2753,7 @@ function refreshWhiteSpaceSection() {
 
     const headingId = `strategic-heading-${sectionDef.id}`;
     const headerContext = buildSectionHeaderContext(sectionDef);
-    const bodyHtml = buildWhiteSpaceMatrixHtml(_liveSections.white_space);
+    const bodyHtml = buildAccountExpansionHtml(sectionDef, _liveSections.white_space, _liveSections);
 
     sectionEl.innerHTML = `
         <h4 id="${headingId}" class="strategic-section-title">${escapeHtml(sectionDef.title)}</h4>
@@ -2702,6 +2963,7 @@ function collectMomentumTimelineItems() {
             date,
             label: interactionLogSourceLabel(source),
             desc: summary,
+            momentumScore: entry.momentum_score != null ? clampScale(entry.momentum_score, 3) : null,
         });
     });
 
@@ -2745,6 +3007,7 @@ function buildMomentumTimelineDisplayHtml() {
                 <article class="momentum-timeline-card">
                     <div class="momentum-timeline-card-head">
                         <span class="momentum-timeline-card-label">${escapeHtml(item.label)}</span>
+                        ${item.momentumScore != null ? `<span class="momentum-timeline-card-score">${item.momentumScore} — ${escapeHtml(MOMENTUM_LABELS[item.momentumScore - 1])}</span>` : ''}
                         <time class="momentum-timeline-card-date" datetime="${escapeHtml(item.date.toISOString())}">${escapeHtml(dateLabel)}</time>
                     </div>
                     <p class="momentum-timeline-card-desc">${escapeHtml(item.desc)}</p>
@@ -2759,6 +3022,30 @@ function buildMomentumTimelineDisplayHtml() {
         </div>`;
 }
 
+function buildMomentumTrendlineHtml() {
+    const log = Array.isArray(_liveSections?.interaction_log) ? _liveSections.interaction_log : [];
+    const points = log
+        .filter((entry) => isPlainObject(entry) && entry.momentum_score != null)
+        .map((entry) => ({
+            date: new Date(String(entry.date ?? '')),
+            score: clampScale(entry.momentum_score, 3),
+        }))
+        .filter((point) => !Number.isNaN(point.date.getTime()))
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    if (points.length === 0) {
+        return '<p class="momentum-trendline-empty">Log strategic milestones to build a momentum trendline.</p>';
+    }
+
+    const bars = points.map((point) => {
+        const height = ((point.score - 1) / 4) * 100;
+        const label = formatCommittedDate(point.date.toISOString());
+        return `<div class="momentum-trendline-bar" style="--trend-height:${height}%" title="${escapeHtml(label)} — ${MOMENTUM_LABELS[point.score - 1]}"><span class="momentum-trendline-score">${point.score}</span></div>`;
+    }).join('');
+
+    return `<div class="momentum-trendline" role="img" aria-label="Relationship momentum trendline">${bars}</div>`;
+}
+
 function buildMomentumTimelineHtml() {
     const toggleChecked = _showCrmActivities ? ' checked' : '';
     return `
@@ -2768,12 +3055,31 @@ function buildMomentumTimelineHtml() {
                     id="momentum-signal-input"
                     class="strategic-field strategic-textarea momentum-signal-input"
                     rows="2"
-                    placeholder="Log a strategic signal, political shift, or momentum change…"
+                    placeholder="Describe the strategic milestone — access win, political shift, proof point…"
                 ></textarea>
-                <button type="button" class="btn-secondary momentum-signal-log-btn" data-momentum-signal-log>
-                    Log Signal
+                <div class="momentum-milestone-score-row">
+                    <label for="momentum-milestone-score">Momentum score <span class="required-mark">*</span></label>
+                    <span class="momentum-milestone-score-label" data-milestone-score-label>${MOMENTUM_LABELS[2]}</span>
+                    <div class="momentum-slider-wrap" style="${momentumSliderStyle(3)}">
+                        <input
+                            type="range"
+                            class="momentum-milestone-score-input"
+                            id="momentum-milestone-score"
+                            min="1"
+                            max="5"
+                            step="1"
+                            value="3"
+                            aria-valuemin="1"
+                            aria-valuemax="5"
+                            aria-valuenow="3"
+                        />
+                    </div>
+                </div>
+                <button type="button" class="btn-secondary momentum-signal-log-btn" data-momentum-milestone-log>
+                    Log Strategic Milestone
                 </button>
             </div>
+            <div class="momentum-trendline-host">${buildMomentumTrendlineHtml()}</div>
             <div class="momentum-timeline-controls">
                 <label class="momentum-timeline-toggle">
                     <input type="checkbox" class="momentum-timeline-toggle-input" data-timeline-show-crm${toggleChecked} />
@@ -2787,6 +3093,11 @@ function buildMomentumTimelineHtml() {
 function refreshMomentumTimelineSection() {
     const sectionEl = document.getElementById('strategic-section-momentum_timeline');
     if (!sectionEl) return;
+
+    const trendlineHost = sectionEl.querySelector('.momentum-trendline-host');
+    if (trendlineHost) {
+        trendlineHost.innerHTML = buildMomentumTrendlineHtml();
+    }
 
     const display = sectionEl.querySelector('.momentum-timeline-display');
     if (display) {
@@ -3084,28 +3395,39 @@ function appendInteractionLogEntry(entry) {
     _liveSections.interaction_log = log;
 }
 
-function logInteractionSignal() {
+function logStrategicMilestone() {
     if (!_liveSections) return;
 
     const textarea = document.getElementById('momentum-signal-input');
-    if (!(textarea instanceof HTMLTextAreaElement)) return;
+    const scoreInput = document.getElementById('momentum-milestone-score');
+    if (!(textarea instanceof HTMLTextAreaElement) || !(scoreInput instanceof HTMLInputElement)) return;
 
     const text = textarea.value.trim();
-    if (!text) return;
+    const score = clampScale(scoreInput.value, 3);
+    if (!text) {
+        _options.onToast?.('Describe the strategic milestone before logging.', 'error');
+        return;
+    }
 
     appendInteractionLogEntry({
         ...createEmptyInteractionLogEntry(),
         source: 'signal',
         date: new Date().toISOString(),
         text,
+        momentum_score: score,
     });
 
     textarea.value = '';
+    scoreInput.value = '3';
     autoExpandTextarea(textarea);
     refreshMomentumTimelineSection();
     refreshInteractionLogSection();
     updateRailSummaries(_liveSections);
     queueAutosave();
+}
+
+function logInteractionSignal() {
+    logStrategicMilestone();
 }
 
 function saveInteractionForm() {
@@ -3231,6 +3553,18 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
             );
         }
 
+        if (section.type === 'pursuit_with_pain') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildPursuitWithPainHtml(section, data),
+                'strategic-section--pursuit-thesis'
+            );
+        }
+
         if (section.type === 'account_snapshot') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
             const account = _options.getSelectedAccount?.() ?? null;
@@ -3244,24 +3578,30 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
             );
         }
 
-        if (section.type === 'pain_signals' || section.type === 'entrenchment') {
+        if (section.type === 'battlefield') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
-            const extraClass = section.type === 'entrenchment'
-                ? 'strategic-section--entrenchment'
-                : 'strategic-section--pain-signals';
             return wrapStrategicSection(
                 sectionId,
                 headingId,
                 section.title,
                 headerContext,
-                buildPillsAndNarrativeHtml(section, data),
-                extraClass
+                buildBattlefieldHtml(section, data),
+                'strategic-section--battlefield'
             );
         }
 
-        // Task 3 — "The Blindspots" dedicated branch. The legacy
-        // critical_unknowns section.type was pills+narrative; the new
-        // blindspots_list type renders a focused checklist instead.
+        if (section.type === 'account_expansion') {
+            const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
+            return wrapStrategicSection(
+                sectionId,
+                headingId,
+                section.title,
+                headerContext,
+                buildAccountExpansionHtml(section, data, sections),
+                'strategic-section--account-expansion'
+            );
+        }
+
         if (section.type === 'blindspots_list') {
             const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
             return wrapStrategicSection(
@@ -3303,20 +3643,9 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
             );
         }
 
-        if (section.type === 'white_space_matrix') {
-            const rows = sections.white_space;
-            return wrapStrategicSection(
-                sectionId,
-                headingId,
-                section.title,
-                headerContext,
-                buildWhiteSpaceMatrixHtml(rows),
-                'strategic-section--white-space'
-            );
-        }
-
         if (section.type === 'psychology_grid') {
             const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
+            const bypassRequired = isBureaucracyBypassTrapActive(psychology);
             const sliders = (section.sliders || PSYCHOLOGY_SLIDERS).map((slider) => {
                 const value = clampScale(psychology[slider.id], 3);
                 const hintHtml = slider.hint
@@ -3356,43 +3685,17 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
                 <div class="psychology-gravity-section">
                     <h5 class="psychology-gravity-heading">Enterprise Gravity</h5>
                     <div class="psychology-gravity-grid">${buildPsychologyGravityHtml(section, psychology)}</div>
-                </div>`);
-        }
-
-        if (section.type === 'momentum') {
-            const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
-            const score = clampScale(momentum.score, 3);
-            const narrative = escapeHtml(String(momentum.narrative ?? ''));
-            return wrapStrategicSection(sectionId, headingId, section.title, headerContext, `
-                <div class="momentum-field">
-                    <div class="momentum-slider-row">
-                        <label for="momentum-score">Momentum</label>
-                        <span class="momentum-score-label" data-momentum-label>${MOMENTUM_LABELS[score - 1]}</span>
-                    </div>
-                    <div class="momentum-slider-wrap" style="${momentumSliderStyle(score)}">
-                        <input
-                            type="range"
-                            class="momentum-slider"
-                            id="momentum-score"
-                            min="1"
-                            max="5"
-                            step="1"
-                            value="${score}"
-                            data-field="relationship_momentum.score"
-                            aria-valuemin="1"
-                            aria-valuemax="5"
-                            aria-valuenow="${score}"
-                        />
-                    </div>
-                    <div class="momentum-slider-scale">
-                        <span>${escapeHtml(MOMENTUM_LABELS[0])}</span>
-                        <span>${escapeHtml(MOMENTUM_LABELS[4])}</span>
-                    </div>
+                </div>
+                <div class="psychology-bypass-trap${bypassRequired ? '' : ' hidden'}" data-psychology-bypass-trap>
+                    <label for="psychology-bureaucracy-bypass">Bureaucracy Bypass Strategy <span class="required-mark">*</span></label>
+                    ${buildFieldHintHtml('Conservative buyers inside heavy process will stall — spell out how you circumvent the bureaucracy without triggering procurement antibodies.')}
                     <textarea
-                        class="strategic-field strategic-textarea"
-                        data-field="relationship_momentum.narrative"
+                        id="psychology-bureaucracy-bypass"
+                        class="strategic-field strategic-textarea psychology-bypass-textarea"
+                        data-field="psychology.bureaucracy_bypass_strategy"
                         rows="3"
-                    >${narrative}</textarea>
+                        ${bypassRequired ? 'required' : ''}
+                    >${escapeHtml(String(psychology.bureaucracy_bypass_strategy ?? ''))}</textarea>
                 </div>`);
         }
 
@@ -3442,11 +3745,78 @@ function buildCanvasHtml(sections, entryPointActiveIndex = 0) {
 }
 
 /**
+ * "So What?" trap — conservative risk + heavy bureaucracy requires explicit bypass plan.
+ *
+ * @param {Record<string, unknown>} psychology
+ */
+function isBureaucracyBypassTrapActive(psychology) {
+    const risk = clampScale(psychology.risk_appetite, 3);
+    const bureaucracy = clampScale(psychology.bureaucracy_level, 3);
+    return risk <= 2 && bureaucracy >= 4;
+}
+
+/**
+ * MEDDPICC gate — plan cannot reach 100% completeness without an Economic Buyer.
+ *
+ * @param {Record<string, unknown>} sections
+ */
+function hasDesignatedEconomicBuyer(sections) {
+    const mapping = isPlainObject(sections.influence_mapping) ? sections.influence_mapping : {};
+    return ['executive', 'mid_level', 'technical'].some((tier) => {
+        const list = Array.isArray(mapping[tier]) ? mapping[tier] : [];
+        return list.some((entry) => isPlainObject(entry) && (entry.is_economic_buyer === '1' || entry.is_economic_buyer === true));
+    });
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
+function resolveLatestMomentumFromLog(sections) {
+    const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    for (const entry of log) {
+        if (!isPlainObject(entry) || entry.momentum_score == null) continue;
+        const score = clampScale(entry.momentum_score, 3);
+        const text = String(entry.text ?? entry.interaction ?? '').trim();
+        return { score, narrative: text };
+    }
+    return { score: 3, narrative: '' };
+}
+
+/**
  * @param {import('./account-plan-sections.js').PlanSectionDef} section
  * @param {Record<string, unknown>} sections
  */
 function isSectionFilled(section, sections) {
     const data = sections[section.id];
+
+    if (section.type === 'pursuit_with_pain') {
+        const obj = isPlainObject(data) ? data : {};
+        const fields = section.fields || [];
+        const textFilled = fields.some((field) => String(obj[field.key] ?? '').trim());
+        const painPills = Array.isArray(obj.operational_pain_selected) ? obj.operational_pain_selected : [];
+        const painNotes = String(obj.operational_pain_notes ?? '').trim();
+        return textFilled || painPills.length > 0 || Boolean(painNotes);
+    }
+
+    if (section.type === 'battlefield') {
+        const obj = isPlainObject(data) ? data : {};
+        const positioning = Array.isArray(obj.positioning_pills) ? obj.positioning_pills : [];
+        const moat = Array.isArray(obj.moat_pills) ? obj.moat_pills : [];
+        return positioning.length > 0
+            || moat.length > 0
+            || String(obj.incumbents ?? '').trim()
+            || String(obj.narrative ?? '').trim()
+            || String(obj.compound_relationships ?? '').trim()
+            || String(obj.difficult_to_remove ?? '').trim();
+    }
+
+    if (section.type === 'account_expansion') {
+        const obj = isPlainObject(data) ? data : {};
+        const wedgeFilled = (section.wedgeFields || []).some(
+            (field) => String(obj[field.key] ?? '').trim()
+        );
+        return wedgeFilled || getWhiteSpaceRows(obj).length > 0;
+    }
 
     if (section.type === 'account_snapshot') {
         const snap = isPlainObject(data) ? data : {};
@@ -3476,8 +3846,6 @@ function isSectionFilled(section, sections) {
 
     if (
         section.type === 'pills_and_narrative'
-        || section.type === 'pain_signals'
-        || section.type === 'entrenchment'
     ) {
         const obj = isPlainObject(data) ? data : {};
         const pillField = section.pillField || 'selected_pills';
@@ -3485,10 +3853,8 @@ function isSectionFilled(section, sections) {
         const textFilled = (section.textFields || []).some(
             (field) => String(obj[field.key] ?? '').trim()
         );
-        if (section.type === 'pills_and_narrative' && section.id === 'competitive_landscape') {
-            return pills.length > 0
-                || String(obj.incumbents ?? '').trim()
-                || String(obj.narrative ?? '').trim();
+        if (section.type === 'pills_and_narrative' && section.id === 'strategic_tensions') {
+            return pills.length > 0 || textFilled;
         }
         return pills.length > 0 || textFilled;
     }
@@ -3510,10 +3876,6 @@ function isSectionFilled(section, sections) {
         return hasContacts || hasText;
     }
 
-    if (section.type === 'white_space_matrix') {
-        return Array.isArray(data) && data.length > 0;
-    }
-
     if (section.type === 'psychology_grid') {
         const psych = isPlainObject(data) ? data : {};
         const gravityFilled = (section.gravityFields || []).some(
@@ -3523,13 +3885,9 @@ function isSectionFilled(section, sections) {
             const value = parseInt(String(psych[slider.id] ?? ''), 10);
             return !Number.isNaN(value) && value !== 3;
         });
-        return gravityFilled || sliderMoved || String(psych.narrative ?? '').trim();
-    }
-
-    if (section.type === 'momentum') {
-        const momentum = isPlainObject(data) ? data : {};
-        const score = clampScale(momentum.score, 3);
-        return score !== 3 || String(momentum.narrative ?? '').trim();
+        const bypassOk = !isBureaucracyBypassTrapActive(psych)
+            || String(psych.bureaucracy_bypass_strategy ?? '').trim();
+        return (gravityFilled || sliderMoved || String(psych.narrative ?? '').trim()) && bypassOk;
     }
 
     if (section.type === 'timeline_view') {
@@ -3559,7 +3917,11 @@ function computePlanCompleteness(sections) {
     if (total === 0) return { filled: 0, total: 0, percent: 0 };
 
     const filled = visibleSections.filter((section) => isSectionFilled(section, sections)).length;
-    const percent = Math.round((filled / total) * 100);
+    let percent = Math.round((filled / total) * 100);
+    // MEDDPICC gate: without an Economic Buyer the plan is structurally incomplete.
+    if (!hasDesignatedEconomicBuyer(sections)) {
+        percent = Math.min(percent, 99);
+    }
     return { filled, total, percent };
 }
 
@@ -3570,11 +3932,12 @@ function renderRail(sections) {
     const rail = document.getElementById('strategic-rail');
     if (!rail) return;
 
-    const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
+    const latestMomentum = resolveLatestMomentumFromLog(sections);
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-    const score = clampScale(momentum.score, 3);
-    const narrative = String(momentum.narrative ?? '').trim();
-    const narrativePreview = narrative ? truncateText(narrative, 120) : 'No narrative yet.';
+    const score = latestMomentum.score;
+    const narrativePreview = latestMomentum.narrative
+        ? truncateText(latestMomentum.narrative, 120)
+        : 'Log a strategic milestone to establish momentum trend.';
     const completeness = computePlanCompleteness(sections);
 
     rail.innerHTML = `
@@ -3829,10 +4192,10 @@ async function handleExportPdf(type) {
 }
 
 function updateRailSummaries(sections) {
-    const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
+    const latestMomentum = resolveLatestMomentumFromLog(sections);
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
-    const score = clampScale(momentum.score, 3);
-    const narrative = String(momentum.narrative ?? '').trim();
+    const score = latestMomentum.score;
+    const narrative = latestMomentum.narrative;
 
     const scoreEl = document.querySelector('[data-rail-momentum-score]');
     const labelEl = document.querySelector('[data-rail-momentum-label]');
@@ -3840,7 +4203,9 @@ function updateRailSummaries(sections) {
     if (scoreEl) scoreEl.textContent = String(score);
     if (labelEl) labelEl.textContent = MOMENTUM_LABELS[score - 1];
     if (narrativeEl) {
-        narrativeEl.textContent = narrative ? truncateText(narrative, 120) : 'No narrative yet.';
+        narrativeEl.textContent = narrative
+            ? truncateText(narrative, 120)
+            : 'Log a strategic milestone to establish momentum trend.';
     }
 
     const plan30 = document.querySelector('[data-rail-plan-30]');
@@ -4018,7 +4383,7 @@ function bindCanvasFormEvents(canvas) {
     canvas.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .white-space-select, .white-space-textarea')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .momentum-milestone-score-input, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .white-space-select, .white-space-textarea')) return;
 
         if (target instanceof HTMLTextAreaElement) {
             autoExpandTextarea(target);
@@ -4053,7 +4418,7 @@ function bindCanvasFormEvents(canvas) {
             return;
         }
 
-        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .white-space-select, .white-space-textarea, .interaction-log-select, .interaction-log-input')) return;
+        if (!target.matches('.strategic-field, .psychology-slider, .momentum-slider, .momentum-milestone-score-input, .influence-card-notes, .influence-card-field-textarea, .entry-point-select, .white-space-select, .white-space-textarea, .interaction-log-select, .interaction-log-input')) return;
         applyFieldToLiveSections(target);
         updateRailSummaries(_liveSections || {});
         queueAutosave();
@@ -4206,9 +4571,17 @@ function bindCanvasFormEvents(canvas) {
             return;
         }
 
-        if (target.closest('[data-momentum-signal-log]')) {
+        if (target.closest('[data-momentum-milestone-log]')) {
             event.preventDefault();
-            logInteractionSignal();
+            logStrategicMilestone();
+            return;
+        }
+
+        const meddpiccBtn = target.closest('[data-influence-meddpicc]');
+        if (meddpiccBtn instanceof HTMLButtonElement) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleMeddpiccBadge(meddpiccBtn);
             return;
         }
 
@@ -4220,6 +4593,7 @@ function bindCanvasFormEvents(canvas) {
 
         const card = target.closest('.influence-contact-card.deal-card-flippable');
         if (card instanceof HTMLElement) {
+            if (target.closest('.influence-meddpicc-badge, .influence-meddpicc-badges')) return;
             if (target.closest('.influence-card-notes, .influence-card-field-textarea, .influence-field-pill, .influence-card-fields, .influence-card-field')) return;
             if (target.closest('.influence-contact-notes-label')) return;
             card.classList.toggle('deal-card-flipped');
@@ -4652,6 +5026,8 @@ function initPsychologySliders(root) {
         if (!(input instanceof HTMLInputElement)) return;
         wrap.setAttribute('style', momentumSliderStyle(input.value));
     });
+
+    updatePsychologyBypassTrapVisibility();
 }
 
 /**

@@ -583,10 +583,8 @@ function resolvePptxPlanContext(plan) {
     const normalized = normalizePlan(plan);
     const sections = normalized.current_draft.sections;
 
-    const momentum = isPlainObject(sections.relationship_momentum)
-        ? sections.relationship_momentum
-        : {};
-    const score = clampScale(momentum.score, 3);
+    const momentum = resolveMomentumFromInteractionLog(sections);
+    const score = momentum.score;
 
     const psychology = isPlainObject(sections.psychology) ? sections.psychology : {};
     const tensions = isPlainObject(sections.strategic_tensions) ? sections.strategic_tensions : {};
@@ -596,7 +594,7 @@ function resolvePptxPlanContext(plan) {
 
     return {
         score,
-        momentumNarrative: String(momentum.narrative ?? '').trim(),
+        momentumNarrative: momentum.narrative,
         psychology,
         tensionPills: Array.isArray(tensions.selected_pills)
             ? tensions.selected_pills.map((p) => String(p ?? '').trim()).filter(Boolean)
@@ -618,6 +616,35 @@ function resolvePptxPlanContext(plan) {
         },
         rawEntryPoints: Array.isArray(sections.entry_points) ? sections.entry_points : [],
     };
+}
+
+/**
+ * Latest scored entry from interaction_log — replaces legacy relationship_momentum.
+ * @param {Record<string, unknown>} sections
+ * @returns {{ score: number, narrative: string }}
+ */
+function resolveMomentumFromInteractionLog(sections) {
+    const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    /** @type {{ score: number, narrative: string, dateMs: number } | null} */
+    let latest = null;
+
+    log.forEach((entry) => {
+        if (!isPlainObject(entry)) return;
+        if (entry.momentum_score == null || entry.momentum_score === '') return;
+        const dateMs = new Date(String(entry.date ?? '')).getTime();
+        const ms = Number.isNaN(dateMs) ? 0 : dateMs;
+        if (!latest || ms >= latest.dateMs) {
+            latest = {
+                score: clampScale(entry.momentum_score, 3),
+                narrative: String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim(),
+                dateMs: ms,
+            };
+        }
+    });
+
+    return latest
+        ? { score: latest.score, narrative: latest.narrative }
+        : { score: 3, narrative: '' };
 }
 
 /**
@@ -1174,6 +1201,10 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
         : [
             String(ctx.competitive.incumbents ?? '').trim(),
             String(ctx.competitive.narrative ?? '').trim(),
+            Array.isArray(ctx.competitive.moat_pills) && ctx.competitive.moat_pills.length
+                ? `Moat: ${ctx.competitive.moat_pills.map((p) => String(p ?? '').trim()).filter(Boolean).join(', ')}`
+                : '',
+            String(ctx.competitive.difficult_to_remove ?? '').trim(),
         ].filter(Boolean);
 
     const competitiveHeadline = String(highlight.slides.battlefield?.competitive?.headline ?? '').trim()

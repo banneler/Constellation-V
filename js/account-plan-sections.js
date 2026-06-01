@@ -2,7 +2,7 @@
  * Strategic Account OS — section registry (canvas, TOC, export metadata).
  */
 
-/** @typedef {'account_snapshot' | 'composite_textarea' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel' | 'critical_unknowns' | 'blindspots_list' | 'entrenchment' | 'pain_signals' | 'white_space_matrix'} PlanSectionType */
+/** @typedef {'account_snapshot' | 'composite_textarea' | 'pursuit_with_pain' | 'pills_and_narrative' | 'influence_board' | 'psychology_grid' | 'momentum' | 'timeline_view' | 'triple_textarea' | 'entry_point_carousel' | 'critical_unknowns' | 'blindspots_list' | 'entrenchment' | 'pain_signals' | 'white_space_matrix' | 'account_expansion' | 'battlefield'} PlanSectionType */
 
 /**
  * Tactical, locker-room labels for canvas + exports. Data keys stay stable
@@ -13,7 +13,6 @@ export const SAOS_CORE_HIDDEN_SECTION_IDS = Object.freeze([
     'psychology',
     'strategic_tensions',
     'critical_unknowns',
-    'entrenchment',
 ]);
 
 export const TACTICAL_UX_LABELS = Object.freeze({
@@ -217,7 +216,7 @@ export const POSITIONING_PILLS = Object.freeze([
  *
  * @type {readonly string[]}
  */
-export const TENSION_GHOST_SECTIONS = Object.freeze(['plan_30_60_90', 'land_and_expand']);
+export const TENSION_GHOST_SECTIONS = Object.freeze(['plan_30_60_90', 'white_space']);
 
 // ---------------------------------------------------------------------------
 // Task 4 — Strategic Tension accountability prompt
@@ -243,7 +242,7 @@ export const TENSION_GHOST_SECTIONS = Object.freeze(['plan_30_60_90', 'land_and_
  * @type {Readonly<Record<string, string>>}
  */
 export const TENSION_LINKAGE_PROMPTS = Object.freeze({
-    land_and_expand: 'Land & Expand',
+    white_space: 'Account Expansion',
 });
 
 /**
@@ -418,9 +417,10 @@ export const PLAN_SECTIONS = Object.freeze([
         // that a thesis box on its own cannot.
         // ----------------------------------------------------------------
         id: 'pursuit_thesis',
-        type: 'composite_textarea',
+        type: 'pursuit_with_pain',
         title: TACTICAL_UX_LABELS.pursuitThesis,
         contextMode: 'none',
+        description: 'The forcing narrative — operational pain pills justify the Action-Forcing Event.',
         fields: [
             {
                 key: 'thesis',
@@ -448,6 +448,8 @@ export const PLAN_SECTIONS = Object.freeze([
                 hint: 'How executives talk about change — growth, resiliency, modernization, cost.',
             },
         ],
+        operationalPainPills: PAIN_SIGNAL_PILLS,
+        operationalPainNotesHint: 'Context on the operational pain watchlist — the visual proof behind Why Now.',
         exportDossier: true,
         exportExec: true,
     },
@@ -462,18 +464,6 @@ export const PLAN_SECTIONS = Object.freeze([
         pillField: 'selected_pills',
         pillNarrativeLayout: 'split',
         textFields: [{ key: 'narrative', hint: 'Additional context on the tensions you selected.' }],
-        exportDossier: true,
-        exportExec: false,
-    },
-    {
-        id: 'pain_signals',
-        type: 'pain_signals',
-        title: 'Pain Signals',
-        contextMode: 'lead',
-        description: 'Watchlist of operational and strategic pain indicators.',
-        pills: PAIN_SIGNAL_PILLS,
-        pillField: 'selected',
-        textFields: [{ key: 'notes', hint: 'Context on the pain signals you selected.' }],
         exportDossier: true,
         exportExec: false,
     },
@@ -523,43 +513,37 @@ export const PLAN_SECTIONS = Object.freeze([
     },
     {
         id: 'white_space',
-        type: 'white_space_matrix',
-        title: 'White Space',
+        type: 'account_expansion',
+        title: 'Account Expansion',
         contextMode: 'lead',
-        description: 'Revenue and expansion opportunities by framework area.',
+        description: 'Land wedge narrative first, then map expansion opportunities by framework area.',
+        wedgeFields: [
+            { key: 'initial_entry', hint: 'The initial entry opportunity and wedge.' },
+            { key: 'trust_creation', hint: 'Why this wedge creates trust.' },
+            { key: 'expansion_path', hint: 'Expansion path and strategic outcome.' },
+        ],
         pills: WHITE_SPACE_AREAS,
         exportDossier: true,
         exportExec: true,
     },
     {
         id: 'competitive_landscape',
-        type: 'pills_and_narrative',
-        title: 'Competitive Landscape',
+        type: 'battlefield',
+        title: 'The Battlefield',
         contextMode: 'none',
+        description: 'Competitive positioning above the incumbent moat — displacement requires both.',
         pills: POSITIONING_PILLS,
         pillField: 'positioning_pills',
         pillHint: 'How do we want to be perceived over time?',
+        moatPills: ENTRENCHMENT_MOAT_PILLS,
         textFields: [
             { key: 'incumbents', hint: 'Competitor strengths, weaknesses, and entrenchment level.' },
             { key: 'narrative', hint: 'Narrative positioning beyond the selected perception pills.' },
-        ],
-        exportDossier: true,
-        exportExec: true,
-    },
-    {
-        id: 'entrenchment',
-        type: 'entrenchment',
-        title: TACTICAL_UX_LABELS.incumbentGrip,
-        contextMode: 'lead',
-        description: 'How the incumbent is wired in — relationships, contracts, and habits that raise switching cost.',
-        pills: ENTRENCHMENT_MOAT_PILLS,
-        pillField: 'moat_pills',
-        textFields: [
             { key: 'compound_relationships', hint: 'Relationships and dependencies that compound over time.' },
             { key: 'difficult_to_remove', hint: 'Why incumbents are difficult to displace.' },
         ],
         exportDossier: true,
-        exportExec: false,
+        exportExec: true,
     },
     {
         id: 'entry_points',
@@ -582,32 +566,6 @@ export const PLAN_SECTIONS = Object.freeze([
             { key: 'procurement_friction', label: 'Procurement Friction' },
             { key: 'innovation_friction', label: 'Innovation Friction' },
             { key: 'narrative', label: 'Gravity Narrative' },
-        ],
-        exportDossier: true,
-        exportExec: true,
-    },
-    {
-        id: 'relationship_momentum',
-        type: 'momentum',
-        title: 'Relationship Momentum',
-        contextMode: 'block',
-        description: 'What is shifting in the relationship?',
-        tips: [
-            'Are we gaining or losing executive access?',
-            'Has trust been earned through a recent operational win or lost through an outage?',
-        ],
-        exportDossier: true,
-        exportExec: true,
-    },
-    {
-        id: 'land_and_expand',
-        type: 'composite_textarea',
-        title: 'Land & Expand',
-        contextMode: 'none',
-        fields: [
-            { key: 'initial_entry', hint: 'The initial entry opportunity and wedge.' },
-            { key: 'trust_creation', hint: 'Why this wedge creates trust.' },
-            { key: 'expansion_path', hint: 'Expansion path and strategic outcome.' },
         ],
         exportDossier: true,
         exportExec: true,

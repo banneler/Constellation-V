@@ -23,6 +23,8 @@ const DEFAULT_PSYCHOLOGY = Object.freeze({
     procurement_friction: '',
     innovation_friction: '',
     narrative: '',
+    // "So What?" trap — required when conservative + heavy bureaucracy (see UI).
+    bureaucracy_bypass_strategy: '',
 });
 
 /** @type {readonly string[]} */
@@ -32,6 +34,10 @@ export const INFLUENCE_CONTACT_FIELD_KEYS = Object.freeze([
     'relationship_temperature',
     'strategic_priorities',
     'personality_style',
+    // MEDDPICC forcing functions — explicit Champion / Economic Buyer designation
+    // on the influence board (Challenger + enterprise qualification discipline).
+    'is_champion',
+    'is_economic_buyer',
 ]);
 
 const POLITICAL_SIGNAL_VALUES = new Set(['', 'High', 'Medium', 'Low', 'Positive', 'Neutral', 'Negative']);
@@ -123,6 +129,8 @@ export function createEmptyInfluenceContact(id = '') {
         relationship_temperature: '',
         strategic_priorities: '',
         personality_style: '',
+        is_champion: '',
+        is_economic_buyer: '',
     };
 }
 
@@ -162,6 +170,7 @@ export function createEmptyInteractionLogEntry() {
         momentum_shift: '',
         next_move: '',
         activity_id: null,
+        momentum_score: null,
     };
 }
 
@@ -186,28 +195,19 @@ export function createEmptyPlan() {
                     expansion_potential: '',
                 },
                 pursuit_thesis: {
-                    // Task 2 — single merged thesis field. Replaces the
-                    // legacy `core` + `cost_of_standing_still` pair so the
-                    // section can no longer encourage duplicate prose.
                     thesis: '',
                     action_forcing_event: '',
                     why_account_matters: '',
                     timing: '',
                     executive_narrative: '',
+                    operational_pain_selected: [],
+                    operational_pain_notes: '',
                 },
                 strategic_tensions: {
                     selected_pills: [],
                     narrative: '',
                 },
-                pain_signals: {
-                    selected: [],
-                    notes: '',
-                },
                 critical_unknowns: {
-                    // Task 3 — "The Blindspots" rapid-fire checklist. The
-                    // section.id is preserved as `critical_unknowns` for
-                    // downstream AI/PPTX compatibility; the data shape is
-                    // now a flat string[] array of discovery questions.
                     blindspots: [],
                 },
                 influence_mapping: {
@@ -218,28 +218,21 @@ export function createEmptyPlan() {
                     political_dynamics: '',
                     access_path: createEmptyAccessPath(),
                 },
-                white_space: [],
+                white_space: {
+                    initial_entry: '',
+                    trust_creation: '',
+                    expansion_path: '',
+                    rows: [],
+                },
                 competitive_landscape: {
                     incumbents: '',
                     positioning_pills: [],
                     narrative: '',
-                },
-                entrenchment: {
-                    compound_relationships: '',
                     moat_pills: [],
+                    compound_relationships: '',
                     difficult_to_remove: '',
                 },
-                land_and_expand: {
-                    initial_entry: '',
-                    trust_creation: '',
-                    expansion_path: '',
-                },
                 entry_points: [createEmptyEntryPoint()],
-                relationship_momentum: {
-                    score: 3,
-                    narrative: '',
-                },
-                momentum_notes: [],
                 interaction_log: [],
                 plan_30_60_90: {
                     days_30: '',
@@ -248,6 +241,7 @@ export function createEmptyPlan() {
                     client_commitments: [],
                 },
                 psychology: { ...DEFAULT_PSYCHOLOGY },
+                momentum_notes: [],
             },
         },
         history: [],
@@ -295,7 +289,13 @@ function normalizeInfluenceContactEntry(entry) {
             notes: entry.notes != null ? String(entry.notes) : '',
         };
         INFLUENCE_CONTACT_FIELD_KEYS.forEach((key) => {
-            normalized[key] = entry[key] != null ? String(entry[key]) : '';
+            if (key === 'is_champion' || key === 'is_economic_buyer') {
+                normalized[key] = entry[key] === true || entry[key] === 'true' || entry[key] === '1'
+                    ? '1'
+                    : '';
+            } else {
+                normalized[key] = entry[key] != null ? String(entry[key]) : '';
+            }
         });
         return normalized;
     }
@@ -362,7 +362,42 @@ function normalizePursuitThesis(raw, sections) {
         why_account_matters: raw.why_account_matters != null ? String(raw.why_account_matters) : '',
         timing: raw.timing != null ? String(raw.timing) : '',
         executive_narrative: raw.executive_narrative != null ? String(raw.executive_narrative) : '',
+        operational_pain_selected: normalizeOperationalPainSelected(raw, sections),
+        operational_pain_notes: normalizeOperationalPainNotes(raw, sections),
     };
+}
+
+/**
+ * Stitch legacy `pain_signals` watchlist into The Big Play so operational
+ * pain visually justifies the Action-Forcing Event (Challenger: pain → urgency).
+ *
+ * @param {Record<string, unknown>} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizeOperationalPainSelected(raw, sections) {
+    if (Array.isArray(raw.operational_pain_selected)) {
+        return normalizePillSelection(raw.operational_pain_selected, PAIN_SIGNAL_PILLS);
+    }
+    const legacyPain = isPlainObject(sections.pain_signals) ? sections.pain_signals : raw;
+    if (isPlainObject(legacyPain) && Array.isArray(legacyPain.selected)) {
+        return normalizePillSelection(legacyPain.selected, PAIN_SIGNAL_PILLS);
+    }
+    return [];
+}
+
+/**
+ * @param {Record<string, unknown>} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizeOperationalPainNotes(raw, sections) {
+    if (raw.operational_pain_notes != null && String(raw.operational_pain_notes).trim()) {
+        return String(raw.operational_pain_notes);
+    }
+    const legacyPain = isPlainObject(sections.pain_signals) ? sections.pain_signals : null;
+    if (legacyPain && legacyPain.notes != null) {
+        return String(legacyPain.notes);
+    }
+    return '';
 }
 
 /**
@@ -470,14 +505,23 @@ function normalizePillsAndNarrative(raw, sections, sectionKey, legacyKeys) {
  * @param {Record<string, unknown>} sections
  */
 function normalizeCompetitiveLandscape(raw, sections) {
-    const empty = { incumbents: '', positioning_pills: [], narrative: '' };
+    const empty = {
+        incumbents: '',
+        positioning_pills: [],
+        narrative: '',
+        moat_pills: [],
+        compound_relationships: '',
+        difficult_to_remove: '',
+    };
+    const legacyEntrenchment = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
     if (typeof raw === 'string') {
         const legacy = raw.trim() || migrateLegacySectionText(sections, 'competitive_landscape', ['competitive_landscape']);
-        return legacy ? { ...empty, incumbents: legacy } : empty;
+        return legacy ? { ...empty, incumbents: legacy } : { ...empty, ...pickEntrenchmentFields(legacyEntrenchment) };
     }
     if (!isPlainObject(raw)) {
         const legacy = migrateLegacySectionText(sections, 'competitive_landscape', ['competitive_landscape']);
-        return legacy ? { ...empty, incumbents: legacy } : empty;
+        const base = legacy ? { ...empty, incumbents: legacy } : { ...empty };
+        return { ...base, ...pickEntrenchmentFields(legacyEntrenchment, raw) };
     }
     return {
         incumbents: raw.incumbents != null ? String(raw.incumbents) : '',
@@ -485,6 +529,32 @@ function normalizeCompetitiveLandscape(raw, sections) {
             ? raw.positioning_pills.map((pill) => String(pill)).filter(Boolean)
             : [],
         narrative: raw.narrative != null ? String(raw.narrative) : '',
+        moat_pills: normalizePillSelection(
+            raw.moat_pills ?? legacyEntrenchment.moat_pills,
+            ENTRENCHMENT_MOAT_PILLS
+        ),
+        compound_relationships: raw.compound_relationships != null
+            ? String(raw.compound_relationships)
+            : (legacyEntrenchment.compound_relationships != null ? String(legacyEntrenchment.compound_relationships) : ''),
+        difficult_to_remove: raw.difficult_to_remove != null
+            ? String(raw.difficult_to_remove)
+            : (legacyEntrenchment.difficult_to_remove != null ? String(legacyEntrenchment.difficult_to_remove) : ''),
+    };
+}
+
+/**
+ * @param {Record<string, unknown>} legacyEntrenchment
+ * @param {Record<string, unknown>} [raw]
+ */
+function pickEntrenchmentFields(legacyEntrenchment, raw = {}) {
+    return {
+        moat_pills: normalizePillSelection(raw.moat_pills ?? legacyEntrenchment.moat_pills, ENTRENCHMENT_MOAT_PILLS),
+        compound_relationships: raw.compound_relationships != null
+            ? String(raw.compound_relationships)
+            : (legacyEntrenchment.compound_relationships != null ? String(legacyEntrenchment.compound_relationships) : ''),
+        difficult_to_remove: raw.difficult_to_remove != null
+            ? String(raw.difficult_to_remove)
+            : (legacyEntrenchment.difficult_to_remove != null ? String(legacyEntrenchment.difficult_to_remove) : ''),
     };
 }
 
@@ -655,7 +725,7 @@ function normalizePillSelection(raw, validPills) {
  * @param {unknown} raw
  */
 function normalizePainSignals(raw) {
-    const empty = createEmptyPlan().current_draft.sections.pain_signals;
+    const empty = { selected: [], notes: '' };
     if (!isPlainObject(raw)) return empty;
     return {
         selected: normalizePillSelection(raw.selected, PAIN_SIGNAL_PILLS),
@@ -714,7 +784,11 @@ function normalizeCriticalUnknowns(raw) {
  * @param {unknown} raw
  */
 function normalizeEntrenchment(raw) {
-    const empty = createEmptyPlan().current_draft.sections.entrenchment;
+    const empty = {
+        compound_relationships: '',
+        moat_pills: [],
+        difficult_to_remove: '',
+    };
     if (!isPlainObject(raw)) return empty;
     return {
         compound_relationships: raw.compound_relationships != null ? String(raw.compound_relationships) : '',
@@ -727,7 +801,7 @@ function normalizeEntrenchment(raw) {
  * @param {unknown} raw
  * @returns {ReturnType<typeof createEmptyWhiteSpaceRow>[]}
  */
-function normalizeWhiteSpace(raw) {
+function normalizeWhiteSpaceRows(raw) {
     if (!Array.isArray(raw)) return [];
     return raw
         .filter(isPlainObject)
@@ -741,6 +815,56 @@ function normalizeWhiteSpace(raw) {
             value_notes: row.value_notes != null ? String(row.value_notes) : '',
         }))
         .filter((row) => Object.values(row).some((value) => String(value).trim()));
+}
+
+/**
+ * Account Expansion — merges legacy `land_and_expand` wedge + white-space rows.
+ *
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ */
+function normalizeAccountExpansion(raw, sections) {
+    const empty = createEmptyPlan().current_draft.sections.white_space;
+    const land = normalizeLandAndExpand(sections.land_and_expand, sections);
+
+    if (Array.isArray(raw)) {
+        return {
+            ...empty,
+            ...land,
+            rows: normalizeWhiteSpaceRows(raw),
+        };
+    }
+
+    if (!isPlainObject(raw)) {
+        return { ...empty, ...land, rows: [] };
+    }
+
+    return {
+        initial_entry: raw.initial_entry != null && String(raw.initial_entry).trim()
+            ? String(raw.initial_entry)
+            : land.initial_entry,
+        trust_creation: raw.trust_creation != null && String(raw.trust_creation).trim()
+            ? String(raw.trust_creation)
+            : land.trust_creation,
+        expansion_path: raw.expansion_path != null && String(raw.expansion_path).trim()
+            ? String(raw.expansion_path)
+            : land.expansion_path,
+        rows: normalizeWhiteSpaceRows(raw.rows ?? raw.opportunities ?? []),
+    };
+}
+
+/**
+ * @param {unknown} whiteSpaceSection
+ * @returns {ReturnType<typeof createEmptyWhiteSpaceRow>[]}
+ */
+export function getWhiteSpaceRows(whiteSpaceSection) {
+    if (Array.isArray(whiteSpaceSection)) {
+        return normalizeWhiteSpaceRows(whiteSpaceSection);
+    }
+    if (isPlainObject(whiteSpaceSection) && Array.isArray(whiteSpaceSection.rows)) {
+        return normalizeWhiteSpaceRows(whiteSpaceSection.rows);
+    }
+    return [];
 }
 
 /**
@@ -771,6 +895,9 @@ function normalizeInteractionLogEntry(raw) {
         momentum_shift: momentumShift,
         next_move: raw.next_move != null ? String(raw.next_move) : '',
         activity_id: raw.activity_id != null && raw.activity_id !== '' ? String(raw.activity_id) : null,
+        momentum_score: raw.momentum_score != null && raw.momentum_score !== ''
+            ? clampScale(raw.momentum_score, 3)
+            : null,
     };
 }
 
@@ -806,9 +933,39 @@ function migrateMomentumNotesToInteractionLog(momentumNotes, interactionLog) {
             momentum_shift: '',
             next_move: '',
             activity_id: null,
+            momentum_score: null,
         });
     });
     return migrated;
+}
+
+/**
+ * Seed a synthetic milestone from legacy static `relationship_momentum` when
+ * no scored timeline entries exist yet — preserves historical score on read.
+ *
+ * @param {Record<string, unknown>} momentum
+ * @param {ReturnType<typeof normalizeInteractionLog>} interactionLog
+ */
+function migrateRelationshipMomentumToTimeline(momentum, interactionLog) {
+    const hasScoredEntry = interactionLog.some(
+        (entry) => entry.momentum_score != null && !Number.isNaN(entry.momentum_score)
+    );
+    if (hasScoredEntry) return interactionLog;
+
+    const score = clampScale(momentum.score, 3);
+    const narrative = momentum.narrative != null ? String(momentum.narrative).trim() : '';
+    if (score === 3 && !narrative) return interactionLog;
+
+    return [
+        {
+            ...createEmptyInteractionLogEntry(),
+            source: 'signal',
+            date: new Date().toISOString(),
+            text: narrative || 'Legacy relationship momentum score migrated to timeline.',
+            momentum_score: score,
+        },
+        ...interactionLog,
+    ];
 }
 
 /**
@@ -828,6 +985,9 @@ function normalizePsychology(raw) {
         procurement_friction: raw.procurement_friction != null ? String(raw.procurement_friction) : '',
         innovation_friction: raw.innovation_friction != null ? String(raw.innovation_friction) : '',
         narrative: raw.narrative != null ? String(raw.narrative) : '',
+        bureaucracy_bypass_strategy: raw.bureaucracy_bypass_strategy != null
+            ? String(raw.bureaucracy_bypass_strategy)
+            : '',
     };
 }
 
@@ -845,10 +1005,9 @@ export function normalizePlan(plan) {
     const sections = isPlainObject(draft.sections) ? draft.sections : {};
     const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
     const momentumNotes = normalizeMomentumNotes(sections.momentum_notes);
-    // Interaction Log UI is deprecated — legacy rows still normalize so the
-    // Relationship Timeline can render historical signals.
     const interactionLogRaw = normalizeInteractionLog(sections.interaction_log);
-    const interactionLog = migrateMomentumNotesToInteractionLog(momentumNotes, interactionLogRaw);
+    const interactionLogMigrated = migrateMomentumNotesToInteractionLog(momentumNotes, interactionLogRaw);
+    const interactionLog = migrateRelationshipMomentumToTimeline(momentum, interactionLogMigrated);
 
     return {
         schema_version: PLAN_SCHEMA_VERSION,
@@ -859,22 +1018,15 @@ export function normalizePlan(plan) {
                 account_snapshot: normalizeAccountSnapshot(sections.account_snapshot),
                 pursuit_thesis: normalizePursuitThesis(sections.pursuit_thesis, sections),
                 strategic_tensions: normalizeStrategicTensions(sections.strategic_tensions, sections),
-                pain_signals: normalizePainSignals(sections.pain_signals),
                 critical_unknowns: normalizeCriticalUnknowns(sections.critical_unknowns),
                 influence_mapping: normalizeInfluenceMapping(sections.influence_mapping, sections),
-                white_space: normalizeWhiteSpace(sections.white_space),
+                white_space: normalizeAccountExpansion(sections.white_space, sections),
                 competitive_landscape: normalizeCompetitiveLandscape(sections.competitive_landscape, sections),
-                entrenchment: normalizeEntrenchment(sections.entrenchment),
-                land_and_expand: normalizeLandAndExpand(sections.land_and_expand, sections),
                 entry_points: normalizeEntryPoints(sections.entry_points),
-                relationship_momentum: {
-                    score: clampScale(momentum.score, 3),
-                    narrative: momentum.narrative != null ? String(momentum.narrative) : '',
-                },
-                momentum_notes: momentumNotes,
                 interaction_log: interactionLog,
                 plan_30_60_90: normalizePlan306090(sections.plan_30_60_90),
                 psychology: normalizePsychology(sections.psychology),
+                momentum_notes: momentumNotes,
             },
         },
         history: Array.isArray(plan.history)

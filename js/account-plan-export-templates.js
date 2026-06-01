@@ -11,6 +11,7 @@ import {
 } from './account-plan-sections.js';
 import {
     normalizePlan,
+    getWhiteSpaceRows,
     INFLUENCE_CONTACT_FIELD_KEYS,
     ENTRY_POINT_FIELD_KEYS,
 } from './account-plan-data.js';
@@ -118,6 +119,36 @@ export function isPlanSectionEmptyForExport(section, sections, contacts = [], ac
         return legacy.length === 0;
     }
 
+    if (section.type === 'pursuit_with_pain') {
+        const obj = isPlainObject(data) ? data : {};
+        const fieldsFilled = (section.fields || []).some(
+            (field) => hasMeaningfulText(obj[field.key])
+        );
+        const painPills = sanitizeStringArray(obj.operational_pain_selected);
+        const painNotes = hasMeaningfulText(obj.operational_pain_notes);
+        return !fieldsFilled && painPills.length === 0 && !painNotes;
+    }
+
+    if (section.type === 'battlefield') {
+        const obj = isPlainObject(data) ? data : {};
+        const positioningPills = sanitizeStringArray(obj.positioning_pills);
+        const moatPills = sanitizeStringArray(obj.moat_pills);
+        const textFilled = (section.textFields || []).some(
+            (field) => hasMeaningfulText(obj[field.key])
+        );
+        return positioningPills.length === 0 && moatPills.length === 0 && !textFilled;
+    }
+
+    if (section.type === 'account_expansion') {
+        const obj = isPlainObject(data) ? data : {};
+        const wedgeFilled = (section.wedgeFields || []).some(
+            (field) => hasMeaningfulText(obj[field.key])
+        );
+        const rows = getWhiteSpaceRows(obj);
+        const rowsFilled = rows.some((row) => Object.values(row).some((v) => hasMeaningfulText(v)));
+        return !wedgeFilled && !rowsFilled;
+    }
+
     if (section.type === 'pain_signals' || section.type === 'entrenchment') {
         const obj = isPlainObject(data) ? data : {};
         const pillField = section.pillField || 'selected_pills';
@@ -125,9 +156,6 @@ export function isPlanSectionEmptyForExport(section, sections, contacts = [], ac
         const textFilled = (section.textFields || []).some(
             (field) => hasMeaningfulText(obj[field.key])
         );
-        if (section.type === 'entrenchment') {
-            return pills.length === 0 && !textFilled;
-        }
         return pills.length === 0 && !textFilled;
     }
 
@@ -146,8 +174,8 @@ export function isPlanSectionEmptyForExport(section, sections, contacts = [], ac
     }
 
     if (section.type === 'white_space_matrix') {
-        const rows = Array.isArray(sections.white_space) ? sections.white_space : [];
-        return !rows.some((row) => isPlainObject(row) && Object.values(row).some((v) => hasMeaningfulText(v)));
+        const rows = getWhiteSpaceRows(sections.white_space);
+        return !rows.some((row) => Object.values(row).some((v) => hasMeaningfulText(v)));
     }
 
     if (section.type === 'influence_board') {
@@ -190,9 +218,8 @@ export function isPlanSectionEmptyForExport(section, sections, contacts = [], ac
     }
 
     if (section.type === 'momentum') {
-        const momentum = isPlainObject(data) ? data : {};
-        const score = Number(momentum.score);
-        const scoreMoved = Number.isFinite(score) && Math.round(score) !== 3;
+        const momentum = resolveMomentumFromInteractionLog(sections);
+        const scoreMoved = momentum.score !== 3;
         return !scoreMoved && !hasMeaningfulText(momentum.narrative);
     }
 
@@ -235,14 +262,13 @@ const INFLUENCE_CONTACT_FIELD_LABELS = {
  * the paginator treats as an atomic unit (with a graceful fallback to
  * un-grouping if the combined block cannot fit on one page).
  *
- * Current grouping mirrors the "deal context" trio:
- *   - pain_signals     → Signals of internal pain
+ * Current grouping mirrors the "deal context" pair:
+ *   - pursuit_thesis    → Big Play + operational pain watchlist
  *   - critical_unknowns → Open questions the rep still needs answered
- *   - entrenchment      → Compound human / political moat dynamics
  * @type {ReadonlyArray<ReadonlyArray<string>>}
  */
 const DOSSIER_SECTION_GROUPS = Object.freeze([
-    Object.freeze(['pain_signals', 'critical_unknowns', 'entrenchment']),
+    Object.freeze(['pursuit_thesis', 'critical_unknowns']),
 ]);
 
 /** @type {Record<string, string>} */
@@ -250,10 +276,9 @@ const DOSSIER_SECTION_ICONS = {
     pursuit_thesis: 'fa-bullseye',
     strategic_tensions: 'fa-scale-balanced',
     influence_mapping: 'fa-sitemap',
+    white_space: 'fa-route',
     competitive_landscape: 'fa-chess-knight',
-    land_and_expand: 'fa-route',
     psychology: 'fa-brain',
-    relationship_momentum: 'fa-arrow-trend-up',
     momentum_timeline: 'fa-bolt',
     plan_30_60_90: 'fa-calendar-check',
     client_commitments: 'fa-handshake',
@@ -342,13 +367,42 @@ function formatInfluenceEntryLabel(entry, contacts) {
 }
 
 /**
+ * Latest scored entry from interaction_log — replaces legacy relationship_momentum.
+ * @param {Record<string, unknown>} sections
+ * @returns {{ score: number, narrative: string }}
+ */
+function resolveMomentumFromInteractionLog(sections) {
+    const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    /** @type {{ score: number, narrative: string, dateMs: number } | null} */
+    let latest = null;
+
+    log.forEach((entry) => {
+        if (!isPlainObject(entry)) return;
+        if (entry.momentum_score == null || entry.momentum_score === '') return;
+        const dateMs = new Date(String(entry.date ?? '')).getTime();
+        const ms = Number.isNaN(dateMs) ? 0 : dateMs;
+        if (!latest || ms >= latest.dateMs) {
+            latest = {
+                score: clampScale(entry.momentum_score, 3),
+                narrative: String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim(),
+                dateMs: ms,
+            };
+        }
+    });
+
+    return latest
+        ? { score: latest.score, narrative: latest.narrative }
+        : { score: 3, narrative: '' };
+}
+
+/**
  * @param {unknown} plan
  * @param {{ name?: string, contacts?: unknown[] } | null} account
  */
 function resolveExecExportContext(plan, account) {
     const normalized = normalizePlan(plan);
     const sections = normalized.current_draft.sections;
-    const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
+    const momentum = resolveMomentumFromInteractionLog(sections);
     const contacts = getExportContacts(account);
 
     return {
@@ -358,11 +412,12 @@ function resolveExecExportContext(plan, account) {
         dateLabel: formatExportDate(new Date()),
         psychology: isPlainObject(sections.psychology) ? sections.psychology : {},
         plan306090: isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {},
-        score: clampScale(momentum.score, 3),
+        score: momentum.score,
         pursuitThesis: summarizePursuitThesis(sections.pursuit_thesis),
         competitive: summarizeCompetitiveLandscape(sections.competitive_landscape)
             || 'No competitive landscape captured yet.',
         timelineNotes: getExportMomentumNotes(sections).slice(0, 3),
+        momentumNarrative: momentum.narrative,
     };
 }
 
@@ -500,9 +555,20 @@ function buildExecCompetitiveBody(sections) {
                 <p class="ap-exec-prose-copy">${escapeHtml(pills.join(' · '))}</p>`;
             wrap.appendChild(pillBlock);
         }
+        const moatPills = Array.isArray(data.moat_pills) ? data.moat_pills.filter(Boolean) : [];
+        if (moatPills.length > 0) {
+            const moatBlock = document.createElement('div');
+            moatBlock.className = 'ap-exec-prose-block';
+            moatBlock.innerHTML = `
+                <h3 class="ap-exec-prose-kicker">Moat Factors</h3>
+                <p class="ap-exec-prose-copy">${escapeHtml(moatPills.join(' · '))}</p>`;
+            wrap.appendChild(moatBlock);
+        }
         [
             ['Incumbents', data.incumbents],
             ['Narrative', data.narrative],
+            ['Compound Relationships', data.compound_relationships],
+            ['Difficult to Remove', data.difficult_to_remove],
         ].filter(([, value]) => String(value ?? '').trim()).forEach(([label, value]) => {
             const block = document.createElement('div');
             block.className = 'ap-exec-prose-block';
@@ -660,7 +726,7 @@ export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, 
     const sideStack = document.createElement('div');
     sideStack.className = 'ap-exec-stack';
 
-    const momentumPanel = createExecPanel('ap-exec-panel--momentum', 'Relationship Momentum', 'relationship_momentum');
+    const momentumPanel = createExecPanel('ap-exec-panel--momentum', 'Relationship Momentum', 'momentum_timeline');
     const kpi = document.createElement('div');
     kpi.className = 'ap-exec-kpi';
     kpi.innerHTML = `
@@ -670,6 +736,11 @@ export function buildSlide1Situation(plan, account, pageInfo = { pageNumber: 1, 
         const insight = document.createElement('p');
         insight.className = 'ap-exec-kpi-insight';
         insight.textContent = situation.momentum.insight;
+        kpi.appendChild(insight);
+    } else if (ctx.momentumNarrative) {
+        const insight = document.createElement('p');
+        insight.className = 'ap-exec-kpi-insight';
+        insight.textContent = ctx.momentumNarrative;
         kpi.appendChild(insight);
     }
     momentumPanel.appendChild(kpi);
@@ -1751,6 +1822,37 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         return [createDossierSectionBlock(section, body)];
     }
 
+    if (section.type === 'pursuit_with_pain') {
+        const data = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
+        const fields = section.fields || [];
+        const grid = createEditorialGrid('ap-export-editorial-grid--3');
+
+        fields.forEach((field, index) => {
+            const value = String(data[field.key] ?? '').trim();
+            const heading = field.label || field.hint || field.key;
+            const cellOptions = index >= 3 ? { span: 'full' } : {};
+            grid.appendChild(createEditorialCell(heading, value, cellOptions));
+        });
+
+        const painPills = sanitizeStringArray(data.operational_pain_selected);
+        const painNotes = String(data.operational_pain_notes ?? '').trim();
+        const painBody = createEditorialProseBlock(
+            'Operational Pain Signals',
+            painPills.join(', '),
+            painNotes ? [{ kicker: 'Pain Context', text: painNotes }] : []
+        );
+        painBody.classList.add('ap-export-editorial-span-full');
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ap-export-pursuit-with-pain-body';
+        wrap.appendChild(grid);
+        if (painPills.length > 0 || painNotes) {
+            wrap.appendChild(painBody);
+        }
+
+        return [createDossierSectionBlock(section, wrap)];
+    }
+
     if (section.type === 'pain_signals') {
         const data = isPlainObject(sections.pain_signals) ? sections.pain_signals : {};
         const body = buildPillsAndTextExportBody(data, {
@@ -1796,6 +1898,55 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
         return [createDossierSectionBlock(section, body)];
     }
 
+    if (section.type === 'battlefield') {
+        const data = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
+        const positioningPills = Array.isArray(data.positioning_pills) ? data.positioning_pills : [];
+        const moatPills = Array.isArray(data.moat_pills) ? data.moat_pills : [];
+        const textFields = section.textFields || [];
+        const competitiveKeys = new Set(['incumbents', 'narrative']);
+
+        const competitiveBlocks = textFields
+            .filter((field) => competitiveKeys.has(field.key))
+            .map((field) => ({
+                kicker: field.label || field.hint || field.key,
+                text: String(data[field.key] ?? '').trim(),
+            }));
+        const moatBlocks = textFields
+            .filter((field) => !competitiveKeys.has(field.key))
+            .map((field) => ({
+                kicker: field.label || field.hint || field.key,
+                text: String(data[field.key] ?? '').trim(),
+            }));
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ap-export-battlefield-body';
+        wrap.appendChild(createEditorialProseBlock('Positioning', positioningPills.join(', '), competitiveBlocks));
+        wrap.appendChild(createEditorialProseBlock('Incumbent Moat', moatPills.join(', '), moatBlocks));
+
+        return [createDossierSectionBlock(section, wrap)];
+    }
+
+    if (section.type === 'account_expansion') {
+        const data = isPlainObject(sections.white_space) ? sections.white_space : {};
+        const wedgeFields = section.wedgeFields || [];
+        const wrap = document.createElement('div');
+        wrap.className = 'ap-export-account-expansion-body';
+
+        const wedgeGrid = createEditorialGrid('ap-export-editorial-grid--3');
+        wedgeFields.forEach((field) => {
+            wedgeGrid.appendChild(createEditorialCell(
+                field.label || field.hint || field.key,
+                String(data[field.key] ?? '').trim()
+            ));
+        });
+        wrap.appendChild(wedgeGrid);
+
+        const rows = getWhiteSpaceRows(data);
+        wrap.appendChild(buildWhiteSpaceMatrixBody(rows));
+
+        return [createDossierSectionBlock(section, wrap)];
+    }
+
     if (section.type === 'entrenchment') {
         const data = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
         const body = buildPillsAndTextExportBody(data, {
@@ -1810,14 +1961,14 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
     }
 
     if (section.type === 'white_space_matrix') {
-        const rows = Array.isArray(sections.white_space) ? sections.white_space.filter(isPlainObject) : [];
+        const rows = getWhiteSpaceRows(sections.white_space);
         return [createDossierSectionBlock(section, buildWhiteSpaceMatrixBody(rows))];
     }
 
     if (section.type === 'composite_textarea') {
         const data = isPlainObject(sections[section.id]) ? sections[section.id] : {};
         const fields = section.fields || [];
-        const gridClass = section.id === 'land_and_expand' || fields.length >= 3
+        const gridClass = section.id === 'white_space' || fields.length >= 3
             ? 'ap-export-editorial-grid--3'
             : fields.length === 2
                 ? 'ap-export-editorial-grid--2'
@@ -1980,11 +2131,11 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
     }
 
     if (section.type === 'momentum') {
-        const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
-        const score = clampScale(momentum.score, 3);
+        const momentum = resolveMomentumFromInteractionLog(sections);
+        const score = momentum.score;
         const stack = createExportPanelStack('ap-export-panel-stack ap-export-panel-stack--momentum');
         stack.appendChild(buildMomentumMetricPanel(score));
-        stack.appendChild(createExportPanel('Momentum Narrative', String(momentum.narrative ?? '').trim()));
+        stack.appendChild(createExportPanel('Momentum Narrative', momentum.narrative));
         return [createDossierSectionBlock(section, stack, undefined, 'metric')];
     }
 
@@ -2192,10 +2343,14 @@ function summarizeCompetitiveLandscape(value) {
     if (!isPlainObject(value)) return '';
 
     const pills = Array.isArray(value.positioning_pills) ? value.positioning_pills.join(', ') : '';
+    const moatPills = Array.isArray(value.moat_pills) ? value.moat_pills.join(', ') : '';
     const parts = [
         value.incumbents ? String(value.incumbents).trim() : '',
         pills ? `Positioning: ${pills}` : '',
         value.narrative ? String(value.narrative).trim() : '',
+        moatPills ? `Moat: ${moatPills}` : '',
+        value.compound_relationships ? String(value.compound_relationships).trim() : '',
+        value.difficult_to_remove ? String(value.difficult_to_remove).trim() : '',
     ].filter(Boolean);
 
     return parts.join('\n\n');

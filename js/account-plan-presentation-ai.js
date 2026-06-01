@@ -2,7 +2,7 @@
  * AI-synthesized presentation highlight reel for exec deck export.
  */
 
-import { normalizePlan } from './account-plan-data.js';
+import { normalizePlan, getWhiteSpaceRows } from './account-plan-data.js';
 import { TACTICAL_UX_LABELS } from './account-plan-sections.js';
 
 /**
@@ -191,15 +191,54 @@ export function normalizePresentationHighlight(raw, meta) {
 function resolvePlanContext(plan) {
     const normalized = normalizePlan(plan);
     const sections = normalized.current_draft.sections;
-    const momentum = isPlainObject(sections.relationship_momentum) ? sections.relationship_momentum : {};
+    const momentum = resolveMomentumFromInteractionLog(sections);
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
 
     return {
         sections,
-        momentumNarrative: String(momentum.narrative ?? '').trim(),
+        momentumNarrative: momentum.narrative,
         plan306090,
         timelineNotes: getExportSignals(sections).slice(0, 3),
     };
+}
+
+/**
+ * Latest scored entry from interaction_log — replaces legacy relationship_momentum.
+ * @param {Record<string, unknown>} sections
+ * @returns {{ score: number, narrative: string }}
+ */
+function resolveMomentumFromInteractionLog(sections) {
+    const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    /** @type {{ score: number, narrative: string, dateMs: number } | null} */
+    let latest = null;
+
+    log.forEach((entry) => {
+        if (!isPlainObject(entry)) return;
+        if (entry.momentum_score == null || entry.momentum_score === '') return;
+        const dateMs = new Date(String(entry.date ?? '')).getTime();
+        const ms = Number.isNaN(dateMs) ? 0 : dateMs;
+        if (!latest || ms >= latest.dateMs) {
+            latest = {
+                score: clampPresentationScale(entry.momentum_score, 3),
+                narrative: String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim(),
+                dateMs: ms,
+            };
+        }
+    });
+
+    return latest
+        ? { score: latest.score, narrative: latest.narrative }
+        : { score: 3, narrative: '' };
+}
+
+/**
+ * @param {number | string | null | undefined} value
+ * @param {number} fallback
+ */
+function clampPresentationScale(value, fallback) {
+    const n = parseInt(String(value), 10);
+    if (Number.isNaN(n)) return fallback;
+    return Math.min(5, Math.max(1, n));
 }
 
 /**
@@ -280,12 +319,25 @@ function fallbackExecutiveNarrative(sections) {
  * @param {Record<string, unknown>} sections
  */
 function fallbackPainSignalBullets(sections) {
-    const pain = isPlainObject(sections.pain_signals) ? sections.pain_signals : {};
-    const selected = Array.isArray(pain.selected) ? pain.selected : [];
+    const thesis = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
+    const selected = Array.isArray(thesis.operational_pain_selected)
+        ? thesis.operational_pain_selected
+        : [];
     const pills = selected.map((pill) => String(pill ?? '').trim()).filter(Boolean);
-    const notes = String(pain.notes ?? '').trim();
-    const bullets = [...pills];
-    if (notes) bullets.push(truncatePresentationText(notes, 90));
+    const notes = String(thesis.operational_pain_notes ?? '').trim();
+
+    if (pills.length > 0 || notes) {
+        const bullets = [...pills];
+        if (notes) bullets.push(truncatePresentationText(notes, 90));
+        return bullets.slice(0, 3);
+    }
+
+    const legacyPain = isPlainObject(sections.pain_signals) ? sections.pain_signals : {};
+    const legacySelected = Array.isArray(legacyPain.selected) ? legacyPain.selected : [];
+    const legacyPills = legacySelected.map((pill) => String(pill ?? '').trim()).filter(Boolean);
+    const legacyNotes = String(legacyPain.notes ?? '').trim();
+    const bullets = [...legacyPills];
+    if (legacyNotes) bullets.push(truncatePresentationText(legacyNotes, 90));
     return bullets.slice(0, 3);
 }
 
@@ -352,10 +404,13 @@ function fallbackPursuitBullets(sections) {
 function fallbackCompetitiveBullets(sections) {
     const competitive = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
     const pills = Array.isArray(competitive.positioning_pills) ? competitive.positioning_pills : [];
+    const moatPills = Array.isArray(competitive.moat_pills) ? competitive.moat_pills : [];
     return [
         competitive.incumbents,
         pills.length ? `Positioning: ${pills.join(', ')}` : '',
         competitive.narrative,
+        moatPills.length ? `Moat: ${moatPills.join(', ')}` : '',
+        competitive.difficult_to_remove,
     ]
         .map((v) => String(v ?? '').trim())
         .filter(Boolean)
@@ -366,7 +421,17 @@ function fallbackCompetitiveBullets(sections) {
  * @param {Record<string, unknown>} sections
  */
 function fallbackWhiteSpaceHook(sections) {
-    const rows = Array.isArray(sections.white_space) ? sections.white_space.filter(isPlainObject) : [];
+    const expansion = isPlainObject(sections.white_space) ? sections.white_space : {};
+    const wedgeText = [
+        expansion.initial_entry,
+        expansion.trust_creation,
+        expansion.expansion_path,
+    ]
+        .map((v) => String(v ?? '').trim())
+        .filter(Boolean)
+        .join(' — ');
+
+    const rows = getWhiteSpaceRows(expansion);
     const ranked = [...rows]
         .map((row) => ({
             row,
@@ -380,14 +445,21 @@ function fallbackWhiteSpaceHook(sections) {
         return opportunity || area;
     });
 
-    if (!top) {
-        return { headline: 'Top White Space', opportunity: '' };
+    if (top) {
+        return {
+            headline: String(top.row.area ?? 'Top White Space').trim() || 'Top White Space',
+            opportunity: truncatePresentationText(String(top.row.opportunity ?? '').trim(), 120),
+        };
     }
 
-    return {
-        headline: String(top.row.area ?? 'Top White Space').trim() || 'Top White Space',
-        opportunity: truncatePresentationText(String(top.row.opportunity ?? '').trim(), 120),
-    };
+    if (wedgeText) {
+        return {
+            headline: 'Account Expansion',
+            opportunity: truncatePresentationText(wedgeText, 120),
+        };
+    }
+
+    return { headline: 'Top White Space', opportunity: '' };
 }
 
 /**
@@ -404,11 +476,22 @@ function scoreWhiteSpaceRow(row) {
  * @param {Record<string, unknown>} sections
  */
 function fallbackEntrenchmentMoat(sections) {
-    const entrenchment = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
-    const pills = Array.isArray(entrenchment.moat_pills) ? entrenchment.moat_pills : [];
+    const competitive = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
+    const pills = Array.isArray(competitive.moat_pills) ? competitive.moat_pills : [];
     const pillText = pills.map((pill) => String(pill ?? '').trim()).filter(Boolean).join(', ');
-    const narrative = String(entrenchment.difficult_to_remove ?? '').trim();
-    const combined = [pillText, narrative].filter(Boolean).join(' — ');
+    const narrative = String(competitive.difficult_to_remove ?? '').trim()
+        || String(competitive.compound_relationships ?? '').trim();
+
+    if (pillText || narrative) {
+        const combined = [pillText, narrative].filter(Boolean).join(' — ');
+        return truncatePresentationText(combined, 140);
+    }
+
+    const legacy = isPlainObject(sections.entrenchment) ? sections.entrenchment : {};
+    const legacyPills = Array.isArray(legacy.moat_pills) ? legacy.moat_pills : [];
+    const legacyPillText = legacyPills.map((pill) => String(pill ?? '').trim()).filter(Boolean).join(', ');
+    const legacyNarrative = String(legacy.difficult_to_remove ?? '').trim();
+    const combined = [legacyPillText, legacyNarrative].filter(Boolean).join(' — ');
     return truncatePresentationText(combined, 140);
 }
 

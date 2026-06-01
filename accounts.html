@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="output.css">
     <!-- Cache-bust query string bumped whenever this file changes so users
          don't end up with a stale dialog/spinner from a previous deploy. -->
-    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-06-01-cards">
+    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-06-01-refactor">
     <link rel="stylesheet" href="css/global-loader.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -210,7 +210,24 @@
                 <div id="strategic-workspace" class="strategic-workspace details-panel account-details-content" aria-hidden="true">
                     <div class="strategic-workspace-header">
                         <div class="strategic-workspace-header-main">
-                            <h3 id="strategic-account-title" class="strategic-account-title details-panel-title">Strategic Account Plan</h3>
+                            <div class="strategic-account-title-group">
+                                <h3 id="strategic-account-title" class="strategic-account-title details-panel-title">Strategic Account Plan</h3>
+                                <button
+                                    type="button"
+                                    id="strategic-account-switcher-trigger"
+                                    class="strategic-account-switcher-trigger"
+                                    title="Switch account"
+                                    aria-label="Switch strategic account"
+                                    aria-haspopup="listbox"
+                                    aria-expanded="false"
+                                    aria-controls="strategic-account-switcher-menu"
+                                >
+                                    <svg class="strategic-account-switcher-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                                        <path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <div id="strategic-account-switcher-menu" class="strategic-account-switcher-menu hidden" role="listbox" aria-label="Your accounts"></div>
+                            </div>
                             <div id="strategic-view-mode-host" class="strategic-view-mode-host"></div>
                         </div>
                         <div id="strategic-header-actions" class="strategic-header-actions flex items-center gap-2">
