@@ -841,44 +841,23 @@
 }
 
 /* ===========================================================================
- * Strategic TOC inside the account picker
- *
- * When the user toggles into Strategic Account OS mode, the left-hand
- * .account-picker-panel keeps its dimensions but swaps its body content from
- * the account list to a jump-to-section nav. The chrome (header h2, panel
- * border, picker actions area) was already correct at the panel level — we
- * just need:
- *
- *   1. .strategic-toc-body to be hidden by default; visible when the
- *      ancestor body has .strategic-mode-active.
- *   2. .account-picker-body to be visually hidden inside .strategic-mode-active
- *      so it stops competing with the TOC for the same flex slot.
- *      (We already toggle a `hidden` class via JS for accessibility; the rule
- *      below is a CSS belt-and-braces in case JS fires before paint.)
- *   3. Link styling that reads as a list of section anchors — flat, calm,
- *      hover affordance, clear active state.
- *
- * The TOC nav scrolls when sections overflow the panel height. The picker
- * panel itself already clamps to calc(100vh - 48px), so internal scroll on
- * .strategic-toc-nav is sufficient.
+ * Legacy left-rail TOC — superseded by #strategic-path (Option A: Path + scroll).
+ * Kept hidden; do not re-enable the strategic-mode picker swap below.
  * ======================================================================== */
 
-.strategic-toc-body {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-    padding: 0.5rem 0.75rem 0.75rem;
+.strategic-toc-body,
+.strategic-toc-body.hidden {
+    display: none !important;
 }
 
-/* Core vs. Deep Dive — TOC toggle (framework fatigue reducer) */
+/* Core vs. Deep Dive — toggle in #strategic-path-toolbar (not left rail) */
 .saos-view-mode {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.35rem 0.5rem;
     flex-shrink: 0;
-    margin-bottom: 0.65rem;
+    margin-bottom: 0.5rem;
     padding: 0.45rem 0.55rem;
     border-radius: 0.5rem;
     border: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
@@ -934,20 +913,9 @@
     display: none !important;
 }
 
-.strategic-toc-body.hidden {
-    display: none;
-}
-
-body.strategic-mode-active .account-picker-panel .account-picker-body {
-    display: none;
-}
-
-body.strategic-mode-active .account-picker-panel .account-picker-actions {
-    display: none;
-}
-
-body.strategic-mode-active .strategic-toc-body {
-    display: flex;
+.strategic-path-toolbar {
+    flex-shrink: 0;
+    padding: 0 0.5rem 0.375rem;
 }
 
 /* ---------------------------------------------------------------------------
@@ -983,42 +951,107 @@ body.strategic-mode-active #strategic-workspace {
     display: flex;
 }
 
-.strategic-toc-nav {
+/* ===========================================================================
+ * Horizontal Path (Salesforce-style section nav) — Option A: Path + scroll.
+ * Plain CSS so it applies before the next Tailwind rebuild of output.css.
+ * ======================================================================== */
+
+.strategic-path {
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 0.25rem 0.125rem 0.5rem;
+    flex-shrink: 0;
+    margin-bottom: 0.75rem;
+    padding: 0.375rem 0;
+    border-bottom: 1px solid var(--border-color);
 }
 
-.strategic-toc-link {
-    display: block;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid transparent;
-    font-size: 0.8125rem;
-    line-height: 1.35;
-    font-weight: 500;
+.strategic-path.hidden {
+    display: none;
+}
+
+.strategic-path-track {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    list-style: none;
+    margin: 0;
+    padding: 0.25rem 0.5rem;
+    gap: 0;
+    min-width: min-content;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.strategic-path-item {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+.strategic-path-item:not(.strategic-path-item--last)::after {
+    content: '';
+    align-self: center;
+    flex-shrink: 0;
+    width: 0;
+    height: 0;
+    margin: 0 0.0625rem;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 9px solid color-mix(in srgb, var(--border-color) 70%, var(--text-muted));
+}
+
+.strategic-path-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    background-color: var(--bg-medium);
     color: var(--text-medium);
-    text-decoration: none;
+    font-family: inherit;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
     cursor: pointer;
-    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
-.strategic-toc-link:hover,
-.strategic-toc-link:focus-visible {
+.strategic-path-step:hover,
+.strategic-path-step:focus-visible {
     color: var(--text-light);
-    background-color: color-mix(in srgb, var(--bg-medium) 55%, transparent);
-    border-color: color-mix(in srgb, var(--border-color) 80%, transparent);
+    border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    background-color: color-mix(in srgb, var(--bg-medium) 80%, var(--primary-blue));
     outline: none;
 }
 
-.strategic-toc-link.active {
+.strategic-path-step--active {
     color: var(--text-light);
-    background-color: color-mix(in srgb, var(--primary-blue) 14%, transparent);
-    border-color: color-mix(in srgb, var(--primary-blue) 45%, var(--border-color));
+    border-color: var(--primary-blue);
+    background-color: color-mix(in srgb, var(--primary-blue) 16%, var(--bg-medium));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary-blue) 25%, transparent);
+}
+
+.strategic-path-step-label {
+    max-width: 11rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.strategic-mode-active .strategic-document-canvas {
+    max-height: calc(100vh - 168px);
+}
+
+body.strategic-mode-active .strategic-document-inner {
+    max-width: min(960px, 100%);
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
 }
 
 /* ===========================================================================

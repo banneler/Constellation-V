@@ -222,19 +222,9 @@ export function setAccountViewMode(mode, options = {}) {
 }
 
 /**
- * Repurpose the left-hand account-picker chrome based on the active view mode.
- *
- * Tactical: shows the account list (search, filter icons, list, actions).
- * Strategic: shows the plan TOC (jump-to-section nav for the active plan).
- *
- * The picker's outer flex column stays mounted so the layout doesn't reflow;
- * we just hide the tactical body + actions and reveal the TOC body. The
- * header <h2> text toggles to make the swap legible without an extra label.
- *
- * Rationale: now that the SAOS has 16+ sections, scrolling through the
- * strategic doc to find Pain Signals or Critical Unknowns is painful. The
- * picker already owns the left rail in this view; reusing it for navigation
- * is zero-cost real estate.
+ * Strategic mode keeps the account picker on the left rail for account
+ * switching (same as tactical). Section navigation moved to the horizontal
+ * Path (#strategic-path) above the canvas — see renderStrategicPath().
  *
  * @param {'tactical' | 'strategic'} mode
  */
@@ -242,37 +232,38 @@ function updateAccountPickerForMode(mode) {
     const isStrategic = mode === 'strategic';
 
     const titleEl = document.getElementById('account-picker-title');
-    if (titleEl) titleEl.textContent = isStrategic ? 'Plan Sections' : 'Accounts';
+    if (titleEl) titleEl.textContent = 'Accounts';
 
     const pickerBody = document.querySelector('.account-picker-panel .account-picker-body');
     if (pickerBody instanceof HTMLElement) {
-        pickerBody.classList.toggle('hidden', isStrategic);
+        pickerBody.classList.remove('hidden');
     }
 
     const pickerActions = document.querySelector('.account-picker-panel .account-picker-actions');
     if (pickerActions instanceof HTMLElement) {
-        pickerActions.classList.toggle('hidden', isStrategic);
+        pickerActions.classList.remove('hidden');
     }
 
     const tocBody = document.getElementById('strategic-toc-body');
     if (tocBody instanceof HTMLElement) {
-        tocBody.classList.toggle('hidden', !isStrategic);
+        tocBody.classList.add('hidden');
+    }
+
+    const pathEl = document.getElementById('strategic-path');
+    if (pathEl instanceof HTMLElement) {
+        pathEl.classList.toggle('hidden', !isStrategic);
     }
 
     if (isStrategic) {
         loadSaosViewMode();
-        renderStrategicToc();
-        initStrategicTocClicks();
+        applySaosViewModeToCanvas();
+        renderStrategicPath();
+        initStrategicPathNavigation();
+    } else {
+        teardownStrategicPathNavigation();
     }
 }
 
-/**
- * Populate the TOC nav with one link per registered plan section. Idempotent —
- * safe to call on every strategic-mode entry; we just replace innerHTML.
- *
- * Click handling lives in a delegated listener (initStrategicTocClicks below)
- * so re-rendering the nav doesn't drop any handlers.
- */
 /**
  * @returns {import('./account-plan-sections.js').PlanSectionDef[]}
  */
@@ -303,7 +294,7 @@ function setSaosViewMode(mode) {
         /* ignore quota / private mode */
     }
     applySaosViewModeToCanvas();
-    renderStrategicToc();
+    renderStrategicPath();
     paintCanvas();
 }
 
@@ -335,68 +326,166 @@ function renderStrategicViewModeToggleHtml() {
         </div>`;
 }
 
-function renderStrategicToc() {
-    const tocBody = document.getElementById('strategic-toc-body');
-    if (!tocBody) return;
+/**
+ * Populate the horizontal Path with one step per visible plan section.
+ * Core/Deep Dive toggle sits in the path toolbar (not the left rail).
+ */
+function renderStrategicPath() {
+    const path = document.getElementById('strategic-path');
+    const track = document.getElementById('strategic-path-track');
+    const toolbar = document.getElementById('strategic-path-toolbar');
+    if (!path || !track || !toolbar) return;
+
+    toolbar.innerHTML = renderStrategicViewModeToggleHtml();
 
     const sections = getCanvasPlanSections();
-    tocBody.innerHTML = `
-        ${renderStrategicViewModeToggleHtml()}
-        <nav id="strategic-toc-nav" class="strategic-toc-nav" aria-label="Plan table of contents">
-            ${sections.map((section) => (
-                `<a href="#strategic-section-${section.id}"`
-                + ` class="strategic-toc-link"`
-                + ` data-section-id="${section.id}">`
-                + escapeHtml(section.title)
-                + `</a>`
-            )).join('')}
-        </nav>`;
+    track.innerHTML = sections.map((section, index) => {
+        const isLast = index === sections.length - 1;
+        return `<li class="strategic-path-item${isLast ? ' strategic-path-item--last' : ''}">`
+            + `<button type="button" class="strategic-path-step" data-section-id="${section.id}"`
+            + ` title="${escapeHtml(section.title)}" aria-current="false">`
+            + `<span class="strategic-path-step-label">${escapeHtml(section.title)}</span>`
+            + `</button></li>`;
+    }).join('');
+
+    syncStrategicPathActive();
 }
 
-let _strategicTocClicksBound = false;
+let _strategicPathNavBound = false;
+/** @type {((event: Event) => void) | null} */
+let _strategicPathScrollHandler = null;
+/** Suppress scroll-spy flicker while a Path click smooth-scrolls. */
+let _pathScrollLockUntil = 0;
 
 /**
- * One-time delegated click handler on the TOC nav. Smooth-scrolls the matching
- * strategic-section into view inside the canvas, and updates the .active
- * class so the rep always sees where they are.
- *
- * We delegate (rather than per-link listeners in renderStrategicToc) so the
- * handler survives nav re-renders and a future feature that lets users
- * filter / reorder TOC entries.
+ * One-time delegated click + scroll-spy on the canvas scroll container.
  */
-function initStrategicTocClicks() {
-    if (_strategicTocClicksBound) return;
-    const tocBody = document.getElementById('strategic-toc-body');
-    if (!tocBody) return;
-    _strategicTocClicksBound = true;
+function initStrategicPathNavigation() {
+    const path = document.getElementById('strategic-path');
+    const canvas = document.getElementById('strategic-document-canvas');
+    if (!path || !canvas) return;
 
-    tocBody.addEventListener('click', (event) => {
-        const target = event.target;
-        if (!(target instanceof Element)) return;
+    if (!_strategicPathNavBound) {
+        _strategicPathNavBound = true;
+        path.addEventListener('click', onStrategicPathClick);
+    }
 
-        const modeBtn = target.closest('[data-view-mode]');
-        if (modeBtn instanceof HTMLButtonElement) {
-            event.preventDefault();
-            const mode = modeBtn.dataset.viewMode === 'deep' ? 'deep' : 'core';
-            if (mode !== _saosViewMode) {
-                setSaosViewMode(mode);
-            }
-            return;
-        }
+    teardownStrategicPathScrollSpy();
+    _strategicPathScrollHandler = () => {
+        if (Date.now() < _pathScrollLockUntil) return;
+        syncStrategicPathActive();
+    };
+    canvas.addEventListener('scroll', _strategicPathScrollHandler, { passive: true });
 
-        const link = target.closest('.strategic-toc-link');
-        if (!(link instanceof HTMLAnchorElement)) return;
+    requestAnimationFrame(() => syncStrategicPathActive());
+}
+
+function teardownStrategicPathScrollSpy() {
+    const canvas = document.getElementById('strategic-document-canvas');
+    if (canvas && _strategicPathScrollHandler) {
+        canvas.removeEventListener('scroll', _strategicPathScrollHandler);
+        _strategicPathScrollHandler = null;
+    }
+}
+
+function teardownStrategicPathNavigation() {
+    teardownStrategicPathScrollSpy();
+}
+
+/**
+ * @param {Event} event
+ */
+function onStrategicPathClick(event) {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const modeBtn = target.closest('[data-view-mode]');
+    if (modeBtn instanceof HTMLButtonElement) {
         event.preventDefault();
+        const mode = modeBtn.dataset.viewMode === 'deep' ? 'deep' : 'core';
+        if (mode !== _saosViewMode) {
+            setSaosViewMode(mode);
+        }
+        return;
+    }
 
-        const sectionId = link.dataset.sectionId;
-        if (!sectionId) return;
-        const sectionEl = document.getElementById(`strategic-section-${sectionId}`);
-        if (!sectionEl) return;
+    const btn = target.closest('.strategic-path-step');
+    if (!(btn instanceof HTMLButtonElement)) return;
 
-        sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        tocBody.querySelectorAll('.strategic-toc-link').forEach((el) => el.classList.remove('active'));
-        link.classList.add('active');
+    const sectionId = btn.dataset.sectionId;
+    if (!sectionId) return;
+
+    scrollStrategicSectionIntoView(sectionId);
+    setStrategicPathActive(sectionId);
+    _pathScrollLockUntil = Date.now() + 900;
+}
+
+/**
+ * @param {string} sectionId
+ */
+function scrollStrategicSectionIntoView(sectionId) {
+    const canvas = document.getElementById('strategic-document-canvas');
+    const sectionEl = document.getElementById(`strategic-section-${sectionId}`);
+    if (!canvas || !sectionEl) return;
+
+    const canvasTop = canvas.getBoundingClientRect().top;
+    const sectionTop = sectionEl.getBoundingClientRect().top;
+    const delta = sectionTop - canvasTop - 12;
+
+    canvas.scrollTo({ top: canvas.scrollTop + delta, behavior: 'smooth' });
+}
+
+/**
+ * Highlight the Path step for the section nearest the top of the canvas viewport.
+ */
+function syncStrategicPathActive() {
+    const canvas = document.getElementById('strategic-document-canvas');
+    if (!canvas) return;
+
+    const visibleIds = new Set(getCanvasPlanSections().map((section) => section.id));
+    const sections = canvas.querySelectorAll('.strategic-section[id]');
+    if (!sections.length) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const anchorY = canvasRect.top + 64;
+
+    let activeId = null;
+    sections.forEach((section) => {
+        const sectionKey = section.id.replace(/^strategic-section-/, '');
+        if (!visibleIds.has(sectionKey)) return;
+        if (section.getBoundingClientRect().top <= anchorY) {
+            activeId = sectionKey;
+        }
     });
+
+    if (!activeId) {
+        const firstVisible = getCanvasPlanSections()[0];
+        activeId = firstVisible?.id || null;
+    }
+
+    if (activeId) {
+        setStrategicPathActive(activeId);
+    }
+}
+
+/**
+ * @param {string} sectionId
+ */
+function setStrategicPathActive(sectionId) {
+    const track = document.getElementById('strategic-path-track');
+    if (!track) return;
+
+    track.querySelectorAll('.strategic-path-step').forEach((btn) => {
+        if (!(btn instanceof HTMLButtonElement)) return;
+        const isActive = btn.dataset.sectionId === sectionId;
+        btn.classList.toggle('strategic-path-step--active', isActive);
+        btn.setAttribute('aria-current', isActive ? 'step' : 'false');
+    });
+
+    const activeBtn = track.querySelector('.strategic-path-step--active');
+    if (activeBtn instanceof HTMLElement) {
+        activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
 }
 
 function requestAccountViewMode(mode) {
@@ -532,6 +621,8 @@ export function renderStrategicShell(account, plan) {
     renderVersionTimeline(_planBaseline);
     updateVersionTriggerLabel(_planBaseline);
     updateToggleDisabled();
+    renderStrategicPath();
+    requestAnimationFrame(() => syncStrategicPathActive());
 }
 
 /**
@@ -757,6 +848,10 @@ function paintCanvas() {
     initAutoExpandTextareas(canvas);
     initPsychologySliders(canvas);
     initInteractionLogControls(canvas);
+
+    if (_activeMode === 'strategic') {
+        requestAnimationFrame(() => syncStrategicPathActive());
+    }
 }
 
 // ---------------------------------------------------------------------------

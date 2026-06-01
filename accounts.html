@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="output.css">
     <!-- Cache-bust query string bumped whenever this file changes so users
          don't end up with a stale dialog/spinner from a previous deploy. -->
-    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-05-27-3">
+    <link rel="stylesheet" href="css/saos-strategic.css?v=2026-05-27-path">
     <link rel="stylesheet" href="css/global-loader.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -43,10 +43,6 @@
             <div id="accounts" class="content-view active-view accounts-layout">
                 <div class="account-picker-panel">
                     <div class="account-picker-header">
-                        <!-- Title swaps between "Accounts" (tactical) and "Plan Sections"
-                             (strategic) via JS in setAccountViewMode → renderStrategicToc.
-                             The same h2 is reused so the visual chrome (border, height,
-                             font weight) stays identical when toggling modes. -->
                         <h2 id="account-picker-title" class="section-title">Accounts</h2>
                     </div>
                     <input type="file" id="account-csv-input" accept=".csv" class="hidden">
@@ -70,11 +66,9 @@
                         </div>
                         <div id="account-list" class="item-list"></div>
                     </div>
-                    <!-- Strategic TOC body. Hidden in tactical mode; shown in strategic mode
-                         (.strategic-mode-active swap rules live in css/saos-strategic.css).
-                         Built dynamically by renderStrategicToc() from PLAN_SECTIONS so a
-                         new section added to the registry shows up here automatically. -->
-                    <div id="strategic-toc-body" class="strategic-toc-body hidden">
+                    <!-- Legacy left-rail TOC (superseded by the horizontal Path in
+                         #strategic-path). Kept in DOM for now but always hidden. -->
+                    <div id="strategic-toc-body" class="strategic-toc-body hidden" hidden>
                         <nav id="strategic-toc-nav" class="strategic-toc-nav" aria-label="Plan table of contents"></nav>
                     </div>
                     <div class="account-picker-actions">
@@ -223,6 +217,13 @@
                             </button>
                         </div>
                     </div>
+                    <!-- Salesforce-style horizontal Path: sticky section nav above the
+                         scrollable canvas. Built from PLAN_SECTIONS by
+                         renderStrategicPath(); scroll-spy keeps the active step in sync. -->
+                    <nav id="strategic-path" class="strategic-path hidden" aria-label="Plan sections">
+                        <div id="strategic-path-toolbar" class="strategic-path-toolbar"></div>
+                        <ol id="strategic-path-track" class="strategic-path-track"></ol>
+                    </nav>
                     <div class="strategic-workspace-body">
                         <div id="strategic-document-canvas" class="strategic-document-canvas"></div>
                         <aside id="strategic-rail" class="strategic-rail"></aside>
