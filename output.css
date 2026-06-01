@@ -6278,6 +6278,27 @@ body.theme-green {
     font-weight: var(--font-weight-semibold);
     color: var(--primary-blue);
   }
+  .momentum-score-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+  }
+  .momentum-score-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: calc(infinity * 1px);
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-bold);
+    --tw-numeric-spacing: tabular-nums;
+    font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,) var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: var(--primary-blue);
+    color: #fff;
+  }
   .momentum-slider-wrap {
     --momentum-sat: 0;
     --momentum-light: 95;

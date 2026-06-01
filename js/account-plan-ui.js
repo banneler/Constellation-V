@@ -3022,30 +3022,6 @@ function buildMomentumTimelineDisplayHtml() {
         </div>`;
 }
 
-function buildMomentumTrendlineHtml() {
-    const log = Array.isArray(_liveSections?.interaction_log) ? _liveSections.interaction_log : [];
-    const points = log
-        .filter((entry) => isPlainObject(entry) && entry.momentum_score != null)
-        .map((entry) => ({
-            date: new Date(String(entry.date ?? '')),
-            score: clampScale(entry.momentum_score, 3),
-        }))
-        .filter((point) => !Number.isNaN(point.date.getTime()))
-        .sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    if (points.length === 0) {
-        return '<p class="momentum-trendline-empty">Log strategic milestones to build a momentum trendline.</p>';
-    }
-
-    const bars = points.map((point) => {
-        const height = ((point.score - 1) / 4) * 100;
-        const label = formatCommittedDate(point.date.toISOString());
-        return `<div class="momentum-trendline-bar" style="--trend-height:${height}%" title="${escapeHtml(label)} — ${MOMENTUM_LABELS[point.score - 1]}"><span class="momentum-trendline-score">${point.score}</span></div>`;
-    }).join('');
-
-    return `<div class="momentum-trendline" role="img" aria-label="Relationship momentum trendline">${bars}</div>`;
-}
-
 function buildMomentumTimelineHtml() {
     const toggleChecked = _showCrmActivities ? ' checked' : '';
     return `
@@ -3057,13 +3033,18 @@ function buildMomentumTimelineHtml() {
                     rows="2"
                     placeholder="Describe the strategic milestone — access win, political shift, proof point…"
                 ></textarea>
-                <div class="momentum-milestone-score-row">
-                    <label for="momentum-milestone-score">Momentum score <span class="required-mark">*</span></label>
-                    <span class="momentum-milestone-score-label" data-milestone-score-label>${MOMENTUM_LABELS[2]}</span>
+                <div class="momentum-field">
+                    <div class="momentum-slider-row">
+                        <label for="momentum-milestone-score">Momentum score <span class="required-mark">*</span></label>
+                        <span class="momentum-score-meta">
+                            <span class="momentum-score-number" data-milestone-score-number>3</span>
+                            <span class="momentum-score-label" data-milestone-score-label>${MOMENTUM_LABELS[2]}</span>
+                        </span>
+                    </div>
                     <div class="momentum-slider-wrap" style="${momentumSliderStyle(3)}">
                         <input
                             type="range"
-                            class="momentum-milestone-score-input"
+                            class="momentum-slider momentum-milestone-score-input"
                             id="momentum-milestone-score"
                             min="1"
                             max="5"
@@ -3074,12 +3055,15 @@ function buildMomentumTimelineHtml() {
                             aria-valuenow="3"
                         />
                     </div>
+                    <div class="momentum-slider-scale">
+                        <span>${escapeHtml(MOMENTUM_LABELS[0])}</span>
+                        <span>${escapeHtml(MOMENTUM_LABELS[4])}</span>
+                    </div>
                 </div>
                 <button type="button" class="btn-secondary momentum-signal-log-btn" data-momentum-milestone-log>
                     Log Strategic Milestone
                 </button>
             </div>
-            <div class="momentum-trendline-host">${buildMomentumTrendlineHtml()}</div>
             <div class="momentum-timeline-controls">
                 <label class="momentum-timeline-toggle">
                     <input type="checkbox" class="momentum-timeline-toggle-input" data-timeline-show-crm${toggleChecked} />
@@ -3093,11 +3077,6 @@ function buildMomentumTimelineHtml() {
 function refreshMomentumTimelineSection() {
     const sectionEl = document.getElementById('strategic-section-momentum_timeline');
     if (!sectionEl) return;
-
-    const trendlineHost = sectionEl.querySelector('.momentum-trendline-host');
-    if (trendlineHost) {
-        trendlineHost.innerHTML = buildMomentumTrendlineHtml();
-    }
 
     const display = sectionEl.querySelector('.momentum-timeline-display');
     if (display) {
@@ -3419,6 +3398,15 @@ function logStrategicMilestone() {
 
     textarea.value = '';
     scoreInput.value = '3';
+    scoreInput.setAttribute('aria-valuenow', '3');
+    const wrap = scoreInput.closest('.momentum-slider-wrap');
+    if (wrap instanceof HTMLElement) {
+        wrap.setAttribute('style', momentumSliderStyle(3));
+    }
+    const milestoneLabel = document.querySelector('[data-milestone-score-label]');
+    if (milestoneLabel) milestoneLabel.textContent = MOMENTUM_LABELS[2];
+    const milestoneNumber = document.querySelector('[data-milestone-score-number]');
+    if (milestoneNumber) milestoneNumber.textContent = '3';
     autoExpandTextarea(textarea);
     refreshMomentumTimelineSection();
     refreshInteractionLogSection();
@@ -4729,13 +4717,24 @@ function handleRangeInput(input) {
         if (valueEl) valueEl.textContent = String(value);
     }
 
-    if (field === 'relationship_momentum.score' || input.classList.contains('momentum-slider')) {
+    if (
+        field === 'relationship_momentum.score'
+        || input.classList.contains('momentum-slider')
+        || input.classList.contains('momentum-milestone-score-input')
+    ) {
         const wrap = input.closest('.momentum-slider-wrap');
         if (wrap) {
             wrap.setAttribute('style', momentumSliderStyle(value));
         }
         const labelEl = document.querySelector('[data-momentum-label]');
         if (labelEl) labelEl.textContent = MOMENTUM_LABELS[value - 1];
+
+        if (input.classList.contains('momentum-milestone-score-input')) {
+            const milestoneLabel = document.querySelector('[data-milestone-score-label]');
+            if (milestoneLabel) milestoneLabel.textContent = MOMENTUM_LABELS[value - 1];
+            const milestoneNumber = document.querySelector('[data-milestone-score-number]');
+            if (milestoneNumber) milestoneNumber.textContent = String(value);
+        }
     }
 }
 
@@ -5022,7 +5021,7 @@ function initPsychologySliders(root) {
     });
 
     root.querySelectorAll('.momentum-slider-wrap').forEach((wrap) => {
-        const input = wrap.querySelector('.momentum-slider');
+        const input = wrap.querySelector('.momentum-slider, .momentum-milestone-score-input');
         if (!(input instanceof HTMLInputElement)) return;
         wrap.setAttribute('style', momentumSliderStyle(input.value));
     });

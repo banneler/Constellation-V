@@ -1666,66 +1666,6 @@ body.strategic-mode-active #strategic-document-canvas .entry-point-grid--attribu
     color: var(--text-light);
 }
 
-.momentum-milestone-score-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
-}
-
-.momentum-milestone-score-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--primary-blue);
-}
-
-.momentum-trendline-host {
-    margin-top: 1rem;
-}
-
-.momentum-trendline {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.35rem;
-    min-height: 4.5rem;
-    padding: 0.75rem 0.5rem 0.25rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--bg-medium) 40%, transparent);
-}
-
-.momentum-trendline-bar {
-    flex: 1 1 0;
-    min-width: 0;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    height: var(--trend-height, 50%);
-    min-height: 1.25rem;
-    border-radius: 0.25rem 0.25rem 0 0;
-    background: linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--primary-blue) 85%, #6366f1),
-        color-mix(in srgb, var(--primary-blue) 55%, transparent)
-    );
-}
-
-.momentum-trendline-score {
-    font-size: 0.625rem;
-    font-weight: 700;
-    color: #fff;
-    padding-bottom: 0.15rem;
-}
-
-.momentum-trendline-empty {
-    margin: 0;
-    padding: 0.75rem;
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-    font-style: italic;
-}
-
 /* ---------------------------------------------------------------------------
  * Entry Points — clearer panel hierarchy (reduce "runs together" fatigue)
  * --------------------------------------------------------------------------- */
