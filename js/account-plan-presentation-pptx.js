@@ -451,48 +451,73 @@ function defineContentMaster(pptx, accountName, navyLogo) {
 // ---------------------------------------------------------------------------
 // Task 2 — Geometric cover slide
 // ---------------------------------------------------------------------------
-// Navy field + teal diagonal + lime corner on the right (matches the PDF
-// dossier cover art). Cover does NOT use the content master.
+// Parallel diagonal bands via Z-order layering (rect + rtTriangle). The slide
+// background supplies coverBg; teal base, navy-deep overlay, lime wedge, L-corner.
+// Cover does NOT use the content master.
 // ---------------------------------------------------------------------------
 
 /**
- * Diagonal wedge artwork — navy-deep right slab, teal diagonal, lime corner.
- * Restored from the pre-custGeom layout (custGeom polygons render incorrectly
- * in PowerPoint; the intermediate rtTriangle-only pass also misaligned wedges).
+ * Parallel diagonal band artwork — Z-order layering with rtTriangle + rect.
+ * Teal base, navy-deep overlay (offset to expose a parallel teal band), lime wedge.
  * @param {import('pptxgenjs').Slide} slide
  */
 function addCoverGeometricArt(slide) {
-    // Navy-deep right slab — frames the logo and holds the accent shapes.
+    // 1. TEAL BASE (Layer 1)
+    // Draw a wide teal base that covers the left side and creates the rightmost diagonal.
     slide.addShape('rect', {
-        x: 7.50,
+        x: 0,
         y: 0,
-        w: SLIDE_W - 7.50,
-        h: SLIDE_H,
-        fill: { color: THEME.accentDark },
-        line: { width: 0 },
-    });
-
-    // Teal diagonal wedge — hypotenuse from top-left (5.5, 0) to bottom-right.
-    slide.addShape('rtTriangle', {
-        x: 5.50,
-        y: 0,
-        w: 4.50,
+        w: 8.5,
         h: SLIDE_H,
         fill: { color: THEME.accent },
         line: { width: 0 },
     });
+    slide.addShape('rtTriangle', {
+        x: 8.5,
+        y: 0,
+        w: 3.5,
+        h: SLIDE_H,
+        fill: { color: THEME.accent },
+        line: { width: 0 },
+        // Right angle is at bottom-left by default.
+        // Hypotenuse creates a diagonal from (8.5, 0) to (12.0, 7.5)
+    });
 
-    // Lime bottom-right accent inside the navy-deep slab.
+    // 2. NAVY DEEP OVERLAY (Layer 2)
+    // Draw the main dark area on top of the teal, slightly narrower to leave a parallel teal band.
     slide.addShape('rect', {
-        x: 11.20,
-        y: 5.40,
-        w: 2.133,
-        h: 2.10,
+        x: 0,
+        y: 0,
+        w: 7.0,
+        h: SLIDE_H,
+        fill: { color: THEME.accentDark },
+        line: { width: 0 },
+    });
+    slide.addShape('rtTriangle', {
+        x: 7.0,
+        y: 0,
+        w: 3.5,
+        h: SLIDE_H,
+        fill: { color: THEME.accentDark },
+        line: { width: 0 },
+        // Identical width/height as the teal triangle ensures a perfectly parallel band.
+        // Hypotenuse creates a diagonal from (7.0, 0) to (10.5, 7.5)
+    });
+
+    // 3. LIME WEDGE (Layer 3)
+    // Bottom-right corner accent, flipped so the right angle is at the bottom-right.
+    slide.addShape('rtTriangle', {
+        x: 10.8,
+        y: 2.8,
+        w: 2.533,
+        h: 4.7,
         fill: { color: THEME.accentAlt },
+        flipH: true, // Moves right angle to bottom-right
         line: { width: 0 },
     });
 
-    // Subtle top-left L-corner accent from the GPC title template.
+    // 4. L-CORNER ACCENT (Layer 4)
+    // Subtle top-left frame as originally designed.
     const cornerX = 0.42;
     const cornerY = 0.38;
     const cornerLen = 0.95;
