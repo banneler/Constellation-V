@@ -10,7 +10,9 @@
 
 /** @typedef {{ headline: string, bullets: string[], blindspots?: string[] }} PresentationSignalBlock */
 
-/** @typedef {{ headline: string, opportunity: string }} PresentationWhiteSpaceHook */
+/** @typedef {{ name: string, hook: string }} PresentationChampion */
+
+/** @typedef {{ headline: string, opportunity: string, wedge_summary?: string }} PresentationWhiteSpaceHook */
 
 /**
  * @typedef {Object} PresentationHighlight
@@ -32,7 +34,7 @@
  * @property {string} slides.battlefield.headline
  * @property {PresentationHorizonBlock} slides.battlefield.competitive
  * @property {PresentationWhiteSpaceHook} slides.battlefield.white_space
- * @property {{ executive_hook: string, champions_hook: string, access_path_hook: string }} slides.battlefield.influence
+ * @property {{ executive_hook: string, champions_hook: string, access_path_hook: string, champions?: PresentationChampion[] }} slides.battlefield.influence
  * @property {PresentationEntryPoint[]} slides.battlefield.entry_points
  * @property {Object} slides.execution
  * @property {string} slides.execution.headline

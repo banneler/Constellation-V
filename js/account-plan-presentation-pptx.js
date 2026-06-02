@@ -841,14 +841,15 @@ function resolvePainSignalBullets(ctx, highlight) {
  */
 function resolveEntrenchmentMoat(ctx, highlight) {
     const aiMoat = String(highlight.slides.execution?.entrenchment_moat ?? '').trim();
-    if (aiMoat) return aiMoat;
+    if (aiMoat) return truncate(aiMoat, 240);
 
     const moatPills = Array.isArray(ctx.competitive.moat_pills)
         ? ctx.competitive.moat_pills.map((p) => String(p ?? '').trim()).filter(Boolean)
         : [];
     const compound = String(ctx.competitive.compound_relationships ?? '').trim();
     const narrative = String(ctx.competitive.difficult_to_remove ?? '').trim();
-    return [moatPills.join(', '), compound, narrative].filter(Boolean).join(' — ');
+    const combined = [moatPills.join(', '), compound, narrative].filter(Boolean).join(' — ');
+    return truncate(combined, 240);
 }
 
 /**
@@ -916,6 +917,18 @@ function pickInfluenceColumnCopy(aiCopy, rawCopy, maxLen = 420) {
  * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
  */
 function resolveChampionsInfluenceCopy(ctx, highlight) {
+    const champions = Array.isArray(highlight.slides.battlefield?.influence?.champions)
+        ? highlight.slides.battlefield.influence.champions
+            .filter((item) => item && String(item.hook ?? '').trim())
+        : [];
+
+    if (champions.length > 0) {
+        return champions
+            .slice(0, 4)
+            .map((item) => `${String(item.name ?? 'Champion').trim()}: ${String(item.hook).trim()}`)
+            .join('\n\n');
+    }
+
     const ai = String(highlight.slides.battlefield?.influence?.champions_hook ?? '').trim();
     const midLevel = Array.isArray(ctx.influence.mid_level) ? ctx.influence.mid_level : [];
     const rawNotes = midLevel
@@ -934,6 +947,57 @@ function resolveChampionsInfluenceCopy(ctx, highlight) {
         .join(' ');
 
     return pickInfluenceColumnCopy(ai, rawNotes, 420);
+}
+
+/**
+ * Build rich-text runs for the Mid-Level Champions column (name + hook per person).
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @returns {import('pptxgenjs').TextProps[]}
+ */
+function buildChampionsColumnRuns(ctx, highlight) {
+    const champions = Array.isArray(highlight.slides.battlefield?.influence?.champions)
+        ? highlight.slides.battlefield.influence.champions
+            .filter((item) => item && String(item.hook ?? '').trim())
+            .slice(0, 4)
+        : [];
+
+    if (champions.length > 0) {
+        const runs = [];
+        champions.forEach((item, index) => {
+            runs.push({
+                text: `${String(item.name ?? 'Champion').trim()}\n`,
+                options: {
+                    bold: true,
+                    fontSize: TYPO.body,
+                    color: themeHex('primary'),
+                    fontFace: THEME.font,
+                },
+            });
+            runs.push({
+                text: index < champions.length - 1
+                    ? `${String(item.hook).trim()}\n\n`
+                    : String(item.hook).trim(),
+                options: {
+                    fontSize: TYPO.body,
+                    color: themeHex('secondary'),
+                    fontFace: THEME.font,
+                },
+            });
+        });
+        return runs;
+    }
+
+    const fallback = resolveChampionsInfluenceCopy(ctx, highlight);
+    return [{
+        text: fallback || 'Not captured yet.',
+        options: {
+            fontSize: TYPO.body,
+            color: fallback ? themeHex('secondary') : themeHex('softMuted'),
+            fontFace: THEME.font,
+            italic: !fallback,
+        },
+    }];
 }
 
 /**
@@ -1056,8 +1120,11 @@ function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, total
     const accountContext = highlight.slides.situation?.account_context ?? {};
     const tier = String(accountContext.tier ?? ctx.snapshot.tier ?? '').trim();
     const priority = String(accountContext.priority ?? ctx.snapshot.pursuit_priority ?? '').trim();
-    const executiveNarrative = String(highlight.slides.situation?.executive_narrative ?? '').trim()
-        || String(ctx.pursuit.executive_narrative ?? '').trim();
+    const executiveNarrative = truncate(
+        String(highlight.slides.situation?.executive_narrative ?? '').trim()
+            || String(ctx.pursuit.executive_narrative ?? '').trim(),
+        240
+    );
     const compactStats = getSnapshotStatsByKeys(ctx.snapshot, SNAPSHOT_COMPACT_STAT_KEYS);
     const narrativeStats = getSnapshotStatsByKeys(ctx.snapshot, SNAPSHOT_NARRATIVE_STAT_KEYS);
 
@@ -1714,11 +1781,23 @@ function buildWhiteSpaceSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     const bottomY = BODY_TOP + halfH + GAP;
 
     const wedgeParts = resolveExpansionWedgeParts(ctx);
+    const wedgeSummary = String(highlight.slides.battlefield?.white_space?.wedge_summary ?? '').trim();
 
     addPanel(slide, MARGIN_X, topY, BODY_W, halfH);
     addKicker(slide, 'EXPANSION WEDGE', MARGIN_X + 0.30, topY + 0.18, BODY_W - 0.6);
-    if (wedgeParts.length > 0) {
+    if (wedgeSummary || wedgeParts.length > 0) {
         const runs = [];
+        if (wedgeSummary) {
+            runs.push({
+                text: `${wedgeSummary}\n\n`,
+                options: {
+                    fontSize: TYPO.body,
+                    color: themeHex('primary'),
+                    fontFace: THEME.font,
+                    bold: true,
+                },
+            });
+        }
         wedgeParts.forEach((part, index) => {
             runs.push({
                 text: `${part.label}:\n`,
@@ -1842,7 +1921,8 @@ function buildInfluenceMappingSlide(pptx, highlight, ctx, pageNum, totalSlides) 
         },
         {
             title: 'Mid-Level Champions',
-            copy: resolveChampionsInfluenceCopy(ctx, highlight),
+            runs: buildChampionsColumnRuns(ctx, highlight),
+            isRuns: true,
         },
         {
             title: 'Access Path',
@@ -1856,16 +1936,30 @@ function buildInfluenceMappingSlide(pptx, highlight, ctx, pageNum, totalSlides) 
         addPanel(slide, x, BODY_TOP, colW, BODY_H);
         const layout = panelContentLayout(x, BODY_TOP, colW, BODY_H);
         addKicker(slide, column.title.toUpperCase(), layout.innerX, layout.kickerY, layout.innerW);
-        slide.addText(column.copy || 'Not captured yet.', {
-            x: layout.innerX,
-            y: layout.bodyY,
-            w: layout.innerW,
-            h: layout.bodyH,
-            ...BODY_TEXT_BASE,
-            italic: !column.copy,
-            color: column.copy ? THEME.secondary : THEME.softMuted,
-            lineSpacing: 16,
-        });
+        if (column.isRuns && Array.isArray(column.runs)) {
+            slide.addText(column.runs, {
+                x: layout.innerX,
+                y: layout.bodyY,
+                w: layout.innerW,
+                h: layout.bodyH,
+                valign: 'top',
+                breakLine: true,
+                margin: 0,
+                autoFit: false,
+                lineSpacing: 16,
+            });
+        } else {
+            slide.addText(column.copy || 'Not captured yet.', {
+                x: layout.innerX,
+                y: layout.bodyY,
+                w: layout.innerW,
+                h: layout.bodyH,
+                ...BODY_TEXT_BASE,
+                italic: !column.copy,
+                color: column.copy ? THEME.secondary : THEME.softMuted,
+                lineSpacing: 16,
+            });
+        }
     });
 }
 
@@ -1892,7 +1986,7 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     const hasBlindspots = blindspotItems.length > 0;
     const moatText = resolveEntrenchmentMoat(ctx, highlight);
     const hasMoat = Boolean(moatText);
-    const moatBandH = hasMoat ? 1.20 : 0;
+    const moatBandH = hasMoat ? 1.35 : 0;
     const mainH = hasMoat ? BODY_H - moatBandH - GAP : BODY_H;
     const moatY = BODY_TOP + mainH + GAP;
 
@@ -2126,14 +2220,23 @@ function mapEntryPointToProfile(point, index, highlight) {
         }
     });
     const aiMatch = aiByName.get(name.toLowerCase());
+    const rawWhy = String(point.why_they_matter ?? '').trim();
+    const rawNext = String(point.next_move ?? '').trim();
+    const aiHeadline = aiMatch ? String(aiMatch.headline ?? '').trim() : '';
+    const aiHook = aiMatch ? String(aiMatch.hook ?? '').trim() : '';
+    const badgeParts = [
+        point.trust_level ? `Trust: ${point.trust_level}` : '',
+        point.political_influence ? `Influence: ${point.political_influence}` : '',
+    ].filter(Boolean);
+    const rawBadges = badgeParts.join(' · ');
     return {
         name,
-        why_they_matter: String(point.why_they_matter ?? '').trim(),
+        why_they_matter: aiHeadline && aiHeadline.length > rawWhy.length + 12 ? aiHeadline : rawWhy,
         operational_pain: String(point.operational_pain ?? '').trim(),
         conversation_wedge: String(point.conversation_wedge ?? '').trim(),
-        next_move: String(point.next_move ?? '').trim(),
+        next_move: aiHook && aiHook.length > rawNext.length + 8 ? aiHook : rawNext,
         human_context: String(point.human_context ?? '').trim(),
-        badges: aiMatch ? String(aiMatch.badges ?? '').trim() : '',
+        badges: (aiMatch ? String(aiMatch.badges ?? '').trim() : '') || rawBadges,
     };
 }
 
@@ -2283,10 +2386,13 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
 
     const commitments = ctx.plan306090.client_commitments;
     const hasCommitments = commitments.length > 0;
+    const commitmentBlockH = hasCommitments
+        ? 0.22 + 0.26 + Math.min(commitments.length, 4) * 0.24 + 0.14
+        : 0;
     const tableX = MARGIN_X + 0.25;
     const tableY = topY + 0.65;
     const tableW = BODY_W - 0.50;
-    const tableH = hasCommitments ? topH - 1.85 : topH - 0.85;
+    const tableH = Math.max(0.85, topH - 0.85 - commitmentBlockH);
     const colW = tableW / 3;
 
     // Header row — uppercase period labels with accent fill (brand teal).

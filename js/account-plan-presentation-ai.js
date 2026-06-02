@@ -153,6 +153,10 @@ export function normalizePresentationHighlight(raw, meta) {
                         whiteSpaceRaw.opportunity,
                         fallbackWhiteSpaceHook(ctx.sections).opportunity
                     ),
+                    wedge_summary: pickText(
+                        whiteSpaceRaw.wedge_summary,
+                        fallbackWedgeSummary(ctx.sections)
+                    ),
                 },
                 influence: {
                     executive_hook: pickText(
@@ -167,6 +171,7 @@ export function normalizePresentationHighlight(raw, meta) {
                         influence.access_path_hook,
                         fallbackAccessPathHook(ctx.sections)
                     ),
+                    champions: pickChampions(influence.champions, ctx.sections),
                 },
                 entry_points: pickEntryPoints(battlefield.entry_points, ctx.sections),
             },
@@ -475,6 +480,108 @@ function scoreWhiteSpaceRow(row) {
 /**
  * @param {Record<string, unknown>} sections
  */
+function fallbackWedgeSummary(sections) {
+    const expansion = isPlainObject(sections.land_and_expand) ? sections.land_and_expand : {};
+    const whiteSpace = isPlainObject(sections.white_space) ? sections.white_space : {};
+    const parts = [
+        expansion.initial_entry,
+        expansion.trust_creation,
+        expansion.expansion_path,
+        whiteSpace.initial_entry,
+        whiteSpace.trust_creation,
+        whiteSpace.expansion_path,
+    ]
+        .map((v) => String(v ?? '').trim())
+        .filter(Boolean);
+
+    if (parts.length > 0) {
+        return truncatePresentationText(parts.join(' '), 220);
+    }
+
+    const valueNotes = getWhiteSpaceRows(whiteSpace)
+        .map((row) => String(row.value_notes ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 2);
+    if (valueNotes.length > 0) {
+        return truncatePresentationText(valueNotes.join(' '), 220);
+    }
+
+    const snapshot = isPlainObject(sections.account_snapshot) ? sections.account_snapshot : {};
+    return truncatePresentationText(String(snapshot.expansion_potential ?? '').trim(), 220);
+}
+
+const GENERIC_CHAMPION_HOOK = /^Operational champion\.?\s*Wedge for day-to-day credibility and expansion\.?$/i;
+
+/**
+ * @param {unknown} raw
+ * @param {Record<string, unknown>} sections
+ */
+function pickChampions(raw, sections) {
+    const fromAi = Array.isArray(raw)
+        ? raw
+            .filter((item) => isPlainObject(item))
+            .map((item) => ({
+                name: pickText(item.name, 'Champion'),
+                hook: pickText(item.hook, ''),
+            }))
+            .filter((item) => item.hook && !GENERIC_CHAMPION_HOOK.test(item.hook))
+        : [];
+
+    if (fromAi.length > 0) return fromAi.slice(0, 4);
+
+    const influence = isPlainObject(sections.influence_mapping) ? sections.influence_mapping : {};
+    const midLevel = Array.isArray(influence.mid_level) ? influence.mid_level : [];
+    const parsed = midLevel
+        .map((entry) => parseChampionFromInfluenceEntry(entry))
+        .filter((item) => item.hook);
+
+    if (parsed.length > 0) return parsed.slice(0, 4);
+
+    const entryPoints = Array.isArray(sections.entry_points) ? sections.entry_points : [];
+    return entryPoints
+        .filter((point) => isPlainObject(point) && String(point.contact_name ?? '').trim())
+        .slice(0, 4)
+        .map((point) => ({
+            name: String(point.contact_name).trim(),
+            hook: truncatePresentationText(
+                String(point.why_they_matter ?? point.next_move ?? '').trim(),
+                90
+            ),
+        }))
+        .filter((item) => item.hook);
+}
+
+/**
+ * @param {unknown} entry
+ */
+function parseChampionFromInfluenceEntry(entry) {
+    if (!isPlainObject(entry)) {
+        return { name: 'Champion', hook: '' };
+    }
+
+    const notes = String(entry.notes ?? entry.strategic_priorities ?? '').trim();
+    if (!notes) {
+        return { name: 'Champion', hook: '' };
+    }
+
+    const split = notes.match(/^(.+?)\s*[—–-]\s*(.+)$/);
+    if (split) {
+        const hook = split[2].trim();
+        return {
+            name: split[1].trim(),
+            hook: GENERIC_CHAMPION_HOOK.test(hook) ? '' : hook,
+        };
+    }
+
+    return {
+        name: 'Champion',
+        hook: GENERIC_CHAMPION_HOOK.test(notes) ? '' : notes,
+    };
+}
+
+/**
+ * @param {Record<string, unknown>} sections
+ */
 function fallbackEntrenchmentMoat(sections) {
     const competitive = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
     const pills = Array.isArray(competitive.moat_pills) ? competitive.moat_pills : [];
@@ -633,7 +740,7 @@ function pickEntryPoints(raw, sections) {
         })).filter((item) => item.hook)
         : [];
 
-    if (fromAi.length > 0) return fromAi.slice(0, 2);
+    if (fromAi.length > 0) return fromAi.slice(0, 6);
 
     const points = Array.isArray(sections.entry_points) ? sections.entry_points : [];
     return points

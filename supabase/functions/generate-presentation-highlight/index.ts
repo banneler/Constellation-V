@@ -22,9 +22,9 @@ Schema v2 section mapping (read these keys from the plan JSON):
 - psychology gravity fields → situation.psychology callouts
 - relationship_momentum → situation.momentum.insight (beyond the numeric score)
 - competitive_landscape + entrenchment → battlefield.competitive bullets
-- white_space[] → battlefield.white_space (single top opportunity by importance/visibility)
-- influence_mapping + influence_mapping.access_path → battlefield.influence hooks (executive, champions, access_path_hook)
-- entry_points[] → battlefield.entry_points (1-2 max)
+- white_space[] + account_expansion / land_and_expand → battlefield.white_space (headline + opportunity + wedge_summary)
+- influence_mapping + influence_mapping.access_path → battlefield.influence hooks (executive, champions[], access_path_hook)
+- entry_points[] → battlefield.entry_points (one synthesized card per contact, up to 6)
 - plan_30_60_90.plan_30 / plan_60 / plan_90 → execution plan horizons
 - plan_30_60_90.client_commitments[] → optional give/get bullets on execution slide (max 3)
 - interaction_log ONLY (entries with source signal or manual) → execution.signals — NEVER use CRM activity rows
@@ -49,7 +49,7 @@ Output ONLY valid JSON matching this exact schema (no markdown fences):
         "headline": "string",
         "bullets": ["string", "..."] // 3-4 bullets max
       },
-      "executive_narrative": "string — one-line executive narrative hook from pursuit_thesis.executive_narrative",
+      "executive_narrative": "string — max 28 words; boardroom hook distilled from pursuit_thesis.executive_narrative for snapshot slide",
       "pain_signals": {
         "headline": "string",
         "bullets": ["string"] // 2-3 bullets from pain_signals pills/notes
@@ -76,28 +76,32 @@ Output ONLY valid JSON matching this exact schema (no markdown fences):
       },
       "white_space": {
         "headline": "string — top opportunity area label",
-        "opportunity": "string — max 22 words on the highest-value white space row"
+        "opportunity": "string — max 22 words on the highest-value white space row",
+        "wedge_summary": "string — max 38 words; synthesize land_and_expand / account_expansion into one expansion-wedge hook"
       },
       "influence": {
-        "executive_hook": "string — one headline about exec layer",
-        "champions_hook": "string — one headline about mid-level champions",
-        "access_path_hook": "string — headline from access_path strategy/bridge/desired access"
+        "executive_hook": "string — max 28 words on exec political dynamics",
+        "champions_hook": "string — fallback only when champions[] is empty",
+        "access_path_hook": "string — max 32 words from access_path strategy/bridge/desired access",
+        "champions": [
+          { "name": "string — contact name from mid_level", "hook": "string — max 14 words, unique per person; never generic stubs" }
+        ] // 2-4 entries from influence_mapping.mid_level
       },
       "entry_points": [
         {
           "name": "string",
-          "headline": "string",
-          "hook": "string — max 18 words",
+          "headline": "string — why they matter, max 16 words",
+          "hook": "string — next move or wedge, max 18 words",
           "badges": "string — e.g. Trusted · High influence · Strategic comms"
         }
-      ] // 1-2 entries max
+      ] // one per entry_points[] contact, up to 6
     },
     "execution": {
       "headline": "string",
       "plan_30": { "headline": "string", "bullets": ["string"] }, // 3 bullets max
       "plan_60": { "headline": "string", "bullets": ["string"] },
       "plan_90": { "headline": "string", "bullets": ["string"] },
-      "entrenchment_moat": "string — one-liner on why incumbents are difficult to remove",
+      "entrenchment_moat": "string — max 32 words; one sentence on why incumbents are difficult to remove (moat strip)",
       "signals": [
         { "date_label": "string — e.g. May 20", "headline": "string — signal as headline, not full note" }
       ] // up to 3, newest first; interaction_log signals only
