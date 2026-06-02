@@ -188,8 +188,17 @@ const TENSION_BADGE_PALETTE = Object.freeze([
 
 const MAX_BLINDSPOTS = 8;
 const MAX_SIGNALS = 8;
-const MAX_PLAN_BULLETS = 4;
+const MAX_PLAN_BULLETS = 3;
 const MAX_WHITE_SPACE_ROWS = 4;
+
+/** Score-indexed fill + label colors for the momentum KPI gauge. */
+const MOMENTUM_SCORE_STYLES = Object.freeze([
+    { fill: '64748B', text: 'FFFFFF' },
+    { fill: 'B45309', text: 'FFFFFF' },
+    { fill: stripHash(GPC_BRAND.teal), text: 'FFFFFF' },
+    { fill: stripHash(GPC_BRAND.lime), text: '0F172A' },
+    { fill: stripHash(GPC_BRAND.navyDeep), text: 'FFFFFF' },
+]);
 
 // Document title — strictly "Strategic Account Plan" per the new brief.
 // Centralised so every chrome surface (cover, header runner, footer,
@@ -1242,56 +1251,7 @@ function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, total
         });
     }
 
-    addPanel(slide, rightX, BODY_TOP, rightW, BODY_H);
-    const rightInnerX = rightX + PANEL_PAD_X;
-    const rightInnerW = rightW - PANEL_PAD_X * 2;
-    addKicker(slide, 'PURSUIT CONTEXT', rightInnerX, BODY_TOP + PANEL_KICKER_Y_OFF, rightInnerW);
-
-    if (tier) {
-        slide.addText(tier.toUpperCase(), {
-            x: rightX,
-            y: BODY_TOP + 0.55,
-            w: rightW,
-            h: 0.55,
-            align: 'center',
-            fontSize: 18,
-            bold: true,
-            color: THEME.primary,
-            fontFace: THEME.font,
-            breakLine: true,
-            margin: 0,
-            autoFit: false,
-        });
-    }
-    if (priority) {
-        slide.addText(priority.toUpperCase(), {
-            x: rightInnerX,
-            y: BODY_TOP + (tier ? 1.15 : 0.70),
-            w: rightInnerW,
-            h: 0.40,
-            align: 'center',
-            fontSize: TYPO.subheader,
-            bold: true,
-            color: THEME.accent,
-            fontFace: THEME.font,
-            charSpacing: 1.5,
-            breakLine: true,
-            margin: 0,
-            autoFit: false,
-        });
-    }
-    if (!tier && !priority) {
-        slide.addText('Set Strategic Tier and Pursuit Priority in the plan canvas.', {
-            x: rightInnerX,
-            y: BODY_TOP + 0.70,
-            w: rightInnerW,
-            h: 1.0,
-            ...BODY_TEXT_BASE,
-            italic: true,
-            color: THEME.softMuted,
-            align: 'center',
-        });
-    }
+    renderPursuitContextPanel(slide, rightX, BODY_TOP, rightW, BODY_H, tier, priority);
 }
 
 // ---------------------------------------------------------------------------
@@ -1395,70 +1355,9 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
         });
     }
 
-    // -----------------------------------------------------------------
-    // RIGHT COLUMN — Momentum KPI
-    // -----------------------------------------------------------------
-    addPanel(slide, rightX, BODY_TOP, rightW, BODY_H);
-    const rightInnerX = rightX + PANEL_PAD_X;
-    const rightInnerW = rightW - PANEL_PAD_X * 2;
-    addKicker(slide, 'RELATIONSHIP MOMENTUM', rightInnerX, BODY_TOP + PANEL_KICKER_Y_OFF, rightInnerW);
-
-    const kpiScoreY = BODY_TOP + 0.55;
-    const kpiScoreH = 1.55;
-    slide.addText(String(ctx.score), {
-        x: rightX,
-        y: kpiScoreY,
-        w: rightW,
-        h: kpiScoreH,
-        align: 'center',
-        valign: 'middle',
-        fontSize: 72,
-        bold: true,
-        color: THEME.accent,
-        fontFace: THEME.font,
-        breakLine: true,
-        margin: 0,
-        autoFit: false,
-    });
-    slide.addText(MOMENTUM_LABELS[ctx.score - 1].toUpperCase(), {
-        x: rightInnerX,
-        y: kpiScoreY + kpiScoreH + 0.04,
-        w: rightInnerW,
-        h: 0.30,
-        align: 'center',
-        fontSize: TYPO.subheader,
-        bold: true,
-        color: THEME.primary,
-        fontFace: THEME.font,
-        charSpacing: 2,
-        valign: 'top',
-        breakLine: true,
-        margin: 0,
-        autoFit: false,
-    });
-
-    const ruleY = kpiScoreY + kpiScoreH + 0.48;
-    slide.addShape('line', {
-        x: rightX + 0.50,
-        y: ruleY,
-        w: rightW - 1.00,
-        h: 0,
-        line: { color: THEME.accent, width: 0.75 },
-    });
-
-    const narrative = ctx.momentumNarrative
+    const momentumNarrative = ctx.momentumNarrative
         || String(highlight.slides.situation?.momentum?.insight ?? '').trim();
-    if (narrative) {
-        slide.addText(truncate(narrative, 320), {
-            x: rightInnerX,
-            y: ruleY + 0.14,
-            w: rightInnerW,
-            h: BODY_TOP + BODY_H - (ruleY + 0.14) - PANEL_BOTTOM_PAD,
-            ...BODY_TEXT_BASE,
-            color: THEME.secondary,
-            lineSpacing: 16,
-        });
-    }
+    renderMomentumKpiPanel(slide, rightX, BODY_TOP, rightW, BODY_H, ctx.score, momentumNarrative);
 }
 
 /**
@@ -2351,10 +2250,10 @@ function buildEntryProfileRichRuns(profile, type = getEntryPointTypography('defa
 }
 
 // ---------------------------------------------------------------------------
-// Slide 5 — Execution Roadmap
+// Execution Roadmap
 // ---------------------------------------------------------------------------
-// Top half (58%): 30/60/90 plan rendered via addTable.
-// Bottom half (42%): Strategic Signals as a bulleted list with date prefixes.
+// Three fixed bands (plan table → give/get → signals) so PptxGenJS table
+// overflow never collides with client commitments.
 // ---------------------------------------------------------------------------
 
 /**
@@ -2368,14 +2267,23 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     const slide = addContentSlide(pptx);
     addContentSlideChrome(slide, 'Execution Roadmap', pageNum, totalSlides);
 
-    const topH = BODY_H * 0.52 - GAP / 2;
-    const bottomH = BODY_H * 0.48 - GAP / 2;
-    const topY = BODY_TOP;
-    const bottomY = BODY_TOP + topH + GAP;
+    const commitments = ctx.plan306090.client_commitments;
+    const hasCommitments = commitments.length > 0;
+    const commitmentCount = Math.min(commitments.length, 4);
 
-    // TOP — 30/60/90 plan table.
-    addPanel(slide, MARGIN_X, topY, BODY_W, topH);
-    addKicker(slide, '30 / 60 / 90 PLAN', MARGIN_X + 0.30, topY + 0.18, BODY_W - 0.6);
+    // Three non-overlapping bands — never stack commitments below the table
+    // inside one panel; PptxGenJS tables ignore height and bleed into Y space.
+    const signalsH = 1.62;
+    const commitmentH = hasCommitments ? 0.50 + commitmentCount * 0.24 : 0;
+    const bandGaps = hasCommitments ? GAP * 2 : GAP;
+    const planH = BODY_H - signalsH - commitmentH - bandGaps;
+
+    const planY = BODY_TOP;
+    const commitY = planY + planH + GAP;
+    const signalsY = hasCommitments ? commitY + commitmentH + GAP : planY + planH + GAP;
+
+    addPanel(slide, MARGIN_X, planY, BODY_W, planH);
+    addKicker(slide, '30 / 60 / 90 PLAN', MARGIN_X + 0.30, planY + 0.18, BODY_W - 0.6);
 
     const horizons = [
         { period: 'NEXT 30 DAYS', block: highlight.slides.execution?.plan_30, fallback: ctx.plan306090.days_30 },
@@ -2384,18 +2292,12 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     ];
     const cellRows = horizons.map((h) => composePlanCellLines(h.block, h.fallback));
 
-    const commitments = ctx.plan306090.client_commitments;
-    const hasCommitments = commitments.length > 0;
-    const commitmentBlockH = hasCommitments
-        ? 0.22 + 0.26 + Math.min(commitments.length, 4) * 0.24 + 0.14
-        : 0;
     const tableX = MARGIN_X + 0.25;
-    const tableY = topY + 0.65;
+    const tableY = planY + 0.58;
     const tableW = BODY_W - 0.50;
-    const tableH = Math.max(0.85, topH - 0.85 - commitmentBlockH);
+    const tableH = planH - 0.68;
     const colW = tableW / 3;
 
-    // Header row — uppercase period labels with accent fill (brand teal).
     const headerRow = horizons.map((h) => ({
         text: h.period,
         options: {
@@ -2410,7 +2312,6 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
         },
     }));
 
-    // Body row — each cell holds a small bulleted prose block.
     const bodyRow = cellRows.map((lines) => ({
         text: lines.length > 0
             ? lines.map((line, idx) => ({
@@ -2420,7 +2321,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
                     breakLine: idx < lines.length - 1,
                     color: THEME.primary,
                     fontFace: THEME.font,
-                    fontSize: 11,
+                    fontSize: 10,
                 },
             }))
             : [{
@@ -2430,7 +2331,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
         options: {
             fill: { color: THEME.panelFill },
             valign: 'top',
-            margin: 6,
+            margin: 5,
         },
     }));
 
@@ -2440,44 +2341,30 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
         w: tableW,
         h: tableH,
         colW: [colW, colW, colW],
-        rowH: [0.40, tableH - 0.40],
+        rowH: [0.34, tableH - 0.34],
         border: { type: 'solid', color: THEME.panelBorder, pt: 0.75 },
         fontFace: THEME.font,
         autoPage: false,
     });
 
     if (hasCommitments) {
-        const giveGetY = tableY + tableH + 0.12;
-        slide.addText(formatClientCommitmentsLabel().toUpperCase(), {
-            x: MARGIN_X + 0.30,
-            y: giveGetY,
-            w: BODY_W - 0.60,
-            h: 0.22,
-            fontSize: TYPO.kicker,
-            bold: true,
-            color: THEME.accent,
-            fontFace: THEME.font,
-            valign: 'top',
-            breakLine: true,
-            margin: 0,
-            autoFit: false,
-        });
-        addNativeBulletList(slide, commitments, {
-            x: MARGIN_X + 0.30,
-            y: giveGetY + 0.26,
-            w: BODY_W - 0.60,
-            h: topY + topH - (giveGetY + 0.26) - 0.12,
-            fontSize: TYPO.body,
-            lineSpacing: 16,
+        addPanel(slide, MARGIN_X, commitY, BODY_W, commitmentH);
+        addKicker(slide, formatClientCommitmentsLabel().toUpperCase(), MARGIN_X + 0.30, commitY + 0.12, BODY_W - 0.60);
+        addNativeBulletList(slide, commitments.slice(0, 4), {
+            x: MARGIN_X + 0.35,
+            y: commitY + 0.34,
+            w: BODY_W - 0.70,
+            h: commitmentH - 0.40,
+            fontSize: 10,
+            lineSpacing: 14,
             color: THEME.primary,
             bullet: true,
             fallbackItems: ['No client commitments documented.'],
         });
     }
 
-    // BOTTOM — Strategic Signals.
-    addPanel(slide, MARGIN_X, bottomY, BODY_W, bottomH);
-    addKicker(slide, 'STRATEGIC SIGNALS', MARGIN_X + 0.30, bottomY + 0.18, BODY_W - 0.6);
+    addPanel(slide, MARGIN_X, signalsY, BODY_W, signalsH);
+    addKicker(slide, 'STRATEGIC SIGNALS', MARGIN_X + 0.30, signalsY + 0.16, BODY_W - 0.6);
 
     const signals = Array.isArray(highlight.slides.execution?.signals)
         ? highlight.slides.execution.signals
@@ -2494,10 +2381,10 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
 
     if (resolvedSignals.length === 0) {
         slide.addText('No recent strategic signals — log one from the Interaction Log to surface it here.', {
-            x: '4%',
-            y: '72%',
-            w: '92%',
-            h: '10%',
+            x: MARGIN_X + 0.30,
+            y: signalsY + 0.48,
+            w: BODY_W - 0.60,
+            h: signalsH - 0.58,
             ...BODY_TEXT_BASE,
             italic: true,
             color: THEME.softMuted,
@@ -2507,10 +2394,10 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
 
     const signalsX = MARGIN_X + 0.30;
     const signalsW = BODY_W - 0.60;
-    const signalsY = bottomY + 0.55;
-    const signalsH = bottomY + bottomH - signalsY - 0.22;
+    const signalsContentY = signalsY + 0.46;
+    const signalsContentH = signalsY + signalsH - signalsContentY - 0.16;
 
-    const runs = resolvedSignals.map((signal, idx) => {
+    const runs = resolvedSignals.slice(0, 3).map((signal, idx) => {
         const dateLabel = String(signal.date_label ?? '').trim();
         const headline = String(signal.headline ?? '').trim();
         const line = dateLabel ? `${dateLabel.toUpperCase()}  ${headline}` : headline;
@@ -2518,7 +2405,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
             text: line,
             options: {
                 bullet: { code: '2022', color: THEME.accent },
-                breakLine: idx < resolvedSignals.length - 1,
+                breakLine: idx < Math.min(resolvedSignals.length, 3) - 1,
                 color: THEME.primary,
                 fontSize: TYPO.body,
                 fontFace: THEME.font,
@@ -2528,13 +2415,13 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
 
     slide.addText(runs, {
         x: signalsX,
-        y: signalsY,
+        y: signalsContentY,
         w: signalsW,
-        h: signalsH,
+        h: signalsContentH,
         valign: 'top',
         breakLine: true,
-        lineSpacing: 16,
-        margin: [0, 0, 0, 0.12],
+        lineSpacing: 15,
+        margin: 0,
         autoFit: false,
     });
 }
@@ -2714,6 +2601,293 @@ function addHeadline(slide, text, x, y, w, h) {
         breakLine: true,
         autoFit: false,
     });
+}
+
+/**
+ * @param {number} score
+ */
+function resolveMomentumStyle(score) {
+    const idx = Math.min(5, Math.max(1, score)) - 1;
+    return MOMENTUM_SCORE_STYLES[idx];
+}
+
+/**
+ * Branded stat chip for tier / priority on the Account Snapshot slide.
+ *
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {string} label
+ * @param {string} value
+ * @param {string} fillColor
+ * @param {string} textColor
+ */
+function renderPursuitStatChip(slide, x, y, w, h, label, value, fillColor, textColor) {
+    slide.addShape('roundRect', {
+        x,
+        y,
+        w,
+        h,
+        fill: { color: fillColor },
+        line: { color: fillColor, width: 0.5 },
+        rectRadius: 0.08,
+    });
+    slide.addText(label, {
+        x: x + 0.12,
+        y: y + 0.14,
+        w: w - 0.24,
+        h: 0.18,
+        fontSize: TYPO.kicker,
+        bold: true,
+        color: textColor,
+        fontFace: THEME.font,
+        charSpacing: 1.5,
+        align: 'center',
+        valign: 'top',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+    slide.addText(value.toUpperCase(), {
+        x: x + 0.12,
+        y: y + 0.36,
+        w: w - 0.24,
+        h: h - 0.48,
+        fontSize: 22,
+        bold: true,
+        color: textColor,
+        fontFace: THEME.font,
+        align: 'center',
+        valign: 'middle',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+}
+
+/**
+ * Pursuit Context side panel — stacked branded stat chips for tier + priority.
+ *
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {string} tier
+ * @param {string} priority
+ */
+function renderPursuitContextPanel(slide, x, y, w, h, tier, priority) {
+    addPanel(slide, x, y, w, h);
+    const innerX = x + PANEL_PAD_X;
+    const innerW = w - PANEL_PAD_X * 2;
+    addKicker(slide, 'PURSUIT CONTEXT', innerX, y + PANEL_KICKER_Y_OFF, innerW);
+
+    if (!tier && !priority) {
+        slide.addText('Set Strategic Tier and Pursuit Priority in the plan canvas.', {
+            x: innerX,
+            y: y + 0.70,
+            w: innerW,
+            h: 1.0,
+            ...BODY_TEXT_BASE,
+            italic: true,
+            color: THEME.softMuted,
+            align: 'center',
+        });
+        return;
+    }
+
+    const cardH = 1.35;
+    const cardGap = 0.28;
+    const cardCount = (tier ? 1 : 0) + (priority ? 1 : 0);
+    const totalCardsH = cardCount * cardH + (cardCount > 1 ? cardGap : 0);
+    let cardY = y + Math.max(0.42, (h - totalCardsH) / 2);
+
+    if (tier) {
+        renderPursuitStatChip(
+            slide,
+            innerX,
+            cardY,
+            innerW,
+            cardH,
+            'STRATEGIC TIER',
+            tier,
+            THEME.accentDark,
+            'FFFFFF'
+        );
+        cardY += cardH + cardGap;
+    }
+
+    if (priority) {
+        const highPriority = /^high$/i.test(priority);
+        renderPursuitStatChip(
+            slide,
+            innerX,
+            cardY,
+            innerW,
+            cardH,
+            'PURSUIT PRIORITY',
+            priority,
+            highPriority ? THEME.accentAlt : THEME.accent,
+            highPriority ? THEME.primary : 'FFFFFF'
+        );
+    }
+}
+
+/**
+ * Relationship Momentum KPI — score hero, status badge, 5-segment gauge, insight.
+ *
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {number} score
+ * @param {string} narrative
+ */
+function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
+    addPanel(slide, x, y, w, h);
+    const innerX = x + PANEL_PAD_X;
+    const innerW = w - PANEL_PAD_X * 2;
+    addKicker(slide, 'RELATIONSHIP MOMENTUM', innerX, y + PANEL_KICKER_Y_OFF, innerW);
+
+    const style = resolveMomentumStyle(score);
+    const label = MOMENTUM_LABELS[score - 1] || 'Neutral';
+
+    slide.addText(String(score), {
+        x,
+        y: y + 0.46,
+        w,
+        h: 0.78,
+        align: 'center',
+        valign: 'middle',
+        fontSize: 54,
+        bold: true,
+        color: style.fill,
+        fontFace: THEME.font,
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+
+    const badgeW = Math.min(innerW, 1.85);
+    const badgeX = x + (w - badgeW) / 2;
+    const badgeY = y + 1.22;
+    slide.addShape('roundRect', {
+        x: badgeX,
+        y: badgeY,
+        w: badgeW,
+        h: 0.30,
+        fill: { color: style.fill },
+        line: { color: style.fill, width: 0.5 },
+        rectRadius: 0.06,
+    });
+    slide.addText(label.toUpperCase(), {
+        x: badgeX,
+        y: badgeY,
+        w: badgeW,
+        h: 0.30,
+        align: 'center',
+        valign: 'middle',
+        fontSize: TYPO.kicker,
+        bold: true,
+        color: style.text,
+        fontFace: THEME.font,
+        charSpacing: 2,
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+
+    const trackW = innerW - 0.10;
+    const trackX = innerX + 0.05;
+    const trackY = badgeY + 0.44;
+    const trackH = 0.12;
+    slide.addShape('rect', {
+        x: trackX,
+        y: trackY,
+        w: trackW,
+        h: trackH,
+        fill: { color: THEME.trackBg },
+        line: { color: THEME.panelBorder, width: 0.5 },
+    });
+    slide.addShape('rect', {
+        x: trackX,
+        y: trackY,
+        w: trackW * (score / 5),
+        h: trackH,
+        fill: { color: style.fill },
+        line: { color: style.fill, width: 0.5 },
+    });
+    for (let tick = 1; tick <= 4; tick += 1) {
+        const tickX = trackX + trackW * (tick / 5);
+        slide.addShape('line', {
+            x: tickX,
+            y: trackY + 0.02,
+            w: 0,
+            h: trackH - 0.04,
+            line: { color: 'FFFFFF', width: 0.5 },
+        });
+    }
+    const markerX = trackX + trackW * (score / 5) - 0.06;
+    slide.addShape('ellipse', {
+        x: Math.max(trackX - 0.02, markerX),
+        y: trackY - 0.03,
+        w: 0.12,
+        h: 0.18,
+        fill: { color: THEME.primary },
+        line: { color: THEME.primary, width: 0.5 },
+    });
+    slide.addText('Stalled', {
+        x: trackX,
+        y: trackY + trackH + 0.03,
+        w: trackW / 2,
+        h: 0.14,
+        fontSize: TYPO.kicker,
+        color: THEME.softMuted,
+        fontFace: THEME.font,
+        align: 'left',
+        valign: 'top',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+    slide.addText('Champion', {
+        x: trackX + trackW / 2,
+        y: trackY + trackH + 0.03,
+        w: trackW / 2,
+        h: 0.14,
+        fontSize: TYPO.kicker,
+        color: THEME.softMuted,
+        fontFace: THEME.font,
+        align: 'right',
+        valign: 'top',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+
+    if (narrative) {
+        const ruleY = trackY + trackH + 0.22;
+        slide.addShape('line', {
+            x: innerX + 0.08,
+            y: ruleY,
+            w: innerW - 0.16,
+            h: 0,
+            line: { color: THEME.accent, width: 0.75 },
+        });
+        slide.addText(truncate(narrative, 280), {
+            x: innerX,
+            y: ruleY + 0.10,
+            w: innerW,
+            h: y + h - (ruleY + 0.10) - PANEL_BOTTOM_PAD,
+            ...BODY_TEXT_BASE,
+            color: THEME.secondary,
+            lineSpacing: 15,
+            align: 'center',
+        });
+    }
 }
 
 /**
