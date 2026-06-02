@@ -2057,38 +2057,45 @@ function buildEntryPointsSlidePage(pptx, ctx, highlight, rawPoints, range, conti
 
     const pagePoints = rawPoints.slice(range.start, range.start + range.count);
     const layoutMode = getEntryPointLayoutMode(pagePoints.length);
-    const columns = getEntryPointColumnLayout(pagePoints.length);
+    const columns = getEntryPointColumnRects(pagePoints.length);
 
     columns.forEach((col, index) => {
         const point = pagePoints[index];
         if (!isPlainObject(point)) return;
         const profile = mapEntryPointToProfile(point, range.start + index, highlight);
-        renderEntryProfileColumnPercent(slide, profile, col.x, col.w, layoutMode);
+        renderEntryProfileColumn(slide, profile, col.x, col.y, col.w, col.h, layoutMode);
     });
 }
 
 /**
+ * Inch-based column rects aligned to the content body band.
  * @param {number} profileCount
- * @returns {{ x: string, w: string }[]}
+ * @returns {{ x: number, y: number, w: number, h: number }[]}
  */
-function getEntryPointColumnLayout(profileCount) {
+function getEntryPointColumnRects(profileCount) {
+    const top = BODY_TOP;
+    const height = BODY_H;
+
     if (profileCount === 1) {
-        return [{ x: '5%', w: '90%' }];
+        return [{ x: MARGIN_X, y: top, w: BODY_W, h: height }];
     }
     if (profileCount === 2) {
+        const colW = (BODY_W - GAP) / 2;
         return [
-            { x: '5%', w: '42%' },
-            { x: '53%', w: '42%' },
+            { x: MARGIN_X, y: top, w: colW, h: height },
+            { x: MARGIN_X + colW + GAP, y: top, w: colW, h: height },
         ];
     }
     if (profileCount === 3) {
-        return [
-            { x: '4%', w: '28%' },
-            { x: '35%', w: '28%' },
-            { x: '66%', w: '28%' },
-        ];
+        const colW = (BODY_W - GAP * 2) / 3;
+        return [0, 1, 2].map((index) => ({
+            x: MARGIN_X + index * (colW + GAP),
+            y: top,
+            w: colW,
+            h: height,
+        }));
     }
-    return [{ x: '5%', w: '90%' }];
+    return [{ x: MARGIN_X, y: top, w: BODY_W, h: height }];
 }
 
 /**
@@ -2130,6 +2137,8 @@ function mapEntryPointToProfile(point, index, highlight) {
     const rawBadges = badgeParts.join(' · ');
     return {
         name,
+        trust: String(point.trust_level ?? '').trim(),
+        influence: String(point.political_influence ?? '').trim(),
         why_they_matter: aiHeadline && aiHeadline.length > rawWhy.length + 12 ? aiHeadline : rawWhy,
         operational_pain: String(point.operational_pain ?? '').trim(),
         conversation_wedge: String(point.conversation_wedge ?? '').trim(),
@@ -2140,59 +2149,73 @@ function mapEntryPointToProfile(point, index, highlight) {
 }
 
 /**
- * Render one Target Profile column using percent geometry (slide 4 spec).
- *
- * @param {import('pptxgenjs').Slide} slide
- * @param {ReturnType<typeof mapEntryPointToProfile>} profile
- * @param {string} colX
- * @param {string} colW
- * @param {'slim' | 'roomy' | 'default'} [layoutMode='default']
+ * @param {{ trust?: string, influence?: string, badges?: string }} profile
  */
-function renderEntryProfileColumnPercent(slide, profile, colX, colW, layoutMode = 'default') {
-    const type = getEntryPointTypography(layoutMode);
-    addPanel(slide, colX, '14%', colW, '78%');
-
-    let bodyY = '20%';
-    slide.addText(profile.name || 'Unnamed Contact', {
-        x: colX,
-        y: '15%',
-        w: colW,
-        h: '5%',
-        fontSize: type.name,
-        bold: true,
-        color: THEME.primary,
-        fontFace: THEME.font,
-        valign: 'top',
-        breakLine: true,
-        margin: 0,
-        autoFit: false,
-    });
-
-    if (profile.badges) {
-        slide.addText(profile.badges.toUpperCase(), {
-            x: colX,
-            y: layoutMode === 'slim' ? '18.5%' : '19%',
-            w: colW,
-            h: '4%',
-            fontSize: type.kicker,
-            bold: true,
-            color: THEME.secondary,
-            fontFace: THEME.font,
-            charSpacing: 1.5,
-            valign: 'top',
-            breakLine: true,
-            margin: 0,
-            autoFit: false,
-        });
-        bodyY = layoutMode === 'slim' ? '23%' : '24%';
+function resolveEntryTrustInfluence(profile) {
+    let trust = String(profile.trust ?? '').trim();
+    let influence = String(profile.influence ?? '').trim();
+    if (!trust && !influence && profile.badges) {
+        const trustMatch = String(profile.badges).match(/trust:\s*([^·]+)/i);
+        const influenceMatch = String(profile.badges).match(/influence:\s*([^·]+)/i);
+        trust = trustMatch ? trustMatch[1].trim() : '';
+        influence = influenceMatch ? influenceMatch[1].trim() : '';
     }
+    return { trust, influence };
+}
 
-    slide.addText(buildEntryProfileRichRuns(profile, type, layoutMode), {
-        x: colX,
-        y: bodyY,
-        w: colW,
-        h: '68%',
-        valign: 'top',
+/**
+ * @param {string} trust
+ */
+function resolveTrustBadgeStyle(trust) {
+    const value = String(trust ?? '').trim().toLowerCase();
+    if (value === 'trusted') return { fill: THEME.accent, text: 'FFFFFF' };
+    if (value === 'warm') return { fill: THEME.accentAlt, text: THEME.primary };
+    if (value === 'cold') return { fill: '94A3B8', text: 'FFFFFF' };
+    return { fill: THEME.trackBg, text: THEME.secondary };
+}
+
+/**
+ * @param {string} influence
+ */
+function resolveInfluenceBadgeStyle(influence) {
+    const value = String(influence ?? '').trim().toLowerCase();
+    if (value === 'high') return { fill: THEME.accentDark, text: 'FFFFFF' };
+    if (value === 'medium') return { fill: THEME.accent, text: 'FFFFFF' };
+    return { fill: THEME.trackBg, text: THEME.secondary };
+}
+
+/**
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {string} label
+ * @param {string} value
+ * @param {{ fill: string, text: string }} style
+ * @param {number} fontSize
+ */
+function renderEntryMetricPill(slide, x, y, w, label, value, style, fontSize = TYPO.kicker) {
+    slide.addShape('roundRect', {
+        x,
+        y,
+        w,
+        h: 0.22,
+        fill: { color: style.fill },
+        line: { color: style.fill, width: 0.5 },
+        rectRadius: 0.05,
+    });
+    slide.addText(`${label}: ${value}`.toUpperCase(), {
+        x,
+        y,
+        w,
+        h: 0.22,
+        align: 'center',
+        valign: 'middle',
+        fontSize,
+        bold: true,
+        color: style.text,
+        fontFace: THEME.font,
+        charSpacing: 0.8,
         breakLine: true,
         margin: 0,
         autoFit: false,
@@ -2200,13 +2223,181 @@ function renderEntryProfileColumnPercent(slide, profile, colX, colW, layoutMode 
 }
 
 /**
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {string} nextMove
+ * @param {{ body: number }} type
+ */
+function renderEntryNextMoveCallout(slide, x, y, w, h, nextMove, type) {
+    slide.addShape('roundRect', {
+        x,
+        y,
+        w,
+        h,
+        fill: { color: 'E6F4F1' },
+        line: { color: THEME.accent, width: 0.75 },
+        rectRadius: 0.08,
+    });
+    slide.addText([
+        {
+            text: 'Next Move\n',
+            options: {
+                bold: true,
+                fontSize: type.body,
+                color: themeHex('accent'),
+                fontFace: THEME.font,
+            },
+        },
+        {
+            text: nextMove,
+            options: {
+                fontSize: type.body,
+                color: themeHex('primary'),
+                fontFace: THEME.font,
+            },
+        },
+    ], {
+        x: x + 0.10,
+        y: y + 0.08,
+        w: w - 0.20,
+        h: h - 0.12,
+        valign: 'top',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+        lineSpacing: 14,
+    });
+}
+
+/**
+ * Branded target-profile card — navy header, trust/influence pills, next-move callout.
+ *
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {ReturnType<typeof mapEntryPointToProfile>} profile
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {'slim' | 'roomy' | 'default'} [layoutMode='default']
+ */
+function renderEntryProfileColumn(slide, profile, x, y, w, h, layoutMode = 'default') {
+    const type = getEntryPointTypography(layoutMode);
+    const { trust, influence } = resolveEntryTrustInfluence(profile);
+    const hasMetrics = Boolean(trust || influence);
+    const nextMove = String(profile.next_move ?? '').trim();
+    const calloutH = nextMove ? (layoutMode === 'slim' ? 0.72 : 0.82) : 0;
+
+    addPanel(slide, x, y, w, h);
+
+    const headerH = layoutMode === 'slim' ? 0.50 : 0.56;
+    slide.addShape('rect', {
+        x,
+        y,
+        w,
+        h: headerH,
+        fill: { color: THEME.accentDark },
+        line: { color: THEME.accentDark, width: 0 },
+    });
+    slide.addShape('rect', {
+        x,
+        y,
+        w: 0.07,
+        h: headerH,
+        fill: { color: THEME.accent },
+        line: { color: THEME.accent, width: 0 },
+    });
+
+    const innerX = x + PANEL_PAD_X;
+    const innerW = w - PANEL_PAD_X * 2;
+    slide.addText(profile.name || 'Unnamed Contact', {
+        x: innerX,
+        y: y + 0.08,
+        w: innerW,
+        h: headerH - 0.12,
+        fontSize: type.name,
+        bold: true,
+        color: 'FFFFFF',
+        fontFace: THEME.font,
+        valign: 'middle',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+
+    let bodyY = y + headerH + 0.12;
+    if (hasMetrics) {
+        const pillGap = 0.08;
+        const pillW = (innerW - pillGap) / 2;
+        if (trust) {
+            renderEntryMetricPill(
+                slide,
+                innerX,
+                bodyY,
+                pillW,
+                'Trust',
+                trust,
+                resolveTrustBadgeStyle(trust),
+                type.kicker
+            );
+        }
+        if (influence) {
+            renderEntryMetricPill(
+                slide,
+                innerX + (trust ? pillW + pillGap : 0),
+                bodyY,
+                trust ? pillW : innerW,
+                'Influence',
+                influence,
+                resolveInfluenceBadgeStyle(influence),
+                type.kicker
+            );
+        }
+        bodyY += 0.30;
+    }
+
+    const bodyH = y + h - bodyY - calloutH - (calloutH ? 0.16 : PANEL_BOTTOM_PAD);
+    slide.addText(buildEntryProfileRichRuns(profile, type, layoutMode, true), {
+        x: innerX,
+        y: bodyY,
+        w: innerW,
+        h: Math.max(bodyH, 0.45),
+        valign: 'top',
+        breakLine: true,
+        margin: 0,
+        autoFit: false,
+    });
+
+    if (nextMove) {
+        renderEntryNextMoveCallout(
+            slide,
+            innerX,
+            y + h - calloutH - 0.12,
+            innerW,
+            calloutH,
+            nextMove,
+            type
+        );
+    }
+}
+
+/**
  * Build pptxgenjs rich-text runs for one target profile column.
  *
  * @param {ReturnType<typeof mapEntryPointToProfile>} profile
  * @param {{ name: number, kicker: number, body: number, bodyLineSpacing: number }} [type]
+ * @param {'slim' | 'roomy' | 'default'} layoutMode
+ * @param {boolean} [omitNextMove=false]
  * @returns {import('pptxgenjs').TextProps[]}
  */
-function buildEntryProfileRichRuns(profile, type = getEntryPointTypography('default'), layoutMode = 'default') {
+function buildEntryProfileRichRuns(
+    profile,
+    type = getEntryPointTypography('default'),
+    layoutMode = 'default',
+    omitNextMove = false
+) {
     const slimFields = [
         { label: 'Why They Matter', value: profile.why_they_matter },
         { label: 'Operational Pain', value: profile.operational_pain },
@@ -2217,8 +2408,11 @@ function buildEntryProfileRichRuns(profile, type = getEntryPointTypography('defa
         { label: 'Conversation Wedge', value: profile.conversation_wedge },
         { label: TACTICAL_UX_LABELS.humanContext, value: profile.human_context },
     ];
-    const sections = (layoutMode === 'slim' ? slimFields : fullFields)
+    let sections = (layoutMode === 'slim' ? slimFields : fullFields)
         .filter((section) => String(section.value ?? '').trim());
+    if (omitNextMove) {
+        sections = sections.filter((section) => section.label !== 'Next Move');
+    }
 
     if (sections.length === 0) {
         sections.push({ label: 'Profile', value: '' });
@@ -2754,12 +2948,26 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
 
     const style = resolveMomentumStyle(score);
     const label = MOMENTUM_LABELS[score - 1] || 'Neutral';
+    const narrativeText = narrative ? truncate(narrative, 280) : '';
+
+    const scoreH = 0.78;
+    const badgeGap = 0.08;
+    const badgeH = 0.30;
+    const gaugeGap = 0.14;
+    const trackH = 0.12;
+    const scaleH = 0.17;
+    const narrativeBlockH = narrativeText ? 0.82 : 0;
+    const blockH = scoreH + badgeGap + badgeH + gaugeGap + trackH + scaleH + narrativeBlockH;
+
+    const contentTop = y + 0.42;
+    const contentBottom = y + h - PANEL_BOTTOM_PAD;
+    const blockY = contentTop + Math.max(0, (contentBottom - contentTop - blockH) / 2);
 
     slide.addText(String(score), {
         x,
-        y: y + 0.46,
+        y: blockY,
         w,
-        h: 0.78,
+        h: scoreH,
         align: 'center',
         valign: 'middle',
         fontSize: 54,
@@ -2773,12 +2981,12 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
 
     const badgeW = Math.min(innerW, 1.85);
     const badgeX = x + (w - badgeW) / 2;
-    const badgeY = y + 1.22;
+    const badgeY = blockY + scoreH + badgeGap;
     slide.addShape('roundRect', {
         x: badgeX,
         y: badgeY,
         w: badgeW,
-        h: 0.30,
+        h: badgeH,
         fill: { color: style.fill },
         line: { color: style.fill, width: 0.5 },
         rectRadius: 0.06,
@@ -2787,7 +2995,7 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
         x: badgeX,
         y: badgeY,
         w: badgeW,
-        h: 0.30,
+        h: badgeH,
         align: 'center',
         valign: 'middle',
         fontSize: TYPO.kicker,
@@ -2802,8 +3010,7 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
 
     const trackW = innerW - 0.10;
     const trackX = innerX + 0.05;
-    const trackY = badgeY + 0.44;
-    const trackH = 0.12;
+    const trackY = badgeY + badgeH + gaugeGap;
     slide.addShape('rect', {
         x: trackX,
         y: trackY,
@@ -2843,7 +3050,7 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
         x: trackX,
         y: trackY + trackH + 0.03,
         w: trackW / 2,
-        h: 0.14,
+        h: scaleH,
         fontSize: TYPO.kicker,
         color: THEME.softMuted,
         fontFace: THEME.font,
@@ -2857,7 +3064,7 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
         x: trackX + trackW / 2,
         y: trackY + trackH + 0.03,
         w: trackW / 2,
-        h: 0.14,
+        h: scaleH,
         fontSize: TYPO.kicker,
         color: THEME.softMuted,
         fontFace: THEME.font,
@@ -2868,8 +3075,8 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
         autoFit: false,
     });
 
-    if (narrative) {
-        const ruleY = trackY + trackH + 0.22;
+    if (narrativeText) {
+        const ruleY = trackY + trackH + scaleH + 0.06;
         slide.addShape('line', {
             x: innerX + 0.08,
             y: ruleY,
@@ -2877,11 +3084,11 @@ function renderMomentumKpiPanel(slide, x, y, w, h, score, narrative) {
             h: 0,
             line: { color: THEME.accent, width: 0.75 },
         });
-        slide.addText(truncate(narrative, 280), {
+        slide.addText(narrativeText, {
             x: innerX,
-            y: ruleY + 0.10,
+            y: ruleY + 0.08,
             w: innerW,
-            h: y + h - (ruleY + 0.10) - PANEL_BOTTOM_PAD,
+            h: blockY + blockH - (ruleY + 0.08),
             ...BODY_TEXT_BASE,
             color: THEME.secondary,
             lineSpacing: 15,
