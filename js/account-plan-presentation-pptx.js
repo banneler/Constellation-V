@@ -93,7 +93,7 @@ const LOGO_X = SLIDE_W - MARGIN_X - LOGO_W;
 const LOGO_Y = 0.30;
 
 /** Cover slide white logo slot (top-right over navy-deep wedge). */
-const COVER_LOGO_SLOT_X = 9.45;
+const COVER_LOGO_SLOT_X = 9.95;
 const COVER_LOGO_SLOT_Y = 0.35;
 const COVER_LOGO_SLOT_W = 2.35;
 const COVER_LOGO_SLOT_H = 1.05;
