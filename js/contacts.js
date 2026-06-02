@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -260,9 +260,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function showAIToast(message, type = 'success') {
         if (!aiToastContainer) return;
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.innerHTML = `<span>${message}</span>`;
+        const toast = createToastElement(message, type);
         aiToastContainer.appendChild(toast);
         setTimeout(() => {
             toast.classList.add('hide');
@@ -1328,8 +1326,11 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 const btn = e.currentTarget;
                 const rect = btn.getBoundingClientRect();
                 const toast = document.createElement("div");
-                toast.className = "toast toast-info toast-near-button";
-                toast.innerHTML = `<span>${msg}</span>`;
+                toast.className = "toast toast-info toast-near-button pointer-events-auto";
+                const toastMsg = document.createElement("span");
+                toastMsg.className = "toast-message";
+                toastMsg.textContent = msg;
+                toast.appendChild(toastMsg);
                 toast.style.position = "fixed";
                 toast.style.right = `${window.innerWidth - rect.left}px`;
                 toast.style.top = `${rect.bottom + 8}px`;

@@ -11,13 +11,16 @@
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'toast-container';
-                container.className = 'fixed bottom-48 left-6 w-80 max-w-[calc(100vw-2rem)] flex flex-col gap-2 z-[9999] pointer-events-none';
+                container.className = 'toast-container pointer-events-none';
                 container.setAttribute('aria-live', 'polite');
                 document.body.appendChild(container);
             }
             var el = document.createElement('div');
-            el.className = 'toast px-4 py-3 text-sm font-medium shadow-lg pointer-events-auto ' + (type === 'error' ? 'bg-red-600 text-white' : 'bg-slate-800 text-white');
-            el.textContent = message;
+            el.className = 'toast toast-' + type + ' pointer-events-auto';
+            var span = document.createElement('span');
+            span.className = 'toast-message';
+            span.textContent = message;
+            el.appendChild(span);
             container.appendChild(el);
             setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3500);
         }

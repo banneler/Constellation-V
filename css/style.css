@@ -3664,25 +3664,43 @@ body.theme-green .marketing-indicator {
 /* Toast container positioning */
 .toast-container {
     position: fixed;
-    top: 380px; /* Adjust as needed to position below the navigation bar */
-    left: 510px;
-    z-index: 1000;
+    bottom: 12rem;
+    left: 1.5rem;
+    z-index: 9999;
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* Aligns toasts to the right side */
+    align-items: stretch;
     gap: 0.5rem;
+    width: min(20rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+    min-width: 0;
+    pointer-events: none;
 }
 
 /* Base toast style (no background box) */
 .toast {
-    color: #fff; /* Default text color, will be overridden by type */
+    color: #fff;
     padding: 0.5rem .5rem;
     font-weight: bold;
     opacity: 1;
     transform: translateY(0);
     transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
-    background-color: transparent; /* Remove the background color */
-    box-shadow: none; /* Remove the box shadow */
+    background-color: transparent;
+    box-shadow: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.toast-message {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 /* Success and Error colors */
@@ -3696,6 +3714,10 @@ body.theme-green .marketing-indicator {
 
 .toast-info {
     color: var(--primary-blue); /* Blue color for info messages */
+}
+
+.toast-warning {
+    color: var(--warning-color, #f59e0b);
 }
 
 /* Hide toast on transition */

@@ -706,7 +706,10 @@ body.theme-green {
         @apply flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 pb-0;
     }
     .ai-toast-container {
-        @apply flex flex-col gap-2 flex-shrink-0 mb-2 min-h-0;
+        @apply flex flex-col gap-2 flex-shrink-0 mb-2 min-h-0 min-w-0 w-full max-w-full;
+    }
+    .ai-toast-container .toast {
+        @apply w-full max-w-full min-w-0;
     }
     .ai-write-form {
         @apply flex flex-col flex-1 min-h-0 min-w-0 gap-0 overflow-x-hidden;
@@ -8076,13 +8079,29 @@ body:not(.theme-green) #contact-activities-list li {
         color: #00ff41;
     }
     .toast-container {
-        @apply fixed flex flex-col items-start gap-2 z-[1000];
-        top: 380px;
-        left: 510px;
+        @apply fixed flex flex-col items-stretch gap-2 z-[9999] pointer-events-none;
+        bottom: 12rem;
+        left: 1.5rem;
+        width: min(20rem, calc(100vw - 2rem));
+        max-width: calc(100vw - 2rem);
+        min-width: 0;
     }
     .toast {
         @apply py-2 px-2 font-bold opacity-100 transition-all duration-300 bg-transparent shadow-none;
         color: #fff;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .toast-message {
+        display: block;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     .toast-success {
         color: var(--success-color);
@@ -8093,12 +8112,17 @@ body:not(.theme-green) #contact-activities-list li {
     .toast-info {
         color: var(--primary-blue);
     }
+    .toast-warning {
+        color: var(--warning-color, #f59e0b);
+    }
     .toast.hide {
         @apply opacity-0 -translate-y-2;
     }
     .toast-near-button {
         @apply py-2 px-3 rounded-lg shadow-lg;
+        width: auto;
         max-width: min(320px, calc(100vw - 1rem));
+        min-width: 0;
         background-color: var(--bg-medium);
         border: 1px solid var(--border-color);
     }

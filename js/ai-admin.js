@@ -92,10 +92,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const toast = document.createElement('div');
         toast.className = `constellation-toast toast-${type}`;
-        toast.innerHTML = `
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
-            <span>${message}</span>
-        `;
+        const icon = document.createElement('i');
+        icon.className = `fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}`;
+        icon.setAttribute('aria-hidden', 'true');
+        const span = document.createElement('span');
+        span.className = 'toast-message';
+        span.textContent = String(message ?? '');
+        toast.appendChild(icon);
+        toast.appendChild(span);
         document.body.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 100);
         setTimeout(() => {

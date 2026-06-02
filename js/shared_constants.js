@@ -587,7 +587,8 @@ export function hideGlobalLoader() {
 
 // --- TOAST NOTIFICATIONS ---
 const TOAST_CONTAINER_ID = 'toast-container';
-const TOAST_CONTAINER_CLASSES = 'fixed bottom-48 left-6 w-80 max-w-[calc(100vw-2rem)] flex flex-col gap-2 z-[9999] pointer-events-none';
+/** Positioned over the left rail; width capped so copy wraps inside the column. */
+const TOAST_CONTAINER_CLASSES = 'toast-container pointer-events-none';
 
 function getOrCreateToastContainer() {
     let toastContainer = document.getElementById(TOAST_CONTAINER_ID);
@@ -601,13 +602,26 @@ function getOrCreateToastContainer() {
     return toastContainer;
 }
 
+/**
+ * @param {string} message
+ * @param {string} [type]
+ * @returns {HTMLDivElement}
+ */
+export function createToastElement(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type} pointer-events-auto`;
+    const span = document.createElement('span');
+    span.className = 'toast-message';
+    span.textContent = String(message ?? '');
+    toast.appendChild(span);
+    return toast;
+}
+
 /** durationMs 0 = stay until returned dismiss() is called (cancels auto-hide). */
 export function showToast(message, type = 'success', durationMs = 4000) {
     const toastContainer = getOrCreateToastContainer();
 
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type} pointer-events-auto`;
-    toast.innerHTML = `<span>${message}</span>`;
+    const toast = createToastElement(message, type);
     toastContainer.appendChild(toast);
 
     const dismiss = () => {
