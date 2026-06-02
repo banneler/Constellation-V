@@ -324,16 +324,14 @@ export function buildDossierSectionTitleHtml(sectionId, title, continued = false
             : '';
         const main = escapeHtml(TACTICAL_UX_LABELS.clientCommitments);
         const qualifier = escapeHtml(TACTICAL_UX_LABELS.clientCommitmentsQualifier);
-        const continuedSuffix = continued ? ' (continued)' : '';
-        return `${iconHtml}${main} <span class="ap-export-section-title-qualifier">${qualifier}</span>${continued ? ' (continued)' : ''}`;
+        return `${iconHtml}${main} <span class="ap-export-section-title-qualifier">${qualifier}</span>`;
     }
 
     const iconClass = DOSSIER_SECTION_ICONS[sectionId];
-    const label = continued ? `${title} (continued)` : title;
     if (iconClass) {
-        return `<i class="fas ${iconClass} ap-export-section-icon" aria-hidden="true"></i> ${escapeHtml(label)}`;
+        return `<i class="fas ${iconClass} ap-export-section-icon" aria-hidden="true"></i> ${escapeHtml(title)}`;
     }
-    return escapeHtml(label);
+    return escapeHtml(title);
 }
 
 /**
@@ -2539,10 +2537,7 @@ function getContentPageTitle(blocks) {
     }
 
     const distinctTitles = [...new Set(orderedTitles)];
-    const continued = blocks.some((block) => {
-        if (!(block instanceof HTMLElement)) return false;
-        return Boolean(block.querySelector('.ap-export-dossier-section-title')?.textContent?.includes('(continued)'));
-    });
+    const continued = blocks.some((block) => blockHasContinuedSection(block));
 
     if (distinctTitles.length === 1) {
         return continued ? `${distinctTitles[0]} (continued)` : distinctTitles[0];
@@ -2552,6 +2547,19 @@ function getContentPageTitle(blocks) {
     // Lead with the first section's title — that is what the reader sees at
     // the top of the page — without a "continued" suffix.
     return distinctTitles[0];
+}
+
+/**
+ * @param {Element | HTMLElement} block
+ * @returns {boolean}
+ */
+function blockHasContinuedSection(block) {
+    if (!(block instanceof HTMLElement)) return false;
+    if (block.classList.contains('ap-export-section-group')) {
+        return [...block.querySelectorAll(':scope > .ap-export-dossier-section')]
+            .some((child) => child instanceof HTMLElement && child.dataset.sectionContinued === 'true');
+    }
+    return block.dataset.sectionContinued === 'true';
 }
 
 /**
@@ -3965,42 +3973,59 @@ export function ensureExportTemplateStyles() {
             color: #1e293b;
             white-space: pre-wrap;
         }
-        /* Two on one page — trim gap only; keep readable type */
+        /* Two on one page — roomier typography for double stacks */
         .ap-export-target-profiles-body--per-page-2 {
-            gap: 10px;
+            gap: 12px;
+            padding-top: 18px;
         }
-        /* Three on one page — light density pass (pagination falls back if too tall) */
+        .ap-export-target-profiles-body--per-page-2 .ap-export-target-profile {
+            padding: 12px 14px 12px;
+        }
+        .ap-export-target-profiles-body--per-page-2 .ap-export-target-profile-name {
+            font-size: 14px;
+        }
+        .ap-export-target-profiles-body--per-page-2 .ap-export-profile-copy {
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        /* Three on one page — slim density pass */
         .ap-export-target-profiles-body--per-page-3 {
-            gap: 8px;
-            padding-top: 10px;
+            gap: 6px;
+            padding-top: 8px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile {
-            padding: 9px 12px 10px;
+            padding: 6px 10px 7px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-header {
-            margin-bottom: 7px;
-            padding-bottom: 6px;
+            margin-bottom: 5px;
+            padding-bottom: 4px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-name {
-            font-size: 12.5px;
-            line-height: 1.2;
+            font-size: 11.5px;
+            line-height: 1.15;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-badge {
-            font-size: 8px;
+            font-size: 7.5px;
+            padding: 2px 6px;
+        }
+        .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-grid {
+            gap: 0 10px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-target-profile-group-title {
-            margin: 0 0 5px;
-            font-size: 9px;
+            margin: 0 0 4px;
+            font-size: 8.5px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-profile-field {
-            margin-bottom: 5px;
+            margin-bottom: 4px;
+            padding-left: 6px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-profile-kicker {
-            font-size: 8px;
+            font-size: 7.5px;
+            margin-bottom: 1px;
         }
         .ap-export-target-profiles-body--per-page-3 .ap-export-profile-copy {
-            font-size: 10px;
-            line-height: 1.4;
+            font-size: 9.5px;
+            line-height: 1.35;
         }
         .ap-export-profile-field {
             margin-bottom: 12px;

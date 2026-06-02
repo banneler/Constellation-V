@@ -16,7 +16,7 @@ import {
     DOSSIER_PAGE_BUCKETS,
     ensureExportTemplateStyles,
     orderDossierSectionBlocks,
-} from './account-plan-export-templates.js?v=2026-06-02-8';
+} from './account-plan-export-templates.js?v=2026-06-02-9';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -237,7 +237,7 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
         trace(`bucket [${bucketIds.join(', ')}] -> ${bucketBlocks.length} block(s)`);
 
         if (bucketIds.length === 1 && bucketIds[0] === 'entry_points') {
-            buildEntryPointsPageGroups(bucketBlocks[0], meta, exportRoot).forEach((pageBlocks) => {
+            buildEntryPointsPageGroups(bucketBlocks[0]).forEach((pageBlocks) => {
                 groups.push(pageBlocks.map((pageBlock) => pageBlock.cloneNode(true)));
             });
             return;
@@ -259,13 +259,90 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 }
 
 /**
- * Pack entry-point profiles using page measurement; merge trailing singleton pages when possible.
+ * Deterministic entry-point page plan:
+ * - 1–3 profiles: one page (3 uses slim layout)
+ * - 4 profiles: 2 + 2 (roomier layout)
+ * - 5 profiles: 3 slim + 2 roomier
+ * - 6 profiles: 3 slim + 3 slim
+ * - 7+: triple stacks, then 4→2+2, 3/2/1 tail rules
+ * @param {number} totalProfiles
+ * @returns {{ start: number, count: number }[]}
+ */
+function planEntryPointPageRanges(totalProfiles) {
+    if (totalProfiles <= 0) return [];
+    if (totalProfiles <= 3) return [{ start: 0, count: totalProfiles }];
+    if (totalProfiles === 4) {
+        return [{ start: 0, count: 2 }, { start: 2, count: 2 }];
+    }
+    if (totalProfiles === 5) {
+        return [{ start: 0, count: 3 }, { start: 3, count: 2 }];
+    }
+    if (totalProfiles === 6) {
+        return [{ start: 0, count: 3 }, { start: 3, count: 3 }];
+    }
+
+    /** @type {{ start: number, count: number }[]} */
+    const ranges = [];
+    let start = 0;
+    let remaining = totalProfiles;
+
+    while (remaining > 0) {
+        if (remaining > 6) {
+            ranges.push({ start, count: 3 });
+            start += 3;
+            remaining -= 3;
+            continue;
+        }
+
+        if (remaining === 6) {
+            ranges.push({ start, count: 3 }, { start: start + 3, count: 3 });
+            break;
+        }
+        if (remaining === 5) {
+            ranges.push({ start, count: 3 }, { start: start + 3, count: 2 });
+            break;
+        }
+        if (remaining === 4) {
+            ranges.push({ start, count: 2 }, { start: start + 2, count: 2 });
+            break;
+        }
+        if (remaining === 3) {
+            ranges.push({ start, count: 3 });
+            break;
+        }
+        if (remaining === 2) {
+            ranges.push({ start, count: 2 });
+            break;
+        }
+
+        const prev = ranges[ranges.length - 1];
+        if (prev && prev.count < 3) {
+            prev.count += 1;
+        } else {
+            ranges.push({ start, count: 1 });
+        }
+        break;
+    }
+
+    return ranges;
+}
+
+/**
+ * @param {number} profileCount
+ * @returns {string | null}
+ */
+function getEntryPointLayoutModifier(profileCount) {
+    if (profileCount === 3) return 'ap-export-target-profiles-body--per-page-3';
+    if (profileCount === 2 || profileCount === 4) return 'ap-export-target-profiles-body--per-page-2';
+    return null;
+}
+
+/**
+ * Pack entry-point profiles using fixed layout rules per profile count.
  * @param {HTMLElement} block
- * @param {{ accountName: string, dateLabel: string }} meta
- * @param {HTMLElement} exportRoot
  * @returns {HTMLElement[][]}
  */
-function buildEntryPointsPageGroups(block, meta, exportRoot) {
+function buildEntryPointsPageGroups(block) {
     const sectionId = block.dataset.sectionId || 'entry_points';
     const sectionTitle = block.dataset.sectionTitle || 'Strategic Entry Points';
     const profiles = [...block.querySelectorAll('.ap-export-target-profiles-body > .ap-export-target-profile')];
@@ -274,45 +351,7 @@ function buildEntryPointsPageGroups(block, meta, exportRoot) {
         return [[block]];
     }
 
-    /**
-     * @param {number} count
-     * @param {number} startIndex
-     */
-    const chunkFits = (count, startIndex) => {
-        const slice = profiles.slice(startIndex, startIndex + count);
-        const trialBlock = buildDossierSectionFragment(
-            sectionId,
-            sectionTitle,
-            slice,
-            startIndex > 0,
-            'ap-export-target-profiles-body',
-            true
-        );
-        return measureDossierContentPage([trialBlock], meta, exportRoot);
-    };
-
-    // Up to three profiles per page when measurement confirms they fit.
-    // Condensed CSS (see `.ap-export-target-profiles-body--per-page-3` in
-    // export templates) keeps cards readable; pagination falls back to 2 or 1
-    // when copy is too long for a triple stack.
-    const MAX_PROFILES_PER_PAGE = 3;
-    /** @type {{ start: number, count: number }[]} */
-    let pageRanges = [];
-    let start = 0;
-    while (start < profiles.length) {
-        let maxFit = 1;
-        const remaining = profiles.length - start;
-        for (let tryCount = Math.min(remaining, MAX_PROFILES_PER_PAGE); tryCount >= 1; tryCount -= 1) {
-            if (chunkFits(tryCount, start)) {
-                maxFit = tryCount;
-                break;
-            }
-        }
-        pageRanges.push({ start, count: maxFit });
-        start += maxFit;
-    }
-
-    pageRanges = rebalanceEntryPointPageRanges(pageRanges, profiles.length, chunkFits);
+    const pageRanges = planEntryPointPageRanges(profiles.length);
 
     return pageRanges.map(({ start: rangeStart, count }, pageIndex) => [
         buildDossierSectionFragment(
@@ -324,72 +363,6 @@ function buildEntryPointsPageGroups(block, meta, exportRoot) {
             true
         ),
     ]);
-}
-
-/**
- * Avoid a lone profile on the final page when merging or shifting can fix it.
- * @param {{ start: number, count: number }[]} pageRanges
- * @param {number} totalProfiles
- * @param {(count: number, startIndex: number) => boolean} chunkFits
- * @returns {{ start: number, count: number }[]}
- */
-function rebalanceEntryPointPageRanges(pageRanges, totalProfiles, chunkFits) {
-    if (pageRanges.length <= 1) return pageRanges;
-
-    const MAX_PROFILES_PER_PAGE = 3;
-
-    // When the plan has exactly three entry points, keep them on one page if measurement allows.
-    if (totalProfiles === 3 && pageRanges.length >= 2 && chunkFits(3, 0)) {
-        return [{ start: 0, count: 3 }];
-    }
-
-    // Three profiles split 1+2 leaves a wasteful first page — prefer 2+1 when both fit.
-    if (
-        totalProfiles === 3
-        && pageRanges.length === 2
-        && pageRanges[0].count === 1
-        && pageRanges[1].count === 2
-        && chunkFits(2, 0)
-        && chunkFits(1, 2)
-    ) {
-        return [
-            { start: 0, count: 2 },
-            { start: 2, count: 1 },
-        ];
-    }
-
-    const last = pageRanges[pageRanges.length - 1];
-    if (last.count !== 1) return pageRanges;
-
-    const prev = pageRanges[pageRanges.length - 2];
-    const mergedCount = prev.count + last.count;
-    if (mergedCount <= MAX_PROFILES_PER_PAGE && chunkFits(mergedCount, prev.start)) {
-        return [
-            ...pageRanges.slice(0, -2),
-            { start: prev.start, count: mergedCount },
-        ];
-    }
-
-    if (prev.count > 1) {
-        for (let shift = 1; shift < prev.count; shift += 1) {
-            const newPrevCount = prev.count - shift;
-            const newLastStart = prev.start + newPrevCount;
-            const newLastCount = totalProfiles - newLastStart;
-            if (
-                newLastCount > 1
-                && chunkFits(newPrevCount, prev.start)
-                && chunkFits(newLastCount, newLastStart)
-            ) {
-                return [
-                    ...pageRanges.slice(0, -2),
-                    { start: prev.start, count: newPrevCount },
-                    { start: newLastStart, count: newLastCount },
-                ];
-            }
-        }
-    }
-
-    return pageRanges;
 }
 
 /**
@@ -480,6 +453,9 @@ function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, 
     block.className = 'ap-export-dossier-section';
     block.dataset.sectionId = sectionId;
     block.dataset.sectionTitle = sectionTitle;
+    if (continued) {
+        block.dataset.sectionContinued = 'true';
+    }
 
     if (includeTitle) {
         const title = document.createElement('h2');
@@ -497,10 +473,9 @@ function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, 
     const container = document.createElement('div');
     container.className = stackClass;
     if (stackClass.includes('ap-export-target-profiles-body')) {
-        // Use the condensed triple-stack styling for 2 or 3 profiles so
-        // measurement matches what we can actually fit on one entry-point page.
-        if (units.length >= 2) {
-            container.classList.add('ap-export-target-profiles-body--per-page-3');
+        const layoutModifier = getEntryPointLayoutModifier(units.length);
+        if (layoutModifier) {
+            container.classList.add(layoutModifier);
         }
     }
     units.forEach((unit) => container.appendChild(unit.cloneNode(true)));
