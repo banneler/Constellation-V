@@ -3990,6 +3990,7 @@ body.theme-green {
     .campaign-details-content.campaign-view-create .campaign-top-row {
         flex: 1 1 auto;
         min-height: 0;
+        overflow: hidden;
     }
     .campaign-details-content.campaign-view-create .campaign-abm-builder-card {
         flex: 1 1 auto;
@@ -3997,8 +3998,7 @@ body.theme-green {
         max-width: none;
     }
     .campaign-details-content.campaign-view-create.details-panel {
-        overflow-x: hidden;
-        overflow-y: auto;
+        overflow: hidden;
     }
     .campaign-details-content.campaign-view-run-empty .campaign-abm-builder-card,
     .campaign-details-content.campaign-view-run-empty .campaign-details-card {
@@ -4064,13 +4064,13 @@ body.theme-green {
         box-shadow: var(--shadow-card);
     }
     .campaign-abm-builder-body {
-        @apply flex flex-col flex-1 min-h-0 px-5 pb-5 pt-0;
+        @apply flex flex-col flex-1 min-h-0 overflow-hidden px-5 pb-5 pt-0;
     }
     .campaign-abm-builder-body #new-campaign-form-container {
-        @apply flex flex-col flex-shrink-0;
+        @apply flex flex-col flex-1 min-h-0 overflow-hidden;
     }
     .abm-campaign-builder {
-        @apply flex flex-col gap-4 flex-shrink-0;
+        @apply flex flex-col gap-4 min-h-0 flex-1;
     }
     .abm-campaign-config {
         @apply flex flex-wrap items-end gap-3 pb-3 border-b flex-shrink-0;
@@ -4100,13 +4100,12 @@ body.theme-green {
         @apply flex-shrink-0;
     }
     .abm-split-pane {
-        @apply grid gap-4 flex-shrink-0;
+        @apply grid gap-4 min-h-0 flex-1;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        align-items: start;
     }
     .abm-explorer-pane,
     .abm-cart-pane {
-        @apply flex flex-col min-w-0 rounded-xl border p-3;
+        @apply flex flex-col min-h-0 min-w-0 overflow-hidden rounded-xl border p-3;
         border-color: var(--border-color);
         background-color: color-mix(in srgb, var(--bg-medium) 35%, transparent);
     }
@@ -4118,9 +4117,7 @@ body.theme-green {
         grid-column: 1 / -1;
     }
     .abm-account-explorer {
-        @apply overflow-y-auto;
-        min-height: 14rem;
-        max-height: min(32rem, 52vh);
+        @apply flex flex-col gap-2 overflow-y-auto min-h-0 flex-1;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
     }
@@ -4195,9 +4192,7 @@ body.theme-green {
         color: var(--text-muted);
     }
     .abm-campaign-cart {
-        @apply flex flex-col gap-2 overflow-y-auto rounded-lg border border-dashed p-2 flex-shrink-0;
-        min-height: 12rem;
-        max-height: min(32rem, 52vh);
+        @apply flex flex-col gap-2 overflow-y-auto min-h-0 flex-1 rounded-lg border border-dashed p-2;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
         border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
@@ -10391,7 +10386,7 @@ body:not(.theme-green) .list-item.selected {
     }
     body.campaigns-page .abm-account-explorer,
     body.campaigns-page .abm-campaign-cart {
-        max-height: min(28rem, 55vh);
+        min-height: 14rem;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
     }
