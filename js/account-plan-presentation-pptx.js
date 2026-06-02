@@ -443,11 +443,82 @@ function defineContentMaster(pptx, accountName, navyLogo) {
 // ---------------------------------------------------------------------------
 // Task 2 — Geometric cover slide
 // ---------------------------------------------------------------------------
-// Replicates the visual language of buildGpcCoverPage() in the PDF
-// templates (overlapping navyDeep / teal / lime blocks against a navyDark
-// field), translated into native pptxgenjs shapes. The cover does NOT
-// use the master so it can carry its own dark canvas + white logo.
+// Matches the GPC Large Deal Review title slide: navy field + three diagonal
+// wedges (navyDeep / teal / lime) on the right, plus a subtle top-left
+// corner accent. Same gradient logic as .ap-export-gpc-cover-art in the PDF.
 // ---------------------------------------------------------------------------
+
+/**
+ * Custom polygon on the cover slide (pptxgenjs custGeom, normalized 0–1 points).
+ *
+ * @param {import('pptxgenjs').Slide} slide
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {Array<{ x: number, y: number }>} points
+ * @param {string} fillColor
+ */
+function addCoverPolygon(slide, x, y, w, h, points, fillColor) {
+    slide.addShape('custGeom', {
+        x,
+        y,
+        w,
+        h,
+        fill: { color: fillColor },
+        line: { width: 0 },
+        points,
+    });
+}
+
+/**
+ * Diagonal wedge artwork for the cover — mirrors the demo title slide geometry.
+ * @param {import('pptxgenjs').Slide} slide
+ */
+function addCoverGeometricArt(slide) {
+    // (1) Main teal wedge — bleeds left of the art band (~46% slide) like the demo.
+    addCoverPolygon(slide, SLIDE_W * 0.46, 0, SLIDE_W * 0.54, SLIDE_H, [
+        { x: 0, y: 0.14 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+        { x: 0.22, y: 0.84 },
+    ], THEME.accent);
+
+    // (2) Navy-deep upper wedge — dark slab behind the logo (155° band).
+    addCoverPolygon(slide, SLIDE_W * 0.56, 0, SLIDE_W * 0.44, SLIDE_H * 0.54, [
+        { x: 0.08, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+        { x: 0.42, y: 0.52 },
+    ], THEME.accentDark);
+
+    // (3) Lime bottom-right accent (125° band).
+    addCoverPolygon(slide, SLIDE_W * 0.60, SLIDE_H * 0.48, SLIDE_W * 0.40, SLIDE_H * 0.52, [
+        { x: 0, y: 0.06 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+        { x: 0.10, y: 1 },
+    ], THEME.accentAlt);
+
+    // (4) Subtle top-left L-corner accent from the demo template.
+    const cornerX = 0.42;
+    const cornerY = 0.38;
+    const cornerLen = 0.95;
+    slide.addShape('line', {
+        x: cornerX,
+        y: cornerY,
+        w: cornerLen,
+        h: 0,
+        line: { color: 'FFFFFF', width: 1.25, transparency: 18 },
+    });
+    slide.addShape('line', {
+        x: cornerX,
+        y: cornerY,
+        w: 0,
+        h: cornerLen,
+        line: { color: 'FFFFFF', width: 1.25, transparency: 18 },
+    });
+}
 
 /**
  * @param {PptxGenJS} pptx
@@ -458,54 +529,7 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
     const slide = pptx.addSlide();
     slide.background = { color: THEME.coverBg };
 
-    // -----------------------------------------------------------------
-    // GEOMETRIC ARTWORK (drawn back-to-front so the lime accent sits
-    // on top of the teal wedge which sits on top of the navy-deep slab).
-    // -----------------------------------------------------------------
-
-    // (a) Navy-deep right slab — occupies the right ~44% of the canvas
-    //     and visually frames the white logo + holds the geometric
-    //     accents that follow.
-    slide.addShape('rect', {
-        x: 7.50,
-        y: 0,
-        w: SLIDE_W - 7.50,        // 5.833"
-        h: SLIDE_H,
-        fill: { color: THEME.accentDark },
-        line: { width: 0 },
-    });
-
-    // (b) Teal diagonal wedge — a right triangle whose hypotenuse cuts
-    //     from the top-left (5.5, 0) down to the bottom-right (10.0,
-    //     7.5). With rtTriangle's default geometry (right angle at
-    //     bottom-left, hypotenuse from top-left to bottom-right) we get
-    //     a slanted teal slab that overlaps the navy-dark field on the
-    //     left half AND the navy-deep slab on the right.
-    slide.addShape('rtTriangle', {
-        x: 5.50,
-        y: 0,
-        w: 4.50,
-        h: SLIDE_H,
-        fill: { color: THEME.accent },
-        line: { width: 0 },
-    });
-
-    // (c) Lime accent block — small bottom-right corner square that
-    //     punctuates the composition with the brand secondary. Sized
-    //     to sit cleanly inside the navy-deep slab without crossing
-    //     the slide's right edge.
-    slide.addShape('rect', {
-        x: 11.20,
-        y: 5.40,
-        w: 2.133,
-        h: 2.10,
-        fill: { color: THEME.accentAlt },
-        line: { width: 0 },
-    });
-
-    // -----------------------------------------------------------------
-    // WHITE LOGO — top-right corner, inset into the navy-deep slab.
-    // -----------------------------------------------------------------
+    addCoverGeometricArt(slide);
     if (whiteLogo) {
         slide.addImage({
             data: whiteLogo,
