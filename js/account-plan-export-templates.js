@@ -1701,6 +1701,7 @@ function buildAccountSnapshotBody(account, snapshot, fields) {
     if (filledStats.length > 0) {
         const statGrid = document.createElement('div');
         statGrid.className = 'ap-export-snapshot-stat-grid';
+        statGrid.style.gridTemplateColumns = `repeat(${filledStats.length}, minmax(0, 1fr))`;
         filledStats.forEach((field) => {
             statGrid.appendChild(createSnapshotStatCell(
                 field.label || field.key,
@@ -3096,12 +3097,12 @@ export function ensureExportTemplateStyles() {
             margin-bottom: 0;
         }
         .ap-export-dossier-section + .ap-export-dossier-section {
-            margin-top: 22px;
-            padding-top: 16px;
+            margin-top: 16px;
+            padding-top: 12px;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-dossier-section-title {
-            margin: 0 0 12px;
+            margin: 0 0 10px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 11px;
             line-height: 1.25;
@@ -3418,16 +3419,16 @@ export function ensureExportTemplateStyles() {
         .ap-export-snapshot-compact {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 12px;
+            padding-top: 10px;
         }
         .ap-export-snapshot-hero {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            gap: 16px;
-            padding: 12px 14px;
+            gap: 12px;
+            padding: 10px 12px;
             background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
             border: 1px solid #e2e8f0;
             border-left: 4px solid #2563eb;
@@ -3439,11 +3440,11 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-snapshot-account-name {
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 20px;
+            font-size: 18px;
             line-height: 1.2;
             font-weight: 700;
             color: #0f172a;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .ap-export-snapshot-chips {
             display: flex;
@@ -3479,11 +3480,10 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-snapshot-stat-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
+            gap: 6px;
         }
         .ap-export-snapshot-stat {
-            padding: 8px 10px;
+            padding: 6px 8px;
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-top: 2px solid #0f172a;
@@ -3491,27 +3491,27 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-snapshot-stat-label {
             font-family: ${GPC_BRAND.fontHeading};
-            font-size: 8.5px;
+            font-size: 7.5px;
             font-weight: 700;
-            letter-spacing: 0.07em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: #64748b;
-            margin-bottom: 4px;
-            line-height: 1.25;
+            margin-bottom: 3px;
+            line-height: 1.2;
         }
         .ap-export-snapshot-stat-value {
-            font-size: 11.5px;
-            line-height: 1.35;
+            font-size: 10.5px;
+            line-height: 1.3;
             font-weight: 700;
             color: #0f172a;
         }
         .ap-export-snapshot-narratives {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            gap: 8px;
         }
         .ap-export-snapshot-narrative {
-            padding: 10px 12px;
+            padding: 8px 10px;
             background: #fafbfc;
             border: 1px solid #e2e8f0;
             min-width: 0;
@@ -3523,12 +3523,12 @@ export function ensureExportTemplateStyles() {
             letter-spacing: 0.07em;
             text-transform: uppercase;
             color: #64748b;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
         .ap-export-snapshot-narrative-copy {
             margin: 0;
-            font-size: 11px;
-            line-height: 1.45;
+            font-size: 10.5px;
+            line-height: 1.4;
             color: #1e293b;
         }
         .ap-export-data-table-wrap + .ap-export-data-table-wrap {
@@ -3710,14 +3710,14 @@ export function ensureExportTemplateStyles() {
         .ap-export-psych-export-wrap {
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 12px;
         }
         .ap-export-psych-gravity-heading {
-            margin-top: 4px;
+            margin-top: 2px;
         }
         .ap-export-psych-gravity-grid {
             border-top: 1px solid #e2e8f0;
-            padding-top: 14px;
+            padding-top: 10px;
         }
         /* Asymmetric 2-col gravity layout: narrow left rail (3 dial fields
          * stacked) + wider right rail (consensus + narrative prose). */
@@ -3729,11 +3729,11 @@ export function ensureExportTemplateStyles() {
         .ap-export-psych-gravity-rail {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 10px;
         }
         .ap-export-psych-gravity-rail--left {
             border-right: 1px solid #e2e8f0;
-            padding-right: 18px;
+            padding-right: 14px;
         }
         .ap-export-psych-gravity-rail--right {
             padding-left: 4px;
@@ -3946,10 +3946,10 @@ export function ensureExportTemplateStyles() {
         .ap-export-psych-grid--dossier {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px 20px;
+            gap: 10px 14px;
         }
         .ap-export-psych-row {
-            padding: 14px 16px 12px;
+            padding: 10px 12px 8px;
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
