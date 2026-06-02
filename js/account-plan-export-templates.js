@@ -3097,12 +3097,12 @@ export function ensureExportTemplateStyles() {
             margin-bottom: 0;
         }
         .ap-export-dossier-section + .ap-export-dossier-section {
-            margin-top: 16px;
-            padding-top: 12px;
+            margin-top: 12px;
+            padding-top: 10px;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-dossier-section-title {
-            margin: 0 0 10px;
+            margin: 0 0 8px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 11px;
             line-height: 1.25;
@@ -3123,7 +3123,7 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-client-commitments-body {
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 10px;
         }
         .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
             margin-top: 0;
@@ -3134,13 +3134,13 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-dossier-body--editorial .ap-export-editorial-copy,
         .ap-export-dossier-body--editorial .ap-export-editorial-list {
-            font-size: 13px;
-            line-height: 1.6;
+            font-size: 12px;
+            line-height: 1.55;
             color: #1e293b;
         }
         .ap-export-editorial-kicker,
         .ap-export-dossier-body--editorial h3.ap-export-editorial-kicker {
-            margin: 0 0 8px;
+            margin: 0 0 6px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 10px;
             line-height: 1.3;
@@ -3150,7 +3150,7 @@ export function ensureExportTemplateStyles() {
             font-weight: 700;
         }
         .ap-export-editorial-copy {
-            margin: 0 0 14px;
+            margin: 0 0 10px;
             white-space: pre-wrap;
         }
         .ap-export-editorial-copy:last-child {
@@ -3180,7 +3180,7 @@ export function ensureExportTemplateStyles() {
         .ap-export-momentum-timeline-items {
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 12px;
         }
         .ap-export-momentum-timeline-item {
             position: relative;
@@ -3211,8 +3211,8 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-momentum-timeline-text {
             margin: 0;
-            font-size: 13px;
-            line-height: 1.55;
+            font-size: 12px;
+            line-height: 1.5;
             color: #1e293b;
         }
         .ap-export-plan-horizon-body .plan-horizon-list,
@@ -3228,8 +3228,8 @@ export function ensureExportTemplateStyles() {
         .ap-exec-plan-horizon-body .plan-horizon-list li {
             position: relative;
             padding-left: 14px;
-            font-size: 12px;
-            line-height: 1.5;
+            font-size: 11px;
+            line-height: 1.45;
             color: #1e293b;
         }
         .ap-export-plan-horizon-body .plan-horizon-list li::before,
@@ -3313,8 +3313,8 @@ export function ensureExportTemplateStyles() {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            gap: 6px;
-            margin: 0 0 12px;
+            gap: 5px;
+            margin: 0 0 8px;
         }
         .ap-export-editorial-pills-label {
             font-family: ${GPC_BRAND.fontHeading};
@@ -3330,18 +3330,18 @@ export function ensureExportTemplateStyles() {
         .ap-export-battlefield-body {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
+            gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 12px;
+            padding-top: 10px;
         }
         .ap-export-battlefield-panel {
             border: 1px solid #e2e8f0;
             border-top: 3px solid #0f172a;
-            padding: 12px 14px 14px;
+            padding: 10px 12px 11px;
             background: #f8fafc;
         }
         .ap-export-battlefield-panel-title {
-            margin: 0 0 10px;
+            margin: 0 0 8px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 11px;
             font-weight: 700;
@@ -3350,20 +3350,71 @@ export function ensureExportTemplateStyles() {
             color: #0f172a;
         }
         .ap-export-battlefield-panel .ap-export-editorial-kicker {
-            margin-top: 12px;
+            margin-top: 8px;
         }
         .ap-export-battlefield-panel .ap-export-editorial-kicker:first-of-type {
             margin-top: 0;
         }
+        .ap-export-editorial-prose {
+            border-top: 2px solid #0f172a;
+            padding-top: 8px;
+        }
         .ap-export-editorial-prose .ap-export-editorial-kicker:not(:first-child) {
-            margin-top: 12px;
+            margin-top: 8px;
+        }
+        .ap-export-pursuit-with-pain-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ap-export-pursuit-with-pain-body .ap-export-editorial-grid {
+            padding-top: 10px;
+        }
+        .ap-export-pursuit-with-pain-body .ap-export-editorial-span-full {
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+        .ap-export-blindspots-body {
+            border-top: 2px solid #0f172a;
+            padding-top: 8px;
+        }
+        .ap-export-blindspots-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .ap-export-blindspots-item {
+            position: relative;
+            padding-left: 14px;
+            font-size: 11.5px;
+            line-height: 1.45;
+            color: #1e293b;
+        }
+        .ap-export-blindspots-item::before {
+            content: '▢';
+            position: absolute;
+            left: 0;
+            top: 0.05em;
+            color: #3b82f6;
+            font-size: 10px;
+            line-height: 1;
+        }
+        .ap-export-blindspots-empty {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.45;
+            color: #64748b;
+            font-style: italic;
         }
         .ap-export-editorial-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 10px;
         }
         .ap-export-editorial-grid--2 {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3389,8 +3440,8 @@ export function ensureExportTemplateStyles() {
             border-right: none !important;
             padding-right: 0 !important;
             margin-right: 0 !important;
-            margin-top: 18px;
-            padding-top: 18px;
+            margin-top: 12px;
+            padding-top: 12px;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-editorial-influence {
@@ -3398,7 +3449,7 @@ export function ensureExportTemplateStyles() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 10px;
         }
         .ap-export-editorial-influence-tier {
             padding: 0 18px 0 0;
@@ -3611,8 +3662,21 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-white-space-wrap {
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 10px;
             overflow: hidden;
+        }
+        .ap-export-account-expansion-body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .ap-export-account-expansion-body > .ap-export-editorial-grid {
+            padding-top: 0;
+            border-top: none;
+        }
+        .ap-export-account-expansion-body > .ap-export-white-space-wrap {
+            border-top: none;
+            padding-top: 0;
         }
 
         /* --- Snapdom-friendly White Space matrix (CSS grid, not <table>) --- */
@@ -3625,9 +3689,9 @@ export function ensureExportTemplateStyles() {
             font-family: ${GPC_BRAND.fontBody};
         }
         .ap-export-ws-matrix-cell {
-            padding: 8px 10px;
-            font-size: 11px;
-            line-height: 1.45;
+            padding: 7px 8px;
+            font-size: 10.5px;
+            line-height: 1.4;
             color: #0f172a;
             border-right: 1px solid #e2e8f0;
             border-bottom: 1px solid #e2e8f0;
@@ -3676,12 +3740,12 @@ export function ensureExportTemplateStyles() {
         .ap-export-influence-contact-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
         .ap-export-influence-contact {
             border: 1px solid #e2e8f0;
             background: #fafbfc;
-            padding: 10px 12px;
+            padding: 8px 10px;
         }
         .ap-export-influence-contact-name {
             margin: 0 0 2px;
@@ -3692,13 +3756,13 @@ export function ensureExportTemplateStyles() {
             color: #0f172a;
         }
         .ap-export-influence-contact-title {
-            margin: 0 0 8px;
+            margin: 0 0 6px;
             font-size: 10.5px;
             line-height: 1.35;
             color: #475569;
         }
         .ap-export-influence-contact .ap-export-profile-field {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             padding-left: 8px;
         }
         .ap-export-influence-contact .ap-export-profile-field:last-child {
@@ -3747,16 +3811,16 @@ export function ensureExportTemplateStyles() {
         .ap-export-target-profiles-body {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 12px;
+            padding-top: 10px;
         }
         .ap-export-target-profile {
             page-break-inside: avoid;
             break-inside: avoid;
             border: 1px solid #e2e8f0;
             background: #fafbfc;
-            padding: 11px 14px 12px;
+            padding: 9px 12px 10px;
             border-radius: 4px;
         }
         .ap-export-target-profile + .ap-export-target-profile {
