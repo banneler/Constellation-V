@@ -193,6 +193,8 @@ const MAX_WHITE_SPACE_ROWS = 4;
 
 /** Gap between entry-point card and floating next-move callout below it. */
 const ENTRY_NEXT_MOVE_FLOAT_GAP = 0.14;
+/** Main profile card uses this share of the column band; remainder goes to next-move callout. */
+const ENTRY_CARD_HEIGHT_RATIO = 0.80;
 
 /** Score-indexed fill + label colors for the momentum KPI gauge. */
 const MOMENTUM_SCORE_STYLES = Object.freeze([
@@ -2291,8 +2293,16 @@ function renderEntryProfileColumn(slide, profile, x, y, w, h, layoutMode = 'defa
     const { trust, influence } = resolveEntryTrustInfluence(profile);
     const hasMetrics = Boolean(trust || influence);
     const nextMove = String(profile.next_move ?? '').trim();
-    const calloutH = nextMove ? (layoutMode === 'slim' ? 0.68 : 0.78) : 0;
-    const cardH = h - calloutH - (nextMove ? ENTRY_NEXT_MOVE_FLOAT_GAP : 0);
+    let cardH = h;
+    let calloutH = 0;
+    let calloutY = y;
+
+    if (nextMove) {
+        const usableH = h - ENTRY_NEXT_MOVE_FLOAT_GAP;
+        cardH = usableH * ENTRY_CARD_HEIGHT_RATIO;
+        calloutH = usableH - cardH;
+        calloutY = y + cardH + ENTRY_NEXT_MOVE_FLOAT_GAP;
+    }
 
     addPanel(slide, x, y, w, cardH);
 
@@ -2378,7 +2388,7 @@ function renderEntryProfileColumn(slide, profile, x, y, w, h, layoutMode = 'defa
         renderEntryNextMoveCallout(
             slide,
             innerX,
-            y + cardH + ENTRY_NEXT_MOVE_FLOAT_GAP,
+            calloutY,
             innerW,
             calloutH,
             nextMove,
