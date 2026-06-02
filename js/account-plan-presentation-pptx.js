@@ -643,6 +643,7 @@ function resolvePptxPlanContext(plan) {
                 : [],
         },
         rawEntryPoints: Array.isArray(sections.entry_points) ? sections.entry_points : [],
+        landAndExpand: isPlainObject(sections.land_and_expand) ? sections.land_and_expand : {},
     };
 }
 
@@ -845,9 +846,116 @@ function resolveEntrenchmentMoat(ctx, highlight) {
     const moatPills = Array.isArray(ctx.competitive.moat_pills)
         ? ctx.competitive.moat_pills.map((p) => String(p ?? '').trim()).filter(Boolean)
         : [];
-    const narrative = String(ctx.competitive.difficult_to_remove ?? '').trim()
-        || String(ctx.competitive.compound_relationships ?? '').trim();
-    return [moatPills.join(', '), narrative].filter(Boolean).join(' — ');
+    const compound = String(ctx.competitive.compound_relationships ?? '').trim();
+    const narrative = String(ctx.competitive.difficult_to_remove ?? '').trim();
+    return [moatPills.join(', '), compound, narrative].filter(Boolean).join(' — ');
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @returns {{ label: string, value: string }[]}
+ */
+function resolveExpansionWedgeParts(ctx) {
+    const land = ctx.landAndExpand || {};
+    const parts = [
+        {
+            label: 'Initial Entry',
+            value: String(ctx.whiteSpace.initial_entry ?? land.initial_entry ?? '').trim(),
+        },
+        {
+            label: 'Trust Creation',
+            value: String(ctx.whiteSpace.trust_creation ?? land.trust_creation ?? '').trim(),
+        },
+        {
+            label: 'Expansion Path',
+            value: String(ctx.whiteSpace.expansion_path ?? land.expansion_path ?? '').trim(),
+        },
+    ].filter((part) => part.value);
+
+    if (parts.length > 0) return parts;
+
+    const valueNotes = ctx.whiteSpaceRows
+        .map((row) => String(row.value_notes ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 2);
+    if (valueNotes.length > 0) {
+        return [{ label: 'Expansion Wedge', value: valueNotes.join(' ') }];
+    }
+
+    const expansionPotential = String(ctx.snapshot.expansion_potential ?? '').trim();
+    if (expansionPotential) {
+        return [{ label: 'Expansion Potential', value: expansionPotential }];
+    }
+
+    return [];
+}
+
+/**
+ * Prefer richer raw plan copy over short AI hooks when the plan has more detail.
+ * @param {string} aiCopy
+ * @param {string} rawCopy
+ * @param {number} [maxLen]
+ */
+function pickInfluenceColumnCopy(aiCopy, rawCopy, maxLen = 420) {
+    const ai = String(aiCopy ?? '').trim();
+    const raw = String(rawCopy ?? '').trim();
+    const genericChampions = /^Mid-level champions can compound operational trust\.?$/i;
+
+    if (raw && (!ai || raw.length > ai.length + 24)) {
+        return truncate(raw, maxLen);
+    }
+    if (ai && !genericChampions.test(ai)) {
+        return truncate(ai, maxLen);
+    }
+    if (raw) return truncate(raw, maxLen);
+    return truncate(ai, maxLen);
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ */
+function resolveChampionsInfluenceCopy(ctx, highlight) {
+    const ai = String(highlight.slides.battlefield?.influence?.champions_hook ?? '').trim();
+    const midLevel = Array.isArray(ctx.influence.mid_level) ? ctx.influence.mid_level : [];
+    const rawNotes = midLevel
+        .map((entry) => {
+            if (!isPlainObject(entry)) return '';
+            return [
+                entry.notes,
+                entry.strategic_priorities,
+                entry.personality_style,
+            ]
+                .map((v) => String(v ?? '').trim())
+                .filter(Boolean)
+                .join(' — ');
+        })
+        .filter(Boolean)
+        .join(' ');
+
+    return pickInfluenceColumnCopy(ai, rawNotes, 420);
+}
+
+/**
+ * @param {string[]} bullets
+ * @returns {string[]}
+ */
+function cleanCompetitiveBullets(bullets) {
+    const clean = (bullets || []).map((b) => String(b ?? '').trim()).filter(Boolean);
+    const seen = new Set();
+    return clean.filter((line) => {
+        const key = line.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        // Drop standalone pill echo lines when the narrative already covers positioning/moat.
+        if (/^positioning:\s/i.test(line) && clean.some((other) => other !== line && other.length > line.length + 40)) {
+            return false;
+        }
+        if (/^moat:\s/i.test(line) && clean.some((other) => /moat|contract|dependency|switching cost/i.test(other) && other !== line)) {
+            return false;
+        }
+        return true;
+    });
 }
 
 /**
@@ -865,6 +973,38 @@ function getFilledSnapshotStats(snapshot) {
     return defs
         .map(({ key, label }) => ({
             label,
+            value: String(snapshot[key] ?? '').trim(),
+        }))
+        .filter((item) => item.value);
+}
+
+const SNAPSHOT_COMPACT_STAT_KEYS = Object.freeze([
+    'relationship_status',
+    'ai_cloud_maturity',
+    'strategic_patience',
+]);
+
+const SNAPSHOT_NARRATIVE_STAT_KEYS = Object.freeze([
+    'existing_providers',
+    'expansion_potential',
+]);
+
+/**
+ * @param {Record<string, unknown>} snapshot
+ * @param {readonly string[]} keys
+ * @returns {{ label: string, value: string }[]}
+ */
+function getSnapshotStatsByKeys(snapshot, keys) {
+    const labelMap = {
+        relationship_status: 'Relationship Status',
+        ai_cloud_maturity: 'AI / Cloud Maturity',
+        strategic_patience: 'Strategic Patience',
+        existing_providers: 'Existing Providers',
+        expansion_potential: 'Expansion Potential',
+    };
+    return keys
+        .map((key) => ({
+            label: labelMap[key] || key,
             value: String(snapshot[key] ?? '').trim(),
         }))
         .filter((item) => item.value);
@@ -918,7 +1058,8 @@ function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, total
     const priority = String(accountContext.priority ?? ctx.snapshot.pursuit_priority ?? '').trim();
     const executiveNarrative = String(highlight.slides.situation?.executive_narrative ?? '').trim()
         || String(ctx.pursuit.executive_narrative ?? '').trim();
-    const stats = getFilledSnapshotStats(ctx.snapshot);
+    const compactStats = getSnapshotStatsByKeys(ctx.snapshot, SNAPSHOT_COMPACT_STAT_KEYS);
+    const narrativeStats = getSnapshotStatsByKeys(ctx.snapshot, SNAPSHOT_NARRATIVE_STAT_KEYS);
 
     const leftW = BODY_W * 0.62;
     const rightW = BODY_W * 0.33;
@@ -949,10 +1090,10 @@ function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, total
     }
 
     let bodyY = leftLayout.bodyY;
-    if (stats.length > 0) {
-        const statH = Math.min(1.35, leftLayout.bodyH * 0.34);
-        const colW = leftLayout.innerW / stats.length;
-        stats.forEach((stat, index) => {
+    if (compactStats.length > 0) {
+        const statH = 0.72;
+        const colW = leftLayout.innerW / compactStats.length;
+        compactStats.forEach((stat, index) => {
             const cellX = leftLayout.innerX + colW * index;
             slide.addText(stat.label.toUpperCase(), {
                 x: cellX,
@@ -969,7 +1110,7 @@ function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, total
                 margin: 0,
                 autoFit: false,
             });
-            slide.addText(truncate(stat.value, 90), {
+            slide.addText(stat.value, {
                 x: cellX,
                 y: bodyY + 0.20,
                 w: colW - 0.08,
@@ -983,8 +1124,28 @@ function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, total
                 autoFit: false,
             });
         });
-        bodyY += statH + 0.10;
+        bodyY += statH + 0.08;
     }
+
+    narrativeStats.forEach((stat) => {
+        addKicker(slide, stat.label.toUpperCase(), leftLayout.innerX, bodyY, leftLayout.innerW);
+        const blockH = stat.label === 'Expansion Potential' ? 0.72 : 0.62;
+        slide.addText(stat.value, {
+            x: leftLayout.innerX,
+            y: bodyY + 0.20,
+            w: leftLayout.innerW,
+            h: blockH,
+            fontSize: 10,
+            color: THEME.secondary,
+            fontFace: THEME.font,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+            lineSpacing: 14,
+        });
+        bodyY += blockH + 0.28;
+    });
 
     if (executiveNarrative) {
         addKicker(slide, 'EXECUTIVE NARRATIVE', leftLayout.innerX, bodyY, leftLayout.innerW);
@@ -993,11 +1154,16 @@ function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, total
             y: bodyY + 0.22,
             w: leftLayout.innerW,
             h: BODY_TOP + BODY_H - (bodyY + 0.22) - PANEL_BOTTOM_PAD,
-            ...BODY_TEXT_BASE,
-            lineSpacing: 16,
+            fontSize: 10,
             color: THEME.secondary,
+            fontFace: THEME.font,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+            lineSpacing: 14,
         });
-    } else if (stats.length === 0) {
+    } else if (compactStats.length === 0 && narrativeStats.length === 0) {
         slide.addText('Capture tier, priority, and strategic context in the Account Snapshot section.', {
             x: leftLayout.innerX,
             y: bodyY,
@@ -1547,11 +1713,7 @@ function buildWhiteSpaceSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     const topY = BODY_TOP;
     const bottomY = BODY_TOP + halfH + GAP;
 
-    const wedgeParts = [
-        { label: 'Initial Entry', value: ctx.whiteSpace.initial_entry },
-        { label: 'Trust Creation', value: ctx.whiteSpace.trust_creation },
-        { label: 'Expansion Path', value: ctx.whiteSpace.expansion_path },
-    ].filter((part) => String(part.value ?? '').trim());
+    const wedgeParts = resolveExpansionWedgeParts(ctx);
 
     addPanel(slide, MARGIN_X, topY, BODY_W, halfH);
     addKicker(slide, 'EXPANSION WEDGE', MARGIN_X + 0.30, topY + 0.18, BODY_W - 0.6);
@@ -1664,26 +1826,27 @@ function buildInfluenceMappingSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     addContentSlideChrome(slide, 'Influence Mapping', pageNum, totalSlides);
 
     const hooks = highlight.slides.battlefield?.influence ?? {};
+    const accessPathRaw = [
+        ctx.accessPath.strategy,
+        ctx.accessPath.desired,
+        ctx.accessPath.bridge,
+        ctx.accessPath.current,
+    ].map((v) => String(v ?? '').trim()).filter(Boolean).join(' ');
     const columns = [
         {
             title: 'Executive Leadership',
-            copy: String(hooks.executive_hook ?? '').trim()
-                || String(ctx.influence.political_dynamics ?? ctx.influence.invisible_org_chart ?? '').trim(),
+            copy: pickInfluenceColumnCopy(
+                hooks.executive_hook,
+                String(ctx.influence.political_dynamics ?? ctx.influence.invisible_org_chart ?? '').trim()
+            ),
         },
         {
             title: 'Mid-Level Champions',
-            copy: String(hooks.champions_hook ?? '').trim(),
+            copy: resolveChampionsInfluenceCopy(ctx, highlight),
         },
         {
             title: 'Access Path',
-            copy: String(hooks.access_path_hook ?? '').trim()
-                || [
-                    ctx.accessPath.strategy,
-                    ctx.accessPath.desired,
-                    ctx.accessPath.bridge,
-                    ctx.accessPath.current,
-                ].map((v) => String(v ?? '').trim()).filter(Boolean)[0]
-                || '',
+            copy: pickInfluenceColumnCopy(hooks.access_path_hook, accessPathRaw),
         },
     ];
 
@@ -1729,7 +1892,7 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     const hasBlindspots = blindspotItems.length > 0;
     const moatText = resolveEntrenchmentMoat(ctx, highlight);
     const hasMoat = Boolean(moatText);
-    const moatBandH = hasMoat ? 0.95 : 0;
+    const moatBandH = hasMoat ? 1.20 : 0;
     const mainH = hasMoat ? BODY_H - moatBandH - GAP : BODY_H;
     const moatY = BODY_TOP + mainH + GAP;
 
@@ -1738,7 +1901,7 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
             .map((b) => String(b ?? '').trim())
             .filter(Boolean)
         : [];
-    const competitiveBullets = aiBullets.length > 0
+    const competitiveBullets = cleanCompetitiveBullets(aiBullets.length > 0
         ? aiBullets
         : [
             String(ctx.competitive.incumbents ?? '').trim(),
@@ -1747,7 +1910,7 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
                 ? `Moat: ${ctx.competitive.moat_pills.map((p) => String(p ?? '').trim()).filter(Boolean).join(', ')}`
                 : '',
             String(ctx.competitive.difficult_to_remove ?? '').trim(),
-        ].filter(Boolean);
+        ].filter(Boolean));
 
     const competitiveHeadline = String(highlight.slides.battlefield?.competitive?.headline ?? '').trim()
         || 'Competitive Landscape';
@@ -1808,14 +1971,19 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
     if (hasMoat) {
         addPanel(slide, MARGIN_X, moatY, BODY_W, moatBandH);
         addKicker(slide, TACTICAL_UX_LABELS.incumbentGrip.toUpperCase(), MARGIN_X + 0.30, moatY + 0.12, BODY_W - 0.60);
-        slide.addText(truncate(moatText, 260), {
+        slide.addText(moatText, {
             x: MARGIN_X + 0.30,
             y: moatY + 0.34,
             w: BODY_W - 0.60,
             h: moatBandH - 0.42,
-            ...BODY_TEXT_BASE,
+            fontSize: 10,
             color: THEME.secondary,
-            lineSpacing: 15,
+            fontFace: THEME.font,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+            lineSpacing: 14,
         });
     }
 }
@@ -2017,7 +2185,7 @@ function renderEntryProfileColumnPercent(slide, profile, colX, colW, layoutMode 
         bodyY = layoutMode === 'slim' ? '23%' : '24%';
     }
 
-    slide.addText(buildEntryProfileRichRuns(profile, type), {
+    slide.addText(buildEntryProfileRichRuns(profile, type, layoutMode), {
         x: colX,
         y: bodyY,
         w: colW,
@@ -2036,14 +2204,19 @@ function renderEntryProfileColumnPercent(slide, profile, colX, colW, layoutMode 
  * @param {{ name: number, kicker: number, body: number, bodyLineSpacing: number }} [type]
  * @returns {import('pptxgenjs').TextProps[]}
  */
-function buildEntryProfileRichRuns(profile, type = getEntryPointTypography('default')) {
-    const sections = [
+function buildEntryProfileRichRuns(profile, type = getEntryPointTypography('default'), layoutMode = 'default') {
+    const slimFields = [
         { label: 'Why They Matter', value: profile.why_they_matter },
         { label: 'Operational Pain', value: profile.operational_pain },
-        { label: 'Conversation Wedge', value: profile.conversation_wedge },
         { label: 'Next Move', value: profile.next_move },
+    ];
+    const fullFields = [
+        ...slimFields,
+        { label: 'Conversation Wedge', value: profile.conversation_wedge },
         { label: TACTICAL_UX_LABELS.humanContext, value: profile.human_context },
-    ].filter((section) => String(section.value ?? '').trim());
+    ];
+    const sections = (layoutMode === 'slim' ? slimFields : fullFields)
+        .filter((section) => String(section.value ?? '').trim());
 
     if (sections.length === 0) {
         sections.push({ label: 'Profile', value: '' });
@@ -2092,8 +2265,8 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     const slide = addContentSlide(pptx);
     addContentSlideChrome(slide, 'Execution Roadmap', pageNum, totalSlides);
 
-    const topH = BODY_H * 0.58 - GAP / 2;
-    const bottomH = BODY_H * 0.42 - GAP / 2;
+    const topH = BODY_H * 0.52 - GAP / 2;
+    const bottomH = BODY_H * 0.48 - GAP / 2;
     const topY = BODY_TOP;
     const bottomY = BODY_TOP + topH + GAP;
 
@@ -2113,7 +2286,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     const tableX = MARGIN_X + 0.25;
     const tableY = topY + 0.65;
     const tableW = BODY_W - 0.50;
-    const tableH = hasCommitments ? topH - 1.55 : topH - 0.85;
+    const tableH = hasCommitments ? topH - 1.85 : topH - 0.85;
     const colW = tableW / 3;
 
     // Header row — uppercase period labels with accent fill (brand teal).
