@@ -191,6 +191,9 @@ const MAX_SIGNALS = 8;
 const MAX_PLAN_BULLETS = 3;
 const MAX_WHITE_SPACE_ROWS = 4;
 
+/** Gap between entry-point card and floating next-move callout below it. */
+const ENTRY_NEXT_MOVE_FLOAT_GAP = 0.14;
+
 /** Score-indexed fill + label colors for the momentum KPI gauge. */
 const MOMENTUM_SCORE_STYLES = Object.freeze([
     { fill: '64748B', text: 'FFFFFF' },
@@ -2273,7 +2276,7 @@ function renderEntryNextMoveCallout(slide, x, y, w, h, nextMove, type) {
 }
 
 /**
- * Branded target-profile card — navy header, trust/influence pills, next-move callout.
+ * Branded target-profile card — navy header, trust/influence pills; next move floats below the panel.
  *
  * @param {import('pptxgenjs').Slide} slide
  * @param {ReturnType<typeof mapEntryPointToProfile>} profile
@@ -2288,9 +2291,10 @@ function renderEntryProfileColumn(slide, profile, x, y, w, h, layoutMode = 'defa
     const { trust, influence } = resolveEntryTrustInfluence(profile);
     const hasMetrics = Boolean(trust || influence);
     const nextMove = String(profile.next_move ?? '').trim();
-    const calloutH = nextMove ? (layoutMode === 'slim' ? 0.72 : 0.82) : 0;
+    const calloutH = nextMove ? (layoutMode === 'slim' ? 0.68 : 0.78) : 0;
+    const cardH = h - calloutH - (nextMove ? ENTRY_NEXT_MOVE_FLOAT_GAP : 0);
 
-    addPanel(slide, x, y, w, h);
+    addPanel(slide, x, y, w, cardH);
 
     const headerH = layoutMode === 'slim' ? 0.50 : 0.56;
     slide.addShape('rect', {
@@ -2327,7 +2331,7 @@ function renderEntryProfileColumn(slide, profile, x, y, w, h, layoutMode = 'defa
         autoFit: false,
     });
 
-    let bodyY = y + headerH + 0.12;
+    let bodyY = y + headerH + 0.18;
     if (hasMetrics) {
         const pillGap = 0.08;
         const pillW = (innerW - pillGap) / 2;
@@ -2355,10 +2359,10 @@ function renderEntryProfileColumn(slide, profile, x, y, w, h, layoutMode = 'defa
                 type.kicker
             );
         }
-        bodyY += 0.30;
+        bodyY += 0.38;
     }
 
-    const bodyH = y + h - bodyY - calloutH - (calloutH ? 0.16 : PANEL_BOTTOM_PAD);
+    const bodyH = y + cardH - bodyY - PANEL_BOTTOM_PAD;
     slide.addText(buildEntryProfileRichRuns(profile, type, layoutMode, true), {
         x: innerX,
         y: bodyY,
@@ -2374,7 +2378,7 @@ function renderEntryProfileColumn(slide, profile, x, y, w, h, layoutMode = 'defa
         renderEntryNextMoveCallout(
             slide,
             innerX,
-            y + h - calloutH - 0.12,
+            y + cardH + ENTRY_NEXT_MOVE_FLOAT_GAP,
             innerW,
             calloutH,
             nextMove,
