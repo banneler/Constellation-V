@@ -7,7 +7,7 @@
 // one with the backticks-in-CSS-comment bug — on every client even after
 // the fix shipped, because the SW intercepts script requests with a
 // stale-while-revalidate policy.)
-const CACHE_VERSION = 'constellation-v27';
+const CACHE_VERSION = 'constellation-v28';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

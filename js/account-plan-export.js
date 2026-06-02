@@ -13,9 +13,10 @@ import {
     buildGpcCoverPage,
     buildDossierContentPage,
     buildDossierSectionTitleHtml,
+    DOSSIER_PAGE_BUCKETS,
     ensureExportTemplateStyles,
-    unwrapDossierSectionGroup,
-} from './account-plan-export-templates.js?v=2026-06-01-6';
+    orderDossierSectionBlocks,
+} from './account-plan-export-templates.js?v=2026-06-02-1';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -124,11 +125,7 @@ export function closeAccountPlanPdfPreview() {
  */
 async function buildDossierPdfBytes(plan, account, exportRoot) {
     const { sectionBlocks, meta } = buildDossierTemplate(plan, account);
-    const pageBlockGroups = rebalanceDossierPageGroups(
-        paginateDossierSections(sectionBlocks, meta, exportRoot),
-        meta,
-        exportRoot
-    );
+    const pageBlockGroups = paginateDossierSections(sectionBlocks, meta, exportRoot);
     const totalPages = 1 + pageBlockGroups.length;
     const pageCanvases = [];
 
@@ -167,81 +164,42 @@ async function buildDossierPdfBytes(plan, account, exportRoot) {
  */
 function paginateDossierSections(sectionBlocks, meta, exportRoot) {
     const groups = [];
-    let current = [];
-    // Toggle via `window.__APP_PAGINATION_DEBUG__ = true` in the devtools
-    // console before clicking Export to print per-measurement trace lines.
-    // Lives behind a global so it can stay in production without spamming
-    // the console for regular users.
+    const orderedBlocks = orderDossierSectionBlocks(sectionBlocks);
     const debug = !!(typeof window !== 'undefined' && window.__APP_PAGINATION_DEBUG__);
     const trace = (msg, data) => {
         if (debug) console.log(`[paginator] ${msg}`, data || '');
     };
+    const bucketedIds = new Set(DOSSIER_PAGE_BUCKETS.flat());
 
-    trace(`received ${sectionBlocks.length} section block(s)`,
-        sectionBlocks.map((b) => ({
-            id: b.dataset?.sectionId || '(no-id)',
-            isGroup: b.classList?.contains?.('ap-export-section-group') || false,
-        }))
+    trace(`received ${orderedBlocks.length} section block(s)`,
+        orderedBlocks.map((block) => block.dataset?.sectionId || '(no-id)')
     );
 
-    const flush = () => {
-        if (current.length > 0) {
-            trace(`flush: page ${groups.length + 1} = [${current.map((b) => b.dataset?.sectionId || '?').join(', ')}]`);
-            groups.push(current.map((block) => block.cloneNode(true)));
-            current = [];
-        }
-    };
-
-    const pageFits = (blocks) => {
-        if (blocks.length === 0) return true;
-        return measureDossierContentPage(blocks, meta, exportRoot, debug);
-    };
-
     /**
-     * @param {HTMLElement} block
+     * @param {HTMLElement[]} blocks
      */
-    const placeSectionBlock = (block) => {
-        if (pageFits([...current, block])) {
-            current.push(block);
-            return;
-        }
-        flush();
-        if (pageFits([block])) {
-            current.push(block);
-            return;
-        }
-        const parts = splitDossierSectionBlock(block, meta, exportRoot);
-        parts.forEach((part) => {
-            if (pageFits([...current, part])) {
-                current.push(part);
-            } else {
-                flush();
-                current.push(part);
+    const paginateBucketBlocks = (blocks) => {
+        if (!Array.isArray(blocks) || blocks.length === 0) return;
+
+        let current = [];
+
+        const flush = () => {
+            if (current.length > 0) {
+                trace(`flush: page ${groups.length + 1} = [${current.map((b) => b.dataset?.sectionId || '?').join(', ')}]`);
+                groups.push(current.map((block) => block.cloneNode(true)));
+                current = [];
             }
-        });
-    };
+        };
 
-    sectionBlocks.forEach((block) => {
-        const sectionId = block.dataset.sectionId || '';
+        const pageFits = (trialBlocks) => {
+            if (trialBlocks.length === 0) return true;
+            return measureDossierContentPage(trialBlocks, meta, exportRoot, debug);
+        };
 
-        if (sectionId === 'psychology' && current.length > 0 && !pageFits([...current, block])) {
-            flush();
-        }
-
-        if (sectionId === 'entry_points') {
-            const entryPages = buildEntryPointsPageGroups(block, meta, exportRoot);
-            entryPages.forEach((pageBlocks) => {
-                groups.push(pageBlocks.map((pageBlock) => pageBlock.cloneNode(true)));
-            });
-            return;
-        }
-
-        // Orphan-control wrapper: treat the entire group as a single
-        // indivisible unit so its members travel together on one page. If the
-        // combined group can't fit on its own page (rare with the configured
-        // short editorial sections), gracefully unwrap and let normal
-        // pagination flow handle each member individually.
-        if (block.classList && block.classList.contains('ap-export-section-group')) {
+        /**
+         * @param {HTMLElement} block
+         */
+        const placeSectionBlock = (block) => {
             if (pageFits([...current, block])) {
                 current.push(block);
                 return;
@@ -251,75 +209,53 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
                 current.push(block);
                 return;
             }
+            const parts = splitDossierSectionBlock(block, meta, exportRoot);
+            parts.forEach((part) => {
+                if (pageFits([...current, part])) {
+                    current.push(part);
+                } else {
+                    flush();
+                    current.push(part);
+                }
+            });
+        };
 
-            const unwrapped = unwrapDossierSectionGroup(block);
-            unwrapped.forEach((memberBlock) => {
-                placeSectionBlock(memberBlock);
+        blocks.forEach((block) => placeSectionBlock(block));
+        flush();
+    };
+
+    DOSSIER_PAGE_BUCKETS.forEach((bucketIds) => {
+        const bucketBlocks = [];
+        bucketIds.forEach((sectionId) => {
+            orderedBlocks
+                .filter((block) => block.dataset.sectionId === sectionId)
+                .forEach((block) => bucketBlocks.push(block));
+        });
+
+        if (bucketBlocks.length === 0) return;
+
+        trace(`bucket [${bucketIds.join(', ')}] -> ${bucketBlocks.length} block(s)`);
+
+        if (bucketIds.length === 1 && bucketIds[0] === 'entry_points') {
+            buildEntryPointsPageGroups(bucketBlocks[0], meta, exportRoot).forEach((pageBlocks) => {
+                groups.push(pageBlocks.map((pageBlock) => pageBlock.cloneNode(true)));
             });
             return;
         }
 
-        placeSectionBlock(block);
+        paginateBucketBlocks(bucketBlocks);
     });
 
-    flush();
-    trace(`done: produced ${groups.length} page group(s)`);
-    return groups;
-}
-
-/**
- * Merge a sparse page with the following page when they fit together.
- * Forward-only — never pulls sections backward out of document order.
- * @param {HTMLElement[][]} groups
- * @param {{ accountName: string, dateLabel: string }} meta
- * @param {HTMLElement} exportRoot
- * @returns {HTMLElement[][]}
- */
-function rebalanceDossierPageGroups(groups, meta, exportRoot) {
-    if (groups.length <= 1) return groups;
-
-    let result = groups.map((group) => [...group]);
-    let changed = true;
-
-    while (changed) {
-        changed = false;
-
-        for (let i = 0; i < result.length; i += 1) {
-            if (!isSparseDossierPage(result[i], meta, exportRoot)) continue;
-            if (i + 1 >= result.length) continue;
-
-            const mergedNext = [...result[i], ...result[i + 1]];
-            if (!measureDossierContentPage(mergedNext, meta, exportRoot)) continue;
-
-            result[i] = mergedNext;
-            result.splice(i + 1, 1);
-            changed = true;
-        }
+    const remainder = orderedBlocks.filter(
+        (block) => !bucketedIds.has(block.dataset.sectionId || '')
+    );
+    if (remainder.length > 0) {
+        trace(`remainder blocks outside buckets: [${remainder.map((b) => b.dataset.sectionId).join(', ')}]`);
+        paginateBucketBlocks(remainder);
     }
 
-    return result.filter((group) => group.length > 0);
-}
-
-/**
- * @param {HTMLElement[]} blocks
- * @param {{ accountName: string, dateLabel: string }} meta
- * @param {HTMLElement} exportRoot
- */
-function isSparseDossierPage(blocks, meta, exportRoot) {
-    if (!Array.isArray(blocks) || blocks.length === 0) return false;
-
-    const pageEl = buildDossierContentPage(
-        blocks.map((block) => block.cloneNode(true)),
-        meta,
-        { pageNumber: 2, totalPages: 2 }
-    );
-    exportRoot.appendChild(pageEl);
-    const content = pageEl.querySelector('.ap-export-dossier-content');
-    const scrollH = content ? content.scrollHeight : 0;
-    const clientH = content ? content.clientHeight : 1;
-    exportRoot.removeChild(pageEl);
-
-    return scrollH < clientH * 0.52;
+    trace(`done: produced ${groups.length} page group(s)`);
+    return groups;
 }
 
 /**

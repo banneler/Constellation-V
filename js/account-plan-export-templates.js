@@ -257,20 +257,42 @@ const INFLUENCE_CONTACT_FIELD_LABELS = {
 
 /**
  * Section IDs that should travel together on the same printed page to avoid
- * orphan/widow placement of short, conceptually-linked editorial blocks.
- * Each tuple is rendered as a single `.ap-export-section-group` wrapper that
- * the paginator unwraps sequentially (snapshot then Big Play on the opening
- * spread when measurement confirms they fit). Rebalance may merge a sparse
- * page with the *next* page only — never backward.
+ * Narrative order for the Strategic Account Plan Summary export. Data keys
+ * stay stable — only the printed sequence changes from the canvas order.
+ * @type {ReadonlyArray<string>}
+ */
+export const DOSSIER_EXPORT_SECTION_ORDER = Object.freeze([
+    'account_snapshot',
+    'psychology',
+    'pursuit_thesis',
+    'influence_mapping',
+    'white_space',
+    'entry_points',
+    'competitive_landscape',
+    'strategic_tensions',
+    'critical_unknowns',
+    'plan_30_60_90',
+    'client_commitments',
+    'momentum_timeline',
+]);
+
+/**
+ * Fixed page buckets — each inner array is one logical spread. The paginator
+ * never merges buckets or pulls sections across bucket boundaries; short
+ * pages may leave whitespace rather than shuffling sections out of order.
  *
- * Current groupings:
- *   - account_snapshot + pursuit_thesis → opening spread (account context + Big Play)
- *   - white_space + competitive_landscape → expansion + battlefield pair
+ * Cover is page 1; these buckets map to content pages 2–8 (entry points may
+ * span additional continuation pages within their bucket).
  * @type {ReadonlyArray<ReadonlyArray<string>>}
  */
-const DOSSIER_SECTION_GROUPS = Object.freeze([
-    Object.freeze(['account_snapshot', 'pursuit_thesis']),
-    Object.freeze(['white_space', 'competitive_landscape']),
+export const DOSSIER_PAGE_BUCKETS = Object.freeze([
+    Object.freeze(['account_snapshot', 'psychology']),
+    Object.freeze(['pursuit_thesis']),
+    Object.freeze(['influence_mapping']),
+    Object.freeze(['white_space']),
+    Object.freeze(['entry_points']),
+    Object.freeze(['competitive_landscape', 'strategic_tensions', 'critical_unknowns']),
+    Object.freeze(['plan_30_60_90', 'client_commitments', 'momentum_timeline']),
 ]);
 
 /** @type {Record<string, string>} */
@@ -1011,7 +1033,7 @@ export function buildDossierTemplate(plan, account) {
         .flatMap((section) => buildDossierSectionUnits(section, sections, contacts, account))
         .filter(Boolean);
 
-    const sectionBlocks = applyDossierSectionGrouping(rawBlocks);
+    const sectionBlocks = orderDossierSectionBlocks(rawBlocks);
 
     return {
         sectionBlocks,
@@ -1020,66 +1042,25 @@ export function buildDossierTemplate(plan, account) {
 }
 
 /**
- * Wrap configured DOSSIER_SECTION_GROUPS members in a single
- * `.ap-export-section-group` block so the paginator keeps them on the same
- * printed page. The group is positioned at the index of the first member in
- * the original order, and the remaining members are pulled in (preserving
- * their original relative order) and removed from their original positions.
- *
+ * Sort dossier section blocks into the export narrative order.
  * @param {HTMLElement[]} blocks
  * @returns {HTMLElement[]}
  */
-function applyDossierSectionGrouping(blocks) {
+export function orderDossierSectionBlocks(blocks) {
     if (!Array.isArray(blocks) || blocks.length === 0) return blocks;
 
-    let result = blocks.slice();
+    const orderIndex = new Map(
+        DOSSIER_EXPORT_SECTION_ORDER.map((id, index) => [id, index])
+    );
 
-    DOSSIER_SECTION_GROUPS.forEach((groupIds) => {
-        if (!Array.isArray(groupIds) || groupIds.length < 2) return;
-
-        const memberIndexes = groupIds
-            .map((id) => result.findIndex(
-                (block) => block instanceof HTMLElement && block.dataset.sectionId === id
-            ))
-            .filter((idx) => idx >= 0);
-
-        if (memberIndexes.length < 2) return;
-
-        const orderedMembers = [...memberIndexes]
-            .sort((a, b) => a - b)
-            .map((idx) => result[idx]);
-
-        const insertionIndex = Math.min(...memberIndexes);
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'ap-export-section-group';
-        wrapper.dataset.sectionId = `group:${groupIds.join('+')}`;
-        wrapper.dataset.sectionTitle = orderedMembers[0] instanceof HTMLElement
-            ? (orderedMembers[0].dataset.sectionTitle || 'Strategic Context')
-            : 'Strategic Context';
-        orderedMembers.forEach((member) => wrapper.appendChild(member));
-
-        result = result.filter((_, idx) => !memberIndexes.includes(idx));
-        result.splice(insertionIndex, 0, wrapper);
-    });
-
-    return result;
-}
-
-/**
- * Unwrap a section-group block into its constituent
- * `.ap-export-dossier-section` children. Used by the paginator as a graceful
- * fallback when the combined group does not fit on a single page.
- * @param {HTMLElement} groupBlock
- * @returns {HTMLElement[]}
- */
-export function unwrapDossierSectionGroup(groupBlock) {
-    if (!(groupBlock instanceof HTMLElement)) return [];
-    if (!groupBlock.classList.contains('ap-export-section-group')) {
-        return [groupBlock];
-    }
-    return [...groupBlock.querySelectorAll(':scope > .ap-export-dossier-section')]
-        .filter((child) => child instanceof HTMLElement);
+    return [...blocks]
+        .filter((block) => block instanceof HTMLElement)
+        .sort((a, b) => {
+            const left = orderIndex.get(a.dataset.sectionId || '') ?? Number.MAX_SAFE_INTEGER;
+            const right = orderIndex.get(b.dataset.sectionId || '') ?? Number.MAX_SAFE_INTEGER;
+            if (left !== right) return left - right;
+            return 0;
+        });
 }
 
 /**
