@@ -1,20 +1,22 @@
 /**
  * Strategic Account OS — native PowerPoint export (PptxGenJS).
  *
- * Produces a 6-slide "Strategic Account Plan" deck on a 16:9 canvas
+ * Produces a multi-slide "Strategic Account Plan" deck on a 16:9 canvas
  * styled to match the premium "Editorial Print" aesthetic of our PDF
  * dossier (see js/account-plan-export-templates.js for the visual
- * reference). The deck always opens with a geometric GPC-branded cover
- * page, followed by five content slides that render against a clean
- * white master.
+ * reference). The deck opens with a geometric GPC-branded cover page,
+ * followed by content slides that render against a clean white master.
  *
  * Deck order:
- *   0. Cover                          — geometric brand artwork + title
- *   1. Executive Summary              — Pursuit Thesis + Momentum KPI
- *   2. Psychology & Strategic Tensions — slider tracks + tension badges
- *   3. The Battlefield                — Competitive narrative + Blindspots
- *   4. Strategic Entry Points         — 2 target profiles on one slide
- *   5. Execution Roadmap              — 30/60/90 table + Strategic Signals
+ *   0. Cover
+ *   1. Account Snapshot
+ *   2. Executive Summary (The Big Play)
+ *   3. How They Buy & Competing Priorities (Smart Drop)
+ *   4. White Space & Expansion (Smart Drop)
+ *   5. Influence Mapping (Smart Drop)
+ *   6+. Strategic Entry Points (paginated)
+ *   N. The Battlefield
+ *   N+1. Execution Roadmap
  *
  * Theming (Task 1 + Task 3):
  *   • Light slide master (white background, navy logo top-right,
@@ -30,8 +32,8 @@
  *   • Panel content uses inch-based vertical stacking (kicker → headline
  *     → body) so headers never collide with body copy.
  *   • breakLine:true, valign:'top', autoFit:false on all narrative blocks.
- *   • Slide 4 (Target Profiles) uses a locked 5%/42% | 53%/42% column
- *     grid with pptxgenjs rich-text runs per profile field.
+ *   • Slide 4+ (Target Profiles) paginates like the dossier PDF: slim
+ *     triple columns, roomier double columns, continuation subheader only.
  */
 
 import {
@@ -40,7 +42,11 @@ import {
     GPC_LOGO_WHITE,
     formatGpcFooterDate,
 } from './account-plan-export-brand.js';
-import { normalizePlan } from './account-plan-data.js';
+import { normalizePlan, getWhiteSpaceRows } from './account-plan-data.js';
+import {
+    getEntryPointLayoutMode,
+    planEntryPointPageRanges,
+} from './account-plan-entry-point-layout.js';
 import { TACTICAL_UX_LABELS, formatClientCommitmentsLabel } from './account-plan-sections.js';
 import { hasMeaningfulText, sanitizeStringArray } from './account-plan-export-templates.js';
 import { normalizePresentationHighlight } from './account-plan-presentation-ai.js';
@@ -180,10 +186,10 @@ const TENSION_BADGE_PALETTE = Object.freeze([
     { fill: stripHash(GPC_BRAND.navyDeep), text: 'FFFFFF' },
 ]);
 
-const MAX_PROFILES_PER_SLIDE = 2; // Mirrors the PDF dossier target-profile layout.
 const MAX_BLINDSPOTS = 8;
-const MAX_SIGNALS = 5;
+const MAX_SIGNALS = 8;
 const MAX_PLAN_BULLETS = 4;
+const MAX_WHITE_SPACE_ROWS = 4;
 
 // Document title — strictly "Strategic Account Plan" per the new brief.
 // Centralised so every chrome surface (cover, header runner, footer,
@@ -268,6 +274,7 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
     // -----------------------------------------------------------------
     /** @type {Array<(pageNum: number, totalSlides: number) => void>} */
     const contentSlideBuilders = [
+        (pageNum, totalSlides) => buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, totalSlides),
         (pageNum, totalSlides) => buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides),
     ];
     if (!isPsychologyTensionsSlideEmpty(ctx)) {
@@ -275,9 +282,21 @@ export async function generateExecPresentationPptx(plan, account, presentationHi
             (pageNum, totalSlides) => buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides)
         );
     }
+    if (!isWhiteSpaceSlideEmpty(ctx, highlight)) {
+        contentSlideBuilders.push(
+            (pageNum, totalSlides) => buildWhiteSpaceSlide(pptx, highlight, ctx, pageNum, totalSlides)
+        );
+    }
+    if (!isInfluenceSlideEmpty(ctx, highlight)) {
+        contentSlideBuilders.push(
+            (pageNum, totalSlides) => buildInfluenceMappingSlide(pptx, highlight, ctx, pageNum, totalSlides)
+        );
+    }
+    buildEntryPointsSlideBuilders(pptx, ctx, highlight).forEach((builder) => {
+        contentSlideBuilders.push(builder);
+    });
     contentSlideBuilders.push(
         (pageNum, totalSlides) => buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides),
-        (pageNum, totalSlides) => buildEntryPointsSlide(pptx, ctx, highlight, pageNum, totalSlides),
         (pageNum, totalSlides) => buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides),
     );
 
@@ -591,11 +610,20 @@ function resolvePptxPlanContext(plan) {
     const competitive = isPlainObject(sections.competitive_landscape) ? sections.competitive_landscape : {};
     const pursuit = isPlainObject(sections.pursuit_thesis) ? sections.pursuit_thesis : {};
     const plan306090 = isPlainObject(sections.plan_30_60_90) ? sections.plan_30_60_90 : {};
+    const snapshot = isPlainObject(sections.account_snapshot) ? sections.account_snapshot : {};
+    const whiteSpace = isPlainObject(sections.white_space) ? sections.white_space : {};
+    const influence = isPlainObject(sections.influence_mapping) ? sections.influence_mapping : {};
 
     return {
         score,
         momentumNarrative: momentum.narrative,
         psychology,
+        snapshot,
+        whiteSpace,
+        whiteSpaceRows: getWhiteSpaceRows(whiteSpace),
+        influence,
+        accessPath: isPlainObject(influence.access_path) ? influence.access_path : {},
+        exportSignals: extractExportSignals(sections),
         tensionPills: Array.isArray(tensions.selected_pills)
             ? tensions.selected_pills.map((p) => String(p ?? '').trim()).filter(Boolean)
             : [],
@@ -693,6 +721,156 @@ function extractBlindspotsFromSections(sections) {
 }
 
 /**
+ * Signals-only export rows from interaction_log (no CRM activities).
+ * @param {Record<string, unknown>} sections
+ * @returns {{ dateLabel: string, headline: string }[]}
+ */
+function extractExportSignals(sections) {
+    const log = Array.isArray(sections.interaction_log) ? sections.interaction_log : [];
+    /** @type {Map<string, { dateLabel: string, headline: string, dateMs: number }>} */
+    const byId = new Map();
+
+    log.forEach((entry) => {
+        if (!isPlainObject(entry)) return;
+        const source = entry.source != null ? String(entry.source).toLowerCase() : '';
+        if (source === 'activity' || source === 'crm') return;
+        const text = String(entry.text ?? entry.interaction ?? entry.key_insight ?? '').trim();
+        if (!text) return;
+        const id = entry.id != null ? String(entry.id) : crypto.randomUUID();
+        const dateMs = new Date(String(entry.date ?? '')).getTime();
+        const ms = Number.isNaN(dateMs) ? 0 : dateMs;
+        const existing = byId.get(id);
+        if (!existing || ms >= existing.dateMs) {
+            byId.set(id, {
+                dateLabel: formatShortDateLabel(entry.date),
+                headline: truncate(text, 140),
+                dateMs: ms,
+            });
+        }
+    });
+
+    return [...byId.values()]
+        .sort((a, b) => b.dateMs - a.dateMs)
+        .map(({ dateLabel, headline }) => ({ dateLabel, headline }));
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function formatShortDateLabel(value) {
+    const date = new Date(String(value ?? ''));
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ */
+function isWhiteSpaceSlideEmpty(ctx, highlight) {
+    const hook = highlight.slides.battlefield?.white_space;
+    if (hook && (String(hook.headline ?? '').trim() || String(hook.opportunity ?? '').trim())) {
+        return false;
+    }
+    const wedgeParts = [
+        ctx.whiteSpace.initial_entry,
+        ctx.whiteSpace.trust_creation,
+        ctx.whiteSpace.expansion_path,
+    ].map((v) => String(v ?? '').trim()).filter(Boolean);
+    if (wedgeParts.length > 0) return false;
+    return !ctx.whiteSpaceRows.some((row) => (
+        String(row.area ?? '').trim() || String(row.opportunity ?? '').trim()
+    ));
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ */
+function isInfluenceSlideEmpty(ctx, highlight) {
+    const hooks = highlight.slides.battlefield?.influence;
+    if (hooks && (
+        String(hooks.executive_hook ?? '').trim()
+        || String(hooks.champions_hook ?? '').trim()
+        || String(hooks.access_path_hook ?? '').trim()
+    )) {
+        return false;
+    }
+    const influence = ctx.influence;
+    const prose = [
+        influence.political_dynamics,
+        influence.invisible_org_chart,
+        ctx.accessPath.strategy,
+        ctx.accessPath.desired,
+        ctx.accessPath.bridge,
+        ctx.accessPath.current,
+    ].map((v) => String(v ?? '').trim()).filter(Boolean);
+    if (prose.length > 0) return false;
+    const tiers = ['executive', 'mid_level', 'technical'];
+    return !tiers.some((tier) => Array.isArray(influence[tier]) && influence[tier].length > 0);
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @returns {string[]}
+ */
+function resolvePainSignalBullets(ctx, highlight) {
+    const aiBullets = Array.isArray(highlight.slides.situation?.pain_signals?.bullets)
+        ? highlight.slides.situation.pain_signals.bullets
+            .map((b) => String(b ?? '').trim())
+            .filter(Boolean)
+        : [];
+    if (aiBullets.length > 0) return aiBullets.slice(0, 4);
+
+    const selected = Array.isArray(ctx.pursuit.operational_pain_selected)
+        ? ctx.pursuit.operational_pain_selected.map((p) => String(p ?? '').trim()).filter(Boolean)
+        : [];
+    const notes = String(ctx.pursuit.operational_pain_notes ?? '').trim();
+    const bullets = [...selected];
+    if (notes) bullets.push(truncate(notes, 120));
+    return bullets.slice(0, 4);
+}
+
+/**
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @returns {string}
+ */
+function resolveEntrenchmentMoat(ctx, highlight) {
+    const aiMoat = String(highlight.slides.execution?.entrenchment_moat ?? '').trim();
+    if (aiMoat) return aiMoat;
+
+    const moatPills = Array.isArray(ctx.competitive.moat_pills)
+        ? ctx.competitive.moat_pills.map((p) => String(p ?? '').trim()).filter(Boolean)
+        : [];
+    const narrative = String(ctx.competitive.difficult_to_remove ?? '').trim()
+        || String(ctx.competitive.compound_relationships ?? '').trim();
+    return [moatPills.join(', '), narrative].filter(Boolean).join(' — ');
+}
+
+/**
+ * @param {Record<string, unknown>} snapshot
+ * @returns {{ label: string, value: string }[]}
+ */
+function getFilledSnapshotStats(snapshot) {
+    const defs = [
+        { key: 'relationship_status', label: 'Relationship Status' },
+        { key: 'ai_cloud_maturity', label: 'AI / Cloud Maturity' },
+        { key: 'strategic_patience', label: 'Strategic Patience' },
+        { key: 'existing_providers', label: 'Existing Providers' },
+        { key: 'expansion_potential', label: 'Expansion Potential' },
+    ];
+    return defs
+        .map(({ key, label }) => ({
+            label,
+            value: String(snapshot[key] ?? '').trim(),
+        }))
+        .filter((item) => item.value);
+}
+
+/**
  * Resolve blindspots for the Battlefield slide — plan data first, then the
  * AI-synthesized critical_unknowns bullets from the presentation payload.
  *
@@ -720,7 +898,171 @@ function resolveBattlefieldBlindspots(ctx, highlight) {
 }
 
 // ---------------------------------------------------------------------------
-// Slide 1 — Executive Summary
+// Slide 1 — Account Snapshot
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {PptxGenJS} pptx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {{ name?: string, industry?: string, is_customer?: boolean } | null} account
+ * @param {number} pageNum
+ * @param {number} totalSlides
+ */
+function buildAccountSnapshotSlide(pptx, highlight, ctx, account, pageNum, totalSlides) {
+    const slide = addContentSlide(pptx);
+    addContentSlideChrome(slide, 'Account Snapshot', pageNum, totalSlides);
+
+    const accountContext = highlight.slides.situation?.account_context ?? {};
+    const tier = String(accountContext.tier ?? ctx.snapshot.tier ?? '').trim();
+    const priority = String(accountContext.priority ?? ctx.snapshot.pursuit_priority ?? '').trim();
+    const executiveNarrative = String(highlight.slides.situation?.executive_narrative ?? '').trim()
+        || String(ctx.pursuit.executive_narrative ?? '').trim();
+    const stats = getFilledSnapshotStats(ctx.snapshot);
+
+    const leftW = BODY_W * 0.62;
+    const rightW = BODY_W * 0.33;
+    const rightX = MARGIN_X + leftW + (BODY_W - leftW - rightW);
+
+    addPanel(slide, MARGIN_X, BODY_TOP, leftW, BODY_H);
+    const leftLayout = panelContentLayout(MARGIN_X, BODY_TOP, leftW, BODY_H);
+    addKicker(slide, (account?.name || highlight.account_name || 'Account').toUpperCase(), leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
+
+    const chipParts = [
+        account?.industry ? String(account.industry).trim() : '',
+        account?.is_customer === true ? 'Customer' : account?.is_customer === false ? 'Prospect' : '',
+    ].filter(Boolean);
+    if (chipParts.length > 0) {
+        slide.addText(chipParts.join('  ·  '), {
+            x: leftLayout.innerX,
+            y: leftLayout.headlineY,
+            w: leftLayout.innerW,
+            h: 0.28,
+            fontSize: TYPO.body,
+            color: THEME.secondary,
+            fontFace: THEME.font,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+    }
+
+    let bodyY = leftLayout.bodyY;
+    if (stats.length > 0) {
+        const statH = Math.min(1.35, leftLayout.bodyH * 0.34);
+        const colW = leftLayout.innerW / stats.length;
+        stats.forEach((stat, index) => {
+            const cellX = leftLayout.innerX + colW * index;
+            slide.addText(stat.label.toUpperCase(), {
+                x: cellX,
+                y: bodyY,
+                w: colW - 0.08,
+                h: 0.18,
+                fontSize: TYPO.kicker,
+                bold: true,
+                color: THEME.accent,
+                fontFace: THEME.font,
+                charSpacing: 1,
+                valign: 'top',
+                breakLine: true,
+                margin: 0,
+                autoFit: false,
+            });
+            slide.addText(truncate(stat.value, 90), {
+                x: cellX,
+                y: bodyY + 0.20,
+                w: colW - 0.08,
+                h: statH - 0.24,
+                fontSize: TYPO.body,
+                color: THEME.primary,
+                fontFace: THEME.font,
+                valign: 'top',
+                breakLine: true,
+                margin: 0,
+                autoFit: false,
+            });
+        });
+        bodyY += statH + 0.10;
+    }
+
+    if (executiveNarrative) {
+        addKicker(slide, 'EXECUTIVE NARRATIVE', leftLayout.innerX, bodyY, leftLayout.innerW);
+        slide.addText(executiveNarrative, {
+            x: leftLayout.innerX,
+            y: bodyY + 0.22,
+            w: leftLayout.innerW,
+            h: BODY_TOP + BODY_H - (bodyY + 0.22) - PANEL_BOTTOM_PAD,
+            ...BODY_TEXT_BASE,
+            lineSpacing: 16,
+            color: THEME.secondary,
+        });
+    } else if (stats.length === 0) {
+        slide.addText('Capture tier, priority, and strategic context in the Account Snapshot section.', {
+            x: leftLayout.innerX,
+            y: bodyY,
+            w: leftLayout.innerW,
+            h: 1.0,
+            ...BODY_TEXT_BASE,
+            italic: true,
+            color: THEME.softMuted,
+        });
+    }
+
+    addPanel(slide, rightX, BODY_TOP, rightW, BODY_H);
+    const rightInnerX = rightX + PANEL_PAD_X;
+    const rightInnerW = rightW - PANEL_PAD_X * 2;
+    addKicker(slide, 'PURSUIT CONTEXT', rightInnerX, BODY_TOP + PANEL_KICKER_Y_OFF, rightInnerW);
+
+    if (tier) {
+        slide.addText(tier.toUpperCase(), {
+            x: rightX,
+            y: BODY_TOP + 0.55,
+            w: rightW,
+            h: 0.55,
+            align: 'center',
+            fontSize: 18,
+            bold: true,
+            color: THEME.primary,
+            fontFace: THEME.font,
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+    }
+    if (priority) {
+        slide.addText(priority.toUpperCase(), {
+            x: rightInnerX,
+            y: BODY_TOP + (tier ? 1.15 : 0.70),
+            w: rightInnerW,
+            h: 0.40,
+            align: 'center',
+            fontSize: TYPO.subheader,
+            bold: true,
+            color: THEME.accent,
+            fontFace: THEME.font,
+            charSpacing: 1.5,
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+    }
+    if (!tier && !priority) {
+        slide.addText('Set Strategic Tier and Pursuit Priority in the plan canvas.', {
+            x: rightInnerX,
+            y: BODY_TOP + 0.70,
+            w: rightInnerW,
+            h: 1.0,
+            ...BODY_TEXT_BASE,
+            italic: true,
+            color: THEME.softMuted,
+            align: 'center',
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Slide 2 — Executive Summary (The Big Play)
 // ---------------------------------------------------------------------------
 // Geometry:
 //   • Left column  (Pursuit Thesis prose) — 60% of BODY_W
@@ -738,18 +1080,17 @@ function resolveBattlefieldBlindspots(ctx, highlight) {
  */
 function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) {
     const slide = addContentSlide(pptx);
-    addContentSlideChrome(slide, 'Executive Summary', pageNum, totalSlides);
+    addContentSlideChrome(slide, TACTICAL_UX_LABELS.pursuitThesis, pageNum, totalSlides);
 
     const leftW = BODY_W * 0.60;
     const rightW = BODY_W * 0.35;
     const gutter = BODY_W - leftW - rightW;
-    const rightX = MARGIN_X + leftW + gutter; // panel anchor (inch-based)
+    const rightX = MARGIN_X + leftW + gutter;
+    const painBullets = resolvePainSignalBullets(ctx, highlight);
+    const hasPain = painBullets.length > 0;
 
-    // -----------------------------------------------------------------
-    // LEFT COLUMN — Pursuit Thesis prose
-    // -----------------------------------------------------------------
     const pursuitHeadline = String(highlight.slides.situation?.pursuit_thesis?.headline ?? '').trim()
-        || TACTICAL_UX_LABELS.pursuitThesis;
+        || 'Why This Account Matters Now';
     const pursuitProse = resolvePursuitThesisProse(highlight, ctx);
     const actionForcing = ctx.actionForcingEvent;
 
@@ -759,9 +1100,10 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
     addHeadline(slide, pursuitHeadline, leftLayout.innerX, leftLayout.headlineY, leftLayout.innerW, PANEL_HEADLINE_H);
 
     const proseY = leftLayout.bodyY;
-    const proseH = actionForcing
-        ? leftLayout.bodyH * 0.72
-        : leftLayout.bodyH;
+    let proseH = leftLayout.bodyH;
+    if (actionForcing) proseH *= 0.58;
+    else if (hasPain) proseH *= 0.58;
+    else proseH *= 0.88;
 
     slide.addText(pursuitProse || 'No big play captured yet.', {
         x: leftLayout.innerX,
@@ -772,7 +1114,9 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
         lineSpacing: 16,
     });
 
+    let nextY = proseY + proseH + 0.06;
     if (actionForcing) {
+        const actionH = hasPain ? leftLayout.bodyH * 0.22 : leftLayout.bodyH * 0.30;
         slide.addText([
             {
                 text: `${TACTICAL_UX_LABELS.actionForcingEvent}:\n`,
@@ -793,13 +1137,28 @@ function buildExecutiveSummarySlide(pptx, highlight, ctx, pageNum, totalSlides) 
             },
         ], {
             x: leftLayout.innerX,
-            y: proseY + proseH + 0.06,
+            y: nextY,
             w: leftLayout.innerW,
-            h: leftLayout.bodyH - proseH - 0.10,
+            h: actionH,
             valign: 'top',
             breakLine: true,
             margin: 0,
             autoFit: false,
+        });
+        nextY += actionH + 0.06;
+    }
+
+    if (hasPain) {
+        addKicker(slide, 'PAIN SIGNALS', leftLayout.innerX, nextY, leftLayout.innerW);
+        addNativeBulletList(slide, painBullets, {
+            x: leftLayout.innerX,
+            y: nextY + 0.22,
+            w: leftLayout.innerW,
+            h: BODY_TOP + BODY_H - (nextY + 0.22) - PANEL_BOTTOM_PAD,
+            fontSize: TYPO.body,
+            lineSpacing: 14,
+            color: THEME.primary,
+            bulletColor: THEME.accent,
         });
     }
 
@@ -1170,7 +1529,185 @@ function buildPsychologyTensionsSlide(pptx, ctx, pageNum, totalSlides) {
 }
 
 // ---------------------------------------------------------------------------
-// Slide 3 — The Battlefield
+// White Space & Account Expansion
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {PptxGenJS} pptx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {number} pageNum
+ * @param {number} totalSlides
+ */
+function buildWhiteSpaceSlide(pptx, highlight, ctx, pageNum, totalSlides) {
+    const slide = addContentSlide(pptx);
+    addContentSlideChrome(slide, 'White Space & Account Expansion', pageNum, totalSlides);
+
+    const halfH = (BODY_H - GAP) / 2;
+    const topY = BODY_TOP;
+    const bottomY = BODY_TOP + halfH + GAP;
+
+    const wedgeParts = [
+        { label: 'Initial Entry', value: ctx.whiteSpace.initial_entry },
+        { label: 'Trust Creation', value: ctx.whiteSpace.trust_creation },
+        { label: 'Expansion Path', value: ctx.whiteSpace.expansion_path },
+    ].filter((part) => String(part.value ?? '').trim());
+
+    addPanel(slide, MARGIN_X, topY, BODY_W, halfH);
+    addKicker(slide, 'EXPANSION WEDGE', MARGIN_X + 0.30, topY + 0.18, BODY_W - 0.6);
+    if (wedgeParts.length > 0) {
+        const runs = [];
+        wedgeParts.forEach((part, index) => {
+            runs.push({
+                text: `${part.label}:\n`,
+                options: {
+                    bold: true,
+                    fontSize: TYPO.body,
+                    color: themeHex('accent'),
+                    fontFace: THEME.font,
+                },
+            });
+            runs.push({
+                text: index < wedgeParts.length - 1
+                    ? `${String(part.value).trim()}\n\n`
+                    : String(part.value).trim(),
+                options: {
+                    fontSize: TYPO.body,
+                    color: themeHex('secondary'),
+                    fontFace: THEME.font,
+                },
+            });
+        });
+        slide.addText(runs, {
+            x: MARGIN_X + 0.30,
+            y: topY + 0.55,
+            w: BODY_W - 0.60,
+            h: halfH - 0.75,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+    } else {
+        slide.addText('Document the expansion wedge in the White Space section.', {
+            x: MARGIN_X + 0.30,
+            y: topY + 0.55,
+            w: BODY_W - 0.60,
+            h: halfH - 0.75,
+            ...BODY_TEXT_BASE,
+            italic: true,
+            color: THEME.softMuted,
+        });
+    }
+
+    const hook = highlight.slides.battlefield?.white_space;
+    const hookHeadline = String(hook?.headline ?? 'Top White Space').trim();
+    const hookOpportunity = String(hook?.opportunity ?? '').trim();
+    const rankedRows = ctx.whiteSpaceRows
+        .filter((row) => String(row.area ?? '').trim() || String(row.opportunity ?? '').trim())
+        .slice(0, MAX_WHITE_SPACE_ROWS);
+
+    addPanel(slide, MARGIN_X, bottomY, BODY_W, halfH);
+    addKicker(slide, 'PRIORITY OPPORTUNITIES', MARGIN_X + 0.30, bottomY + 0.18, BODY_W - 0.6);
+    addHeadline(slide, hookHeadline, MARGIN_X + 0.30, bottomY + 0.38, BODY_W - 0.60, 0.34);
+
+    if (rankedRows.length > 0) {
+        const tableX = MARGIN_X + 0.25;
+        const tableY = bottomY + 0.78;
+        const tableW = BODY_W - 0.50;
+        const tableH = halfH - 1.00;
+        const headerRow = [
+            { text: 'AREA', options: { bold: true, color: 'FFFFFF', fill: { color: THEME.accent }, align: 'left', fontSize: 9, fontFace: THEME.font } },
+            { text: 'OPPORTUNITY', options: { bold: true, color: 'FFFFFF', fill: { color: THEME.accent }, align: 'left', fontSize: 9, fontFace: THEME.font } },
+            { text: 'IMPORTANCE', options: { bold: true, color: 'FFFFFF', fill: { color: THEME.accent }, align: 'center', fontSize: 9, fontFace: THEME.font } },
+        ];
+        const bodyRows = rankedRows.map((row) => ([
+            { text: truncate(String(row.area ?? '—'), 40), options: { fontSize: 10, color: THEME.primary, fontFace: THEME.font } },
+            { text: truncate(String(row.opportunity ?? '—'), 120), options: { fontSize: 10, color: THEME.secondary, fontFace: THEME.font } },
+            { text: truncate(String(row.operational_importance ?? '—'), 18), options: { fontSize: 10, color: THEME.primary, fontFace: THEME.font, align: 'center' } },
+        ]));
+        slide.addTable([headerRow, ...bodyRows], {
+            x: tableX,
+            y: tableY,
+            w: tableW,
+            h: tableH,
+            colW: [tableW * 0.22, tableW * 0.58, tableW * 0.20],
+            border: { type: 'solid', color: THEME.panelBorder, pt: 0.75 },
+            fontFace: THEME.font,
+            autoPage: false,
+        });
+    } else if (hookOpportunity) {
+        slide.addText(hookOpportunity, {
+            x: MARGIN_X + 0.30,
+            y: bottomY + 0.78,
+            w: BODY_W - 0.60,
+            h: halfH - 0.95,
+            ...BODY_TEXT_BASE,
+            lineSpacing: 16,
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Influence Mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {PptxGenJS} pptx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {number} pageNum
+ * @param {number} totalSlides
+ */
+function buildInfluenceMappingSlide(pptx, highlight, ctx, pageNum, totalSlides) {
+    const slide = addContentSlide(pptx);
+    addContentSlideChrome(slide, 'Influence Mapping', pageNum, totalSlides);
+
+    const hooks = highlight.slides.battlefield?.influence ?? {};
+    const columns = [
+        {
+            title: 'Executive Leadership',
+            copy: String(hooks.executive_hook ?? '').trim()
+                || String(ctx.influence.political_dynamics ?? ctx.influence.invisible_org_chart ?? '').trim(),
+        },
+        {
+            title: 'Mid-Level Champions',
+            copy: String(hooks.champions_hook ?? '').trim(),
+        },
+        {
+            title: 'Access Path',
+            copy: String(hooks.access_path_hook ?? '').trim()
+                || [
+                    ctx.accessPath.strategy,
+                    ctx.accessPath.desired,
+                    ctx.accessPath.bridge,
+                    ctx.accessPath.current,
+                ].map((v) => String(v ?? '').trim()).filter(Boolean)[0]
+                || '',
+        },
+    ];
+
+    const colW = (BODY_W - GAP * 2) / 3;
+    columns.forEach((column, index) => {
+        const x = MARGIN_X + index * (colW + GAP);
+        addPanel(slide, x, BODY_TOP, colW, BODY_H);
+        const layout = panelContentLayout(x, BODY_TOP, colW, BODY_H);
+        addKicker(slide, column.title.toUpperCase(), layout.innerX, layout.kickerY, layout.innerW);
+        slide.addText(column.copy || 'Not captured yet.', {
+            x: layout.innerX,
+            y: layout.bodyY,
+            w: layout.innerW,
+            h: layout.bodyH,
+            ...BODY_TEXT_BASE,
+            italic: !column.copy,
+            color: column.copy ? THEME.secondary : THEME.softMuted,
+            lineSpacing: 16,
+        });
+    });
+}
+
+// ---------------------------------------------------------------------------
+// The Battlefield
 // ---------------------------------------------------------------------------
 // Two equal-width columns:
 //   • LEFT  — Competitive landscape narrative (prose + AI bullets)
@@ -1190,6 +1727,11 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
 
     const blindspotItems = resolveBattlefieldBlindspots(ctx, highlight);
     const hasBlindspots = blindspotItems.length > 0;
+    const moatText = resolveEntrenchmentMoat(ctx, highlight);
+    const hasMoat = Boolean(moatText);
+    const moatBandH = hasMoat ? 0.95 : 0;
+    const mainH = hasMoat ? BODY_H - moatBandH - GAP : BODY_H;
+    const moatY = BODY_TOP + mainH + GAP;
 
     const aiBullets = Array.isArray(highlight.slides.battlefield?.competitive?.bullets)
         ? highlight.slides.battlefield.competitive.bullets
@@ -1215,8 +1757,8 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
         const leftX = MARGIN_X;
         const rightX = MARGIN_X + colW + GAP;
 
-        addPanel(slide, leftX, BODY_TOP, colW, BODY_H);
-        const leftLayout = panelContentLayout(leftX, BODY_TOP, colW, BODY_H);
+        addPanel(slide, leftX, BODY_TOP, colW, mainH);
+        const leftLayout = panelContentLayout(leftX, BODY_TOP, colW, mainH);
         addKicker(slide, 'COMPETITIVE LANDSCAPE', leftLayout.innerX, leftLayout.kickerY, leftLayout.innerW);
         addHeadline(slide, competitiveHeadline, leftLayout.innerX, leftLayout.headlineY, leftLayout.innerW, PANEL_HEADLINE_H);
         addNativeBulletList(slide, competitiveBullets, {
@@ -1231,8 +1773,8 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
             emptyText: 'No competitive landscape captured yet.',
         });
 
-        addPanel(slide, rightX, BODY_TOP, colW, BODY_H);
-        const rightLayout = panelContentLayout(rightX, BODY_TOP, colW, BODY_H);
+        addPanel(slide, rightX, BODY_TOP, colW, mainH);
+        const rightLayout = panelContentLayout(rightX, BODY_TOP, colW, mainH);
         addKicker(slide, 'THE BLINDSPOTS', rightLayout.innerX, rightLayout.kickerY, rightLayout.innerW);
         addHeadline(slide, 'Questions we must answer next', rightLayout.innerX, rightLayout.headlineY, rightLayout.innerW, PANEL_HEADLINE_H);
         addNativeBulletList(slide, blindspotItems, {
@@ -1245,48 +1787,100 @@ function buildBattlefieldSlide(pptx, highlight, ctx, pageNum, totalSlides) {
             color: THEME.primary,
             bullet: true,
         });
-        return;
+    } else {
+        addPanel(slide, MARGIN_X, BODY_TOP, BODY_W, mainH);
+        const fullLayout = panelContentLayout(MARGIN_X, BODY_TOP, BODY_W, mainH);
+        addKicker(slide, 'COMPETITIVE LANDSCAPE', fullLayout.innerX, fullLayout.kickerY, fullLayout.innerW);
+        addHeadline(slide, competitiveHeadline, fullLayout.innerX, fullLayout.headlineY, fullLayout.innerW, PANEL_HEADLINE_H);
+        addNativeBulletList(slide, competitiveBullets, {
+            x: fullLayout.innerX,
+            y: fullLayout.bodyY,
+            w: fullLayout.innerW,
+            h: fullLayout.bodyH,
+            fontSize: TYPO.body,
+            lineSpacing: 16,
+            color: THEME.primary,
+            bulletColor: THEME.accent,
+            emptyText: 'No competitive landscape captured yet.',
+        });
     }
 
-    // No blindspots — expand competitive narrative to full slide width.
-    addPanel(slide, MARGIN_X, BODY_TOP, BODY_W, BODY_H);
-    const fullLayout = panelContentLayout(MARGIN_X, BODY_TOP, BODY_W, BODY_H);
-    addKicker(slide, 'COMPETITIVE LANDSCAPE', fullLayout.innerX, fullLayout.kickerY, fullLayout.innerW);
-    addHeadline(slide, competitiveHeadline, fullLayout.innerX, fullLayout.headlineY, fullLayout.innerW, PANEL_HEADLINE_H);
-    addNativeBulletList(slide, competitiveBullets, {
-        x: '5%',
-        y: fullLayout.bodyY,
-        w: '90%',
-        h: fullLayout.bodyH,
-        fontSize: TYPO.body,
-        lineSpacing: 16,
-        color: THEME.primary,
-        bulletColor: THEME.accent,
-        emptyText: 'No competitive landscape captured yet.',
-    });
+    if (hasMoat) {
+        addPanel(slide, MARGIN_X, moatY, BODY_W, moatBandH);
+        addKicker(slide, TACTICAL_UX_LABELS.incumbentGrip.toUpperCase(), MARGIN_X + 0.30, moatY + 0.12, BODY_W - 0.60);
+        slide.addText(truncate(moatText, 260), {
+            x: MARGIN_X + 0.30,
+            y: moatY + 0.34,
+            w: BODY_W - 0.60,
+            h: moatBandH - 0.42,
+            ...BODY_TEXT_BASE,
+            color: THEME.secondary,
+            lineSpacing: 15,
+        });
+    }
 }
 
 // ---------------------------------------------------------------------------
-// Slide 4 — Strategic Entry Points (single 2-up slide)
+// Slide 4+ — Strategic Entry Points (paginated)
 // ---------------------------------------------------------------------------
 
 /**
- * Strategic Entry Points — exactly ONE slide with two percent columns.
- * entry_points[0] → left (5%), entry_points[1] → right (53%). Additional
- * profiles are ignored for the exec readout (no addSlide pagination).
- *
  * @param {PptxGenJS} pptx
  * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
  * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @returns {Array<(pageNum: number, totalSlides: number) => void>}
+ */
+function buildEntryPointsSlideBuilders(pptx, ctx, highlight) {
+    const rawPoints = ctx.rawEntryPoints
+        .filter(isPlainObject)
+        .filter((point) => String(point.contact_name ?? '').trim());
+
+    if (rawPoints.length === 0) {
+        return [(pageNum, totalSlides) => {
+            buildEntryPointsSlidePage(
+                pptx,
+                ctx,
+                highlight,
+                [],
+                { start: 0, count: 0 },
+                false,
+                pageNum,
+                totalSlides
+            );
+        }];
+    }
+
+    return planEntryPointPageRanges(rawPoints.length).map((range, pageIndex) => (
+        (pageNum, totalSlides) => {
+            buildEntryPointsSlidePage(
+                pptx,
+                ctx,
+                highlight,
+                rawPoints,
+                range,
+                pageIndex > 0,
+                pageNum,
+                totalSlides
+            );
+        }
+    ));
+}
+
+/**
+ * @param {PptxGenJS} pptx
+ * @param {ReturnType<typeof resolvePptxPlanContext>} ctx
+ * @param {import('./account-plan-presentation-types.js').PresentationHighlight} highlight
+ * @param {Record<string, unknown>[]} rawPoints
+ * @param {{ start: number, count: number }} range
+ * @param {boolean} continued
  * @param {number} pageNum
  * @param {number} totalSlides
  */
-function buildEntryPointsSlide(pptx, ctx, highlight, pageNum, totalSlides) {
+function buildEntryPointsSlidePage(pptx, ctx, highlight, rawPoints, range, continued, pageNum, totalSlides) {
     const slide = addContentSlide(pptx);
-    addContentSlideChrome(slide, 'Strategic Entry Points', pageNum, totalSlides);
+    addContentSlideChrome(slide, 'Strategic Entry Points', pageNum, totalSlides, continued);
 
-    const rawPoints = ctx.rawEntryPoints.filter(isPlainObject);
-    if (rawPoints.length === 0) {
+    if (rawPoints.length === 0 || range.count === 0) {
         slide.addText('No target profiles captured yet — open the Strategic Entry Points carousel in the plan canvas.', {
             x: '5%',
             y: '28%',
@@ -1300,17 +1894,54 @@ function buildEntryPointsSlide(pptx, ctx, highlight, pageNum, totalSlides) {
         return;
     }
 
-    // Hard-bind both columns on this single slide object — never loop addSlide.
-    const columns = [
-        { x: '5%', w: '42%', point: rawPoints[0] },
-        { x: '53%', w: '42%', point: rawPoints[1] },
-    ];
+    const pagePoints = rawPoints.slice(range.start, range.start + range.count);
+    const layoutMode = getEntryPointLayoutMode(pagePoints.length);
+    const columns = getEntryPointColumnLayout(pagePoints.length);
 
     columns.forEach((col, index) => {
-        if (!isPlainObject(col.point)) return;
-        const profile = mapEntryPointToProfile(col.point, index, highlight);
-        renderEntryProfileColumnPercent(slide, profile, col.x, col.w);
+        const point = pagePoints[index];
+        if (!isPlainObject(point)) return;
+        const profile = mapEntryPointToProfile(point, range.start + index, highlight);
+        renderEntryProfileColumnPercent(slide, profile, col.x, col.w, layoutMode);
     });
+}
+
+/**
+ * @param {number} profileCount
+ * @returns {{ x: string, w: string }[]}
+ */
+function getEntryPointColumnLayout(profileCount) {
+    if (profileCount === 1) {
+        return [{ x: '5%', w: '90%' }];
+    }
+    if (profileCount === 2) {
+        return [
+            { x: '5%', w: '42%' },
+            { x: '53%', w: '42%' },
+        ];
+    }
+    if (profileCount === 3) {
+        return [
+            { x: '4%', w: '28%' },
+            { x: '35%', w: '28%' },
+            { x: '66%', w: '28%' },
+        ];
+    }
+    return [{ x: '5%', w: '90%' }];
+}
+
+/**
+ * @param {'slim' | 'roomy' | 'default'} layoutMode
+ * @returns {{ name: number, kicker: number, body: number, bodyLineSpacing: number }}
+ */
+function getEntryPointTypography(layoutMode) {
+    if (layoutMode === 'slim') {
+        return { name: 11, kicker: 8, body: 9, bodyLineSpacing: 13 };
+    }
+    if (layoutMode === 'roomy') {
+        return { name: TYPO.subheader, kicker: TYPO.kicker, body: TYPO.body, bodyLineSpacing: 16 };
+    }
+    return { name: TYPO.subheader, kicker: TYPO.kicker, body: TYPO.body, bodyLineSpacing: 16 };
 }
 
 /**
@@ -1329,8 +1960,10 @@ function mapEntryPointToProfile(point, index, highlight) {
     const aiMatch = aiByName.get(name.toLowerCase());
     return {
         name,
+        why_they_matter: String(point.why_they_matter ?? '').trim(),
         operational_pain: String(point.operational_pain ?? '').trim(),
         conversation_wedge: String(point.conversation_wedge ?? '').trim(),
+        next_move: String(point.next_move ?? '').trim(),
         human_context: String(point.human_context ?? '').trim(),
         badges: aiMatch ? String(aiMatch.badges ?? '').trim() : '',
     };
@@ -1343,8 +1976,10 @@ function mapEntryPointToProfile(point, index, highlight) {
  * @param {ReturnType<typeof mapEntryPointToProfile>} profile
  * @param {string} colX
  * @param {string} colW
+ * @param {'slim' | 'roomy' | 'default'} [layoutMode='default']
  */
-function renderEntryProfileColumnPercent(slide, profile, colX, colW) {
+function renderEntryProfileColumnPercent(slide, profile, colX, colW, layoutMode = 'default') {
+    const type = getEntryPointTypography(layoutMode);
     addPanel(slide, colX, '14%', colW, '78%');
 
     let bodyY = '20%';
@@ -1353,7 +1988,7 @@ function renderEntryProfileColumnPercent(slide, profile, colX, colW) {
         y: '15%',
         w: colW,
         h: '5%',
-        fontSize: TYPO.subheader,
+        fontSize: type.name,
         bold: true,
         color: THEME.primary,
         fontFace: THEME.font,
@@ -1366,10 +2001,10 @@ function renderEntryProfileColumnPercent(slide, profile, colX, colW) {
     if (profile.badges) {
         slide.addText(profile.badges.toUpperCase(), {
             x: colX,
-            y: '19%',
+            y: layoutMode === 'slim' ? '18.5%' : '19%',
             w: colW,
             h: '4%',
-            fontSize: TYPO.kicker,
+            fontSize: type.kicker,
             bold: true,
             color: THEME.secondary,
             fontFace: THEME.font,
@@ -1379,10 +2014,10 @@ function renderEntryProfileColumnPercent(slide, profile, colX, colW) {
             margin: 0,
             autoFit: false,
         });
-        bodyY = '24%';
+        bodyY = layoutMode === 'slim' ? '23%' : '24%';
     }
 
-    slide.addText(buildEntryProfileRichRuns(profile), {
+    slide.addText(buildEntryProfileRichRuns(profile, type), {
         x: colX,
         y: bodyY,
         w: colW,
@@ -1398,14 +2033,21 @@ function renderEntryProfileColumnPercent(slide, profile, colX, colW) {
  * Build pptxgenjs rich-text runs for one target profile column.
  *
  * @param {ReturnType<typeof mapEntryPointToProfile>} profile
+ * @param {{ name: number, kicker: number, body: number, bodyLineSpacing: number }} [type]
  * @returns {import('pptxgenjs').TextProps[]}
  */
-function buildEntryProfileRichRuns(profile) {
+function buildEntryProfileRichRuns(profile, type = getEntryPointTypography('default')) {
     const sections = [
+        { label: 'Why They Matter', value: profile.why_they_matter },
         { label: 'Operational Pain', value: profile.operational_pain },
         { label: 'Conversation Wedge', value: profile.conversation_wedge },
+        { label: 'Next Move', value: profile.next_move },
         { label: TACTICAL_UX_LABELS.humanContext, value: profile.human_context },
-    ];
+    ].filter((section) => String(section.value ?? '').trim());
+
+    if (sections.length === 0) {
+        sections.push({ label: 'Profile', value: '' });
+    }
 
     const runs = [];
     sections.forEach((section, index) => {
@@ -1414,7 +2056,7 @@ function buildEntryProfileRichRuns(profile) {
             text: `${section.label}:\n`,
             options: {
                 bold: true,
-                fontSize: TYPO.body,
+                fontSize: type.body,
                 color: themeHex('accent'),
                 fontFace: THEME.font,
             },
@@ -1422,7 +2064,7 @@ function buildEntryProfileRichRuns(profile) {
         runs.push({
             text: index < sections.length - 1 ? `${body}\n\n` : body,
             options: {
-                fontSize: TYPO.body,
+                fontSize: type.body,
                 color: themeHex('secondary'),
                 fontFace: THEME.font,
                 italic: body === '—',
@@ -1564,7 +2206,14 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
             .slice(0, MAX_SIGNALS)
         : [];
 
-    if (signals.length === 0) {
+    const resolvedSignals = signals.length > 0
+        ? signals
+        : ctx.exportSignals.slice(0, MAX_SIGNALS).map((entry) => ({
+            date_label: entry.dateLabel,
+            headline: entry.headline,
+        }));
+
+    if (resolvedSignals.length === 0) {
         slide.addText('No recent strategic signals — log one from the Interaction Log to surface it here.', {
             x: '4%',
             y: '72%',
@@ -1582,7 +2231,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
     const signalsY = bottomY + 0.55;
     const signalsH = bottomY + bottomH - signalsY - 0.22;
 
-    const runs = signals.map((signal, idx) => {
+    const runs = resolvedSignals.map((signal, idx) => {
         const dateLabel = String(signal.date_label ?? '').trim();
         const headline = String(signal.headline ?? '').trim();
         const line = dateLabel ? `${dateLabel.toUpperCase()}  ${headline}` : headline;
@@ -1590,7 +2239,7 @@ function buildExecutionRoadmapSlide(pptx, highlight, ctx, pageNum, totalSlides) 
             text: line,
             options: {
                 bullet: { code: '2022', color: THEME.accent },
-                breakLine: idx < signals.length - 1,
+                breakLine: idx < resolvedSignals.length - 1,
                 color: THEME.primary,
                 fontSize: TYPO.body,
                 fontFace: THEME.font,
@@ -1657,13 +2306,14 @@ function addContentSlide(pptx) {
  * @param {number} pageNum
  * @param {number} totalSlides
  */
-function addContentSlideChrome(slide, slideTitle, pageNum, totalSlides) {
-    // Slide-specific title.
+function addContentSlideChrome(slide, slideTitle, pageNum, totalSlides, continued = false) {
+    // Slide-specific title — never append "(continued)" here; that lives in
+    // the subheader kicker below, mirroring the dossier PDF running head.
     slide.addText(slideTitle, {
         x: '4%',
         y: '7%',
         w: '78%',
-        h: '6%',
+        h: continued ? '4%' : '6%',
         fontSize: TYPO.header,
         bold: true,
         color: THEME.primary,
@@ -1673,6 +2323,24 @@ function addContentSlideChrome(slide, slideTitle, pageNum, totalSlides) {
         margin: 0,
         autoFit: false,
     });
+
+    if (continued) {
+        slide.addText('(continued)', {
+            x: '4%',
+            y: '11.5%',
+            w: '78%',
+            h: '3%',
+            fontSize: TYPO.kicker,
+            bold: true,
+            color: THEME.secondary,
+            fontFace: THEME.font,
+            charSpacing: 1.5,
+            valign: 'top',
+            breakLine: true,
+            margin: 0,
+            autoFit: false,
+        });
+    }
 
     // Accent rule under the title — brand teal, slightly thicker than
     // the footer hairline so the eye reads it as a "section open" cue.

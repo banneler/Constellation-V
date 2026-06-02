@@ -9,6 +9,10 @@
 // the surrounding template literal). Bump the version any time we need
 // to force every client to drop a stale templates module.
 import {
+    getEntryPointPdfLayoutModifier,
+    planEntryPointPageRanges,
+} from './account-plan-entry-point-layout.js';
+import {
     buildDossierTemplate,
     buildGpcCoverPage,
     buildDossierContentPage,
@@ -259,85 +263,6 @@ function paginateDossierSections(sectionBlocks, meta, exportRoot) {
 }
 
 /**
- * Deterministic entry-point page plan:
- * - 1–3 profiles: one page (3 uses slim layout)
- * - 4 profiles: 2 + 2 (roomier layout)
- * - 5 profiles: 3 slim + 2 roomier
- * - 6 profiles: 3 slim + 3 slim
- * - 7+: triple stacks, then 4→2+2, 3/2/1 tail rules
- * @param {number} totalProfiles
- * @returns {{ start: number, count: number }[]}
- */
-function planEntryPointPageRanges(totalProfiles) {
-    if (totalProfiles <= 0) return [];
-    if (totalProfiles <= 3) return [{ start: 0, count: totalProfiles }];
-    if (totalProfiles === 4) {
-        return [{ start: 0, count: 2 }, { start: 2, count: 2 }];
-    }
-    if (totalProfiles === 5) {
-        return [{ start: 0, count: 3 }, { start: 3, count: 2 }];
-    }
-    if (totalProfiles === 6) {
-        return [{ start: 0, count: 3 }, { start: 3, count: 3 }];
-    }
-
-    /** @type {{ start: number, count: number }[]} */
-    const ranges = [];
-    let start = 0;
-    let remaining = totalProfiles;
-
-    while (remaining > 0) {
-        if (remaining > 6) {
-            ranges.push({ start, count: 3 });
-            start += 3;
-            remaining -= 3;
-            continue;
-        }
-
-        if (remaining === 6) {
-            ranges.push({ start, count: 3 }, { start: start + 3, count: 3 });
-            break;
-        }
-        if (remaining === 5) {
-            ranges.push({ start, count: 3 }, { start: start + 3, count: 2 });
-            break;
-        }
-        if (remaining === 4) {
-            ranges.push({ start, count: 2 }, { start: start + 2, count: 2 });
-            break;
-        }
-        if (remaining === 3) {
-            ranges.push({ start, count: 3 });
-            break;
-        }
-        if (remaining === 2) {
-            ranges.push({ start, count: 2 });
-            break;
-        }
-
-        const prev = ranges[ranges.length - 1];
-        if (prev && prev.count < 3) {
-            prev.count += 1;
-        } else {
-            ranges.push({ start, count: 1 });
-        }
-        break;
-    }
-
-    return ranges;
-}
-
-/**
- * @param {number} profileCount
- * @returns {string | null}
- */
-function getEntryPointLayoutModifier(profileCount) {
-    if (profileCount === 3) return 'ap-export-target-profiles-body--per-page-3';
-    if (profileCount === 2 || profileCount === 4) return 'ap-export-target-profiles-body--per-page-2';
-    return null;
-}
-
-/**
  * Pack entry-point profiles using fixed layout rules per profile count.
  * @param {HTMLElement} block
  * @returns {HTMLElement[][]}
@@ -473,7 +398,7 @@ function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, 
     const container = document.createElement('div');
     container.className = stackClass;
     if (stackClass.includes('ap-export-target-profiles-body')) {
-        const layoutModifier = getEntryPointLayoutModifier(units.length);
+        const layoutModifier = getEntryPointPdfLayoutModifier(units.length);
         if (layoutModifier) {
             container.classList.add(layoutModifier);
         }
