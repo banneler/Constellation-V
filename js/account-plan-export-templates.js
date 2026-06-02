@@ -2453,14 +2453,15 @@ export function buildGpcCoverPage(meta) {
         <div class="ap-export-gpc-cover-bg" aria-hidden="true">
             <div class="ap-export-gpc-cover-art"></div>
         </div>
+        <div class="ap-export-gpc-cover-corner" aria-hidden="true"></div>
         <img class="ap-export-gpc-logo ap-export-gpc-logo--cover" src="${GPC_LOGO_WHITE}" alt="Great Plains Communications" crossorigin="anonymous" />
         <div class="ap-export-gpc-cover-body">
-            <div class="ap-export-gpc-cover-title-frame">
-                <h1 class="ap-export-gpc-cover-title">${escapeHtml(meta.accountName)}</h1>
-            </div>
-            <p class="ap-export-gpc-cover-subtitle">${escapeHtml(PLAN_SUMMARY_DOCUMENT_TITLE)}</p>
+            <span class="ap-export-gpc-cover-accent-bar" aria-hidden="true"></span>
+            <h1 class="ap-export-gpc-cover-title">${escapeHtml(meta.accountName)}</h1>
+            <p class="ap-export-gpc-cover-subtitle">${escapeHtml(DOSSIER_RUNNING_DOC_LABEL.toUpperCase())}</p>
             <p class="ap-export-gpc-cover-date">${escapeHtml(meta.dateLabel)}</p>
-        </div>`;
+        </div>
+        <p class="ap-export-gpc-cover-footer">${escapeHtml(GPC_BRAND.companyName.toUpperCase())}</p>`;
     return page;
 }
 
@@ -2944,32 +2945,63 @@ export function ensureExportTemplateStyles() {
             right: 50%;
             top: 50%;
             transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
         }
-        .ap-export-gpc-cover-title-frame {
-            border: 2px solid ${GPC_BRAND.white};
-            padding: 18px 22px;
-            margin-bottom: 18px;
-            max-width: 520px;
+        .ap-export-gpc-cover-corner {
+            position: absolute;
+            left: 40px;
+            top: 36px;
+            width: 72px;
+            height: 72px;
+            border-top: 1.25px solid rgba(255, 255, 255, 0.82);
+            border-left: 1.25px solid rgba(255, 255, 255, 0.82);
             box-sizing: border-box;
+            pointer-events: none;
+        }
+        .ap-export-gpc-cover-accent-bar {
+            display: block;
+            width: 113px;
+            height: 9px;
+            background: ${GPC_BRAND.teal};
+            margin: 0 0 14px;
+            flex-shrink: 0;
         }
         .ap-export-gpc-cover-title {
             margin: 0;
-            font-size: 34px;
+            font-size: 44px;
             line-height: 1.15;
             font-weight: 700;
+            font-family: ${GPC_BRAND.fontHeading};
         }
         .ap-export-gpc-cover-subtitle {
-            margin: 0 0 10px;
-            font-size: 22px;
+            margin: 14px 0 0;
+            font-size: 14px;
             line-height: 1.25;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
             color: ${GPC_BRAND.lime};
-            font-family: ${GPC_BRAND.fontBody};
+            font-family: ${GPC_BRAND.fontHeading};
         }
         .ap-export-gpc-cover-date {
-            margin: 0;
-            font-size: 14px;
-            color: rgba(255,255,255,0.82);
+            margin: 8px 0 0;
+            font-size: 11px;
+            color: #CBD5E1;
             font-family: ${GPC_BRAND.fontBody};
+        }
+        .ap-export-gpc-cover-footer {
+            position: absolute;
+            left: 56px;
+            bottom: 42px;
+            margin: 0;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: #CBD5E1;
+            font-family: ${GPC_BRAND.fontHeading};
         }
 
         /* --- GPC dossier content pages --- */
