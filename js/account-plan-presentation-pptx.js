@@ -125,6 +125,11 @@ const THEME = Object.freeze({
 /** PptxGenJS defaults to a visible outline unless line.type is explicitly 'none'. */
 const SHAPE_NO_LINE = Object.freeze({ type: 'none' });
 
+/** Explicit solid fills — avoids subtle rect vs rtTriangle rendering differences. */
+const COVER_TEAL_FILL = Object.freeze({ type: 'solid', color: THEME.accent });
+const COVER_NAVY_FILL = Object.freeze({ type: 'solid', color: THEME.accentDark });
+const COVER_LIME_FILL = Object.freeze({ type: 'solid', color: THEME.accentAlt });
+
 // Strict typographic scale — every content slide honors these sizes so
 // PowerPoint never inflates body copy past the bounding box.
 const TYPO = Object.freeze({
@@ -469,33 +474,34 @@ function addCoverGeometricArt(slide) {
     const NAVY_TRI_X = 7.0;
     const TRI_W = 3.5;
     const BAND_W = TEAL_TRI_X - NAVY_TRI_X;
-    const OVERLAP = 0.05;
+    // Tiny overlap at the rect↔triangle join hides sub-pixel seams in PowerPoint.
+    const SEAM = 0.02;
 
-    // 1. TEAL BASE — vertical band + matching hypotenuse (right-side art only).
+    // 1. TEAL BASE — vertical stub + hypotenuse share one fill and meet at TEAL_TRI_X.
     slide.addShape('rect', {
         x: NAVY_TRI_X,
         y: 0,
-        w: BAND_W + OVERLAP,
+        w: BAND_W + SEAM,
         h: SLIDE_H,
-        fill: { color: THEME.accent },
+        fill: COVER_TEAL_FILL,
         line: SHAPE_NO_LINE,
     });
     slide.addShape('rtTriangle', {
-        x: TEAL_TRI_X - OVERLAP / 2,
+        x: TEAL_TRI_X,
         y: 0,
-        w: TRI_W + OVERLAP,
+        w: TRI_W,
         h: SLIDE_H,
-        fill: { color: THEME.accent },
+        fill: COVER_TEAL_FILL,
         line: SHAPE_NO_LINE,
     });
 
-    // 2. NAVY DEEP OVERLAY — identical triangle width offset left by BAND_W.
+    // 2. NAVY DEEP OVERLAY — same triangle geometry, offset left by BAND_W.
     slide.addShape('rtTriangle', {
-        x: NAVY_TRI_X - OVERLAP / 2,
+        x: NAVY_TRI_X,
         y: 0,
-        w: TRI_W + OVERLAP,
+        w: TRI_W,
         h: SLIDE_H,
-        fill: { color: THEME.accentDark },
+        fill: COVER_NAVY_FILL,
         line: SHAPE_NO_LINE,
     });
 
@@ -505,7 +511,7 @@ function addCoverGeometricArt(slide) {
         y: 2.8,
         w: 2.533,
         h: 4.7,
-        fill: { color: THEME.accentAlt },
+        fill: COVER_LIME_FILL,
         flipH: true,
         line: SHAPE_NO_LINE,
     });
