@@ -2990,7 +2990,7 @@ export function ensureExportTemplateStyles() {
             width: 96px;
             height: auto;
             flex-shrink: 0;
-            transform: translateY(-4px);
+            transform: translateY(-7px);
         }
         .ap-export-gpc-running {
             display: flex;
@@ -3053,7 +3053,7 @@ export function ensureExportTemplateStyles() {
             position: absolute;
             left: 48px;
             right: 48px;
-            top: 92px;
+            top: 94px;
             bottom: 58px;
             overflow: hidden;
             /*
@@ -3137,10 +3137,10 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-client-commitments-body {
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
-            margin-top: 6px;
+            margin-top: 10px;
         }
         .ap-export-dossier-body--editorial {
             color: #1e293b;
@@ -3346,7 +3346,7 @@ export function ensureExportTemplateStyles() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-battlefield-panel {
             border: 1px solid #e2e8f0;
@@ -3371,15 +3371,15 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-editorial-prose {
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-editorial-prose .ap-export-editorial-kicker:not(:first-child) {
-            margin-top: 10px;
-            padding-top: 10px;
+            margin-top: 14px;
+            padding-top: 14px;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-pursuit-with-pain-body > .ap-export-editorial-prose--pursuit-pain {
-            margin-top: 14px;
+            margin-top: 16px;
         }
         .ap-export-pursuit-with-pain-body {
             display: flex;
@@ -3387,11 +3387,11 @@ export function ensureExportTemplateStyles() {
             gap: 8px;
         }
         .ap-export-pursuit-with-pain-body .ap-export-editorial-grid {
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-blindspots-body {
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-blindspots-list {
             margin: 0;
@@ -3429,7 +3429,7 @@ export function ensureExportTemplateStyles() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-editorial-grid--2 {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3458,21 +3458,21 @@ export function ensureExportTemplateStyles() {
             grid-column: 1 / -1;
             border-right: none !important;
             margin-right: 0 !important;
-            margin-top: 14px;
-            padding: 14px 0 0;
+            margin-top: 16px;
+            padding: 18px 0 0;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-editorial-influence-tier.ap-export-editorial-span-full {
             grid-column: 1 / -1;
-            margin-top: 14px;
-            padding: 14px 0 0;
+            margin-top: 16px;
+            padding: 18px 0 0;
             border-top: 1px solid #e2e8f0;
             padding-right: 0;
         }
         .ap-export-editorial-grid.ap-export-editorial-span-full {
             grid-column: 1 / -1;
-            margin-top: 14px;
-            padding-top: 14px;
+            margin-top: 16px;
+            padding-top: 18px;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-editorial-influence {
@@ -3480,7 +3480,7 @@ export function ensureExportTemplateStyles() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-editorial-influence-tier > .ap-export-editorial-kicker:first-child {
             margin-top: 0;
@@ -3506,7 +3506,7 @@ export function ensureExportTemplateStyles() {
             flex-direction: column;
             gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-snapshot-hero {
             display: flex;
@@ -3696,7 +3696,7 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-white-space-wrap {
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
             overflow: hidden;
         }
         .ap-export-account-expansion-body {
@@ -3847,7 +3847,7 @@ export function ensureExportTemplateStyles() {
             flex-direction: column;
             gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 14px;
+            padding-top: 18px;
         }
         .ap-export-target-profile {
             page-break-inside: avoid;
