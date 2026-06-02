@@ -127,9 +127,53 @@ function stripCodeFences(text: string): string {
   return match ? match[1].trim() : trimmed;
 }
 
-function parseHighlightJson(raw: string): unknown {
+function extractJsonObject(raw: string): string {
   const cleaned = stripCodeFences(raw);
-  return JSON.parse(cleaned);
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
+    return cleaned;
+  }
+  return cleaned.slice(start, end + 1);
+}
+
+function repairJsonCandidate(raw: string): string {
+  let candidate = extractJsonObject(raw);
+  candidate = candidate.replace(/,\s*([}\]])/g, "$1");
+
+  const openBraces = (candidate.match(/{/g) || []).length;
+  const closeBraces = (candidate.match(/}/g) || []).length;
+  const openBrackets = (candidate.match(/\[/g) || []).length;
+  const closeBrackets = (candidate.match(/]/g) || []).length;
+
+  for (let i = 0; i < openBrackets - closeBrackets; i++) {
+    candidate += "]";
+  }
+  for (let i = 0; i < openBraces - closeBraces; i++) {
+    candidate += "}";
+  }
+
+  return candidate;
+}
+
+function parseHighlightJson(raw: string): unknown {
+  const attempts = [
+    stripCodeFences(raw),
+    extractJsonObject(raw),
+    repairJsonCandidate(raw),
+  ];
+
+  let lastError: Error | null = null;
+  for (const candidate of attempts) {
+    if (!candidate.trim()) continue;
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  throw lastError ?? new Error("Empty Gemini response.");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -274,7 +318,7 @@ async function callGemini(
   apiKey: string,
   model: string,
   userMessage: string,
-): Promise<string> {
+): Promise<{ text: string; finishReason: string | null }> {
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -293,7 +337,7 @@ async function callGemini(
       ],
       generationConfig: {
         temperature: 0.45,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
         responseMimeType: "application/json",
       },
     }),
@@ -320,12 +364,13 @@ async function callGemini(
 
   const candidate = data.candidates?.[0];
   const text = candidate?.content?.parts?.[0]?.text;
+  const finishReason = candidate?.finishReason ?? null;
   if (!text) {
-    const reason = candidate?.finishReason ?? "unknown";
+    const reason = finishReason ?? "unknown";
     throw new Error(`Gemini returned no content (finishReason: ${reason}).`);
   }
 
-  return text;
+  return { text, finishReason };
 }
 
 Deno.serve(async (req) => {
@@ -359,10 +404,13 @@ Deno.serve(async (req) => {
     ].join("\n");
 
     let text: string;
+    let finishReason: string | null = null;
     let modelUsed = GEMINI_MODEL_PRIMARY;
 
     try {
-      text = await callGemini(apiKey, GEMINI_MODEL_PRIMARY, userMessage);
+      const primary = await callGemini(apiKey, GEMINI_MODEL_PRIMARY, userMessage);
+      text = primary.text;
+      finishReason = primary.finishReason;
     } catch (primaryErr) {
       const status = primaryErr instanceof Error &&
           "status" in primaryErr
@@ -375,15 +423,35 @@ Deno.serve(async (req) => {
         "[generate-presentation-highlight] Primary model failed, trying fallback:",
         primaryErr,
       );
-      text = await callGemini(apiKey, GEMINI_MODEL_FALLBACK, userMessage);
+      const fallback = await callGemini(apiKey, GEMINI_MODEL_FALLBACK, userMessage);
+      text = fallback.text;
+      finishReason = fallback.finishReason;
       modelUsed = GEMINI_MODEL_FALLBACK;
+    }
+
+    if (finishReason === "MAX_TOKENS") {
+      console.warn(
+        "[generate-presentation-highlight] Response may be truncated (finishReason: MAX_TOKENS).",
+      );
     }
 
     let highlight: unknown;
     try {
       highlight = parseHighlightJson(text);
-    } catch {
-      throw new Error("Gemini returned invalid JSON for presentation highlight.");
+    } catch (parseErr) {
+      const detail = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      const preview = text.slice(0, 240).replace(/\s+/g, " ");
+      console.error(
+        "[generate-presentation-highlight] JSON parse failed:",
+        detail,
+        "preview:",
+        preview,
+        "finishReason:",
+        finishReason,
+      );
+      throw new Error(
+        `Gemini returned invalid JSON for presentation highlight (${detail}; finishReason: ${finishReason ?? "unknown"}).`,
+      );
     }
 
     return jsonResponse({
