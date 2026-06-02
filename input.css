@@ -2418,9 +2418,20 @@ body.theme-green {
         border-color: var(--border-color);
         background-color: var(--bg-light);
         min-height: 10rem;
+        transition: min-height 0.35s ease;
+    }
+    .influence-contact-card.deal-card-flipped {
+        min-height: 24rem;
+        overflow: visible;
+        position: relative;
+        z-index: 3;
     }
     .strategic-section--influence .influence-contact-card .deal-card-flip-inner {
         min-height: 10rem;
+        transition: min-height 0.35s ease;
+    }
+    .strategic-section--influence .influence-contact-card.deal-card-flipped .deal-card-flip-inner {
+        min-height: 24rem;
     }
     .influence-contact-card.influence-contact-dragging {
         opacity: 0.55;
@@ -2429,6 +2440,10 @@ body.theme-green {
     .influence-contact-card-back {
         @apply p-3;
         min-height: 10rem;
+    }
+    .influence-contact-card.deal-card-flipped .influence-contact-card-front,
+    .influence-contact-card.deal-card-flipped .influence-contact-card-back {
+        min-height: 24rem;
     }
     .influence-contact-card-back {
         @apply flex flex-col gap-1.5;
@@ -2458,6 +2473,17 @@ body.theme-green {
     .influence-contact-card-back .influence-card-notes {
         flex: 1;
         min-height: 8.5rem;
+    }
+    .influence-contact-card.deal-card-flipped .influence-card-fields {
+        max-height: none;
+        flex: 1;
+        min-height: 0;
+    }
+    .influence-contact-card.deal-card-flipped .influence-card-notes {
+        min-height: 6.5rem;
+    }
+    .influence-contact-card.deal-card-flipped .influence-card-field-textarea {
+        min-height: 4.5rem;
     }
     .influence-contact-name {
         @apply text-sm font-semibold;

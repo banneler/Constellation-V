@@ -2165,7 +2165,7 @@ function buildInfluenceContactCard(contact, entry, bucket) {
                                 class="strategic-field strategic-textarea influence-card-field-textarea"
                                 data-influence-contact-id="${contactId}"
                                 data-influence-field="strategic_priorities"
-                                rows="2"
+                                rows="3"
                             >${strategicPriorities}</textarea>
                         </div>
                         <div class="influence-card-field influence-card-field--textarea">
@@ -2174,7 +2174,7 @@ function buildInfluenceContactCard(contact, entry, bucket) {
                                 id="influence-notes-${contactId}"
                                 class="strategic-field strategic-textarea influence-card-notes"
                                 data-contact-id="${contactId}"
-                                rows="3"
+                                rows="4"
                             >${notes}</textarea>
                         </div>
                     </div>
@@ -2383,21 +2383,44 @@ function toggleMeddpiccBadge(button) {
         ? { ..._liveSections.influence_mapping }
         : { executive: [], mid_level: [], technical: [] };
 
-    ['executive', 'mid_level', 'technical'].forEach((bucket) => {
+    let targetBucket = null;
+    let targetIndex = -1;
+    for (const bucket of ['executive', 'mid_level', 'technical']) {
         const list = normalizeInfluenceEntries(mapping[bucket]);
         const index = list.findIndex((item) => String(item.id) === String(contactId));
-        if (index < 0) return;
-
-        if (fieldKey === 'is_economic_buyer') {
-            list.forEach((item, i) => {
-                list[i] = { ...item, is_economic_buyer: '' };
-            });
+        if (index >= 0) {
+            targetBucket = bucket;
+            targetIndex = index;
+            break;
         }
+    }
+    if (!targetBucket || targetIndex < 0) return;
 
-        const current = list[index][fieldKey] === '1';
-        list[index] = { ...list[index], [fieldKey]: current ? '' : '1' };
-        mapping[bucket] = list;
-    });
+    const list = normalizeInfluenceEntries(mapping[targetBucket]);
+    const entry = list[targetIndex];
+    const isActive = entry[fieldKey] === '1' || entry[fieldKey] === true;
+
+    if (fieldKey === 'is_economic_buyer') {
+        if (isActive) {
+            list[targetIndex] = { ...entry, is_economic_buyer: '' };
+            mapping[targetBucket] = list;
+        } else {
+            // Singleton designation — clear all tiers, then activate this contact.
+            for (const bucket of ['executive', 'mid_level', 'technical']) {
+                const tierList = normalizeInfluenceEntries(mapping[bucket]);
+                mapping[bucket] = tierList.map((item) => ({ ...item, is_economic_buyer: '' }));
+            }
+            const updated = normalizeInfluenceEntries(mapping[targetBucket]);
+            const idx = updated.findIndex((item) => String(item.id) === String(contactId));
+            if (idx >= 0) {
+                updated[idx] = { ...updated[idx], is_economic_buyer: '1' };
+                mapping[targetBucket] = updated;
+            }
+        }
+    } else {
+        list[targetIndex] = { ...entry, [fieldKey]: isActive ? '' : '1' };
+        mapping[targetBucket] = list;
+    }
 
     _liveSections.influence_mapping = mapping;
     refreshInfluenceBoardSection();
