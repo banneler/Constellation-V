@@ -21,6 +21,8 @@ import {
     GPC_BRAND,
     GPC_LOGO_NAVY,
     GPC_LOGO_WHITE,
+    GPC_LOGO_NATURAL_WIDTH,
+    GPC_LOGO_NATURAL_HEIGHT,
     formatGpcFooterDate,
 } from './account-plan-export-brand.js';
 
@@ -2933,6 +2935,8 @@ export function ensureExportTemplateStyles() {
             right: 40px;
             width: 168px;
             height: auto;
+            aspect-ratio: ${GPC_LOGO_NATURAL_WIDTH} / ${GPC_LOGO_NATURAL_HEIGHT};
+            object-fit: contain;
         }
         .ap-export-gpc-cover-body {
             position: absolute;
@@ -2997,6 +3001,8 @@ export function ensureExportTemplateStyles() {
             display: block;
             width: 96px;
             height: auto;
+            aspect-ratio: ${GPC_LOGO_NATURAL_WIDTH} / ${GPC_LOGO_NATURAL_HEIGHT};
+            object-fit: contain;
             flex-shrink: 0;
             transform: translateY(-7px);
         }
@@ -4327,6 +4333,8 @@ export function ensureExportTemplateStyles() {
             right: 36px;
             width: 118px;
             height: auto;
+            aspect-ratio: ${GPC_LOGO_NATURAL_WIDTH} / ${GPC_LOGO_NATURAL_HEIGHT};
+            object-fit: contain;
             z-index: 3;
         }
         .ap-exec-slide-header {

@@ -41,6 +41,7 @@ import {
     GPC_LOGO_NAVY,
     GPC_LOGO_WHITE,
     formatGpcFooterDate,
+    positionLogoTopRight,
 } from './account-plan-export-brand.js';
 import { normalizePlan, getWhiteSpaceRows } from './account-plan-data.js';
 import {
@@ -90,6 +91,12 @@ const LOGO_W = 1.30;
 const LOGO_H = 0.50;
 const LOGO_X = SLIDE_W - MARGIN_X - LOGO_W;
 const LOGO_Y = 0.30;
+
+/** Cover slide white logo slot (top-right over navy-deep wedge). */
+const COVER_LOGO_SLOT_X = 9.45;
+const COVER_LOGO_SLOT_Y = 0.35;
+const COVER_LOGO_SLOT_W = 2.35;
+const COVER_LOGO_SLOT_H = 1.05;
 
 // ---------------------------------------------------------------------------
 // THEME (Task 3 — light editorial palette)
@@ -383,14 +390,15 @@ function defineContentMaster(pptx, accountName, navyLogo) {
     // 2. Top-right navy logo. Optional — if the asset failed to load we
     //    quietly skip it rather than hard-failing the export.
     if (navyLogo) {
+        const logo = positionLogoTopRight(LOGO_X, LOGO_Y, LOGO_W, LOGO_H);
         objects.push({
             image: {
-                x: LOGO_X,
-                y: LOGO_Y,
-                w: LOGO_W,
-                h: LOGO_H,
+                x: logo.x,
+                y: logo.y,
+                w: logo.w,
+                h: logo.h,
                 data: navyLogo,
-                sizing: { type: 'contain', w: LOGO_W, h: LOGO_H },
+                sizing: { type: 'contain', w: logo.w, h: logo.h },
             },
         });
     }
@@ -443,64 +451,48 @@ function defineContentMaster(pptx, accountName, navyLogo) {
 // ---------------------------------------------------------------------------
 // Task 2 — Geometric cover slide
 // ---------------------------------------------------------------------------
-// Matches the GPC Large Deal Review title slide: navy field + three diagonal
-// wedges (navyDeep / teal / lime) on the right, plus a subtle top-left
-// corner accent. Same gradient logic as .ap-export-gpc-cover-art in the PDF.
+// Navy field + teal diagonal + lime corner on the right (matches the PDF
+// dossier cover art). Cover does NOT use the content master.
 // ---------------------------------------------------------------------------
 
 /**
- * Custom polygon on the cover slide (pptxgenjs custGeom, normalized 0–1 points).
- *
- * @param {import('pptxgenjs').Slide} slide
- * @param {number} x
- * @param {number} y
- * @param {number} w
- * @param {number} h
- * @param {Array<{ x: number, y: number }>} points
- * @param {string} fillColor
- */
-function addCoverPolygon(slide, x, y, w, h, points, fillColor) {
-    slide.addShape('custGeom', {
-        x,
-        y,
-        w,
-        h,
-        fill: { color: fillColor },
-        line: { width: 0 },
-        points,
-    });
-}
-
-/**
- * Diagonal wedge artwork for the cover — mirrors the demo title slide geometry.
+ * Diagonal wedge artwork — navy-deep right slab, teal diagonal, lime corner.
+ * Restored from the pre-custGeom layout (custGeom polygons render incorrectly
+ * in PowerPoint; the intermediate rtTriangle-only pass also misaligned wedges).
  * @param {import('pptxgenjs').Slide} slide
  */
 function addCoverGeometricArt(slide) {
-    // (1) Main teal wedge — bleeds left of the art band (~46% slide) like the demo.
-    addCoverPolygon(slide, SLIDE_W * 0.46, 0, SLIDE_W * 0.54, SLIDE_H, [
-        { x: 0, y: 0.14 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-        { x: 0.22, y: 0.84 },
-    ], THEME.accent);
+    // Navy-deep right slab — frames the logo and holds the accent shapes.
+    slide.addShape('rect', {
+        x: 7.50,
+        y: 0,
+        w: SLIDE_W - 7.50,
+        h: SLIDE_H,
+        fill: { color: THEME.accentDark },
+        line: { width: 0 },
+    });
 
-    // (2) Navy-deep upper wedge — dark slab behind the logo (155° band).
-    addCoverPolygon(slide, SLIDE_W * 0.56, 0, SLIDE_W * 0.44, SLIDE_H * 0.54, [
-        { x: 0.08, y: 0 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-        { x: 0.42, y: 0.52 },
-    ], THEME.accentDark);
+    // Teal diagonal wedge — hypotenuse from top-left (5.5, 0) to bottom-right.
+    slide.addShape('rtTriangle', {
+        x: 5.50,
+        y: 0,
+        w: 4.50,
+        h: SLIDE_H,
+        fill: { color: THEME.accent },
+        line: { width: 0 },
+    });
 
-    // (3) Lime bottom-right accent (125° band).
-    addCoverPolygon(slide, SLIDE_W * 0.60, SLIDE_H * 0.48, SLIDE_W * 0.40, SLIDE_H * 0.52, [
-        { x: 0, y: 0.06 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-        { x: 0.10, y: 1 },
-    ], THEME.accentAlt);
+    // Lime bottom-right accent inside the navy-deep slab.
+    slide.addShape('rect', {
+        x: 11.20,
+        y: 5.40,
+        w: 2.133,
+        h: 2.10,
+        fill: { color: THEME.accentAlt },
+        line: { width: 0 },
+    });
 
-    // (4) Subtle top-left L-corner accent from the demo template.
+    // Subtle top-left L-corner accent from the GPC title template.
     const cornerX = 0.42;
     const cornerY = 0.38;
     const cornerLen = 0.95;
@@ -531,13 +523,19 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
 
     addCoverGeometricArt(slide);
     if (whiteLogo) {
+        const logo = positionLogoTopRight(
+            COVER_LOGO_SLOT_X,
+            COVER_LOGO_SLOT_Y,
+            COVER_LOGO_SLOT_W,
+            COVER_LOGO_SLOT_H
+        );
         slide.addImage({
             data: whiteLogo,
-            x: 9.60,
-            y: 0.45,
-            w: 2.30,
-            h: 0.75,
-            sizing: { type: 'contain', w: 2.30, h: 0.75 },
+            x: logo.x,
+            y: logo.y,
+            w: logo.w,
+            h: logo.h,
+            sizing: { type: 'contain', w: logo.w, h: logo.h },
         });
     }
 
