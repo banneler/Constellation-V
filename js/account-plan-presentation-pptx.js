@@ -122,6 +122,9 @@ const THEME = Object.freeze({
     font: 'Arial',
 });
 
+/** PptxGenJS defaults to a visible outline unless line.type is explicitly 'none'. */
+const SHAPE_NO_LINE = Object.freeze({ type: 'none' });
+
 // Strict typographic scale — every content slide honors these sizes so
 // PowerPoint never inflates body copy past the bounding box.
 const TYPO = Object.freeze({
@@ -475,7 +478,7 @@ function addCoverGeometricArt(slide) {
         w: BAND_W + OVERLAP,
         h: SLIDE_H,
         fill: { color: THEME.accent },
-        line: { width: 0 },
+        line: SHAPE_NO_LINE,
     });
     slide.addShape('rtTriangle', {
         x: TEAL_TRI_X - OVERLAP / 2,
@@ -483,7 +486,7 @@ function addCoverGeometricArt(slide) {
         w: TRI_W + OVERLAP,
         h: SLIDE_H,
         fill: { color: THEME.accent },
-        line: { width: 0 },
+        line: SHAPE_NO_LINE,
     });
 
     // 2. NAVY DEEP OVERLAY — identical triangle width offset left by BAND_W.
@@ -493,17 +496,7 @@ function addCoverGeometricArt(slide) {
         w: TRI_W + OVERLAP,
         h: SLIDE_H,
         fill: { color: THEME.accentDark },
-        line: { width: 0 },
-    });
-
-    // Upper-right slab behind the logo (PDF 155deg navy-deep band).
-    slide.addShape('rect', {
-        x: 10.15,
-        y: 0,
-        w: SLIDE_W - 10.15,
-        h: 2.85,
-        fill: { color: THEME.accentDark },
-        line: { width: 0 },
+        line: SHAPE_NO_LINE,
     });
 
     // 3. LIME WEDGE — bottom-right corner accent.
@@ -514,7 +507,7 @@ function addCoverGeometricArt(slide) {
         h: 4.7,
         fill: { color: THEME.accentAlt },
         flipH: true,
-        line: { width: 0 },
+        line: SHAPE_NO_LINE,
     });
 
     // 4. L-CORNER ACCENT
@@ -579,7 +572,7 @@ function buildCoverSlide(pptx, accountName, whiteLogo) {
         w: 1.85,
         h: 0.12,
         fill: { color: THEME.accent },
-        line: { width: 0 },
+        line: SHAPE_NO_LINE,
     });
 
     slide.addText(accountName, {
