@@ -3108,12 +3108,12 @@ export function ensureExportTemplateStyles() {
             margin-bottom: 0;
         }
         .ap-export-dossier-section + .ap-export-dossier-section {
-            margin-top: 12px;
-            padding-top: 10px;
+            margin-top: 14px;
+            padding-top: 14px;
             border-top: 1px solid #e2e8f0;
         }
         .ap-export-dossier-section-title {
-            margin: 0 0 8px;
+            margin: 0 0 14px;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 11px;
             line-height: 1.25;
@@ -3121,6 +3121,9 @@ export function ensureExportTemplateStyles() {
             text-transform: uppercase;
             letter-spacing: 0.1em;
             font-weight: 700;
+        }
+        .ap-export-dossier-section + .ap-export-dossier-section .ap-export-dossier-section-title {
+            margin-top: 2px;
         }
         .ap-export-section-icon {
             color: #3b82f6;
@@ -3134,10 +3137,10 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-client-commitments-body {
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 14px;
         }
         .ap-export-dossier-content > .ap-export-dossier-section:first-child .ap-export-dossier-section-title {
-            margin-top: 0;
+            margin-top: 6px;
         }
         .ap-export-dossier-body--editorial {
             color: #1e293b;
@@ -3343,7 +3346,7 @@ export function ensureExportTemplateStyles() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 14px;
         }
         .ap-export-battlefield-panel {
             border: 1px solid #e2e8f0;
@@ -3368,7 +3371,7 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-editorial-prose {
             border-top: 2px solid #0f172a;
-            padding-top: 8px;
+            padding-top: 14px;
         }
         .ap-export-editorial-prose .ap-export-editorial-kicker:not(:first-child) {
             margin-top: 10px;
@@ -3384,11 +3387,11 @@ export function ensureExportTemplateStyles() {
             gap: 8px;
         }
         .ap-export-pursuit-with-pain-body .ap-export-editorial-grid {
-            padding-top: 10px;
+            padding-top: 14px;
         }
         .ap-export-blindspots-body {
             border-top: 2px solid #0f172a;
-            padding-top: 8px;
+            padding-top: 14px;
         }
         .ap-export-blindspots-list {
             margin: 0;
@@ -3426,7 +3429,7 @@ export function ensureExportTemplateStyles() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0;
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 14px;
         }
         .ap-export-editorial-grid--2 {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3477,7 +3480,10 @@ export function ensureExportTemplateStyles() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0;
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 14px;
+        }
+        .ap-export-editorial-influence-tier > .ap-export-editorial-kicker:first-child {
+            margin-top: 0;
         }
         .ap-export-editorial-influence-tier {
             padding: 0 18px 0 0;
@@ -3500,7 +3506,7 @@ export function ensureExportTemplateStyles() {
             flex-direction: column;
             gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 14px;
         }
         .ap-export-snapshot-hero {
             display: flex;
@@ -3690,7 +3696,7 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-white-space-wrap {
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 14px;
             overflow: hidden;
         }
         .ap-export-account-expansion-body {
@@ -3841,7 +3847,7 @@ export function ensureExportTemplateStyles() {
             flex-direction: column;
             gap: 10px;
             border-top: 2px solid #0f172a;
-            padding-top: 10px;
+            padding-top: 14px;
         }
         .ap-export-target-profile {
             page-break-inside: avoid;
