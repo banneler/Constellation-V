@@ -2110,7 +2110,7 @@ function buildDossierSectionUnits(section, sections, contacts = [], account = nu
             painPills,
             painNotes ? [{ kicker: 'Pain Context', text: painNotes }] : []
         );
-        painBody.classList.add('ap-export-editorial-span-full');
+        painBody.classList.add('ap-export-editorial-prose--pursuit-pain');
 
         const wrap = document.createElement('div');
         wrap.className = 'ap-export-pursuit-with-pain-body';
@@ -2983,12 +2983,14 @@ export function ensureExportTemplateStyles() {
             align-items: center;
             justify-content: space-between;
             gap: 16px;
+            min-height: 28px;
         }
         .ap-export-gpc-logo--content {
-            position: static;
+            display: block;
             width: 96px;
             height: auto;
             flex-shrink: 0;
+            transform: translateY(-4px);
         }
         .ap-export-gpc-running {
             display: flex;
@@ -3369,7 +3371,12 @@ export function ensureExportTemplateStyles() {
             padding-top: 8px;
         }
         .ap-export-editorial-prose .ap-export-editorial-kicker:not(:first-child) {
-            margin-top: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .ap-export-pursuit-with-pain-body > .ap-export-editorial-prose--pursuit-pain {
+            margin-top: 14px;
         }
         .ap-export-pursuit-with-pain-body {
             display: flex;
@@ -3438,23 +3445,32 @@ export function ensureExportTemplateStyles() {
         }
         .ap-export-editorial-grid--3 > .ap-export-editorial-cell,
         .ap-export-editorial-grid--plan > .ap-export-editorial-cell {
-            padding: 0 18px;
+            padding-left: 18px;
+            padding-right: 18px;
         }
-        .ap-export-editorial-span-full {
+        /* Full-width rows inside editorial grids — padding shorthand on
+         * grid cells was zeroing padding-top and collapsing kickers against
+         * the divider (Strategic Timing, Executive Narrative). */
+        .ap-export-editorial-grid > .ap-export-editorial-cell.ap-export-editorial-span-full {
             grid-column: 1 / -1;
             border-right: none !important;
-            padding-right: 0 !important;
             margin-right: 0 !important;
+            margin-top: 14px;
+            padding: 14px 0 0;
+            border-top: 1px solid #e2e8f0;
+        }
+        .ap-export-editorial-influence-tier.ap-export-editorial-span-full {
+            grid-column: 1 / -1;
+            margin-top: 14px;
+            padding: 14px 0 0;
+            border-top: 1px solid #e2e8f0;
+            padding-right: 0;
+        }
+        .ap-export-editorial-grid.ap-export-editorial-span-full {
+            grid-column: 1 / -1;
             margin-top: 14px;
             padding-top: 14px;
             border-top: 1px solid #e2e8f0;
-        }
-        .ap-export-editorial-span-full > .ap-export-editorial-kicker:first-child,
-        .ap-export-editorial-span-full > .ap-export-editorial-cell > .ap-export-editorial-kicker:first-child {
-            margin-top: 0;
-        }
-        .ap-export-editorial-influence-tier.ap-export-editorial-span-full {
-            padding-right: 0;
         }
         .ap-export-editorial-influence {
             display: grid;
