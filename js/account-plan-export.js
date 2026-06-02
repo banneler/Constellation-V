@@ -16,7 +16,7 @@ import {
     DOSSIER_PAGE_BUCKETS,
     ensureExportTemplateStyles,
     orderDossierSectionBlocks,
-} from './account-plan-export-templates.js?v=2026-06-02-3';
+} from './account-plan-export-templates.js?v=2026-06-02-4';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;

@@ -2487,14 +2487,16 @@ export function buildDossierContentPage(blocks, meta, pageInfo) {
     const header = document.createElement('div');
     header.className = 'ap-export-gpc-page-header';
     header.innerHTML = `
-        <div class="ap-export-gpc-running" role="presentation">
-            <span class="ap-export-gpc-running-account">${escapeHtml(meta.accountName)}</span>
-            <span class="ap-export-gpc-running-sep" aria-hidden="true"></span>
-            <span class="ap-export-gpc-running-doc">${escapeHtml(DOSSIER_RUNNING_DOC_LABEL)}</span>
-            <span class="ap-export-gpc-running-sep" aria-hidden="true"></span>
-            <span class="ap-export-gpc-running-section">${escapeHtml(pageTitle)}</span>
+        <div class="ap-export-gpc-header-row">
+            <div class="ap-export-gpc-running" role="presentation">
+                <span class="ap-export-gpc-running-account">${escapeHtml(meta.accountName)}</span>
+                <span class="ap-export-gpc-running-sep" aria-hidden="true"></span>
+                <span class="ap-export-gpc-running-doc">${escapeHtml(DOSSIER_RUNNING_DOC_LABEL)}</span>
+                <span class="ap-export-gpc-running-sep" aria-hidden="true"></span>
+                <span class="ap-export-gpc-running-section">${escapeHtml(pageTitle)}</span>
+            </div>
+            <img class="ap-export-gpc-logo ap-export-gpc-logo--content" src="${GPC_LOGO_NAVY}" alt="" crossorigin="anonymous" />
         </div>
-        <img class="ap-export-gpc-logo ap-export-gpc-logo--content" src="${GPC_LOGO_NAVY}" alt="" crossorigin="anonymous" />
         <div class="ap-export-gpc-page-rule"></div>`;
     page.appendChild(header);
 
@@ -2976,18 +2978,25 @@ export function ensureExportTemplateStyles() {
             right: 48px;
             top: 38px;
         }
+        .ap-export-gpc-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
         .ap-export-gpc-logo--content {
-            position: absolute;
-            top: -6px;
-            right: 0;
+            position: static;
             width: 96px;
             height: auto;
+            flex-shrink: 0;
         }
         .ap-export-gpc-running {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding-right: 116px;
+            padding-right: 0;
+            flex: 1 1 auto;
+            min-width: 0;
             font-family: ${GPC_BRAND.fontHeading};
             font-size: 10.5px;
             line-height: 1.2;
@@ -3370,10 +3379,6 @@ export function ensureExportTemplateStyles() {
         .ap-export-pursuit-with-pain-body .ap-export-editorial-grid {
             padding-top: 10px;
         }
-        .ap-export-pursuit-with-pain-body .ap-export-editorial-span-full {
-            margin-top: 10px;
-            padding-top: 10px;
-        }
         .ap-export-blindspots-body {
             border-top: 2px solid #0f172a;
             padding-top: 8px;
@@ -3440,9 +3445,16 @@ export function ensureExportTemplateStyles() {
             border-right: none !important;
             padding-right: 0 !important;
             margin-right: 0 !important;
-            margin-top: 12px;
-            padding-top: 12px;
+            margin-top: 14px;
+            padding-top: 14px;
             border-top: 1px solid #e2e8f0;
+        }
+        .ap-export-editorial-span-full > .ap-export-editorial-kicker:first-child,
+        .ap-export-editorial-span-full > .ap-export-editorial-cell > .ap-export-editorial-kicker:first-child {
+            margin-top: 0;
+        }
+        .ap-export-editorial-influence-tier.ap-export-editorial-span-full {
+            padding-right: 0;
         }
         .ap-export-editorial-influence {
             display: grid;
