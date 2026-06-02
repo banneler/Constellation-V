@@ -16,7 +16,7 @@ import {
     DOSSIER_PAGE_BUCKETS,
     ensureExportTemplateStyles,
     orderDossierSectionBlocks,
-} from './account-plan-export-templates.js?v=2026-06-02-7';
+} from './account-plan-export-templates.js?v=2026-06-02-8';
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -338,6 +338,26 @@ function rebalanceEntryPointPageRanges(pageRanges, totalProfiles, chunkFits) {
 
     const MAX_PROFILES_PER_PAGE = 3;
 
+    // When the plan has exactly three entry points, keep them on one page if measurement allows.
+    if (totalProfiles === 3 && pageRanges.length >= 2 && chunkFits(3, 0)) {
+        return [{ start: 0, count: 3 }];
+    }
+
+    // Three profiles split 1+2 leaves a wasteful first page — prefer 2+1 when both fit.
+    if (
+        totalProfiles === 3
+        && pageRanges.length === 2
+        && pageRanges[0].count === 1
+        && pageRanges[1].count === 2
+        && chunkFits(2, 0)
+        && chunkFits(1, 2)
+    ) {
+        return [
+            { start: 0, count: 2 },
+            { start: 2, count: 1 },
+        ];
+    }
+
     const last = pageRanges[pageRanges.length - 1];
     if (last.count !== 1) return pageRanges;
 
@@ -477,10 +497,10 @@ function buildDossierSectionFragment(sectionId, sectionTitle, units, continued, 
     const container = document.createElement('div');
     container.className = stackClass;
     if (stackClass.includes('ap-export-target-profiles-body')) {
-        if (units.length >= 3) {
+        // Use the condensed triple-stack styling for 2 or 3 profiles so
+        // measurement matches what we can actually fit on one entry-point page.
+        if (units.length >= 2) {
             container.classList.add('ap-export-target-profiles-body--per-page-3');
-        } else if (units.length === 2) {
-            container.classList.add('ap-export-target-profiles-body--per-page-2');
         }
     }
     units.forEach((unit) => container.appendChild(unit.cloneNode(true)));
