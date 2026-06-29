@@ -36,7 +36,9 @@
         .location-block.drag-location-ghost { opacity: 0.55; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15); }
         .locations-container .location-block { transition: box-shadow 0.15s ease; }
         .location-drag-handle { touch-action: none; user-select: none; -webkit-user-select: none; font-size: 1.125rem; line-height: 1; }
-        .prod-suggestions { max-height: 10rem; overflow-y: auto; }
+        .prod-name { white-space: pre-wrap; resize: vertical; min-height: 2.5rem; }
+        .product-reorder-btn { user-select: none; line-height: 1; }
+        .product-reorder-btn:disabled { opacity: 0.25; cursor: not-allowed; }
         .location-pricing-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .location-pricing-table-wrap table { width: 100%; min-width: 0; table-layout: fixed; }
         /* Pricing option controls: term, solution ID, subtotals + decimals on one row */
@@ -431,6 +433,26 @@
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                                 Add Another Pricing Option
                             </button>
+                        </div>
+
+                        <div id="pricing-pdf-disclaimer-options" class="mt-8 border-t border-slate-200 pt-6">
+                            <span class="mb-3 block text-xs font-bold uppercase tracking-wider text-slate-500">Optional PDF Disclaimer Language</span>
+                            <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+                                <div class="flex flex-col gap-2">
+                                    <label class="pricing-quote-expiration-wrap flex cursor-pointer items-center gap-3 select-none rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-blue-300 transition shrink-0">
+                                        <input type="checkbox" id="pricing-enable-quote-expiration" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="text-sm font-semibold text-slate-800 whitespace-nowrap">Include quote expiration</span>
+                                    </label>
+                                    <div id="pricing-quote-expiration-days-wrap" class="hidden pl-1">
+                                        <label class="block text-xs font-semibold text-slate-600 mb-1" for="pricing-quote-expiration-days">Valid for (days)</label>
+                                        <input type="number" id="pricing-quote-expiration-days" min="1" step="1" placeholder="e.g. 30" class="w-28 border border-slate-300 p-2 rounded-lg bg-white text-sm focus:outline-none focus:border-blue-500 transition">
+                                    </div>
+                                </div>
+                                <label class="pricing-taxes-fees-exclusion-wrap flex cursor-pointer items-center gap-3 select-none rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-blue-300 transition shrink-0">
+                                    <input type="checkbox" id="pricing-enable-taxes-fees-exclusion" class="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-sm font-semibold text-slate-800">Exclude taxes, fees &amp; surcharges</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 

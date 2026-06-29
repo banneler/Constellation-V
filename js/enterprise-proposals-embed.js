@@ -91,12 +91,82 @@
         } 
 
         // --- Plain text areas (paste preserves paragraph breaks via white-space: pre-wrap) ---
-        function textToHtml(s) {
-            if (s == null || String(s).trim() === '') return '';
-            var escaped = String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            var pars = escaped.split(/\n\n+/);
-            return pars.map(function(p) { return '<p style="margin: 0 0 0.75em 0;">' + p.replace(/\n/g, '<br>') + '</p>'; }).join('');
+        function escapeHtmlLite(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
+
+        function parseBulletLine(line) {
+            var m = String(line).match(/^(\s*)([-•*])\s*(.*)$/);
+            if (!m) return null;
+            var indent = m[1].replace(/\t/g, '  ').length;
+            return { level: Math.floor(indent / 2), text: m[3] };
+        }
+
+        function renderBulletLineHtml(item, compact) {
+            var itemMargin = compact ? '0 0 0.15em 0' : '0 0 0.25em 0';
+            var padLeft = (1.1 + item.level * 1.0) + 'em';
+            return '<div style="margin: ' + itemMargin + '; padding-left: ' + padLeft + '; text-indent: -0.65em;"><span aria-hidden="true">&#8226;&nbsp;</span>' + escapeHtmlLite(item.text) + '</div>';
+        }
+
+        function renderBulletList(items, compact) {
+            if (!items.length) return '';
+            var blockMargin = compact ? '0 0 0.35em 0' : '0 0 0.75em 0';
+            return '<div style="margin: ' + blockMargin + ';">' + items.map(function(item) {
+                return renderBulletLineHtml(item, compact);
+            }).join('') + '</div>';
+        }
+
+        function plainTextToPdfHtml(s, options) {
+            options = options || {};
+            if (s == null || String(s).trim() === '') return '';
+            var compact = !!options.compact;
+            var paraMargin = compact ? '0 0 0.35em 0' : '0 0 0.75em 0';
+            var lines = String(s).replace(/\r\n/g, '\n').split('\n');
+            var output = [];
+            var paraLines = [];
+            var bulletItems = [];
+
+            function flushParagraph() {
+                if (!paraLines.length) return;
+                output.push('<p style="margin: ' + paraMargin + ';">' + paraLines.map(escapeHtmlLite).join('<br>') + '</p>');
+                paraLines = [];
+            }
+
+            function flushBullets() {
+                if (!bulletItems.length) return;
+                output.push(renderBulletList(bulletItems, compact));
+                bulletItems = [];
+            }
+
+            lines.forEach(function(line) {
+                if (!line.trim()) {
+                    flushBullets();
+                    flushParagraph();
+                    return;
+                }
+                var bullet = parseBulletLine(line);
+                if (bullet != null) {
+                    flushParagraph();
+                    bulletItems.push(bullet);
+                } else {
+                    flushBullets();
+                    paraLines.push(line);
+                }
+            });
+
+            flushBullets();
+            flushParagraph();
+            return output.join('');
+        }
+
+        function textToHtml(s, options) {
+            return plainTextToPdfHtml(s, options);
+        }
+
+        function formatProdTextForPdf(s) {
+            return textToHtml(s, { compact: true });
+        }
+
         function checkCustomTextHeight() {
             document.querySelectorAll('.custom-text-body').forEach(function(ta) {
                 var section = ta.closest('.custom-text-section');
@@ -414,47 +484,33 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             'Managed Business Wi-Fi', 'Wireless Internet Backup', 'GPC Managed Firewall', 'DDoS Protection',
             'Cloud Connect', 'SD-WAN', 'SIP Trunking', 'PRI', 'Dark Fiber', 'Colocation', 'Professional Services'
         ];
-        function bandwidthProductHints(typed) {
-            var t = (typed || '').toLowerCase();
-            var mm = t.match(/(\d+)\s*(mb|mbps|gb|gbps|gig|meg)\b/i);
-            if (!mm) return [];
-            var num = parseInt(mm[1], 10);
-            if (/^g|gig/i.test(mm[2])) num *= 1000;
-            var label = num >= 1000 ? (num / 1000) + ' Gbps' : num + ' Mbps';
-            return [
-                'Dedicated Internet Access (DIA) — ' + label,
-                'Standard Internet Access (SIA) — ' + label
-            ];
+
+        function getBandwidthSuggestion(text) {
+            if (!text || typeof text !== 'string') return null;
+            var t = text.trim();
+            var mMatch = t.match(/^(\d+(?:\.\d+)?)\s*m\s*$/i);
+            if (mMatch) return mMatch[1] + ' Mbps';
+            var gMatch = t.match(/^(\d+(?:\.\d+)?)\s*g\s*$/i);
+            if (gMatch) return gMatch[1] + ' Gbps';
+            return null;
         }
-        function wireProdAutocomplete(input) {
-            var cell = input.closest('td');
-            if (!cell || cell.querySelector('.prod-suggestions')) return;
-            cell.classList.add('relative');
-            var dd = document.createElement('div');
-            dd.className = 'prod-suggestions absolute left-2 right-2 top-full z-50 bg-white border border-slate-200 rounded-lg shadow-lg hidden text-sm';
-            cell.appendChild(dd);
-            function refresh() {
-                var val = (input.value || '').toLowerCase();
-                var matches = PRODUCT_SUGGESTIONS.filter(function(p) { return !val || p.toLowerCase().indexOf(val) >= 0; }).slice(0, 8);
-                var bw = bandwidthProductHints(input.value);
-                var seen = {};
-                var all = [];
-                bw.forEach(function(x) { if (x && !seen[x]) { seen[x] = 1; all.push(x); } });
-                matches.forEach(function(x) { if (x && !seen[x]) { seen[x] = 1; all.push(x); } });
-                dd.innerHTML = '';
-                if (!all.length) { dd.classList.add('hidden'); return; }
-                all.slice(0, 12).forEach(function(t) {
-                    var div = document.createElement('div');
-                    div.className = 'px-3 py-2 hover:bg-slate-100 cursor-pointer border-b border-slate-100 last:border-0';
-                    div.textContent = t;
-                    div.addEventListener('mousedown', function(e) { e.preventDefault(); input.value = t; dd.classList.add('hidden'); input.dispatchEvent(new Event('input')); if (!_suppressDirty) setDirty(true); });
-                    dd.appendChild(div);
-                });
-                dd.classList.remove('hidden');
-            }
-            input.addEventListener('input', refresh);
-            input.addEventListener('focus', refresh);
-            input.addEventListener('blur', function() { setTimeout(function() { dd.classList.add('hidden'); }, 200); });
+
+        function getProductSuggestions(text) {
+            if (!text || typeof text !== 'string') return [];
+            var t = text.trim().toLowerCase();
+            return (PRODUCT_SUGGESTIONS || []).filter(function(name) {
+                return name.toLowerCase().indexOf(t) !== -1;
+            });
+        }
+
+        function getBandwidthPlusProductSuggestions(text) {
+            if (!text || typeof text !== 'string') return [];
+            var match = text.match(/^(\d+(?:\.\d+)?\s*(?:Mbps|Gbps))\s+(.+)$/i);
+            if (!match) return [];
+            var prefix = match[1];
+            var suffix = match[2].trim();
+            if (suffix.length < 2) return [];
+            return getProductSuggestions(suffix).map(function(p) { return prefix + ' ' + p; });
         }
 
         function syncLocationSubtotalVisibility() {
@@ -468,6 +524,39 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         function pricingUsesDecimalPoints() {
             var cb = document.getElementById('pricing-enable-decimal-points-amy');
             return !!(cb && cb.checked);
+        }
+
+        function syncQuoteExpirationDaysVisibility() {
+            var cb = document.getElementById('pricing-enable-quote-expiration');
+            var wrap = document.getElementById('pricing-quote-expiration-days-wrap');
+            if (wrap) wrap.classList.toggle('hidden', !(cb && cb.checked));
+        }
+
+        function buildPricingDisclaimerText() {
+            var expCb = document.getElementById('pricing-enable-quote-expiration');
+            var taxCb = document.getElementById('pricing-enable-taxes-fees-exclusion');
+            var daysEl = document.getElementById('pricing-quote-expiration-days');
+            var includeExp = !!(expCb && expCb.checked);
+            var includeTax = !!(taxCb && taxCb.checked);
+            if (!includeExp && !includeTax) return '';
+            var days = (daysEl && daysEl.value.trim()) ? daysEl.value.trim() : 'XX';
+            if (includeExp && includeTax) {
+                return 'The pricing in this quote is valid for ' + days + ' days and does not include any applicable taxes, fees and surcharges.';
+            }
+            if (includeExp) {
+                return 'The pricing in this quote is valid for ' + days + ' days.';
+            }
+            return 'The pricing in this quote does not include any applicable taxes, fees and surcharges.';
+        }
+
+        function buildPricingDisclaimerHtml() {
+            var text = buildPricingDisclaimerText();
+            if (!text) return '';
+            return '<p style="text-align: center; font-size: 11px; color: #475569; margin-top: 0.5rem;">' + escapeHtmlLite(text) + '</p>';
+        }
+
+        function buildPricingTermLineHtml(contractTerm) {
+            return '<p style="text-align: center; font-size: 11px; color: #475569; margin-top: 1rem;">Pricing based off ' + escapeHtmlLite(contractTerm) + '-month term</p>' + buildPricingDisclaimerHtml();
         }
 
         function formatPricingMoney(amount, useDecimals) {
@@ -677,6 +766,24 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             });
         }
 
+        var pricingDisclaimerEl = document.getElementById('pricing-pdf-disclaimer-options');
+        if (pricingDisclaimerEl) {
+            pricingDisclaimerEl.addEventListener('change', function(e) {
+                if (e.target && e.target.id === 'pricing-enable-quote-expiration') {
+                    syncQuoteExpirationDaysVisibility();
+                    if (!_suppressDirty) setDirty(true);
+                }
+                if (e.target && e.target.id === 'pricing-enable-taxes-fees-exclusion') {
+                    if (!_suppressDirty) setDirty(true);
+                }
+            });
+            pricingDisclaimerEl.addEventListener('input', function(e) {
+                if (e.target && e.target.id === 'pricing-quote-expiration-days') {
+                    if (!_suppressDirty) setDirty(true);
+                }
+            });
+        }
+
         function applySalesforceCsvText(csvText, targetOptionBlock) {
             var rows = parseCsvRows(csvText.replace(/^\uFEFF/, ''));
             if (rows.length < 2) {
@@ -806,6 +913,53 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             return { nrcRow: nrcRow };
         }
 
+        function escapeTextareaContent(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        }
+
+        function getPricingRowPairs(tbody) {
+            return Array.from(tbody.querySelectorAll('tr.pricing-row')).map(function(tr) {
+                return { row: tr, nrcRow: getPricingLineSubrows(tr).nrcRow };
+            });
+        }
+
+        function updateProductReorderButtons(tbody) {
+            var pairs = getPricingRowPairs(tbody);
+            pairs.forEach(function(pair, idx) {
+                var upBtn = pair.row.querySelector('.product-move-up-btn');
+                var downBtn = pair.row.querySelector('.product-move-down-btn');
+                if (upBtn) upBtn.disabled = idx === 0;
+                if (downBtn) downBtn.disabled = idx === pairs.length - 1;
+            });
+        }
+
+        function moveProductRow(row, direction) {
+            var tbody = row.closest('.line-items-body');
+            if (!tbody) return;
+            var pairs = getPricingRowPairs(tbody);
+            var idx = pairs.findIndex(function(p) { return p.row === row; });
+            if (idx < 0) return;
+
+            function insertPairBefore(pair, beforeRow) {
+                tbody.insertBefore(pair.row, beforeRow);
+                if (pair.nrcRow) tbody.insertBefore(pair.nrcRow, pair.row.nextSibling);
+            }
+
+            if (direction === 'up' && idx > 0) {
+                insertPairBefore(pairs[idx], pairs[idx - 1].row);
+            } else if (direction === 'down' && idx < pairs.length - 1) {
+                var target = pairs[idx + 1];
+                var afterTarget = target.nrcRow ? target.nrcRow.nextSibling : target.row.nextSibling;
+                var current = pairs[idx];
+                tbody.insertBefore(current.row, afterTarget);
+                if (current.nrcRow) tbody.insertBefore(current.nrcRow, current.row.nextSibling);
+            } else {
+                return;
+            }
+            updateProductReorderButtons(tbody);
+            if (!_suppressDirty) setDirty(true);
+        }
+
         function stripLegacyRowPromoFields(item) {
             if (!item || typeof item !== 'object') return item;
             var o = Object.assign({}, item);
@@ -922,53 +1076,133 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         }
         function addRow(locBlock, optionBlock, data) {
             var tbody = locBlock.querySelector('.line-items-body');
-            var prod = (data && data.prod != null) ? String(data.prod).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
+            var prod = (data && data.prod != null) ? escapeTextareaContent(data.prod) : '';
             var price = (data && data.price != null) ? String(data.price) : '';
             var qty = (data && data.qty != null) ? String(data.qty) : '1';
             var nrcEnabled = !!(data && data.nrcEnabled);
             var nrcDescription = (data && data.nrcDescription != null) ? String(data.nrcDescription).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
             var nrcAmount = (data && data.nrcAmount != null) ? String(data.nrcAmount) : '';
-            var html = '<tr class="pricing-row border-b border-slate-100 group">' +
-                '<td class="p-2 relative align-middle"><input type="text" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" value="' + prod + '" autocomplete="off"></td>' +
-                '<td class="p-2 align-middle"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01" value="' + price + '"></td>' +
-                '<td class="p-2 align-middle"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="' + qty + '"></td>' +
-                '<td class="p-2 text-right font-semibold text-slate-700 row-total align-middle">$0.00</td>' +
-                '<td class="p-2 align-middle text-center w-14">' +
-                '<input type="checkbox" class="row-nrc-toggle w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer align-middle" ' + (nrcEnabled ? 'checked' : '') + ' title="Non-recurring charge (NRC)">' +
-                '</td>' +
-                '<td class="p-2 align-middle text-center w-12">' +
-                '<button type="button" class="remove-row-btn inline-flex items-center justify-center min-w-[2rem] min-h-[2rem] rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 font-bold text-base leading-none transition" title="Remove product line">✕</button>' +
-                '</td></tr>' +
+            var html =
+                '<tr class="pricing-row border-b border-slate-100 group">' +
+                    '<td class="p-2 align-middle text-center w-10">' +
+                        '<div class="flex flex-col items-center gap-0.5">' +
+                            '<button type="button" class="product-reorder-btn product-move-up-btn inline-flex items-center justify-center w-7 h-6 rounded text-slate-400 hover:text-blue-500 hover:bg-blue-50 text-xs" title="Move product up" aria-label="Move product up">▲</button>' +
+                            '<button type="button" class="product-reorder-btn product-move-down-btn inline-flex items-center justify-center w-7 h-6 rounded text-slate-400 hover:text-blue-500 hover:bg-blue-50 text-xs" title="Move product down" aria-label="Move product down">▼</button>' +
+                        '</div>' +
+                    '</td>' +
+                    '<td class="p-2 align-middle"><div class="relative">' +
+                        '<textarea class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 prod-name" rows="2" autocomplete="off">' + prod + '</textarea>' +
+                        '<ul class="prod-suggestion-dropdown fixed bg-white border border-slate-200 rounded shadow-xl text-sm text-slate-700 py-1 z-[9999] hidden list-none max-h-56 overflow-y-auto overflow-x-hidden" role="listbox"></ul>' +
+                    '</div></td>' +
+                    '<td class="p-2 align-middle"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm outline-none focus:border-orange-500 price-input" step="0.01" value="' + price + '"></td>' +
+                    '<td class="p-2 align-middle"><input type="number" class="w-full border border-slate-200 p-2 rounded text-sm text-center outline-none focus:border-orange-500 qty-input" min="1" value="' + qty + '"></td>' +
+                    '<td class="p-2 text-right font-semibold text-slate-700 row-total align-middle">$0.00</td>' +
+                    '<td class="p-2 align-middle text-center w-14">' +
+                        '<input type="checkbox" class="row-nrc-toggle w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer align-middle" ' + (nrcEnabled ? 'checked' : '') + ' title="Non-recurring charge (NRC)">' +
+                    '</td>' +
+                    '<td class="p-2 align-middle text-center w-12">' +
+                        '<button type="button" class="remove-row-btn inline-flex items-center justify-center min-w-[2rem] min-h-[2rem] rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 font-bold text-base leading-none transition" title="Remove product line">✕</button>' +
+                    '</td>' +
+                '</tr>' +
                 '<tr class="row-nrc-subline ' + (nrcEnabled ? '' : 'hidden') + ' bg-slate-50 border-b border-slate-100">' +
-                '<td colspan="6" class="px-2 pb-3">' +
-                '<div class="rounded border border-slate-200 bg-white px-3 py-2 flex items-center gap-3">' +
-                '<input type="text" class="row-nrc-description w-full border border-slate-200 p-1.5 rounded text-sm outline-none focus:border-orange-500" placeholder="NRC description" value="' + nrcDescription + '">' +
-                '<input type="number" class="row-nrc-amount w-40 border border-slate-200 p-1.5 rounded text-sm text-right outline-none focus:border-orange-500" step="0.01" placeholder="NRC amount" value="' + nrcAmount + '">' +
-                '</div></td></tr>';
+                    '<td colspan="7" class="px-2 pb-3">' +
+                        '<div class="rounded border border-slate-200 bg-white px-3 py-2 flex items-center gap-3">' +
+                            '<input type="text" class="row-nrc-description w-full border border-slate-200 p-1.5 rounded text-sm outline-none focus:border-orange-500" placeholder="NRC description" value="' + nrcDescription + '">' +
+                            '<input type="number" class="row-nrc-amount w-40 border border-slate-200 p-1.5 rounded text-sm text-right outline-none focus:border-orange-500" step="0.01" placeholder="NRC amount" value="' + nrcAmount + '">' +
+                        '</div>' +
+                    '</td>' +
+                '</tr>';
             tbody.insertAdjacentHTML('beforeend', html);
             var nrcRow = tbody.lastElementChild;
             var row = nrcRow.previousElementSibling;
-            wireProdAutocomplete(row.querySelector('.prod-name'));
+            var prodInput = row.querySelector('.prod-name');
+            var suggestionDropdown = row.querySelector('.prod-suggestion-dropdown');
             var nrcToggle = row.querySelector('.row-nrc-toggle');
+
+            function applySuggestion(optEl) {
+                var opt = optEl || suggestionDropdown.querySelector('[data-suggestion]');
+                if (opt) {
+                    prodInput.value = opt.getAttribute('data-suggestion');
+                    suggestionDropdown.classList.add('hidden');
+                }
+            }
+
+            function positionSuggestionDropdown() {
+                var rect = prodInput.getBoundingClientRect();
+                suggestionDropdown.style.top = (rect.bottom + 2) + 'px';
+                suggestionDropdown.style.left = rect.left + 'px';
+                suggestionDropdown.style.width = rect.width + 'px';
+            }
+
+            prodInput.addEventListener('input', function() {
+                var val = this.value.trim();
+                if (!val) { suggestionDropdown.classList.add('hidden'); suggestionDropdown.innerHTML = ''; return; }
+                var bandwidthSuggestion = getBandwidthSuggestion(this.value);
+                var productMatches = getProductSuggestions(this.value);
+                var bandwidthPlusProduct = getBandwidthPlusProductSuggestions(this.value);
+                var items = [];
+                if (bandwidthSuggestion && bandwidthSuggestion !== val) items.push(bandwidthSuggestion);
+                bandwidthPlusProduct.forEach(function(s) {
+                    if (s !== val && items.indexOf(s) === -1) items.push(s);
+                });
+                productMatches.forEach(function(name) {
+                    if (name !== val && items.indexOf(name) === -1) items.push(name);
+                });
+                if (items.length === 0) {
+                    suggestionDropdown.classList.add('hidden');
+                    suggestionDropdown.innerHTML = '';
+                } else {
+                    suggestionDropdown.innerHTML = items.map(function(s) {
+                        return '<li class="px-3 py-1.5 hover:bg-blue-50 cursor-pointer rounded" data-suggestion="' + s.replace(/"/g, '&quot;') + '" role="option">' + s + '</li>';
+                    }).join('');
+                    positionSuggestionDropdown();
+                    suggestionDropdown.classList.remove('hidden');
+                }
+                if (!_suppressDirty) setDirty(true);
+            });
+
+            prodInput.addEventListener('keydown', function(e) {
+                if (suggestionDropdown.classList.contains('hidden')) return;
+                if (e.key === 'Tab') applySuggestion();
+            });
+
+            prodInput.addEventListener('blur', function() {
+                setTimeout(function() { suggestionDropdown.classList.add('hidden'); }, 150);
+            });
+
+            window.addEventListener('resize', function() { suggestionDropdown.classList.add('hidden'); }, { passive: true });
+            var mainScrollContainer = document.getElementById('scroll-container');
+            if (mainScrollContainer) {
+                mainScrollContainer.addEventListener('scroll', function() { suggestionDropdown.classList.add('hidden'); }, { passive: true });
+            }
+
+            suggestionDropdown.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                var opt = e.target.closest('[data-suggestion]');
+                if (opt) applySuggestion(opt);
+                prodInput.focus();
+            });
+
             row.querySelector('.price-input').addEventListener('input', function() { updateMath(row, locBlock, optionBlock); });
             row.querySelector('.qty-input').addEventListener('input', function() { updateMath(row, locBlock, optionBlock); });
             row.querySelector('.remove-row-btn').addEventListener('click', function() {
-                var sub = getPricingLineSubrows(row);
                 if (tbody.querySelectorAll('tr.pricing-row').length > 1) {
-                    if (sub.nrcRow) sub.nrcRow.remove();
+                    nrcRow.remove();
                     row.remove();
+                    updateProductReorderButtons(tbody);
                     updateMath(null, locBlock, optionBlock);
                 }
             });
-            if (nrcToggle) {
-                var syncNrc = function() {
-                    var s2 = getPricingLineSubrows(row);
-                    if (s2.nrcRow) s2.nrcRow.classList.toggle('hidden', !nrcToggle.checked);
-                    if (!_suppressDirty) setDirty(true);
-                };
-                nrcToggle.addEventListener('change', syncNrc);
-                syncNrc();
-            }
+            row.querySelector('.product-move-up-btn').addEventListener('click', function() { moveProductRow(row, 'up'); });
+            row.querySelector('.product-move-down-btn').addEventListener('click', function() { moveProductRow(row, 'down'); });
+
+            var syncNrc = function() {
+                nrcRow.classList.toggle('hidden', !nrcToggle.checked);
+                if (!_suppressDirty) setDirty(true);
+            };
+            nrcToggle.addEventListener('change', syncNrc);
+            syncNrc();
+            updateProductReorderButtons(tbody);
             updateMath(row, locBlock, optionBlock);
         }
 
@@ -1082,6 +1316,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 '<div class="location-pricing-table-wrap mb-4">' +
                 '<table class="w-full text-left border-collapse">' +
                 '<thead><tr class="bg-slate-100 text-slate-600 text-xs uppercase">' +
+                '<th class="p-2 w-10 text-center"><span class="sr-only">Reorder</span></th>' +
                 '<th class="p-2">PRODUCT</th><th class="p-2 w-28">LIST PRICE</th><th class="p-2 w-20">QTY</th><th class="p-2 w-28 text-right">TOTAL</th>' +
                 '<th class="p-2 w-14 text-center text-xs font-semibold tracking-wide normal-case" title="Non-recurring charge">NRC</th>' +
                 '<th class="p-2 w-12 text-center"><span class="sr-only">Remove</span></th></tr></thead>' +
@@ -1355,6 +1590,9 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 customText: document.getElementById('custom-text-body') ? document.getElementById('custom-text-body').value : '',
                 enableLocationSubtotals: !!(document.getElementById('pricing-enable-location-subtotals') && document.getElementById('pricing-enable-location-subtotals').checked),
                 enableDecimalPointsAmy: !!(document.getElementById('pricing-enable-decimal-points-amy') && document.getElementById('pricing-enable-decimal-points-amy').checked),
+                enableQuoteExpiration: !!(document.getElementById('pricing-enable-quote-expiration') && document.getElementById('pricing-enable-quote-expiration').checked),
+                quoteExpirationDays: document.getElementById('pricing-quote-expiration-days') ? document.getElementById('pricing-quote-expiration-days').value : '',
+                enableTaxesFeesExclusion: !!(document.getElementById('pricing-enable-taxes-fees-exclusion') && document.getElementById('pricing-enable-taxes-fees-exclusion').checked),
                 pricingOptions: pricingOptions,
                 references: Array.from(document.querySelectorAll('.ref-block')).map(b => ({
                     name: b.querySelector('.ref-name').value,
@@ -1743,6 +1981,13 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 if (locSubCb) locSubCb.checked = data.enableLocationSubtotals === true;
                 var amyDecCb = document.getElementById('pricing-enable-decimal-points-amy');
                 if (amyDecCb) amyDecCb.checked = data.enableDecimalPointsAmy === true;
+                var quoteExpCb = document.getElementById('pricing-enable-quote-expiration');
+                if (quoteExpCb) quoteExpCb.checked = data.enableQuoteExpiration === true;
+                var quoteExpDays = document.getElementById('pricing-quote-expiration-days');
+                if (quoteExpDays && data.quoteExpirationDays != null) quoteExpDays.value = data.quoteExpirationDays;
+                var taxesFeesCb = document.getElementById('pricing-enable-taxes-fees-exclusion');
+                if (taxesFeesCb) taxesFeesCb.checked = data.enableTaxesFeesExclusion === true;
+                syncQuoteExpirationDaysVisibility();
                 syncLocationSubtotalVisibility();
                 refreshAllPricingMath();
             }
@@ -2350,7 +2595,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     nrcHtml = '<div style="font-size: 11px; color: #475569; margin-top: 6px;">' + nrcLabel + (nrcAmountText ? (' <strong style="font-size: 11px; color: #334155; margin-left: 8px;">' + escapeHtml(nrcAmountText) + '</strong>') : '') + '</div>';
                 }
 
-                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + escapeHtml(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(priceVal) + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
+                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + formatProdTextForPdf(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(priceVal) + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
             };
 
             var enableLocSubtotalsPdf = !!(document.getElementById('pricing-enable-location-subtotals') && document.getElementById('pricing-enable-location-subtotals').checked);
@@ -2410,7 +2655,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 });
                 var grandTotalFormatted = formatPricingMoney(optTotalPdf, useAmyDecimalsPdf);
                 const totalBlockHtml = '<div style="margin-top: 20px;">' + '<div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalFormatted) + '</div></div>' + '</div>';
-                const termLineHtml = '<p style="text-align: center; font-size: 11px; color: #475569; margin-top: 1rem;">Pricing based off ' + escapeHtml(contractTerm) + '-month term</p>';
+                const termLineHtml = buildPricingTermLineHtml(contractTerm);
 
                 let baseHeader = optionBlocks.length > 1 ? `Proposed Pricing Option ${optIdx + 1}` : 'Proposed Pricing';
                 var solutionIdPdfEl = optBlock.querySelector('.solution-id-input');
