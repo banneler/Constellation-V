@@ -76,23 +76,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         tools: [{ "google_search": {} }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              summary: { type: "STRING" },
-              key_players: { type: "STRING" },
-              pipeline: { type: "STRING" },
-              activity_highlights: { type: "STRING" },
-              news: { type: "STRING" },
-              new_contacts: { type: "STRING" },
-              icebreakers: { type: "STRING" },
-              recommendation: { type: "STRING" }
-            },
-            required: ["summary", "key_players", "pipeline", "activity_highlights", "news", "new_contacts", "icebreakers", "recommendation"]
-          }
-        }
+        // google_search is incompatible with responseMimeType/responseSchema on 2.5-flash
       })
     });
 
@@ -105,8 +89,13 @@ Deno.serve(async (req) => {
 
     let text = responseJson.candidates[0].content.parts[0].text;
     
-    // 4. Hardened Regex Cleaner to strip markdown code blocks
-    const cleanJson = text.replace(/```json|```/g, "").trim();
+    // Hardened cleaner: strip markdown fences and extract JSON object if wrapped in prose
+    let cleanJson = text.replace(/```json|```/g, "").trim();
+    const jsonStart = cleanJson.indexOf("{");
+    const jsonEnd = cleanJson.lastIndexOf("}");
+    if (jsonStart !== -1 && jsonEnd > jsonStart) {
+      cleanJson = cleanJson.slice(jsonStart, jsonEnd + 1);
+    }
 
     return new Response(cleanJson, { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
