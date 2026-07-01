@@ -1,7 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 
 const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
-const GEMINI_MODEL_FALLBACK = "gemini-2.0-flash";
+const GEMINI_MODEL_FALLBACK = "gemini-2.5-flash-lite";
 
 const SYSTEM_PROMPT = `You are the executive presentation strategist for Great Plains Communications (GPC), an enterprise connectivity and infrastructure partner.
 
