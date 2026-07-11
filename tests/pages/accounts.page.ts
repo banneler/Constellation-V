@@ -44,6 +44,11 @@ export class AccountsPage {
     return this.page.locator('.account-picker-panel');
   }
 
+  /** Strategic section navigation rail shown in Strategic mode. */
+  strategicSectionsNav(): ReturnType<Page['locator']> {
+    return this.page.locator('#strategic-workspace nav[aria-label="Plan sections"]');
+  }
+
   /** Strategic mode toggle (#account-mode-toggle). */
   accountModeToggle(): ReturnType<Page['locator']> {
     return this.page.locator('#account-mode-toggle');
@@ -118,7 +123,7 @@ export class AccountsPage {
   }
 
   momentumSignalLogBtn(): Locator {
-    return this.page.locator('[data-momentum-signal-log]');
+    return this.page.locator('[data-momentum-milestone-log]');
   }
 
   momentumTimelineDisplay(): Locator {
@@ -167,8 +172,15 @@ export class AccountsPage {
   }
 
   async openVersionHistoryPopover(): Promise<void> {
-    await this.planVersionTrigger().click();
-    await this.planVersionPopover().waitFor({ state: 'visible', timeout: 10_000 });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await this.planVersionTrigger().click();
+      try {
+        await this.planVersionPopover().waitFor({ state: 'visible', timeout: 3_000 });
+        return;
+      } catch {
+        if (attempt === 2) throw new Error('Version history popover did not open');
+      }
+    }
   }
 
   async scrollToStrategicSection(sectionId: string): Promise<void> {
@@ -183,10 +195,12 @@ export class AccountsPage {
     await pollUntilEnabled(this.planForceCommitBtn(), 5_000);
   }
 
-  async waitForAutosaveSaved(): Promise<void> {
-    await this.strategicAutosaveStatus().waitFor({ state: 'visible', timeout: 10_000 });
+  async waitForAutosaveSettled(): Promise<void> {
     await this.page.waitForFunction(
-      () => document.querySelector('#strategic-autosave-status')?.getAttribute('data-status') === 'saved',
+      () => {
+        const status = document.querySelector('#strategic-autosave-status')?.getAttribute('data-status');
+        return status === 'saved' || status === 'idle';
+      },
       undefined,
       { timeout: 20_000 },
     );

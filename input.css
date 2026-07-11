@@ -5656,7 +5656,7 @@ body.theme-green {
         cursor: grab;
     }
     .sequence-step-card-body {
-        @apply flex-1 flex items-center justify-center relative min-h-0;
+        @apply flex-1 flex flex-col items-center justify-center relative min-h-0;
         z-index: 1;
         overflow: hidden;
     }
@@ -5716,6 +5716,10 @@ body.theme-green {
         color: var(--text-light);
         font-weight: 600;
         letter-spacing: 0.02em;
+    }
+    .sequence-step-type-label {
+        @apply text-xs font-semibold uppercase tracking-[0.16em] m-0 mb-1 text-center;
+        color: var(--text-medium);
     }
     .sequence-step-card-actions {
         @apply flex items-center gap-1 flex-wrap justify-end ml-auto;

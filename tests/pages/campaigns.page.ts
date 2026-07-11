@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { waitForAppReady } from '../helpers/guardian-log';
 
-/** campaigns.html — selectEmailTemplate, createCampaign */
+/** campaigns.html — guided email ABM campaign builder */
 export class CampaignsPage {
   constructor(private readonly page: Page) {}
 
@@ -14,40 +14,33 @@ export class CampaignsPage {
     return this.page.locator('#campaign-type');
   }
 
-  emailSourceType(): ReturnType<Page['locator']> {
-    return this.page.locator('#email-source-type');
+  guidedEmailFields(): ReturnType<Page['locator']> {
+    return this.page.locator('#abm-guided-email-fields');
   }
 
-  templateSelector(): ReturnType<Page['locator']> {
-    return this.page.locator('#template-selector');
+  emailSubject(): ReturnType<Page['locator']> {
+    return this.page.locator('#campaign-email-subject');
   }
 
-  templateEmailPreview(): ReturnType<Page['locator']> {
-    return this.page.locator('#template-email-preview');
-  }
-
-  previewTemplateSubject(): ReturnType<Page['locator']> {
-    return this.page.locator('#preview-template-subject');
+  emailBody(): ReturnType<Page['locator']> {
+    return this.page.locator('#campaign-email-body');
   }
 
   campaignName(): ReturnType<Page['locator']> {
     return this.page.locator('#campaign-name');
   }
 
-  /** Intent: Email Merge + Use Template → preview populates */
-  async selectEmailTemplateFlow(): Promise<void> {
-    await this.campaignType().selectOption('Email');
-    await this.page.locator('#email-section-container').waitFor({ state: 'visible', timeout: 10_000 });
-    await this.emailSourceType().selectOption('template');
-    await this.page.locator('#template-select-container').waitFor({ state: 'visible', timeout: 10_000 });
-  }
-
-  async selectFirstAvailableTemplate(): Promise<void> {
-    const sel = this.templateSelector();
-    const options = await sel.locator('option').evaluateAll((opts) =>
-      opts.map((o) => ({ value: (o as HTMLOptionElement).value, text: (o as HTMLOptionElement).text })).filter((o) => o.value && o.value !== '')
-    );
-    if (!options.length) throw new Error('No email templates in dropdown');
-    await sel.selectOption(options[0].value);
+  /** Intent: Guided Email campaign type reveals editable subject/body fields. */
+  async selectGuidedEmailFlow(): Promise<void> {
+    await this.campaignType().evaluate((el) => {
+      const select = el as HTMLSelectElement & { tomselect?: { setValue: (value: string) => void } };
+      if (select.tomselect) {
+        select.tomselect.setValue('Guided Email');
+      } else {
+        select.value = 'Guided Email';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    await this.guidedEmailFields().waitFor({ state: 'visible', timeout: 10_000 });
   }
 }

@@ -338,6 +338,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <div class="sequence-step-card-assigned" aria-hidden="true">${displayAssignedTo}</div>
                 <div class="sequence-step-card-delay" aria-hidden="true">+${delayText}d</div>
                 <div class="sequence-step-card-body">
+                    <p class="sequence-step-type-label">${typeValue || "Step"}</p>
                     <p class="sequence-step-summary" title="${escapeHtml(step.subject || step.message || "")}">${escapeHtml(summaryText || "No description")}</p>
                 </div>
             `;

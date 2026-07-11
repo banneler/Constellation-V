@@ -8,24 +8,15 @@ test.describe('Campaigns (functional)', () => {
       await guardianCaptureFailure(page, testInfo.title);
     }
   });
-  test('selecting email template shows preview UI', async ({ page }) => {
+  test('selecting Guided Email shows email builder UI', async ({ page }) => {
     const c = new CampaignsPage(page);
     guardian.step('Opening Campaigns');
     await c.goto();
 
-    guardian.step('Switching to Email Merge + Use Template');
-    await c.selectEmailTemplateFlow();
+    guardian.step('Switching to Guided Email campaign type');
+    await c.selectGuidedEmailFlow();
 
-    const optCount = await c.templateSelector().locator('option').count();
-    if (optCount <= 1) {
-      guardian.step('Skipping — no templates in org (need email_templates rows)');
-      test.skip();
-      return;
-    }
-
-    guardian.step('Selecting first template — expect subject/body preview');
-    await c.selectFirstAvailableTemplate();
-    await expect(c.templateEmailPreview()).toBeVisible({ timeout: 10_000 });
-    await expect(c.previewTemplateSubject()).not.toBeEmpty();
+    await expect(c.emailSubject()).toBeVisible({ timeout: 10_000 });
+    await expect(c.emailBody()).toBeVisible({ timeout: 10_000 });
   });
 });

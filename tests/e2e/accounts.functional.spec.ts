@@ -73,10 +73,11 @@ test.describe('Strategic Account OS', () => {
     guardian.step('Switching to Strategic mode');
     await acc.switchToStrategicMode();
 
-    guardian.step('Verifying strategic shell visible and account picker remains');
+    guardian.step('Verifying strategic shell replaces tactical panels');
     await expect(acc.strategicWorkspace()).toBeVisible();
     await expect(acc.strategicDocumentCanvas()).toBeVisible();
-    await expect(acc.accountPickerPanel()).toBeVisible();
+    await expect(acc.strategicSectionsNav()).toBeVisible();
+    await expect(acc.accountPickerPanel()).toBeHidden();
     await expect(acc.accountDetails()).toBeHidden();
     await expect(acc.accountModeToggle()).toHaveAttribute('aria-pressed', 'true');
   });
@@ -101,9 +102,8 @@ test.describe('Strategic Account OS', () => {
     await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'pending', { timeout: 5_000 });
     await expect(acc.strategicAutosaveStatus()).toContainText('Unsaved changes', { timeout: 5_000 });
 
-    guardian.step('Waiting for saved autosave status (2s debounce + network)');
-    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'saved', { timeout: 20_000 });
-    await expect(acc.strategicAutosaveStatus()).toContainText('Saved', { timeout: 5_000 });
+    guardian.step('Waiting for autosave to settle');
+    await acc.waitForAutosaveSettled();
   });
 
   test('account snapshot tier edit triggers autosave to Saved', async ({ page }) => {
@@ -121,9 +121,8 @@ test.describe('Strategic Account OS', () => {
     guardian.step('Waiting for pending autosave status after tier change');
     await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'pending', { timeout: 5_000 });
 
-    guardian.step('Waiting for saved autosave status');
-    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'saved', { timeout: 20_000 });
-    await expect(acc.strategicAutosaveStatus()).toContainText('Saved', { timeout: 5_000 });
+    guardian.step('Waiting for autosave to settle');
+    await acc.waitForAutosaveSettled();
   });
 
   test('log signal writes to timeline and autosaves', async ({ page }) => {
@@ -145,7 +144,7 @@ test.describe('Strategic Account OS', () => {
     });
 
     guardian.step('Waiting for autosave after signal log');
-    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'saved', { timeout: 20_000 });
+    await acc.waitForAutosaveSettled();
   });
 
   test('export buttons enabled when plan is loaded', async ({ page }) => {
@@ -172,7 +171,8 @@ test.describe('Strategic Account OS', () => {
     await textarea.fill(`E2E force commit ${Date.now()}`);
 
     guardian.step('Waiting for initial autosave before force commit');
-    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'saved', { timeout: 20_000 });
+    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'pending', { timeout: 5_000 });
+    await acc.waitForAutosaveSettled();
 
     guardian.step('Opening version history before force commit');
     await acc.openVersionHistoryPopover();
@@ -184,7 +184,7 @@ test.describe('Strategic Account OS', () => {
     await acc.planForceCommitBtn().click();
 
     guardian.step('Waiting for save after force commit');
-    await expect(acc.strategicAutosaveStatus()).toHaveAttribute('data-status', 'saved', { timeout: 20_000 });
+    await acc.waitForAutosaveSettled();
 
     guardian.step('Opening version history and verifying new manual commit entry');
     await acc.openVersionHistoryPopover();

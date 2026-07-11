@@ -7,9 +7,7 @@ import {
     showModal,
     hideModal,
     loadSVGs,
-    setupUserMenuAndAuth,
     initializeAppState,
-    getState,
     hideGlobalLoader
 } from './shared_constants.js';
 
@@ -783,8 +781,10 @@ function setupPageEventListeners() {
         if (e.target.matches('.share-toggle')) handleContentToggle(e);
     });
     document.getElementById('content-management-table')?.addEventListener('click', e => {
-        e.preventDefault();
-        if (e.target.matches('.delete-content-btn')) handleDeleteContent(e);
+        if (e.target.matches('.delete-content-btn')) {
+            e.preventDefault();
+            handleDeleteContent(e);
+        }
     });
     document.querySelectorAll('.content-view-btn').forEach(btn => btn.addEventListener('click', e => { e.preventDefault();
         document.querySelectorAll('.content-view-btn').forEach(b => b.classList.remove('active'));
@@ -865,7 +865,6 @@ async function initializePage() {
         window.location.href = "command-center.html";
         return;
     }
-    await setupUserMenuAndAuth(supabase, getState());
     setupPageEventListeners();
     handleNavigation();
     hideGlobalLoader();
