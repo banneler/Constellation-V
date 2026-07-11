@@ -29,8 +29,23 @@ test.describe('Proposals (functional)', () => {
     await expect(p.customTextSection()).toBeVisible({ timeout: 12_000 });
 
     guardian.step('Filling RFP / Business name');
-    await p.fillProposalProperties(`RFP ${Date.now()}`, 'E2E Business');
+    const rfpName = `RFP ${Date.now()}`;
+    await p.fillProposalProperties(rfpName, 'E2E Business');
     await expect(p.globalRfp()).toHaveValue(/RFP/);
     await expect(p.globalBiz()).toHaveValue('E2E Business');
+
+    guardian.step('Verifying dynamic snippet token replacement');
+    await expect(p.coverSnippet('Introductory Paragraph')).toBeVisible();
+    await p.coverSnippet('Introductory Paragraph').click();
+    await expect(p.coverBody()).toHaveValue(new RegExp(rfpName));
+    await expect(p.customPageSnippet('Executive Summary - General')).toBeVisible();
+
+    guardian.step('Verifying optional pricing PDF disclaimer controls');
+    await expect(p.quoteExpirationToggle()).toBeVisible();
+    await expect(p.taxesFeesExclusionToggle()).toBeVisible();
+    await p.quoteExpirationToggle().check({ force: true });
+    await expect(p.quoteExpirationDaysWrap()).toBeVisible();
+    await p.quoteExpirationDays().fill('30');
+    await expect(p.quoteExpirationDays()).toHaveValue('30');
   });
 });

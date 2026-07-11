@@ -1,9 +1,73 @@
 
         const renderZones = document.getElementById('render-zones');
-        const ASSETS_BASE = new URL('Proposal_Assets/', window.location.href).href;
-        const GPC_TITLE_BG = ASSETS_BASE + '01_Title_Page.svg';
-        const GPC_INTERIOR_BG = ASSETS_BASE + 'GPC_Blank_Letterhead.svg';
+        const ASSETS_FOLDER = 'Proposal_Assets';
+        let ASSETS_BASE = new URL(ASSETS_FOLDER + '/', window.location.href).href;
+        var brandTitleBackground = { mode: 'none' };
+        var brandInteriorBackground = { mode: 'none' };
+        var lastFocusedCustomTextBody = null;
+        let usePdfLetterheadUnderlay = false;
         const REFERENCES_CONTENT_MAX_WIDTH_PX = 450;
+        const CUSTOM_TEXT_HEIGHT_WARN_SCROLL_PX = 900;
+
+        function getAssetPath(filename) {
+            return ASSETS_FOLDER + '/' + filename;
+        }
+
+        async function assetExists(url) {
+            try {
+                var res = await fetch(url, { method: 'HEAD' });
+                if (!res.ok) res = await fetch(url, { method: 'GET', cache: 'force-cache' });
+                return res.ok;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /** Resolve snapdom/CSS backgrounds with SVG first, PNG second, PDF fallback last. */
+        async function resolveBrandBackground(stem, pdfLogicalFilename) {
+            var rasterExts = ['.svg', '.png'];
+            for (var i = 0; i < rasterExts.length; i++) {
+                var ext = rasterExts[i];
+                var filename = stem + ext;
+                var url = getAssetPath(filename);
+                if (await assetExists(url)) {
+                    return { mode: ext === '.svg' ? 'svg' : 'png', url: url };
+                }
+            }
+            var pdfUrl = getAssetPath(pdfLogicalFilename);
+            if (await assetExists(pdfUrl)) {
+                return { mode: 'pdf', url: pdfUrl };
+            }
+            return { mode: 'none' };
+        }
+
+        function getTitleRasterUrl() {
+            return (brandTitleBackground.mode === 'svg' || brandTitleBackground.mode === 'png')
+                ? brandTitleBackground.url
+                : null;
+        }
+
+        function getInteriorRasterUrl() {
+            return (brandInteriorBackground.mode === 'svg' || brandInteriorBackground.mode === 'png')
+                ? brandInteriorBackground.url
+                : null;
+        }
+
+        async function refreshBrandBackgrounds() {
+            ASSETS_BASE = new URL(ASSETS_FOLDER + '/', window.location.href).href;
+            brandTitleBackground = await resolveBrandBackground('01_Title_Page', '01_Title_Page.pdf');
+            brandInteriorBackground = await resolveBrandBackground('GPC_Blank_Letterhead', 'GPC_Blank_Letterhead.pdf');
+            usePdfLetterheadUnderlay = brandInteriorBackground.mode === 'pdf';
+        }
+
+        function getInteriorCardBackgroundStyle() {
+            var rasterUrl = getInteriorRasterUrl();
+            return rasterUrl
+                ? ' background: url("' + rasterUrl + '") no-repeat 0 0; background-size: 100% 100%;'
+                : '';
+        }
+
+        refreshBrandBackgrounds();
 
         function showToast(message, type) {
             type = type === 'error' ? 'error' : 'success';
@@ -172,14 +236,14 @@
                 var section = ta.closest('.custom-text-section');
                 var warn = section && section.querySelector('.warning-customText');
                 if (!warn) return;
-                if (ta.scrollHeight > 600) warn.classList.remove('hidden'); else warn.classList.add('hidden');
+                if (ta.scrollHeight > CUSTOM_TEXT_HEIGHT_WARN_SCROLL_PX) warn.classList.remove('hidden'); else warn.classList.add('hidden');
             });
         }
         document.addEventListener('input', function(e) {
             if (e.target && e.target.classList && e.target.classList.contains('custom-text-body')) checkCustomTextHeight();
         });
 
-        const GPC_COVER_SNIPPETS = [
+        var GPC_COVER_SNIPPETS = [
             { label: 'Exceptional customer service', text: 'You gain a team of knowledgeable experts dedicated to building a tailored, endtoend solution that fits your business. From initial contact through design, turnup, testing, and ongoing maintenance, you work with a local team committed to creating solutions that support your goals. Because our teams live and work in the communities we serve, we\'re invested in helping them thrive -- including your organization.' },
             { label: 'Scalable fiber-driven technology', text: 'Our technology is designed to meet the needs of small storefronts and medium-to-large enterprises. Our network and products are fully scalable, backed by fiber-driven technology services that will accelerate the success of your business.' },
             { label: 'Why Us - Local Team & Custom Solutions', text: 'Experience a true partnership with GPC, a proven provider that delivers stable, future-proof solutions backed by over 100 years of expertise. Our teams are strategically placed across our network footprint that stretches Nebraska, Colorado, Iowa and Southeast Indiana. Powered by our 20,000-mile MEF-certified, high-capacity network, businesses and carriers benefit from state-of-the-art connectivity backed by custom-built strategies, expert engineering and local support.' },
@@ -189,7 +253,7 @@
             { label: 'Business Internet', text: 'GPC offers flexible business internet solutions built to meet the demands of your organization. From 10 Mbps to 400 Gbps, our high-performing network delivers the reliability and speeds your business depends on to ensure you have the bandwidth to operate efficiently and grow confidently.' },
             { label: 'Managed Ethernet', text: 'Increase efficiency and cost savings, with scalable, secure transport across your different business locations.' }
         ];
-        const GPC_CUSTOM_PAGE_SNIPPETS = [
+        var GPC_CUSTOM_PAGE_SNIPPETS = [
             { label: 'Executive Summary - General', text: `Great Plains Communications (GPC) is pleased to present this proposal for enterprise-grade connectivity and managed services. From small storefronts to large enterprises, our fully scalable, fiber-driven technology services are designed to accelerate the success of your business. We are one of the largest privately owned internet service providers for businesses in the Midwest, with a high-performing network built for redundancy and scalability to meet your needs today and grow with you tomorrow.
 
 What sets our company apart is our exceptional customer service. From the first customer contact through design, turn-up, testing, and maintenance, you will work with a local team committed to developing custom solutions to help you achieve your business goals. Our Nebraska- and Indiana-based teams provide a true local presence, with technicians strategically located in communities across Nebraska and Southeast Indiana. We combine a high-performing network with high-performing people and 24/7 tech support so you can focus on what matters most.
@@ -214,7 +278,46 @@ Our network is built for reliability and security. We operate a 20,000+ mile fib
 
 We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet for scalable, secure transport between facilities; GPC Managed Firewall for round-the-clock network protection to safeguard sensitive data; and GPC DDoS Protection to help avoid disruptions and block high-volume attacks. Wireless internet backup with automatic failover and 24/7 support helps keep your business running during outages. GPC Cloud Connect and SD-WAN can deliver improved performance, lower cost, and always-on reliability across multiple delivery methods. We look forward to working with you to design a solution that meets your clinical and operational goals.` }
         ];
+        async function loadMarketingContent() {
+            try {
+                var response = await fetch('./marketing-content.json');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                var data = await response.json();
+                GPC_COVER_SNIPPETS = Array.isArray(data.coverSnippets) ? data.coverSnippets : GPC_COVER_SNIPPETS;
+                GPC_CUSTOM_PAGE_SNIPPETS = Array.isArray(data.customPageSnippets) ? data.customPageSnippets : GPC_CUSTOM_PAGE_SNIPPETS;
+                var loadedProducts = Array.isArray(data.productSuggestions)
+                    ? data.productSuggestions.map(function(p) { return String(p || '').trim(); }).filter(Boolean)
+                    : [];
+                if (loadedProducts.length) PRODUCT_SUGGESTIONS = loadedProducts;
+                renderCoverSnippets();
+                renderCustomPageSnippets();
+            } catch (error) {
+                console.error('Failed to load marketing content:', error);
+                renderCoverSnippets();
+                renderCustomPageSnippets();
+                showToast('Warning: Could not load dynamic text snippets.', 'error');
+            }
+        }
+
+        function resolveSnippetTokens(text) {
+            text = String(text || '');
+            var rfpEl = document.getElementById('global-rfp');
+            var bizEl = document.getElementById('global-biz');
+            var rfp = (rfpEl && rfpEl.value || '').trim();
+            var biz = (bizEl && bizEl.value || '').trim();
+            var missing = [];
+            if (/\{RFP\}/.test(text) && !rfp) missing.push('RFP Name / Proposal Name');
+            if (/\{BIZ\}/.test(text) && !biz) missing.push('Business Name');
+            if (missing.length) {
+                alert('Please fill in ' + missing.join(' and ') + ' in Proposal Properties before inserting this snippet.');
+                return null;
+            }
+            return text.replace(/\{RFP\}/g, rfp).replace(/\{BIZ\}/g, biz);
+        }
+
         function insertIntoCoverBody(text) {
+            text = resolveSnippetTokens(text);
+            if (text === null) return;
             var ta = document.getElementById('cover-body');
             if (!ta) return;
             var start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
@@ -236,8 +339,31 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 container.appendChild(btn);
             });
         }
-        function insertIntoCustomTextBody(text) {
-            var ta = (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('custom-text-body')) ? document.activeElement : document.getElementById('custom-text-body');
+
+        function isCustomTextBodyTargetable(ta) {
+            if (!ta || !ta.isConnected || ta.tagName !== 'TEXTAREA' || !ta.classList.contains('custom-text-body')) return false;
+            var section = ta.closest('.custom-text-section');
+            return !!section && !section.classList.contains('hidden');
+        }
+
+        function getTargetCustomTextBody() {
+            if (isCustomTextBodyTargetable(lastFocusedCustomTextBody)) return lastFocusedCustomTextBody;
+            var list = document.querySelectorAll('textarea.custom-text-body');
+            for (var i = 0; i < list.length; i++) {
+                if (isCustomTextBodyTargetable(list[i])) return list[i];
+            }
+            return document.querySelector('textarea.custom-text-body');
+        }
+
+        document.addEventListener('focusin', function(e) {
+            var target = e.target;
+            if (target && target.classList && target.classList.contains('custom-text-body')) lastFocusedCustomTextBody = target;
+        });
+
+        function insertIntoCustomTextBody(text, preferredTa) {
+            text = resolveSnippetTokens(text);
+            if (text === null) return;
+            var ta = (preferredTa && isCustomTextBodyTargetable(preferredTa)) ? preferredTa : getTargetCustomTextBody();
             if (!ta) return;
             var start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
             ta.value = val.slice(0, start) + text + val.slice(end);
@@ -245,21 +371,21 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             ta.focus();
         }
         function renderCustomPageSnippets() {
-            const container = document.getElementById('custom-page-snippets');
-            if (!container) return;
-            container.innerHTML = '';
-            GPC_CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
-                btn.textContent = s.label;
-                btn.title = s.text.slice(0, 80) + (s.text.length > 80 ? '…' : '');
-                btn.addEventListener('click', function() { insertIntoCustomTextBody(s.text); });
-                container.appendChild(btn);
+            document.querySelectorAll('.custom-page-snippets').forEach(function(container) {
+                container.innerHTML = '';
+                var section = container.closest('.custom-text-section');
+                var sectionTa = section ? section.querySelector('textarea.custom-text-body') : null;
+                GPC_CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
+                    btn.textContent = s.label;
+                    btn.title = s.text.slice(0, 80) + (s.text.length > 80 ? '…' : '');
+                    btn.addEventListener('click', function() { insertIntoCustomTextBody(s.text, sectionTa); });
+                    container.appendChild(btn);
+                });
             });
         }
-        renderCoverSnippets();
-        renderCustomPageSnippets();
         function getReadinessControl(id) {
             const el = document.getElementById(id);
             if (!el) return null;
@@ -377,17 +503,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 section.setAttribute('data-custom-index', String(nextIdx));
                 section.innerHTML = '<div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2"><svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><h3 class="text-2xl font-bold text-slate-800 custom-text-section-title">Custom Page ' + (nextIdx + 1) + '</h3></div><input type="text" id="custom-text-title-input-' + nextIdx + '" class="custom-text-title-input w-full border border-slate-300 p-2 rounded-lg mb-3 bg-slate-50 outline-none focus:border-orange-500 font-semibold text-slate-700" placeholder="Document Title (Leave blank for no header)"><div class="flex gap-6 flex-nowrap items-start"><div class="flex-1 min-w-[500px]"><textarea id="custom-text-body-' + nextIdx + '" class="custom-text-body w-full h-64 p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Start typing custom content..." style="white-space: pre-wrap;"></textarea><p class="warning-customText hidden text-red-600 text-sm font-bold mt-2">⚠️ Warning: Text exceeds PDF page height and may be cut off. Please shorten.</p></div><div class="w-[280px] flex-shrink-0 rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex flex-col gap-4"><div><h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3><p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p><div class="custom-page-snippets space-y-2 overflow-auto min-h-0"></div></div></div></div>';
                 container.appendChild(section);
-                section.querySelectorAll('.custom-page-snippets').forEach(function(snip) {
-                    GPC_CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
-                        var btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
-                        btn.textContent = s.label;
-                        btn.title = s.text.slice(0, 80) + (s.text.length > 80 ? '…' : '');
-                        btn.addEventListener('click', function() { insertIntoCustomTextBody(s.text); });
-                        snip.appendChild(btn);
-                    });
-                });
+                renderCustomPageSnippets();
                 updateCustomPageRowLabels();
                 syncCustomSectionsVisibility();
                 if (!_suppressDirty) setDirty(true);
@@ -484,6 +600,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             'Managed Business Wi-Fi', 'Wireless Internet Backup', 'GPC Managed Firewall', 'DDoS Protection',
             'Cloud Connect', 'SD-WAN', 'SIP Trunking', 'PRI', 'Dark Fiber', 'Colocation', 'Professional Services'
         ];
+        loadMarketingContent();
 
         function getBandwidthSuggestion(text) {
             if (!text || typeof text !== 'string') return null;
@@ -1894,18 +2011,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 section.setAttribute('data-custom-index', String(nextIdx));
                 section.innerHTML = '<div class="flex items-center mb-4 border-b border-slate-100 pb-2 gap-2"><svg class="w-6 h-6 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><h3 class="text-2xl font-bold text-slate-800 custom-text-section-title">Custom Page ' + (nextIdx + 1) + '</h3></div><input type="text" id="custom-text-title-input-' + nextIdx + '" class="custom-text-title-input w-full border border-slate-300 p-2 rounded-lg mb-3 bg-slate-50 outline-none focus:border-orange-500 font-semibold text-slate-700" placeholder="Document Title (Leave blank for no header)"><div class="flex gap-6 flex-nowrap items-start"><div class="flex-1 min-w-[500px]"><textarea id="custom-text-body-' + nextIdx + '" class="custom-text-body w-full h-64 p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Start typing custom content..." style="white-space: pre-wrap;"></textarea><p class="warning-customText hidden text-red-600 text-sm font-bold mt-2">⚠️ Warning: Text exceeds PDF page height and may be cut off. Please shorten.</p></div><div class="w-[280px] flex-shrink-0 rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex flex-col gap-4"><div><h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3><p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p><div class="custom-page-snippets space-y-2 overflow-auto min-h-0"></div></div></div></div>';
                 container.appendChild(section);
-                var snipContainer = section.querySelector('.custom-page-snippets');
-                if (snipContainer && typeof GPC_CUSTOM_PAGE_SNIPPETS !== 'undefined') {
-                    GPC_CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
-                        var btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
-                        btn.textContent = s.label;
-                        btn.title = s.text.slice(0, 80) + (s.text.length > 80 ? '…' : '');
-                        btn.addEventListener('click', function() { insertIntoCustomTextBody(s.text); });
-                        snipContainer.appendChild(btn);
-                    });
-                }
+                renderCustomPageSnippets();
             }
             for (var kk = 1; kk < customPdfIndices.length; kk++) {
                 var nextIdx = customPdfIndices[kk];
@@ -2130,7 +2236,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         function previewStockPdf(filename, title) {
             document.getElementById('pdf-preview-title').innerText = title;
             // Added scrollbar=0 to the engine parameters
-            document.getElementById('pdf-preview-iframe').src = `Proposal_Assets/${filename}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`;
+            document.getElementById('pdf-preview-iframe').src = getAssetPath(filename) + '#toolbar=0&navpanes=0&scrollbar=0&view=Fit';
             document.getElementById('pdf-preview-modal').classList.remove('hidden');
         }
 
@@ -2282,6 +2388,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
     document.body.style.overflow = 'hidden';
 
     try {
+    await refreshBrandBackgrounds();
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
     const finalDoc = await PDFDocument.create();
     
@@ -2293,8 +2400,11 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
     let letterheadPdf;
     try {
-        const letterheadBytes = await fetch(`Proposal_Assets/GPC_Blank_Letterhead.pdf`).then(res => res.arrayBuffer());
-        letterheadPdf = await PDFDocument.load(letterheadBytes);
+        const letterheadRes = await fetch(getAssetPath('GPC_Blank_Letterhead.pdf'));
+        if (letterheadRes.ok) {
+            const letterheadBytes = await letterheadRes.arrayBuffer();
+            letterheadPdf = await PDFDocument.load(letterheadBytes);
+        }
     } catch (e) {
         console.warn("Letterhead not found. Falling back to blank page.");
     }
@@ -2325,7 +2435,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         wrapper.innerHTML = '';
         const card = document.createElement('div');
         card.className = 'gpc-pdf-font';
-        card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_INTERIOR_BG + '") no-repeat 0 0; background-size: 100% 100%;';
+        card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box;' + getInteriorCardBackgroundStyle();
         const titleText = document.createElement('div');
         titleText.style.cssText = 'position: absolute; left: 72px; top: 0.5in; color: white; font-size: 32px; font-weight: bold; white-space: nowrap;';
         titleText.textContent = (headerTitle && headerTitle.trim()) ? headerTitle : '\u00A0';
@@ -2338,8 +2448,9 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         card.appendChild(contentArea);
         wrapper.appendChild(card);
         await new Promise(r => requestAnimationFrame(r));
-        const result = await snapdom(card, { scale: 2, backgroundColor: 'white' });
+        const result = await snapdom(card, { scale: 2, backgroundColor: getInteriorRasterUrl() ? 'white' : 'transparent' });
         const canvas = await result.toCanvas();
+        canvas._gpcHeaderTitle = headerTitle || '';
         return canvas;
     }
 
@@ -2411,7 +2522,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         const wrapper = document.getElementById('gpc-title-render-wrapper');
         wrapper.innerHTML = '';
         const card = document.createElement('div');
-        card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_TITLE_BG + '") no-repeat 0 0; background-size: 100% 100%;';
+        card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + getTitleRasterUrl() + '") no-repeat 0 0; background-size: 100% 100%;';
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position: absolute; right: 72px; left: calc(58% - 0.7in); bottom: calc(45px + 0.25in); color: white; font-family: Helvetica, Arial, sans-serif;';
         overlay.innerHTML = '<div style="font-size: 31px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(bizText) + '</div><div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(rfpText) + '</div><div style="font-size: 14px; margin-bottom: 5px;">Presented by: ' + escapeHtml(repText) + '</div><div style="font-size: 12px;">' + escapeHtml(displayDate) + '</div>';
@@ -2421,6 +2532,35 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         const result = await snapdom(card, { scale: 2, backgroundColor: 'white' });
         const canvas = await result.toCanvas();
         return canvas;
+    }
+
+
+    async function buildTitlePageFromPdf() {
+        const titleBytes = await fetch(getAssetPath('01_Title_Page.pdf')).then(function (res) {
+            if (!res.ok) throw new Error('Title page PDF not found');
+            return res.arrayBuffer();
+        });
+        const srcPdf = await PDFDocument.load(titleBytes);
+        const [copiedPage] = await finalDoc.copyPages(srcPdf, [0]);
+        finalDoc.addPage(copiedPage);
+        const page = finalDoc.getPage(finalDoc.getPageCount() - 1);
+
+        const rfpText = (document.getElementById('global-rfp').value || '').substring(0, 33);
+        const bizText = (document.getElementById('global-biz').value || '').substring(0, 33);
+        const repText = (document.getElementById('global-rep').value || '').substring(0, 33);
+        const customDate = document.getElementById('global-date').value.trim();
+        const displayDate = customDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        const white = rgb(1, 1, 1);
+        const startX = PAGE_WIDTH * 0.58 - 50;
+        let y = 120;
+
+        page.drawText(bizText, { x: startX, y: y, size: 23, font: boldFont, color: white });
+        y -= 28;
+        page.drawText(rfpText, { x: startX, y: y, size: 16, font: boldFont, color: white });
+        y -= 28;
+        page.drawText('Presented by: ' + repText, { x: startX, y: y, size: 10, font: font, color: white });
+        y -= 18;
+        page.drawText(displayDate, { x: startX, y: y, size: 9, font: font, color: white });
     }
 
 // Centralized Image Stamping & Header Injection
@@ -2473,14 +2613,28 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
     async function addPageFromCanvas(canvas) {
         const pngImage = await finalDoc.embedPng(canvas.toDataURL('image/png'));
-        const page = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        let page;
+        if (usePdfLetterheadUnderlay && letterheadPdf) {
+            const [copiedPage] = await finalDoc.copyPages(letterheadPdf, [0]);
+            finalDoc.addPage(copiedPage);
+            page = finalDoc.getPage(finalDoc.getPageCount() - 1);
+        } else {
+            page = finalDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        }
         page.drawImage(pngImage, { x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
     }
 
     for (const slideFile of payload.slides) {
         if (slideFile === '01_Title_Page.pdf') {
-            const canvas = await buildTitlePageHybrid();
-            await addPageFromCanvas(canvas);
+            if (brandTitleBackground.mode === 'svg' || brandTitleBackground.mode === 'png') {
+                const canvas = await buildTitlePageHybrid();
+                await addPageFromCanvas(canvas);
+            } else if (brandTitleBackground.mode === 'pdf') {
+                await buildTitlePageFromPdf();
+            } else {
+                console.warn('Title page background not found.');
+                showToast('Title page assets missing. Add SVG, PNG, or PDF to Proposal_Assets.', 'error');
+            }
             continue;
         }
         if (slideFile === 'CUSTOM_COVER') {
@@ -2626,9 +2780,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         };
                     });
                     const promotions = readLocationPromotions(block);
-                    if (locationBlocks.length > 1) {
-                        allRows.push({ type: 'loc', name: locName });
-                    }
+                    allRows.push({ type: 'loc', name: locName });
                     rows.forEach((item, idx) => { allRows.push({ type: 'row', item, bg: (idx % 2 === 0) ? '#E8E8E8' : '#f5f5f5' }); });
                     promotions.forEach((promo) => { allRows.push({ type: 'promo', promo }); });
                     if (enableLocSubtotalsPdf && rows.length) {
@@ -2694,7 +2846,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         wrapper.innerHTML = '';
                         const card = document.createElement('div');
                         card.className = 'gpc-pdf-font';
-                        card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + GPC_INTERIOR_BG + '") no-repeat 0 0; background-size: 100% 100%;';
+                        card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box;' + getInteriorCardBackgroundStyle();
                         const contentArea = document.createElement('div');
                         contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: 11pt; line-height: 1.4; padding-top: 46px;';
                         contentArea.innerHTML = bodyHtml;
@@ -2842,7 +2994,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
         else {
             try {
-                const existingPdfBytes = await fetch(`Proposal_Assets/${slideFile}`).then(res => res.arrayBuffer());
+                const existingPdfBytes = await fetch(getAssetPath(slideFile)).then(res => res.arrayBuffer());
                 const existingPdf = await PDFDocument.load(existingPdfBytes);
                 const [page] = await finalDoc.copyPages(existingPdf, [0]);
 

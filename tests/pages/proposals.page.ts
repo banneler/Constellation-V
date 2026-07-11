@@ -43,6 +43,30 @@ export class ProposalsPage {
     return this.page.locator('#cover-body');
   }
 
+  coverSnippet(label: string): ReturnType<Page['locator']> {
+    return this.page.locator('#cover-snippets button', { hasText: label });
+  }
+
+  customPageSnippet(label: string): ReturnType<Page['locator']> {
+    return this.page.locator('.custom-page-snippets button', { hasText: label }).first();
+  }
+
+  quoteExpirationToggle(): ReturnType<Page['locator']> {
+    return this.page.locator('#pricing-enable-quote-expiration');
+  }
+
+  quoteExpirationDaysWrap(): ReturnType<Page['locator']> {
+    return this.page.locator('#pricing-quote-expiration-days-wrap');
+  }
+
+  quoteExpirationDays(): ReturnType<Page['locator']> {
+    return this.page.locator('#pricing-quote-expiration-days');
+  }
+
+  taxesFeesExclusionToggle(): ReturnType<Page['locator']> {
+    return this.page.locator('#pricing-enable-taxes-fees-exclusion');
+  }
+
   /** Enabling a proposal module updates main preview sections */
   async selectProposalModuleImpactRoi(): Promise<void> {
     await this.toggleImpactRoi().check();

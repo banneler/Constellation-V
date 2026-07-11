@@ -357,13 +357,13 @@
                             <div class="flex gap-6 flex-nowrap items-start">
                                 <div class="flex-1 min-w-[500px]">
                                     <textarea id="custom-text-body" class="custom-text-body w-full h-64 p-3 border border-slate-300 rounded-lg bg-white resize-y font-sans text-base focus:outline-none focus:border-orange-500" placeholder="Start typing custom content..." style="white-space: pre-wrap;"></textarea>
-                                    <p id="warning-customText" class="warning-customText hidden text-red-600 text-sm font-bold mt-2">⚠️ Warning: Text exceeds PDF page height and may be cut off. Please shorten.</p>
+                                    <p id="warning-customText" class="warning-customText hidden text-amber-600 text-sm font-bold mt-2">Note: Content extends beyond one page. Additional pages will be added to the PDF.</p>
                                 </div>
                                 <div class="w-[280px] flex-shrink-0 rounded-xl bg-slate-50 border border-slate-200 p-4 text-slate-600 flex flex-col gap-4">
                                     <div>
                                         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Click to add</h3>
                                         <p class="text-xs text-slate-400 mb-2">Inserts at cursor in the custom page.</p>
-                                        <div id="custom-page-snippets" class="space-y-2 overflow-auto min-h-0"></div>
+                                        <div id="custom-page-snippets" class="custom-page-snippets space-y-2 overflow-auto min-h-0"></div>
                                     </div>
                                 </div>
                             </div>
