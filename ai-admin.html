@@ -99,6 +99,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            padding: 24px;
         }
 
         .ai-memory-card-header {
@@ -174,15 +175,6 @@
             font-size: 0.85rem;
             resize: vertical;
         }
-
-        .ai-engine-editor-card-header {
-            padding: 18px 22px 0;
-        }
-
-        .ai-engine-editor-card-header .placeholder-text {
-            margin: 4px 0 14px;
-        }
-
         @media (max-width: 900px) {
             .ai-memory-metrics {
                 grid-template-columns: 1fr;
@@ -220,12 +212,7 @@
                 <div class="tasks-header">
                     <div class="tasks-header-left">
                         <h2 class="page-title">AI Voice Administration</h2>
-                        <p class="placeholder-text">Manage the persona and instructions for the Constellation AI ecosystem.</p>
-                    </div>
-                    <div class="tasks-header-right">
-                        <button id="save-config-btn" class="btn-primary hidden">
-                            <i class="fas fa-save"></i> &nbsp;Save Configuration
-                        </button>
+                        <p class="placeholder-text">Monitor the feedback-driven AI memory profile for your Constellation experience.</p>
                     </div>
                 </div>
 
@@ -246,51 +233,6 @@
                     <label for="dynamic-prompt-preview" class="ai-memory-prompt-label">Current Dynamic Prompt</label>
                     <textarea id="dynamic-prompt-preview" rows="5" class="form-control ai-memory-prompt" readonly placeholder="No dynamic prompt has been synthesized yet."></textarea>
                     <p id="memory-latest-update" class="placeholder-text" style="margin-top: 8px;"></p>
-                </div>
-
-                <div class="section-card" style="margin-top: 20px; padding: 0; overflow: hidden;">
-                    <div class="ai-engine-editor-card-header">
-                        <h3 class="section-title">Manual Engine Voice Overrides</h3>
-                        <p class="placeholder-text">Legacy per-engine instructions remain available while AI memory is rolled into every backend route.</p>
-                    </div>
-                    <div id="ai-engine-tabs" class="ai-admin-tabs-wrapper">
-                        </div>
-
-                    <div id="editor-container" style="padding: 25px; min-height: 450px;">
-                        <div id="no-selection-msg" style="padding: 80px 20px; text-align: center;">
-                            <i class="fas fa-microphone-lines fa-4x" style="color: var(--primary-blue); opacity: 0.2; margin-bottom: 20px;"></i>
-                            <p>Select an AI engine above to edit its identity and instructions.</p>
-                        </div>
-
-                        <div id="ai-editor-form" class="hidden">
-                            <div class="ai-editor-title-row" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 25px;">
-                                <h3 id="selected-engine-name" style="color: var(--primary-blue); margin-bottom: 0;"></h3>
-                                <span id="config-status-badge" class="status-badge system"></span>
-                            </div>
-                            
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>AI Persona / Role</label>
-                                <textarea id="ai-persona" rows="2" class="form-control" style="width: 100%;"></textarea>
-                            </div>
-
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Voice & Tone</label>
-                                <input type="text" id="ai-voice" class="form-control" style="width: 100%;">
-                            </div>
-
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label>Special Instructions / Evolution</label>
-                                <textarea id="ai-custom-instructions" rows="6" class="form-control" style="width: 100%;"></textarea>
-                            </div>
-
-                            <div class="form-section" style="margin-top: 30px; border-top: 1px dashed var(--border-color); padding-top: 20px;">
-                                <label style="color: var(--text-medium); font-size: 0.85rem;"><i class="fas fa-microchip"></i> Technical System Prompt (Hardcoded Base)</label>
-                                <textarea id="ai-technical-foundation" rows="4" class="form-control" 
-                                    style="font-family: monospace; font-size: 0.85rem; background-color: var(--bg-dark); color: var(--text-medium); cursor: not-allowed; width: 100%;" 
-                                    readonly></textarea>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </main>
