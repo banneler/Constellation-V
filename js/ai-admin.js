@@ -274,13 +274,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             refreshMemoryBtn?.addEventListener('click', async () => {
                 refreshMemoryBtn.disabled = true;
-                refreshMemoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing';
+                refreshMemoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Refreshing</span>';
                 try {
                     await loadMemoryOverview();
                     showToast('AI memory overview refreshed.');
                 } finally {
                     refreshMemoryBtn.disabled = false;
-                    refreshMemoryBtn.innerHTML = '<i class="fas fa-rotate"></i> Refresh';
+                    refreshMemoryBtn.innerHTML = '<i class="fas fa-rotate"></i><span>Refresh</span>';
                 }
             });
 

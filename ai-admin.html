@@ -94,6 +94,100 @@
         .toast-success i { color: #4ade80; }
         .toast-error { border-color: #f87171; }
         .toast-error i { color: #f87171; }
+
+        .ai-memory-card {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ai-memory-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .ai-memory-eyebrow {
+            margin: 0 0 4px 0;
+            color: var(--primary-blue);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .ai-memory-title {
+            margin: 0;
+            color: var(--text-light);
+        }
+
+        .ai-memory-refresh-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .ai-memory-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .ai-memory-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-medium);
+        }
+
+        .ai-memory-stat-value {
+            color: var(--primary-blue);
+            font-size: 1.65rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .ai-memory-stat-label {
+            color: var(--text-medium);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .ai-memory-prompt-label {
+            color: var(--text-medium);
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .ai-memory-prompt {
+            width: 100%;
+            min-height: 130px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+        }
+
+        .ai-engine-editor-card-header {
+            padding: 18px 22px 0;
+        }
+
+        .ai-engine-editor-card-header .placeholder-text {
+            margin: 4px 0 14px;
+        }
+
+        @media (max-width: 900px) {
+            .ai-memory-metrics {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -135,25 +229,30 @@
                     </div>
                 </div>
 
-                <div class="section-card" style="margin-top: 20px;">
-                    <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                <div class="section-card ai-memory-card" style="margin-top: 20px;">
+                    <div class="ai-memory-card-header">
                         <div>
-                            <h3 class="section-title" style="margin-bottom: 4px;">AI Memory Profile</h3>
+                            <p class="ai-memory-eyebrow">Feedback-Driven Personalization</p>
+                            <h3 class="section-title ai-memory-title">AI Memory Profile</h3>
                             <p class="placeholder-text" style="margin: 0;">Synthesized from your ratings and feedback. Updated by the weekly memory job.</p>
                         </div>
-                        <button id="refresh-memory-btn" class="btn-secondary" type="button"><i class="fas fa-rotate"></i> Refresh</button>
+                        <button id="refresh-memory-btn" class="btn-secondary ai-memory-refresh-btn" type="button"><i class="fas fa-rotate"></i><span>Refresh</span></button>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0;">
-                        <div class="metric-card"><span class="metric-value" id="memory-total-count">0</span><span class="metric-label">Captured Responses</span></div>
-                        <div class="metric-card"><span class="metric-value" id="memory-rated-count">0</span><span class="metric-label">Rated Responses</span></div>
-                        <div class="metric-card"><span class="metric-value" id="memory-pending-count">0</span><span class="metric-label">Pending Synthesis</span></div>
+                    <div class="ai-memory-metrics">
+                        <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-total-count">0</span><span class="ai-memory-stat-label">Captured Responses</span></div>
+                        <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-rated-count">0</span><span class="ai-memory-stat-label">Rated Responses</span></div>
+                        <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-pending-count">0</span><span class="ai-memory-stat-label">Pending Synthesis</span></div>
                     </div>
-                    <label for="dynamic-prompt-preview" style="color: var(--text-medium); font-size: 0.85rem;">Current Dynamic Prompt</label>
-                    <textarea id="dynamic-prompt-preview" rows="5" class="form-control" style="width: 100%; font-family: monospace; font-size: 0.85rem;" readonly placeholder="No dynamic prompt has been synthesized yet."></textarea>
+                    <label for="dynamic-prompt-preview" class="ai-memory-prompt-label">Current Dynamic Prompt</label>
+                    <textarea id="dynamic-prompt-preview" rows="5" class="form-control ai-memory-prompt" readonly placeholder="No dynamic prompt has been synthesized yet."></textarea>
                     <p id="memory-latest-update" class="placeholder-text" style="margin-top: 8px;"></p>
                 </div>
 
                 <div class="section-card" style="margin-top: 20px; padding: 0; overflow: hidden;">
+                    <div class="ai-engine-editor-card-header">
+                        <h3 class="section-title">Manual Engine Voice Overrides</h3>
+                        <p class="placeholder-text">Legacy per-engine instructions remain available while AI memory is rolled into every backend route.</p>
+                    </div>
                     <div id="ai-engine-tabs" class="ai-admin-tabs-wrapper">
                         </div>
 
