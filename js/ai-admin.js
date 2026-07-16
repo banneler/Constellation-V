@@ -85,6 +85,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const editorForm = document.getElementById("ai-editor-form");
     const placeholder = document.getElementById("no-selection-msg");
     const saveBtn = document.getElementById("save-config-btn");
+    const refreshMemoryBtn = document.getElementById("refresh-memory-btn");
+    const dynamicPromptPreview = document.getElementById("dynamic-prompt-preview");
+    const memoryTotalCount = document.getElementById("memory-total-count");
+    const memoryRatedCount = document.getElementById("memory-rated-count");
+    const memoryPendingCount = document.getElementById("memory-pending-count");
+    const memoryLatestUpdate = document.getElementById("memory-latest-update");
 
     function showToast(message, type = 'success') {
         const existingToast = document.querySelector('.constellation-toast');
@@ -183,6 +189,68 @@ document.addEventListener("DOMContentLoaded", async () => {
         iField.placeholder = `Demo: ${engine.demoInstructions}`;
     }
 
+    async function loadMemoryOverview() {
+        if (!state.currentUser) return;
+
+        const [
+            { data: profile, error: profileError },
+            { count: totalCount, error: totalError },
+            { count: ratedCount, error: ratedError },
+            { count: pendingCount, error: pendingError },
+            { data: latestRows, error: latestError }
+        ] = await Promise.all([
+            supabase
+                .from('user_ai_profiles')
+                .select('dynamic_prompt, updated_at')
+                .eq('user_id', state.currentUser.id)
+                .maybeSingle(),
+            supabase
+                .from('personal_context')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', state.currentUser.id),
+            supabase
+                .from('personal_context')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', state.currentUser.id)
+                .not('rating', 'is', null),
+            supabase
+                .from('personal_context')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', state.currentUser.id)
+                .eq('processed', false),
+            supabase
+                .from('personal_context')
+                .select('updated_at')
+                .eq('user_id', state.currentUser.id)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+        ]);
+
+        const errors = [profileError, totalError, ratedError, pendingError, latestError].filter(Boolean);
+        if (errors.length) {
+            console.error('AI memory overview load failed:', errors);
+            showToast('Unable to load AI memory overview.', 'error');
+            return;
+        }
+
+        if (dynamicPromptPreview) dynamicPromptPreview.value = profile?.dynamic_prompt || '';
+        if (memoryTotalCount) memoryTotalCount.textContent = String(totalCount || 0);
+        if (memoryRatedCount) memoryRatedCount.textContent = String(ratedCount || 0);
+        if (memoryPendingCount) memoryPendingCount.textContent = String(pendingCount || 0);
+
+        const profileUpdated = profile?.updated_at ? `Profile updated ${formatDateTime(profile.updated_at)}.` : 'No synthesized profile yet.';
+        const latestFeedback = latestRows?.[0]?.updated_at ? `Latest feedback ${formatDateTime(latestRows[0].updated_at)}.` : 'No feedback captured yet.';
+        if (memoryLatestUpdate) memoryLatestUpdate.textContent = `${profileUpdated} ${latestFeedback}`;
+    }
+
+    function formatDateTime(value) {
+        try {
+            return new Date(value).toLocaleString();
+        } catch {
+            return String(value || '');
+        }
+    }
+
     async function initializePage() {
         injectGlobalNavigation();
         await loadSVGs();
@@ -196,11 +264,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateActiveNavLink();
             setupModalListeners();
             await loadConfigs();
+            await loadMemoryOverview();
             hideGlobalLoader();
 
             tabContainer.addEventListener('click', (e) => {
                 const tab = e.target.closest('.irr-tab');
                 if (tab) selectEngine(tab.dataset.id);
+            });
+
+            refreshMemoryBtn?.addEventListener('click', async () => {
+                refreshMemoryBtn.disabled = true;
+                refreshMemoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing';
+                try {
+                    await loadMemoryOverview();
+                    showToast('AI memory overview refreshed.');
+                } finally {
+                    refreshMemoryBtn.disabled = false;
+                    refreshMemoryBtn.innerHTML = '<i class="fas fa-rotate"></i> Refresh';
+                }
             });
 
             // SAVE CONFIG: personal override row (user_id = current user). PostgREST upsert often does not

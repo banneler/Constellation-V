@@ -135,6 +135,24 @@
                     </div>
                 </div>
 
+                <div class="section-card" style="margin-top: 20px;">
+                    <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                        <div>
+                            <h3 class="section-title" style="margin-bottom: 4px;">AI Memory Profile</h3>
+                            <p class="placeholder-text" style="margin: 0;">Synthesized from your ratings and feedback. Updated by the weekly memory job.</p>
+                        </div>
+                        <button id="refresh-memory-btn" class="btn-secondary" type="button"><i class="fas fa-rotate"></i> Refresh</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0;">
+                        <div class="metric-card"><span class="metric-value" id="memory-total-count">0</span><span class="metric-label">Captured Responses</span></div>
+                        <div class="metric-card"><span class="metric-value" id="memory-rated-count">0</span><span class="metric-label">Rated Responses</span></div>
+                        <div class="metric-card"><span class="metric-value" id="memory-pending-count">0</span><span class="metric-label">Pending Synthesis</span></div>
+                    </div>
+                    <label for="dynamic-prompt-preview" style="color: var(--text-medium); font-size: 0.85rem;">Current Dynamic Prompt</label>
+                    <textarea id="dynamic-prompt-preview" rows="5" class="form-control" style="width: 100%; font-family: monospace; font-size: 0.85rem;" readonly placeholder="No dynamic prompt has been synthesized yet."></textarea>
+                    <p id="memory-latest-update" class="placeholder-text" style="margin-top: 8px;"></p>
+                </div>
+
                 <div class="section-card" style="margin-top: 20px; padding: 0; overflow: hidden;">
                     <div id="ai-engine-tabs" class="ai-admin-tabs-wrapper">
                         </div>

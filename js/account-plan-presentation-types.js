@@ -18,6 +18,7 @@
  * @typedef {Object} PresentationHighlight
  * @property {string} generated_at
  * @property {string | null} model
+ * @property {string | null} [personal_context_id]
  * @property {string} account_name
  * @property {Object} slides
  * @property {Object} slides.situation

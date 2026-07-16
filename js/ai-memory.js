@@ -47,21 +47,31 @@ export async function createPersonalContext(supabase, { userId, prompt, response
 }
 
 export function renderAIFeedback(contextId, label = 'Was this AI response useful?') {
-    if (!contextId) return '';
+    const disabled = !contextId;
 
     return `
-        <div class="ai-feedback" data-context-id="${contextId}" style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+        <div class="ai-feedback" data-context-id="${contextId || ''}" style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color);">
             <label style="display: block; margin-bottom: 8px;">${escapeHtml(label)}</label>
             <div class="ai-feedback-rating" role="group" aria-label="AI response rating" style="display: flex; gap: 6px; margin-bottom: 8px;">
                 ${[1, 2, 3, 4, 5].map((rating) => `
-                    <button type="button" class="btn-secondary ai-feedback-rating-btn" data-rating="${rating}" title="${rating} out of 5">${rating}</button>
+                    <button type="button" class="btn-secondary ai-feedback-rating-btn" data-rating="${rating}" title="${rating} out of 5" ${disabled ? 'disabled' : ''}>${rating}</button>
                 `).join('')}
             </div>
-            <textarea class="ai-feedback-text" rows="3" placeholder="Optional feedback to improve future AI responses..."></textarea>
-            <button type="button" class="btn-primary ai-feedback-submit" style="width: 100%; margin-top: 8px;">Submit Feedback</button>
-            <p class="ai-feedback-status placeholder-text" aria-live="polite" style="margin-top: 8px;"></p>
+            <textarea class="ai-feedback-text" rows="3" placeholder="Optional feedback to improve future AI responses..." ${disabled ? 'disabled' : ''}></textarea>
+            <button type="button" class="btn-primary ai-feedback-submit" style="width: 100%; margin-top: 8px;" ${disabled ? 'disabled' : ''}>Submit Feedback</button>
+            <p class="ai-feedback-status placeholder-text" aria-live="polite" style="margin-top: 8px;">${disabled ? 'Feedback logging is unavailable for this response.' : ''}</p>
         </div>
     `;
+}
+
+export async function mountAIFeedback(target, supabase, { userId, prompt, response, label }) {
+    const container = typeof target === 'string' ? document.querySelector(target) : target;
+    if (!container) return null;
+
+    const contextId = await createPersonalContext(supabase, { userId, prompt, response });
+    container.innerHTML = renderAIFeedback(contextId, label);
+    attachAIFeedbackHandler(container, supabase);
+    return contextId;
 }
 
 export function attachAIFeedbackHandler(root, supabase) {
@@ -87,6 +97,8 @@ export function attachAIFeedbackHandler(root, supabase) {
         });
 
         submitBtn?.addEventListener('click', async () => {
+            if (submitBtn.dataset.saving === 'true' || submitBtn.dataset.saved === 'true') return;
+
             const contextId = feedbackEl.dataset.contextId;
             const feedback = feedbackEl.querySelector('.ai-feedback-text')?.value?.trim() || null;
 
@@ -99,6 +111,7 @@ export function attachAIFeedbackHandler(root, supabase) {
                 return;
             }
 
+            submitBtn.dataset.saving = 'true';
             submitBtn.disabled = true;
             submitBtn.textContent = 'Saving...';
 
@@ -109,6 +122,7 @@ export function attachAIFeedbackHandler(root, supabase) {
 
             if (error) {
                 console.error('Unable to save AI feedback:', error);
+                delete submitBtn.dataset.saving;
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Feedback';
                 if (statusEl) statusEl.textContent = 'Unable to save feedback. Please try again.';
@@ -118,6 +132,9 @@ export function attachAIFeedbackHandler(root, supabase) {
             feedbackEl.querySelectorAll('button, textarea').forEach((el) => {
                 el.disabled = true;
             });
+            delete submitBtn.dataset.saving;
+            submitBtn.dataset.saved = 'true';
+            submitBtn.textContent = 'Feedback Saved';
             if (statusEl) statusEl.textContent = 'Thanks. Your feedback will improve future AI responses.';
         });
     });

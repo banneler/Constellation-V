@@ -18,6 +18,7 @@ import {
     hideModal,
     setModalDismissPolicy
 } from './shared_constants.js';
+import { mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -26,7 +27,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let state = {
         currentUser: null,
         allPosts: [],
-        userInteractions: new Set()
+        userInteractions: new Set(),
+        currentPostItem: null
     };
     
     // --- DOM SELECTORS ---
@@ -44,6 +46,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const customPromptInput = document.getElementById('custom-prompt-input');
     const generateCustomBtn = document.getElementById('generate-custom-btn');
+    const socialPostFeedbackSlot = document.getElementById('social-post-feedback-slot');
+
+    function buildAIPromptRecord(functionId, payload) {
+        return JSON.stringify({
+            function_id: functionId,
+            captured_at: new Date().toISOString(),
+            payload
+        }, null, 2);
+    }
 
     // --- DATA FETCHING ---
     async function loadSocialContent() {
@@ -169,6 +180,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // --- MODAL & ACTION LOGIC ---
     async function openPostModal(item, prefetchedText = null, prefetchedPrompt = '') {
+        state.currentPostItem = item;
         modalTitle.textContent = item.title;
         modalArticleLink.href = item.link;
         modalArticleLink.textContent = item.link;
@@ -176,6 +188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         customPromptInput.value = prefetchedPrompt || '';
 
         postTextArea.value = prefetchedText || "Generating AI suggestion...";
+        if (socialPostFeedbackSlot) socialPostFeedbackSlot.innerHTML = '';
         setModalDismissPolicy({ closeOnBackdropClick: false, closeOnEscape: false });
         modalBackdrop.classList.remove('hidden');
 
@@ -186,6 +199,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const suggestion = await fetchSuggestedPost(item);
                 postTextArea.value = suggestion;
             }
+            await mountAIFeedback(socialPostFeedbackSlot, supabase, {
+                userId: state.currentUser.id,
+                prompt: buildAIPromptRecord('generate-social-post', { article: item }),
+                response: postTextArea.value,
+                label: 'Was this social post useful?'
+            });
         }
     }
 
@@ -258,6 +277,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 postTextArea.value = data.suggestion;
                 customPromptInput.value = ''; // Clear prompt input
+                await mountAIFeedback(socialPostFeedbackSlot, supabase, {
+                    userId: state.currentUser.id,
+                    prompt: buildAIPromptRecord('refine-social-post', {
+                        originalText,
+                        customPrompt,
+                        article: state.currentPostItem
+                    }),
+                    response: data.suggestion,
+                    label: 'Was this refined social post useful?'
+                });
             }
 
             generateCustomBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i><span>Regenerate</span>';

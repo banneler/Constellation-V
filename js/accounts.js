@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
-import { callAiApi } from './ai-memory.js';
+import { attachAIFeedbackHandler, callAiApi, mountAIFeedback, renderAIFeedback } from './ai-memory.js';
 import { fetchPlanForAccount } from './account-plan-data.js';
 import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave, flushPlanAutosave, promoteActivityToInteractionLog } from './account-plan-ui.js';
 
@@ -232,6 +232,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         return new Promise((resolve) => {
             requestAnimationFrame(() => requestAnimationFrame(resolve));
         });
+    }
+
+    function buildAIPromptRecord(functionId, payload) {
+        return JSON.stringify({
+            function_id: functionId,
+            captured_at: new Date().toISOString(),
+            payload
+        }, null, 2);
     }
 
     // --- Data Fetching ---
@@ -2426,7 +2434,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }).join('\n')
             };
 
-            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: { internalData } });
+            const requestBody = { internalData };
+            const { data: briefing, error } = await supabase.functions.invoke('get-account-briefing', { body: requestBody });
             if (error) throw error;
 
             const keyPlayersHtml = String(briefing.key_players || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -2491,6 +2500,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="briefing-section recommendation">
                         <p>${briefing.recommendation}</p>
                     </div>
+                    <div id="account-briefing-feedback-slot"></div>
                 </div>`;
             
             const modalFooter = `
@@ -2498,6 +2508,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <button id="modal-ok-btn" class="btn-primary">Close</button>
             `;
             showModal(`AI Briefing: ${account.name}`, briefingHtml, null, false, modalFooter, null, { closeOnBackdropClick: false, closeOnEscape: false });
+            await mountAIFeedback(document.getElementById('account-briefing-feedback-slot'), supabase, {
+                userId: state.currentUser.id,
+                prompt: buildAIPromptRecord('get-account-briefing', requestBody),
+                response: JSON.stringify(briefing, null, 2),
+                label: 'Was this account briefing useful?'
+            });
 
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
@@ -2827,6 +2843,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                         if (agendaResultWrap) agendaResultWrap.classList.remove("hidden");
                         if (agendaEditToggle) agendaEditToggle.classList.remove("hidden");
                         if (agendaModalBackdrop) agendaModalBackdrop.classList.add("agenda-modal--result-visible");
+                        const agendaFeedbackSlot = document.getElementById("agenda-feedback-slot");
+                        if (agendaFeedbackSlot) {
+                            agendaFeedbackSlot.innerHTML = renderAIFeedback(data.personal_context_id, 'Was this agenda draft useful?');
+                            if (data.personal_context_id) {
+                                attachAIFeedbackHandler(agendaFeedbackSlot, supabase);
+                            }
+                        }
                     } else {
                         throw new Error(data?.error || "No agenda returned");
                     }

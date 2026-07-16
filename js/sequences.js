@@ -1,4 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, showToast, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
+import { mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -23,6 +24,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         draggedStepId: null,
         dragPreviewEl: null
     };
+
+    function buildAIPromptRecord(functionId, payload) {
+        return JSON.stringify({
+            function_id: functionId,
+            captured_at: new Date().toISOString(),
+            payload
+        }, null, 2);
+    }
 
     // --- DOM Element Selectors ---
     const logoutBtn = document.getElementById("logout-btn");
@@ -1367,8 +1376,9 @@ async function importMarketingSequence() {
         showModal("Generating Sequence", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">AI is drafting your sequence steps...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
         try {
+            const requestBody = { sequenceGoal, numSteps, totalDuration, stepTypes: selectedStepTypes, personaPrompt };
             const { data, error } = await supabase.functions.invoke('generate-sequence-steps', {
-                body: { sequenceGoal, numSteps, totalDuration, stepTypes: selectedStepTypes, personaPrompt }
+                body: requestBody
             });
 
             if (error) throw error;
@@ -1386,6 +1396,12 @@ async function importMarketingSequence() {
             renderAiGeneratedStepsPreview();
             hideModal();
             aiGeneratedSequencePreview.classList.remove('hidden');
+            await mountAIFeedback(document.getElementById('sequence-feedback-slot'), supabase, {
+                userId: state.currentUser.id,
+                prompt: buildAIPromptRecord('generate-sequence-steps', requestBody),
+                response: JSON.stringify(data.steps || [], null, 2),
+                label: 'Was this generated sequence useful?'
+            });
             showModal("Success", "AI sequence generated! Review and save below.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 
         } catch (error) {

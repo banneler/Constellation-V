@@ -24,6 +24,7 @@ import {
     refreshHUDNodes,
     filterOutOwnershipOrphanedCrmRows
 } from './shared_constants.js';
+import { mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -235,11 +236,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sequences: state.sequences,
                 sequence_steps: state.sequence_steps
             };
+            const requestBody = { briefingPayload };
             const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
-                body: { briefingPayload }
+                body: requestBody
             });
             if (error) throw error;
             renderAIBriefing(briefing);
+            await mountAIFeedback(document.getElementById('daily-briefing-feedback-slot'), supabase, {
+                userId: state.currentUser.id,
+                prompt: buildAIPromptRecord('get-daily-briefing', requestBody),
+                response: JSON.stringify(briefing, null, 2),
+                label: 'Was this daily briefing useful?'
+            });
         } catch (error) {
             console.error("Error generating AI briefing:", error);
             aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
@@ -253,10 +261,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <div class="priority-reason">${item.reason}</div>
             </div>
         `).join('');
-        aiBriefingContainer.innerHTML = cardsHtml || '<p class="text-xs text-[var(--text-medium)]">No priorities for today.</p>';
+        aiBriefingContainer.innerHTML = `${cardsHtml || '<p class="text-xs text-[var(--text-medium)]">No priorities for today.</p>'}<div id="daily-briefing-feedback-slot"></div>`;
         aiBriefingContainer.classList.remove('hidden');
         sessionStorage.setItem('crm-briefing-generated', 'true');
         sessionStorage.setItem('crm-briefing-html', aiBriefingContainer.innerHTML);
+    }
+
+    function buildAIPromptRecord(functionId, payload) {
+        return JSON.stringify({
+            function_id: functionId,
+            captured_at: new Date().toISOString(),
+            payload
+        }, null, 2);
     }
 
     // --- Sequence Steps View Mode ---

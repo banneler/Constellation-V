@@ -1,4 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
+import { mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -21,6 +22,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         isFormDirty: false, // Comma was missing here
         nameDisplayFormat: 'lastFirst'
     };
+
+    function buildAIPromptRecord(functionId, payload) {
+        return JSON.stringify({
+            function_id: functionId,
+            captured_at: new Date().toISOString(),
+            payload
+        }, null, 2);
+    }
 
     // --- DOM Element Selectors ---
     const navSidebar = document.querySelector(".nav-sidebar");
@@ -780,6 +789,10 @@ async function loadAllData() {
         aiWriteForm?.classList.remove("hidden");
         aiEmailResponse?.classList.add("hidden");
         aiInsightView?.classList.add("hidden");
+        const emailFeedbackSlot = document.getElementById("ai-email-feedback-slot");
+        const insightFeedbackSlot = document.getElementById("ai-insight-feedback-slot");
+        if (emailFeedbackSlot) emailFeedbackSlot.innerHTML = "";
+        if (insightFeedbackSlot) insightFeedbackSlot.innerHTML = "";
         if (aiClearInsightBtn) aiClearInsightBtn.classList.add("hidden");
     }
 
@@ -1108,14 +1121,15 @@ async function loadAllData() {
         const selectedIndustry = document.getElementById('ai-industry-select')?.value || 'General';
 
         try {
+            const requestBody = {
+                userPrompt: userPrompt,
+                contactName: contactName,
+                accountName: accountName,
+                product_names: selectedProducts,
+                industry: selectedIndustry
+            };
             const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
-                body: {
-                    userPrompt: userPrompt,
-                    contactName: contactName,
-                    accountName: accountName,
-                    product_names: selectedProducts,
-                    industry: selectedIndustry
-                }
+                body: requestBody
             });
 
             if (error) throw error;
@@ -1127,6 +1141,12 @@ async function loadAllData() {
             if (aiEmailBody) aiEmailBody.value = generatedBody;
             
             showAIEmailResponse();
+            await mountAIFeedback(document.getElementById('ai-email-feedback-slot'), supabase, {
+                userId: state.currentUser.id,
+                prompt: buildAIPromptRecord('generate-prospect-email', requestBody),
+                response: [`Subject: ${generatedSubject}`, '', generatedBody].join('\n'),
+                label: 'Was this email draft useful?'
+            });
             showAIToast("Email generated successfully!", "success");
 
         } catch (e) {
@@ -2027,11 +2047,12 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 showAIInsightView('<i class="fas fa-spinner fa-spin"></i> Analyzing...', '');
 
                 try {
+                    const requestBody = {
+                        contactName: `${contact.first_name || ''} ${contact.last_name || ''}`,
+                        activityLog: activityData
+                    };
                     const { data, error } = await supabase.functions.invoke('get-activity-insight', {
-                        body: {
-                            contactName: `${contact.first_name || ''} ${contact.last_name || ''}`,
-                            activityLog: activityData
-                        }
+                        body: requestBody
                     });
 
                     if (error) throw error;
@@ -2039,6 +2060,12 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     const insight = data.insight || "No insight generated.";
                     const nextSteps = data.next_steps || "No specific next steps suggested.";
                     showAIInsightView(insight, nextSteps);
+                    await mountAIFeedback(document.getElementById('ai-insight-feedback-slot'), supabase, {
+                        userId: state.currentUser.id,
+                        prompt: buildAIPromptRecord('get-activity-insight', requestBody),
+                        response: [`Insight: ${insight}`, '', `Next steps: ${nextSteps}`].join('\n'),
+                        label: 'Was this activity insight useful?'
+                    });
 
                 } catch (error) {
                     console.error("Error invoking AI insight Edge Function:", error);

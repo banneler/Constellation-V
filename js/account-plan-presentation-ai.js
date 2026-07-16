@@ -58,13 +58,14 @@ export async function fetchPresentationHighlight(supabase, plan, account) {
         accountName,
         generatedAt: data?.generated_at ?? new Date().toISOString(),
         model: data?.model ?? null,
+        personalContextId: data?.personal_context_id ?? null,
         plan,
     });
 }
 
 /**
  * @param {unknown} raw
- * @param {{ accountName: string, generatedAt: string, model: string | null, plan: unknown }} meta
+ * @param {{ accountName: string, generatedAt: string, model: string | null, personalContextId?: string | null, plan: unknown }} meta
  * @returns {import('./account-plan-presentation-types.js').PresentationHighlight}
  */
 export function normalizePresentationHighlight(raw, meta) {
@@ -90,6 +91,7 @@ export function normalizePresentationHighlight(raw, meta) {
     return {
         generated_at: meta.generatedAt,
         model: meta.model,
+        personal_context_id: meta.personalContextId ?? null,
         account_name: meta.accountName,
         slides: {
             situation: {
