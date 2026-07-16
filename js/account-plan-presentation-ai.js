@@ -4,6 +4,7 @@
 
 import { normalizePlan, getWhiteSpaceRows } from './account-plan-data.js';
 import { TACTICAL_UX_LABELS } from './account-plan-sections.js';
+import { callAiApi } from './ai-memory.js';
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
@@ -45,16 +46,10 @@ export async function fetchPresentationHighlight(supabase, plan, account) {
     const normalized = normalizePlan(plan);
     const accountName = account?.name ? String(account.name) : 'Account';
 
-    const { data, error } = await supabase.functions.invoke('generate-presentation-highlight', {
-        body: {
-            plan: normalized,
-            accountName,
-        },
+    const data = await callAiApi(supabase, 'generate-presentation-highlight', {
+        plan: normalized,
+        accountName,
     });
-
-    if (error) {
-        throw new Error(presentationInvokeErrorMessage(error, data));
-    }
     if (data?.error) {
         throw new Error(String(data.error));
     }

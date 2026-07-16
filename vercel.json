@@ -1,3 +1,9 @@
 {
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "crons": [
+    {
+      "path": "/api/cron/synthesize-ai-profiles",
+      "schedule": "0 8 * * 0"
+    }
+  ]
 }

@@ -19,6 +19,11 @@ import {
     injectGlobalNavigation,
     showToast
 } from './shared_constants.js';
+import {
+    attachAIFeedbackHandler,
+    createPersonalContext,
+    renderAIFeedback
+} from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -37,6 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         viewMode: 'dashboard',
         initialSuggestionSubject: null,
         initialSuggestionBody: null,
+        initialSuggestionContextId: null,
         filterTriggerType: '',
         filterRelevance: '',
         filterAccountId: ''
@@ -65,7 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- MODAL ELEMENTS (Dynamic) ---
     let initialAiSuggestionSection, refineSuggestionBtn, outreachSubjectInput, outreachBodyTextarea;
     let customPromptSection, customPromptInput, generateCustomBtn, cancelCustomBtn;
-    let customSuggestionOutput, customOutreachSubjectInput, customOutreachBodyTextarea;
+    let customSuggestionOutput, customOutreachSubjectInput, customOutreachBodyTextarea, customFeedbackSlot;
     let copyCustomBtn, sendEmailCustomBtn;
     let contactSelector, logInteractionNotes, logInteractionBtn, createTaskDesc, createTaskDueDate, createTaskBtn, noContactMessage;
     let alertRelevanceDisplay, alertRelevanceEmoji;
@@ -277,6 +283,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             state.initialSuggestionSubject = initialOutreachCopy.subject;
             state.initialSuggestionBody = initialOutreachCopy.body;
+            state.initialSuggestionContextId = await createPersonalContext(supabase, {
+                userId: state.currentUser.id,
+                prompt: buildCognitoPrompt('get-gemini-suggestion', {
+                    alertData: state.selectedAlert,
+                    accountData: account
+                }),
+                response: formatOutreachResponse(initialOutreachCopy)
+            });
     
         const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id && c.email);
         const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
@@ -315,6 +329,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <button class="btn-primary icon-only-btn" id="send-email-btn" title="Open Email Client"><i class="fa-regular fa-paper-plane"></i></button>
                         </div>
                         <button class="btn-tertiary" id="refine-suggestion-btn" style="margin-top: 15px;"><i class="fa-solid fa-sliders"></i><span>Refine with Custom Prompt</span></button>
+                        ${renderAIFeedback(state.initialSuggestionContextId, 'Was this suggested outreach useful?')}
                     </div>
                     <div id="custom-prompt-section" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                         <h5>Custom Suggestion Generator</h5>
@@ -333,6 +348,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 <button class="btn-secondary" id="copy-custom-btn"><i class="fa-regular fa-copy"></i><span>Copy Custom</span></button>
                                 <button class="btn-primary" id="send-email-custom-btn"><i class="fa-regular fa-paper-plane"></i><span>Open Email Client (Custom)</span></button>
                             </div>
+                            <div id="custom-ai-feedback-slot"></div>
                         </div>
                     </div>
                 </div>
@@ -373,6 +389,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         customSuggestionOutput = document.getElementById('custom-suggestion-output');
         customOutreachSubjectInput = document.getElementById('custom-outreach-subject');
         customOutreachBodyTextarea = document.getElementById('custom-outreach-body');
+        customFeedbackSlot = document.getElementById('custom-ai-feedback-slot');
         copyCustomBtn = document.getElementById('copy-custom-btn');
         sendEmailCustomBtn = document.getElementById('send-email-custom-btn');
         logInteractionNotes = document.getElementById('log-interaction-notes');
@@ -383,6 +400,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         noContactMessage = document.getElementById('no-contact-message');
         alertRelevanceDisplay = document.getElementById('relevance-score-display');
         alertRelevanceEmoji = document.getElementById('relevance-fire-emoji');
+        attachAIFeedbackHandler(document.getElementById('initial-ai-suggestion-section'), supabase);
         tomSelectModalContact = initTomSelect(contactSelector, {
             maxItems: 1,
             create: false,
@@ -445,6 +463,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                 customOutreachBodyTextarea.value = customOutreachCopy.body;
                 customSuggestionOutput.style.display = 'block';
                 handlePersonalizeOutreach({ subject: customOutreachCopy.subject, body: customOutreachCopy.body }, contactSelector.value, true);
+                const customContextId = await createPersonalContext(supabase, {
+                    userId: state.currentUser.id,
+                    prompt: buildCognitoPrompt('generate-custom-suggestion', {
+                        originalSuggestion: {
+                            subject: state.initialSuggestionSubject,
+                            body: state.initialSuggestionBody
+                        },
+                        userInstruction: customPrompt,
+                        alertData: state.selectedAlert,
+                        accountData: account,
+                        originalBasePrompt: ORIGINAL_PROMPT_BASE_TEXT
+                    }),
+                    response: formatOutreachResponse(customOutreachCopy)
+                });
+                if (customFeedbackSlot) {
+                    customFeedbackSlot.innerHTML = renderAIFeedback(customContextId, 'Was this refined outreach useful?');
+                    attachAIFeedbackHandler(customFeedbackSlot, supabase);
+                }
             } else {
                 showToast('AI Generation Failed', 'error');
                 customOutreachSubjectInput.value = '';
@@ -495,6 +531,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             targetBodyTextarea.value = outreachCopy.body;
         }
+    }
+
+    function buildCognitoPrompt(functionId, payload) {
+        return JSON.stringify({
+            function_id: functionId,
+            captured_at: new Date().toISOString(),
+            payload
+        }, null, 2);
+    }
+
+    function formatOutreachResponse(outreachCopy) {
+        return [
+            `Subject: ${outreachCopy?.subject || ''}`,
+            '',
+            outreachCopy?.body || ''
+        ].join('\n').trim();
     }
 
     async function generateOutreachCopy(alert, account) {

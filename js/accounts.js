@@ -1,4 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
+import { callAiApi } from './ai-memory.js';
 import { fetchPlanForAccount } from './account-plan-data.js';
 import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave, flushPlanAutosave, promoteActivityToInteractionLog } from './account-plan-ui.js';
 
@@ -2813,10 +2814,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (agendaLoading) agendaLoading.classList.remove("hidden");
                 try {
                     const accountName = state.selectedAccountDetails.account?.name || "";
-                    const { data, error } = await supabase.functions.invoke("generate-agenda", {
-                        body: { items, prompt: agendaPrompt?.value?.trim() || "", accountName }
+                    const data = await callAiApi(supabase, "generate-agenda", {
+                        items,
+                        prompt: agendaPrompt?.value?.trim() || "",
+                        accountName
                     });
-                    if (error) throw error;
                     if (data?.agenda) {
                         agendaResult.value = data.agenda;
                         const lines = (data.agenda || "").split("\n").length;
