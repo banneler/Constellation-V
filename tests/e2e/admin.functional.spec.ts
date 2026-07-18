@@ -64,26 +64,27 @@ test.describe('Admin + AI Admin (functional)', () => {
     await req;
   });
 
-  test('AI Admin: scoped memory profile loads without legacy override editor', async ({ page }) => {
+  test('AI Admin: save config upserts ai_configs', async ({ page }) => {
     const admin = new AdminPage(page);
     guardian.step('Opening AI Admin');
     await admin.gotoAiAdmin();
 
-    guardian.step('Checking scoped memory admin layout');
-    await expect(page.getByRole('heading', { name: 'AI Voice Administration' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Scoped AI Memory Profiles' })).toBeVisible();
-    await expect(admin.aiMemoryCard()).toBeVisible();
-    await expect(admin.memoryFunctionSelect()).toBeVisible();
-    await expect(admin.memoryFunctionSelect()).toContainText(/Contacts Email Drafts|Cognito Outreach|Sequence Generation/);
-    await expect(admin.memoryScopeSummary()).toContainText(/captured response/i);
-    await expect(admin.aiMemoryPrompt()).toBeVisible();
-    await expect(admin.memoryTotalCount()).toContainText(/^\d+$/);
-    await expect(admin.memoryRatedCount()).toContainText(/^\d+$/);
-    await expect(admin.memoryPendingCount()).toContainText(/^\d+$/);
-    await expect(admin.memoryLatestUpdate()).toContainText(/profile|feedback/i);
+    guardian.step('Selecting first engine tab (required before save)');
+    const firstTab = page.locator('#ai-engine-tabs .irr-tab').first();
+    await firstTab.waitFor({ state: 'visible', timeout: 15_000 });
+    await firstTab.click();
+    await expect(admin.aiPersona()).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.locator('#ai-engine-tabs')).toHaveCount(0);
-    await expect(page.locator('#ai-persona')).toHaveCount(0);
-    await expect(page.locator('#save-config-btn')).toHaveCount(0);
+    const marker = `E2E ${Date.now()}`;
+    await admin.aiPersona().fill(marker);
+
+    const req = page.waitForRequest(
+      (r) => /rest\/v1\/ai_configs/i.test(r.url()) && ['POST', 'PATCH'].includes(r.method()),
+      { timeout: 30_000 }
+    );
+    await admin.saveConfigBtn().click();
+    await req;
+
+    await expect(admin.configStatusBadge()).toContainText(/PERSONAL|SYSTEM|VOICE/i, { timeout: 15_000 });
   });
 });

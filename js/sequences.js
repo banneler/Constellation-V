@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, showToast, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
-import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
+import { mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -1400,8 +1400,7 @@ async function importMarketingSequence() {
                 userId: state.currentUser.id,
                 prompt: buildAIPromptRecord('generate-sequence-steps', requestBody),
                 response: JSON.stringify(data.steps || [], null, 2),
-                label: 'Was this generated sequence useful?',
-                functionId: AI_FUNCTION_IDS.SEQUENCE_GENERATION
+                label: 'Was this generated sequence useful?'
             });
             showModal("Success", "AI sequence generated! Review and save below.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
 

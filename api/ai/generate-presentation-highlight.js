@@ -1,8 +1,6 @@
-const { callGemini, parseJsonObject, withDynamicPrompts } = require("../_lib/gemini");
+const { callGemini, parseJsonObject, withDynamicPrompt } = require("../_lib/gemini");
 const { handleOptions, readJsonBody, sendError, sendJson } = require("../_lib/http");
-const { createPersonalContext, getDynamicPrompts, getUserFromRequest } = require("../_lib/supabase");
-
-const FUNCTION_ID = "presentation-highlight";
+const { createPersonalContext, getDynamicPrompt, getUserFromRequest } = require("../_lib/supabase");
 
 const SYSTEM_PROMPT = `You are the executive presentation strategist for Great Plains Communications (GPC), an enterprise connectivity and infrastructure partner.
 
@@ -102,7 +100,7 @@ module.exports = async function handler(req, res) {
     const body = await readJsonBody(req);
     const accountName = body.accountName != null ? String(body.accountName).trim() : "Account";
     const plan = compactPlanForPresentation(body.plan || {});
-    const dynamicPrompts = await getDynamicPrompts(user.id, FUNCTION_ID);
+    const dynamicPrompt = await getDynamicPrompt(user.id);
     const userMessage = [
       `Account: ${accountName}`,
       "",
@@ -111,7 +109,7 @@ module.exports = async function handler(req, res) {
     ].join("\n");
 
     const result = await callGemini({
-      systemPrompt: withDynamicPrompts(SYSTEM_PROMPT, dynamicPrompts),
+      systemPrompt: withDynamicPrompt(SYSTEM_PROMPT, dynamicPrompt),
       userMessage,
       responseMimeType: "application/json",
       temperature: 0.45,
@@ -119,7 +117,7 @@ module.exports = async function handler(req, res) {
     });
 
     const highlight = parseJsonObject(result.text);
-    const contextId = await createPersonalContext(user.id, userMessage, result.text, FUNCTION_ID);
+    const contextId = await createPersonalContext(user.id, userMessage, result.text);
     return sendJson(res, 200, {
       highlight,
       generated_at: new Date().toISOString(),

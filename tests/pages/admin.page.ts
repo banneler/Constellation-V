@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { waitForAppReady } from '../helpers/guardian-log';
 
-/** admin.html — contentManagementToggle, shareContentToggle. ai-admin.html — AI memory overview. */
+/** admin.html — contentManagementToggle, shareContentToggle. ai-admin.html — persistAiEngineConfig */
 export class AdminPage {
   constructor(private readonly page: Page) {}
 
@@ -40,35 +40,15 @@ export class AdminPage {
     return this.page.locator('#ai-engine-tabs .irr-tab').filter({ hasText: name });
   }
 
-  aiMemoryCard(): ReturnType<Page['locator']> {
-    return this.page.locator('.ai-memory-card');
+  aiPersona(): ReturnType<Page['locator']> {
+    return this.page.locator('#ai-persona');
   }
 
-  aiMemoryPrompt(): ReturnType<Page['locator']> {
-    return this.page.locator('#dynamic-prompt-preview');
+  saveConfigBtn(): ReturnType<Page['locator']> {
+    return this.page.locator('#save-config-btn');
   }
 
-  memoryFunctionSelect(): ReturnType<Page['locator']> {
-    return this.page.locator('#memory-function-select');
-  }
-
-  memoryScopeSummary(): ReturnType<Page['locator']> {
-    return this.page.locator('#memory-scope-summary');
-  }
-
-  memoryTotalCount(): ReturnType<Page['locator']> {
-    return this.page.locator('#memory-total-count');
-  }
-
-  memoryRatedCount(): ReturnType<Page['locator']> {
-    return this.page.locator('#memory-rated-count');
-  }
-
-  memoryPendingCount(): ReturnType<Page['locator']> {
-    return this.page.locator('#memory-pending-count');
-  }
-
-  memoryLatestUpdate(): ReturnType<Page['locator']> {
-    return this.page.locator('#memory-latest-update');
+  configStatusBadge(): ReturnType<Page['locator']> {
+    return this.page.locator('#config-status-badge');
   }
 }

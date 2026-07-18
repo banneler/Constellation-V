@@ -5,7 +5,7 @@ const { encodeEq, supabaseRest } = require("../_lib/supabase");
 const SYNTHESIS_MODEL = process.env.GEMINI_SYNTHESIS_MODEL || "gemini-3.1-pro";
 const MAX_ROWS_PER_RUN = Number(process.env.AI_PROFILE_SYNTHESIS_LIMIT || 1000);
 
-const SYSTEM_PROMPT = `You synthesize raw user feedback about AI outputs into a durable, personalized system prompt for one specific AI function.
+const SYSTEM_PROMPT = `You synthesize raw user feedback about AI outputs into a durable, personalized system prompt.
 
 Rules:
 - Preserve stable user preferences about tone, structure, product emphasis, and sales style.
@@ -13,7 +13,6 @@ Rules:
 - Prefer newer, repeated, and specific feedback when feedback conflicts.
 - Generalize examples; do not quote private customer details or raw feedback verbatim.
 - Remove transient, one-off requests that should not become durable behavior.
-- Do not infer preferences for other AI functions; keep guidance scoped to the provided function_id.
 - Keep the prompt concise, operational, and directly useful for future AI generations.
 - Return only strict JSON: { "dynamic_prompt": "..." }.`;
 
@@ -32,13 +31,11 @@ function assertCronAuthorized(req) {
   throw Object.assign(new Error("Unauthorized cron request."), { status: 401 });
 }
 
-function groupByUserFunction(rows) {
+function groupByUser(rows) {
   return rows.reduce((groups, row) => {
     if (!row.user_id) return groups;
-    const functionId = String(row.function_id || "legacy-general").trim() || "legacy-general";
-    const key = `${row.user_id}::${functionId}`;
-    if (!groups.has(key)) groups.set(key, { userId: row.user_id, functionId, rows: [] });
-    groups.get(key).rows.push({ ...row, function_id: functionId });
+    if (!groups.has(row.user_id)) groups.set(row.user_id, []);
+    groups.get(row.user_id).push(row);
     return groups;
   }, new Map());
 }
@@ -47,7 +44,6 @@ function compactFeedbackRows(rows) {
   return rows.map((row) => ({
     id: row.id,
     created_at: row.created_at,
-    function_id: row.function_id,
     rating: row.rating,
     feedback: row.feedback,
     prompt: String(row.prompt || "").slice(0, 1600),
@@ -55,22 +51,21 @@ function compactFeedbackRows(rows) {
   }));
 }
 
-async function loadExistingPrompt(userId, functionId) {
+async function loadExistingPrompt(userId) {
   const rows = await supabaseRest(
-    `user_ai_profiles?user_id=eq.${encodeEq(userId)}&function_id=eq.${encodeEq(functionId)}&select=dynamic_prompt&limit=1`,
+    `user_ai_profiles?user_id=eq.${encodeEq(userId)}&select=dynamic_prompt&limit=1`,
     { serviceRole: true }
   );
   return rows?.[0]?.dynamic_prompt || "";
 }
 
-async function upsertProfile(userId, functionId, dynamicPrompt) {
-  await supabaseRest("user_ai_profiles?on_conflict=user_id,function_id", {
+async function upsertProfile(userId, dynamicPrompt) {
+  await supabaseRest("user_ai_profiles?on_conflict=user_id", {
     method: "POST",
     serviceRole: true,
     prefer: "resolution=merge-duplicates",
     body: [{
       user_id: userId,
-      function_id: functionId,
       dynamic_prompt: dynamicPrompt,
       updated_at: new Date().toISOString(),
     }],
@@ -87,12 +82,9 @@ async function markProcessed(rows) {
   });
 }
 
-async function synthesizeForUserFunction(userId, functionId, rows) {
-  const existingPrompt = await loadExistingPrompt(userId, functionId);
+async function synthesizeForUser(userId, rows) {
+  const existingPrompt = await loadExistingPrompt(userId);
   const userMessage = [
-    "Function id:",
-    functionId,
-    "",
     "Existing dynamic prompt:",
     existingPrompt || "(none yet)",
     "",
@@ -116,9 +108,9 @@ async function synthesizeForUserFunction(userId, functionId, rows) {
     throw new Error("Gemini synthesis returned an empty dynamic_prompt.");
   }
 
-  await upsertProfile(userId, functionId, dynamicPrompt);
+  await upsertProfile(userId, dynamicPrompt);
   await markProcessed(rows);
-  return { user_id: userId, function_id: functionId, processed: rows.length, model: result.model };
+  return { user_id: userId, processed: rows.length, model: result.model };
 }
 
 module.exports = async function handler(req, res) {
@@ -128,22 +120,21 @@ module.exports = async function handler(req, res) {
   try {
     assertCronAuthorized(req);
     const rows = await supabaseRest(
-      `personal_context?processed=eq.false&rating=not.is.null&select=id,user_id,function_id,prompt,response,rating,feedback,created_at&order=created_at.asc&limit=${MAX_ROWS_PER_RUN}`,
+      `personal_context?processed=eq.false&rating=not.is.null&select=id,user_id,prompt,response,rating,feedback,created_at&order=created_at.asc&limit=${MAX_ROWS_PER_RUN}`,
       { serviceRole: true }
     );
 
-    const groups = groupByUserFunction(rows || []);
+    const groups = groupByUser(rows || []);
     const results = [];
     const failures = [];
 
-    for (const { userId, functionId, rows: userRows } of groups.values()) {
+    for (const [userId, userRows] of groups.entries()) {
       try {
-        results.push(await synthesizeForUserFunction(userId, functionId, userRows));
+        results.push(await synthesizeForUser(userId, userRows));
       } catch (error) {
-        console.error("[api/cron/synthesize-ai-profiles] user/function failed", userId, functionId, error);
+        console.error("[api/cron/synthesize-ai-profiles] user failed", userId, error);
         failures.push({
           user_id: userId,
-          function_id: functionId,
           rows: userRows.length,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -152,7 +143,7 @@ module.exports = async function handler(req, res) {
 
     return sendJson(res, failures.length ? 207 : 200, {
       scanned: rows?.length || 0,
-      profiles_processed: results.length,
+      users_processed: results.length,
       results,
       failures,
     });
