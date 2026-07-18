@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
-import { mountAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -275,6 +275,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             toast.classList.add('hide');
             toast.addEventListener('transitionend', () => toast.remove());
         }, 4000);
+    }
+
+    function setAIEmailComposeMode(active) {
+        document.body.classList.toggle('ai-email-compose-active', Boolean(active));
     }
 
     function setupContactsMobileMenu() {
@@ -751,6 +755,7 @@ async function loadAllData() {
         const aiEmailBody = document.getElementById("ai-email-body");
         if (!aiWriteForm) return;
 
+        setAIEmailComposeMode(false);
         if (aiClearInsightBtn) aiClearInsightBtn.classList.add("hidden");
         aiWriteForm.classList.remove("hidden");
         aiEmailResponse?.classList.add("hidden");
@@ -774,6 +779,7 @@ async function loadAllData() {
         const aiInsightSummary = document.getElementById("ai-insight-summary");
         const aiInsightNextSteps = document.getElementById("ai-insight-next-steps");
         if (!aiInsightView) return;
+        setAIEmailComposeMode(false);
         aiWriteForm?.classList.add("hidden");
         aiEmailResponse?.classList.add("hidden");
         aiInsightView.classList.remove("hidden");
@@ -800,6 +806,7 @@ async function loadAllData() {
         const aiWriteForm = document.getElementById("ai-write-form");
         const aiEmailResponse = document.getElementById("ai-email-response");
         const aiInsightView = document.getElementById("ai-insight-view");
+        setAIEmailComposeMode(true);
         aiWriteForm?.classList.add("hidden");
         aiEmailResponse?.classList.remove("hidden");
         aiInsightView?.classList.add("hidden");
@@ -1109,6 +1116,7 @@ async function loadAllData() {
             return;
         }
 
+        setAIEmailComposeMode(true);
         const originalButtonText = generateButton?.innerHTML;
         if (generateButton) {
             generateButton.disabled = true;
@@ -1145,7 +1153,8 @@ async function loadAllData() {
                 userId: state.currentUser.id,
                 prompt: buildAIPromptRecord('generate-prospect-email', requestBody),
                 response: [`Subject: ${generatedSubject}`, '', generatedBody].join('\n'),
-                label: 'Was this email draft useful?'
+                label: 'Was this email draft useful?',
+                functionId: AI_FUNCTION_IDS.CONTACTS_EMAIL
             });
             showAIToast("Email generated successfully!", "success");
 
@@ -1153,6 +1162,7 @@ async function loadAllData() {
             console.error("Error generating email:", e);
             if (aiEmailSubject) aiEmailSubject.value = "Error";
             if (aiEmailBody) aiEmailBody.value = "An error occurred while generating the email. Please try again.";
+            setAIEmailComposeMode(false);
             showAIEmailResponse();
             showAIToast("Failed to generate email.", "error");
         } finally {
@@ -1178,6 +1188,7 @@ async function openEmailClient(contact) {
     window.open(mailtoLink, '_blank');
 
     try {
+        let emailActivityLogged = false;
         const { error } = await supabase.from('activities').insert({
             contact_id: state.selectedContactId,
             account_id: contact?.account_id,
@@ -1192,9 +1203,11 @@ async function openEmailClient(contact) {
             showToast("Email activity logged with errors.", "warning");
         } else {
             showToast("Email activity successfully logged!", "success");
+            emailActivityLogged = true;
         }
 
         await loadAllData();
+        if (emailActivityLogged) setAIEmailComposeMode(false);
     } catch (e) {
         console.error("Error logging activity:", e);
     }
@@ -2064,7 +2077,8 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         userId: state.currentUser.id,
                         prompt: buildAIPromptRecord('get-activity-insight', requestBody),
                         response: [`Insight: ${insight}`, '', `Next steps: ${nextSteps}`].join('\n'),
-                        label: 'Was this activity insight useful?'
+                        label: 'Was this activity insight useful?',
+                        functionId: AI_FUNCTION_IDS.CONTACTS_ACTIVITY_INSIGHT
                     });
 
                 } catch (error) {
@@ -2104,7 +2118,19 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     e.preventDefault();
                     const contact = state.contacts.find(c => c.id === state.selectedContactId);
                     showAIWriteForm();
-                    renderAIAssistant(contact);
+                    const aiPromptInput = document.getElementById("ai-email-prompt");
+                    const aiEmailSubject = document.getElementById("ai-email-subject");
+                    const aiEmailBody = document.getElementById("ai-email-body");
+                    if (aiPromptInput) {
+                        aiPromptInput.value = "";
+                        aiPromptInput.placeholder = contact
+                            ? "e.g., 'Write a follow-up email after our meeting.'"
+                            : "Select a contact to write an email.";
+                    }
+                    if (aiEmailSubject) aiEmailSubject.value = "";
+                    if (aiEmailBody) aiEmailBody.value = "";
+                    renderAIProductPickers();
+                    setAIEmailComposeMode(true);
                 }
             });
         }

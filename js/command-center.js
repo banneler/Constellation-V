@@ -24,7 +24,7 @@ import {
     refreshHUDNodes,
     filterOutOwnershipOrphanedCrmRows
 } from './shared_constants.js';
-import { mountAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -246,7 +246,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 userId: state.currentUser.id,
                 prompt: buildAIPromptRecord('get-daily-briefing', requestBody),
                 response: JSON.stringify(briefing, null, 2),
-                label: 'Was this daily briefing useful?'
+                label: 'Was this daily briefing useful?',
+                functionId: AI_FUNCTION_IDS.DAILY_BRIEFING
             });
         } catch (error) {
             console.error("Error generating AI briefing:", error);

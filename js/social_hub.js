@@ -18,7 +18,7 @@ import {
     hideModal,
     setModalDismissPolicy
 } from './shared_constants.js';
-import { mountAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -203,7 +203,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 userId: state.currentUser.id,
                 prompt: buildAIPromptRecord('generate-social-post', { article: item }),
                 response: postTextArea.value,
-                label: 'Was this social post useful?'
+                label: 'Was this social post useful?',
+                functionId: AI_FUNCTION_IDS.SOCIAL_POST
             });
         }
     }
@@ -285,7 +286,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         article: state.currentPostItem
                     }),
                     response: data.suggestion,
-                    label: 'Was this refined social post useful?'
+                    label: 'Was this refined social post useful?',
+                    functionId: AI_FUNCTION_IDS.SOCIAL_POST_REFINE
                 });
             }
 

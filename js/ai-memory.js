@@ -24,13 +24,31 @@ export async function callAiApi(supabase, routeName, body) {
     return data;
 }
 
-export async function createPersonalContext(supabase, { userId, prompt, response }) {
+export const AI_FUNCTION_IDS = Object.freeze({
+    ACCOUNT_BRIEFING: 'account-briefing',
+    AGENDA_GENERATION: 'agenda-generation',
+    COGNITO_OUTREACH: 'cognito-outreach',
+    CONTACTS_ACTIVITY_INSIGHT: 'contacts-activity-insight',
+    CONTACTS_EMAIL: 'contacts-email',
+    DAILY_BRIEFING: 'daily-briefing',
+    PRESENTATION_HIGHLIGHT: 'presentation-highlight',
+    SEQUENCE_GENERATION: 'sequence-generation',
+    SOCIAL_POST: 'social-post',
+    SOCIAL_POST_REFINE: 'social-post-refine'
+});
+
+export function normalizeAIFunctionId(functionId) {
+    return String(functionId || 'legacy-general').trim() || 'legacy-general';
+}
+
+export async function createPersonalContext(supabase, { userId, prompt, response, functionId }) {
     if (!userId || !prompt || !response) return null;
 
     const { data, error } = await supabase
         .from('personal_context')
         .insert({
             user_id: userId,
+            function_id: normalizeAIFunctionId(functionId),
             prompt,
             response,
             processed: false
@@ -64,11 +82,11 @@ export function renderAIFeedback(contextId, label = 'Was this AI response useful
     `;
 }
 
-export async function mountAIFeedback(target, supabase, { userId, prompt, response, label }) {
+export async function mountAIFeedback(target, supabase, { userId, prompt, response, label, functionId }) {
     const container = typeof target === 'string' ? document.querySelector(target) : target;
     if (!container) return null;
 
-    const contextId = await createPersonalContext(supabase, { userId, prompt, response });
+    const contextId = await createPersonalContext(supabase, { userId, prompt, response, functionId });
     container.innerHTML = renderAIFeedback(contextId, label);
     attachAIFeedbackHandler(container, supabase);
     return contextId;
