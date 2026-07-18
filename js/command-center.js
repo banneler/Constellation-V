@@ -242,13 +242,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             if (error) throw error;
             renderAIBriefing(briefing);
-            await mountAIFeedback(document.getElementById('daily-briefing-feedback-slot'), supabase, {
-                userId: state.currentUser.id,
-                prompt: buildAIPromptRecord('get-daily-briefing', requestBody),
-                response: JSON.stringify(briefing, null, 2),
-                label: 'Was this daily briefing useful?',
-                functionId: AI_FUNCTION_IDS.DAILY_BRIEFING
-            });
+            const appState = getState();
+            const userId = appState.currentUser?.id;
+            if (userId) {
+                await mountAIFeedback(document.getElementById('daily-briefing-feedback-slot'), supabase, {
+                    userId,
+                    prompt: buildAIPromptRecord('get-daily-briefing', requestBody),
+                    response: JSON.stringify(briefing, null, 2),
+                    label: 'Was this daily briefing useful?',
+                    functionId: AI_FUNCTION_IDS.DAILY_BRIEFING
+                });
+            }
         } catch (error) {
             console.error("Error generating AI briefing:", error);
             aiBriefingContainer.innerHTML = `<p class="error-text">Could not generate briefing. Please try again later.</p>`;
