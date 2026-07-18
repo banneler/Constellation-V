@@ -43,7 +43,16 @@ function withDynamicPrompts(basePrompt, prompts = {}) {
   ].filter(Boolean).join("\n");
 }
 
-async function callGeminiOnce({ model, systemPrompt, userMessage, responseMimeType, temperature = 0.5, maxOutputTokens = 2048 }) {
+async function callGeminiOnce({
+  model,
+  systemPrompt,
+  userMessage,
+  responseMimeType,
+  responseSchema,
+  tools,
+  temperature = 0.5,
+  maxOutputTokens = 2048,
+}) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${requireGeminiKey()}`;
   const body = {
     systemInstruction: {
@@ -59,7 +68,9 @@ async function callGeminiOnce({ model, systemPrompt, userMessage, responseMimeTy
       temperature,
       maxOutputTokens,
       ...(responseMimeType ? { responseMimeType } : {}),
+      ...(responseSchema ? { responseSchema } : {}),
     },
+    ...(tools ? { tools } : {}),
   };
 
   const response = await fetch(url, {

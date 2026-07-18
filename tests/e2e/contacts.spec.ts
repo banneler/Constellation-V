@@ -31,7 +31,7 @@ test.describe('Contacts', () => {
   test('AI email generation uses wide compose mode until activity is logged', async ({ page }) => {
     const c = new ContactsPage(page);
 
-    await page.route(/\/functions\/v1\/generate-prospect-email/i, async (route) => {
+    await page.route(/\/api\/ai\/generate-prospect-email/i, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

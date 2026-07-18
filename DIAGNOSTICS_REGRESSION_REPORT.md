@@ -48,8 +48,8 @@
 
 - **command-center.js**  
   - `briefingPayload` still includes: `tasks`, `sequenceSteps`, `deals`, `cognitoAlerts`, `nurtureAccounts`, `contacts`, `accounts`, `sequences`, `sequence_steps`.  
-  - `supabase.functions.invoke('get-daily-briefing', { body: { briefingPayload } })` unchanged.  
-  - **Verdict:** Grounding and prompt injection inputs intact.
+  - Daily briefing now calls the Vercel `/api/ai/get-daily-briefing` route through `callAiApi(...)`, preserving payload grounding while adding scoped RAG memory.
+  - **Verdict:** Grounding inputs remain intact and now use the Vercel RAG path.
 
 - **accounts.js**  
   - `get-account-briefing` invoked with `internalData` (account, contacts, org chart text, deals, activities).  

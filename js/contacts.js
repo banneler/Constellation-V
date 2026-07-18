@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
-import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -1136,11 +1136,7 @@ async function loadAllData() {
                 product_names: selectedProducts,
                 industry: selectedIndustry
             };
-            const { data, error } = await supabase.functions.invoke('generate-prospect-email', {
-                body: requestBody
-            });
-
-            if (error) throw error;
+            const data = await callAiApi(supabase, 'generate-prospect-email', requestBody);
             
             const generatedSubject = data.subject || "No Subject";
             const generatedBody = data.body || "Failed to generate email content.";
@@ -2064,11 +2060,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                         contactName: `${contact.first_name || ''} ${contact.last_name || ''}`,
                         activityLog: activityData
                     };
-                    const { data, error } = await supabase.functions.invoke('get-activity-insight', {
-                        body: requestBody
-                    });
-
-                    if (error) throw error;
+                    const data = await callAiApi(supabase, 'get-activity-insight', requestBody);
 
                     const insight = data.insight || "No insight generated.";
                     const nextSteps = data.next_steps || "No specific next steps suggested.";
