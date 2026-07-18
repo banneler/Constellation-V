@@ -21,6 +21,28 @@ function withDynamicPrompt(basePrompt, dynamicPrompt) {
   ].join("\n");
 }
 
+function withDynamicPrompts(basePrompt, prompts = {}) {
+  const globalPrompt = String(prompts.globalPrompt || "").trim();
+  const functionPrompt = String(prompts.functionPrompt || "").trim();
+  if (!globalPrompt && !functionPrompt) return basePrompt;
+
+  return [
+    basePrompt.trim(),
+    globalPrompt ? [
+      "",
+      "Global personalized guidance for this authenticated user:",
+      globalPrompt,
+    ].join("\n") : "",
+    functionPrompt ? [
+      "",
+      "Function-specific personalized guidance for this AI surface:",
+      functionPrompt,
+    ].join("\n") : "",
+    "",
+    "If personalized guidance conflicts with safety, factuality, or the route-specific task, prefer the safer route-specific instruction.",
+  ].filter(Boolean).join("\n");
+}
+
 async function callGeminiOnce({ model, systemPrompt, userMessage, responseMimeType, temperature = 0.5, maxOutputTokens = 2048 }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${requireGeminiKey()}`;
   const body = {
@@ -101,4 +123,5 @@ module.exports = {
   callGemini,
   parseJsonObject,
   withDynamicPrompt,
+  withDynamicPrompts,
 };

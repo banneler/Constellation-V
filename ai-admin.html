@@ -131,6 +131,29 @@
             white-space: nowrap;
         }
 
+        .ai-memory-scope-row {
+            display: grid;
+            grid-template-columns: minmax(220px, 340px) 1fr;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .ai-memory-scope-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .ai-memory-scope-select {
+            width: 100%;
+        }
+
+        .ai-memory-scope-summary {
+            color: var(--text-medium);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
         .ai-memory-metrics {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -179,6 +202,10 @@
             .ai-memory-metrics {
                 grid-template-columns: 1fr;
             }
+
+            .ai-memory-scope-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -220,10 +247,17 @@
                     <div class="ai-memory-card-header">
                         <div>
                             <p class="ai-memory-eyebrow">Feedback-Driven Personalization</p>
-                            <h3 class="section-title ai-memory-title">AI Memory Profile</h3>
-                            <p class="placeholder-text" style="margin: 0;">Synthesized from your ratings and feedback. Updated by the weekly memory job.</p>
+                            <h3 class="section-title ai-memory-title">Scoped AI Memory Profiles</h3>
+                            <p class="placeholder-text" style="margin: 0;">Synthesized by AI function so email, sequence, social, and briefing preferences stay distinct.</p>
                         </div>
                         <button id="refresh-memory-btn" class="btn-secondary ai-memory-refresh-btn" type="button"><i class="fas fa-rotate"></i><span>Refresh</span></button>
+                    </div>
+                    <div class="ai-memory-scope-row">
+                        <div class="ai-memory-scope-field">
+                            <label for="memory-function-select" class="ai-memory-prompt-label">AI Function</label>
+                            <select id="memory-function-select" class="form-control ai-memory-scope-select"></select>
+                        </div>
+                        <p id="memory-scope-summary" class="ai-memory-scope-summary placeholder-text">Choose a function to inspect its captured feedback and synthesized prompt.</p>
                     </div>
                     <div class="ai-memory-metrics">
                         <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-total-count">0</span><span class="ai-memory-stat-label">Captured Responses</span></div>

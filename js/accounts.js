@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, getDealNotesStatus, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showToast, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
-import { attachAIFeedbackHandler, callAiApi, mountAIFeedback, renderAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, attachAIFeedbackHandler, callAiApi, mountAIFeedback, renderAIFeedback } from './ai-memory.js';
 import { fetchPlanForAccount } from './account-plan-data.js';
 import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave, flushPlanAutosave, promoteActivityToInteractionLog } from './account-plan-ui.js';
 
@@ -2512,7 +2512,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 userId: state.currentUser.id,
                 prompt: buildAIPromptRecord('get-account-briefing', requestBody),
                 response: JSON.stringify(briefing, null, 2),
-                label: 'Was this account briefing useful?'
+                label: 'Was this account briefing useful?',
+                functionId: AI_FUNCTION_IDS.ACCOUNT_BRIEFING
             });
 
             requestAnimationFrame(() => {

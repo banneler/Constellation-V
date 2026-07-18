@@ -84,19 +84,39 @@ async function supabaseRest(path, options = {}) {
 
 async function getDynamicPrompt(userId) {
   const rows = await supabaseRest(
-    `user_ai_profiles?user_id=eq.${encodeEq(userId)}&select=dynamic_prompt&limit=1`,
+    `user_ai_profiles?user_id=eq.${encodeEq(userId)}&function_id=eq.global&select=dynamic_prompt&limit=1`,
     { serviceRole: true }
   );
   return rows?.[0]?.dynamic_prompt ? String(rows[0].dynamic_prompt) : "";
 }
 
-async function createPersonalContext(userId, prompt, responseText) {
+async function getDynamicPrompts(userId, functionId) {
+  const scopedFunctionId = normalizeFunctionId(functionId);
+  const rows = await supabaseRest(
+    `user_ai_profiles?user_id=eq.${encodeEq(userId)}&function_id=in.(global,${encodeEq(scopedFunctionId)})&select=function_id,dynamic_prompt`,
+    { serviceRole: true }
+  );
+  const prompts = { globalPrompt: "", functionPrompt: "", functionId: scopedFunctionId };
+  for (const row of rows || []) {
+    const prompt = row?.dynamic_prompt ? String(row.dynamic_prompt) : "";
+    if (row?.function_id === "global") prompts.globalPrompt = prompt;
+    if (row?.function_id === scopedFunctionId) prompts.functionPrompt = prompt;
+  }
+  return prompts;
+}
+
+function normalizeFunctionId(functionId) {
+  return String(functionId || "legacy-general").trim() || "legacy-general";
+}
+
+async function createPersonalContext(userId, prompt, responseText, functionId) {
   const rows = await supabaseRest("personal_context?select=id", {
     method: "POST",
     serviceRole: true,
     prefer: "return=representation",
     body: {
       user_id: userId,
+      function_id: normalizeFunctionId(functionId),
       prompt: String(prompt || "").slice(0, 20000),
       response: String(responseText || "").slice(0, 20000),
       processed: false,
@@ -109,6 +129,8 @@ module.exports = {
   createPersonalContext,
   encodeEq,
   getDynamicPrompt,
+  getDynamicPrompts,
   getUserFromRequest,
+  normalizeFunctionId,
   supabaseRest,
 };
