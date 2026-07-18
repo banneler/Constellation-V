@@ -1,5 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, showToast, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, addDays, loadSVGs, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation } from './shared_constants.js';
-import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -1377,11 +1377,7 @@ async function importMarketingSequence() {
 
         try {
             const requestBody = { sequenceGoal, numSteps, totalDuration, stepTypes: selectedStepTypes, personaPrompt };
-            const { data, error } = await supabase.functions.invoke('generate-sequence-steps', {
-                body: requestBody
-            });
-
-            if (error) throw error;
+            const data = await callAiApi(supabase, 'generate-sequence-steps', requestBody);
 
             state.aiGeneratedSteps = data.steps.map((step, index) => ({
                 id: `ai-temp-${index}`,

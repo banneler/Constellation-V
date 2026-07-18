@@ -24,7 +24,7 @@ import {
     refreshHUDNodes,
     filterOutOwnershipOrphanedCrmRows
 } from './shared_constants.js';
-import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -237,10 +237,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sequence_steps: state.sequence_steps
             };
             const requestBody = { briefingPayload };
-            const { data: briefing, error } = await supabase.functions.invoke('get-daily-briefing', {
-                body: requestBody
-            });
-            if (error) throw error;
+            const briefing = await callAiApi(supabase, 'get-daily-briefing', requestBody);
             renderAIBriefing(briefing);
             const appState = getState();
             const userId = appState.currentUser?.id;

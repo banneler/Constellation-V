@@ -22,6 +22,7 @@ import {
 import {
     AI_FUNCTION_IDS,
     attachAIFeedbackHandler,
+    callAiApi,
     createPersonalContext,
     renderAIFeedback
 } from './ai-memory.js';
@@ -554,11 +555,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function generateOutreachCopy(alert, account) {
         try {
-            const { data, error } = await supabase.functions.invoke('get-gemini-suggestion', {
-                body: { alertData: alert, accountData: account }
-            });
-            if (error) throw error;
-            return data; 
+            return await callAiApi(supabase, 'get-gemini-suggestion', { alertData: alert, accountData: account });
         } catch (error) {
             console.error("Error invoking get-gemini-suggestion Edge Function:", error);
             return null;
@@ -584,13 +581,7 @@ async function generateCustomOutreachCopy(alert, account, customPrompt, previous
         };
 
         // 2. Send the newly formatted payload
-        const { data, error } = await supabase.functions.invoke('generate-custom-suggestion', {
-            body: payload
-        });
-        
-        if (error) throw error;
-        
-        return data;
+        return await callAiApi(supabase, 'generate-custom-suggestion', payload);
         
     } catch (error) {
         console.error("Error invoking generate-custom-suggestion Edge Function:", error);

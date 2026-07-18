@@ -18,7 +18,7 @@ import {
     hideModal,
     setModalDismissPolicy
 } from './shared_constants.js';
-import { AI_FUNCTION_IDS, mountAIFeedback } from './ai-memory.js';
+import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -105,12 +105,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function fetchSuggestedPost(item) {
         if (item.type === 'marketing_post') return item.approved_copy || '';
-        const { data, error } = await supabase.functions.invoke('generate-social-post', { body: { article: item } });
-        if (error) {
+        try {
+            const data = await callAiApi(supabase, 'generate-social-post', { article: item });
+            return data?.suggestion || "No suggestion returned. Please write your own.";
+        } catch (error) {
             console.error("Edge function error:", error);
             return "Error generating suggestion. Please write your own or try again.";
         }
-        return data?.suggestion || "No suggestion returned. Please write your own.";
     }
 
     function setCardLoadingState(card, isLoading, message = 'Generating AI post suggestion...') {
@@ -271,11 +272,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             generateCustomBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Regenerating...</span>';
             generateCustomBtn.disabled = true;
 
-            const { data, error } = await supabase.functions.invoke('refine-social-post', { body: { originalText, customPrompt } });
-            
-            if (error) {
-                alert("Error refining post. Please check the console.");
-            } else {
+            try {
+                const data = await callAiApi(supabase, 'refine-social-post', { originalText, customPrompt });
+
+                if (!data?.suggestion) throw new Error('No refined post suggestion returned.');
                 postTextArea.value = data.suggestion;
                 customPromptInput.value = ''; // Clear prompt input
                 await mountAIFeedback(socialPostFeedbackSlot, supabase, {
@@ -289,10 +289,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     label: 'Was this refined social post useful?',
                     functionId: AI_FUNCTION_IDS.SOCIAL_POST_REFINE
                 });
+            } catch (error) {
+                console.error("Error refining post:", error);
+                alert("Error refining post. Please check the console.");
+            } finally {
+                generateCustomBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i><span>Regenerate</span>';
+                generateCustomBtn.disabled = false;
             }
-
-            generateCustomBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i><span>Regenerate</span>';
-            generateCustomBtn.disabled = false;
         });
     }
 
