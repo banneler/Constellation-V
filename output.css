@@ -2995,6 +2995,23 @@ body.theme-green {
   .logged-emails-empty {
     text-align: center;
   }
+  body.contacts-page.ai-email-compose-active .contact-cards-row {
+    align-items: stretch;
+  }
+  body.contacts-page.ai-email-compose-active .contact-activities-card {
+    display: none !important;
+  }
+  body.contacts-page.ai-email-compose-active .ai-assistant-card {
+    flex: 1 1 0;
+    width: min(760px, 100%);
+    min-width: min(520px, 100%);
+  }
+  body.contacts-page.ai-email-compose-active .ai-assistant-content {
+    overflow-y: auto;
+  }
+  body.contacts-page.ai-email-compose-active .ai-email-response .ai-email-body-input {
+    min-height: 22rem;
+  }
   .sequence-steps-list {
     display: flex;
     min-height: calc(var(--spacing) * 0);

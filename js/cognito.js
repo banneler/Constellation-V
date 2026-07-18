@@ -20,6 +20,7 @@ import {
     showToast
 } from './shared_constants.js';
 import {
+    AI_FUNCTION_IDS,
     attachAIFeedbackHandler,
     createPersonalContext,
     renderAIFeedback
@@ -289,7 +290,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     alertData: state.selectedAlert,
                     accountData: account
                 }),
-                response: formatOutreachResponse(initialOutreachCopy)
+                response: formatOutreachResponse(initialOutreachCopy),
+                functionId: AI_FUNCTION_IDS.COGNITO_OUTREACH
             });
     
         const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id && c.email);
@@ -475,7 +477,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         accountData: account,
                         originalBasePrompt: ORIGINAL_PROMPT_BASE_TEXT
                     }),
-                    response: formatOutreachResponse(customOutreachCopy)
+                    response: formatOutreachResponse(customOutreachCopy),
+                    functionId: AI_FUNCTION_IDS.COGNITO_OUTREACH
                 });
                 if (customFeedbackSlot) {
                     customFeedbackSlot.innerHTML = renderAIFeedback(customContextId, 'Was this refined outreach useful?');

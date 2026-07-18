@@ -1,6 +1,8 @@
-const { callGemini, withDynamicPrompt } = require("../_lib/gemini");
+const { callGemini, withDynamicPrompts } = require("../_lib/gemini");
 const { handleOptions, readJsonBody, sendError, sendJson } = require("../_lib/http");
-const { createPersonalContext, getDynamicPrompt, getUserFromRequest } = require("../_lib/supabase");
+const { createPersonalContext, getDynamicPrompts, getUserFromRequest } = require("../_lib/supabase");
+
+const FUNCTION_ID = "agenda-generation";
 
 const BASE_SYSTEM_PROMPT = `You are a Senior Account Executive at Great Plains Communications (GPC), focused on enterprise accounts. Your tone is professionally casual: confident, warm, and direct, not stiff or corporate.
 
@@ -21,7 +23,7 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 400, { error: 'Missing or empty "items" array in request body.' });
     }
 
-    const dynamicPrompt = await getDynamicPrompt(user.id);
+    const dynamicPrompts = await getDynamicPrompts(user.id, FUNCTION_ID);
     const itemsBlock = items.map((item, index) => `${index + 1}. ${item}`).join("\n");
     const userMessage = [
       accountName ? `Account/company name: ${accountName}` : "",
@@ -31,13 +33,13 @@ module.exports = async function handler(req, res) {
     ].filter(Boolean).join("\n\n");
 
     const result = await callGemini({
-      systemPrompt: withDynamicPrompt(BASE_SYSTEM_PROMPT, dynamicPrompt),
+      systemPrompt: withDynamicPrompts(BASE_SYSTEM_PROMPT, dynamicPrompts),
       userMessage,
       temperature: 0.6,
       maxOutputTokens: 1024,
     });
 
-    const contextId = await createPersonalContext(user.id, userMessage, result.text);
+    const contextId = await createPersonalContext(user.id, userMessage, result.text, FUNCTION_ID);
     return sendJson(res, 200, {
       agenda: result.text,
       generated_at: new Date().toISOString(),
