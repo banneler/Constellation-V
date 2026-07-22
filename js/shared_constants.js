@@ -57,6 +57,14 @@ const appState = {
     managedUsers: []            // Array of users the manager can view as
 };
 
+function updateManagerOnlyNavigation() {
+    const shouldShow = appState.isManager === true;
+    document.querySelectorAll('[data-manager-only-nav="true"]').forEach((el) => {
+        el.classList.toggle('hidden', !shouldShow);
+        el.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+    });
+}
+
 /**
  * Returns the current application state.
  */
@@ -204,6 +212,7 @@ export async function initializeAppState(supabase) {
         } else {
             appState.managedUsers = allUsers.map(u => ({
                 id: u.user_id,
+                user_id: u.user_id,
                 full_name: u.full_name
             }));
         }
@@ -211,6 +220,8 @@ export async function initializeAppState(supabase) {
         appState.isManager = false;
         appState.managedUsers = [];
     }
+
+    updateManagerOnlyNavigation();
     
     return appState;
 }
@@ -943,6 +954,7 @@ const GLOBAL_NAV_TEMPLATE = `
     <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i><span class="nav-label-text">Deals</span></a>
     <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i><span class="nav-label-text">Contacts</span></a>
     <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i><span class="nav-label-text">Accounts</span></a>
+    <a href="saos-dashboard.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-sitemap nav-icon"></i><span class="nav-label-text">SAOS</span></a>
     <a href="proposals.html" class="nav-button"><i class="fa-solid fa-file-lines nav-icon"></i><span class="nav-label-text">Proposals</span></a>
     <a href="irr.html" class="nav-button"><i class="fa-solid fa-calculator nav-icon"></i><span class="nav-label-text">IRR</span></a>
     <a href="campaigns.html" class="nav-button"><i class="fa-solid fa-bullhorn nav-icon"></i><span class="nav-label-text">Campaigns</span></a>
@@ -987,6 +999,7 @@ export function injectGlobalNavigation() {
     container.innerHTML = GLOBAL_NAV_TEMPLATE;
 
     initHUD();
+    updateManagerOnlyNavigation();
 
     const navSidebar = container.closest('.nav-sidebar');
     const toggleBtn = document.getElementById('nav-collapse-toggle');

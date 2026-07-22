@@ -231,6 +231,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 deals: state.deals,
                 cognitoAlerts: state.cognitoAlerts,
                 nurtureAccounts: state.nurtureAccounts,
+                activities: state.activities,
                 contacts: state.contacts,
                 accounts: state.accounts,
                 sequences: state.sequences,

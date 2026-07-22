@@ -39,6 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentUser: null,
         accounts: [],
         contacts: [],
+        activities: [],
         alerts: [],
         selectedAlert: null,
         viewMode: 'dashboard',
@@ -133,20 +134,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         const [
             { data: alerts, error: alertsError },
             { data: accounts, error: accountsError },
-            { data: contacts, error: contactsError }
+            { data: contacts, error: contactsError },
+            { data: activities, error: activitiesError }
         ] = await Promise.all([
             supabase.from("cognito_alerts").select("*").eq("user_id", getState().effectiveUserId),
             supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
-            supabase.from("contacts").select("*").eq("user_id", getState().effectiveUserId)
+            supabase.from("contacts").select("*").eq("user_id", getState().effectiveUserId),
+            supabase.from("activities").select("*").eq("user_id", getState().effectiveUserId)
         ]);
         
         if (alertsError) console.error("Error fetching Cognito alerts:", alertsError);
         if (accountsError) console.error("Error fetching accounts:", accountsError);
         if (contactsError) console.error("Error fetching contacts:", contactsError);
+        if (activitiesError) console.error("Error fetching activities:", activitiesError);
 
         state.alerts = alerts || [];
         state.accounts = accounts || [];
         state.contacts = contacts || [];
+        state.activities = activities || [];
 
         populateAccountFilter();
         renderAlerts();
@@ -277,7 +282,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
     
-            const initialOutreachCopy = await generateOutreachCopy(state.selectedAlert, account);
+            const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id && c.email);
+            const initialOutreachCopy = await generateOutreachCopy(state.selectedAlert, account, relevantContacts);
             if (!initialOutreachCopy) {
                 showToast('AI Generation Failed', 'error');
                 return;
@@ -294,8 +300,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 response: formatOutreachResponse(initialOutreachCopy),
                 functionId: AI_FUNCTION_IDS.COGNITO_OUTREACH
             });
-    
-        const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id && c.email);
         const contactOptions = relevantContacts.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name} (${c.title || 'No Title'})</option>`).join('');
     
         let suggestedContactId = null;
@@ -452,8 +456,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             customOutreachSubjectInput.value = 'Generating...';
             customOutreachBodyTextarea.value = 'Generating...';
     
+            const relevantContacts = state.contacts.filter(c => c.account_id === state.selectedAlert.account_id && c.email);
             const customOutreachCopy = await generateCustomOutreachCopy(
-                state.selectedAlert, account, customPrompt,
+                state.selectedAlert, account, relevantContacts, customPrompt,
                 state.initialSuggestionSubject, state.initialSuggestionBody,
                 ORIGINAL_PROMPT_BASE_TEXT
             );
@@ -553,16 +558,66 @@ document.addEventListener("DOMContentLoaded", async () => {
         ].join('\n').trim();
     }
 
-    async function generateOutreachCopy(alert, account) {
+    function truncateForAI(value, maxLength = 700) {
+        const text = value == null ? '' : String(value).trim();
+        return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}...`;
+    }
+
+    function buildCognitoOutreachContext(alert, account, contacts = []) {
+        const contactIds = new Set(contacts.map(contact => contact.id));
+        const recentActivities = state.activities
+            .filter(activity => activity.account_id === account?.id || contactIds.has(activity.contact_id))
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 12)
+            .map(activity => {
+                const contact = contacts.find(item => item.id === activity.contact_id);
+                return {
+                    date: activity.date,
+                    type: activity.type,
+                    contact: contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level',
+                    description: truncateForAI(activity.description || activity.subject, 500)
+                };
+            });
+
+        return {
+            alert: {
+                headline: alert?.headline,
+                summary: alert?.summary,
+                trigger_type: alert?.trigger_type,
+                relevance_score: alert?.relevance_score,
+                created_at: alert?.created_at
+            },
+            account: account ? {
+                name: account.name,
+                tier: account.tier,
+                industry: account.industry,
+                city: account.city,
+                state: account.state,
+                website: account.website
+            } : null,
+            available_contacts: contacts.slice(0, 12).map(contact => ({
+                name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+                title: contact.title,
+                email: contact.email
+            })),
+            recent_activity: recentActivities
+        };
+    }
+
+    async function generateOutreachCopy(alert, account, contacts = []) {
         try {
-            return await callAiApi(supabase, 'get-gemini-suggestion', { alertData: alert, accountData: account });
+            return await callAiApi(supabase, 'get-gemini-suggestion', {
+                alertData: alert,
+                accountData: account,
+                context: buildCognitoOutreachContext(alert, account, contacts)
+            });
         } catch (error) {
             console.error("Error invoking get-gemini-suggestion Edge Function:", error);
             return null;
         }
     }
 
-async function generateCustomOutreachCopy(alert, account, customPrompt, previousSubject, previousBody, originalBasePrompt) {
+async function generateCustomOutreachCopy(alert, account, contacts, customPrompt, previousSubject, previousBody, originalBasePrompt) {
     try {
         // 1. Map your frontend variables to the backend's expected format
         const payload = {
@@ -577,6 +632,7 @@ async function generateCustomOutreachCopy(alert, account, customPrompt, previous
             // you want to add them to the Edge Function prompt later!
             alertData: alert, 
             accountData: account, 
+            context: buildCognitoOutreachContext(alert, account, contacts),
             originalBasePrompt: originalBasePrompt
         };
 

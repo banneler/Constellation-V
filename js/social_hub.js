@@ -273,7 +273,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             generateCustomBtn.disabled = true;
 
             try {
-                const data = await callAiApi(supabase, 'refine-social-post', { originalText, customPrompt });
+                const data = await callAiApi(supabase, 'refine-social-post', {
+                    originalText,
+                    customPrompt,
+                    article: state.currentPostItem
+                });
 
                 if (!data?.suggestion) throw new Error('No refined post suggestion returned.');
                 postTextArea.value = data.suggestion;

@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const aiNumStepsInput = document.getElementById("ai-num-steps");
     const aiStepTypePills = document.getElementById("ai-step-type-pills");
     const aiStepTypeOtherPill = document.getElementById("ai-step-type-other-pill");
+    const aiGuidanceModeInput = document.getElementById("ai-guidance-mode");
     const aiPersonaPromptTextarea = document.getElementById("ai-persona-prompt");
     const aiGenerateSequenceBtn = document.getElementById("ai-generate-sequence-btn");
     const aiGeneratedSequencePreview = document.getElementById("ai-generated-sequence-preview");
@@ -1351,6 +1352,45 @@ async function importMarketingSequence() {
     return true;
 }
 
+    function truncateForAI(value, maxLength = 900) {
+        const text = value == null ? '' : String(value).trim();
+        return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}...`;
+    }
+
+    function buildSequenceReferenceContext(selectedStepTypes) {
+        const allowedTypes = new Set((selectedStepTypes || []).map(type => String(type || '').toLowerCase()));
+        return state.sequences
+            .slice()
+            .sort((a, b) => {
+                const sourceScore = Number(Boolean(b.is_abm)) - Number(Boolean(a.is_abm));
+                if (sourceScore !== 0) return sourceScore;
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            })
+            .slice(0, 6)
+            .map(sequence => {
+                const steps = state.sequence_steps
+                    .filter(step => step.sequence_id === sequence.id)
+                    .sort((a, b) => Number(a.step_number || 0) - Number(b.step_number || 0))
+                    .filter(step => allowedTypes.size === 0 || allowedTypes.has(String(step.type || '').toLowerCase()))
+                    .slice(0, 8)
+                    .map(step => ({
+                        step_number: step.step_number,
+                        type: step.type,
+                        delay_days: step.delay_days,
+                        subject: truncateForAI(step.subject, 220),
+                        message: truncateForAI(step.message, 500)
+                    }));
+                return {
+                    name: sequence.name,
+                    description: truncateForAI(sequence.description, 500),
+                    source: sequence.source,
+                    is_abm: sequence.is_abm,
+                    steps
+                };
+            })
+            .filter(sequence => sequence.steps.length > 0);
+    }
+
     async function handleAiGenerateSequence() {
         if (state.isEditingSequenceDetails || state.editingStepId || state.aiGeneratedSteps.length > 0) {
             showModal("Error", "Please save or cancel any active edits or AI generation preview first.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -1367,6 +1407,7 @@ async function importMarketingSequence() {
         const customType = aiStepTypeOtherPill?.value?.trim();
         if (customType) selectedStepTypes.push(customType);
         const personaPrompt = aiPersonaPromptTextarea.value.trim();
+        const guidanceMode = Boolean(aiGuidanceModeInput?.checked);
 
         if (!sequenceGoal || isNaN(totalDuration) || totalDuration < 1 || numSteps < 1 || selectedStepTypes.length === 0 || !personaPrompt) {
             showModal("Error", "Please fill out all AI generation fields correctly.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
@@ -1376,7 +1417,15 @@ async function importMarketingSequence() {
         showModal("Generating Sequence", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">AI is drafting your sequence steps...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
 
         try {
-            const requestBody = { sequenceGoal, numSteps, totalDuration, stepTypes: selectedStepTypes, personaPrompt };
+            const requestBody = {
+                sequenceGoal,
+                numSteps,
+                totalDuration,
+                stepTypes: selectedStepTypes,
+                personaPrompt,
+                guidanceMode,
+                referenceSequences: buildSequenceReferenceContext(selectedStepTypes)
+            };
             const data = await callAiApi(supabase, 'generate-sequence-steps', requestBody);
 
             state.aiGeneratedSteps = data.steps.map((step, index) => ({

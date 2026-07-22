@@ -216,6 +216,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         return { iconClass: "icon-default", icon: "fa-circle-info", iconPrefix: "fas" };
     }
 
+    function buildEmailLogActivities(contacts = state.contacts, emailLog = state.email_log) {
+        const contactsByEmail = new Map();
+        contacts.forEach((contact) => {
+            const email = (contact.email || '').trim().toLowerCase();
+            if (!email) return;
+            if (!contactsByEmail.has(email)) contactsByEmail.set(email, []);
+            contactsByEmail.get(email).push(contact);
+        });
+
+        return emailLog.flatMap((email) => {
+            const recipients = contactsByEmail.get((email.recipient || '').trim().toLowerCase()) || [];
+            return recipients.map((contact) => ({
+                id: `email-log-${email.id}`,
+                contact_id: contact.id,
+                account_id: contact.account_id,
+                date: email.created_at,
+                type: 'Logged Email',
+                description: `Subject: ${email.subject || '(No Subject)'}`,
+                user_id: getState().effectiveUserId,
+                logged_to_sf: true,
+                source_table: 'email_log',
+                email_log_id: email.id
+            }));
+        });
+    }
+
     function openLogCallModal(csId) {
         const cs = state.contact_sequences.find(c => c.id === csId);
         if (!cs) return;
@@ -391,12 +417,13 @@ async function loadAllData() {
 
         state.contacts = processResponse(contactsRes, 'contacts');
         state.accounts = processResponse(accountsRes, 'accounts');
-        state.activities = filterOutOwnershipOrphanedCrmRows(processResponse(activitiesRes, 'activities'), state.accounts, state.contacts);
+        state.email_log = processResponse(emailLogRes, 'email_log');
+        const crmActivities = filterOutOwnershipOrphanedCrmRows(processResponse(activitiesRes, 'activities'), state.accounts, state.contacts);
+        state.activities = [...crmActivities, ...buildEmailLogActivities()];
         state.contact_sequences = processResponse(contactSequencesRes, 'contact_sequences');
         state.deals = filterOutOwnershipOrphanedCrmRows(processResponse(dealsRes, 'deals'), state.accounts, state.contacts);
         state.tasks = filterOutOwnershipOrphanedCrmRows(processResponse(tasksRes, 'tasks'), state.accounts, state.contacts);
         state.sequence_steps = processResponse(sequenceStepsRes, 'sequence_steps');
-        state.email_log = processResponse(emailLogRes, 'email_log');
         state.activityTypes = [...new Map(processResponse(activityTypesRes, 'activity_types').map(item => [item.type_name, item])).values()];
         state.sequences = processResponse(sequencesRes, 'sequences'); // Assign all of your sequences
         const productData = processResponse(productsRes, 'product_knowledge');
@@ -630,7 +657,7 @@ async function loadAllData() {
                     else if (typeLower.includes("linkedin")) { iconClass = "icon-linkedin"; icon = "fa-linkedin-in"; iconPrefix = "fa-brands"; }
                     const item = document.createElement("div");
                     item.className = "recent-activity-item";
-                    const logSfBtnHtml = act.logged_to_sf ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
+                    const logSfBtnHtml = (act.logged_to_sf || act.source_table === 'email_log') ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
                     item.innerHTML = `
                         <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                         <div class="activity-body">
@@ -1101,6 +1128,72 @@ async function loadAllData() {
     }
 
     // --- AI EMAIL GENERATION (inline in AI container) ---
+    function truncateForAI(value, maxLength = 900) {
+        const text = value == null ? '' : String(value).trim();
+        return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}...`;
+    }
+
+    function buildContactEmailContext(contact) {
+        const account = contact?.account_id ? state.accounts.find(acc => acc.id === contact.account_id) : null;
+        const accountDeals = account
+            ? state.deals
+                .filter(deal => deal.account_id === account.id)
+                .map(deal => ({
+                    name: deal.name,
+                    stage: deal.stage,
+                    mrc: deal.mrc,
+                    close_month: deal.close_month,
+                    products: deal.products,
+                    is_committed: deal.is_committed,
+                    notes: truncateForAI(deal.notes, 500)
+                }))
+                .slice(0, 6)
+            : [];
+        const recentActivities = state.activities
+            .filter(activity => activity.contact_id === contact.id || (account && activity.account_id === account.id))
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 8)
+            .map(activity => ({
+                date: activity.date,
+                type: activity.type,
+                description: truncateForAI(activity.description || activity.subject, 500),
+                scope: activity.contact_id === contact.id ? 'contact' : 'account'
+            }));
+        const activeSequence = state.contact_sequences.find(seq => seq.contact_id === contact.id && seq.status === 'Active');
+        const sequence = activeSequence ? state.sequences.find(seq => seq.id === activeSequence.sequence_id) : null;
+        const currentStep = activeSequence
+            ? state.sequence_steps.find(step => step.sequence_id === activeSequence.sequence_id && step.step_number === activeSequence.current_step_number)
+            : null;
+
+        return {
+            contact: {
+                name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+                title: contact.title,
+                email: contact.email,
+                phone: contact.phone,
+                linkedin_profile_url: contact.linkedin_profile_url,
+                is_organic: contact.is_organic
+            },
+            account: account ? {
+                name: account.name,
+                tier: account.tier,
+                industry: account.industry,
+                city: account.city,
+                state: account.state,
+                website: account.website
+            } : null,
+            open_deals: accountDeals,
+            recent_activity: recentActivities,
+            active_sequence: activeSequence ? {
+                sequence_name: sequence?.name,
+                current_step_number: activeSequence.current_step_number,
+                next_step_due_date: activeSequence.next_step_due_date,
+                current_step_type: currentStep?.type,
+                current_step_subject: currentStep?.subject
+            } : null
+        };
+    }
+
     async function generateEmailWithAI(contact) {
         if (!contact?.email) {
             showAIToast("Contact has no email address.", "error");
@@ -1134,7 +1227,8 @@ async function loadAllData() {
                 contactName: contactName,
                 accountName: accountName,
                 product_names: selectedProducts,
-                industry: selectedIndustry
+                industry: selectedIndustry,
+                context: buildContactEmailContext(contact)
             };
             const data = await callAiApi(supabase, 'generate-prospect-email', requestBody);
             
@@ -2040,6 +2134,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     return;
                 }
 
+                const account = contact.account_id ? state.accounts.find(acc => acc.id === contact.account_id) : null;
                 const relevantActivities = state.activities
                     .filter(act => act.contact_id === contact.id)
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -2058,7 +2153,9 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 try {
                     const requestBody = {
                         contactName: `${contact.first_name || ''} ${contact.last_name || ''}`,
-                        activityLog: activityData
+                        accountName: account?.name || '',
+                        activityLog: activityData,
+                        context: buildContactEmailContext(contact)
                     };
                     const data = await callAiApi(supabase, 'get-activity-insight', requestBody);
 

@@ -4135,7 +4135,12 @@ async function handleExportPdf(type) {
     const accountBase = _options.getSelectedAccount?.() ?? null;
     const accountDetails = _options.getSelectedAccountDetails?.();
     const account = accountBase
-        ? { ...accountBase, contacts: accountDetails?.contacts ?? [] }
+        ? {
+            ...accountBase,
+            contacts: accountDetails?.contacts ?? [],
+            deals: accountDetails?.deals ?? [],
+            activities: accountDetails?.activities ?? [],
+        }
         : null;
     syncLiveSectionsFromCanvas();
     const planForExport = deepClonePlan(_planBaseline);

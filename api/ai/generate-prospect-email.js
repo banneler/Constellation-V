@@ -4,9 +4,20 @@ const { getUserFromRequest, supabaseRest, encodeEq } = require("../_lib/supabase
 
 const FUNCTION_ID = "contacts-email";
 
-const SYSTEM_PROMPT = `You write sales emails for Great Plains Communications.
-Be concise, value-first, human, and specific to the recipient and account context.
-Use [FirstName] for the recipient. Do not include a signature. Return only JSON with "subject" and "body".`;
+const SYSTEM_PROMPT = `You write high-quality sales emails for Great Plains Communications.
+
+Write like a thoughtful account executive, not a marketing blast. Use the user's requested goal as the primary instruction, then ground the draft in contact, account, recent activity, active sequence, deal, product, and industry context when available.
+
+Rules:
+- Use [FirstName] for the recipient greeting or first reference.
+- Do not include a signature.
+- Keep the email concise, natural, and specific.
+- Lead with a relevant business reason to engage, not a generic product pitch.
+- If recent activity exists, use it to create continuity; do not restate internal CRM labels.
+- If deal or product context exists, connect it to likely customer outcomes without overclaiming.
+- If context is sparse, write a clean discovery-oriented note rather than pretending to know more.
+- Avoid hype, pressure tactics, and long feature lists.
+- Return only JSON with "subject" and "body".`;
 
 async function loadUserIdentity(userId) {
   const rows = await supabaseRest(
@@ -23,7 +34,7 @@ module.exports = async function handler(req, res) {
   try {
     const { user } = await getUserFromRequest(req);
     const body = await readJsonBody(req);
-    const { contactName, accountName, userPrompt, product_names, industry } = body;
+    const { contactName, accountName, userPrompt, product_names, industry, context } = body;
     required(contactName, "Missing contactName.");
     required(userPrompt, "Missing userPrompt.");
 
@@ -37,6 +48,7 @@ module.exports = async function handler(req, res) {
       `Goal: ${userPrompt}`,
       `Recipient: ${contactName}`,
       accountName ? `Account: ${accountName}` : "",
+      context ? `Relationship context:\n${JSON.stringify(context, null, 2)}` : "",
       productContext ? `Technical context to use:\n${productContext}` : "",
     ].filter(Boolean).join("\n\n");
 

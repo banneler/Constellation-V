@@ -42,13 +42,62 @@ function presentationInvokeErrorMessage(error, data) {
     return error?.message || 'Presentation synthesis failed.';
 }
 
+function truncateForPresentation(value, max = 700) {
+    const text = value == null ? '' : String(value).trim();
+    if (text.length <= max) return text;
+    return `${text.slice(0, max - 1)}...`;
+}
+
+function compactAccountContextForPresentation(account) {
+    if (!account || typeof account !== 'object') return null;
+    return {
+        account: {
+            name: account.name,
+            tier: account.tier,
+            industry: account.industry,
+            headquarters: account.headquarters,
+        },
+        contacts: Array.isArray(account.contacts)
+            ? account.contacts.slice(0, 14).map((contact) => ({
+                name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || contact.name,
+                title: contact.title,
+                role: contact.role,
+                department: contact.department,
+            }))
+            : [],
+        open_deals: Array.isArray(account.deals)
+            ? account.deals.slice(0, 10).map((deal) => ({
+                name: deal.name,
+                stage: deal.stage,
+                mrc: deal.mrc,
+                close_month: deal.close_month,
+                products: deal.products,
+                notes: truncateForPresentation(deal.notes, 500),
+            }))
+            : [],
+        recent_activity: Array.isArray(account.activities)
+            ? account.activities
+                .slice()
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 12)
+                .map((activity) => ({
+                    date: activity.date,
+                    type: activity.type,
+                    description: truncateForPresentation(activity.description || activity.subject, 600),
+                }))
+            : [],
+    };
+}
+
 export async function fetchPresentationHighlight(supabase, plan, account) {
     const normalized = normalizePlan(plan);
     const accountName = account?.name ? String(account.name) : 'Account';
+    const accountContext = compactAccountContextForPresentation(account);
 
     const data = await callAiApi(supabase, 'generate-presentation-highlight', {
         plan: normalized,
         accountName,
+        accountContext,
     });
     if (data?.error) {
         throw new Error(String(data.error));

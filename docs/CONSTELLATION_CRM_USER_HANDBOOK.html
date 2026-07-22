@@ -1,0 +1,1241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Constellation CRM User Handbook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @page {
+      size: Letter;
+      margin: 0.62in 0.64in 0.66in;
+    }
+
+    @page:first {
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #FFFFFF;
+      color: #0F172A;
+      font-family: "Inter", Arial, sans-serif;
+      font-size: 9.8pt;
+      line-height: 1.48;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .cover {
+      position: relative;
+      width: 8.5in;
+      min-height: 11in;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 82% 18%, rgba(59, 130, 246, 0.12), transparent 2.6in),
+        linear-gradient(90deg, #FFFFFF 0%, #F8FBFF 50%, #EEF5FF 76%, #DBEAFE 100%);
+      page-break-after: always;
+    }
+
+    .cover::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 4.2in;
+      height: 11in;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(59, 130, 246, 0.08));
+    }
+
+    .cover-content {
+      position: relative;
+      z-index: 1;
+      width: 5.8in;
+      padding: 0.76in 0 0 0.72in;
+    }
+
+    .cover-logo {
+      width: 2.02in;
+      height: auto;
+      display: block;
+      margin-bottom: 0.92in;
+    }
+
+    .cover-logo svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .page-watermark {
+      position: fixed;
+      right: 0.34in;
+      bottom: 0.24in;
+      width: 1.62in;
+      height: 1.62in;
+      background: url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj4KICA8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMzAuMi4xLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogMi4xLjEgQnVpbGQgMSkgIC0tPgogIDxkZWZzPgogICAgPHN0eWxlPgogICAgICAuc3QwIHsKICAgICAgICBmaWxsOiAjMzg4MGVlOwogICAgICB9CgogICAgICAuc3QxIHsKICAgICAgICBmaWxsOiAjZmZmOwogICAgICB9CiAgICA8L3N0eWxlPgogIDwvZGVmcz4KICA8cGF0aCBjbGFzcz0ic3QwIiBkPSJNNjUuMDYsOTYuNmMuMjguOTQtLjEzLDEuOTktLjk5LDIuMzQtMS4wNC40NC0yLjExLjAxLTIuNTUtLjkzLS40MS0uOS0uMDctMi4xMiwxLjAyLTIuNTQsMS4xMy0uNDMsMi4yMi4xMSwyLjUyLDEuMTNaIi8+CiAgPHBhdGggY2xhc3M9InN0MCIgZD0iTTIzLjM0LDg0LjkyYzEuNzMuNywzLjU1LjI3LDQuODctMS4yM2w5LjIzLDMuOSwyMS41NCw5LjE4Yy0uMTEsMi4xLDEuMTMsMy45LDIuOTcsNC41MSwxLjgzLjYxLDMuODUtLjA2LDUtMS44OWwxOS4yNCw0LjcxYy4yLS44Mi4yNS0xLjQ3LjU1LTIuMjVsLTE5LjI1LTQuODFjLS4xMy0xLjkxLTEuMjUtMy4zMy0yLjg2LTMuOTEtMS42OS0uNi0zLjUxLS4wNi00Ljc0LDEuNDZsLTMwLjc3LTEzLjFjLjItMi4zLTEuMTMtNC4wNC0zLjItNC43bC0uOTItMTkuOGMxLjk2LS44MSwzLjAyLTIuNTYsMi44NC00LjQ3LS4xNy0xLjc5LTEuMzgtMy4zLTMuMjQtMy43OWwtLjc2LTE1LjQyLTIuMzQuMTQuNywxNS40NmMtMS44OS43My0yLjg5LDIuNDItMi43Niw0LjMuMTIsMS43OCwxLjMzLDMuMzYsMy4yLDMuODhsLjkxLDE5Ljg0Yy0xLjc1LjcyLTIuODMsMi4yOC0yLjgyLDQuMDQuMDIsMS43NSwxLjE0LDMuMzQsMi42MywzLjk1aC0uMDJaTTEwMS43OCw4NC4wNGw4LjUyLDYuNTJjLTIuODksNC4zNS04LjM2LDkuNDQtMTIuNjMsMTIuMjYtLjUyLjM0LS4xLjg0LS4xMiwxLjMtLjA3LDEuNy0uOCwzLjQ4LTIuMTEsNC41My0yLjI4LDEuODQtNS40NCwxLjY4LTcuNDctLjMzLTIwLjYyLDguOS00NC42MSw0Ljc1LTYwLjg4LTEwLjYxLTcuOS03LjQ2LTEzLjM2LTE3LjA5LTE1LjU3LTI3Ljc0LTIuNy0xMy4wMy0uMDMtMjYuNDgsNy4yNi0zNy44LTIuMzUtMi4yLTIuNi01LjY4LS40NC04LjAyLDIuMDYtMi4yMiw1Ljk1LTIuNDksOC4xMS4wNyw3LjMzLTcuOTYsMTcuMTgtMTMuNjIsMjguMTctMTUuOTIsMTguNDgtNC4wNiwzOC43OCwxLjY1LDUxLjQ0LDE2LjI4bC0xNy42NCwxNC4zMWMtMS4zMy0xLjQ1LTIuNjYtMi43NC00LjIyLTMuODgtLjEyLS4xNy0uMi0uMzUtLjE1LS40Ni4wNC0uMS4yMS0uNC4zOS0uMzUsMS45NC42NSwzLjgtLjA4LDQuODctMS43LDEuMDUtMS42LjY1LTMuODItLjcxLTUuMTItMS40Ni0xLjQtMy42NC0xLjMzLTUuMzUtLjE1bC0xNi42LTEwLjI1Yy4zNy0xLjc0LS4wMy0zLjM1LTEuMDgtNC41MS0xLjEzLTEuMjYtMi44LTEuODgtNC41Mi0xLjQ5LTIuMjMuNDktMy42NCwyLjQ5LTMuOCw0LjctLjg0LjQ1LTEuNjIuNTQtMi41Mi44MWwtMjcuNTIsOC40N2MuMjguOS40OCwxLjQ5LjgzLDIuMTZsMjkuODQtOS4xOGMuODcsMS4yNSwyLjA2LDIuMSwzLjMyLDIuMzIsMS42MS4yOCwyLjk1LS4yMSw0LjItMS4zMmw3Ljg0LDQuNzgsNS42MywzLjQ5LDMuMDgsMS45NmMtLjUyLDIuMzQuNTgsMi45NC41LDMuNjktLjAyLjE3LS4zNi41Ni0uNTIuNDYtMy41MS0yLjEtNy4xNi0zLjY5LTExLjI1LTQuMzQtMTEuNzktMS44OC0yMy42LDMuMzktMjkuODksMTMuNi02Ljk5LDExLjM0LTUuNDEsMjYuMDcsMy42NywzNS42NiwxMS42MywxMi4yOCwzMC42OCwxMi4yMSw0Mi40OS4zMy43Ni0uNzcsMS4zNS0xLjU1LDIuMTgtMi4xNGwxLjMzLDIyLjMzYy45NS0uMTUsMS41NC0uMjYsMi4yOS0uMTZsLTEuMjctMjIuMzYsMTAuMzEsNy44aC0uMDFaIi8+CiAgPHBhdGggY2xhc3M9InN0MCIgZD0iTTI1LjYyLDgyLjczYy0uOS4zNi0xLjk1LS4wMi0yLjM5LS45OC0uMzgtLjgyLS4xLTIuMDguOTktMi41NCwxLjA1LS40NCwyLjA4LjE4LDIuNDMsMS4wMi40Ljk4LS4wNCwyLjEtMS4wMiwyLjQ5aC0uMDFaIi8+CiAgPHBhdGggY2xhc3M9InN0MCIgZD0iTTIzLjA2LDUxLjE1YzEuMDctLjQxLDIuMDguMjYsMi4zOSwxLjIzLjI5LjkyLS4yMSwyLjA0LTEuMjQsMi4zOS0uODguMy0xLjk0LS4xNy0yLjMtMS4xLS4zNy0uOTQtLjAzLTIuMDcsMS4xNS0yLjUyWiIvPgogIDxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik02MS4xNywxMy4zOGMxLjQyLS40NywyLjc1LjE4LDMuMTQsMS40Ny4zNSwxLjE1LS4xOCwyLjU3LTEuMzcsMi45NS0xLjI2LjQxLTIuNjMtLjA2LTMuMTEtMS4zMi0uNDMtMS4xMS0uMDItMi42NSwxLjM0LTMuMVoiLz4KICA8cGF0aCBjbGFzcz0ic3QwIiBkPSJNODUuMzgsMjguNzRjMS4wMS0uMzEsMS45LjQxLDIuMDksMS4xMy4yNywxLjAyLS4yNiwxLjg2LTEuMDgsMi4xMS0uOTUuMjktMS44Ni0uMTctMi4xMy0xLjAzLS4yOC0uODcuMDktMS45LDEuMTItMi4yMVoiLz4KICA8Y2lyY2xlIGNsYXNzPSJzdDEiIGN4PSI5MiIgY3k9IjEwNC4zMiIgcj0iMS45MSIvPgogIDxjaXJjbGUgY2xhc3M9InN0MSIgY3g9IjIyLjQyIiBjeT0iMjcuODgiIHI9IjEuOTEiLz4KPC9zdmc+") center / contain no-repeat;
+      opacity: 0.055;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .cover,
+    .toc,
+    main {
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-rule {
+      width: 0.9in;
+      height: 0.045in;
+      background: #3B82F6;
+      border-radius: 99px;
+      margin-bottom: 0.28in;
+    }
+
+    .cover h1 {
+      margin: 0;
+      color: #0F172A;
+      font-size: 32pt;
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+    }
+
+    .cover-subtitle {
+      width: 4.7in;
+      margin-top: 0.28in;
+      color: #334155;
+      font-size: 13pt;
+      line-height: 1.45;
+    }
+
+    .cover-principles {
+      display: flex;
+      gap: 0.12in;
+      flex-wrap: wrap;
+      margin-top: 0.62in;
+      width: 4.9in;
+    }
+
+    .cover-principles span {
+      border: 1px solid #E2E8F0;
+      border-radius: 999px;
+      padding: 0.075in 0.14in;
+      color: #1D4ED8;
+      background: rgba(255, 255, 255, 0.78);
+      font-size: 7.6pt;
+      font-weight: 800;
+      letter-spacing: 0.065em;
+      text-transform: uppercase;
+    }
+
+    .cover-footer {
+      position: absolute;
+      left: 0.72in;
+      right: 0.72in;
+      bottom: 0.56in;
+      padding-top: 0.18in;
+      border-top: 1px solid #E2E8F0;
+      color: #64748B;
+      font-size: 7.4pt;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .toc {
+      page-break-after: always;
+      min-height: 9.3in;
+      padding-top: 0.12in;
+    }
+
+    .toc-kicker,
+    .section-label {
+      color: #3B82F6;
+      font-size: 7pt;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .toc h2 {
+      margin: 0.1in 0 0.26in;
+      padding: 0;
+      border: 0;
+      color: #0F172A;
+      font-size: 21pt;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .toc-list {
+      columns: 2;
+      column-gap: 0.34in;
+      margin: 0;
+      padding-left: 0.22in;
+      counter-reset: toc;
+    }
+
+    .toc-list li {
+      break-inside: avoid;
+      margin: 0 0 0.14in;
+      padding-left: 0.04in;
+      color: #0F172A;
+      font-weight: 650;
+      line-height: 1.3;
+    }
+
+    .toc-list li::marker {
+      color: #3B82F6;
+      font-weight: 800;
+    }
+
+    main h1 {
+      display: none;
+    }
+
+    .guide-section {
+      break-before: page;
+      padding-top: 0.05in;
+    }
+
+    .guide-section:first-of-type {
+      break-before: auto;
+    }
+
+    .guide-section h2 {
+      margin: 0 0 0.08in;
+      padding-top: 0.12in;
+      border-top: 0.04in solid #3B82F6;
+      color: #0F172A;
+      font-size: 19.5pt;
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      font-weight: 800;
+    }
+
+    .section-deck {
+      margin: 0 0 0.24in;
+      max-width: 6.4in;
+      color: #64748B;
+      font-size: 9.4pt;
+      line-height: 1.45;
+    }
+
+    h3 {
+      margin: 0.24in 0 0.08in;
+      color: #0F172A;
+      font-size: 12.4pt;
+      line-height: 1.22;
+      letter-spacing: -0.018em;
+      font-weight: 800;
+      break-after: avoid;
+    }
+
+    .subsection-block {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    h3.subsection--what-it-is,
+    h3.subsection--why-it-matters,
+    h3.subsection--key-things-you-can-do,
+    h3.subsection--what-good-looks-like {
+      margin-top: 0.18in;
+    }
+
+    h4 {
+      margin: 0.16in 0 0.06in;
+      color: #334155;
+      font-size: 10.2pt;
+      font-weight: 800;
+      break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 0.105in;
+      color: #334155;
+    }
+
+    strong {
+      color: #0F172A;
+      font-weight: 800;
+    }
+
+    code {
+      padding: 0.01in 0.04in;
+      border: 1px solid #E2E8F0;
+      border-radius: 0.04in;
+      background: #F8FAFC;
+      color: #1D4ED8;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 8.5pt;
+    }
+
+    ul,
+    ol {
+      margin: 0.04in 0 0.15in 0.2in;
+      padding: 0;
+      color: #334155;
+    }
+
+    li {
+      margin: 0 0 0.052in;
+      padding-left: 0.02in;
+    }
+
+    li::marker {
+      color: #3B82F6;
+      font-weight: 800;
+    }
+
+    .guide-section > ul,
+    .guide-section > ol {
+      break-inside: avoid;
+    }
+
+    .guide-section--purpose,
+    .guide-section--the-big-idea,
+    .guide-section--how-to-use-this-handbook {
+      break-before: auto;
+    }
+
+    .guide-section--the-big-idea,
+    .guide-section--how-to-use-this-handbook {
+      margin-top: 0.25in;
+      padding: 0.18in 0.2in 0.04in;
+      border: 1px solid #E2E8F0;
+      border-radius: 0.12in;
+      background: #F8FAFC;
+      break-inside: avoid;
+    }
+
+    .guide-section--the-big-idea h2,
+    .guide-section--how-to-use-this-handbook h2 {
+      border-top: 0;
+      padding-top: 0;
+      font-size: 16.5pt;
+    }
+
+    .guide-section--closing-principle {
+      min-height: 8in;
+    }
+
+    .guide-section--closing-principle p:last-child {
+      margin-top: 0.26in;
+      padding: 0.24in 0.3in;
+      border: 1px solid #E2E8F0;
+      border-radius: 0.16in;
+      background: linear-gradient(135deg, #F8FAFC, #FFFFFF);
+      color: #0F172A;
+      font-size: 13.4pt;
+      line-height: 1.38;
+      font-weight: 700;
+    }
+
+    @media print {
+      .page-watermark {
+        display: none;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-watermark" aria-hidden="true"></div>
+  <section class="cover">
+    <div class="cover-content">
+      <div class="cover-logo" aria-label="Constellation CRM"><svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 180 120">
+  <!-- Generator: Adobe Illustrator 30.2.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 1)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #377fed;
+      }
+
+      .st1 {
+        fill: #3880ee;
+      }
+
+      .st2 {
+        fill: #fff;
+      }
+
+      .st3 {
+        fill: #3d4e60;
+      }
+    </style>
+  </defs>
+  <path class="st3" d="M171.03,49.71v18.3c-.84.24-1.55.12-2.37.05l-4.02-12.26.13,12.25c-.85.11-1.62.12-2.49,0l.03-18.35c.85-.07,1.59-.12,2.36.02l3.97,11.73v-11.76c.83-.07,1.53-.09,2.4,0h0v.02Z"/>
+  <path class="st3" d="M157.8,50.27c2.16,1.67,2.17,6.58,2.16,9.1,0,2.14-.12,4.25-.78,6.23-.58,1.74-1.97,2.7-3.82,2.76-4.8.15-5.14-5.13-5.14-8.8,0-2.6-.04-8.05,2.48-9.53,1.52-.89,3.69-.85,5.09.23h.01ZM156.96,64.19c.55-3.56.47-7.16-.03-10.63-.16-1.13-.91-1.82-1.93-1.78-.82.03-1.58.69-1.74,1.73-.56,3.59-.6,7.33.06,10.89.19,1.04.99,1.64,1.87,1.6.87-.04,1.6-.68,1.77-1.81Z"/>
+  <path class="st3" d="M147.91,49.71l.02,18.32c-.86.19-1.63.13-2.53.04v-18.34c.91-.12,1.66-.09,2.52,0h0v-.02Z"/>
+  <path class="st3" d="M144.01,49.68c.09.75.08,1.39.03,2.13l-2.75.09v16.14c-.83.18-1.59.1-2.52.05v-16.14l-2.81-.12c-.09-.73-.1-1.39,0-2.15h8.05Z"/>
+  <path class="st3" d="M132.45,49.72l3.99,18.33c-.85.12-1.7.11-2.56.03l-.7-3.55-3.64.02-.67,3.51c-.8.09-1.56.09-2.5,0l3.95-18.36c.76-.08,1.38-.11,2.15.02,0,0-.02,0-.02,0ZM132.76,62.47l-1.38-8.77-1.49,8.75c1,.09,1.79.06,2.87.02h0Z"/>
+  <path class="st3" d="M125.37,65.97c.09.73.08,1.38.02,2.14h-6.78v-18.34c.87-.17,1.67-.14,2.56-.02l-.06,16.14,4.27.08h0Z"/>
+  <path class="st3" d="M117.15,65.95c.2.67.06,1.35.09,2.15h-6.68v-18.39c.9-.07,1.64-.08,2.52-.02l.02,16.25h4.05Z"/>
+  <path class="st1" d="M100.24,84.05l8.52,6.52c-2.89,4.35-8.36,9.44-12.63,12.26-.52.34-.1.84-.12,1.3-.07,1.7-.8,3.48-2.11,4.53-2.28,1.84-5.44,1.68-7.47-.33-20.62,8.9-44.61,4.75-60.88-10.61-7.9-7.46-13.36-17.09-15.57-27.74-2.7-13.03-.03-26.48,7.26-37.8-2.35-2.2-2.6-5.68-.44-8.02,2.06-2.22,5.95-2.49,8.11.07,7.33-7.96,17.18-13.62,28.17-15.92,18.48-4.06,38.78,1.65,51.44,16.28l-17.64,14.31c-1.33-1.45-2.66-2.74-4.22-3.88-.12-.17-.2-.35-.15-.46.04-.1.21-.4.39-.35,1.94.65,3.8-.08,4.87-1.7,1.05-1.6.65-3.82-.71-5.12-1.46-1.4-3.64-1.33-5.35-.15l-16.6-10.25c.37-1.74-.03-3.35-1.08-4.51-1.13-1.26-2.8-1.88-4.52-1.49-2.23.49-3.64,2.49-3.8,4.7-.84.45-1.62.54-2.52.81l-27.52,8.47c.28.9.48,1.49.83,2.16l29.84-9.18c.87,1.25,2.06,2.1,3.32,2.32,1.61.28,2.95-.21,4.2-1.32l7.84,4.78,5.63,3.49,3.08,1.96c-.52,2.34.58,2.94.5,3.69-.02.17-.36.56-.52.46-3.51-2.1-7.16-3.69-11.25-4.34-11.79-1.88-23.6,3.39-29.89,13.6-6.99,11.34-5.41,26.07,3.67,35.66,11.63,12.28,30.68,12.21,42.49.33.76-.77,1.35-1.55,2.18-2.14l1.33,22.33c.95-.15,1.54-.26,2.29-.16l-1.27-22.36,10.31,7.8h0ZM85.21,101.88l-19.25-4.81c-.13-1.91-1.25-3.33-2.86-3.91-1.69-.6-3.51-.06-4.74,1.46l-30.77-13.1c.2-2.3-1.13-4.04-3.2-4.7l-.92-19.8c1.96-.81,3.02-2.56,2.84-4.47-.17-1.79-1.38-3.3-3.24-3.79l-.76-15.42-2.34.14.7,15.46c-1.89.73-2.89,2.42-2.76,4.3.12,1.78,1.33,3.36,3.2,3.88l.91,19.84c-1.75.72-2.83,2.28-2.82,4.04.02,1.75,1.14,3.34,2.63,3.95,1.73.7,3.55.27,4.87-1.23l9.23,3.9,21.54,9.18c-.11,2.1,1.13,3.9,2.97,4.51,1.83.61,3.85-.06,5-1.89l19.24,4.71c.2-.82.25-1.47.55-2.25,0,0-.02,0-.02,0Z"/>
+  <path class="st3" d="M108.48,65.97c.04.7.06,1.4,0,2.14l-6.78-.02v-18.41l6.78-.02c.06.75.05,1.43,0,2.14l-4.24.07.03,5.6,3.7.06c.12.67.09,1.31.05,2.17l-3.77.04v6.15s4.23.08,4.23.08Z"/>
+  <path class="st3" d="M100.35,49.68c.09.72.08,1.45.02,2.17l-2.69.09-.04,6.25.02,9.87c-.8.13-1.63.11-2.52.02v-16.17l-2.76-.08c-.08-.75-.08-1.38.01-2.15,0,0,7.96,0,7.96,0Z"/>
+  <path class="st3" d="M90.55,50.03c.13.87.16,1.67-.02,2.57-1.23-.98-2.87-1.18-3.77.02-.95,1.26-.52,3.01.53,4.05l2.27,2.24c2.17,2.14,2.7,5.79.64,8.21-1.43,1.68-4.09,1.57-5.89.44-.15-.98-.07-1.69-.03-2.62.88.52,1.63,1.02,2.63,1,1.09-.03,1.88-.81,1.98-1.9.41-4.38-5.42-4.58-5.14-10.07.08-1.59.6-3.19,2.06-4.02,1.45-.82,3.21-.61,4.74.09h0Z"/>
+  <path class="st0" d="M85.93,29.88c.27,1.02-.26,1.86-1.08,2.11-.95.29-1.86-.17-2.13-1.03-.28-.87.09-1.9,1.12-2.21,1.01-.31,1.9.41,2.09,1.13Z"/>
+  <path class="st3" d="M81.6,49.7v18.35c-.77.15-1.53.09-2.42.04l-4-11.96.09,11.95-2.45.05-.02-18.4c.82-.13,1.51-.06,2.36-.05l2.06,5.99,1.97,6.1-.08-12.05c.78-.11,1.54-.07,2.49,0h0v-.02Z"/>
+  <path class="st3" d="M68.29,50.31c2.95,2.34,2.32,11.27,1.6,14.63-.49,2.28-2.19,3.55-4.42,3.42-3.26-.19-4.31-2.67-4.55-5.72-.24-3.06-.66-10.24,1.89-12.32,1.53-1.24,3.94-1.24,5.48-.02h0ZM65.74,66c2.41-.08,2.07-5.19,2.07-7.21,0-1.85,0-3.64-.43-5.4-.26-1.06-.96-1.7-2.03-1.59-.82.08-1.47.8-1.62,1.83-.53,3.55-.49,7.24.1,10.77.18,1.07.97,1.63,1.91,1.6Z"/>
+  <path class="st0" d="M63.52,96.62c.28.94-.13,1.99-.99,2.34-1.04.44-2.11.01-2.55-.93-.41-.9-.07-2.12,1.02-2.54,1.13-.43,2.22.11,2.52,1.13Z"/>
+  <path class="st0" d="M62.77,14.86c.35,1.15-.18,2.57-1.37,2.95-1.26.41-2.63-.06-3.11-1.32-.43-1.11-.02-2.65,1.34-3.1,1.42-.47,2.75.18,3.14,1.47Z"/>
+  <path class="st3" d="M59.25,65.36c.14.9.11,1.59.04,2.48-1.53.71-3.52.79-5-.23-3.54-2.43-3-10.24-2.21-13.91.36-1.67,1.31-3.12,2.83-3.85,1.39-.67,3.04-.48,4.37.15l.02,2.31c-1.06-.44-1.94-.69-2.98-.27-2.3.92-2.18,5.81-2.14,7.92.03,1.52.15,3.03.88,4.44.86,1.64,2.71,2,4.19.96Z"/>
+  <path class="st0" d="M25.1,80.25c.4.98-.04,2.1-1.02,2.49-.9.36-1.95-.02-2.39-.98-.38-.82-.1-2.08.99-2.54,1.05-.44,2.08.18,2.43,1.02h-.01Z"/>
+  <path class="st0" d="M23.91,52.39c.29.92-.21,2.04-1.24,2.39-.88.3-1.94-.17-2.3-1.1-.37-.94-.03-2.07,1.15-2.52,1.07-.41,2.08.26,2.39,1.23Z"/>
+  <circle class="st2" cx="90.75" cy="104.81" r="1.91"/>
+  <circle class="st2" cx="20.8" cy="27.95" r="1.91"/>
+</svg></div>
+      <div class="cover-rule"></div>
+      <h1>Constellation CRM<br>User Handbook</h1>
+      <p class="cover-subtitle">A practical guide to the main CRM operating system: what each module does, why it matters, and how to use it in daily sales work.</p>
+      <div class="cover-principles">
+        <span>Clarity Over Chaos</span>
+        <span>Automate The Annoying Stuff</span>
+        <span>Intelligence Is A Sales Advantage</span>
+      </div>
+    </div>
+    <div class="cover-footer">Constellation CRM User Guide</div>
+  </section>
+  
+    <section class="toc">
+      <div class="toc-kicker">Contents</div>
+      <h2>How This Guide Is Organized</h2>
+      <ol class="toc-list">
+        <li><span>The Big Idea</span></li><li><span>How To Use This Handbook</span></li><li><span>Navigation, Search, And User Menu</span></li><li><span>Command Center: Your Daily Starting Point</span></li><li><span>Contacts: Your Relationship Hub</span></li><li><span>Accounts: Your 360-Degree Company View</span></li><li><span>Deals: Pipeline, Forecasting, And Board View</span></li><li><span>Campaigns: Curated Outreach Sprints</span></li><li><span>Sequences: Multi-Touch Playbooks</span></li><li><span>Cognito Intelligence: Turn Account News Into Outreach</span></li><li><span>Social Hub: Share Curated Content On LinkedIn</span></li><li><span>Multi-Site IRR Calculator: Modeling, Approval, And Exports</span></li><li><span>Enterprise Proposal Builder: Modules, Pricing, And PDF Delivery</span></li><li><span>Strategic Account OS: When To Leave The Main CRM</span></li><li><span>Import, Export, And External Systems</span></li><li><span>What Good CRM Usage Looks Like</span></li><li><span>Common Questions</span></li><li><span>Closing Principle</span></li>
+      </ol>
+    </section>
+  
+  <main>
+    <h1>Constellation CRM User Handbook</h1>
+<section class="guide-section guide-section--purpose">
+<h2>Purpose</h2>
+<p class="section-deck">What this guide covers and what it intentionally leaves out.</p>
+<p>Constellation CRM is the day-to-day operating layer for sales work. It is where reps prioritize their day, manage pipeline, work contacts and accounts, execute outreach, build business cases, prepare proposals, and turn intelligence into action.</p>
+<p>This handbook explains the <strong>what</strong>, <strong>why</strong>, and <strong>how</strong> of the main Constellation CRM experience. It is written for users of the CRM, not system administrators or developers.</p>
+<p>Admin and Marketing Hub workflows are intentionally excluded. Those areas are internal/back-end workspaces and are not part of this user handbook.</p>
+<p>Strategic Account OS (SAOS) is also not reproduced here in full. SAOS has its own handbook because it is a deeper strategic account planning discipline. This guide explains where SAOS connects to the main CRM and when to use it.</p>
+</section>
+<section class="guide-section guide-section--the-big-idea">
+<h2>The Big Idea</h2>
+<p class="section-deck">Why Constellation exists as an operating layer for sales work.</p>
+<p>Constellation is not only a system of record. It is a system of engagement.</p>
+<p>Traditional CRMs are good at storing records: accounts, contacts, deals, tasks, and activities. Constellation is designed around the work that happens between those records:</p>
+<ul><li>What should I do today?</li><li>Which deal is real enough to commit?</li><li>Who should I contact next?</li><li>What intelligence should I act on?</li><li>Which account deserves deeper strategy?</li><li>How do I move from activity to progress?</li></ul>
+<p>The goal is not to add more data entry. The goal is to reduce scattered work and create a single operating rhythm for sales execution.</p>
+<section class="subsection-block subsection-block--three-operating-principles">
+<h3 class="subsection subsection--three-operating-principles">Three Operating Principles</h3>
+<p><strong>Clarity over chaos.</strong> The Command Center, filters, status icons, and AI briefings help reps see what needs attention without digging through disconnected lists.</p>
+<p><strong>Automate the annoying stuff.</strong> Sequences, campaigns, CSV imports, AI writing tools, and proposal/IRR exports reduce repetitive manual work.</p>
+<p><strong>Intelligence is a sales advantage.</strong> Cognito, AI account briefings, activity insights, and Social Hub give reps signals and language they can use in real customer conversations.</p>
+</section>
+</section>
+<section class="guide-section guide-section--how-to-use-this-handbook">
+<h2>How To Use This Handbook</h2>
+<p class="section-deck">How to use the guide for onboarding, daily reference, and quality checks.</p>
+<p>Use this document in three ways:</p>
+<ul><li><strong>Onboarding:</strong> Read the first sections to understand how Constellation fits together.</li><li><strong>Daily reference:</strong> Jump to the module you are using and follow the workflow steps.</li><li><strong>Quality check:</strong> Use the &quot;what good looks like&quot; notes to evaluate whether your CRM work is complete and useful.</li></ul>
+<p>The handbook follows the actual CRM operating flow:</p>
+<ol><li>Navigate and find records.</li><li>Start the day in Command Center.</li><li>Work people and companies through Contacts and Accounts.</li><li>Manage pipeline through Deals.</li><li>Execute outreach through Campaigns and Sequences.</li><li>Act on intelligence through Cognito and Social Hub.</li><li>Build financial cases with IRR.</li><li>Deliver customer-facing proposals.</li><li>Use SAOS when an account needs a strategic plan.</li></ol>
+</section>
+<section class="guide-section guide-section--1-navigation-search-and-user-menu">
+<h2>1. Navigation, Search, And User Menu</h2>
+<p class="section-deck">How to move through Constellation and find records fast.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>The left navigation rail is the shared shell across the main CRM. It gives access to the core user-facing modules:</p>
+<ul><li>Command Center</li><li>Deals</li><li>Contacts</li><li>Accounts</li><li>Proposals</li><li>IRR</li><li>Campaigns</li><li>Sequences</li><li>Social Hub</li><li>Cognito</li></ul>
+<p>It also includes global search, notification dots, CSV templates, and logout.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>The nav rail is meant to reduce context switching. Reps should be able to jump from a task to a contact, from a contact to an account, from an account to a proposal, and from anywhere back to the Command Center.</p>
+</section>
+<section class="subsection-block subsection-block--global-search">
+<h3 class="subsection subsection--global-search">Global Search</h3>
+<p>Global search lets you find contacts, accounts, and deals from the sidebar.</p>
+<p>How to use it:</p>
+<ol><li>Type at least two characters into the search bar.</li><li>Wait for the results dropdown.</li><li>Click a result to open the record.</li></ol>
+<p>When the sidebar is collapsed, search opens in a fanout panel. The behavior is the same.</p>
+</section>
+<section class="subsection-block subsection-block--sidebar-collapse">
+<h3 class="subsection subsection--sidebar-collapse">Sidebar Collapse</h3>
+<p>Use the collapse control at the top of the nav to make more screen space. Constellation remembers the collapsed state for future sessions.</p>
+</section>
+<section class="subsection-block subsection-block--notification-dots">
+<h3 class="subsection subsection--notification-dots">Notification Dots</h3>
+<p>The nav can show bell indicators for:</p>
+<ul><li><strong>Cognito:</strong> New intelligence alerts since your last visit.</li><li><strong>Social Hub:</strong> New shareable content since your last visit.</li></ul>
+<p>Opening the relevant page updates your last-visited timestamp and clears the bell on the next notification refresh.</p>
+</section>
+<section class="subsection-block subsection-block--user-menu">
+<h3 class="subsection subsection--user-menu">User Menu</h3>
+<p>Open the bottom <strong>Menu</strong> to access:</p>
+<ul><li>CSV templates for Contacts, Accounts, and Sequence Steps.</li><li>AI Admin link, if available to your user.</li><li>Logout.</li></ul>
+<p>CSV templates are only templates. The actual import workflows happen on Contacts, Accounts, or Sequences.</p>
+</section>
+<section class="subsection-block subsection-block--first-login">
+<h3 class="subsection subsection--first-login">First Login</h3>
+<p>If your user profile is not complete, Constellation may ask for your full name and monthly quota. This supports forecasting and user display throughout the CRM.</p>
+</section>
+<section class="subsection-block subsection-block--mobile-note">
+<h3 class="subsection subsection--mobile-note">Mobile Note</h3>
+<p>On mobile, the navigation collapses into a drawer. Some full-workflow modules are intentionally simplified or hidden on smaller screens.</p>
+</section>
+</section>
+<section class="guide-section guide-section--2-command-center-your-daily-starting-point">
+<h2>2. Command Center: Your Daily Starting Point</h2>
+<p class="section-deck">The daily hub for priorities, tasks, sequence steps, and recent work.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>The Command Center is the CRM home page. It brings together the work that needs attention today:</p>
+<ul><li>AI Daily Briefing</li><li>My Tasks</li><li>Sequence Steps</li><li>Recent Activities</li></ul>
+<p>On mobile, the Command Center focuses on AI Daily Briefing and My Tasks. Sequence Steps and Recent Activities are desktop-first workflows.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Sales work gets noisy fast. The Command Center gives reps one place to answer:</p>
+<ul><li>What should I prioritize?</li><li>What tasks are due?</li><li>Which sequence steps need action?</li><li>What activity happened recently?</li><li>What should be logged to Salesforce?</li></ul>
+</section>
+<section class="subsection-block subsection-block--ai-daily-briefing">
+<h3 class="subsection subsection--ai-daily-briefing">AI Daily Briefing</h3>
+<p>The AI Daily Briefing creates priority cards from your CRM data. It can consider tasks, due sequences, deals, Cognito alerts, and accounts that need attention.</p>
+<p>How to use it:</p>
+<ol><li>Open Command Center.</li><li>Review the priority cards.</li><li>Use the refresh control if you want to regenerate the briefing with current data.</li></ol>
+<p>The briefing is cached for the browser session. Logging out clears the cache.</p>
+<p>What good looks like:</p>
+<ul><li>You use the briefing to decide what to work first.</li><li>You treat it as a prioritization aid, not a replacement for judgment.</li><li>You refresh when you know meaningful CRM data has changed.</li></ul>
+</section>
+<section class="subsection-block subsection-block--my-tasks">
+<h3 class="subsection subsection--my-tasks">My Tasks</h3>
+<p>Tasks are manual follow-ups linked to contacts and/or accounts.</p>
+<p>How to add a task:</p>
+<ol><li>Open the quick-add form.</li><li>Enter a description.</li><li>Optionally link a contact or account.</li><li>Add a due date when timing matters.</li><li>Save the task.</li></ol>
+<p>How to manage tasks:</p>
+<ul><li>Complete tasks when finished.</li><li>Edit the description, due date, or linked records when plans change.</li><li>Delete tasks only when they are no longer relevant.</li></ul>
+<p>Past-due tasks are highlighted. If you have more than a few open tasks, the quick-add form may be collapsed behind a plus control.</p>
+<p>What good looks like:</p>
+<ul><li>Every meaningful follow-up has a task.</li><li>Tasks are linked to the relevant contact or account.</li><li>Due dates are used when timing matters.</li></ul>
+</section>
+<section class="subsection-block subsection-block--sequence-steps">
+<h3 class="subsection subsection--sequence-steps">Sequence Steps</h3>
+<p>Sequence Steps show automated outreach steps assigned to Sales.</p>
+<p>The view has two modes:</p>
+<ul><li><strong>Due:</strong> Work that needs action now.</li><li><strong>Upcoming:</strong> Future sequence work.</li></ul>
+<p>Step types can include email, LinkedIn, call, task, or custom step types.</p>
+<p>How to work a due email step:</p>
+<ol><li>Open the due step.</li><li>Review the subject and body.</li><li>Confirm placeholders such as <code>[FirstName]</code> and <code>[AccountName]</code> were replaced correctly.</li><li>Open your email client.</li><li>Confirm the action when successful so Constellation can log the activity and advance the sequence.</li></ol>
+<p>How to work a LinkedIn step:</p>
+<ol><li>Review the suggested message.</li><li>Copy the text and open LinkedIn.</li><li>Send or personalize the message in LinkedIn.</li><li>Confirm success in Constellation.</li></ol>
+<p>How to work a call step:</p>
+<ol><li>Use the phone link if available.</li><li>Add notes from the call.</li><li>Log the call to complete the step.</li></ol>
+<p>Marketing-assigned sequence steps are hidden from the rep&#39;s Command Center view.</p>
+</section>
+<section class="subsection-block subsection-block--recent-activities-and-salesforce-logging">
+<h3 class="subsection subsection--recent-activities-and-salesforce-logging">Recent Activities And Salesforce Logging</h3>
+<p>Recent Activities shows a short activity history, newest first.</p>
+<p>Activities that are not logged to Salesforce can show a <strong>Log to SF</strong> action.</p>
+<p>How to log an activity to Salesforce:</p>
+<ol><li>Click <strong>Log to SF</strong>.</li><li>Salesforce opens a pre-filled Task create page.</li><li>Complete the task in Salesforce.</li><li>Return to Constellation and confirm success.</li></ol>
+<p>Constellation marks the activity as logged only after confirmation.</p>
+<p>What good looks like:</p>
+<ul><li>Important completed actions are reflected in activity history.</li><li>Salesforce logging is completed for activities that need to live in Salesforce.</li><li>Sequence steps are advanced only when the real-world action happened.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--3-contacts-your-relationship-hub">
+<h2>3. Contacts: Your Relationship Hub</h2>
+<p class="section-deck">The person-level workspace for outreach, sequence status, activity, and AI support.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Contacts is the person-level workspace. It uses a split layout:</p>
+<ul><li>Left side: searchable and sortable contact list.</li><li>Right side: contact details, sequence status, AI tools, activities, emails, and tasks.</li></ul>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Sales work happens through people. Contacts connects the person, the account, the outreach history, the next step, and the relationship context.</p>
+</section>
+<section class="subsection-block subsection-block--key-things-you-can-do">
+<h3 class="subsection subsection--key-things-you-can-do">Key Things You Can Do</h3>
+<ul><li>Add and edit contacts.</li><li>Link contacts to accounts.</li><li>Search and sort by first or last name.</li><li>Mark a contact as organic.</li><li>See active sequence status.</li><li>Assign or remove sequences.</li><li>Log activities and tasks.</li><li>Use AI to summarize activity history.</li><li>Use AI to draft outreach.</li><li>Import contacts from CSV or from a screenshot.</li><li>Review BCC-logged emails.</li><li>Open ZoomInfo for research.</li><li>Log activities to Salesforce.</li></ul>
+</section>
+<section class="subsection-block subsection-block--contact-list-icons">
+<h3 class="subsection subsection--contact-list-icons">Contact List Icons</h3>
+<p>Common list indicators include:</p>
+<ul><li>Star: organic contact.</li><li>Airplane: active sequence.</li><li>Flame: recent activity.</li></ul>
+<p>Use these as quick context, not as a substitute for reading the record.</p>
+</section>
+<section class="subsection-block subsection-block--add-or-edit-a-contact">
+<h3 class="subsection subsection--add-or-edit-a-contact">Add Or Edit A Contact</h3>
+<p>How to add a contact:</p>
+<ol><li>Click the add contact control.</li><li>Enter first and last name.</li><li>Select the new contact.</li><li>Add email, phone, title, account, and notes.</li><li>Save changes.</li></ol>
+<p>How to maintain a contact:</p>
+<ol><li>Select the contact.</li><li>Update the details in the form.</li><li>Save before switching records.</li></ol>
+<p>Constellation warns when you have unsaved changes.</p>
+</section>
+<section class="subsection-block subsection-block--assign-a-contact-to-a-sequence">
+<h3 class="subsection subsection--assign-a-contact-to-a-sequence">Assign A Contact To A Sequence</h3>
+<p>How to assign:</p>
+<ol><li>Select the contact.</li><li>Choose a sequence from the sequence assignment dropdown.</li><li>Confirm the enrollment.</li><li>Watch the sequence status panel for current progress and next step.</li></ol>
+<p>Contacts can be removed from sequences or marked complete when the outreach path ends.</p>
+</section>
+<section class="subsection-block subsection-block--work-due-sequence-steps-from-a-contact">
+<h3 class="subsection subsection--work-due-sequence-steps-from-a-contact">Work Due Sequence Steps From A Contact</h3>
+<p>The Contacts page can show current sequence status and due step actions. You may see email, LinkedIn, call, or complete controls depending on the step type and due date.</p>
+<p>Use this when you are already in the contact record. Use Command Center when you want a consolidated queue across all contacts.</p>
+</section>
+<section class="subsection-block subsection-block--ai-activity-insight">
+<h3 class="subsection subsection--ai-activity-insight">AI Activity Insight</h3>
+<p>AI Activity Insight summarizes past activity and suggests next steps.</p>
+<p>How to use it:</p>
+<ol><li>Select a contact with activity history.</li><li>Click the activity insight action.</li><li>Review the summary and suggested next steps.</li><li>Clear the insight when you want to return to the email writer.</li></ol>
+<p>What good looks like:</p>
+<ul><li>Use the summary before outreach or meeting prep.</li><li>Validate AI suggestions against your own knowledge.</li><li>Add missing activity history when the summary feels thin.</li></ul>
+</section>
+<section class="subsection-block subsection-block--ai-email-drafting">
+<h3 class="subsection subsection--ai-email-drafting">AI Email Drafting</h3>
+<p>The contact AI panel can draft an email using your prompt, selected products, and context.</p>
+<p>How to draft:</p>
+<ol><li>Select a contact with an email address.</li><li>Enter what you want to accomplish.</li><li>Optionally choose product or industry context.</li><li>Generate the draft.</li><li>Review the subject and body.</li><li>Open your email client and send from there.</li></ol>
+<p>AI-generated email activity can be logged back to the contact.</p>
+</section>
+<section class="subsection-block subsection-block--import-from-screenshot-or-business-card">
+<h3 class="subsection subsection--import-from-screenshot-or-business-card">Import From Screenshot Or Business Card</h3>
+<p>Constellation can extract contact data from an image such as an email signature or business card.</p>
+<p>How to use it:</p>
+<ol><li>Click the import contact screenshot control.</li><li>Paste a screenshot or use the mobile camera option.</li><li>Let the AI extract fields.</li><li>Review the populated contact form.</li><li>Save after correcting anything needed.</li></ol>
+<p>The system attempts to match the company name to an existing account.</p>
+</section>
+<section class="subsection-block subsection-block--bulk-import-and-export">
+<h3 class="subsection subsection--bulk-import-and-export">Bulk Import And Export</h3>
+<p>Contacts can be imported from CSV using the template from the user menu.</p>
+<p>The contacts template includes fields such as first name, last name, email, phone, title, and company.</p>
+<p>During import, Constellation can preview insert/update actions and suggest account matches.</p>
+<p>Contact export downloads core contact fields. It may not include every relationship field shown in the UI.</p>
+</section>
+<section class="subsection-block subsection-block--logged-emails-and-bcc-logging">
+<h3 class="subsection subsection--logged-emails-and-bcc-logging">Logged Emails And BCC Logging</h3>
+<p>Constellation supports automatic email logging by BCC.</p>
+<p>Use:</p>
+<p><code>bcc@constellation-crm.com</code></p>
+<p>When an outbound email is BCC&#39;d to that address, Constellation can match recipients to contacts and store the email in the contact history.</p>
+<p>What good looks like:</p>
+<ul><li>Important outbound emails are captured.</li><li>Contact activity history is current enough for AI insight to be useful.</li><li>Reps do not rely only on memory or inbox search.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--4-accounts-your-360-degree-company-view">
+<h2>4. Accounts: Your 360-Degree Company View</h2>
+<p class="section-deck">The company-level view of contacts, deals, proposals, intelligence, and strategy.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Accounts is the company-level workspace. It brings together firmographic details, contacts, org chart, deals, proposals, activities, tasks, AI briefing, meeting agenda tools, and strategic account planning entry points.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Accounts answer the broader sales questions:</p>
+<ul><li>What is happening at this company?</li><li>Who do we know?</li><li>What deals are open?</li><li>What have we done recently?</li><li>What proposal work exists?</li><li>What should we say in the next meeting?</li><li>Does this account need a strategic plan?</li></ul>
+</section>
+<section class="subsection-block subsection-block--key-things-you-can-do">
+<h3 class="subsection subsection--key-things-you-can-do">Key Things You Can Do</h3>
+<ul><li>Add and edit accounts.</li><li>Filter by tier, hot activity, open deals, customer, or prospect.</li><li>Store Salesforce and ZoomInfo IDs.</li><li>Open Salesforce or ZoomInfo directly.</li><li>Generate an AI account briefing.</li><li>Draft a meeting agenda.</li><li>Create and edit account deals.</li><li>Open linked proposals.</li><li>View contacts as a list or org chart.</li><li>Log tasks and activities.</li><li>Promote activity into SAOS when appropriate.</li><li>Toggle into Strategic Account OS.</li></ul>
+</section>
+<section class="subsection-block subsection-block--account-list-and-filters">
+<h3 class="subsection subsection--account-list-and-filters">Account List And Filters</h3>
+<p>Use search to find an account by name.</p>
+<p>Use filters to narrow by:</p>
+<ul><li>Strategic tier.</li><li>Hot activity.</li><li>Open deals.</li><li>Customer.</li><li>Prospect.</li></ul>
+<p>Tier filters can reflect SAOS account plan tiering when a plan has been saved.</p>
+</section>
+<section class="subsection-block subsection-block--add-or-maintain-an-account">
+<h3 class="subsection subsection--add-or-maintain-an-account">Add Or Maintain An Account</h3>
+<p>How to add:</p>
+<ol><li>Click the add account control.</li><li>Enter account name.</li><li>Fill website, industry, phone, address, sites, employees, and notes.</li><li>Mark Customer when applicable.</li><li>Save changes.</li></ol>
+</section>
+<section class="subsection-block subsection-block--salesforce-and-zoominfo-links">
+<h3 class="subsection subsection--salesforce-and-zoominfo-links">Salesforce And ZoomInfo Links</h3>
+<p>Accounts can store Salesforce and ZoomInfo locators.</p>
+<p>How to use them:</p>
+<ol><li>Select an account.</li><li>Add or edit the Salesforce ID and ZoomInfo company ID.</li><li>Use the header buttons to open the account in the external system.</li></ol>
+<p>When activities are logged to Salesforce, the account Salesforce locator can be used as the Salesforce Task <code>WhatId</code>.</p>
+</section>
+<section class="subsection-block subsection-block--ai-account-briefing">
+<h3 class="subsection subsection--ai-account-briefing">AI Account Briefing</h3>
+<p>The AI account briefing creates a reconnaissance-style report from internal CRM context and external intelligence.</p>
+<p>It can include:</p>
+<ul><li>Account summary.</li><li>Org chart snapshot.</li><li>Pipeline context.</li><li>Recent activities.</li><li>External signals.</li><li>Recommended next move.</li></ul>
+<p>How to use it:</p>
+<ol><li>Select an account.</li><li>Click the AI briefing action.</li><li>Review the generated report.</li><li>Print or download if needed for meeting prep.</li></ol>
+<p>What good looks like:</p>
+<ul><li>Use it before first meetings, QBRs, major follow-ups, or account reviews.</li><li>Treat it as prep support, not final truth.</li><li>Update missing contacts, activities, or deals when the briefing reveals gaps.</li></ul>
+</section>
+<section class="subsection-block subsection-block--draft-a-meeting-agenda">
+<h3 class="subsection subsection--draft-a-meeting-agenda">Draft A Meeting Agenda</h3>
+<p>The agenda builder helps turn account context into meeting invite language.</p>
+<p>How to use it:</p>
+<ol><li>Select an account.</li><li>Open the meeting agenda tool.</li><li>Choose relevant standard agenda items.</li><li>Add custom items if needed.</li><li>Drag to reorder.</li><li>Add optional context.</li><li>Generate and copy the invite language.</li></ol>
+<p>Use this when you want a clear customer-facing meeting structure instead of a vague calendar invite.</p>
+</section>
+<section class="subsection-block subsection-block--account-deals">
+<h3 class="subsection subsection--account-deals">Account Deals</h3>
+<p>The account page includes deal cards tied to the selected company.</p>
+<p>You can:</p>
+<ul><li>Add a new deal.</li><li>Edit stage, MRC, close month, term, name, products, and notes.</li><li>Toggle committed forecast status.</li><li>Flip cards to work notes.</li></ul>
+<p>Use account deal cards when you are working a specific customer. Use the Deals page when you need the whole pipeline view.</p>
+</section>
+<section class="subsection-block subsection-block--proposals-on-an-account">
+<h3 class="subsection subsection--proposals-on-an-account">Proposals On An Account</h3>
+<p>Linked proposals appear on the account record.</p>
+<p>You can:</p>
+<ul><li>Open an existing proposal.</li><li>Create a new proposal linked to the account.</li><li>Delete a proposal when appropriate.</li></ul>
+<p>Proposal authoring happens in the Enterprise Proposal Builder.</p>
+</section>
+<section class="subsection-block subsection-block--contacts-and-org-chart">
+<h3 class="subsection subsection--contacts-and-org-chart">Contacts And Org Chart</h3>
+<p>Accounts can show associated contacts as either:</p>
+<ul><li>A list.</li><li>An org chart.</li></ul>
+<p>The org chart is built from contact reporting relationships.</p>
+<p>How to use the org chart:</p>
+<ol><li>Switch from list view to org chart view.</li><li>Drag contacts to set reporting relationships.</li><li>Use zoom controls when the chart is large.</li><li>Expand the chart for full-screen editing.</li></ol>
+<p>What good looks like:</p>
+<ul><li>Important stakeholders are connected to the account.</li><li>Reporting relationships are accurate enough to explain influence.</li><li>Orphaned or unknown contacts are cleaned up over time.</li></ul>
+</section>
+<section class="subsection-block subsection-block--activities-and-tasks">
+<h3 class="subsection subsection--activities-and-tasks">Activities And Tasks</h3>
+<p>The account activity feed shows account-level history. You can add tasks or review recent activity.</p>
+<p>Some activities can be:</p>
+<ul><li>Logged to Salesforce.</li><li>Promoted into SAOS as strategic relationship signal context.</li></ul>
+</section>
+<section class="subsection-block subsection-block--saos-pointer">
+<h3 class="subsection subsection--saos-pointer">SAOS Pointer</h3>
+<p>Use Strategic Account OS when the account requires a formal strategic plan: pursuit thesis, influence strategy, expansion logic, relationship momentum, 30/60/90 plan, and executive exports.</p>
+<p>Open SAOS from the account mode toggle.</p>
+<p>For full SAOS guidance, use:</p>
+<p><code>docs/saos/SAOS_USER_HANDBOOK.md</code></p>
+</section>
+</section>
+<section class="guide-section guide-section--5-deals-pipeline-forecasting-and-board-view">
+<h2>5. Deals: Pipeline, Forecasting, And Board View</h2>
+<p class="section-deck">Forecast, update, filter, and inspect pipeline health.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Deals is the pipeline workspace. It helps reps and managers manage opportunities, forecast current month revenue, update deal details, and inspect pipeline health.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>The Deals page answers:</p>
+<ul><li>What am I committing?</li><li>What is best case?</li><li>What is in the funnel?</li><li>Which deals are stale?</li><li>Which stage or product mix needs attention?</li><li>What does my team pipeline look like?</li></ul>
+</section>
+<section class="subsection-block subsection-block--key-things-you-can-do">
+<h3 class="subsection subsection--key-things-you-can-do">Key Things You Can Do</h3>
+<ul><li>Switch between My Deals and team views when allowed.</li><li>Filter by committed status, stage, close month, closed lost, past due, or renewals.</li><li>Toggle list view and board view.</li><li>Create deals directly.</li><li>Inline edit deal fields.</li><li>Drag board cards between stages.</li><li>Flip cards to update notes.</li><li>Review metrics and charts.</li></ul>
+</section>
+<section class="subsection-block subsection-block--forecast-definitions">
+<h3 class="subsection subsection--forecast-definitions">Forecast Definitions</h3>
+<p><strong>Current Commit</strong> is the value of open deals you have marked committed for the current close month.</p>
+<p><strong>Best Case</strong> includes open deals closing in the current month, committed or not.</p>
+<p><strong>Funnel</strong> is the broader open pipeline view.</p>
+<p>Renewals can exist in the pipeline but are excluded from forecast metric calculations so new-business numbers stay clean.</p>
+</section>
+<section class="subsection-block subsection-block--list-view">
+<h3 class="subsection subsection--list-view">List View</h3>
+<p>Use list view when you need detail and editing precision.</p>
+<p>Common actions:</p>
+<ul><li>Sort columns.</li><li>Edit name, stage, MRC, term, notes, account, or close month.</li><li>Toggle product families.</li><li>Toggle committed.</li><li>Toggle renewal.</li></ul>
+</section>
+<section class="subsection-block subsection-block--board-view">
+<h3 class="subsection subsection--board-view">Board View</h3>
+<p>Use board view when you want to manage motion by stage.</p>
+<p>Common actions:</p>
+<ul><li>Drag a card into another stage column.</li><li>Edit fields inline.</li><li>Flip a card to see or update notes.</li><li>Use the note freshness indicator to spot stale opportunities.</li></ul>
+</section>
+<section class="subsection-block subsection-block--filters">
+<h3 class="subsection subsection--filters">Filters</h3>
+<p>Use filters to focus the pipeline:</p>
+<ul><li>Committed vs uncommitted.</li><li>Stage.</li><li>Close month.</li><li>Closed lost visibility.</li><li>Past due visibility.</li><li>Renewals hidden or shown.</li></ul>
+<p>Reset filters when you want to return to the full working view.</p>
+</section>
+<section class="subsection-block subsection-block--create-a-deal">
+<h3 class="subsection subsection--create-a-deal">Create A Deal</h3>
+<p>How to create from Deals:</p>
+<ol><li>Click the new deal control.</li><li>Choose the account.</li><li>Add name, MRC, stage, close month, term, and products.</li><li>Save.</li></ol>
+<p>You can also create deals from the Account page when working a specific account.</p>
+</section>
+<section class="subsection-block subsection-block--manager-pipeline-view">
+<h3 class="subsection subsection--manager-pipeline-view">Manager Pipeline View</h3>
+<p>Managers can toggle to team pipeline views and may drill into a specific rep&#39;s pipeline.</p>
+<p>Use this to inspect team forecast health without asking each rep to export a separate report.</p>
+</section>
+<section class="subsection-block subsection-block--what-good-looks-like">
+<h3 class="subsection subsection--what-good-looks-like">What Good Looks Like</h3>
+<ul><li>Current-month deals have accurate close months.</li><li>Committed deals are truly committed, not hopeful.</li><li>Renewals are flagged.</li><li>Closed lost deals are moved to Closed Lost, not deleted.</li><li>Notes are current enough for another leader to understand deal status.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--6-campaigns-curated-outreach-sprints">
+<h2>6. Campaigns: Curated Outreach Sprints</h2>
+<p class="section-deck">Short, intentional outreach runs for focused contact lists.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Campaigns is a guided workspace for short, intentional outreach runs. Reps build a named list of specific contacts and then work through the list as a call blitz or guided email campaign.</p>
+<p>Campaigns are not broad list blasts. They are curated outreach sprints.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Campaigns help reps create structure around bursts of prospecting or customer outreach. They keep the target list, execution queue, notes, and completion status in one workflow.</p>
+</section>
+<section class="subsection-block subsection-block--campaign-types">
+<h3 class="subsection subsection--campaign-types">Campaign Types</h3>
+<p>Current user-facing campaign creation supports:</p>
+<ul><li>Call Blitz.</li><li>Guided Email.</li></ul>
+<p>Email Merge is retired in the current workflow.</p>
+</section>
+<section class="subsection-block subsection-block--the-cart">
+<h3 class="subsection subsection--the-cart">The Cart</h3>
+<p>Campaign creation uses a cart model.</p>
+<p>Filters help you find accounts and contacts, but they do not automatically define the audience. Contacts are included only when you add them to the cart.</p>
+<p>This matters because it keeps campaigns intentional.</p>
+</section>
+<section class="subsection-block subsection-block--create-a-campaign">
+<h3 class="subsection subsection--create-a-campaign">Create A Campaign</h3>
+<p>How to create:</p>
+<ol><li>Open Campaigns.</li><li>Choose Create mode.</li><li>Enter campaign name.</li><li>Choose Call Blitz or Guided Email.</li><li>For Guided Email, enter subject and body.</li><li>Use account and contact discovery filters to find targets.</li><li>Add individual contacts, or add all contacts from an account, to the cart.</li><li>Save the campaign.</li></ol>
+</section>
+<section class="subsection-block subsection-block--run-a-call-blitz">
+<h3 class="subsection subsection--run-a-call-blitz">Run A Call Blitz</h3>
+<p>How to run:</p>
+<ol><li>Switch to Run mode.</li><li>Select an active call campaign.</li><li>Call the current contact.</li><li>Enter notes.</li><li>Click Log Call and Next.</li><li>Skip contacts when needed.</li></ol>
+<p>Call notes are required when logging a call. Skipping does not create an activity.</p>
+</section>
+<section class="subsection-block subsection-block--run-a-guided-email-campaign">
+<h3 class="subsection subsection--run-a-guided-email-campaign">Run A Guided Email Campaign</h3>
+<p>How to run:</p>
+<ol><li>Select an active guided email campaign.</li><li>Review the merged email for the current contact.</li><li>Edit the body if needed.</li><li>Open the email client and advance.</li><li>Skip contacts when needed.</li></ol>
+<p>Merge fields such as <code>[FirstName]</code>, <code>[LastName]</code>, and <code>[AccountName]</code> support personalization.</p>
+</section>
+<section class="subsection-block subsection-block--completion">
+<h3 class="subsection subsection--completion">Completion</h3>
+<p>When every campaign member is completed or skipped, the campaign moves to Past.</p>
+<p>Past campaigns show completed results, including engaged and skipped contacts.</p>
+</section>
+<section class="subsection-block subsection-block--what-good-looks-like">
+<h3 class="subsection subsection--what-good-looks-like">What Good Looks Like</h3>
+<ul><li>Campaigns have a specific purpose.</li><li>The cart is curated, not dumped from a broad filter.</li><li>Call notes capture useful outcomes.</li><li>Guided emails are reviewed before sending.</li><li>Completed campaigns show what was worked and what was skipped.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--7-sequences-multi-touch-playbooks">
+<h2>7. Sequences: Multi-Touch Playbooks</h2>
+<p class="section-deck">Reusable follow-up paths built once and executed over time.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Sequences are reusable outreach playbooks. A sequence defines a series of steps, delays, messages, owners, and step types.</p>
+<p>You build sequences on the Sequences page. You execute due sequence steps from Command Center or Contacts.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Sequences create follow-up discipline. They prevent reps from relying on memory and help keep outreach consistent across multiple touches.</p>
+</section>
+<section class="subsection-block subsection-block--key-things-you-can-do">
+<h3 class="subsection subsection--key-things-you-can-do">Key Things You Can Do</h3>
+<ul><li>Create personal sequences.</li><li>Add, edit, delete, and reorder steps.</li><li>Assign step owners.</li><li>Import shared Marketing or ABM sequences.</li><li>Import sequence steps from CSV.</li><li>Generate sequences with AI.</li><li>Bulk assign contacts.</li><li>Review active enrollment and success percentage.</li></ul>
+</section>
+<section class="subsection-block subsection-block--create-a-sequence-manually">
+<h3 class="subsection subsection--create-a-sequence-manually">Create A Sequence Manually</h3>
+<p>How to create:</p>
+<ol><li>Click Add Sequence.</li><li>Enter a sequence name.</li><li>Add a description if useful.</li><li>Add steps.</li><li>For each step, define type, delay, assigned-to owner, subject, and message.</li><li>Save.</li></ol>
+</section>
+<section class="subsection-block subsection-block--step-types-and-delay">
+<h3 class="subsection subsection--step-types-and-delay">Step Types And Delay</h3>
+<p>Steps can include:</p>
+<ul><li>Email.</li><li>Call.</li><li>LinkedIn.</li><li>Task.</li><li>Custom types.</li></ul>
+<p>Delay controls when the step becomes due after the previous step.</p>
+</section>
+<section class="subsection-block subsection-block--reorder-or-edit-steps">
+<h3 class="subsection subsection--reorder-or-edit-steps">Reorder Or Edit Steps</h3>
+<p>The current sequence builder uses visual step cards.</p>
+<p>Common actions:</p>
+<ul><li>Drag cards to reorder steps.</li><li>Drag or open a step to edit.</li><li>Delete steps after confirmation.</li></ul>
+<p>Finish or cancel active edits before switching sequences or importing new steps.</p>
+</section>
+<section class="subsection-block subsection-block--import-a-shared-sequence">
+<h3 class="subsection subsection--import-a-shared-sequence">Import A Shared Sequence</h3>
+<p>How to import:</p>
+<ol><li>Click Import Marketing Sequence.</li><li>Select a shared Marketing or ABM sequence.</li><li>Import it as your own editable copy.</li></ol>
+<p>Deleting an imported copy removes your copy, not the original shared template.</p>
+</section>
+<section class="subsection-block subsection-block--bulk-import-steps-from-csv">
+<h3 class="subsection subsection--bulk-import-steps-from-csv">Bulk Import Steps From CSV</h3>
+<p>Use the Sequence Steps CSV template from the user menu.</p>
+<p>Expected fields include step number, type, subject, message, and delay days.</p>
+<p>Imported steps append to the selected sequence.</p>
+</section>
+<section class="subsection-block subsection-block--ai-generate-a-sequence">
+<h3 class="subsection subsection--ai-generate-a-sequence">AI Generate A Sequence</h3>
+<p>How to use AI:</p>
+<ol><li>Enter the goal.</li><li>Add persona or voice guidance.</li><li>Choose number of steps and total duration.</li><li>Select step types.</li><li>Generate the sequence.</li><li>Review and edit the preview.</li><li>Save the generated sequence with a unique name.</li></ol>
+<p>What good looks like:</p>
+<ul><li>AI gives you a first draft, not a final strategy.</li><li>You edit the language to fit the account, product, and market.</li><li>Step timing makes sense for the buying motion.</li></ul>
+</section>
+<section class="subsection-block subsection-block--bulk-assign-contacts">
+<h3 class="subsection subsection--bulk-assign-contacts">Bulk Assign Contacts</h3>
+<p>How to bulk assign:</p>
+<ol><li>Select a sequence with steps.</li><li>Open Bulk Assign.</li><li>Filter contacts by title, company, industry, or activity.</li><li>Select contacts.</li><li>Assign selected contacts.</li></ol>
+<p>Contacts already in active sequences may be excluded from the list.</p>
+</section>
+<section class="subsection-block subsection-block--campaigns-versus-sequences">
+<h3 class="subsection subsection--campaigns-versus-sequences">Campaigns Versus Sequences</h3>
+<p>Campaigns are one-time curated outreach sprints. They are worked directly inside the Campaigns page.</p>
+<p>Sequences are reusable multi-touch playbooks. You build them once, enroll contacts, and work due steps over time from Command Center or Contacts.</p>
+</section>
+</section>
+<section class="guide-section guide-section--8-cognito-intelligence-turn-account-news-into-outreach">
+<h2>8. Cognito Intelligence: Turn Account News Into Outreach</h2>
+<p class="section-deck">Account news and buying signals converted into outreach and follow-up.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Cognito is the CRM intelligence inbox. It surfaces news and buying-signal alerts tied to your accounts and helps you turn those alerts into outreach, logged activities, and tasks.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Timing matters in sales. Cognito helps reps act when an account has a meaningful signal, such as leadership change, expansion, technology partnership, or financial update.</p>
+</section>
+<section class="subsection-block subsection-block--key-things-you-can-do">
+<h3 class="subsection subsection--key-things-you-can-do">Key Things You Can Do</h3>
+<ul><li>Review new alerts.</li><li>Filter by trigger type, relevance, or account.</li><li>Open source articles.</li><li>Dismiss irrelevant alerts.</li><li>Act on alerts through the Action Center.</li><li>Use AI-drafted outreach.</li><li>Refine outreach with custom prompts.</li><li>Log an interaction.</li><li>Create a follow-up task.</li><li>Mark alerts completed.</li><li>Review the archive.</li></ul>
+</section>
+<section class="subsection-block subsection-block--review-new-alerts">
+<h3 class="subsection subsection--review-new-alerts">Review New Alerts</h3>
+<p>How to review:</p>
+<ol><li>Open Cognito.</li><li>Start in New Alerts.</li><li>Focus first on high relevance scores.</li><li>Use filters to narrow by account or trigger type.</li><li>Open the source link when you need the full article.</li></ol>
+</section>
+<section class="subsection-block subsection-block--dismiss-an-alert">
+<h3 class="subsection subsection--dismiss-an-alert">Dismiss An Alert</h3>
+<p>Dismiss alerts that are irrelevant or not actionable.</p>
+<p>Dismissed alerts move to the archive.</p>
+</section>
+<section class="subsection-block subsection-block--act-on-an-alert">
+<h3 class="subsection subsection--act-on-an-alert">Act On An Alert</h3>
+<p>How to use the Action Center:</p>
+<ol><li>Click Action on an alert.</li><li>Wait for the AI outreach suggestion.</li><li>Choose a suggested contact with an email address.</li><li>Review the subject and body.</li><li>Use Copy or Open Email Client.</li><li>Optionally refine the message with a custom prompt.</li><li>Log an interaction.</li><li>Create a task when follow-up is needed.</li><li>Mark Completed when the alert has been handled.</li></ol>
+<p>Closing the modal without marking completed leaves the alert in New Alerts.</p>
+</section>
+<section class="subsection-block subsection-block--contact-requirement">
+<h3 class="subsection subsection--contact-requirement">Contact Requirement</h3>
+<p>Cognito needs at least one contact with an email on the account to support email sending, logging, and task creation from the Action Center.</p>
+<p>If an account has no email-ready contacts, add or update contacts first.</p>
+</section>
+<section class="subsection-block subsection-block--archive">
+<h3 class="subsection subsection--archive">Archive</h3>
+<p>The archive shows actioned and dismissed alerts. It is for reference. Archived alerts cannot be reopened in the Action Center from the current UI.</p>
+</section>
+<section class="subsection-block subsection-block--notifications">
+<h3 class="subsection subsection--notifications">Notifications</h3>
+<p>A bell on the Cognito nav item means new intelligence arrived since your last Cognito visit.</p>
+</section>
+<section class="subsection-block subsection-block--what-good-looks-like">
+<h3 class="subsection subsection--what-good-looks-like">What Good Looks Like</h3>
+<ul><li>High-relevance alerts are reviewed quickly.</li><li>Outreach is tied to the right contact.</li><li>Real action is logged.</li><li>Follow-up tasks are created when needed.</li><li>Completed alerts are marked completed.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--9-social-hub-share-curated-content-on-linkedin">
+<h2>9. Social Hub: Share Curated Content On LinkedIn</h2>
+<p class="section-deck">Rep-facing content sharing for relevant news and marketing posts.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Social Hub is a rep-facing content-sharing workspace. It gives reps a feed of AI-curated news and marketing-approved posts, then helps draft LinkedIn-ready copy.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Social selling works best when reps share timely, relevant content consistently. Social Hub reduces the effort required to find something useful, write a caption, and share it.</p>
+</section>
+<section class="subsection-block subsection-block--two-content-feeds">
+<h3 class="subsection subsection--two-content-feeds">Two Content Feeds</h3>
+<p><strong>AI Content</strong> shows AI-curated news articles.</p>
+<p><strong>Marketing</strong> shows pre-approved campaign assets from the marketing team.</p>
+<p>Marketing content can include a link to the content image library for post graphics.</p>
+</section>
+<section class="subsection-block subsection-block--prepare-a-post">
+<h3 class="subsection subsection--prepare-a-post">Prepare A Post</h3>
+<p>How to share AI-curated news:</p>
+<ol><li>Open Social Hub.</li><li>Use the AI Content tab.</li><li>Choose a News Article.</li><li>Click Prepare Post.</li><li>Review the AI-generated draft.</li><li>Edit manually if needed.</li><li>Use a custom prompt and Regenerate if you want a different tone.</li><li>Click Copy Text.</li><li>Click Post to LinkedIn.</li><li>Paste the copied text into LinkedIn.</li></ol>
+<p>How to share marketing content:</p>
+<ol><li>Switch to Marketing.</li><li>Choose a Campaign Asset.</li><li>Click Prepare Post.</li><li>Review the pre-approved copy.</li><li>Optionally refine it.</li><li>Copy text and open LinkedIn.</li></ol>
+<p>Important: Constellation opens LinkedIn with the link only. It does not automatically post the caption. You must paste the copied text into LinkedIn.</p>
+</section>
+<section class="subsection-block subsection-block--dismiss-content">
+<h3 class="subsection subsection--dismiss-content">Dismiss Content</h3>
+<p>Click Dismiss to remove a post from your feed.</p>
+<p>Dismissal is per user and permanent in the current UI. There is no visible undo.</p>
+</section>
+<section class="subsection-block subsection-block--dynamic-link-indicator">
+<h3 class="subsection subsection--dynamic-link-indicator">Dynamic Link Indicator</h3>
+<p>A sparkle indicator means the link is configured to create a richer LinkedIn preview. LinkedIn controls the final preview behavior.</p>
+</section>
+<section class="subsection-block subsection-block--notifications">
+<h3 class="subsection subsection--notifications">Notifications</h3>
+<p>A bell on Social Hub means new content arrived since your last visit.</p>
+</section>
+<section class="subsection-block subsection-block--what-good-looks-like">
+<h3 class="subsection subsection--what-good-looks-like">What Good Looks Like</h3>
+<ul><li>Share relevant content regularly.</li><li>Edit AI copy so it sounds like you.</li><li>Use Marketing copy when you want approved campaign language.</li><li>Dismiss content that does not fit your audience.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--10-multi-site-irr-calculator-modeling-approval-and-exports">
+<h2>10. Multi-Site IRR Calculator: Modeling, Approval, And Exports</h2>
+<p class="section-deck">Financial modeling for complex multi-site opportunities.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>The IRR Calculator models multi-site project economics. It helps reps evaluate construction costs, revenue, payback, IRR, and cash flow across one or more sites.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Large network opportunities often need financial justification before approval. IRR gives sales and finance a common model for deciding whether a project works.</p>
+</section>
+<section class="subsection-block subsection-block--key-things-you-can-do">
+<h3 class="subsection subsection--key-things-you-can-do">Key Things You Can Do</h3>
+<ul><li>Create and save projects.</li><li>Load saved projects.</li><li>Add multiple sites.</li><li>Enter cost and revenue assumptions.</li><li>Set target IRR.</li><li>Set discount rate.</li><li>Adjust construction and billing timelines.</li><li>Stress test CapEx and MRR.</li><li>Import Salesforce CSV data.</li><li>Export PDF reports.</li><li>Export CSV with Excel-friendly formulas.</li></ul>
+</section>
+<section class="subsection-block subsection-block--start-a-project">
+<h3 class="subsection subsection--start-a-project">Start A Project</h3>
+<p>How to start:</p>
+<ol><li>Click New Project.</li><li>Enter project name.</li><li>Set the target IRR.</li><li>Enter discount rate if needed.</li><li>Add one or more sites.</li><li>Fill cost and revenue fields for each site.</li></ol>
+</section>
+<section class="subsection-block subsection-block--read-results">
+<h3 class="subsection subsection--read-results">Read Results</h3>
+<p>The global results summarize the whole project.</p>
+<p>Site tabs show whether each site is Go or No-Go against the target IRR.</p>
+<p>Common outputs include:</p>
+<ul><li>Annual IRR.</li><li>Total CapEx.</li><li>TCV.</li><li>NPV.</li><li>Run-rate payback.</li><li>Cash flow break-even.</li></ul>
+</section>
+<section class="subsection-block subsection-block--timeline-settings">
+<h3 class="subsection subsection--timeline-settings">Timeline Settings</h3>
+<p>Use timeline settings when construction and billing do not start in month zero.</p>
+<p>How to set timing:</p>
+<ol><li>Open the cash flow settings.</li><li>Set business case start month.</li><li>Set construction start and duration by site.</li><li>Set billing start by site.</li><li>Save and return to chart.</li></ol>
+</section>
+<section class="subsection-block subsection-block--stress-test">
+<h3 class="subsection subsection--stress-test">Stress Test</h3>
+<p>Stress testing lets you adjust CapEx and MRR assumptions without changing saved site inputs.</p>
+<p>Use this to understand sensitivity before presenting a case.</p>
+</section>
+<section class="subsection-block subsection-block--import-from-salesforce-csv">
+<h3 class="subsection subsection--import-from-salesforce-csv">Import From Salesforce CSV</h3>
+<p>IRR supports Salesforce CSV import when the report has the expected columns for solution site and financial fields.</p>
+<p>Review imported values before saving.</p>
+</section>
+<section class="subsection-block subsection-block--export">
+<h3 class="subsection subsection--export">Export</h3>
+<p>Use PDF export for approval-ready reports.</p>
+<p>Use CSV export when finance needs spreadsheet formulas and auditable project data.</p>
+</section>
+<section class="subsection-block subsection-block--what-good-looks-like">
+<h3 class="subsection subsection--what-good-looks-like">What Good Looks Like</h3>
+<ul><li>Each site has realistic cost and revenue assumptions.</li><li>Timelines reflect construction and billing reality.</li><li>Stress testing is used before borderline approvals.</li><li>PDF or CSV exports are shared when a decision needs documentation.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--11-enterprise-proposal-builder-modules-pricing-and-pdf-delivery">
+<h2>11. Enterprise Proposal Builder: Modules, Pricing, And PDF Delivery</h2>
+<p class="section-deck">Customer-ready proposal assembly, pricing, and PDF generation.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>The Enterprise Proposal Builder assembles customer-ready proposal PDFs from reusable GPC sections, custom pages, cover letter content, pricing tables, references, impact/ROI content, and uploaded PDFs.</p>
+</section>
+<section class="subsection-block subsection-block--why-it-matters">
+<h3 class="subsection subsection--why-it-matters">Why It Matters</h3>
+<p>Proposals need to be consistent, professional, accurate, and fast. The proposal builder replaces manual document assembly with a repeatable workflow.</p>
+</section>
+<section class="subsection-block subsection-block--key-things-you-can-do">
+<h3 class="subsection subsection--key-things-you-can-do">Key Things You Can Do</h3>
+<ul><li>Set proposal properties.</li><li>Choose proposal modules.</li><li>Reorder modules.</li><li>Preview stock PDFs.</li><li>Write a cover letter.</li><li>Insert snippets.</li><li>Build pricing options.</li><li>Import pricing from Salesforce CSV.</li><li>Add custom PDFs or pages.</li><li>Add references.</li><li>Add impact and ROI content.</li><li>Compile and generate a final PDF.</li><li>Save <code>.spec</code> files.</li><li>Save proposals to an account.</li><li>Send for proofing.</li></ul>
+</section>
+<section class="subsection-block subsection-block--proposal-properties">
+<h3 class="subsection subsection--proposal-properties">Proposal Properties</h3>
+<p>Start with core proposal metadata:</p>
+<ul><li>RFP name.</li><li>Business name.</li><li>Sales rep.</li><li>Presentation date.</li><li>Project start and completion dates.</li></ul>
+<p>Keep names concise because they are used in generated proposal output.</p>
+</section>
+<section class="subsection-block subsection-block--proposal-elements">
+<h3 class="subsection subsection--proposal-elements">Proposal Elements</h3>
+<p>Select the sections you need, such as:</p>
+<ul><li>Title Page.</li><li>Why GPC.</li><li>DIA.</li><li>NOC.</li><li>SIA.</li><li>About GPC.</li><li>Escalation.</li><li>Project Plan.</li><li>SPIN.</li><li>Leadership.</li><li>Cover Letter.</li><li>Table of Contents.</li><li>Proposed Pricing.</li><li>Custom Pages.</li><li>References.</li><li>Impact and ROI.</li><li>Uploaded PDFs.</li></ul>
+<p>Drag modules to reorder them.</p>
+</section>
+<section class="subsection-block subsection-block--cover-letter-and-custom-text">
+<h3 class="subsection subsection--cover-letter-and-custom-text">Cover Letter And Custom Text</h3>
+<p>Use snippets to speed up common language, but edit the final letter for the customer.</p>
+<p>Before compiling, replace bracketed placeholders such as <code>[customer name]</code> or <code>[insert detail]</code>.</p>
+<p>The builder can block compile/proofing when placeholders remain.</p>
+</section>
+<section class="subsection-block subsection-block--pricing">
+<h3 class="subsection subsection--pricing">Pricing</h3>
+<p>The pricing engine supports:</p>
+<ul><li>Multiple pricing options.</li><li>Locations.</li><li>Product lines.</li><li>Quantities.</li><li>NRC and MRC.</li><li>Promotions.</li><li>Location subtotals.</li><li>Decimal display settings.</li><li>Contract terms.</li><li>Solution IDs.</li></ul>
+</section>
+<section class="subsection-block subsection-block--import-pricing-from-salesforce">
+<h3 class="subsection subsection--import-pricing-from-salesforce">Import Pricing From Salesforce</h3>
+<p>How to import:</p>
+<ol><li>Run the expected Salesforce report.</li><li>Export details-only CSV.</li><li>Drop the CSV into the proposal import zone.</li><li>Review populated locations and product lines.</li></ol>
+<p>Bulk Salesforce import fills pricing option 1. Additional pricing options have their own import workflow.</p>
+</section>
+<section class="subsection-block subsection-block--compile-and-generate">
+<h3 class="subsection subsection--compile-and-generate">Compile And Generate</h3>
+<p>The PDF workflow has two stages:</p>
+<ol><li><strong>Compile Proposal:</strong> Prepares assets and validates content.</li><li><strong>Generate PDF:</strong> Creates the downloadable final proposal.</li></ol>
+<p>Think compile first, generate second.</p>
+<p>Common blockers:</p>
+<ul><li>Bracketed placeholder text remains.</li><li>A selected custom PDF is missing.</li><li>A selected custom page has incomplete content.</li><li>Table of Contents module is selected but titles are missing.</li></ul>
+</section>
+<section class="subsection-block subsection-block--save-and-resume">
+<h3 class="subsection subsection--save-and-resume">Save And Resume</h3>
+<p>You can save work in two ways:</p>
+<ul><li>Save a local <code>.spec</code> file.</li><li>Save to an account so the proposal appears on the account record.</li></ul>
+<p>Use <code>.spec</code> files when sharing draft work or resuming locally. Use account-linked save when the proposal belongs to a customer record.</p>
+</section>
+<section class="subsection-block subsection-block--send-for-proofing">
+<h3 class="subsection subsection--send-for-proofing">Send For Proofing</h3>
+<p>Send for Proofing downloads the <code>.spec</code> and opens a proofing email workflow. Attach the spec file so the reviewer can load the proposal state.</p>
+</section>
+<section class="subsection-block subsection-block--what-good-looks-like">
+<h3 class="subsection subsection--what-good-looks-like">What Good Looks Like</h3>
+<ul><li>Proposal modules match the customer need.</li><li>Cover letter is customer-specific.</li><li>Pricing is reviewed after import.</li><li>Placeholders are removed.</li><li>PDF is generated only after compile checks pass.</li><li>A copy is saved to the related account when appropriate.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--12-strategic-account-os-when-to-leave-the-main-crm">
+<h2>12. Strategic Account OS: When To Leave The Main CRM</h2>
+<p class="section-deck">When tactical CRM work becomes strategic account planning.</p>
+<section class="subsection-block subsection-block--what-it-is">
+<h3 class="subsection subsection--what-it-is">What It Is</h3>
+<p>Strategic Account OS is a planning layer embedded inside the Accounts page.</p>
+<p>The main CRM captures tactical execution: contacts, deals, tasks, activities, proposals, and account facts.</p>
+<p>SAOS captures strategic judgment: why the account matters, why it may change, who matters politically, where expansion could happen, what risks exist, and what the next 30/60/90 plan should be.</p>
+</section>
+<section class="subsection-block subsection-block--when-to-use-saos">
+<h3 class="subsection subsection--when-to-use-saos">When To Use SAOS</h3>
+<p>Use SAOS when:</p>
+<ul><li>The account is strategically important.</li><li>Multiple stakeholders influence the decision.</li><li>The path to change is unclear.</li><li>Expansion potential matters.</li><li>Leadership needs a clear account plan.</li><li>You need an executive PDF or PowerPoint export.</li></ul>
+<p>Do not use SAOS as a dumping ground for every routine CRM activity.</p>
+</section>
+<section class="subsection-block subsection-block--how-it-connects">
+<h3 class="subsection subsection--how-it-connects">How It Connects</h3>
+<p>From the Account page, use the mode toggle to enter Strategic Account OS.</p>
+<p>CRM account data, contacts, activities, and relationship context can support the plan. Some tactical activity can be promoted into strategic context, but SAOS exports intentionally focus on strategic signals and manual insights.</p>
+<p>Full guide:</p>
+<p><code>docs/saos/SAOS_USER_HANDBOOK.md</code></p>
+</section>
+</section>
+<section class="guide-section guide-section--13-import-export-and-external-systems">
+<h2>13. Import, Export, And External Systems</h2>
+<p class="section-deck">How Constellation connects to CSV, Salesforce, ZoomInfo, and LinkedIn.</p>
+<section class="subsection-block subsection-block--csv-templates">
+<h3 class="subsection subsection--csv-templates">CSV Templates</h3>
+<p>Templates are available from the nav user menu:</p>
+<ul><li>Contacts.</li><li>Accounts.</li><li>Sequence Steps.</li></ul>
+<p>Use templates to avoid formatting errors during bulk import.</p>
+</section>
+<section class="subsection-block subsection-block--contacts-import">
+<h3 class="subsection subsection--contacts-import">Contacts Import</h3>
+<p>Use for adding or updating contact records. Review preview rows before confirming.</p>
+</section>
+<section class="subsection-block subsection-block--accounts-import">
+<h3 class="subsection subsection--accounts-import">Accounts Import</h3>
+<p>Use for adding or updating account records. Account name is required.</p>
+</section>
+<section class="subsection-block subsection-block--sequence-steps-import">
+<h3 class="subsection subsection--sequence-steps-import">Sequence Steps Import</h3>
+<p>Use to append step rows to the selected sequence.</p>
+</section>
+<section class="subsection-block subsection-block--salesforce">
+<h3 class="subsection subsection--salesforce">Salesforce</h3>
+<p>Constellation connects to Salesforce in several user workflows:</p>
+<ul><li>Activity logging from Command Center, Contacts, and Accounts.</li><li>Salesforce account links from Accounts.</li><li>Salesforce CSV import into IRR.</li><li>Salesforce CSV import into Proposals.</li></ul>
+<p>Salesforce activity logging opens a pre-filled Salesforce Task. Constellation marks the activity logged only after the user confirms success.</p>
+</section>
+<section class="subsection-block subsection-block--zoominfo">
+<h3 class="subsection subsection--zoominfo">ZoomInfo</h3>
+<p>ZoomInfo links help reps research contacts and accounts.</p>
+<p>Account-level ZoomInfo links can be stored as company IDs. Contact-level ZoomInfo behavior may open ZoomInfo search rather than a stored contact profile.</p>
+</section>
+<section class="subsection-block subsection-block--linkedin">
+<h3 class="subsection subsection--linkedin">LinkedIn</h3>
+<p>LinkedIn is used in:</p>
+<ul><li>Sequence steps.</li><li>Social Hub post sharing.</li></ul>
+<p>Constellation can open LinkedIn and copy suggested text, but the user completes the LinkedIn action.</p>
+</section>
+</section>
+<section class="guide-section guide-section--14-what-good-crm-usage-looks-like">
+<h2>14. What Good CRM Usage Looks Like</h2>
+<p class="section-deck">Practical standards for daily, weekly, meeting, forecast, and proposal hygiene.</p>
+<p>Good Constellation usage is not about filling every field. It is about keeping the operating picture current enough to drive action.</p>
+<section class="subsection-block subsection-block--daily">
+<h3 class="subsection subsection--daily">Daily</h3>
+<ul><li>Review AI Daily Briefing.</li><li>Clear urgent tasks.</li><li>Work due sequence steps.</li><li>Log meaningful activity.</li><li>Act on high-value Cognito alerts.</li></ul>
+</section>
+<section class="subsection-block subsection-block--weekly">
+<h3 class="subsection subsection--weekly">Weekly</h3>
+<ul><li>Review current-month commit and best case.</li><li>Update stale deal notes.</li><li>Clean up past-due deals.</li><li>Check account filters for hot accounts and open opportunities.</li><li>Review campaigns and sequence enrollments.</li></ul>
+</section>
+<section class="subsection-block subsection-block--before-customer-meetings">
+<h3 class="subsection subsection--before-customer-meetings">Before Customer Meetings</h3>
+<ul><li>Open the Account record.</li><li>Review contacts, org chart, activities, deals, and proposals.</li><li>Generate an AI account briefing when useful.</li><li>Draft a clear agenda.</li><li>Use SAOS for strategic accounts.</li></ul>
+</section>
+<section class="subsection-block subsection-block--before-forecast-or-pipeline-review">
+<h3 class="subsection subsection--before-forecast-or-pipeline-review">Before Forecast Or Pipeline Review</h3>
+<ul><li>Confirm committed deals are real.</li><li>Update close months.</li><li>Flag renewals.</li><li>Move losses to Closed Lost.</li><li>Review notes freshness.</li><li>Check team view if you are a manager.</li></ul>
+</section>
+<section class="subsection-block subsection-block--before-proposal-delivery">
+<h3 class="subsection subsection--before-proposal-delivery">Before Proposal Delivery</h3>
+<ul><li>Verify proposal properties.</li><li>Confirm pricing after Salesforce import.</li><li>Remove placeholders.</li><li>Compile before generating.</li><li>Save the final spec or account-linked proposal.</li></ul>
+</section>
+</section>
+<section class="guide-section guide-section--15-common-questions">
+<h2>15. Common Questions</h2>
+<p class="section-deck">Quick answers to common CRM usage questions.</p>
+<section class="subsection-block subsection-block--is-constellation-replacing-salesforce">
+<h3 class="subsection subsection--is-constellation-replacing-salesforce">Is Constellation replacing Salesforce?</h3>
+<p>No. Constellation is the operating layer where sales work gets organized and executed. Salesforce remains important for official records, reporting, and downstream business process. Constellation helps reduce double work by opening pre-filled Salesforce tasks where supported.</p>
+</section>
+<section class="subsection-block subsection-block--should-every-contact-be-in-a-sequence">
+<h3 class="subsection subsection--should-every-contact-be-in-a-sequence">Should every contact be in a sequence?</h3>
+<p>No. Sequences are for structured outreach paths. Some relationships require manual follow-up, campaign execution, or account-specific strategy instead.</p>
+</section>
+<section class="subsection-block subsection-block--should-every-account-have-saos">
+<h3 class="subsection subsection--should-every-account-have-saos">Should every account have SAOS?</h3>
+<p>No. SAOS is for accounts that deserve strategic planning. Routine accounts can remain in the standard tactical CRM view.</p>
+</section>
+<section class="subsection-block subsection-block--why-do-some-social-hub-or-cognito-notifications-disappear-after-i-visit-the-page">
+<h3 class="subsection subsection--why-do-some-social-hub-or-cognito-notifications-disappear-after-i-visit-the-page">Why do some Social Hub or Cognito notifications disappear after I visit the page?</h3>
+<p>The notification bell is based on whether new content arrived since your last visit. Visiting the page updates your last-visited timestamp.</p>
+</section>
+<section class="subsection-block subsection-block--does-social-hub-post-to-linkedin-for-me">
+<h3 class="subsection subsection--does-social-hub-post-to-linkedin-for-me">Does Social Hub post to LinkedIn for me?</h3>
+<p>No. It opens LinkedIn with the link and copies text for you. You paste and post manually.</p>
+</section>
+<section class="subsection-block subsection-block--why-do-i-need-to-confirm-after-opening-email-linkedin-or-salesforce">
+<h3 class="subsection subsection--why-do-i-need-to-confirm-after-opening-email-linkedin-or-salesforce">Why do I need to confirm after opening email, LinkedIn, or Salesforce?</h3>
+<p>Constellation cannot know whether you completed the external action. Confirmation tells the CRM whether to log the activity, advance the sequence, or mark Salesforce logging complete.</p>
+</section>
+<section class="subsection-block subsection-block--why-does-the-old-guide-look-different">
+<h3 class="subsection subsection--why-does-the-old-guide-look-different">Why does the old guide look different?</h3>
+<p>The legacy user guide and PDF predate several current workflows: IRR, Proposals, board-style Deals, richer account AI, Cognito Action Center details, Social Hub tabs, ABM campaign cart, and the current Sequences builder.</p>
+</section>
+</section>
+<section class="guide-section guide-section--closing-principle">
+<h2>Closing Principle</h2>
+<p class="section-deck">The simplest standard for useful CRM work.</p>
+<p>The best CRM usage creates a clear next action.</p>
+<p>If a record does not help you decide what happened, what matters, who is involved, what should change, or what to do next, it is just storage. Constellation is most valuable when it turns sales data into sales movement.</p>
+</section>
+  </main>
+</body>
+</html>

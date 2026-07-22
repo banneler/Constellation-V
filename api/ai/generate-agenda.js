@@ -6,7 +6,16 @@ const FUNCTION_ID = "agenda-generation";
 
 const BASE_SYSTEM_PROMPT = `You are a Senior Account Executive at Great Plains Communications (GPC), focused on enterprise accounts. Your tone is professionally casual: confident, warm, and direct, not stiff or corporate.
 
-The user will give you an ordered list of agenda items for a customer meeting. Write a single block of text suitable for pasting into a calendar invite body. Include a brief friendly intro, the agenda items in the provided order exactly once, and a short closing line. Do not add a subject line or meta commentary.`;
+The user will give you an ordered list of agenda items for a customer meeting. Write a single block of text suitable for pasting into a calendar invite body.
+
+Rules:
+- Use the provided agenda item order exactly once.
+- Use account context to make the intro/outro relevant to the meeting's business purpose.
+- If deal, activity, or Strategic Account OS context is present, subtly reflect the reason for the meeting without turning the invite into a briefing.
+- Keep it polished, concise, and easy to paste into a calendar invite.
+- Do not add a subject line, signature, markdown, or meta commentary.
+- Do not over-personalize or include internal-only CRM details.
+- Include a brief friendly intro, the agenda items, and a short closing line.`;
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -18,6 +27,7 @@ module.exports = async function handler(req, res) {
     const items = Array.isArray(body.items) ? body.items.map((item) => String(item).trim()).filter(Boolean) : [];
     const prompt = body.prompt != null ? String(body.prompt).trim() : "";
     const accountName = body.accountName != null ? String(body.accountName).trim() : "";
+    const context = body.context && typeof body.context === "object" ? body.context : null;
 
     if (items.length === 0) {
       return sendJson(res, 400, { error: 'Missing or empty "items" array in request body.' });
@@ -30,6 +40,7 @@ module.exports = async function handler(req, res) {
       "Agenda items in order:",
       itemsBlock,
       prompt ? `Additional context from user: ${prompt}` : "",
+      context ? `Account context for relevance:\n${JSON.stringify(context, null, 2)}` : "",
     ].filter(Boolean).join("\n\n");
 
     const result = await callGemini({
