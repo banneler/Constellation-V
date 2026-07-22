@@ -1,0 +1,442 @@
+.saos-dashboard-page .content-area {
+    overflow-y: auto;
+}
+
+.saos-dashboard-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1.5rem;
+}
+
+.saos-dashboard-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 34rem),
+        linear-gradient(135deg, color-mix(in srgb, var(--bg-dark) 88%, #0f172a), var(--bg-dark));
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+}
+
+.saos-dashboard-eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--primary-blue);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.saos-dashboard-hero h1,
+.saos-detail-header h2 {
+    margin: 0;
+    color: var(--text-light);
+    font-size: clamp(1.65rem, 3vw, 2.4rem);
+    line-height: 1.05;
+}
+
+.saos-dashboard-subtitle {
+    max-width: 58rem;
+    margin: 0.65rem 0 0;
+    color: var(--text-medium);
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.saos-dashboard-actions {
+    flex-shrink: 0;
+}
+
+.saos-access-denied {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    color: var(--text-medium);
+}
+
+.saos-access-denied > i {
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    color: rgb(250, 204, 21);
+    background: rgba(250, 204, 21, 0.12);
+}
+
+.saos-dashboard-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.saos-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.saos-kpi-card {
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--bg-dark) 88%, #ffffff);
+}
+
+.saos-kpi-icon {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.8rem;
+    color: var(--primary-blue);
+    background: color-mix(in srgb, var(--primary-blue) 14%, transparent);
+}
+
+.saos-kpi-value {
+    color: var(--text-light);
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.saos-kpi-label,
+.saos-muted {
+    color: var(--text-medium);
+    font-size: 0.8rem;
+}
+
+.saos-table-card {
+    overflow: hidden;
+}
+
+.saos-table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.saos-table-toolbar .section-title {
+    margin-bottom: 0.2rem;
+}
+
+.saos-table-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.saos-table-filters .item-search-input {
+    min-width: 18rem;
+}
+
+.saos-filter-select {
+    min-height: 2.45rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.65rem;
+    color: var(--text-light);
+    background: var(--bg-medium);
+}
+
+.saos-account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding-top: 1rem;
+}
+
+.saos-account-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(16rem, 1fr) auto minmax(18rem, auto);
+    gap: 1rem;
+    align-items: center;
+    padding: 0.95rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.85rem;
+    text-align: left;
+    background: color-mix(in srgb, var(--bg-medium) 78%, transparent);
+    transition: border-color 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.saos-account-row:hover,
+.saos-account-row.is-active {
+    border-color: color-mix(in srgb, var(--primary-blue) 65%, var(--border-color));
+    background: color-mix(in srgb, var(--primary-blue) 9%, var(--bg-medium));
+    transform: translateY(-1px);
+}
+
+.saos-account-name {
+    color: var(--text-light);
+    font-weight: 800;
+    font-size: 1rem;
+}
+
+.saos-account-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.85rem;
+    margin-top: 0.4rem;
+    color: var(--text-medium);
+    font-size: 0.76rem;
+}
+
+.saos-account-meta i {
+    color: var(--primary-blue);
+}
+
+.saos-progress-ring {
+    width: 3.35rem;
+    height: 3.35rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    color: var(--text-light);
+    font-size: 0.8rem;
+    font-weight: 900;
+    background: conic-gradient(var(--primary-blue) calc(var(--progress, 0) * 1%), rgba(148, 163, 184, 0.22) 0);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.saos-progress-ring--complete {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.35), rgba(34, 197, 94, 0.12));
+    border-color: rgba(34, 197, 94, 0.45);
+}
+
+.saos-progress-ring--partial {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.34), rgba(59, 130, 246, 0.12));
+    border-color: rgba(59, 130, 246, 0.45);
+}
+
+.saos-progress-ring--empty {
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.24), rgba(148, 163, 184, 0.08));
+}
+
+.saos-progress-ring--large {
+    width: 4.75rem;
+    height: 4.75rem;
+    font-size: 1.1rem;
+}
+
+.saos-section-icons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.saos-section-dot {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    color: var(--text-medium);
+    background: rgba(148, 163, 184, 0.08);
+}
+
+.saos-section-dot--complete {
+    color: rgb(34, 197, 94);
+    background: rgba(34, 197, 94, 0.11);
+    border-color: rgba(34, 197, 94, 0.28);
+}
+
+.saos-section-dot--partial {
+    color: rgb(96, 165, 250);
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(96, 165, 250, 0.28);
+}
+
+.saos-detail-panel {
+    min-height: 18rem;
+}
+
+.saos-empty-detail,
+.saos-empty-list {
+    display: grid;
+    place-items: center;
+    min-height: 14rem;
+    color: var(--text-medium);
+    text-align: center;
+}
+
+.saos-empty-detail i {
+    color: var(--primary-blue);
+    font-size: 2rem;
+}
+
+.saos-empty-detail h2 {
+    margin: 0.75rem 0 0.25rem;
+    color: var(--text-light);
+}
+
+.saos-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.saos-open-account-btn {
+    flex-shrink: 0;
+    text-decoration: none;
+}
+
+.saos-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(16rem, 0.85fr) minmax(0, 1.65fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.saos-detail-score-card,
+.saos-detail-section-state,
+.saos-insight-card,
+.saos-detail-lists > div {
+    border: 1px solid var(--border-color);
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--bg-medium) 74%, transparent);
+}
+
+.saos-detail-score-card {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+}
+
+.saos-detail-score-card h3,
+.saos-insight-card h3,
+.saos-detail-lists h3 {
+    margin: 0 0 0.35rem;
+    color: var(--text-light);
+    font-size: 0.92rem;
+}
+
+.saos-detail-score-card p,
+.saos-insight-card p {
+    margin: 0;
+    color: var(--text-medium);
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.saos-detail-section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.saos-detail-section-state {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.6rem;
+    align-items: center;
+    padding: 0.75rem;
+    color: var(--text-medium);
+    font-size: 0.82rem;
+}
+
+.saos-detail-section-state strong {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.saos-detail-section-state--complete i,
+.saos-detail-section-state--complete strong {
+    color: rgb(34, 197, 94);
+}
+
+.saos-detail-section-state--partial i,
+.saos-detail-section-state--partial strong {
+    color: rgb(96, 165, 250);
+}
+
+.saos-insight-grid,
+.saos-detail-lists {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.saos-insight-card {
+    padding: 0.85rem;
+}
+
+.saos-insight-card.is-empty p {
+    font-style: italic;
+}
+
+.saos-detail-lists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.saos-detail-lists > div {
+    padding: 0.95rem;
+}
+
+.saos-detail-lists ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--text-medium);
+    font-size: 0.83rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+    .saos-kpi-grid,
+    .saos-insight-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .saos-account-row,
+    .saos-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .saos-section-icons {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 720px) {
+    .saos-dashboard-shell {
+        padding: 1rem;
+    }
+
+    .saos-dashboard-hero,
+    .saos-table-toolbar,
+    .saos-detail-header,
+    .saos-table-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .saos-kpi-grid,
+    .saos-detail-section-grid,
+    .saos-insight-grid,
+    .saos-detail-lists {
+        grid-template-columns: 1fr;
+    }
+
+    .saos-table-filters .item-search-input {
+        min-width: 0;
+    }
+}

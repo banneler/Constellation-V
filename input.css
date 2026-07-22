@@ -9806,12 +9806,13 @@ body:not(.theme-green) .list-item.selected {
         .sequence-ai-form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-areas: "goal persona" "inline inline" "types types";
+            grid-template-areas: "goal persona" "inline inline" "guidance guidance" "types types";
         }
         .sequence-ai-two-col:first-child { grid-area: goal; }
         .sequence-ai-two-col:nth-child(2) { grid-area: persona; }
         .sequence-ai-inline-row { grid-area: inline; }
-        .sequence-ai-full-width { grid-area: types; }
+        .sequence-guidance-row { grid-area: guidance; }
+        .sequence-ai-types-row { grid-area: types; }
     }
     .sequence-ai-inline-row {
         @apply flex flex-wrap items-center gap-2;
@@ -9826,6 +9827,45 @@ body:not(.theme-green) .list-item.selected {
     .sequence-ai-inline-row input[type="number"]:focus {
         outline: none;
         border-color: var(--primary-blue);
+    }
+    .sequence-guidance-toggle {
+        @apply flex items-center gap-3 rounded-xl border p-3 cursor-pointer;
+        border-color: var(--border-color);
+        background-color: color-mix(in srgb, var(--bg-medium) 72%, var(--bg-light));
+    }
+    .sequence-guidance-toggle:hover {
+        border-color: color-mix(in srgb, var(--primary-blue) 40%, var(--border-color));
+    }
+    .sequence-guidance-input {
+        @apply sr-only;
+    }
+    .sequence-guidance-slider {
+        @apply relative inline-block w-11 h-6 rounded-full flex-shrink-0;
+        background-color: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        transition: background-color 0.2s, border-color 0.2s;
+    }
+    .sequence-guidance-slider::after {
+        content: '';
+        @apply absolute top-1/2 left-0.5 w-5 h-5 rounded-full -translate-y-1/2;
+        background-color: var(--text-medium);
+        transition: transform 0.2s, background-color 0.2s;
+    }
+    .sequence-guidance-input:checked + .sequence-guidance-slider {
+        background-color: color-mix(in srgb, var(--primary-blue) 35%, var(--bg-dark));
+        border-color: var(--primary-blue);
+    }
+    .sequence-guidance-input:checked + .sequence-guidance-slider::after {
+        transform: translateX(1.25rem) translateY(-50%);
+        background-color: white;
+    }
+    .sequence-guidance-toggle strong {
+        @apply block text-sm;
+        color: var(--text-light);
+    }
+    .sequence-guidance-toggle small {
+        @apply block text-xs leading-snug mt-0.5;
+        color: var(--text-medium);
     }
     .sequence-step-type-other-pill.sequence-step-type-pill {
         min-width: 5rem;

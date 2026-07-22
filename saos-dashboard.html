@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="description" content="Constellation CRM manager dashboard for Strategic Account Operating System plans.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constellation CRM - SAOS Dashboard</title>
+    <link rel="stylesheet" href="output.css">
+    <link rel="stylesheet" href="css/global-loader.css">
+    <link rel="stylesheet" href="css/saos-dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+</head>
+<body class="saos-dashboard-page">
+    <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
+        <div class="global-loader-content">
+            <div class="global-loader-spinner" aria-hidden="true">
+                <svg class="global-loader-svg global-loader-constellation" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="global-loader-constellation-line" pathLength="1" d="M24 8 L10 22 L18 38 L30 38 L38 22 L24 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle class="global-loader-star" cx="24" cy="8" r="2.2"/><circle class="global-loader-star" cx="10" cy="22" r="1.8"/><circle class="global-loader-star" cx="18" cy="38" r="2"/><circle class="global-loader-star" cx="30" cy="38" r="1.8"/><circle class="global-loader-star" cx="38" cy="22" r="2"/>
+                </svg>
+            </div>
+            <p class="global-loader-text">Loading…</p>
+        </div>
+    </div>
+    <div class="crm-container">
+        <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
+            <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
+        </nav>
+        <main class="content-area">
+            <section id="saos-dashboard" class="content-view active-view saos-dashboard-shell">
+                <div class="saos-dashboard-hero">
+                    <div>
+                        <p class="saos-dashboard-eyebrow">Manager View</p>
+                        <h1>Strategic Account OS</h1>
+                        <p class="saos-dashboard-subtitle">Inspect every team SAOS plan in one place, spot stale strategy, and drill into the account without leaving the dashboard.</p>
+                    </div>
+                    <div class="saos-dashboard-actions">
+                        <button type="button" id="saos-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                    </div>
+                </div>
+
+                <div id="saos-access-denied" class="section-card saos-access-denied hidden">
+                    <i class="fa-solid fa-lock"></i>
+                    <div>
+                        <h2 class="section-title">Manager access required</h2>
+                        <p>This dashboard uses the same manager flag as impersonation and is only available to managers.</p>
+                    </div>
+                </div>
+
+                <div id="saos-dashboard-content" class="saos-dashboard-content hidden">
+                    <div id="saos-kpi-grid" class="saos-kpi-grid" aria-label="SAOS summary metrics"></div>
+
+                    <div class="section-card saos-table-card">
+                        <div class="saos-table-toolbar">
+                            <div>
+                                <h2 class="section-title">Team SAOS Plans</h2>
+                                <p id="saos-table-caption" class="saos-muted">Loading strategic account plans…</p>
+                            </div>
+                            <div class="saos-table-filters">
+                                <input type="search" id="saos-search-input" class="item-search-input" placeholder="Search account or owner…">
+                                <select id="saos-owner-filter" class="saos-filter-select" aria-label="Filter by owner">
+                                    <option value="all">All owners</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="saos-account-list" class="saos-account-list" role="list"></div>
+                    </div>
+
+                    <div id="saos-detail-panel" class="section-card saos-detail-panel" aria-live="polite">
+                        <div class="saos-empty-detail">
+                            <i class="fa-solid fa-arrow-up-wide-short"></i>
+                            <h2>Select an account SAOS</h2>
+                            <p>Choose a plan above to open a fresh strategy container here with progress, section states, and the key account planning signals.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/saos-dashboard.js"></script>
+</body>
+</html>

@@ -5,8 +5,17 @@ const { getUserFromRequest } = require("../_lib/supabase");
 const FUNCTION_ID = "social-post-refine";
 
 const SYSTEM_PROMPT = `You are a professional LinkedIn content editor for Great Plains Communications.
-Apply the user's requested edits while preserving LinkedIn-optimized formatting and the core message.
-Return only JSON with key "suggestion".`;
+
+Apply the user's requested edits while preserving the strongest point of view, business relevance, and LinkedIn readability. Improve clarity, hook strength, flow, and specificity without turning the post into a generic marketing asset.
+
+Rules:
+- Honor the user edit request first.
+- Preserve the core message unless the user explicitly asks to change it.
+- Do not add unsupported claims or invent article details.
+- Keep LinkedIn-friendly whitespace.
+- Avoid hype, buzzword stuffing, and corporate filler.
+- If article context is provided, keep the post aligned to that source without merely summarizing it.
+- Return only JSON with key "suggestion".`;
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -14,7 +23,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const { user } = await getUserFromRequest(req);
-    const { originalText, customPrompt } = await readJsonBody(req);
+    const { originalText, customPrompt, article } = await readJsonBody(req);
     required(originalText, "Missing originalText.");
     required(customPrompt, "Missing customPrompt.");
 
@@ -22,6 +31,7 @@ module.exports = async function handler(req, res) {
       `Original draft:\n${originalText}`,
       "",
       `User edit request: ${customPrompt}`,
+      article ? `Source article/context:\n${JSON.stringify(article, null, 2)}` : "",
     ].join("\n");
 
     const { data, model } = await callScopedJson({

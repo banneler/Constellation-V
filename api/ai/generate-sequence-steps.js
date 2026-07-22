@@ -38,10 +38,22 @@ function generateDynamicExample(stepTypes) {
   return JSON.stringify({ steps: exampleSteps }, null, 2);
 }
 
-const SYSTEM_PROMPT = `You are an expert sales sequence strategist and content writer for Great Plains Communications.
-Generate outreach sequences that are practical for enterprise telecommunications sales.
-Use only the requested step types. Preserve placeholders: [FirstName], [LastName], [AccountName].
-Return only JSON with a single "steps" array.`;
+const SYSTEM_PROMPT = `You are an expert enterprise sales sequence strategist and copywriter for Great Plains Communications.
+
+Generate practical, multi-touch outreach sequences that create a coherent progression over time. The sequence should feel like a thoughtful campaign, not a stack of disconnected emails. Use reference sequences only to understand preferred cadence, channel mix, and level of detail; do not copy their wording.
+
+Rules:
+- Generate exactly the requested number of steps.
+- Use only the requested step types.
+- Preserve placeholders exactly: [FirstName], [LastName], [AccountName].
+- Each step should have a distinct job: open a relevant business issue, create curiosity, add proof/context, handle silence, or prompt a clear next action.
+- Do not repeat the same CTA or value proposition across steps.
+- Email subjects should be short, specific, and non-spammy.
+- Call and Task steps should describe the seller action or objective, not pretend to be customer-facing copy.
+- LinkedIn steps should be conversational and shorter than email steps.
+- Use product context strategically when provided, but do not stuff product language into every step.
+- Delay days should create a realistic cadence across the requested total duration.
+- Return only JSON with a single "steps" array.`;
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -50,7 +62,7 @@ module.exports = async function handler(req, res) {
   try {
     const { user } = await getUserFromRequest(req);
     const body = await readJsonBody(req);
-    const { sequenceGoal, numSteps, totalDuration, stepTypes, personaPrompt, product_names, industry } = body;
+    const { sequenceGoal, numSteps, totalDuration, stepTypes, personaPrompt, product_names, industry, referenceSequences, guidanceMode } = body;
     required(sequenceGoal, "Missing sequenceGoal.");
     required(numSteps, "Missing numSteps.");
     required(totalDuration, "Missing totalDuration.");
@@ -64,9 +76,22 @@ module.exports = async function handler(req, res) {
       `Approximate duration: ${totalDuration} days`,
       `Allowed step types only: ${stepTypes.join(", ")}`,
       `Persona and voice: ${personaPrompt}`,
+      `Mode: ${guidanceMode ? "Guidance Mode - write seller guidance, thought-provoking questions, talk tracks, and topics to cover instead of verbatim customer-facing scripts." : "Script Mode - write customer-ready copy for customer-facing steps and seller objectives for internal steps."}`,
       productContext ? `Product context:\n${productContext}` : "",
+      Array.isArray(referenceSequences) && referenceSequences.length > 0
+        ? `Reference sequences for cadence and structure only. Do not copy wording:\n${JSON.stringify(referenceSequences, null, 2)}`
+        : "",
       "Each step must include type, delay_days, subject, and message.",
       "For Call, Task, and LinkedIn steps, subject can be empty.",
+      "The sequence should build logically from first touch through final touch.",
+      guidanceMode ? [
+        "Guidance Mode instructions:",
+        "- The message field should coach the seller on what to cover, what question to ask, and why the touch matters.",
+        "- For Email steps, subject should be a suggested theme or short working subject, while message should be guidance bullets or a talk track, not a final email.",
+        "- For Call and Task steps, include prep notes, discovery angles, and thought-provoking questions.",
+        "- For LinkedIn steps, include the angle and conversational opener guidance rather than exact DM copy.",
+        "- Make guidance practical enough that a rep can personalize it quickly."
+      ].join("\n") : "",
       `Example JSON structure:\n${generateDynamicExample(stepTypes)}`,
     ].filter(Boolean).join("\n\n");
 

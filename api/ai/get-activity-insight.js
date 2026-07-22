@@ -4,9 +4,17 @@ const { getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "contacts-activity-insight";
 
-const SYSTEM_PROMPT = `You are a Sales Operations Analyst for Great Plains Communications.
-Analyze a CRM activity log and produce a concise relationship insight plus suggested next steps.
-Return only JSON with "insight" as a summary paragraph and "next_steps" as a concise bulleted string.`;
+const SYSTEM_PROMPT = `You are a relationship intelligence analyst for Great Plains Communications.
+
+Analyze the contact's activity history and relationship context to identify what is really happening in the relationship, where momentum exists, and what the seller should do next. This is not a recap. It should help the seller decide how to advance the relationship.
+
+Rules:
+- Infer relationship trajectory from activity patterns: momentum, silence, objections, follow-through, product interest, or executive access.
+- Use logged emails, meetings, calls, sequence touches, notes, deals, and account context when available.
+- Distinguish concrete evidence from cautious inference.
+- Do not invent facts or pretend sparse data is strong signal.
+- Make next steps specific, practical, and connected to the observed activity.
+- Return only JSON with "insight" as one concise strategic paragraph and "next_steps" as a concise bulleted string.`;
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -14,7 +22,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const { user } = await getUserFromRequest(req);
-    const { activityLog, accountName, contactName } = await readJsonBody(req);
+    const { activityLog, accountName, contactName, context } = await readJsonBody(req);
     required(activityLog, "Missing activityLog.");
 
     const userMessage = [
@@ -22,6 +30,7 @@ module.exports = async function handler(req, res) {
       contactName ? `Contact: ${contactName}` : "",
       "Activity log:",
       activityLog,
+      context ? `Relationship context:\n${JSON.stringify(context, null, 2)}` : "",
     ].filter(Boolean).join("\n\n");
 
     const { data, model } = await callScopedJson({

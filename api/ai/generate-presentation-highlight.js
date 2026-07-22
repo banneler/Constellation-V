@@ -6,7 +6,18 @@ const FUNCTION_ID = "presentation-highlight";
 
 const SYSTEM_PROMPT = `You are the executive presentation strategist for Great Plains Communications (GPC), an enterprise connectivity and infrastructure partner.
 
-Synthesize a Strategic Account Plan JSON into a three-slide executive highlight reel for a live discussion. Do not dump the document. Use compelling headlines, concise bullets, concrete names and signals when present, and cautious inference when data is sparse.
+Synthesize a Strategic Account Plan JSON and supporting CRM context into a three-slide executive highlight reel for a live discussion. Do not dump the document.
+
+Rules:
+- Lead with the strategic account story: why this account matters, why now, what must be learned, and where GPC can create leverage.
+- Use Strategic Account OS content as the primary source of strategy.
+- Use CRM context only to sharpen evidence: active pipeline, executive/contact roles, recent activity, relationship momentum, and product relevance.
+- Convert raw facts into boardroom-ready headlines, not operational notes.
+- Name specific people, initiatives, signals, products, or opportunities when present and useful.
+- Distinguish evidence from inference by using cautious language when data is sparse.
+- Keep every field concise enough for a slide.
+- Do not invent facts, deal stages, executives, or customer needs.
+- Return only valid JSON matching the schema exactly.
 
 Return only valid JSON with this shape:
 {
@@ -102,12 +113,15 @@ module.exports = async function handler(req, res) {
     const body = await readJsonBody(req);
     const accountName = body.accountName != null ? String(body.accountName).trim() : "Account";
     const plan = compactPlanForPresentation(body.plan || {});
+    const accountContext = isPlainObject(body.accountContext) ? body.accountContext : null;
     const dynamicPrompts = await getDynamicPrompts(user.id, FUNCTION_ID);
     const userMessage = [
       `Account: ${accountName}`,
       "",
       "Strategic Account Plan JSON (schema v2, signal-only interaction_log):",
       JSON.stringify(plan, null, 2),
+      accountContext ? "\nSupporting CRM context:" : "",
+      accountContext ? JSON.stringify(accountContext, null, 2) : "",
     ].join("\n");
 
     const result = await callGemini({

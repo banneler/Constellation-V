@@ -268,6 +268,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderAccountList();
     }
 
+    function buildEmailLogActivities(contacts, emailLog) {
+        const contactsByEmail = new Map();
+        contacts.forEach((contact) => {
+            const email = (contact.email || '').trim().toLowerCase();
+            if (!email) return;
+            if (!contactsByEmail.has(email)) contactsByEmail.set(email, []);
+            contactsByEmail.get(email).push(contact);
+        });
+
+        return emailLog.flatMap((email) => {
+            const recipients = contactsByEmail.get((email.recipient || '').trim().toLowerCase()) || [];
+            return recipients.map((contact) => ({
+                id: `email-log-${email.id}`,
+                contact_id: contact.id,
+                account_id: contact.account_id,
+                date: email.created_at,
+                type: 'Logged Email',
+                description: `Subject: ${email.subject || '(No Subject)'}`,
+                user_id: getState().effectiveUserId,
+                logged_to_sf: true,
+                source_table: 'email_log',
+                email_log_id: email.id
+            }));
+        });
+    }
+
     async function loadDetailsForSelectedAccount() {
         if (!state.selectedAccountId) return;
 
@@ -279,13 +305,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
 
-        const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes, planResult] = await Promise.all([
+        const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes, planResult, emailLogRes] = await Promise.all([
             supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("proposal_specs").select("id, name, updated_at").eq("account_id", state.selectedAccountId).order("updated_at", { ascending: false }),
-            fetchPlanForAccount(supabase, state.selectedAccountId, state.currentUser?.id)
+            fetchPlanForAccount(supabase, state.selectedAccountId, state.currentUser?.id),
+            supabase.from("email_log").select("*")
         ]);
 
         if (contactsRes.error) throw contactsRes.error;
@@ -293,6 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (activitiesRes.error) throw activitiesRes.error;
         if (tasksRes.error) throw tasksRes.error;
         if (proposalsRes.error) throw proposalsRes.error;
+        if (emailLogRes.error) throw emailLogRes.error;
 
         const contactIds = (contactsRes.data || []).map(c => c.id);
         const sequencesRes = contactIds.length > 0
@@ -302,9 +330,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (sequencesRes.error) throw sequencesRes.error;
 
         const contactsDetail = contactsRes.data || [];
+        const crmActivities = filterOutOwnershipOrphanedCrmRows(activitiesRes.data || [], state.accounts, contactsDetail);
+        const emailLogActivities = buildEmailLogActivities(contactsDetail, emailLogRes.data || []);
         state.selectedAccountDetails.contacts = contactsDetail;
         state.selectedAccountDetails.deals = filterOutOwnershipOrphanedCrmRows(dealsRes.data || [], state.accounts, contactsDetail);
-        state.selectedAccountDetails.activities = filterOutOwnershipOrphanedCrmRows(activitiesRes.data || [], state.accounts, contactsDetail);
+        state.selectedAccountDetails.activities = [...crmActivities, ...emailLogActivities];
         state.selectedAccountDetails.tasks = filterOutOwnershipOrphanedCrmRows(tasksRes.data || [], state.accounts, contactsDetail);
         state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
         state.selectedAccountDetails.proposals = proposalsRes.data || [];
@@ -910,8 +940,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 else if (typeLower.includes("linkedin")) { iconClass = "icon-linkedin"; icon = "fa-linkedin-in"; iconPrefix = "fa-brands"; }
                 const item = document.createElement("div");
                 item.className = "recent-activity-item";
-                const logSfBtnHtml = act.logged_to_sf ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
-                const promoteBtnHtml = `<button type="button" class="btn-promote-activity" data-activity-id="${act.id}" title="Promote to Strategic Interaction Log"><i class="fas fa-arrow-up-right-dots" aria-hidden="true"></i> Promote</button>`;
+                const logSfBtnHtml = (act.logged_to_sf || act.source_table === 'email_log') ? '' : `<button type="button" class="btn-log-sf" data-activity-id="${act.id}" title="Log to Salesforce"><i class="fa-brands fa-salesforce"></i> Log to SF</button>`;
+                const promoteBtnHtml = act.source_table === 'email_log' ? '' : `<button type="button" class="btn-promote-activity" data-activity-id="${act.id}" title="Promote to Strategic Interaction Log"><i class="fas fa-arrow-up-right-dots" aria-hidden="true"></i> Promote</button>`;
                 item.innerHTML = `
                     <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix || "fas"} ${icon}"></i></div>
                     <div class="activity-body">
@@ -2384,13 +2414,69 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
     }
 
+    function truncateForAI(value, maxLength = 1200) {
+        const text = value == null ? '' : String(value).trim();
+        return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}...`;
+    }
+
+    function compactSAOSPlanForBriefing(accountPlan) {
+        const sections = accountPlan?.plan?.current_draft?.sections;
+        if (!sections || typeof sections !== 'object') return null;
+
+        const compactValue = (value, depth = 0) => {
+            if (value == null || typeof value === 'number' || typeof value === 'boolean') return value;
+            if (typeof value === 'string') return truncateForAI(value, 900);
+            if (Array.isArray(value)) return value.slice(0, 8).map(item => compactValue(item, depth + 1));
+            if (typeof value === 'object') {
+                if (depth >= 3) return truncateForAI(JSON.stringify(value), 900);
+                return Object.fromEntries(
+                    Object.entries(value)
+                        .slice(0, 20)
+                        .map(([key, item]) => [key, compactValue(item, depth + 1)])
+                );
+            }
+            return String(value);
+        };
+
+        const pickSection = (key) => {
+            const value = sections[key];
+            if (value == null) return null;
+            return compactValue(value);
+        };
+
+        const interactionLog = Array.isArray(sections.interaction_log)
+            ? sections.interaction_log
+                .filter(entry => entry && typeof entry === 'object' && !['activity', 'crm'].includes(String(entry.source || '').toLowerCase()))
+                .slice(-8)
+                .map(entry => ({
+                    date: entry.date || entry.date_label || '',
+                    source: entry.source || '',
+                    text: truncateForAI(entry.text || entry.interaction || entry.key_insight || entry.note, 500),
+                    score: entry.score
+                }))
+            : [];
+
+        return {
+            updated_at: accountPlan.updated_at,
+            account_snapshot: pickSection('account_snapshot'),
+            pursuit_thesis: pickSection('pursuit_thesis'),
+            influence_mapping: pickSection('influence_mapping'),
+            critical_unknowns: pickSection('critical_unknowns'),
+            competitive_landscape: pickSection('competitive_landscape'),
+            white_space: pickSection('white_space'),
+            land_and_expand: pickSection('land_and_expand'),
+            plan_30_60_90: pickSection('plan_30_60_90'),
+            strategic_signals: interactionLog
+        };
+    }
+
     // --- AI Briefing Handler ---
     async function handleGenerateBriefing() {
         if (!state.selectedAccountId) {
             showModal("Error", "Please select an account to generate a briefing.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             return;
         }
-        const { account, contacts, activities, deals } = state.selectedAccountDetails;
+        const { account, contacts, activities, deals, proposals, contact_sequences } = state.selectedAccountDetails;
         if (!account) return;
 
         showModal("Generating AI Reconnaissance Report", `<div class="loader"></div><p class="placeholder-text" style="text-align: center;">Scanning internal records and external sources...</p>`, null, false, `<button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
@@ -2424,14 +2510,46 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const internalData = {
                 accountName: account.name,
-                contacts: contacts.map(c => ({ name: `${c.first_name || ''} ${c.last_name || ''}`.trim(), title: c.title })),
+                account: {
+                    name: account.name,
+                    tier: account.tier,
+                    industry: account.industry,
+                    city: account.city,
+                    state: account.state,
+                    website: account.website,
+                    sf_account_locator: account.sf_account_locator,
+                    zoominfo_company_id: account.zoominfo_company_id
+                },
+                contacts: contacts.map(c => ({
+                    name: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+                    title: c.title,
+                    email: c.email,
+                    phone: c.phone,
+                    reports_to: c.reports_to,
+                    role: c.role,
+                    department: c.department
+                })),
                 orgChart: orgChartText,
-                deals: deals.map(d => ({ name: d.name, stage: d.stage, mrc: d.mrc, close_month: d.close_month })),
-                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(act => {
+                deals: deals.map(d => ({
+                    name: d.name,
+                    stage: d.stage,
+                    mrc: d.mrc,
+                    close_month: d.close_month,
+                    products: d.products,
+                    is_committed: d.is_committed,
+                    notes: truncateForAI(d.notes, 900)
+                })),
+                activities: activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 12).map(act => {
                     const contact = contacts.find(c => c.id === act.contact_id);
                     const contactName = contact ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() : 'Account-Level';
-                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${act.description}`;
-                }).join('\n')
+                    return `[${formatDate(act.date)}] ${act.type} with ${contactName}: ${truncateForAI(act.description, 600)}`;
+                }).join('\n'),
+                proposals: (proposals || []).slice(0, 5).map(p => ({ name: p.name, updated_at: p.updated_at })),
+                contact_sequence_summary: {
+                    active_enrollments: (contact_sequences || []).filter(seq => String(seq.status || '').toLowerCase() !== 'completed').length,
+                    total_enrollments: (contact_sequences || []).length
+                },
+                strategic_account_plan: compactSAOSPlanForBriefing(state.accountPlan)
             };
 
             const requestBody = { internalData };
@@ -2830,10 +2948,39 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (agendaLoading) agendaLoading.classList.remove("hidden");
                 try {
                     const accountName = state.selectedAccountDetails.account?.name || "";
+                    const agendaContext = {
+                        account: {
+                            name: state.selectedAccountDetails.account?.name,
+                            tier: state.selectedAccountDetails.account?.tier,
+                            industry: state.selectedAccountDetails.account?.industry
+                        },
+                        contacts: (state.selectedAccountDetails.contacts || []).slice(0, 12).map(contact => ({
+                            name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+                            title: contact.title
+                        })),
+                        open_deals: (state.selectedAccountDetails.deals || []).slice(0, 8).map(deal => ({
+                            name: deal.name,
+                            stage: deal.stage,
+                            mrc: deal.mrc,
+                            close_month: deal.close_month,
+                            products: deal.products
+                        })),
+                        recent_activity: (state.selectedAccountDetails.activities || [])
+                            .slice()
+                            .sort((a, b) => new Date(b.date) - new Date(a.date))
+                            .slice(0, 8)
+                            .map(activity => ({
+                                date: activity.date,
+                                type: activity.type,
+                                description: truncateForAI(activity.description || activity.subject, 500)
+                            })),
+                        strategic_account_plan: compactSAOSPlanForBriefing(state.accountPlan)
+                    };
                     const data = await callAiApi(supabase, "generate-agenda", {
                         items,
                         prompt: agendaPrompt?.value?.trim() || "",
-                        accountName
+                        accountName,
+                        context: agendaContext
                     });
                     if (data?.agenda) {
                         agendaResult.value = data.agenda;
@@ -3400,6 +3547,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             await checkAndSetNotifications(supabase);
             setupPageEventListeners();
+
+            const shouldOpenStrategicFromUrl = urlParams.get('saos') === '1' || urlParams.get('mode') === 'strategic';
+            if (shouldOpenStrategicFromUrl && state.selectedAccountId && state.accountPlan) {
+                setAccountViewMode('strategic', { skipDirtyCheck: true });
+            }
 
         } catch (error) {
             console.error("Critical error during page initialization:", error);
