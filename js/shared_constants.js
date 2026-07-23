@@ -206,7 +206,7 @@ export async function initializeAppState(supabase) {
     // Fetch the current user's profile to check if they are a manager
     const { data: currentUserProfile, error: profileError } = await supabase
         .from('user_quotas')
-        .select('full_name, is_manager')
+        .select('full_name, is_manager, deactivated_at')
         .eq('user_id', user.id)
         .single();
 
@@ -231,6 +231,14 @@ export async function initializeAppState(supabase) {
         appState.effectiveUserFullName = 'User'; // Fallback name
     }
 
+    if (currentUserProfile?.deactivated_at) {
+        clearStoredEffectiveUser();
+        await supabase.auth.signOut();
+        window.location.href = "index.html";
+        appState.currentUser = null;
+        return appState;
+    }
+
 
     // Check if the user is a manager (user_quotas or user_metadata fallback - deals uses user_metadata)
     const isManagerFromQuotas = currentUserProfile?.is_manager === true;
@@ -241,18 +249,20 @@ export async function initializeAppState(supabase) {
         // If they are a manager, fetch all other users to populate the impersonation dropdown
         const { data: allUsers, error: allUsersError } = await supabase
             .from('user_quotas')
-            .select('user_id, full_name')
+            .select('user_id, full_name, deactivated_at')
             .neq('user_id', user.id); // Exclude the manager themselves from the list of managed users
 
         if (allUsersError) {
             console.error("Error fetching managed users:", allUsersError);
             appState.managedUsers = [];
         } else {
-            appState.managedUsers = allUsers.map(u => ({
-                id: u.user_id,
-                user_id: u.user_id,
-                full_name: u.full_name
-            }));
+            appState.managedUsers = allUsers
+                .filter(u => !u.deactivated_at)
+                .map(u => ({
+                    id: u.user_id,
+                    user_id: u.user_id,
+                    full_name: u.full_name
+                }));
         }
 
         const storedEffectiveUser = readStoredEffectiveUser();

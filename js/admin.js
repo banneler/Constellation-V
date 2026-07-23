@@ -171,13 +171,18 @@ function renderReassignmentTool() {
 
     if (!reassignmentSection || !fromUserSelect || !toUserSelect) return;
 
-    const userOptions = state.allUsers
+    const sourceUserOptions = state.allUsers
+        .sort((a, b) => (a.full_name || 'Z').localeCompare(b.full_name || 'Z'))
+        .map(user => `<option value="${user.user_id}">${user.full_name || user.email}</option>`)
+        .join('');
+    const targetUserOptions = state.allUsers
+        .filter(user => !isUserDeactivated(user))
         .sort((a, b) => (a.full_name || 'Z').localeCompare(b.full_name || 'Z'))
         .map(user => `<option value="${user.user_id}">${user.full_name || user.email}</option>`)
         .join('');
 
-    fromUserSelect.innerHTML = `<option value="">-- Select User --</option>${userOptions}`;
-    toUserSelect.innerHTML = `<option value="">-- Select User --</option>${userOptions}`;
+    fromUserSelect.innerHTML = `<option value="">-- Select User --</option>${sourceUserOptions}`;
+    toUserSelect.innerHTML = `<option value="">-- Select User --</option>${targetUserOptions}`;
 
     reassignmentSection.classList.remove('hidden');
     renderReassignmentAccountList();
@@ -423,6 +428,10 @@ function renderScriptLogsTable() {
     }).join('');
 }
 
+function isUserDeactivated(user) {
+    return Boolean(user?.deactivated_at);
+}
+
 function renderUserTable() {
     const tableBody = document.querySelector("#user-management-table tbody");
     if (!tableBody) return;
@@ -430,16 +439,26 @@ function renderUserTable() {
         .sort((a, b) => (a.full_name || "z").localeCompare(b.full_name || "z"))
         .map(user => {
             const isSelf = user.user_id === state.currentUser.id;
-            const deactivateBtn = isSelf ? '' : `<button class="btn-danger btn-sm deactivate-user-btn" data-user-id="${user.user_id}" data-user-name="${user.full_name}">Deactivate</button>`;
+            const isDeactivated = isUserDeactivated(user);
+            const statusLabel = isDeactivated ? `Deactivated${user.deactivated_at ? ` ${formatDate(user.deactivated_at)}` : ''}` : 'Active';
+            const statusClass = isDeactivated ? 'admin-user-status admin-user-status--inactive' : 'admin-user-status admin-user-status--active';
+            const statusBtn = isSelf ? '' : `
+                <button
+                    class="${isDeactivated ? 'btn-secondary' : 'btn-danger'} btn-sm user-status-btn"
+                    data-action="${isDeactivated ? 'reactivate' : 'deactivate'}"
+                    data-user-id="${user.user_id}"
+                    data-user-name="${escapeHtml(user.full_name || user.email || 'this user')}"
+                >${isDeactivated ? 'Reactivate' : 'Deactivate'}</button>`;
             return `
             <tr data-user-id="${user.user_id}">
                 <td><input type="text" class="form-control user-name-input" value="${user.full_name || ''}"></td>
                 <td>${user.email || 'N/A'}</td>
+                <td><span class="${statusClass}" title="${escapeHtml(user.deactivation_reason || '')}">${statusLabel}</span></td>
                 <td>${user.last_login ? formatDate(user.last_login) : 'Never'}</td>
                 <td><input type="number" class="form-control user-quota-input" value="${user.monthly_quota || 0}"></td>
                 <td><input type="checkbox" class="is-manager-checkbox" ${user.is_manager ? 'checked' : ''} ${isSelf ? 'disabled' : ''}></td>
                 <td><input type="checkbox" class="exclude-reporting-checkbox" ${user.exclude_from_reporting ? 'checked' : ''}></td>
-                <td class="action-buttons">${deactivateBtn}<button class="btn-primary btn-sm save-user-btn">Save</button></td>
+                <td class="action-buttons">${statusBtn}<button class="btn-primary btn-sm save-user-btn">Save</button></td>
             </tr>`;
         }).join('');
 }
@@ -487,7 +506,7 @@ function renderActivityLogTable() {
 function populateAnalyticsFilters() {
     const repFilter = document.getElementById('analytics-rep-filter');
     repFilter.innerHTML = '<option value="all">All Reps</option>';
-    state.allUsers.filter(u => !u.exclude_from_reporting).forEach(user => {
+    state.allUsers.filter(u => !u.exclude_from_reporting && !isUserDeactivated(u)).forEach(user => {
         repFilter.innerHTML += `<option value="${user.user_id}">${user.full_name}</option>`;
     });
 }
@@ -495,7 +514,7 @@ function populateAnalyticsFilters() {
 function renderAnalyticsDashboard() {
     const { userId, dateRange, chartView } = state.analyticsFilters;
     const { startDate, endDate } = getDateRange(dateRange);
-    const usersForAnalytics = state.allUsers.filter(u => !u.exclude_from_reporting);
+    const usersForAnalytics = state.allUsers.filter(u => !u.exclude_from_reporting && !isUserDeactivated(u));
     
     const filterDataByCreationDate = (data, dateField) => data.filter(item => {
         if (!item[dateField]) return false;
@@ -687,7 +706,76 @@ async function handleSaveUser(e) {
         loadUserData(); // Refresh the user list
     }
 }
-function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
+
+async function callUserActivationApi({ targetUserId, action, reason }) {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    const token = sessionData?.session?.access_token;
+    if (!token) throw new Error('Your session has expired. Please sign in again.');
+
+    const response = await fetch('/api/admin/users/deactivation', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ targetUserId, action, reason })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || `User status update failed with status ${response.status}.`);
+    return data;
+}
+
+function handleDeactivateUser(e) {
+    const button = e.target.closest('.user-status-btn');
+    if (!button) return;
+
+    const action = button.dataset.action === 'reactivate' ? 'reactivate' : 'deactivate';
+    const userId = button.dataset.userId;
+    const userName = button.dataset.userName || 'this user';
+    const isDeactivate = action === 'deactivate';
+
+    showModal(
+        isDeactivate ? 'Deactivate User' : 'Reactivate User',
+        isDeactivate
+            ? `
+                <p>Deactivate <strong>${escapeHtml(userName)}</strong>?</p>
+                <p class="placeholder-text">This prevents future login, removes manager access, excludes the user from reporting and pipeline selectors, and keeps existing CRM records for history.</p>
+                <label for="deactivation-reason">Optional reason</label>
+                <textarea id="deactivation-reason" class="form-control" rows="3" placeholder="Offboarding, territory change, duplicate user, etc."></textarea>
+            `
+            : `
+                <p>Reactivate <strong>${escapeHtml(userName)}</strong>?</p>
+                <p class="placeholder-text">This clears the CRM deactivation flag and removes the Supabase Auth login ban. Manager access is not automatically restored.</p>
+            `,
+        async (modalBody) => {
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            const reason = modalBody.querySelector('#deactivation-reason')?.value || '';
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = isDeactivate ? 'Deactivating...' : 'Reactivating...';
+            }
+            try {
+                await callUserActivationApi({ targetUserId: userId, action, reason });
+                alert(`${userName} ${isDeactivate ? 'deactivated' : 'reactivated'} successfully.`);
+                await loadUserData();
+            } catch (error) {
+                alert(`Failed to ${action} user: ${error.message}`);
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Confirm';
+                }
+                return false;
+            }
+            return true;
+        },
+        true,
+        null,
+        null,
+        { closeOnBackdropClick: false, closeOnEscape: false }
+    );
+}
 
 async function handleContentToggle(e) {
     const row = e.target.closest('tr');
@@ -754,7 +842,7 @@ function setupPageEventListeners() {
     document.getElementById('user-management-table')?.addEventListener('click', e => {
         e.preventDefault();
         if (e.target.matches('.save-user-btn')) handleSaveUser(e);
-        if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
+        if (e.target.matches('.user-status-btn')) handleDeactivateUser(e);
     });
 
     document.getElementById('reassign-btn')?.addEventListener('click', handleReassignment);
