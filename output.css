@@ -11769,9 +11769,11 @@ body.theme-green {
     text-align: center;
     min-width: 20rem;
   }
+  .deals-filters .deals-filter-group:has(.deals-close-month-filter) {
+    margin-left: 1rem;
+  }
   #deals-table tbody tr {
-    height: 4rem;
-    max-height: 4rem;
+    min-height: 4rem;
   }
   #deals-table tbody td {
     overflow: hidden;
@@ -11792,9 +11794,8 @@ body.theme-green {
   #deals-table tbody .deal-notes-cell-inner {
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    max-height: 4rem;
-    overflow-y: auto;
+    min-height: 4rem;
+    overflow: visible;
     padding: 0.5rem 0.75rem;
     line-height: 1.5;
     color: var(--text-medium);
