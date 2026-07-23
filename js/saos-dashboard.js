@@ -12,6 +12,7 @@ import {
     showGlobalLoader,
     showToast,
     formatSimpleDate,
+    setEffectiveUser,
 } from './shared_constants.js';
 import { normalizePlan } from './account-plan-data.js';
 import { PLAN_SECTIONS } from './account-plan-sections.js';
@@ -556,7 +557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span><i class="fa-solid fa-clock"></i> ${row.updatedAt ? escapeHtml(formatSimpleDate(row.updatedAt)) : 'Not started'}</span>
                     </div>
                 </div>
-                <a class="btn-primary saos-open-account-btn" href="${openUrl}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full SAOS</a>
+                <a class="btn-primary saos-open-account-btn" href="${openUrl}" data-owner-id="${escapeHtml(row.owner?.id || row.account.user_id || '')}" data-owner-name="${escapeHtml(row.owner?.name || 'Unassigned')}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full SAOS</a>
             </div>
             <div class="saos-detail-grid">
                 <div class="saos-detail-score-card">
@@ -678,6 +679,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const row = state.rows.find((item) => Number(item.account.id) === state.selectedAccountId);
             renderDetail(row);
             els.detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        els.detail.addEventListener('click', (event) => {
+            const openLink = event.target.closest('.saos-open-account-btn');
+            if (!openLink) return;
+            const ownerId = openLink.dataset.ownerId;
+            if (!ownerId) return;
+            setEffectiveUser(ownerId, openLink.dataset.ownerName || 'Selected Owner');
         });
     }
 
