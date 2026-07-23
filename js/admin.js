@@ -865,9 +865,9 @@ async function initializePage() {
     const appState = await initializeAppState(supabase);
     if (!appState.currentUser) { hideGlobalLoader(); window.location.href = "index.html"; return; }
     state.currentUser = appState.currentUser;
-    if (state.currentUser.user_metadata?.is_admin !== true) {
+    if (appState.isManager !== true && state.currentUser.user_metadata?.is_admin !== true) {
         hideGlobalLoader();
-        alert("Access Denied: You must be an admin to view this page.");
+        alert("Access Denied: You must be a manager or admin to view this page.");
         window.location.href = "command-center.html";
         return;
     }
