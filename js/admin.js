@@ -8,7 +8,12 @@ import {
     hideModal,
     loadSVGs,
     initializeAppState,
-    hideGlobalLoader
+    hideGlobalLoader,
+    injectGlobalNavigation,
+    setupUserMenuAndAuth,
+    setupGlobalSearch,
+    checkAndSetNotifications,
+    updateActiveNavLink
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -854,6 +859,7 @@ function setupPageEventListeners() {
 }
 
 async function initializePage() {
+    injectGlobalNavigation();
     setupModalListeners();
     await loadSVGs();
     const appState = await initializeAppState(supabase);
@@ -865,6 +871,10 @@ async function initializePage() {
         window.location.href = "command-center.html";
         return;
     }
+    await setupUserMenuAndAuth(supabase, appState);
+    await setupGlobalSearch(supabase, state.currentUser);
+    await checkAndSetNotifications(supabase);
+    updateActiveNavLink();
     setupPageEventListeners();
     handleNavigation();
     hideGlobalLoader();

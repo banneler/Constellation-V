@@ -7,12 +7,13 @@
     <title>Constellation CRM - Admin</title>
     <link rel="stylesheet" href="output.css">
     <link rel="stylesheet" href="css/global-loader.css">
+    <link rel="stylesheet" href="css/admin.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="admin-page">
     <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
         <div class="global-loader-content">
             <div class="global-loader-spinner" aria-hidden="true">
@@ -26,19 +27,28 @@
     </div>
     <div class="crm-container">
         <nav class="nav-sidebar">
-            <div data-svg-loader="assets/constellation-logo-full.svg" class="constellation-main-logo"></div>
-            <h2 class="text-xl font-bold text-center mb-4" style="color: var(--text-light);">ADMIN</h2>
-            <a href="#user-management" class="nav-button admin-nav active">User Management</a>
-            <a href="#content-management" class="nav-button admin-nav">Content Management</a>
-            <a href="#analytics" class="nav-button admin-nav">Analytics & Logs</a>
-            <a href="#script-logs" class="nav-button admin-nav">Script Logs</a>
-            <a href="#settings" class="nav-button admin-nav">System Settings</a>
-            <div class="nav-bottom-section">
-                 <a href="command-center.html" class="nav-button" style="text-align: center; font-size: 0.8rem;">Exit Admin Portal</a>
-            </div>
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
+            <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
         </nav>
         
         <main class="content-area">
+            <div class="admin-shell">
+                <header class="admin-page-header">
+                    <div>
+                        <p class="admin-eyebrow">Admin Portal</p>
+                        <h1>System Administration</h1>
+                        <p>Manage users, shared content, reporting signals, scripts, and system-level CRM settings.</p>
+                    </div>
+                    <a href="command-center.html" class="btn-secondary admin-exit-link"><i class="fa-solid fa-arrow-left"></i> Exit Admin</a>
+                </header>
+                <nav class="admin-tabs" aria-label="Admin sections">
+                    <a href="#user-management" class="admin-nav active">User Management</a>
+                    <a href="#content-management" class="admin-nav">Content Management</a>
+                    <a href="#analytics" class="admin-nav">Analytics & Logs</a>
+                    <a href="#script-logs" class="admin-nav">Script Logs</a>
+                    <a href="#settings" class="admin-nav">System Settings</a>
+                </nav>
+            </div>
             <div id="user-management-view" class="content-view active-view">
                 <div class="section-card">
                     <div class="section-card-header">
@@ -241,7 +251,7 @@
     // This script runs synchronously to apply the theme before the page renders
     (function() {
         const savedTheme = localStorage.getItem('crm-theme') || 'dark';
-        document.body.className = `theme-${savedTheme}`;
+        document.body.className = `admin-page theme-${savedTheme}`;
     })();
     </script>
 
