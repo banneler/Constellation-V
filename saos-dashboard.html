@@ -32,17 +32,6 @@
         </nav>
         <main class="content-area">
             <section id="saos-dashboard" class="content-view active-view saos-dashboard-shell">
-                <div class="saos-dashboard-hero">
-                    <div>
-                        <p class="saos-dashboard-eyebrow">Manager View</p>
-                        <h1>Strategic Account OS</h1>
-                        <p class="saos-dashboard-subtitle">Inspect every team SAOS plan in one place, spot stale strategy, and drill into the account without leaving the dashboard.</p>
-                    </div>
-                    <div class="saos-dashboard-actions">
-                        <button type="button" id="saos-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-                    </div>
-                </div>
-
                 <div id="saos-access-denied" class="section-card saos-access-denied hidden">
                     <i class="fa-solid fa-lock"></i>
                     <div>
@@ -52,9 +41,15 @@
                 </div>
 
                 <div id="saos-dashboard-content" class="saos-dashboard-content hidden">
-                    <div id="saos-kpi-grid" class="saos-kpi-grid" aria-label="SAOS summary metrics"></div>
-
                     <div class="section-card saos-table-card">
+                        <div class="saos-dashboard-card-heading">
+                            <div>
+                                <p class="saos-dashboard-eyebrow">Manager View</p>
+                                <h1>Strategic Account OS</h1>
+                            </div>
+                            <button type="button" id="saos-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                        </div>
+                        <div id="saos-kpi-grid" class="saos-kpi-grid" aria-label="SAOS summary metrics"></div>
                         <div class="saos-table-toolbar">
                             <div>
                                 <h2 class="section-title">Team SAOS Plans</h2>

@@ -296,6 +296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 create: false,
                 maxItems: 1,
                 placeholder,
+                controlInput: null,
                 searchField: [],
                 dropdownParent: 'body',
                 onDropdownOpen() {
@@ -417,6 +418,73 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).join('');
     }
 
+    function renderDetailListCard(title, items, emptyText, extraClass = '') {
+        const normalized = (items || []).map((item) => {
+            if (typeof item === 'string') return { label: '', text: item };
+            return item || {};
+        }).filter((item) => hasText(item.label) || hasText(item.text));
+        return `
+            <article class="saos-detail-readout-card ${extraClass} ${normalized.length ? '' : 'is-empty'}">
+                <h3>${escapeHtml(title)}</h3>
+                ${normalized.length ? `
+                    <ul>
+                        ${normalized.map((item) => `
+                            <li>
+                                ${item.label ? `<strong>${escapeHtml(item.label)}</strong>` : ''}
+                                <span>${escapeHtml(item.text)}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                ` : `<p class="saos-muted">${escapeHtml(emptyText)}</p>`}
+            </article>
+        `;
+    }
+
+    function pillItems(values, label) {
+        const items = nonEmptyArray(values);
+        if (!items.length) return [];
+        return [{ label, text: items.join(', ') }];
+    }
+
+    function buildBattlefieldItems(section = {}) {
+        return [
+            { label: 'Incumbents', text: section.incumbents },
+            { label: 'Positioning', text: section.narrative },
+            { label: 'Compound Relationships', text: section.compound_relationships },
+            { label: 'Difficult to Remove', text: section.difficult_to_remove },
+            ...pillItems(section.positioning_pills, 'Positioning Pills'),
+            ...pillItems(section.moat_pills, 'Moat Pills'),
+        ];
+    }
+
+    function buildPlanItems(section = {}) {
+        return [
+            { label: '30 Days', text: section.days_30 },
+            { label: '60 Days', text: section.days_60 },
+            { label: '90 Days', text: section.days_90 },
+            ...pillItems(section.client_commitments, 'Client Commitments'),
+        ];
+    }
+
+    function buildEntryPointItems(entries = []) {
+        return (Array.isArray(entries) ? entries : []).slice(0, 4).map((entry) => ({
+            label: entry.contact_name || entry.title || 'Entry Point',
+            text: [
+                entry.why_they_matter,
+                entry.operational_pain,
+                entry.conversation_wedge,
+                entry.next_move,
+            ].map((value) => truncate(value, 170)).filter(Boolean).join(' • '),
+        }));
+    }
+
+    function buildTimelineItems(entries = []) {
+        return (Array.isArray(entries) ? entries : []).slice(0, 5).map((entry) => ({
+            label: entry.date || entry.date_label || entry.source || 'Signal',
+            text: entry.text || entry.interaction || entry.key_insight || entry.note,
+        }));
+    }
+
     function renderDetail(row) {
         if (!row) {
             els.detail.innerHTML = `
@@ -432,8 +500,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sections = getSections(row.plan);
         const openUrl = `accounts.html?accountId=${encodeURIComponent(row.account.id)}&saos=1`;
         const importantSections = row.sectionStates.filter((item) => DASHBOARD_SECTION_IDS.includes(item.id));
-        const blindspots = nonEmptyArray(sections.critical_unknowns?.blindspots).slice(0, 3);
-        const whiteSpaceRows = Array.isArray(sections.white_space?.rows) ? sections.white_space.rows.filter((item) => hasText(item?.name) || hasText(item?.area) || hasText(item?.opportunity)).slice(0, 3) : [];
+        const pursuit = sections.pursuit_thesis || {};
+        const whiteSpace = sections.white_space || {};
+        const battlefield = sections.competitive_landscape || {};
+        const plan306090 = sections.plan_30_60_90 || {};
+        const blindspots = nonEmptyArray(sections.critical_unknowns?.blindspots).slice(0, 5).map((item) => ({ text: item }));
+        const whiteSpaceRows = Array.isArray(whiteSpace.rows)
+            ? whiteSpace.rows.filter((item) => hasText(item?.name) || hasText(item?.area) || hasText(item?.opportunity)).slice(0, 5)
+                .map((item) => ({
+                    label: item.name || item.area || 'Opportunity',
+                    text: [item.opportunity, item.confidence, item.owner].filter(Boolean).join(' • '),
+                }))
+            : [];
+        const whiteSpaceItems = [
+            { label: 'Initial Entry', text: whiteSpace.initial_entry },
+            { label: 'Trust Creation', text: whiteSpace.trust_creation },
+            { label: 'Expansion Path', text: whiteSpace.expansion_path },
+            ...whiteSpaceRows,
+        ];
 
         els.detail.innerHTML = `
             <div class="saos-detail-header">
@@ -469,18 +553,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="saos-insight-grid">
                 ${renderInsightCard('The Big Play', row.thesis, 'No pursuit thesis captured yet.', 'saos-insight-card--wide')}
                 ${renderInsightCard('Why Now', row.whyNow, 'No action-forcing event captured yet.', 'saos-insight-card--wide')}
-                ${renderInsightCard('Expansion Path', row.expansion, 'No expansion wedge captured yet.', 'saos-insight-card--wide')}
+                ${renderInsightCard('Executive Narrative', pursuit.executive_narrative || pursuit.why_account_matters || pursuit.timing, 'No executive narrative captured yet.', 'saos-insight-card--wide')}
                 ${renderInsightCard('Influence Coverage', `${row.mappedInfluence || 0} mapped contact${row.mappedInfluence === 1 ? '' : 's'}`, 'No influence map contacts yet.', 'saos-insight-card--third')}
             </div>
-            <div class="saos-detail-lists">
-                <div>
-                    <h3>Blindspots</h3>
-                    ${blindspots.length ? `<ul>${blindspots.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : '<p class="saos-muted">No blindspots logged.</p>'}
-                </div>
-                <div>
-                    <h3>White Space</h3>
-                    ${whiteSpaceRows.length ? `<ul>${whiteSpaceRows.map((rowItem) => `<li>${escapeHtml(rowItem.name || rowItem.area || rowItem.opportunity)}</li>`).join('')}</ul>` : '<p class="saos-muted">No expansion opportunities logged.</p>'}
-                </div>
+            <div class="saos-detail-lists saos-detail-lists--rich">
+                ${renderDetailListCard('The Battlefield', buildBattlefieldItems(battlefield), 'No competitive battlefield captured yet.')}
+                ${renderDetailListCard('Strategic Entry Points', buildEntryPointItems(sections.entry_points), 'No strategic entry points captured yet.')}
+                ${renderDetailListCard('30 / 60 / 90 Plan', buildPlanItems(plan306090), 'No execution plan captured yet.')}
+                ${renderDetailListCard('Relationship Timeline', buildTimelineItems(sections.interaction_log), 'No relationship timeline signals logged yet.')}
+                ${renderDetailListCard('Blindspots', blindspots, 'No blindspots logged.', 'saos-detail-readout-card--half')}
+                ${renderDetailListCard('White Space', whiteSpaceItems, 'No expansion opportunities logged.', 'saos-detail-readout-card--half')}
             </div>
         `;
     }
