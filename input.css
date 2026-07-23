@@ -8041,7 +8041,7 @@ body:not(.theme-green) #contact-activities-list li {
     }
     .cognito-nav-btn + .nav-notification-dot,
     .cognito-nav-link + .nav-notification-dot {
-        @apply absolute top-1/2 -translate-y-1/2 right-4 ml-0;
+        @apply absolute top-1/2 -translate-y-1/2 right-2 ml-0;
     }
 }
 

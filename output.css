@@ -13261,7 +13261,7 @@ body.theme-green {
   .cognito-nav-btn + .nav-notification-dot, .cognito-nav-link + .nav-notification-dot {
     position: absolute;
     top: calc(1 / 2 * 100%);
-    right: calc(var(--spacing) * 4);
+    right: calc(var(--spacing) * 2);
     margin-left: calc(var(--spacing) * 0);
     --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
     translate: var(--tw-translate-x) var(--tw-translate-y);
