@@ -1233,6 +1233,9 @@
   .text-\[var\(--text-primary\)\] {
     color: var(--text-primary);
   }
+  .text-amber-600 {
+    color: var(--color-amber-600);
+  }
   .text-black {
     color: var(--color-black);
   }
@@ -15598,7 +15601,7 @@ body:not(.theme-green) .list-item.selected {
     .sequence-ai-form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      grid-template-areas: "goal persona" "inline inline" "types types";
+      grid-template-areas: "goal persona" "inline inline" "guidance guidance" "types types";
     }
     .sequence-ai-two-col:first-child {
       grid-area: goal;
@@ -15609,7 +15612,10 @@ body:not(.theme-green) .list-item.selected {
     .sequence-ai-inline-row {
       grid-area: inline;
     }
-    .sequence-ai-full-width {
+    .sequence-guidance-row {
+      grid-area: guidance;
+    }
+    .sequence-ai-types-row {
       grid-area: types;
     }
   }
@@ -15642,6 +15648,88 @@ body:not(.theme-green) .list-item.selected {
   .sequence-ai-inline-row input[type="number"]:focus {
     outline: none;
     border-color: var(--primary-blue);
+  }
+  .sequence-guidance-toggle {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+    border-radius: var(--radius-xl);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    padding: calc(var(--spacing) * 3);
+    border-color: var(--border-color);
+    background-color: var(--bg-medium);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--bg-medium) 72%, var(--bg-light));
+    }
+  }
+  .sequence-guidance-toggle:hover {
+    border-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in srgb, var(--primary-blue) 40%, var(--border-color));
+    }
+  }
+  .sequence-guidance-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .sequence-guidance-slider {
+    position: relative;
+    display: inline-block;
+    height: calc(var(--spacing) * 6);
+    width: calc(var(--spacing) * 11);
+    flex-shrink: 0;
+    border-radius: calc(infinity * 1px);
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s, border-color 0.2s;
+  }
+  .sequence-guidance-slider::after {
+    content: '';
+    position: absolute;
+    top: calc(1 / 2 * 100%);
+    left: calc(var(--spacing) * 0.5);
+    height: calc(var(--spacing) * 5);
+    width: calc(var(--spacing) * 5);
+    --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+    border-radius: calc(infinity * 1px);
+    background-color: var(--text-medium);
+    transition: transform 0.2s, background-color 0.2s;
+  }
+  .sequence-guidance-input:checked + .sequence-guidance-slider {
+    background-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--primary-blue) 35%, var(--bg-dark));
+    }
+    border-color: var(--primary-blue);
+  }
+  .sequence-guidance-input:checked + .sequence-guidance-slider::after {
+    transform: translateX(1.25rem) translateY(-50%);
+    background-color: white;
+  }
+  .sequence-guidance-toggle strong {
+    display: block;
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    color: var(--text-light);
+  }
+  .sequence-guidance-toggle small {
+    margin-top: calc(var(--spacing) * 0.5);
+    display: block;
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-leading: var(--leading-snug);
+    line-height: var(--leading-snug);
+    color: var(--text-medium);
   }
   .sequence-step-type-other-pill.sequence-step-type-pill {
     min-width: 5rem;
