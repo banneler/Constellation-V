@@ -462,6 +462,24 @@
     grid-column: span 3;
 }
 
+.saos-influence-card {
+    grid-column: span 12;
+    min-height: auto;
+}
+
+.saos-influence-card ul {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.saos-influence-card li {
+    padding: 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+    border-radius: 0.7rem;
+    background: color-mix(in srgb, var(--bg-dark) 45%, transparent);
+}
+
 .saos-insight-card.is-empty p {
     font-style: italic;
 }
@@ -520,9 +538,14 @@
     .saos-insight-card,
     .saos-insight-card--wide,
     .saos-insight-card--third,
+    .saos-influence-card,
     .saos-detail-readout-card,
     .saos-detail-readout-card--half {
         grid-column: auto;
+    }
+
+    .saos-influence-card ul {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .saos-account-row,
@@ -567,6 +590,10 @@
     .saos-insight-card--wide,
     .saos-insight-card--third {
         grid-column: auto;
+    }
+
+    .saos-influence-card ul {
+        grid-template-columns: 1fr;
     }
 
     .saos-table-filters .item-search-input {
