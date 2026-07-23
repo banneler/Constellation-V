@@ -501,7 +501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     contact.relationship_temperature ? `Temp: ${contact.relationship_temperature}` : '',
                     contact.personality_style,
                     contact.notes || contact.relationship_notes || contact.hook,
-                ].map((value) => truncate(value, 90)).filter(Boolean);
+                ].map((value) => truncate(value, 180)).filter(Boolean);
                 return {
                     label: `${label}: ${name}`,
                     text: details.join(' • ') || 'No additional influence details captured.',

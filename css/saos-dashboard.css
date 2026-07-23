@@ -474,7 +474,8 @@
 }
 
 .saos-influence-card li {
-    padding: 0.7rem;
+    min-height: 7.25rem;
+    padding: 0.85rem;
     border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
     border-radius: 0.7rem;
     background: color-mix(in srgb, var(--bg-dark) 45%, transparent);
