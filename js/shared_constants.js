@@ -249,7 +249,7 @@ export async function initializeAppState(supabase) {
         // If they are a manager, fetch all other users to populate the impersonation dropdown
         const { data: allUsers, error: allUsersError } = await supabase
             .from('user_quotas')
-            .select('user_id, full_name, deactivated_at')
+            .select('user_id, full_name, deactivated_at, exclude_from_reporting')
             .neq('user_id', user.id); // Exclude the manager themselves from the list of managed users
 
         if (allUsersError) {
@@ -257,7 +257,7 @@ export async function initializeAppState(supabase) {
             appState.managedUsers = [];
         } else {
             appState.managedUsers = allUsers
-                .filter(u => !u.deactivated_at)
+                .filter(u => !u.deactivated_at && !u.exclude_from_reporting)
                 .map(u => ({
                     id: u.user_id,
                     user_id: u.user_id,
