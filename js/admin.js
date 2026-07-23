@@ -829,9 +829,14 @@ function setupPageEventListeners() {
     window.addEventListener('hashchange', handleNavigation);
     
     document.getElementById('user-management-table')?.addEventListener('click', e => {
-        e.preventDefault();
-        if (e.target.matches('.save-user-btn')) handleSaveUser(e);
-        if (e.target.matches('.user-status-btn')) handleDeactivateUser(e);
+        if (e.target.matches('.save-user-btn')) {
+            e.preventDefault();
+            handleSaveUser(e);
+        }
+        if (e.target.matches('.user-status-btn')) {
+            e.preventDefault();
+            handleDeactivateUser(e);
+        }
     });
 
     document.getElementById('reassign-btn')?.addEventListener('click', handleReassignment);
