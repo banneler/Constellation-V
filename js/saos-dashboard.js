@@ -22,7 +22,9 @@ const SECTION_ICON_MAP = Object.freeze({
     influence_mapping: 'fa-people-arrows',
     white_space: 'fa-chart-line',
     competitive_landscape: 'fa-chess-knight',
+    entry_points: 'fa-door-open',
     plan_30_60_90: 'fa-calendar-check',
+    momentum_timeline: 'fa-timeline',
 });
 
 const DASHBOARD_SECTION_IDS = Object.freeze([
@@ -31,7 +33,9 @@ const DASHBOARD_SECTION_IDS = Object.freeze([
     'influence_mapping',
     'white_space',
     'competitive_landscape',
+    'entry_points',
     'plan_30_60_90',
+    'momentum_timeline',
 ]);
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -58,6 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedAccountId: null,
         totalTeamAccounts: 0,
     };
+
+    let ownerTomSelect = null;
+    let sortTomSelect = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -277,6 +284,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         els.ownerFilter.value = state.ownerOptions.some((owner) => owner.id === currentValue) ? currentValue : 'all';
     }
 
+    function initDashboardTomSelect(selectEl, existingInstance, placeholder) {
+        if (!(selectEl instanceof HTMLSelectElement) || typeof window.TomSelect !== 'function') {
+            return null;
+        }
+        if (existingInstance && typeof existingInstance.destroy === 'function') {
+            try { existingInstance.destroy(); } catch (_) {}
+        }
+        try {
+            return new window.TomSelect(selectEl, {
+                create: false,
+                maxItems: 1,
+                placeholder,
+                searchField: [],
+                dropdownParent: 'body',
+                onDropdownOpen() {
+                    const d = this.dropdown;
+                    if (d) d.className = 'ts-dropdown tom-select-no-search';
+                },
+                onChange: () => applyFilters(),
+                render: {
+                    dropdown: () => {
+                        const d = document.createElement('div');
+                        d.className = 'ts-dropdown tom-select-no-search';
+                        return d;
+                    },
+                },
+            });
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function initFilterControls() {
+        sortTomSelect = initDashboardTomSelect(els.sort, sortTomSelect, 'Sort');
+        ownerTomSelect = initDashboardTomSelect(els.ownerFilter, ownerTomSelect, 'Owner');
+    }
+
     function renderSectionIcons(row) {
         return DASHBOARD_SECTION_IDS.map((id) => {
             const section = row.sectionStates.find((item) => item.id === id);
@@ -423,10 +467,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             </div>
             <div class="saos-insight-grid">
-                ${renderInsightCard('The Big Play', row.thesis, 'No pursuit thesis captured yet.')}
-                ${renderInsightCard('Why Now', row.whyNow, 'No action-forcing event captured yet.')}
-                ${renderInsightCard('Expansion Path', row.expansion, 'No expansion wedge captured yet.')}
-                ${renderInsightCard('Influence Coverage', `${row.mappedInfluence || 0} mapped contact${row.mappedInfluence === 1 ? '' : 's'}`, 'No influence map contacts yet.')}
+                ${renderInsightCard('The Big Play', row.thesis, 'No pursuit thesis captured yet.', 'saos-insight-card--wide')}
+                ${renderInsightCard('Why Now', row.whyNow, 'No action-forcing event captured yet.', 'saos-insight-card--wide')}
+                ${renderInsightCard('Expansion Path', row.expansion, 'No expansion wedge captured yet.', 'saos-insight-card--wide')}
+                ${renderInsightCard('Influence Coverage', `${row.mappedInfluence || 0} mapped contact${row.mappedInfluence === 1 ? '' : 's'}`, 'No influence map contacts yet.', 'saos-insight-card--third')}
             </div>
             <div class="saos-detail-lists">
                 <div>
@@ -441,10 +485,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
     }
 
-    function renderInsightCard(title, value, emptyText) {
+    function renderInsightCard(title, value, emptyText, extraClass = '') {
         const text = truncate(value);
         return `
-            <article class="saos-insight-card ${text ? '' : 'is-empty'}">
+            <article class="saos-insight-card ${extraClass} ${text ? '' : 'is-empty'}">
                 <h3>${escapeHtml(title)}</h3>
                 <p>${escapeHtml(text || emptyText)}</p>
             </article>
@@ -493,6 +537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             )).filter(hasMeaningfulSaos);
 
             renderOwnerFilter();
+            initFilterControls();
             renderKpis();
             renderList();
             if (state.selectedAccountId) {
