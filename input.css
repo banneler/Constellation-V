@@ -3389,6 +3389,15 @@ body.theme-green {
         background-color: color-mix(in srgb, var(--bg-medium) 35%, transparent);
         padding: 0.625rem 0.75rem;
     }
+    .momentum-timeline-card[data-momentum-milestone-edit] {
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    }
+    .momentum-timeline-card[data-momentum-milestone-edit]:hover {
+        border-color: var(--primary-blue);
+        box-shadow: 0 6px 18px color-mix(in srgb, var(--primary-blue) 18%, transparent);
+        transform: translateY(-1px);
+    }
     .momentum-timeline-card-head {
         display: flex;
         flex-wrap: wrap;
@@ -3413,6 +3422,16 @@ body.theme-green {
         @apply text-xs m-0;
         line-height: 1.45;
         color: var(--text-medium);
+    }
+    .momentum-date-field label,
+    .milestone-edit-modal label {
+        @apply text-sm font-medium;
+        color: var(--text-light);
+    }
+    .milestone-edit-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
     }
     @media (max-width: 768px) {
         .momentum-timeline-trunk {

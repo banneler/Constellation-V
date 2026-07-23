@@ -50,6 +50,7 @@ import {
 } from './account-plan-export.js';
 import { fetchPresentationHighlight } from './account-plan-presentation-ai.js';
 import { generateExecPresentationPptx } from './account-plan-presentation-pptx.js';
+import { showModal } from './shared_constants.js';
 
 const STORAGE_KEY = 'accounts_view_mode';
 const MOMENTUM_LABELS = Object.freeze(['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion']);
@@ -2974,7 +2975,7 @@ function collectMomentumTimelineItems() {
     /** @type {MomentumTimelineItem[]} */
     const items = [];
 
-    log.forEach((entry) => {
+    log.forEach((entry, logIndex) => {
         if (!isPlainObject(entry)) return;
         const date = new Date(String(entry.date ?? ''));
         if (Number.isNaN(date.getTime())) return;
@@ -2987,6 +2988,7 @@ function collectMomentumTimelineItems() {
             label: interactionLogSourceLabel(source),
             desc: summary,
             momentumScore: entry.momentum_score != null ? clampScale(entry.momentum_score, 3) : null,
+            logIndex,
         });
     });
 
@@ -3024,10 +3026,14 @@ function buildMomentumTimelineDisplayHtml() {
                 : 'timeline-item-signal';
         const dateLabel = formatCommittedDate(item.date.toISOString());
 
+        const editableAttrs = item.type === 'signal' && Number.isInteger(item.logIndex)
+            ? ` data-momentum-milestone-edit="${item.logIndex}" tabindex="0" role="button" title="Edit milestone"`
+            : '';
+
         return `
             <div class="momentum-timeline-item ${sideClass} ${typeClass}">
                 <div class="momentum-timeline-node" aria-hidden="true"></div>
-                <article class="momentum-timeline-card">
+                <article class="momentum-timeline-card"${editableAttrs}>
                     <div class="momentum-timeline-card-head">
                         <span class="momentum-timeline-card-label">${escapeHtml(item.label)}</span>
                         ${item.momentumScore != null ? `<span class="momentum-timeline-card-score">${item.momentumScore} — ${escapeHtml(MOMENTUM_LABELS[item.momentumScore - 1])}</span>` : ''}
@@ -3050,6 +3056,15 @@ function buildMomentumTimelineHtml() {
     return `
         <div class="momentum-timeline-body">
             <div class="momentum-timeline-log">
+                <div class="momentum-field momentum-date-field">
+                    <label for="momentum-milestone-date">Milestone date</label>
+                    <input
+                        type="date"
+                        id="momentum-milestone-date"
+                        class="strategic-field momentum-milestone-date-input"
+                        value="${escapeHtml(getTodayDateInputValue())}"
+                    />
+                </div>
                 <textarea
                     id="momentum-signal-input"
                     class="strategic-field strategic-textarea momentum-signal-input"
@@ -3397,15 +3412,102 @@ function appendInteractionLogEntry(entry) {
     _liveSections.interaction_log = log;
 }
 
+function getTodayDateInputValue() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function dateInputValueToIso(value) {
+    const cleaned = String(value || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return new Date().toISOString();
+    return new Date(`${cleaned}T12:00:00`).toISOString();
+}
+
+function isoToDateInputValue(iso) {
+    const date = new Date(String(iso || ''));
+    if (Number.isNaN(date.getTime())) return getTodayDateInputValue();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function buildMomentumScoreOptions(selectedScore) {
+    return MOMENTUM_LABELS.map((label, index) => {
+        const value = index + 1;
+        const selected = selectedScore === value ? ' selected' : '';
+        return `<option value="${value}"${selected}>${value} — ${escapeHtml(label)}</option>`;
+    }).join('');
+}
+
+function openEditStrategicMilestone(logIndex) {
+    if (!_liveSections) return;
+    const log = Array.isArray(_liveSections.interaction_log) ? [..._liveSections.interaction_log] : [];
+    const entry = log[logIndex];
+    if (!isPlainObject(entry) || String(entry.source ?? 'signal') !== 'signal') return;
+
+    const text = String(entry.text ?? entry.interaction ?? '').trim();
+    const score = entry.momentum_score != null ? clampScale(entry.momentum_score, 3) : 3;
+    const dateValue = isoToDateInputValue(entry.date);
+
+    showModal(
+        'Edit Strategic Milestone',
+        `
+            <div class="milestone-edit-modal">
+                <label for="milestone-edit-date">Milestone date</label>
+                <input type="date" id="milestone-edit-date" class="strategic-field" value="${escapeHtml(dateValue)}">
+
+                <label for="milestone-edit-score">Momentum score</label>
+                <select id="milestone-edit-score" class="strategic-field">
+                    ${buildMomentumScoreOptions(score)}
+                </select>
+
+                <label for="milestone-edit-text">Milestone</label>
+                <textarea id="milestone-edit-text" class="strategic-field strategic-textarea" rows="5">${escapeHtml(text)}</textarea>
+            </div>
+        `,
+        (modalBody) => {
+            const dateInput = modalBody.querySelector('#milestone-edit-date');
+            const scoreInput = modalBody.querySelector('#milestone-edit-score');
+            const textInput = modalBody.querySelector('#milestone-edit-text');
+            if (!(dateInput instanceof HTMLInputElement) || !(scoreInput instanceof HTMLSelectElement) || !(textInput instanceof HTMLTextAreaElement)) return false;
+
+            const nextText = textInput.value.trim();
+            if (!nextText) {
+                _options.onToast?.('Milestone text is required.', 'error');
+                return false;
+            }
+
+            log[logIndex] = {
+                ...entry,
+                source: 'signal',
+                date: dateInputValueToIso(dateInput.value),
+                text: nextText,
+                momentum_score: clampScale(scoreInput.value, 3),
+            };
+            _liveSections.interaction_log = log;
+            refreshMomentumTimelineSection();
+            refreshInteractionLogSection();
+            updateRailSummaries(_liveSections);
+            queueAutosave();
+            _options.onToast?.('Strategic milestone updated.', 'success');
+            return true;
+        },
+        true,
+        '<button id="modal-confirm-btn" class="btn-primary">Update Milestone</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>'
+    );
+}
+
 function logStrategicMilestone() {
     if (!_liveSections) return;
 
     const textarea = document.getElementById('momentum-signal-input');
     const scoreInput = document.getElementById('momentum-milestone-score');
+    const dateInput = document.getElementById('momentum-milestone-date');
     if (!(textarea instanceof HTMLTextAreaElement) || !(scoreInput instanceof HTMLInputElement)) return;
 
     const text = textarea.value.trim();
     const score = clampScale(scoreInput.value, 3);
+    const dateIso = dateInput instanceof HTMLInputElement
+        ? dateInputValueToIso(dateInput.value)
+        : new Date().toISOString();
     if (!text) {
         _options.onToast?.('Describe the strategic milestone before logging.', 'error');
         return;
@@ -3414,12 +3516,13 @@ function logStrategicMilestone() {
     appendInteractionLogEntry({
         ...createEmptyInteractionLogEntry(),
         source: 'signal',
-        date: new Date().toISOString(),
+        date: dateIso,
         text,
         momentum_score: score,
     });
 
     textarea.value = '';
+    if (dateInput instanceof HTMLInputElement) dateInput.value = getTodayDateInputValue();
     scoreInput.value = '3';
     scoreInput.setAttribute('aria-valuenow', '3');
     const wrap = scoreInput.closest('.momentum-slider-wrap');
@@ -4590,6 +4693,13 @@ function bindCanvasFormEvents(canvas) {
         if (target.closest('[data-momentum-milestone-log]')) {
             event.preventDefault();
             logStrategicMilestone();
+            return;
+        }
+
+        const milestoneEdit = target.closest('[data-momentum-milestone-edit]');
+        if (milestoneEdit instanceof HTMLElement) {
+            event.preventDefault();
+            openEditStrategicMilestone(Number(milestoneEdit.dataset.momentumMilestoneEdit));
             return;
         }
 
