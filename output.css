@@ -2201,7 +2201,7 @@ body.theme-green {
     min-width: calc(var(--spacing) * 0);
     flex-shrink: 0;
     overflow: hidden;
-    padding-inline: calc(var(--spacing) * 2);
+    padding-inline: calc(var(--spacing) * 1);
     padding-block: calc(var(--spacing) * 2);
     border-top: 1px solid var(--border-color);
   }
@@ -2215,7 +2215,7 @@ body.theme-green {
     gap: calc(var(--spacing) * 1.5);
     border-radius: var(--radius-xl);
     text-decoration-line: none;
-    padding: 0.375rem 0.5rem;
+    padding: 0.375rem 1.75rem 0.375rem 0.5rem;
     background-color: var(--bg-dark);
     border: 1px solid var(--border-color);
     color: var(--text-medium);
@@ -13261,7 +13261,7 @@ body.theme-green {
   .cognito-nav-btn + .nav-notification-dot, .cognito-nav-link + .nav-notification-dot {
     position: absolute;
     top: calc(1 / 2 * 100%);
-    right: calc(var(--spacing) * 2);
+    right: calc(var(--spacing) * 3);
     margin-left: calc(var(--spacing) * 0);
     --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
     translate: var(--tw-translate-x) var(--tw-translate-y);
@@ -14096,7 +14096,7 @@ body.theme-green ::-webkit-scrollbar-track {
   justify-content: center !important;
 }
 .nav-sidebar a.cognito-nav-btn {
-  padding: 0.375rem 0.5rem !important;
+  padding: 0.375rem 1.75rem 0.375rem 0.5rem !important;
   margin: 0.25rem 0 !important;
   background-color: var(--bg-dark) !important;
   border: 1px solid var(--border-color) !important;
