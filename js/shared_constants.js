@@ -57,6 +57,38 @@ const appState = {
     managedUsers: []            // Array of users the manager can view as
 };
 
+const EFFECTIVE_USER_STORAGE_KEY = 'crm-effective-user';
+
+function readStoredEffectiveUser() {
+    try {
+        const raw = localStorage.getItem(EFFECTIVE_USER_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.id) return null;
+        return {
+            id: String(parsed.id),
+            fullName: parsed.fullName ? String(parsed.fullName) : ''
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+function writeStoredEffectiveUser(userId, fullName) {
+    try {
+        localStorage.setItem(EFFECTIVE_USER_STORAGE_KEY, JSON.stringify({
+            id: String(userId || ''),
+            fullName: String(fullName || '')
+        }));
+    } catch (_) {}
+}
+
+function clearStoredEffectiveUser() {
+    try {
+        localStorage.removeItem(EFFECTIVE_USER_STORAGE_KEY);
+    } catch (_) {}
+}
+
 function updateManagerOnlyNavigation() {
     const shouldShow = appState.isManager === true;
     document.querySelectorAll('[data-manager-only-nav="true"]').forEach((el) => {
@@ -145,6 +177,9 @@ export function filterOutOwnershipOrphanedCrmRows(rows, accounts, contacts) {
 export function setEffectiveUser(userId, fullName) {
     appState.effectiveUserId = userId;
     appState.effectiveUserFullName = fullName;
+    if (appState.isManager) {
+        writeStoredEffectiveUser(userId, fullName);
+    }
     console.log(`Viewing as: ${fullName} (${userId})`);
     
     // This is the key part for triggering a UI refresh.
@@ -160,6 +195,7 @@ export function setEffectiveUser(userId, fullName) {
 export async function initializeAppState(supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+        clearStoredEffectiveUser();
         window.location.href = "index.html";
         return; // Return early if no user
     }
@@ -179,6 +215,8 @@ export async function initializeAppState(supabase) {
         // Handle error case, maybe by setting default non-manager state
         appState.isManager = false;
         appState.effectiveUserFullName = 'User';
+        appState.managedUsers = [];
+        clearStoredEffectiveUser();
         return appState;
     }
     
@@ -216,9 +254,28 @@ export async function initializeAppState(supabase) {
                 full_name: u.full_name
             }));
         }
+
+        const storedEffectiveUser = readStoredEffectiveUser();
+        if (storedEffectiveUser?.id) {
+            const managerView = {
+                id: user.id,
+                user_id: user.id,
+                full_name: appState.effectiveUserFullName || user.user_metadata?.full_name || 'Me'
+            };
+            const viewableUsers = [managerView, ...appState.managedUsers];
+            const matchedUser = viewableUsers.find((candidate) => String(candidate.id || candidate.user_id) === storedEffectiveUser.id);
+            if (matchedUser) {
+                appState.effectiveUserId = matchedUser.id || matchedUser.user_id;
+                appState.effectiveUserFullName = matchedUser.full_name || storedEffectiveUser.fullName || appState.effectiveUserFullName;
+                writeStoredEffectiveUser(appState.effectiveUserId, appState.effectiveUserFullName);
+            } else {
+                clearStoredEffectiveUser();
+            }
+        }
     } else {
         appState.isManager = false;
         appState.managedUsers = [];
+        clearStoredEffectiveUser();
     }
 
     updateManagerOnlyNavigation();
@@ -866,6 +923,7 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
         logoutBtn.addEventListener("click", async () => {
             sessionStorage.removeItem('crm-briefing-generated');
             sessionStorage.removeItem('crm-briefing-html');
+            clearStoredEffectiveUser();
             await supabase.auth.signOut();
             window.location.href = "index.html";
         });
