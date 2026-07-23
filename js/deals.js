@@ -2073,12 +2073,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const field = cell.dataset.field;
             const value = cell.textContent.trim();
             if (dealId && field) saveDealField(dealId, field, value);
+            if (field === 'notes') {
+                const row = cell.closest('tr');
+                setTimeout(() => row?.classList.remove('deal-row-notes-expanded'), 0);
+            }
         }, true);
         dealsTableBody.addEventListener("click", (e) => {
             const selectCell = e.target.closest(".deal-cell-select");
             const numCell = e.target.closest(".deal-cell-number");
             const monthCell = e.target.closest(".deal-cell-month");
+            const notesCell = e.target.closest(".deal-notes-cell-inner");
             const productPill = e.target.closest(".product-pill-toggle");
+
+            if (notesCell) {
+                dealsTableBody.querySelectorAll('.deal-row-notes-expanded').forEach(row => {
+                    if (row !== notesCell.closest('tr')) row.classList.remove('deal-row-notes-expanded');
+                });
+                notesCell.closest('tr')?.classList.add('deal-row-notes-expanded');
+            }
             
             if (selectCell && !selectCell.querySelector("select")) enterSelectMode(selectCell);
             else if (numCell && !numCell.querySelector("input")) enterNumberMode(numCell);
