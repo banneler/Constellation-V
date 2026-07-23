@@ -10,13 +10,11 @@
     padding: 1.5rem;
 }
 
-.saos-dashboard-card-heading {
+.saos-dashboard-page-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
 }
 
 .saos-dashboard-eyebrow {
@@ -28,7 +26,7 @@
     text-transform: uppercase;
 }
 
-.saos-dashboard-card-heading h1,
+.saos-dashboard-page-header h1,
 .saos-detail-header h2 {
     margin: 0;
     color: var(--text-light);
@@ -36,7 +34,7 @@
     line-height: 1.05;
 }
 
-.saos-dashboard-card-heading .btn-primary {
+.saos-dashboard-page-header .btn-primary {
     flex-shrink: 0;
 }
 
@@ -67,7 +65,6 @@
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.85rem;
-    margin-top: 1rem;
 }
 
 .saos-kpi-card {
@@ -543,7 +540,7 @@
         padding: 1rem;
     }
 
-    .saos-dashboard-card-heading,
+    .saos-dashboard-page-header,
     .saos-table-toolbar,
     .saos-detail-header,
     .saos-table-filters {
