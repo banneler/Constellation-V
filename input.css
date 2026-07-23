@@ -139,7 +139,7 @@ body.theme-green {
     /* Fluid desktop: 1080p ratio 200/1920 ≈ 10.4%; scale with viewport, clamp for readability */
     .nav-sidebar {
         @apply flex flex-col flex-shrink-0 overflow-x-hidden overflow-y-auto py-5 px-2.5 rounded-r-lg;
-        width: min(200px, max(160px, 10.5vw));
+        width: min(216px, max(184px, 11.25vw));
         background-color: var(--bg-light);
         box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
         border-right: 1px solid var(--border-color);
@@ -159,6 +159,9 @@ body.theme-green {
     }
     .nav-collapse-icon {
         transition: transform 0.25s ease;
+    }
+    .nav-label-text {
+        white-space: nowrap;
     }
     @media (min-width: 769px) {
         .nav-sidebar-collapsed {
