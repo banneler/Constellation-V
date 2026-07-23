@@ -485,6 +485,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         }));
     }
 
+    function buildInfluenceItems(section = {}) {
+        const tiers = [
+            ['executive', 'Executive'],
+            ['mid_level', 'Mid-Level'],
+            ['technical', 'Technical'],
+        ];
+        return tiers.flatMap(([key, label]) => (
+            (Array.isArray(section[key]) ? section[key] : []).slice(0, 4).map((contact) => {
+                const name = contact.name || contact.contact_name || contact.full_name || contact.title || 'Mapped Contact';
+                const details = [
+                    contact.title,
+                    contact.role,
+                    contact.influence_level ? `Influence: ${contact.influence_level}` : '',
+                    contact.relationship_temperature ? `Temp: ${contact.relationship_temperature}` : '',
+                    contact.personality_style,
+                    contact.notes || contact.relationship_notes || contact.hook,
+                ].map((value) => truncate(value, 90)).filter(Boolean);
+                return {
+                    label: `${label}: ${name}`,
+                    text: details.join(' • ') || 'No additional influence details captured.',
+                };
+            })
+        ));
+    }
+
     function renderDetail(row) {
         if (!row) {
             els.detail.innerHTML = `
@@ -501,6 +526,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const openUrl = `accounts.html?accountId=${encodeURIComponent(row.account.id)}&saos=1`;
         const importantSections = row.sectionStates.filter((item) => DASHBOARD_SECTION_IDS.includes(item.id));
         const pursuit = sections.pursuit_thesis || {};
+        const influence = sections.influence_mapping || {};
         const whiteSpace = sections.white_space || {};
         const battlefield = sections.competitive_landscape || {};
         const plan306090 = sections.plan_30_60_90 || {};
@@ -554,7 +580,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ${renderInsightCard('The Big Play', row.thesis, 'No pursuit thesis captured yet.', 'saos-insight-card--wide')}
                 ${renderInsightCard('Why Now', row.whyNow, 'No action-forcing event captured yet.', 'saos-insight-card--wide')}
                 ${renderInsightCard('Executive Narrative', pursuit.executive_narrative || pursuit.why_account_matters || pursuit.timing, 'No executive narrative captured yet.', 'saos-insight-card--wide')}
-                ${renderInsightCard('Influence Coverage', `${row.mappedInfluence || 0} mapped contact${row.mappedInfluence === 1 ? '' : 's'}`, 'No influence map contacts yet.', 'saos-insight-card--third')}
+                ${renderDetailListCard('Influence Coverage', buildInfluenceItems(influence), 'No influence map contacts yet.', 'saos-insight-card saos-insight-card--third saos-influence-card')}
             </div>
             <div class="saos-detail-lists saos-detail-lists--rich">
                 ${renderDetailListCard('The Battlefield', buildBattlefieldItems(battlefield), 'No competitive battlefield captured yet.')}

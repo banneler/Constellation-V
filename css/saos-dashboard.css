@@ -384,12 +384,20 @@
     padding: 1.25rem;
 }
 
-.saos-detail-score-card h3,
-.saos-insight-card h3,
-.saos-detail-readout-card h3 {
+.saos-detail-score-card h3 {
     margin: 0 0 0.35rem;
     color: var(--text-light);
     font-size: 0.92rem;
+}
+
+.saos-insight-card h3,
+.saos-detail-readout-card h3 {
+    margin: 0 0 0.55rem;
+    color: var(--primary-blue);
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 .saos-detail-score-card p,
