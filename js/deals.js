@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         dealsByStageChart: null,
         dealsByTimeChart: null,
         dealsByProductChart: null,
-        filterStage: '',
+        filterStages: [],
         filterCloseMonth: '',
         filterCommitted: '', // '' = all, 'yes' = committed only, 'no' = uncommitted only
         showClosedLost: false,
@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const isManager = state.currentUser?.user_metadata?.is_manager === true;
         state.dealsViewMode = isManager ? 'all' : 'mine';
         state.managerSelectedUserId = '';
-        state.filterStage = '';
+        state.filterStages = [];
         state.filterCommitted = '';
         state.filterCloseMonth = getCurrentMonthKey();
         state.showClosedLost = false;
@@ -251,10 +251,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (filterStagePills) {
             filterStagePills.innerHTML = '';
             const stages = (state.dealStages || []).sort((a, b) => a.sort_order - b.sort_order);
-            filterStagePills.appendChild(createFilterPill('', 'All', !state.filterStage));
+            filterStagePills.appendChild(createFilterPill('', 'All', state.filterStages.length === 0));
             stages.forEach(s => {
                 const name = s.stage_name || '';
-                filterStagePills.appendChild(createFilterPill(name, name, state.filterStage === name));
+                filterStagePills.appendChild(createFilterPill(name, name, state.filterStages.includes(name)));
             });
         }
         if (filterCloseMonthPills) {
@@ -262,15 +262,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             filterCloseMonthPills.appendChild(createFilterPill('', 'All', !state.filterCloseMonth));
             const months = getCloseMonthRange();
             months.forEach(m => filterCloseMonthPills.appendChild(createFilterPill(m, formatMonthYear(m), state.filterCloseMonth === m)));
-            // Scroll to show last/current/next (3-month view); offset 0 = indices 11,12,13
+            // Offset 0 shows current/next/+2; negative/positive values slide the leftmost month.
             if (filterCloseMonthScroll) {
                 requestAnimationFrame(() => {
-                    const pills = filterCloseMonthPills.querySelectorAll('.deals-filter-pill[data-value]');
+                    const pills = Array.from(filterCloseMonthPills.querySelectorAll('.deals-filter-pill[data-value]'));
                     const firstMonthPill = Array.from(pills).find(p => p.dataset.value);
                     const step = firstMonthPill ? firstMonthPill.offsetWidth + 4 : 80;
-                    const baseIndex = 11; // pill index of "last" month (All=0, months 1-25)
+                    const baseIndex = 12; // month array index for the current month
                     const targetIndex = Math.max(0, Math.min(baseIndex + state.closeMonthOffset, months.length - 3));
-                    filterCloseMonthScroll.scrollLeft = targetIndex * step;
+                    const targetPill = pills.find(p => p.dataset.value === months[targetIndex]);
+                    const pillsOffset = filterCloseMonthPills.offsetLeft || 0;
+                    filterCloseMonthScroll.scrollLeft = targetPill ? Math.max(0, targetPill.offsetLeft - pillsOffset) : targetIndex * step;
                 });
             }
         }
@@ -380,7 +382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             deals = deals.filter(d => !isPastDue(d));
         }
-        if (state.filterStage) deals = deals.filter(d => d.stage === state.filterStage);
+        if (state.filterStages.length > 0) deals = deals.filter(d => state.filterStages.includes(d.stage));
         if (state.filterCloseMonth) deals = deals.filter(d => d.close_month === state.filterCloseMonth);
         if (state.filterCommitted === 'yes') deals = deals.filter(d => d.is_committed);
         if (state.filterCommitted === 'no') deals = deals.filter(d => !d.is_committed);
@@ -1262,7 +1264,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
         const filteredDeals = getFilteredDeals();
-        const hasActiveFilter = !!(state.filterStage || state.filterCloseMonth || state.filterCommitted || state.showClosedLost || state.showPastDue || state.hideRenewals);
+        const hasActiveFilter = !!(state.filterStages.length || state.filterCloseMonth || state.filterCommitted || state.showClosedLost || state.showPastDue || state.hideRenewals);
         const metricFunnelTitle = document.getElementById('metric-funnel-title');
         if (metricFunnelTitle) metricFunnelTitle.textContent = hasActiveFilter ? 'Current View Total' : 'My Current Funnel';
         // Metrics exclude renewals so pipeline numbers stay clean
@@ -2114,7 +2116,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         listViewBtn.addEventListener('click', () => handleViewToggle('list'));
         boardViewBtn.addEventListener('click', () => handleViewToggle('board'));
 
-        if (filterStagePills) filterStagePills.addEventListener('click', (e) => { const p = e.target.closest('.deals-filter-pill'); if (p) { state.filterStage = p.dataset.value || ''; handleFilterChange(); } });
+        if (filterStagePills) filterStagePills.addEventListener('click', (e) => {
+            const p = e.target.closest('.deals-filter-pill');
+            if (!p) return;
+            const value = p.dataset.value || '';
+            if (!value) {
+                state.filterStages = [];
+            } else if (state.filterStages.includes(value)) {
+                state.filterStages = state.filterStages.filter(stage => stage !== value);
+            } else {
+                state.filterStages = [...state.filterStages, value];
+            }
+            handleFilterChange();
+        });
         if (filterCloseMonthPills) filterCloseMonthPills.addEventListener('click', (e) => { const p = e.target.closest('.deals-filter-pill'); if (p) { state.filterCloseMonth = p.dataset.value || ''; handleFilterChange(); } });
         if (closeMonthPrevBtn) closeMonthPrevBtn.addEventListener('click', () => { state.closeMonthOffset = Math.max(-12, state.closeMonthOffset - 1); handleFilterChange(); });
         if (closeMonthNextBtn) closeMonthNextBtn.addEventListener('click', () => { state.closeMonthOffset = Math.min(12, state.closeMonthOffset + 1); handleFilterChange(); });
@@ -2138,7 +2152,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (dealsFiltersResetBtn) {
             dealsFiltersResetBtn.addEventListener('click', () => {
-                state.filterStage = '';
+                state.filterStages = [];
                 state.filterCloseMonth = '';
                 state.filterCommitted = '';
                 state.showClosedLost = false;
