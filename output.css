@@ -3586,6 +3586,11 @@ body.theme-green {
   body:not(.theme-green) .metric-card {
     border-radius: var(--radius-2xl);
   }
+  body:not(.theme-green) .deals-top-section .metric-card {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: #e2e8f0;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
   .metric-card-won {
     background-color: var(--completed-color) !important;
     @supports (color: color-mix(in lab, red, red)) {
@@ -11773,13 +11778,25 @@ body.theme-green {
     align-items: flex-start;
   }
   .deals-pipeline-card .deals-filters {
+    display: grid !important;
     flex-basis: 100%;
     width: 100%;
-    justify-content: space-between;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    align-items: center;
     gap: 0.75rem 1.25rem;
   }
+  .deals-filters .deals-filter-group:has(#filter-committed-pills) {
+    justify-self: start;
+  }
+  .deals-filters .deals-filter-group:has(#filter-stage-pills) {
+    justify-self: center;
+  }
   .deals-filters .deals-filter-group:has(.deals-close-month-filter) {
-    margin-left: auto;
+    justify-self: end;
+    margin-left: 0;
+  }
+  .deals-filters .deals-filter-reset {
+    justify-self: end;
   }
   #deals-table tbody tr {
     height: 4rem;
