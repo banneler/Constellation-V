@@ -708,22 +708,11 @@ async function handleSaveUser(e) {
 }
 
 async function callUserActivationApi({ targetUserId, action, reason }) {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
-    const token = sessionData?.session?.access_token;
-    if (!token) throw new Error('Your session has expired. Please sign in again.');
-
-    const response = await fetch('/api/admin/users/deactivation', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ targetUserId, action, reason })
+    const { data, error } = await supabase.functions.invoke('admin-user-deactivation', {
+        body: { targetUserId, action, reason }
     });
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.error || `User status update failed with status ${response.status}.`);
+    if (error) throw new Error(data?.error || error.message || 'User status update failed.');
     return data;
 }
 
