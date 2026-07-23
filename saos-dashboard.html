@@ -61,6 +61,13 @@
                             </div>
                             <div class="saos-table-filters">
                                 <input type="search" id="saos-search-input" class="item-search-input" placeholder="Search account or owner…">
+                                <select id="saos-sort-select" class="saos-filter-select" aria-label="Sort SAOS plans">
+                                    <option value="updated_desc">Updated newest</option>
+                                    <option value="updated_asc">Updated oldest</option>
+                                    <option value="progress_desc">Completeness high</option>
+                                    <option value="progress_asc">Completeness low</option>
+                                    <option value="name_asc">Account A-Z</option>
+                                </select>
                                 <select id="saos-owner-filter" class="saos-filter-select" aria-label="Filter by owner">
                                     <option value="all">All owners</option>
                                 </select>

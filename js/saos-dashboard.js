@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         list: document.getElementById('saos-account-list'),
         detail: document.getElementById('saos-detail-panel'),
         search: document.getElementById('saos-search-input'),
+        sort: document.getElementById('saos-sort-select'),
         ownerFilter: document.getElementById('saos-owner-filter'),
         refresh: document.getElementById('saos-refresh-btn'),
     };
@@ -55,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         filteredRows: [],
         ownerOptions: [],
         selectedAccountId: null,
+        totalTeamAccounts: 0,
     };
 
     function escapeHtml(value) {
@@ -85,6 +87,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const text = toText(value).replace(/\s+/g, ' ').trim();
         if (!text) return '';
         return text.length > max ? `${text.slice(0, max - 1).trim()}…` : text;
+    }
+
+    function formatNumber(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number) || number <= 0) return '';
+        return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(number);
+    }
+
+    function formatLocation(account) {
+        return [account.city, account.state].map((item) => String(item || '').trim()).filter(Boolean).join(', ');
     }
 
     function getSections(plan) {
@@ -210,9 +222,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             thesis: sections.pursuit_thesis?.thesis || '',
             whyNow: sections.pursuit_thesis?.action_forcing_event || '',
             expansion: sections.white_space?.expansion_path || sections.white_space?.initial_entry || '',
+            industry: account.industry || '',
+            location: formatLocation(account),
+            sites: account.quantity_of_sites || null,
+            employees: account.employee_count || null,
+            customerStatus: account.is_customer === true ? 'Customer' : 'Prospect',
             mappedInfluence: ['executive', 'mid_level', 'technical'].reduce((sum, key) => sum + nonEmptyArray(sections.influence_mapping?.[key]).length, 0),
             openDeals: 0,
         };
+    }
+
+    function hasMeaningfulSaos(row) {
+        return row.plan && row.progress > 0;
     }
 
     function getStatusClass(progress) {
@@ -223,7 +244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderKpis() {
         const total = state.rows.length;
-        const withPlans = state.rows.filter((row) => row.plan).length;
+        const withPlans = state.rows.length;
         const complete = state.rows.filter((row) => row.progress >= 80).length;
         const avg = withPlans
             ? Math.round(state.rows.reduce((sum, row) => sum + row.progress, 0) / withPlans)
@@ -231,8 +252,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const staleCutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
         const stale = state.rows.filter((row) => row.updatedAt && new Date(row.updatedAt).getTime() < staleCutoff).length;
         const kpis = [
-            { label: 'Team Accounts', value: total, icon: 'fa-building' },
-            { label: 'SAOS Started', value: withPlans, icon: 'fa-sitemap' },
+            { label: 'Team Accounts', value: state.totalTeamAccounts, icon: 'fa-building' },
+            { label: 'Active SAOS', value: withPlans, icon: 'fa-sitemap' },
             { label: 'Avg Progress', value: `${avg}%`, icon: 'fa-chart-simple' },
             { label: 'Ready / Strong', value: complete, icon: 'fa-circle-check' },
             { label: 'Stale 14+ Days', value: stale, icon: 'fa-clock-rotate-left' },
@@ -270,19 +291,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).join('');
     }
 
+    function getRowSortValue(row, sortBy) {
+        if (sortBy.startsWith('updated')) {
+            const time = row.updatedAt ? new Date(row.updatedAt).getTime() : 0;
+            return Number.isFinite(time) ? time : 0;
+        }
+        if (sortBy.startsWith('progress')) return row.progress || 0;
+        return String(row.account.name || '').toLowerCase();
+    }
+
+    function sortRows(rows) {
+        const sortBy = els.sort.value || 'updated_desc';
+        const sorted = [...rows].sort((a, b) => {
+            const aValue = getRowSortValue(a, sortBy);
+            const bValue = getRowSortValue(b, sortBy);
+            if (sortBy === 'name_asc') return String(aValue).localeCompare(String(bValue));
+            const direction = sortBy.endsWith('_asc') ? 1 : -1;
+            return (Number(aValue) - Number(bValue)) * direction || String(a.account.name || '').localeCompare(String(b.account.name || ''));
+        });
+        return sorted;
+    }
+
+    function renderFirmographicChips(row) {
+        const chips = [
+            row.industry ? { icon: 'fa-industry', label: row.industry } : null,
+            row.location ? { icon: 'fa-location-dot', label: row.location } : null,
+            row.sites ? { icon: 'fa-network-wired', label: `${formatNumber(row.sites)} sites` } : null,
+            row.employees ? { icon: 'fa-users', label: `${formatNumber(row.employees)} employees` } : null,
+            row.customerStatus ? { icon: row.customerStatus === 'Customer' ? 'fa-circle-check' : 'fa-user-plus', label: row.customerStatus } : null,
+        ].filter(Boolean);
+        if (!chips.length) return '';
+        return `<div class="saos-row-chips">${chips.map((chip) => `
+            <span class="saos-row-chip"><i class="fa-solid ${chip.icon}"></i> ${escapeHtml(chip.label)}</span>
+        `).join('')}</div>`;
+    }
+
     function renderList() {
         const search = (els.search.value || '').trim().toLowerCase();
         const owner = els.ownerFilter.value || 'all';
         state.filteredRows = state.rows.filter((row) => {
             const matchesOwner = owner === 'all' || String(row.account.user_id) === owner;
-            const haystack = `${row.account.name || ''} ${row.owner?.name || ''} ${row.tier || ''} ${row.priority || ''}`.toLowerCase();
+            const haystack = `${row.account.name || ''} ${row.owner?.name || ''} ${row.tier || ''} ${row.priority || ''} ${row.industry || ''} ${row.location || ''} ${row.thesis || ''}`.toLowerCase();
             return matchesOwner && (!search || haystack.includes(search));
         });
+        state.filteredRows = sortRows(state.filteredRows);
 
-        els.caption.textContent = `${state.filteredRows.length} of ${state.rows.length} accounts shown`;
+        els.caption.textContent = `${state.filteredRows.length} of ${state.rows.length} active SAOS plans shown (${state.totalTeamAccounts} team accounts total)`;
 
         if (!state.filteredRows.length) {
-            els.list.innerHTML = '<div class="saos-empty-list">No matching SAOS accounts found.</div>';
+            els.list.innerHTML = '<div class="saos-empty-list">No active SAOS plans match the current filters.</div>';
             return;
         }
 
@@ -296,8 +353,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="saos-account-meta">
                             <span><i class="fa-solid fa-user"></i> ${escapeHtml(row.owner?.name || 'Unassigned')}</span>
                             <span><i class="fa-solid fa-layer-group"></i> ${escapeHtml(row.tier)}</span>
-                            ${row.updatedAt ? `<span><i class="fa-solid fa-clock"></i> ${escapeHtml(formatSimpleDate(row.updatedAt))}</span>` : '<span>No SAOS yet</span>'}
+                            ${row.priority ? `<span><i class="fa-solid fa-flag"></i> ${escapeHtml(row.priority)}</span>` : ''}
+                            ${row.updatedAt ? `<span><i class="fa-solid fa-clock"></i> ${escapeHtml(formatSimpleDate(row.updatedAt))}</span>` : ''}
                         </div>
+                        ${renderFirmographicChips(row)}
+                    </div>
+                    <div class="saos-account-strategy">
+                        <span>Big Play</span>
+                        <p>${escapeHtml(truncate(row.thesis || row.whyNow || row.expansion, 190) || 'No Big Play summary captured yet.')}</p>
                     </div>
                     <div class="saos-row-progress" aria-label="Progress ${row.progress}%">
                         <div class="saos-progress-ring saos-progress-ring--${statusClass}">${row.progress}%</div>
@@ -422,18 +485,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .map((planRow) => [Number(planRow.account_id), planRow]));
 
             state.ownerOptions = Array.from(ownerMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+            state.totalTeamAccounts = (accountsRes.data || []).length;
             state.rows = (accountsRes.data || []).map((account) => buildDashboardRow(
                 account,
                 ownerMap.get(String(account.user_id)) || { id: String(account.user_id || ''), name: 'Unassigned' },
                 planByAccountId.get(Number(account.id))
-            ));
+            )).filter(hasMeaningfulSaos);
 
             renderOwnerFilter();
             renderKpis();
             renderList();
             if (state.selectedAccountId) {
                 const selected = state.rows.find((row) => Number(row.account.id) === Number(state.selectedAccountId));
-                renderDetail(selected || null);
+                if (selected) renderDetail(selected);
+                else {
+                    state.selectedAccountId = null;
+                    renderDetail(null);
+                }
             }
         } catch (error) {
             console.error('[saos-dashboard] load failed:', error);
@@ -447,6 +515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function bindEvents() {
         els.search.addEventListener('input', applyFilters);
         els.ownerFilter.addEventListener('change', applyFilters);
+        els.sort.addEventListener('change', applyFilters);
         els.refresh.addEventListener('click', loadDashboardData);
         els.list.addEventListener('click', (event) => {
             const rowEl = event.target.closest('.saos-account-row');
