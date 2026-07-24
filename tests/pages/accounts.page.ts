@@ -142,8 +142,8 @@ export class AccountsPage {
     return this.page.locator('[data-entry-point-add-contact]');
   }
 
-  entryPointBlankOption(): Locator {
-    return this.page.locator('[data-entry-point-add-blank]');
+  entryPointCancelOption(): Locator {
+    return this.page.locator('[data-entry-point-add-cancel]');
   }
 
   entryPointDeleteBtn(): Locator {

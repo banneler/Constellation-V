@@ -1861,6 +1861,15 @@ function buildEntryPointContactSelect(index, value, _contacts) {
         <div class="entry-point-contact-row entry-point-contact-row--inline">
             <span class="entry-point-contact-label">Contact</span>
             <span class="${displayClass}" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+            <button
+                type="button"
+                class="entry-point-delete-btn"
+                data-entry-point-remove="${index}"
+                title="Delete entry point"
+                aria-label="Delete entry point"
+            >
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
             <input
                 type="hidden"
                 id="${fieldId}"
@@ -1889,15 +1898,6 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
         >
             <div class="entry-point-card-header">
                 ${buildEntryPointContactSelect(String(index), String(data.contact_name ?? ''), contacts)}
-                <button
-                    type="button"
-                    class="entry-point-delete-btn"
-                    data-entry-point-remove="${index}"
-                    title="Delete entry point"
-                    aria-label="Delete entry point"
-                >
-                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                </button>
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--profile">
                 <h5 class="entry-point-row-panel-title">Relationship Profile</h5>
@@ -2076,9 +2076,9 @@ function buildEntryPointAddControl(points, contacts) {
             <div class="entry-point-add-menu hidden" data-entry-point-add-menu>
                 <div class="entry-point-add-menu-label">Choose account contact</div>
                 ${contactButtons}
-                <button type="button" class="entry-point-add-menu-item entry-point-add-menu-item--blank" data-entry-point-add-blank>
-                    <span>Blank point</span>
-                    <small>Use when the contact is not in CRM yet.</small>
+                <button type="button" class="entry-point-add-menu-item entry-point-add-menu-item--cancel" data-entry-point-add-cancel>
+                    <span>Cancel</span>
+                    <small>Close without adding an entry point.</small>
                 </button>
             </div>
         </div>`;
@@ -2104,20 +2104,6 @@ function switchEntryPointTab(index) {
         card.classList.toggle('hidden', !isActive);
         card.setAttribute('aria-hidden', isActive ? 'false' : 'true');
     });
-}
-
-function addEntryPoint() {
-    if (!_liveSections) return;
-    const points = Array.isArray(_liveSections.entry_points)
-        ? [..._liveSections.entry_points]
-        : [createEmptyEntryPoint()];
-    if (points.length >= MAX_ENTRY_POINTS) return;
-
-    points.push(createEmptyEntryPoint());
-    _liveSections.entry_points = points;
-    _entryPointActiveIndex = points.length - 1;
-    paintCanvas();
-    queueAutosave();
 }
 
 function addEntryPointForContact(contactId) {
@@ -4823,9 +4809,14 @@ function bindCanvasFormEvents(canvas) {
             return;
         }
 
-        if (target.closest('[data-entry-point-add-blank]')) {
+        const entryPointAddCancel = target.closest('[data-entry-point-add-cancel]');
+        if (entryPointAddCancel instanceof HTMLElement) {
             event.preventDefault();
-            addEntryPoint();
+            const wrap = entryPointAddCancel.closest('.entry-point-add-wrap');
+            const toggle = wrap?.querySelector('[data-entry-point-add-toggle]');
+            const menu = wrap?.querySelector('[data-entry-point-add-menu]');
+            if (menu instanceof HTMLElement) menu.classList.add('hidden');
+            if (toggle instanceof HTMLElement) toggle.setAttribute('aria-expanded', 'false');
             return;
         }
 

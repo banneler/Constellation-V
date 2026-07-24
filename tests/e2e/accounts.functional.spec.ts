@@ -159,10 +159,13 @@ test.describe('Strategic Account OS', () => {
 
     await expect(acc.entryPointAddMenu()).toBeVisible();
     await expect(acc.entryPointAddMenu()).toContainText('Choose account contact');
-    await expect(acc.entryPointBlankOption()).toBeVisible();
+    await expect(acc.entryPointCancelOption()).toBeVisible();
 
-    guardian.step('Adding and deleting a blank entry point');
-    await acc.entryPointBlankOption().click();
+    guardian.step('Canceling the add menu');
+    await acc.entryPointCancelOption().click();
+    await expect(acc.entryPointAddMenu()).toBeHidden();
+
+    guardian.step('Deleting the default entry point');
     page.once('dialog', (dialog) => dialog.accept().catch(() => {}));
     await acc.entryPointDeleteBtn().click();
     await expect(acc.entryPointContactName()).toContainText('Unassigned');

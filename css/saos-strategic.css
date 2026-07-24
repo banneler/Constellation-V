@@ -403,7 +403,7 @@
     font-size: 0.72rem;
 }
 
-.entry-point-add-menu-item--blank {
+.entry-point-add-menu-item--cancel {
     margin-top: 0.25rem;
     border-top: 1px solid var(--border-color);
     border-radius: 0 0 0.5rem 0.5rem;
@@ -653,9 +653,10 @@
 
 .entry-point-contact-row--inline {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .entry-point-contact-label {
@@ -667,6 +668,7 @@
 }
 
 .entry-point-contact-name {
+    min-width: 0;
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-light);
