@@ -147,6 +147,27 @@ test.describe('Strategic Account OS', () => {
     await acc.waitForAutosaveSettled();
   });
 
+  test('entry point add flow exposes account contact picker', async ({ page }) => {
+    const acc = new AccountsPage(page);
+    await createAndSelectAccount(page, acc);
+    await acc.switchToStrategicMode();
+    await acc.waitForPlanLoaded();
+
+    guardian.step('Opening Strategic Entry Points add menu');
+    await acc.scrollToStrategicSection('entry_points');
+    await acc.entryPointAddToggle().click();
+
+    await expect(acc.entryPointAddMenu()).toBeVisible();
+    await expect(acc.entryPointAddMenu()).toContainText('Choose account contact');
+    await expect(acc.entryPointBlankOption()).toBeVisible();
+
+    guardian.step('Adding and deleting a blank entry point');
+    await acc.entryPointBlankOption().click();
+    page.once('dialog', (dialog) => dialog.accept().catch(() => {}));
+    await acc.entryPointDeleteBtn().click();
+    await expect(acc.entryPointContactName()).toContainText('Unassigned');
+  });
+
   test('export buttons enabled when plan is loaded', async ({ page }) => {
     const acc = new AccountsPage(page);
     await createAndSelectAccount(page, acc);

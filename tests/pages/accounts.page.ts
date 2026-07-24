@@ -130,6 +130,30 @@ export class AccountsPage {
     return this.page.locator('.momentum-timeline-display');
   }
 
+  entryPointAddToggle(): Locator {
+    return this.page.locator('[data-entry-point-add-toggle]');
+  }
+
+  entryPointAddMenu(): Locator {
+    return this.page.locator('[data-entry-point-add-menu]');
+  }
+
+  entryPointAddContactOptions(): Locator {
+    return this.page.locator('[data-entry-point-add-contact]');
+  }
+
+  entryPointBlankOption(): Locator {
+    return this.page.locator('[data-entry-point-add-blank]');
+  }
+
+  entryPointDeleteBtn(): Locator {
+    return this.page.locator('.entry-point-card:not(.hidden) [data-entry-point-remove]');
+  }
+
+  entryPointContactName(): Locator {
+    return this.page.locator('.entry-point-card:not(.hidden) .entry-point-contact-name');
+  }
+
   async searchAccounts(query: string): Promise<void> {
     await this.accountSearch().fill(query);
   }

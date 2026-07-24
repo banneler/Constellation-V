@@ -1889,6 +1889,15 @@ function buildEntryPointCardHtml(point, index, contacts, isActive) {
         >
             <div class="entry-point-card-header">
                 ${buildEntryPointContactSelect(String(index), String(data.contact_name ?? ''), contacts)}
+                <button
+                    type="button"
+                    class="entry-point-delete-btn"
+                    data-entry-point-remove="${index}"
+                    title="Delete entry point"
+                    aria-label="Delete entry point"
+                >
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
             </div>
             <div class="entry-point-row-panel entry-point-row-panel--profile">
                 <h5 class="entry-point-row-panel-title">Relationship Profile</h5>
@@ -1975,9 +1984,7 @@ function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
             >${escapeHtml(label)}${unmappedDot}</button>`;
     }).join('');
 
-    const addButton = points.length < MAX_ENTRY_POINTS
-        ? `<button type="button" class="entry-point-tab entry-point-tab--add" data-entry-point-add aria-label="Add entry point">+ Add Point</button>`
-        : '';
+    const addButton = buildEntryPointAddControl(points, contacts);
 
     const cards = points.map((point, index) => buildEntryPointCardHtml(
         isPlainObject(point) ? point : createEmptyEntryPoint(),
@@ -2026,6 +2033,57 @@ function updateEntryPointTabLabel(index) {
     if (unmappedDot) tab.appendChild(unmappedDot);
 }
 
+function formatEntryPointContactOptionLabel(contact) {
+    if (!contact || typeof contact !== 'object') return 'Unknown contact';
+    const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
+    const title = contact.title || contact.job_title || '';
+    if (name && title) return `${name} — ${title}`;
+    return name || title || 'Unknown contact';
+}
+
+function buildEntryPointAddControl(points, contacts) {
+    if (!Array.isArray(points) || points.length >= MAX_ENTRY_POINTS) return '';
+
+    const usedContactIds = new Set(
+        points
+            .map((point) => (isPlainObject(point) ? String(point.contact_id ?? '').trim() : ''))
+            .filter(Boolean)
+    );
+    const availableContacts = (Array.isArray(contacts) ? contacts : [])
+        .filter((contact) => contact && contact.id != null && !usedContactIds.has(String(contact.id)));
+
+    const contactButtons = availableContacts.length
+        ? availableContacts.map((contact) => `
+            <button
+                type="button"
+                class="entry-point-add-menu-item"
+                data-entry-point-add-contact="${escapeHtml(contact.id)}"
+            >
+                <span>${escapeHtml(formatEntryPointContactOptionLabel(contact))}</span>
+            </button>
+        `).join('')
+        : '<div class="entry-point-add-menu-empty">No unused account contacts.</div>';
+
+    return `
+        <div class="entry-point-add-wrap">
+            <button
+                type="button"
+                class="entry-point-tab entry-point-tab--add"
+                data-entry-point-add-toggle
+                aria-expanded="false"
+                aria-label="Add entry point"
+            >+ Add Point</button>
+            <div class="entry-point-add-menu hidden" data-entry-point-add-menu>
+                <div class="entry-point-add-menu-label">Choose account contact</div>
+                ${contactButtons}
+                <button type="button" class="entry-point-add-menu-item entry-point-add-menu-item--blank" data-entry-point-add-blank>
+                    <span>Blank point</span>
+                    <small>Use when the contact is not in CRM yet.</small>
+                </button>
+            </div>
+        </div>`;
+}
+
 function switchEntryPointTab(index) {
     _entryPointActiveIndex = index;
     const section = document.getElementById('strategic-section-entry_points');
@@ -2058,6 +2116,73 @@ function addEntryPoint() {
     points.push(createEmptyEntryPoint());
     _liveSections.entry_points = points;
     _entryPointActiveIndex = points.length - 1;
+    paintCanvas();
+    queueAutosave();
+}
+
+function addEntryPointForContact(contactId) {
+    if (!_liveSections || !contactId) return;
+    const contacts = getAccountContacts();
+    const contact = contacts.find((row) => String(row.id) === String(contactId));
+    if (!contact) {
+        _options.onToast?.('Contact not found on this account.', 'error');
+        return;
+    }
+
+    const points = Array.isArray(_liveSections.entry_points)
+        ? [..._liveSections.entry_points]
+        : [createEmptyEntryPoint()];
+    const existingIndex = points.findIndex((point) => (
+        isPlainObject(point) && String(point.contact_id ?? '') === String(contactId)
+    ));
+    if (existingIndex >= 0) {
+        _entryPointActiveIndex = existingIndex;
+        paintCanvas();
+        _options.onToast?.('That contact already has an entry point.', 'warning');
+        return;
+    }
+    if (points.length >= MAX_ENTRY_POINTS) {
+        _options.onToast?.(
+            `Entry-point roster is full (max ${MAX_ENTRY_POINTS}). Remove one before adding another contact.`,
+            'error'
+        );
+        return;
+    }
+
+    points.push({
+        ...createEmptyEntryPoint(),
+        contact_id: String(contact.id),
+        contact_name: formatEntryPointContactOptionLabel(contact),
+    });
+    _liveSections.entry_points = points;
+    _entryPointActiveIndex = points.length - 1;
+    paintCanvas();
+    queueAutosave();
+}
+
+function toggleEntryPointAddMenu(toggleButton) {
+    const wrap = toggleButton.closest('.entry-point-add-wrap');
+    const menu = wrap?.querySelector('[data-entry-point-add-menu]');
+    if (!(menu instanceof HTMLElement)) return;
+    const nextOpen = menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', !nextOpen);
+    toggleButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+}
+
+function removeEntryPoint(index) {
+    if (!_liveSections || !Number.isFinite(index)) return;
+    const points = Array.isArray(_liveSections.entry_points)
+        ? [..._liveSections.entry_points]
+        : [createEmptyEntryPoint()];
+    if (!points[index]) return;
+
+    const point = isPlainObject(points[index]) ? points[index] : {};
+    const label = String(point.contact_name ?? '').trim() || `Entry Point ${index + 1}`;
+    if (!window.confirm(`Delete ${label}? This will remove its relationship profile notes from the plan.`)) return;
+
+    points.splice(index, 1);
+    _liveSections.entry_points = points.length > 0 ? points : [createEmptyEntryPoint()];
+    _entryPointActiveIndex = Math.min(index, _liveSections.entry_points.length - 1);
     paintCanvas();
     queueAutosave();
 }
@@ -4684,9 +4809,30 @@ function bindCanvasFormEvents(canvas) {
             return;
         }
 
-        if (target.closest('[data-entry-point-add]')) {
+        const entryPointRemove = target.closest('[data-entry-point-remove]');
+        if (entryPointRemove instanceof HTMLElement) {
+            event.preventDefault();
+            removeEntryPoint(Number(entryPointRemove.dataset.entryPointRemove));
+            return;
+        }
+
+        const entryPointAddContact = target.closest('[data-entry-point-add-contact]');
+        if (entryPointAddContact instanceof HTMLElement) {
+            event.preventDefault();
+            addEntryPointForContact(entryPointAddContact.dataset.entryPointAddContact);
+            return;
+        }
+
+        if (target.closest('[data-entry-point-add-blank]')) {
             event.preventDefault();
             addEntryPoint();
+            return;
+        }
+
+        const entryPointAddToggle = target.closest('[data-entry-point-add-toggle]');
+        if (entryPointAddToggle instanceof HTMLElement) {
+            event.preventDefault();
+            toggleEntryPointAddMenu(entryPointAddToggle);
             return;
         }
 
