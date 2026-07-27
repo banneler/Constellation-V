@@ -139,6 +139,7 @@
         .irr-header-toolbar-row {
             display: flex;
             flex-direction: row;
+            flex-wrap: wrap;
             align-items: center;
             gap: 1.5rem;
             min-width: 0;
@@ -148,7 +149,7 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            flex: 1;
+            flex: 1 1 28rem;
             min-width: 0;
         }
         .irr-project-name-field {
@@ -315,7 +316,8 @@
             flex-direction: column;
             align-items: flex-start;
             justify-content: flex-start;
-            flex-shrink: 0;
+            flex: 0 0 auto;
+            margin-left: auto;
         }
         .irr-dial-row {
             display: flex;
@@ -448,7 +450,7 @@
 
         .global-results-grid {
             display: grid;
-            grid-template-columns: repeat(6, minmax(0, 1fr));
+            grid-template-columns: repeat(7, minmax(0, 1fr));
             gap: clamp(0.35rem, 1.5vw, 1rem);
             text-align: center;
         }
@@ -480,6 +482,7 @@
         }
         #global-results-container #global-annual-irr,
         #global-results-container #global-tcv,
+        #global-results-container #global-mrc,
         #global-results-container #global-payback,
         #global-results-container #global-run-rate-payback,
         #global-results-container #global-capital-investment,
@@ -558,6 +561,45 @@
             margin-top: 1rem;
             font-weight: 500;
             text-align: center;
+        }
+
+        .irr-promo-controls {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.85rem;
+            background: color-mix(in srgb, var(--bg-medium) 35%, transparent);
+        }
+
+        .irr-promo-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .irr-promo-toggle input {
+            accent-color: var(--primary-blue);
+        }
+
+        .irr-promo-select {
+            width: auto;
+            min-width: 5.25rem;
+            padding: 0.35rem 0.55rem;
+        }
+
+        .irr-promo-help {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.35;
+            flex-basis: 100%;
         }
 
         /* Payback color styles */
@@ -813,6 +855,18 @@
                                                 </div>
                                             </div>
                                         </div>
+                            <div class="irr-promo-controls" aria-label="Global free months promotion controls">
+                                <label class="irr-promo-toggle" for="global-free-months-toggle">
+                                    <input type="checkbox" id="global-free-months-toggle">
+                                    Apply Free Months to all sites
+                                </label>
+                                <select id="global-free-months-select" class="irr-promo-select" disabled>
+                                    <option value="1">1 month</option>
+                                    <option value="2">2 months</option>
+                                    <option value="3">3 months</option>
+                                </select>
+                                <span class="irr-promo-help">Promo months extend the service term. MRC is suppressed during free months while MCOS still applies.</span>
+                            </div>
                                     </div>
                                 </div>
                             </div>
@@ -832,6 +886,10 @@
                         <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Global TCV ($)</span>
                             <p id="global-tcv" class="pending">$0</p>
+                        </div>
+                        <div>
+                            <span style="font-size: 1rem; color: var(--text-medium);">Global MRC ($)</span>
+                            <p id="global-mrc" class="pending">$0</p>
                         </div>
                         <div>
                             <span style="font-size: 1rem; color: var(--text-medium);">Global NPV ($)</span>
@@ -988,7 +1046,7 @@
                             <input type="text" class="site-name-input" value="Site 1">
                         </div>
                         <div style="margin-left: 1rem; flex-basis: 150px; flex-shrink: 0;">
-                            <label>Project Term (Months)</label>
+                            <label>Paid Term (Months)</label>
                             <input type="number" class="term-input" value="60" min="1" step="1">
                         </div>
                         <button type="button" class="btn-danger delete-site-btn" title="Delete this site" style="margin-left: 1rem; margin-top: 1.25rem;">
@@ -1020,6 +1078,17 @@
                         <div>
                             <label>Monthly Recurring Revenue ($)</label>
                             <input type="number" class="mrr-input" value="0" min="0" step="1">
+                        </div>
+                        <div>
+                            <label class="irr-promo-toggle">
+                                <input type="checkbox" class="free-months-toggle">
+                                Free Months
+                            </label>
+                            <select class="free-months-select irr-promo-select" disabled>
+                                <option value="1">1 month</option>
+                                <option value="2">2 months</option>
+                                <option value="3">3 months</option>
+                            </select>
                         </div>
                     </div>
                     
