@@ -2038,7 +2038,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="report-header">
                     <h1>${escapeHtmlForPrint(projectName)}</h1>
                     <div class="report-header-meta">
-                        <div class="report-header-meta-row">Generated ${reportDate}</div>
+                        <div class="report-header-meta-row">${reportDate}</div>
                         <div class="report-header-meta-row">Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong></div>
                         <div class="report-header-meta-row">NPV discount <strong>${npvDiscountPctForPrint}%</strong></div>
                     </div>
