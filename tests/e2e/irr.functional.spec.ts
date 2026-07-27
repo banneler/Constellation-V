@@ -56,7 +56,7 @@ test.describe('IRR calculator (functional)', () => {
 
     guardian.step('Enabling two free months on the first site');
     await firstSite.locator('.free-months-toggle').check();
-    await firstSite.locator('.free-months-select').selectOption('2');
+    await firstSite.locator('select.free-months-select').selectOption('2');
 
     await expect(irr.globalTcv()).toHaveText('$180,000');
     await expect(page.locator('#global-mrc')).toHaveText('$5,000');
@@ -67,14 +67,14 @@ test.describe('IRR calculator (functional)', () => {
     await page.locator('#add-site-btn').click();
     const secondSite = page.locator('#site-forms-container .site-form-wrapper').nth(1);
     await secondSite.locator('.free-months-toggle').check();
-    await secondSite.locator('.free-months-select').selectOption('3');
+    await secondSite.locator('select.free-months-select').selectOption('3');
 
     guardian.step('Global promo toggle should confirm overwrite of site settings');
     await page.locator('#global-free-months-toggle').check();
     await expect(page.locator('#modal-title')).toHaveText('Overwrite Site Promo Settings?');
     await page.locator('#modal-confirm-btn').click();
 
-    await expect(firstSite.locator('.free-months-select')).toHaveValue('1');
-    await expect(secondSite.locator('.free-months-select')).toHaveValue('1');
+    await expect(firstSite.locator('select.free-months-select')).toHaveValue('1');
+    await expect(secondSite.locator('select.free-months-select')).toHaveValue('1');
   });
 });

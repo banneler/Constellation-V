@@ -104,6 +104,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /** Stress test modifiers: applied only during chart/table render; do not mutate state.sites */
     let stressModifiers = { capex: 1.0, mrr: 1.0 };
+    let globalFreeMonthsTomSelect = null;
+    const siteFreeMonthsTomSelects = new Map();
 
     function defaultBusinessCaseStartStr() {
         const d = new Date();
@@ -336,14 +338,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         return ((inputs?.mrr || 0) * getPaidTermMonths(inputs)) + (inputs?.nrr || 0);
     }
 
+    function initPickerTomSelect(selectEl, onChange, placeholder = 'Months') {
+        if (!(selectEl instanceof HTMLSelectElement) || typeof window.TomSelect !== 'function') return null;
+        if (selectEl.tomselect) {
+            try { selectEl.tomselect.destroy(); } catch (_) { /* noop */ }
+        }
+        try {
+            return new window.TomSelect(selectEl, {
+                create: false,
+                maxItems: 1,
+                placeholder,
+                controlInput: null,
+                searchField: [],
+                dropdownParent: 'body',
+                plugins: ['input_autogrow'],
+                onDropdownOpen() {
+                    const input = this.control_input;
+                    if (input) input.blur();
+                },
+                onChange,
+            });
+        } catch (err) {
+            console.warn('[IRR] TomSelect init failed, using native select:', err);
+            return null;
+        }
+    }
+
+    function setSelectDisabled(selectEl, disabled) {
+        if (!(selectEl instanceof HTMLSelectElement)) return;
+        selectEl.disabled = disabled;
+        if (selectEl.tomselect) {
+            if (disabled) selectEl.tomselect.disable();
+            else selectEl.tomselect.enable();
+        }
+    }
+
     function syncSiteFreeMonthsControls(formWrapper, freeMonths) {
         const normalized = normalizeFreeMonths(freeMonths);
         const toggle = formWrapper?.querySelector('.free-months-toggle');
-        const select = formWrapper?.querySelector('.free-months-select');
+        const select = formWrapper?.querySelector('select.free-months-select');
         if (toggle instanceof HTMLInputElement) toggle.checked = normalized > 0;
         if (select instanceof HTMLSelectElement) {
-            select.disabled = normalized === 0;
             select.value = String(normalized || 1);
+            if (select.tomselect) select.tomselect.setValue(String(normalized || 1), true);
+            setSelectDisabled(select, normalized === 0);
         }
     }
 
@@ -353,8 +391,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         const first = siteValues[0] || 0;
         const allSame = siteValues.length > 0 && siteValues.every(value => value === first);
         globalFreeMonthsToggle.checked = allSame && first > 0;
-        globalFreeMonthsSelect.disabled = !globalFreeMonthsToggle.checked;
         globalFreeMonthsSelect.value = String((allSame && first > 0) ? first : 1);
+        if (globalFreeMonthsSelect.tomselect) {
+            globalFreeMonthsSelect.tomselect.setValue(globalFreeMonthsSelect.value, true);
+        }
+        setSelectDisabled(globalFreeMonthsSelect, !globalFreeMonthsToggle.checked);
+    }
+
+    function initGlobalFreeMonthsPicker() {
+        if (!(globalFreeMonthsSelect instanceof HTMLSelectElement)) return;
+        if (globalFreeMonthsTomSelect) {
+            try { globalFreeMonthsTomSelect.destroy(); } catch (_) { /* noop */ }
+            globalFreeMonthsTomSelect = null;
+        }
+        globalFreeMonthsTomSelect = initPickerTomSelect(globalFreeMonthsSelect, () => handleGlobalFreeMonthsChange(), 'Free months');
+        refreshGlobalFreeMonthsControls();
+    }
+
+    function initSiteFreeMonthsPicker(formWrapper, siteId) {
+        const select = formWrapper?.querySelector('select.free-months-select');
+        if (!(select instanceof HTMLSelectElement)) return;
+        const existing = siteFreeMonthsTomSelects.get(siteId);
+        if (existing) {
+            try { existing.destroy(); } catch (_) { /* noop */ }
+            siteFreeMonthsTomSelects.delete(siteId);
+        }
+        const instance = initPickerTomSelect(select, () => {
+            state.isFormDirty = true;
+            runSiteCalculation(siteId);
+            refreshGlobalFreeMonthsControls();
+        }, 'Free months');
+        if (instance) siteFreeMonthsTomSelects.set(siteId, instance);
     }
 
     // --- 3. Core Project/Site Management Functions ---
@@ -370,6 +437,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.nextSiteId = 1;
             state.activeSiteId = null;
             state.isFormDirty = false;
+            siteFreeMonthsTomSelects.forEach((instance) => {
+                try { instance.destroy(); } catch (_) { /* noop */ }
+            });
+            siteFreeMonthsTomSelects.clear();
 
             projectNameInput.value = '';
             globalTargetIrrInput.value = '15';
@@ -377,7 +448,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (globalFreeMonthsToggle instanceof HTMLInputElement) globalFreeMonthsToggle.checked = false;
             if (globalFreeMonthsSelect instanceof HTMLSelectElement) {
                 globalFreeMonthsSelect.value = '1';
-                globalFreeMonthsSelect.disabled = true;
+                if (globalFreeMonthsSelect.tomselect) globalFreeMonthsSelect.tomselect.setValue('1', true);
+                setSelectDisabled(globalFreeMonthsSelect, true);
             }
             setBusinessCaseStartFromYYYYMM(defaultBusinessCaseStartStr());
             updateDialVisual();
@@ -429,6 +501,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncSiteFreeMonthsControls(newFormWrapper, globalPromoMonths);
         
         siteFormsContainer.appendChild(templateClone);
+        initSiteFreeMonthsPicker(newFormWrapper, newSiteId);
+        syncSiteFreeMonthsControls(newFormWrapper, globalPromoMonths);
 
         const newSite = {
             id: newSiteId,
@@ -516,6 +590,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         state.sites = state.sites.filter(site => site.id !== siteId);
+        const sitePicker = siteFreeMonthsTomSelects.get(siteId);
+        if (sitePicker) {
+            try { sitePicker.destroy(); } catch (_) { /* noop */ }
+            siteFreeMonthsTomSelects.delete(siteId);
+        }
 
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
         if (formWrapper) formWrapper.remove();
@@ -626,7 +705,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         site.inputs.nrr = parseFloat(formWrapper.querySelector('.nrr-input').value) || 0;
         site.inputs.mrr = parseFloat(formWrapper.querySelector('.mrr-input').value) || 0;
         const freeMonthsToggle = formWrapper.querySelector('.free-months-toggle');
-        const freeMonthsSelect = formWrapper.querySelector('.free-months-select');
+        const freeMonthsSelect = formWrapper.querySelector('select.free-months-select');
         site.inputs.freeMonths = freeMonthsToggle instanceof HTMLInputElement && freeMonthsToggle.checked
             ? normalizeFreeMonths(freeMonthsSelect instanceof HTMLSelectElement ? freeMonthsSelect.value : 1)
             : 0;
@@ -2769,6 +2848,10 @@ document.addEventListener('DOMContentLoaded', async () => {
      */
     function hydrateState(projectData) {
         // 1. Clear existing DOM
+        siteFreeMonthsTomSelects.forEach((instance) => {
+            try { instance.destroy(); } catch (_) { /* noop */ }
+        });
+        siteFreeMonthsTomSelects.clear();
         siteFormsContainer.innerHTML = '';
         siteTabsContainer.innerHTML = '';
 
@@ -2829,6 +2912,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             siteFormsContainer.appendChild(templateClone);
+            initSiteFreeMonthsPicker(newFormWrapper, site.id);
+            syncSiteFreeMonthsControls(newFormWrapper, inputs.freeMonths);
             attachFormListeners(newFormWrapper);
             
             runSiteCalculation(site.id, false);
@@ -2865,7 +2950,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const desiredFreeMonths = globalFreeMonthsToggle.checked
             ? normalizeFreeMonths(globalFreeMonthsSelect.value || 1)
             : 0;
-        globalFreeMonthsSelect.disabled = !globalFreeMonthsToggle.checked;
+        setSelectDisabled(globalFreeMonthsSelect, !globalFreeMonthsToggle.checked);
 
         const conflictingPromoSites = desiredFreeMonths > 0
             ? state.sites.filter(site => {
@@ -3027,6 +3112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (globalFreeMonthsSelect instanceof HTMLSelectElement) {
             globalFreeMonthsSelect.addEventListener('change', handleGlobalFreeMonthsChange);
         }
+        initGlobalFreeMonthsPicker();
         updateDialVisual();
         
         // Project Name listener
