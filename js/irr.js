@@ -1783,7 +1783,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
             .summary-card h2 { font-size: 0.9rem; color: #3b82f6; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
             
-            .kpi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; }
+            .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 12px; text-align: center; }
             .kpi-item .kpi-label { font-size: 7.5pt; color: #64748b; text-transform: uppercase; }
             .kpi-item .kpi-value { font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
             
@@ -2039,7 +2039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <h1>${escapeHtmlForPrint(projectName)}</h1>
                     <div class="report-header-meta">
                         <div class="report-header-meta-row">Generated ${reportDate}</div>
-                        <div class="report-header-meta-row">Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong> · Target <strong>${(globalTargetIRR * 100).toFixed(1)}%</strong></div>
+                        <div class="report-header-meta-row">Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong></div>
                         <div class="report-header-meta-row">NPV discount <strong>${npvDiscountPctForPrint}%</strong></div>
                     </div>
                 </div>
