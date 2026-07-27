@@ -6,9 +6,8 @@
  *
  * Key features:
  * - Saves/Loads projects to/from Supabase 'irr_projects' table (includes business_case_start YYYY-MM; see sql/add_business_case_start_to_irr_projects.sql).
- * - Uses a single GLOBAL Target IRR for all calculations.
  * - Calculates and displays TCV, IRR, Payback, and Capital Investment.
- * - Exports a CSV with LIVE EXCEL FORMULAS for TCV, IRR, and Decision.
+ * - Exports a CSV with project and site financial detail.
  * - Factors in SG&A (Commission) to all IRR calculations.
  */
 
@@ -59,7 +58,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Project Inputs
     const projectNameInput = document.getElementById('project-name');
-    const globalTargetIrrInput = document.getElementById('global-target-irr');
     const globalDiscountRateInput = document.getElementById('global-discount-rate');
 
     // Site Containers
@@ -298,24 +296,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     }
 
-    // Dial elements
-    const dialFill = document.querySelector('.irr-dial-fill');
-    const DIAL_CIRCUMFERENCE = 2 * Math.PI * 52; // r=52
-
-    function updateDialVisual() {
-        if (!dialFill) return;
-        const val = Math.min(Math.max(parseFloat(globalTargetIrrInput?.value) || 0, 0), 100);
-        const offset = DIAL_CIRCUMFERENCE * (1 - val / 100);
-        dialFill.style.strokeDashoffset = offset;
-        if (val >= 20) {
-            dialFill.style.stroke = 'var(--completed-color)';
-        } else if (val >= 10) {
-            dialFill.style.stroke = 'var(--primary-blue)';
-        } else {
-            dialFill.style.stroke = 'var(--danger-red)';
-        }
-    }
-
     function normalizeFreeMonths(value) {
         const parsed = parseInt(String(value ?? 0), 10);
         if (!Number.isFinite(parsed)) return 0;
@@ -336,6 +316,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function calculateSiteTcv(inputs) {
         return ((inputs?.mrr || 0) * getPaidTermMonths(inputs)) + (inputs?.nrr || 0);
+    }
+
+    function getIrrPerformanceState(annualIRR) {
+        if (!Number.isFinite(annualIRR)) return 'default';
+        if (annualIRR >= 0.18) return 'go';
+        if (annualIRR >= 0.15) return 'warn';
+        return 'nogo';
     }
 
     function initPickerTomSelect(selectEl, onChange, placeholder = 'Months') {
@@ -443,7 +430,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             siteFreeMonthsTomSelects.clear();
 
             projectNameInput.value = '';
-            globalTargetIrrInput.value = '15';
             if (globalDiscountRateInput) globalDiscountRateInput.value = '15';
             if (globalFreeMonthsToggle instanceof HTMLInputElement) globalFreeMonthsToggle.checked = false;
             if (globalFreeMonthsSelect instanceof HTMLSelectElement) {
@@ -452,7 +438,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setSelectDisabled(globalFreeMonthsSelect, true);
             }
             setBusinessCaseStartFromYYYYMM(defaultBusinessCaseStartStr());
-            updateDialVisual();
 
             siteFormsContainer.innerHTML = '';
             siteTabsContainer.innerHTML = '';
@@ -643,8 +628,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 resultClass = 'error';
                 resultText = 'Error';
             } else if (site.result.annualIRR !== null) {
-                const hurdle = (parseFloat(globalTargetIrrInput?.value) || 0) / 100;
-                resultClass = site.result.annualIRR >= hurdle ? 'go' : 'nogo';
+                resultClass = getIrrPerformanceState(site.result.annualIRR);
                 resultText = `${(site.result.annualIRR * 100).toFixed(2)}%`;
             }
 
@@ -668,7 +652,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const site = state.sites.find(s => s.id === siteId);
         if (!site) return;
 
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
 
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
@@ -760,10 +743,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 site.result.error = null;
                 site.result.annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
                 site.result.npv = calculateNPV(globalDiscountRate, cashFlows);
-                const irrDisplayState = site.result.annualIRR >= globalTargetIRR ? 'go' : 'nogo';
                 showSiteResults(
                     errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl,
-                    site.result.annualIRR, irrDisplayState, site.result.tcv,
+                    site.result.annualIRR, getIrrPerformanceState(site.result.annualIRR), site.result.tcv,
                     site.result.npv, site.result.payback, site.result.effectiveTerm, site.result.paybackRatio,
                     site.result.paybackRogerMonth,
                     site.result.runRatePayback
@@ -809,7 +791,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
         const siteCashFlowBundles = [];
         let globalNetInvestment = 0;
@@ -873,7 +854,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         showGlobalResults(
             globalMonthlyIRR,
-            globalTargetIRR,
             globalTCV,
             globalPaybackMonths,
             globalPaybackRogerMonth,
@@ -1593,13 +1573,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 5. UI Update Functions ---
 
-    function setResultUI(el, text, state) { // state: 'go', 'nogo', 'error', 'pending', 'default'
+    function setResultUI(el, text, state) { // state: 'go', 'warn', 'nogo', 'error', 'pending', 'default'
         el.textContent = text;
-        el.classList.remove('go', 'nogo', 'error', 'pending');
+        el.classList.remove('go', 'warn', 'nogo', 'error', 'pending');
         
         switch (state) {
             case 'go':
                 el.style.color = 'var(--color-success, #22c55e)';
+                break;
+            case 'warn':
+                el.style.color = 'var(--warning-color, #d97706)';
                 break;
             case 'nogo':
                 el.style.color = 'var(--color-danger, #ef4444)';
@@ -1680,7 +1663,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setPaybackUI(runRatePaybackEl, runRateMonths, term, runRateRatioForUi(term, runRateMonths), null);
     }
 
-    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalPaybackRogerMonth, globalTerm, globalPaybackRatio, totalCapitalInvestment, npv, globalRunRatePayback, globalMrc = 0) {
+    function showGlobalResults(monthlyIRR, tcv, globalPaybackMonths, globalPaybackRogerMonth, globalTerm, globalPaybackRatio, totalCapitalInvestment, npv, globalRunRatePayback, globalMrc = 0) {
         globalErrorMessageEl.classList.add('hidden');
         
         setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
@@ -1708,12 +1691,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
-        
-        if (annualIRR >= targetIRR) {
-            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'go');
-        } else {
-            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'nogo');
-        }
+        setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', getIrrPerformanceState(annualIRR));
     }
 
     function showGlobalError(message) {
@@ -1775,10 +1753,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             .page-1-wrapper { width: 7.5in; margin: 0 auto; }
             
-            .report-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 3px solid #3b82f6; padding-bottom: 8px; margin-bottom: 12px; overflow: visible; }
+            .report-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 12px; overflow: visible; }
             .report-header h1 { flex: 1; min-width: 0; font-size: 1.25rem; color: #1e293b; margin: 0; line-height: 1.2; }
-            .report-header-meta { flex: 0 1 auto; max-width: 58%; text-align: right; line-height: 1.35; overflow: visible; min-width: 0; }
-            .report-header-meta-row { font-size: 7pt; color: #64748b; white-space: nowrap; overflow: visible; }
+            .report-header-meta { flex: 0 0 2.15in; max-width: none; text-align: right; line-height: 1.45; overflow: visible; min-width: 2.15in; }
+            .report-header-meta-row { display: block; font-size: 7pt; color: #64748b; white-space: nowrap; overflow: visible; }
             
             .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
             .summary-card h2 { font-size: 0.9rem; color: #3b82f6; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
@@ -1865,7 +1843,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function runIrrPdfExportJob() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
         const npvDiscountPctPrint = (() => {
             const pct = globalDiscountRate * 100;
@@ -1963,7 +1940,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ensureSiteTimelineISOFromLegacy(site, getBusinessCaseStartStr());
             const timeline = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
             const irrText = res.error ? 'Error' : `${(res.annualIRR * 100).toFixed(2)}%`;
-            const irrClass = res.error ? 'error' : (res.annualIRR >= globalTargetIRR ? 'go' : 'nogo');
+            const irrClass = res.error ? 'error' : getIrrPerformanceState(res.annualIRR);
 
             let pText = '-- / --';
             let pClass = '';
@@ -2414,7 +2391,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             siteCount: state.sites.length,
             maxTerm,
             annualIrr,
-            targetIrr: (parseFloat(globalTargetIrrInput.value) || 0) / 100,
             discountRate: globalDiscountRate,
             totalCapitalInvestment: totalConstruction + totalEngineering + totalProduct,
             totalConstruction,
@@ -2444,7 +2420,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             ['Project Name', projectName].map(escapeCSV).join(','),
             ['Site Count', summary.siteCount].map(escapeCSV).join(','),
             ['Max Effective Term', summary.maxTerm].map(escapeCSV).join(','),
-            ['Target IRR (%)', (summary.targetIrr * 100).toFixed(2)].map(escapeCSV).join(','),
             ['Discount Rate (%)', (summary.discountRate * 100).toFixed(2)].map(escapeCSV).join(','),
             ['Global Annual IRR (%)', formatCsvPercentValue(summary.annualIrr)].map(escapeCSV).join(','),
             ['Total Capital Investment', formatCsvCurrencyValue(summary.totalCapitalInvestment)].map(escapeCSV).join(','),
@@ -2679,7 +2654,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return {
             id: null,
             project_name: projectName || 'Imported Salesforce Project',
-            global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
             global_discount_rate: parseFloat(globalDiscountRateInput?.value) || 15,
             business_case_start: getBusinessCaseStartStr(),
             sites
@@ -2731,7 +2705,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const projectData = {
             project_name: projectName,
-            global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
             global_discount_rate: parseFloat(globalDiscountRateInput?.value) || 15,
             business_case_start: (getBusinessCaseStartStr()),
             sites: state.sites,
@@ -2865,7 +2838,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 3. Set global inputs
         projectNameInput.value = projectData.project_name || '';
-        globalTargetIrrInput.value = projectData.global_target_irr || 15;
         if (globalDiscountRateInput) {
             globalDiscountRateInput.value = projectData.global_discount_rate || 15;
         }
@@ -2875,7 +2847,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? String(loadedBcs).trim()
                 : defaultBusinessCaseStartStr()
         );
-        updateDialVisual();
         
         // 4. Rebuild DOM for each site
         state.sites.forEach(site => {
@@ -3090,15 +3061,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // Global Target IRR listener
-        if (globalTargetIrrInput) {
-            globalTargetIrrInput.addEventListener('input', () => {
-                state.isFormDirty = true;
-                updateDialVisual();
-                state.sites.forEach(site => runSiteCalculation(site.id, false));  
-                runGlobalCalculation();  
-            });
-        }
         if (globalDiscountRateInput) {
             globalDiscountRateInput.addEventListener('input', () => {
                 state.isFormDirty = true;
@@ -3113,7 +3075,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             globalFreeMonthsSelect.addEventListener('change', handleGlobalFreeMonthsChange);
         }
         initGlobalFreeMonthsPicker();
-        updateDialVisual();
         
         // Project Name listener
         if (projectNameInput) {
