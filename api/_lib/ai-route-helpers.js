@@ -32,6 +32,7 @@ async function callScopedJson({ userId, functionId, systemPrompt, userMessage, r
       return {
         data: parseJsonObject(result.text),
         model: result.model,
+        rawText: result.text,
       };
     } catch (error) {
       lastParseError = error;
