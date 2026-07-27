@@ -598,8 +598,23 @@
 
         .irr-promo-controls .ts-wrapper,
         .irr-form .ts-wrapper {
-            min-width: 5.25rem;
-            width: auto;
+            flex: 0 0 auto;
+            width: 7rem;
+            min-width: 7rem;
+            max-width: 7rem;
+        }
+
+        .irr-promo-controls .ts-wrapper .ts-control,
+        .irr-form .ts-wrapper .ts-control {
+            min-height: 2.35rem;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+
+        .irr-promo-controls .ts-wrapper .item,
+        .irr-form .ts-wrapper .item,
+        .ts-dropdown .option {
+            white-space: nowrap;
         }
 
         .irr-promo-help {
