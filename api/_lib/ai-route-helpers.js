@@ -29,6 +29,21 @@ async function callScopedJson({ userId, functionId, systemPrompt, userMessage, r
   };
 }
 
+async function callScopedText({ userId, functionId, systemPrompt, userMessage, tools, temperature = 0.5, maxOutputTokens = 2048 }) {
+  const dynamicPrompts = await getDynamicPrompts(userId, functionId);
+  const result = await callGemini({
+    systemPrompt: withDynamicPrompts(systemPrompt, dynamicPrompts),
+    userMessage,
+    tools,
+    temperature,
+    maxOutputTokens,
+  });
+  return {
+    text: String(result.text || "").trim(),
+    model: result.model,
+  };
+}
+
 async function loadProductVerbiage(productNames, industry = "General") {
   const names = Array.isArray(productNames)
     ? productNames.map((name) => String(name || "").trim()).filter(Boolean)
@@ -65,6 +80,7 @@ async function loadProductVerbiage(productNames, industry = "General") {
 module.exports = {
   asText,
   callScopedJson,
+  callScopedText,
   loadProductVerbiage,
   required,
 };
