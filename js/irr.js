@@ -1730,6 +1730,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function formatPdfNumber(value, { prefix = '', suffix = '' } = {}) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return '';
+        const rounded = Math.round((number + Number.EPSILON) * 100) / 100;
+        const fractionDigits = Math.abs(rounded - Math.round(rounded)) < 1e-9 ? 0 : 2;
+        return `${prefix}${rounded.toLocaleString('en-US', {
+            minimumFractionDigits: fractionDigits,
+            maximumFractionDigits: fractionDigits,
+        })}${suffix}`;
+    }
+
+    function formatPdfCurrency(value) {
+        return formatPdfNumber(value, { prefix: '$' });
+    }
+
+    function formatPdfPercentFromPct(value) {
+        return formatPdfNumber(value, { suffix: '%' });
+    }
+
+    function formatPdfElementNumberText(el) {
+        const text = el?.textContent || '';
+        const number = Number(String(text).replace(/[$,%\s,]/g, ''));
+        if (!Number.isFinite(number)) return text || '--';
+        if (text.includes('$')) return formatPdfCurrency(number);
+        if (text.includes('%')) return formatPdfPercentFromPct(number);
+        return formatPdfNumber(number);
+    }
+
+    function formatPdfPaybackText(text) {
+        const raw = String(text || '').trim();
+        const match = raw.match(/^([0-9.,]+)\s*\/\s*([0-9.,]+)$/);
+        if (!match) return raw || '-- / --';
+        return `${formatPdfNumber(Number(match[1].replace(/,/g, '')))} / ${formatPdfNumber(Number(match[2].replace(/,/g, '')))}`;
+    }
+
     /**
      * Shared print/PDF report styles. PDF capture adds shadow/filter stripping on the capture root.
      * @param {boolean} includePrintPageRules - @page rules for browser print; omit for snapdom PDF raster.
@@ -1847,7 +1882,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const npvDiscountPctPrint = (() => {
             const pct = globalDiscountRate * 100;
             if (!Number.isFinite(pct)) return '15';
-            return Math.abs(pct - Math.round(pct)) < 1e-6 ? String(Math.round(pct)) : pct.toFixed(1);
+            return formatPdfNumber(pct);
         })();
         const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         const printBcs = getBusinessCaseStartParsed();
@@ -1939,7 +1974,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = site.result;
             ensureSiteTimelineISOFromLegacy(site, getBusinessCaseStartStr());
             const timeline = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
-            const irrText = res.error ? 'Error' : `${(res.annualIRR * 100).toFixed(2)}%`;
+            const irrText = res.error ? 'Error' : formatPdfPercentFromPct(res.annualIRR * 100);
             const irrClass = res.error ? 'error' : getIrrPerformanceState(res.annualIRR);
 
             let pText = '-- / --';
@@ -1948,7 +1983,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pText = `Never / ${getEffectiveTermMonths(inp)}`;
                 pClass = 'nogo';
             } else if (res.paybackRatio !== null && isFinite(res.payback)) {
-                pText = `${(res.paybackRogerMonth != null ? res.paybackRogerMonth : res.payback.toFixed(1))} / ${getEffectiveTermMonths(inp)}`;
+                pText = `${formatPdfNumber(res.paybackRogerMonth != null ? res.paybackRogerMonth : res.payback)} / ${getEffectiveTermMonths(inp)}`;
                 if (res.paybackRatio <= 0.5) pClass = 'go';
                 else if (res.paybackRatio < 1) pClass = 'warn';
                 else pClass = 'nogo';
@@ -1966,7 +2001,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     rrClass = 'nogo';
                 } else {
                     const rrRatio = rrMonthsPdf / effectiveTermRow;
-                    rrText = `${formatPaybackMonthTwoDecimals(rrMonthsPdf)} / ${effectiveTermRow}`;
+                    rrText = `${formatPdfNumber(rrMonthsPdf)} / ${effectiveTermRow}`;
                     if (rrRatio <= 0.5) rrClass = 'go';
                     else if (rrRatio < 1) rrClass = 'warn';
                     else rrClass = 'nogo';
@@ -1976,13 +2011,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             siteRows += `<tr>
                 <td style="text-align:left;font-weight:600;">${escapeHtmlForPrint(site.name)}</td>
                 <td class="${irrClass}">${irrText}</td>
-                <td>$${(res.tcv || 0).toLocaleString()}</td>
-                <td>$${(inp.constructionCost || 0).toLocaleString()}</td>
-                <td>$${(inp.engineeringCost || 0).toLocaleString()}</td>
-                <td>$${(inp.productCost || 0).toLocaleString()}</td>
-                <td>$${(inp.nrr || 0).toLocaleString()}</td>
-                <td>$${(inp.mrr || 0).toLocaleString()}</td>
-                <td>$${(inp.monthlyCost || 0).toLocaleString()}</td>
+                <td>${formatPdfCurrency(res.tcv || 0)}</td>
+                <td>${formatPdfCurrency(inp.constructionCost || 0)}</td>
+                <td>${formatPdfCurrency(inp.engineeringCost || 0)}</td>
+                <td>${formatPdfCurrency(inp.productCost || 0)}</td>
+                <td>${formatPdfCurrency(inp.nrr || 0)}</td>
+                <td>${formatPdfCurrency(inp.mrr || 0)}</td>
+                <td>${formatPdfCurrency(inp.monthlyCost || 0)}</td>
                 <td class="site-bd-date-cell">${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.constructionStartMonthISO))}</td>
                 <td>${Math.max(1, parseInt(timeline.constructionDurationMonths, 10) || 3)}</td>
                 <td>${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.billingStartMonthISO))}</td>
@@ -2023,13 +2058,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 <div class="summary-card">
                     <div class="kpi-grid">
-                        <div class="kpi-item"><div class="kpi-label">Annual IRR</div><div class="kpi-value"${irrKpiComputedColorAttr(globalAnnualIRREl)}>${globalAnnualIRREl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value"${irrKpiComputedColorAttr(globalCapitalInvestmentEl)}>${globalCapitalInvestmentEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalTcvEl)}>${globalTcvEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Total MRC</div><div class="kpi-value"${irrKpiComputedColorAttr(globalMrcEl)}>${globalMrcEl ? globalMrcEl.textContent : '$0'}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalNpvEl)}>${globalNpvEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Run-Rate Payback</div><div class="kpi-value"${irrKpiComputedColorAttr(globalRunRatePaybackEl)}>${globalRunRatePaybackEl ? globalRunRatePaybackEl.textContent : '-- / --'}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">CF Break-Even</div><div class="kpi-value"${irrKpiComputedColorAttr(globalPaybackEl)}>${globalPaybackEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Annual IRR</div><div class="kpi-value"${irrKpiComputedColorAttr(globalAnnualIRREl)}>${formatPdfElementNumberText(globalAnnualIRREl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value"${irrKpiComputedColorAttr(globalCapitalInvestmentEl)}>${formatPdfElementNumberText(globalCapitalInvestmentEl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalTcvEl)}>${formatPdfElementNumberText(globalTcvEl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total MRC</div><div class="kpi-value"${irrKpiComputedColorAttr(globalMrcEl)}>${globalMrcEl ? formatPdfElementNumberText(globalMrcEl) : '$0'}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalNpvEl)}>${formatPdfElementNumberText(globalNpvEl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Run-Rate Payback</div><div class="kpi-value"${irrKpiComputedColorAttr(globalRunRatePaybackEl)}>${globalRunRatePaybackEl ? formatPdfPaybackText(globalRunRatePaybackEl.textContent) : '-- / --'}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">CF Break-Even</div><div class="kpi-value"${irrKpiComputedColorAttr(globalPaybackEl)}>${formatPdfPaybackText(globalPaybackEl.textContent)}</div></div>
                     </div>
                 </div>
 
