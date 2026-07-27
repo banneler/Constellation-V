@@ -4,6 +4,15 @@ const { getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "cognito-outreach";
 
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    subject: { type: "STRING" },
+    body: { type: "STRING" },
+  },
+  required: ["subject", "body"],
+};
+
 const SYSTEM_PROMPT = `You are a senior enterprise sales communications coach for Great Plains Communications.
 
 Refine Cognito-triggered outreach according to the user's instruction while preserving the core intent: convert a buying signal into a relevant business conversation.
@@ -46,6 +55,7 @@ module.exports = async function handler(req, res) {
       functionId: FUNCTION_ID,
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
+      responseSchema: RESPONSE_SCHEMA,
       temperature: 0.55,
       maxOutputTokens: 1024,
     });
