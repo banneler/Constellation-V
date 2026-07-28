@@ -7080,15 +7080,54 @@ body.theme-green {
     .deals-filters .deals-filter-reset {
         justify-self: end;
     }
+    .deals-mobile-filter-toggle {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        width: 100%;
+        margin: 0;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        background: var(--bg-medium);
+        color: var(--text-medium);
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .deals-mobile-filter-toggle i {
+        font-size: 0.7rem;
+        transition: transform 0.15s ease;
+    }
+    .deals-pipeline-card.deals-filters-expanded .deals-mobile-filter-toggle i {
+        transform: rotate(180deg);
+    }
+    .deals-mobile-filter-toggle:hover {
+        color: var(--text-light);
+        border-color: color-mix(in srgb, var(--primary-blue) 45%, var(--border-color));
+    }
     @media (max-width: 700px) {
         .deals-pipeline-card .section-card-header {
             gap: 1rem;
         }
+        .deals-mobile-filter-toggle {
+            display: inline-flex;
+            order: 2;
+            flex-basis: 100%;
+        }
         .deals-pipeline-card .deals-filters {
-            display: flex !important;
+            display: none !important;
+            order: 3;
+            flex-basis: 100%;
             flex-direction: column;
             align-items: stretch;
             gap: 0.75rem;
+        }
+        .deals-pipeline-card.deals-filters-expanded .deals-filters {
+            display: flex !important;
         }
         .deals-filters .deals-filter-group {
             width: 100%;
@@ -10292,13 +10331,28 @@ body:not(.theme-green) .list-item.selected {
     /* Deals (mobile PWA): board-only + simplified KPI strip */
     body.deals-page .deals-view-toggle,
     body.deals-page .view-mode-toggle,
-    body.deals-page .deals-filters,
     body.deals-page .deals-filter-toggle,
     body.deals-page .deals-charts-section,
     body.deals-page #list-view-container,
     body.deals-page #manager-pipeline-select-wrap,
     body.deals-page #deals-by-stage-chart-container {
         display: none !important;
+    }
+    body.deals-page .deals-mobile-filter-toggle {
+        display: inline-flex !important;
+        order: 2;
+        flex-basis: 100%;
+    }
+    body.deals-page .deals-pipeline-card .deals-filters {
+        display: none !important;
+        order: 3;
+        flex-basis: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    body.deals-page .deals-pipeline-card.deals-filters-expanded .deals-filters {
+        display: flex !important;
     }
     body.deals-page #kanban-board-view {
         display: grid !important;

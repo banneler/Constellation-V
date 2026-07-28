@@ -2183,6 +2183,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Manager pipeline select uses TomSelect (change handled in initManagerPipelineTomSelect onChange)
         const addDealBtn = document.getElementById('add-deal-btn');
         if (addDealBtn) addDealBtn.addEventListener('click', () => handleAddDeal());
+
+        const dealsMobileFilterToggle = document.getElementById('deals-mobile-filter-toggle');
+        const dealsPipelineCard = document.querySelector('.deals-pipeline-card');
+        if (dealsMobileFilterToggle && dealsPipelineCard) {
+            dealsMobileFilterToggle.addEventListener('click', () => {
+                const expanded = dealsPipelineCard.classList.toggle('deals-filters-expanded');
+                dealsMobileFilterToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                const label = dealsMobileFilterToggle.querySelector('span');
+                if (label) label.textContent = expanded ? 'Hide filters' : 'Show filters';
+            });
+        }
     }
 
     function handleFilterChange() {
