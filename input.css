@@ -7080,6 +7080,53 @@ body.theme-green {
     .deals-filters .deals-filter-reset {
         justify-self: end;
     }
+    @media (max-width: 700px) {
+        .deals-pipeline-card .section-card-header {
+            gap: 1rem;
+        }
+        .deals-pipeline-card .deals-filters {
+            display: flex !important;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.75rem;
+        }
+        .deals-filters .deals-filter-group {
+            width: 100%;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.35rem;
+            justify-self: stretch;
+        }
+        .deals-filters .deals-filter-group > span {
+            white-space: nowrap;
+        }
+        .deals-filters .deals-filter-pills {
+            width: 100%;
+            justify-content: flex-start;
+        }
+        .deals-filters #filter-stage-pills,
+        .deals-filters #filter-committed-pills {
+            flex-wrap: wrap;
+        }
+        .deals-filters .deals-filter-group:has(#filter-committed-pills),
+        .deals-filters .deals-filter-group:has(#filter-stage-pills),
+        .deals-filters .deals-filter-group:has(.deals-close-month-filter),
+        .deals-filters .deals-filter-reset {
+            justify-self: stretch;
+        }
+        .deals-filters .deals-close-month-filter {
+            width: 100%;
+            min-width: 0;
+        }
+        .deals-filters .deals-close-month-scroll {
+            flex: 1 1 auto;
+            width: auto !important;
+            min-width: 0;
+        }
+        .deals-filters .deals-filter-reset {
+            align-self: flex-end;
+        }
+    }
     #deals-table tbody tr {
         height: 4rem;
         max-height: 4rem;
