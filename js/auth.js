@@ -128,7 +128,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const email = document.getElementById("reset-email").value;
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://www.constellation-crm.com/reset-password.html',
+            redirectTo: `${window.location.origin}/reset-password.html`,
         });
 
         if (error) {
