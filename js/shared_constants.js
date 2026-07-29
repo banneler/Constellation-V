@@ -2,10 +2,10 @@
 
 // --- SHARED CONSTANTS AND FUNCTIONS ---
 import { initHUD, refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes } from './hud.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env.config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS } from './env.config.js';
 
 export { refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes };
-export { SUPABASE_URL, SUPABASE_ANON_KEY };
+export { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS };
 
 export const themes = ["dark", "light", "green", "blue", "corporate"];
 
