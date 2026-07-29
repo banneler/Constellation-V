@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="css/global-loader.css">
     <link rel="stylesheet" href="css/admin.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
@@ -37,14 +36,13 @@
                     <div>
                         <p class="admin-eyebrow">Admin Portal</p>
                         <h1>System Administration</h1>
-                        <p>Manage users, shared content, reporting signals, scripts, and system-level CRM settings.</p>
+                        <p>Manage users, shared content, scripts, and system-level CRM settings. Team utilization reporting lives in Insights.</p>
                     </div>
                     <a href="command-center.html" class="btn-secondary admin-exit-link"><i class="fa-solid fa-arrow-left"></i> Exit Admin</a>
                 </header>
                 <nav class="admin-tabs" aria-label="Admin sections">
                     <a href="#user-management" class="admin-nav active">User Management</a>
                     <a href="#content-management" class="admin-nav">Content Management</a>
-                    <a href="#analytics" class="admin-nav">Analytics & Logs</a>
                     <a href="#script-logs" class="admin-nav">Script Logs</a>
                     <a href="#settings" class="admin-nav">System Settings</a>
                 </nav>
@@ -115,74 +113,6 @@
                 </div>
             </div>
 
-            <div id="analytics-view" class="content-view hidden">
-                <div class="section-card">
-                    <div class="section-card-header">
-                        <h2 class="page-title">System Analytics</h2>
-                    </div>
-                    <div class="px-5 pb-5">
-                <div class="filter-bar">
-                    <select id="analytics-rep-filter"></select>
-                    <select id="analytics-date-filter">
-                        <option value="this_month">This Month</option>
-                        <option value="last_month">Last Month</option>
-                        <option value="last_2_months">Previous 2 Months</option>
-                        <option value="this_fiscal_year">This Fiscal Year</option>
-                        <option value="last_365_days">Last 365 Days</option>
-                    </select>
-                    <div id="analytics-chart-view-toggle" class="deals-view-toggle">
-                        <button id="view-combined-btn" class="btn-secondary btn-sm active">Combined</button>
-                        <button id="view-individual-btn" class="btn-secondary btn-sm">Individual</button>
-                    </div>
-                </div>
-                <div id="analytics-charts-container" class="charts-grid">
-                    <div class="chart-container" id="activities-chart-container">
-                        <div class="chart-header"><h4>Activities Logged</h4><button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
-                        <div class="analytics-metric-card"><div class="metric-value-large" id="activities-metric">0</div></div>
-                        <div class="chart-wrapper hidden"><canvas id="activities-chart"></canvas><div class="chart-table-view hidden"></div></div>
-                    </div>
-                    <div class="chart-container" id="sequences-chart-container">
-                        <div class="chart-header"><h4>Contacts in Sequence</h4><button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
-                        <div class="analytics-metric-card"><div class="metric-value-large" id="sequences-metric">0</div></div>
-                        <div class="chart-wrapper hidden"><canvas id="sequences-chart"></canvas><div class="chart-table-view hidden"></div></div>
-                    </div>
-                    <div class="chart-container" id="campaigns-chart-container">
-                        <div class="chart-header"><h4>Campaigns Completed</h4><button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
-                        <div class="analytics-metric-card"><div class="metric-value-large" id="campaigns-metric">0</div></div>
-                        <div class="chart-wrapper hidden"><canvas id="campaigns-chart"></canvas><div class="chart-table-view hidden"></div></div>
-                    </div>
-                    <div class="chart-container" id="tasks-chart-container">
-                        <div class="chart-header"><h4>Tasks Past Due</h4><button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
-                        <div class="analytics-metric-card"><div class="metric-value-large" id="tasks-metric">0</div></div>
-                        <div class="chart-wrapper hidden"><canvas id="tasks-chart"></canvas><div class="chart-table-view hidden"></div></div>
-                    </div>
-                    <div class="chart-container" id="new-deals-chart-container">
-                        <div class="chart-header"><h4>Deals Added to Funnel</h4><button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
-                        <div class="analytics-metric-card"><div class="metric-value-large" id="new-deals-metric">0</div></div>
-                        <div class="chart-wrapper hidden"><canvas id="new-deals-chart"></canvas><div class="chart-table-view hidden"></div></div>
-                    </div>
-                    <div class="chart-container" id="new-deals-value-chart-container">
-                        <div class="chart-header"><h4>Value of New Deals</h4><button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
-                        <div class="analytics-metric-card"><div class="metric-value-large" id="new-deals-value-metric">$0K</div></div>
-                        <div class="chart-wrapper hidden"><canvas id="new-deals-value-chart"></canvas><div class="chart-table-view hidden"></div></div>
-                    </div>
-                    <div class="chart-container" id="closed-won-chart-container">
-                        <div class="chart-header"><h4>Closed Won Deals</h4><button class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
-                        <div class="analytics-metric-card"><div class="metric-value-large" id="closed-won-metric">$0K</div></div>
-                        <div class="chart-wrapper hidden"><canvas id="closed-won-chart"></canvas><div class="chart-table-view hidden"></div></div>
-                    </div>
-                </div>
-                 <h2 class="section-title">System Activity Log</h2>
-                <div class="table-container">
-                    <table id="activity-log-table">
-                        <thead><tr><th>Date</th><th>User</th><th>Type</th><th>Description</th><th>Related Contact</th><th>Related Account</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                    </div>
-                </div>
-            </div>
-            
             <div id="script-logs-view" class="content-view hidden">
                 <div class="section-card">
                     <div class="section-card-header">
@@ -205,6 +135,22 @@
                         <tbody></tbody>
                     </table>
                 </div>
+                    </div>
+                </div>
+                <div class="section-card mt-4">
+                    <div class="section-card-header">
+                        <h2 class="page-title">System Activity Log</h2>
+                    </div>
+                    <div class="px-5 pb-5">
+                        <p class="placeholder-text mb-6">
+                          Recent CRM activity for operational review. Team utilization metrics are on the Insights page.
+                        </p>
+                        <div class="table-container">
+                            <table id="activity-log-table">
+                                <thead><tr><th>Date</th><th>User</th><th>Type</th><th>Description</th><th>Related Contact</th><th>Related Account</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

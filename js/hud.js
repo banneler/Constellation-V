@@ -58,11 +58,13 @@ const jarvisData = {
         { container: '#create-post-form-container', macro: 'Social Post. Create shared post for Social Hub.', nodes: [{ anchor: '#submit-post-btn', text: 'Publish post to Social Hub.' }] },
         { container: '.user-menu', macro: 'User Menu. Theme and session.', nodes: [{ anchor: '#theme-toggle-btn', text: 'Toggle theme.' }, { anchor: '#logout-btn', text: 'Sign out.' }] }
     ],
+    'insights.html': [
+        { container: '#insights-content', macro: 'Manager Insights. Team utilization, funnel, sequences, campaigns, Cognito follow-through, and SAOS coverage.', nodes: [{ anchor: '#insights-rep-filter', text: 'Filter by rep.' }, { anchor: '#insights-date-filter', text: 'Filter by date range.' }, { anchor: '#insights-view-combined-btn', text: 'Combined chart view.' }, { anchor: '#insights-view-individual-btn', text: 'Individual chart view.' }, { anchor: '#insights-refresh-btn', text: 'Refresh Insights data.' }] }
+    ],
     'admin.html': [
         { container: '#user-management-view', macro: 'User Management. User table and bulk data reassignment.', nodes: [{ anchor: '#reassign-from-user', text: 'Source user for reassignment.' }, { anchor: '#reassign-to-user', text: 'Target user for reassignment.' }, { anchor: '#reassign-btn', text: 'Execute bulk reassignment.' }] },
         { container: '#content-management-view', macro: 'Content Management. Shared email templates and marketing sequences.', nodes: [{ anchor: '#view-templates-btn', text: 'View email templates.' }, { anchor: '#view-sequences-btn', text: 'View marketing sequences.' }] },
-        { container: '#analytics-view', macro: 'Analytics. Rep and date filters; charts and activity log.', nodes: [{ anchor: '#analytics-rep-filter', text: 'Filter by rep.' }, { anchor: '#analytics-date-filter', text: 'Filter by date range.' }, { anchor: '#view-combined-btn', text: 'Combined chart view.' }, { anchor: '#view-individual-btn', text: 'Individual chart view.' }, { anchor: '.chart-toggle-btn', text: 'Toggle chart vs table for metric.' }] },
-        { container: '#script-logs-view', macro: 'Script Logs. Run history for automated data scripts.', nodes: [] },
+        { container: '#script-logs-view', macro: 'Script Logs. Run history for automated data scripts and system activity log.', nodes: [] },
         { container: '#settings-view', macro: 'System Settings. Deal stages and activity types.', nodes: [{ anchor: '#new-deal-stage-name', text: 'New deal stage name.' }, { anchor: '#add-deal-stage-btn', text: 'Add deal stage.' }, { anchor: '#new-activity-type-name', text: 'New activity type name.' }, { anchor: '#add-activity-type-btn', text: 'Add activity type.' }] }
     ],
     'proposals.html': [

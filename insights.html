@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="description" content="Constellation CRM manager Insights dashboard for team utilization and pipeline reporting.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constellation CRM - Insights</title>
+    <link rel="stylesheet" href="output.css">
+    <link rel="stylesheet" href="css/global-loader.css">
+    <link rel="stylesheet" href="css/insights.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+</head>
+<body class="insights-page">
+    <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
+        <div class="global-loader-content">
+            <div class="global-loader-spinner" aria-hidden="true">
+                <svg class="global-loader-svg global-loader-constellation" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="global-loader-constellation-line" pathLength="1" d="M24 8 L10 22 L18 38 L30 38 L38 22 L24 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle class="global-loader-star" cx="24" cy="8" r="2.2"/><circle class="global-loader-star" cx="10" cy="22" r="1.8"/><circle class="global-loader-star" cx="18" cy="38" r="2"/><circle class="global-loader-star" cx="30" cy="38" r="1.8"/><circle class="global-loader-star" cx="38" cy="22" r="2"/>
+                </svg>
+            </div>
+            <p class="global-loader-text">Loading…</p>
+        </div>
+    </div>
+    <div class="crm-container">
+        <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
+            <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
+        </nav>
+        <main class="content-area">
+            <section id="insights-view" class="content-view active-view insights-shell">
+                <div class="insights-page-header">
+                    <div>
+                        <p class="insights-eyebrow">Manager View</p>
+                        <h1>Insights</h1>
+                        <p class="insights-subtitle">Team utilization, funnel health, sequences, campaigns, Cognito follow-through, and SAOS coverage.</p>
+                    </div>
+                    <button type="button" id="insights-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                </div>
+
+                <div id="insights-access-denied" class="section-card insights-access-denied hidden">
+                    <i class="fa-solid fa-lock"></i>
+                    <div>
+                        <h2 class="section-title">Manager access required</h2>
+                        <p>Insights is available to managers and admins only.</p>
+                    </div>
+                </div>
+
+                <div id="insights-content" class="insights-content hidden">
+                    <div class="section-card insights-filters-card">
+                        <div class="filter-bar insights-filter-bar">
+                            <label class="insights-filter-label">
+                                <span>Rep</span>
+                                <select id="insights-rep-filter" aria-label="Filter by rep"></select>
+                            </label>
+                            <label class="insights-filter-label">
+                                <span>Period</span>
+                                <select id="insights-date-filter" aria-label="Filter by date range">
+                                    <option value="this_month">This Month</option>
+                                    <option value="last_month">Last Month</option>
+                                    <option value="last_2_months">Previous 2 Months</option>
+                                    <option value="this_fiscal_year">This Fiscal Year</option>
+                                    <option value="last_365_days">Last 365 Days</option>
+                                </select>
+                            </label>
+                            <div id="insights-chart-view-toggle" class="deals-view-toggle">
+                                <button type="button" id="insights-view-combined-btn" class="btn-secondary btn-sm active">Combined</button>
+                                <button type="button" id="insights-view-individual-btn" class="btn-secondary btn-sm">Individual</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-card-header">
+                            <h2 class="section-title">Team Activity &amp; Funnel</h2>
+                        </div>
+                        <div id="insights-core-charts" class="charts-grid px-5 pb-5">
+                            <div class="chart-container" id="insights-activities-chart-container">
+                                <div class="chart-header"><h4>Activities Logged</h4><button type="button" class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
+                                <div class="analytics-metric-card"><div class="metric-value-large" id="insights-activities-metric">0</div></div>
+                                <div class="chart-wrapper hidden"><canvas id="insights-activities-chart"></canvas><div class="chart-table-view hidden"></div></div>
+                            </div>
+                            <div class="chart-container" id="insights-tasks-chart-container">
+                                <div class="chart-header"><h4>Tasks Past Due</h4><button type="button" class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
+                                <div class="analytics-metric-card"><div class="metric-value-large" id="insights-tasks-metric">0</div></div>
+                                <div class="chart-wrapper hidden"><canvas id="insights-tasks-chart"></canvas><div class="chart-table-view hidden"></div></div>
+                            </div>
+                            <div class="chart-container" id="insights-new-deals-chart-container">
+                                <div class="chart-header"><h4>Deals Added to Funnel</h4><button type="button" class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
+                                <div class="analytics-metric-card"><div class="metric-value-large" id="insights-new-deals-metric">0</div></div>
+                                <div class="chart-wrapper hidden"><canvas id="insights-new-deals-chart"></canvas><div class="chart-table-view hidden"></div></div>
+                            </div>
+                            <div class="chart-container" id="insights-new-deals-value-chart-container">
+                                <div class="chart-header"><h4>Value of New Deals</h4><button type="button" class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
+                                <div class="analytics-metric-card"><div class="metric-value-large" id="insights-new-deals-value-metric">$0K</div></div>
+                                <div class="chart-wrapper hidden"><canvas id="insights-new-deals-value-chart"></canvas><div class="chart-table-view hidden"></div></div>
+                            </div>
+                            <div class="chart-container" id="insights-closed-won-chart-container">
+                                <div class="chart-header"><h4>Closed Won</h4><button type="button" class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
+                                <div class="analytics-metric-card"><div class="metric-value-large" id="insights-closed-won-metric">$0K</div></div>
+                                <div class="chart-wrapper hidden"><canvas id="insights-closed-won-chart"></canvas><div class="chart-table-view hidden"></div></div>
+                            </div>
+                            <div class="chart-container" id="insights-quota-chart-container">
+                                <div class="chart-header"><h4>Quota Attainment</h4><button type="button" class="btn-secondary chart-toggle-btn" data-view="chart"><i class="fas fa-table"></i></button></div>
+                                <div class="analytics-metric-card"><div class="metric-value-large" id="insights-quota-metric">0%</div><p class="insights-metric-caption" id="insights-quota-caption">Closed won vs monthly quota</p></div>
+                                <div class="chart-wrapper hidden"><canvas id="insights-quota-chart"></canvas><div class="chart-table-view hidden"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="insights-modules-grid">
+                        <div class="section-card insights-module">
+                            <div class="section-card-header">
+                                <h2 class="section-title">Sequence Health</h2>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <div class="insights-kpi-row" id="insights-sequence-kpis"></div>
+                                <div class="insights-table-wrap">
+                                    <table class="insights-table" id="insights-sequence-table">
+                                        <thead><tr><th>Sequence</th><th>Active</th><th>Completed</th><th>Removed</th><th>Overdue</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-card insights-module">
+                            <div class="section-card-header">
+                                <h2 class="section-title">Campaigns</h2>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <div class="insights-kpi-row" id="insights-campaign-kpis"></div>
+                                <div class="insights-table-wrap">
+                                    <table class="insights-table" id="insights-campaign-table">
+                                        <thead><tr><th>Campaign</th><th>Members</th><th>Completed</th><th>Rate</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-card insights-module">
+                            <div class="section-card-header">
+                                <h2 class="section-title">Cognito → Outreach</h2>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <p class="insights-note">“Converted” means an activity was logged on the same account after the trigger (heuristic — not a hard CRM link).</p>
+                                <div class="insights-kpi-row" id="insights-cognito-kpis"></div>
+                                <div class="insights-table-wrap">
+                                    <table class="insights-table" id="insights-cognito-table">
+                                        <thead><tr><th>Status</th><th>Triggers</th><th>Converted</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-card insights-module">
+                            <div class="section-card-header insights-module-header-row">
+                                <h2 class="section-title">SAOS Snapshot</h2>
+                                <a href="saos-dashboard.html" class="btn-secondary btn-sm">Open SAOS Dashboard</a>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <div class="insights-kpi-row" id="insights-saos-kpis"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-card-header">
+                            <h2 class="section-title">Low Activity Penetration</h2>
+                        </div>
+                        <div class="px-5 pb-5">
+                            <p class="insights-note">Accounts with no logged activity in the selected period (top 25 by contact count).</p>
+                            <div class="insights-table-wrap">
+                                <table class="insights-table" id="insights-penetration-table">
+                                    <thead><tr><th>Account</th><th>Owner</th><th>Contacts</th><th>Last Activity</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="js/insights.js"></script>
+</body>
+</html>

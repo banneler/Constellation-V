@@ -2,7 +2,6 @@ import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     formatDate,
-    formatCurrencyK,
     setupModalListeners,
     showModal,
     hideModal,
@@ -24,20 +23,13 @@ let state = {
     allTemplates: [],
     allSequences: [],
     activityLog: [],
-    analyticsData: {},
     dealStages: [],
     activityTypes: [],
-    charts: {},
     scriptLogs: [],
     reassignmentAccounts: [],
     reassignmentAccountsLoading: false,
     currentView: 'user-management',
     contentView: 'templates',
-    analyticsFilters: {
-        userId: 'all',
-        dateRange: 'this_month',
-        chartView: 'combined'
-    }
 };
 
 function escapeHtml(value) {
@@ -54,7 +46,6 @@ const loadAllDataForView = async () => {
     switch (state.currentView) {
         case 'user-management': await loadUserData(); break;
         case 'content-management': await loadContentData(); break;
-        case 'analytics': await loadAnalyticsData(); break;
         case 'script-logs': await loadScriptLogs(); break;
         case 'settings': await loadSettingsData(); break;
     }
@@ -365,51 +356,28 @@ async function loadContentData() {
     renderContentTable();
 }
 
-async function loadAnalyticsData() {
-    const tablesToFetch = ['activities', 'contact_sequences', 'campaigns', 'tasks', 'deals'];
-    
-    const { data: users, error: userError } = await supabase.rpc('get_admin_users');
-    if(userError) {
-        alert('Could not load user data for analytics.');
-        return;
-    }
-    state.allUsers = users || [];
-
-    const { data: log, error: logError } = await supabase.rpc('get_admin_activity_log', { _limit: 200 });
-    if(logError) {
-         alert('Could not load system activity log: ' + logError.message);
-         state.activityLog = [];
-    } else {
-        state.activityLog = log || [];
-    }
-
-    const promises = tablesToFetch.map(table => supabase.from(table).select('*'));
-    const results = await Promise.all(promises);
-
-    results.forEach((result, index) => {
-        const tableName = tablesToFetch[index];
-        if (result.error) {
-            console.error(`Error fetching analytics data for ${tableName}:`, result.error);
-            state.analyticsData[tableName] = [];
-        } else {
-            state.analyticsData[tableName] = result.data || [];
-        }
-    });
-    
-    populateAnalyticsFilters();
-    renderAnalyticsDashboard();
-    renderActivityLogTable();
-}
-
 async function loadScriptLogs() {
-    const { data, error } = await supabase.rpc('get_admin_script_logs');
+    const [{ data: scriptLogs, error: scriptError }, { data: activityLog, error: logError }] = await Promise.all([
+        supabase.rpc('get_admin_script_logs'),
+        supabase.rpc('get_admin_activity_log', { _limit: 200 }),
+    ]);
 
-    if (error) {
-        alert(`Could not load script logs: ${error.message}`);
-        return;
+    if (scriptError) {
+        alert(`Could not load script logs: ${scriptError.message}`);
+        state.scriptLogs = [];
+    } else {
+        state.scriptLogs = scriptLogs || [];
     }
-    state.scriptLogs = data || [];
+
+    if (logError) {
+        alert('Could not load system activity log: ' + logError.message);
+        state.activityLog = [];
+    } else {
+        state.activityLog = activityLog || [];
+    }
+
     renderScriptLogsTable();
+    renderActivityLogTable();
 }
 
 function renderScriptLogsTable() {
@@ -502,168 +470,6 @@ function renderActivityLogTable() {
             <td>${log.account_name || 'N/A'}</td>
         </tr>`).join('');
 }
-
-function populateAnalyticsFilters() {
-    const repFilter = document.getElementById('analytics-rep-filter');
-    repFilter.innerHTML = '<option value="all">All Reps</option>';
-    state.allUsers.filter(u => !u.exclude_from_reporting && !isUserDeactivated(u)).forEach(user => {
-        repFilter.innerHTML += `<option value="${user.user_id}">${user.full_name}</option>`;
-    });
-}
-
-function renderAnalyticsDashboard() {
-    const { userId, dateRange, chartView } = state.analyticsFilters;
-    const { startDate, endDate } = getDateRange(dateRange);
-    const usersForAnalytics = state.allUsers.filter(u => !u.exclude_from_reporting && !isUserDeactivated(u));
-    
-    const filterDataByCreationDate = (data, dateField) => data.filter(item => {
-        if (!item[dateField]) return false;
-        const itemDate = new Date(item[dateField]);
-        const userMatch = (userId === 'all' || item.user_id === userId);
-        const userIncluded = usersForAnalytics.some(u => u.user_id === item.user_id);
-        return userIncluded && userMatch && itemDate >= startDate && itemDate <= endDate;
-    });
-
-    const filterTasks = (data) => data.filter(t => {
-        const userMatch = (userId === 'all' || t.user_id === userId);
-        const userIncluded = usersForAnalytics.some(u => u.user_id === t.user_id);
-        const isPastDue = new Date(t.due_date) < new Date();
-        return userIncluded && userMatch && isPastDue && t.status === 'Pending';
-    });
-
-    const groupByUser = (data, valueField = null) => {
-        return usersForAnalytics.map(user => {
-            const userItems = data.filter(item => item.user_id === user.user_id);
-            const value = valueField ? userItems.reduce((sum, item) => sum + (item[valueField] || 0), 0) : userItems.length;
-            return { label: user.full_name, value };
-        }).sort((a,b) => b.value - a.value);
-    };
-    
-    const activities = filterDataByCreationDate(state.analyticsData.activities, 'date');
-    const sequences = filterDataByCreationDate(state.analyticsData.contact_sequences, 'last_completed_date');
-    const campaigns = filterDataByCreationDate(state.analyticsData.campaigns, 'completed_at');
-    const tasks = filterTasks(state.analyticsData.tasks);
-    const newDeals = filterDataByCreationDate(state.analyticsData.deals, 'created_at');
-    const closedWonDeals = state.analyticsData.deals.filter(d => {
-        const userMatch = (userId === 'all' || d.user_id === userId);
-        const userIncluded = usersForAnalytics.some(u => u.user_id === d.user_id);
-        if (!d.close_month) return false;
-        const closedDate = new Date(d.close_month + '-02');
-        return userIncluded && userMatch && d.stage === 'Closed Won' && closedDate >= startDate && closedDate <= endDate;
-    });
-
-    const isIndividualView = (userId === 'all' && chartView === 'individual');
-    
-    document.querySelectorAll('.chart-container').forEach(container => {
-        const metricCard = container.querySelector('.analytics-metric-card');
-        const chartWrapper = container.querySelector('.chart-wrapper');
-        const toggleBtn = container.querySelector('.chart-toggle-btn');
-        
-        if (isIndividualView) {
-            metricCard.classList.add('hidden');
-            chartWrapper.classList.remove('hidden');
-            toggleBtn.classList.remove('hidden');
-        } else {
-            metricCard.classList.remove('hidden');
-            chartWrapper.classList.add('hidden');
-            toggleBtn.classList.add('hidden');
-        }
-    });
-
-    document.getElementById('activities-metric').textContent = activities.length;
-    document.getElementById('sequences-metric').textContent = sequences.length;
-    document.getElementById('campaigns-metric').textContent = campaigns.length;
-    document.getElementById('tasks-metric').textContent = tasks.length;
-    document.getElementById('new-deals-metric').textContent = newDeals.length;
-    document.getElementById('new-deals-value-metric').textContent = formatCurrencyK(newDeals.reduce((s, d) => s + (d.mrc || 0), 0));
-    document.getElementById('closed-won-metric').textContent = formatCurrencyK(closedWonDeals.reduce((s, d) => s + (d.mrc || 0), 0));
-
-    renderChart('activities-chart', groupByUser(activities), false);
-    renderChart('sequences-chart', groupByUser(sequences), false);
-    renderChart('campaigns-chart', groupByUser(campaigns), false);
-    renderChart('tasks-chart', groupByUser(tasks), false);
-    renderChart('new-deals-chart', groupByUser(newDeals), false);
-    renderChart('new-deals-value-chart', groupByUser(newDeals, 'mrc'), true);
-    renderChart('closed-won-chart', groupByUser(closedWonDeals, 'mrc'), true);
-}
-
-function renderChart(canvasId, data, isCurrency = false) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
-    if (state.charts[canvasId]) state.charts[canvasId].destroy();
-    
-    const chartData = Array.isArray(data) ? data : [data];
-    const chartLabels = chartData.map(d => d.label);
-    const chartValues = chartData.map(d => d.value);
-
-    state.charts[canvasId] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: chartLabels,
-            datasets: [{
-                label: 'Total',
-                data: chartValues,
-                backgroundColor: 'rgba(74, 144, 226, 0.6)',
-                borderColor: 'rgba(74, 144, 226, 1)',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.label || '';
-                            if (label) { label += ': '; }
-                            let value = context.parsed.x;
-                            label += isCurrency ? formatCurrencyK(value) : value;
-                            return label;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { display: false },
-                    ticks: { color: 'var(--text-medium)' }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: {
-                        color: 'var(--text-medium)',
-                        callback: function(value) {
-                            return isCurrency ? formatCurrencyK(value) : value;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-function renderTableForChart(containerId, data, isCurrency = false) {
-    const container = document.getElementById(containerId);
-    const tableView = container.querySelector('.chart-table-view');
-    if (!tableView) return;
-
-    let tableHtml = '<table><thead><tr><th>User</th><th>Value</th></tr></thead><tbody>';
-    data.forEach(item => {
-        tableHtml += `<tr><td>${item.label}</td><td>${isCurrency ? formatCurrencyK(item.value) : item.value}</td></tr>`;
-    });
-    tableHtml += '</tbody></table>';
-    tableView.innerHTML = tableHtml;
-}
-
-
-// admin.js
-
-// admin.js
 
 async function handleSaveUser(e) {
     // This is the key: 'row' now refers to the specific table row being edited.
@@ -803,27 +609,18 @@ async function handleDeleteContent(e) {
 }
 
 function handleNavigation() {
-    const hash = window.location.hash || '#user-management';
+    let hash = window.location.hash || '#user-management';
+    if (hash === '#analytics') {
+        hash = '#script-logs';
+        window.location.hash = hash;
+        return;
+    }
     state.currentView = hash.substring(1);
     document.querySelectorAll('.admin-nav').forEach(link => link.classList.remove('active'));
     document.querySelector(`.admin-nav[href="${hash}"]`)?.classList.add('active');
     document.querySelectorAll('.content-view').forEach(view => view.classList.add('hidden'));
     document.getElementById(`${state.currentView}-view`)?.classList.remove('hidden');
     loadAllDataForView();
-}
-
-function getDateRange(rangeKey) {
-    const now = new Date();
-    let startDate = new Date();
-    const endDate = new Date(now);
-    switch (rangeKey) {
-        case 'this_month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
-        case 'last_month': startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1); endDate.setDate(0); break;
-        case 'last_2_months': startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1); break;
-        case 'this_fiscal_year': startDate = new Date(now.getFullYear(), 0, 1); break;
-        case 'last_365_days': startDate.setDate(now.getDate() - 365); break;
-    }
-    return { startDate, endDate };
 }
 
 function setupPageEventListeners() {
@@ -881,57 +678,6 @@ function setupPageEventListeners() {
         renderContentTable();
     }));
 
-    document.getElementById('analytics-rep-filter')?.addEventListener('change', e => {
-        e.preventDefault();
-        state.analyticsFilters.userId = e.target.value;
-        document.getElementById('analytics-chart-view-toggle').style.display = e.target.value === 'all' ? 'flex' : 'none';
-        renderAnalyticsDashboard();
-    });
-    document.getElementById('analytics-date-filter')?.addEventListener('change', e => { e.preventDefault();
-        state.analyticsFilters.dateRange = e.target.value;
-        renderAnalyticsDashboard();
-    });
-    document.getElementById('analytics-chart-view-toggle')?.addEventListener('click', e => {
-        if (e.target.matches('button')) {
-            document.querySelectorAll('#analytics-chart-view-toggle button').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            state.analyticsFilters.chartView = e.target.id === 'view-individual-btn' ? 'individual' : 'combined';
-            renderAnalyticsDashboard();
-        }
-    });
-
-    
-    document.getElementById('analytics-charts-container').addEventListener('click', e => {
-        const toggleBtn = e.target.closest('.chart-toggle-btn');
-        if (toggleBtn) {
-            const chartHeader = toggleBtn.closest('.chart-header');
-            const container = chartHeader.closest('.chart-container');
-            const canvas = container.querySelector('canvas');
-            const tableView = container.querySelector('.chart-table-view');
-            
-            if (toggleBtn.dataset.view === 'chart') {
-                const chartInstance = state.charts[canvas.id];
-                if (chartInstance) {
-                    const chartData = chartInstance.data.labels.map((label, index) => ({
-                        label: label,
-                        value: chartInstance.data.datasets[0].data[index]
-                    }));
-                    const isCurrency = canvas.id.includes('value') || canvas.id.includes('won');
-                    renderTableForChart(container.id, chartData, isCurrency);
-                }
-                canvas.classList.add('hidden');
-                tableView.classList.remove('hidden');
-                toggleBtn.dataset.view = 'table';
-                toggleBtn.innerHTML = '<i class="fas fa-chart-bar"></i>';
-            } else {
-                canvas.classList.remove('hidden');
-                tableView.classList.add('hidden');
-                toggleBtn.dataset.view = 'chart';
-                toggleBtn.innerHTML = '<i class="fas fa-table"></i>';
-            }
-        }
-    });
-    
     document.getElementById('add-deal-stage-btn')?.addEventListener('click', (e) => { e.preventDefault(); handleAddSetting('deal_stage'); });
     document.getElementById('add-activity-type-btn')?.addEventListener('click', (e) => { e.preventDefault(); handleAddSetting('activity_type'); });
     document.getElementById('settings-view')?.addEventListener('click', e => {

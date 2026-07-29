@@ -1022,6 +1022,7 @@ const GLOBAL_NAV_TEMPLATE = `
     <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i><span class="nav-label-text">Deals</span></a>
     <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i><span class="nav-label-text">Contacts</span></a>
     <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i><span class="nav-label-text">Accounts</span></a>
+    <a href="insights.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-chart-line nav-icon"></i><span class="nav-label-text">Insights</span></a>
     <a href="saos-dashboard.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-sitemap nav-icon"></i><span class="nav-label-text">SAOS</span></a>
     <a href="admin.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-shield-halved nav-icon"></i><span class="nav-label-text">Admin</span></a>
     <a href="proposals.html" class="nav-button"><i class="fa-solid fa-file-lines nav-icon"></i><span class="nav-label-text">Proposals</span></a>
