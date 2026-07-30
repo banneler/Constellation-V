@@ -16,6 +16,20 @@
     gap: 1rem;
 }
 
+.insights-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    flex-shrink: 0;
+}
+
+.insights-header-actions .btn-secondary,
+.insights-header-actions .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
 .insights-eyebrow {
     margin: 0 0 0.35rem;
     color: var(--primary-blue);
@@ -58,7 +72,36 @@
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 0.85rem;
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.25rem 0.35rem;
+}
+
+.insights-view-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.insights-filter-label-text {
+    color: var(--text-medium);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.insights-mode-hint {
+    margin: 0;
+    padding: 0 1.25rem 1rem;
+    color: var(--text-medium);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.insights-section-lede {
+    margin: 0.35rem 0 0;
+    color: var(--text-medium);
+    font-size: 0.86rem;
+    line-height: 1.45;
 }
 
 .insights-filter-label {
@@ -197,6 +240,16 @@
 @media (max-width: 760px) {
     .insights-page-header {
         flex-direction: column;
+    }
+
+    .insights-header-actions {
+        width: 100%;
+    }
+
+    .insights-header-actions .btn-secondary,
+    .insights-header-actions .btn-primary {
+        flex: 1 1 auto;
+        justify-content: center;
     }
 
     .insights-filters-card .insights-filter-bar {

@@ -53,4 +53,8 @@ export class InsightsPage {
   dateFilter(): ReturnType<Page['locator']> {
     return this.page.locator('#insights-date-filter');
   }
+
+  exportBtn(): ReturnType<Page['locator']> {
+    return this.page.locator('#insights-export-btn');
+  }
 }

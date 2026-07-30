@@ -36,9 +36,12 @@
                     <div>
                         <p class="insights-eyebrow">Manager View</p>
                         <h1>Insights</h1>
-                        <p class="insights-subtitle">Team utilization, funnel health, sequences, campaigns, Cognito follow-through, and SAOS coverage.</p>
+                        <p class="insights-subtitle">Justify the spend: team utilization, funnel health, sequence/campaign motion, Cognito follow-through, and SAOS coverage.</p>
                     </div>
-                    <button type="button" id="insights-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                    <div class="insights-header-actions">
+                        <button type="button" id="insights-export-btn" class="btn-secondary"><i class="fa-solid fa-file-export"></i> <span id="insights-export-label">Export Leadership Brief</span></button>
+                        <button type="button" id="insights-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                    </div>
                 </div>
 
                 <div id="insights-access-denied" class="section-card insights-access-denied hidden">
@@ -66,16 +69,23 @@
                                     <option value="last_365_days">Last 365 Days</option>
                                 </select>
                             </label>
-                            <div id="insights-chart-view-toggle" class="deals-view-toggle">
-                                <button type="button" id="insights-view-combined-btn" class="btn-secondary btn-sm active">Combined</button>
-                                <button type="button" id="insights-view-individual-btn" class="btn-secondary btn-sm">Individual</button>
+                            <div class="insights-view-controls">
+                                <span class="insights-filter-label-text">Report view</span>
+                                <div id="insights-chart-view-toggle" class="deals-view-toggle">
+                                    <button type="button" id="insights-view-combined-btn" class="btn-secondary btn-sm active">Combined</button>
+                                    <button type="button" id="insights-view-individual-btn" class="btn-secondary btn-sm">Individual</button>
+                                </div>
                             </div>
                         </div>
+                        <p id="insights-mode-hint" class="insights-mode-hint">Combined view — export builds a leadership brief for business reviews.</p>
                     </div>
 
                     <div class="section-card">
                         <div class="section-card-header">
-                            <h2 class="section-title">Team Activity &amp; Funnel</h2>
+                            <div>
+                                <h2 class="section-title">Team Activity &amp; Funnel</h2>
+                                <p class="insights-section-lede">Core utilization and attainment signals for the selected period.</p>
+                            </div>
                         </div>
                         <div id="insights-core-charts" class="charts-grid px-5 pb-5">
                             <div class="chart-container" id="insights-activities-chart-container">

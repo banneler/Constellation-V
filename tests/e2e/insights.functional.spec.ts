@@ -40,9 +40,11 @@ test.describe('Insights (functional)', () => {
     await expect(insights.sequenceKpis().locator('.insights-kpi').first()).toBeVisible();
     await expect(insights.saosKpis().locator('.insights-kpi').first()).toBeVisible();
 
-    guardian.step('Asserting filters are present');
+    guardian.step('Asserting filters and export control are present');
     await expect(insights.repFilter()).toBeVisible();
     await expect(insights.dateFilter()).toBeVisible();
+    await expect(page.locator('#insights-export-btn')).toBeVisible();
+    await expect(page.locator('#insights-export-label')).toContainText(/Leadership Brief|Coaching Guide/);
   });
 
   test('non-manager is redirected away from Insights', async ({ page }) => {
