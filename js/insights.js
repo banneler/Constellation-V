@@ -94,7 +94,8 @@ function getDateRange(rangeKey) {
             endDate.setDate(0);
             break;
         case 'last_2_months':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+            // Current month + previous month (2 calendar months of quota/activity).
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             break;
         case 'this_fiscal_year':
             startDate = new Date(now.getFullYear(), 0, 1);
@@ -106,6 +107,19 @@ function getDateRange(rangeKey) {
             startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
     return { startDate, endDate };
+}
+
+/** Months of quota covered by the selected Insights period. */
+function getMonthsInRange(startDate, endDate) {
+    // Month-aligned ranges (e.g. This Month, Previous 2 Months) use inclusive calendar months.
+    if (startDate.getDate() === 1) {
+        const startMonths = startDate.getFullYear() * 12 + startDate.getMonth();
+        const endMonths = endDate.getFullYear() * 12 + endDate.getMonth();
+        return Math.max(1, endMonths - startMonths + 1);
+    }
+    // Day-based ranges (e.g. Last 365 Days) use average-month duration.
+    const avgMonthMs = 30.437 * 24 * 60 * 60 * 1000;
+    return Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / avgMonthMs));
 }
 
 function userMatchesFilter(userId) {
@@ -187,9 +201,11 @@ function computeSnapshot() {
     });
     const closedWonValue = closedWonDeals.reduce((s, d) => s + (d.mrc || 0), 0);
     const newDealsValue = newDeals.reduce((s, d) => s + (d.mrc || 0), 0);
+    const monthsInView = getMonthsInRange(startDate, endDate);
     const quotaBaseUsers =
         userId === 'all' ? reportable : reportable.filter((u) => u.user_id === userId);
-    const totalQuota = quotaBaseUsers.reduce((s, u) => s + (Number(u.monthly_quota) || 0), 0);
+    const monthlyQuotaTotal = quotaBaseUsers.reduce((s, u) => s + (Number(u.monthly_quota) || 0), 0);
+    const totalQuota = monthlyQuotaTotal * monthsInView;
     const quotaPct = totalQuota > 0 ? Math.round((closedWonValue / totalQuota) * 100) : 0;
 
     const seqMap = new Map((state.data.sequences || []).map((s) => [s.id, s.name || `Sequence #${s.id}`]));
@@ -329,7 +345,8 @@ function computeSnapshot() {
             const repNewDeals = newDeals.filter((d) => d.user_id === uid);
             const repWon = closedWonDeals.filter((d) => d.user_id === uid);
             const wonValue = repWon.reduce((s, d) => s + (d.mrc || 0), 0);
-            const quota = Number(user.monthly_quota) || 0;
+            const monthlyQuota = Number(user.monthly_quota) || 0;
+            const quota = monthlyQuota * monthsInView;
             const repSeqActive = seqActive.filter((r) => r.user_id === uid);
             const repSeqOverdue = seqOverdue.filter((r) => r.user_id === uid);
             const repAlerts = alerts.filter((a) => a.user_id === uid);
@@ -354,7 +371,7 @@ function computeSnapshot() {
             if (repSeqOverdue.length > 0) coachingPrompts.push(`Recover ${repSeqOverdue.length} overdue sequence step${repSeqOverdue.length === 1 ? '' : 's'}.`);
             if (quota > 0 && wonValue < quota) {
                 coachingPrompts.push(
-                    `Quota gap: ${formatCurrencyK(Math.max(quota - wonValue, 0))} remaining vs ${formatCurrencyK(quota)} target.`
+                    `Quota gap: ${formatCurrencyK(Math.max(quota - wonValue, 0))} remaining vs ${formatCurrencyK(quota)} target (${monthsInView} mo).`
                 );
             }
             if (repAlerts.length > 0 && repConverted / repAlerts.length < 0.5) {
@@ -387,7 +404,7 @@ function computeSnapshot() {
     const talkingPoints = [];
     talkingPoints.push(
         totalQuota > 0
-            ? `Team is at ${quotaPct}% of monthly quota (${formatCurrencyK(closedWonValue)} closed won vs ${formatCurrencyK(totalQuota)}).`
+            ? `Team is at ${quotaPct}% of period quota (${formatCurrencyK(closedWonValue)} closed won vs ${formatCurrencyK(totalQuota)} across ${monthsInView} month${monthsInView === 1 ? '' : 's'}).`
             : `Closed won this period: ${formatCurrencyK(closedWonValue)} (no team quota configured).`
     );
     talkingPoints.push(
@@ -423,6 +440,8 @@ function computeSnapshot() {
             newDealsValue,
             closedWonValue,
             totalQuota,
+            monthlyQuotaTotal,
+            monthsInView,
             quotaPct,
             activitiesByUser: groupByUser(activities),
             tasksByUser: groupByUser(tasks),
@@ -434,7 +453,7 @@ function computeSnapshot() {
                     const won = closedWonDeals
                         .filter((d) => d.user_id === user.user_id)
                         .reduce((s, d) => s + (d.mrc || 0), 0);
-                    const quota = Number(user.monthly_quota) || 0;
+                    const quota = (Number(user.monthly_quota) || 0) * monthsInView;
                     return {
                         label: user.full_name || 'Unknown',
                         value: quota > 0 ? Math.round((won / quota) * 100) : 0,
@@ -751,7 +770,7 @@ function renderCoreKpis(snapshot) {
     document.getElementById('insights-quota-metric').textContent = `${core.quotaPct}%`;
     document.getElementById('insights-quota-caption').textContent =
         core.totalQuota > 0
-            ? `${formatCurrencyK(core.closedWonValue)} closed won vs ${formatCurrencyK(core.totalQuota)} monthly quota`
+            ? `${formatCurrencyK(core.closedWonValue)} closed won vs ${formatCurrencyK(core.totalQuota)} quota (${core.monthsInView} mo)`
             : 'No monthly quota configured for selected reps';
 
     renderChart('insights-activities-chart', core.activitiesByUser, false);
