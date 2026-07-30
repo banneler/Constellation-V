@@ -141,8 +141,13 @@ function sameAccountId(a, b) {
     return Number(a) === Number(b) || String(a) === String(b);
 }
 
+/**
+ * Converted = logged activity on the same account after the trigger.
+ * Dismissed alerts never count as converted (dismiss ≠ outreach follow-through).
+ */
 function activityConvertsAlert(alert, outreachActivities) {
-    const alertTime = alert?.created_at ? new Date(alert.created_at).getTime() : NaN;
+    if (!alert || (alert.status || '') === 'Dismissed') return false;
+    const alertTime = alert.created_at ? new Date(alert.created_at).getTime() : NaN;
     if (!Number.isFinite(alertTime)) return false;
     return (outreachActivities || []).some((activity) => {
         if (!sameAccountId(activity.account_id, alert.account_id) || !activity.date) return false;
@@ -150,35 +155,12 @@ function activityConvertsAlert(alert, outreachActivities) {
     });
 }
 
-/**
- * Cognito Insights relevance (aligned with Cognito page semantics):
- * - Alerts created in the selected period (any status, including Dismissed)
- * - Still-open / undismissed alerts (status === 'New'), even if created earlier
- * - Older Actioned alerts that have matching outreach activity in this period
- *
- * "Dismissed" is a status string on cognito_alerts (no dismissed_at column).
- * Cognito dashboard shows all status === 'New' with no date filter; Insights
- * previously only counted created_at-in-range, so open backlog and same-day
- * follow-through on older triggers looked like Triggers=0.
- */
-function isCognitoAlertRelevant(alert, startDate, endDate, outreachActivities) {
-    if (!alert) return false;
-    if (!isUserIncluded(alert.user_id) || !userMatchesFilter(alert.user_id)) return false;
-
-    const status = alert.status || 'New';
-    if (inDateRange(alert.created_at, startDate, endDate)) return true;
-    if (status === 'New') return true;
-    if (status === 'Dismissed') return false;
-
-    // Actioned (or other non-New) outside the creation window: include when
-    // there is period outreach on the same account after the trigger.
-    const alertTime = alert.created_at ? new Date(alert.created_at).getTime() : NaN;
-    if (!Number.isFinite(alertTime)) return false;
-    return (outreachActivities || []).some((activity) => {
-        if (!sameAccountId(activity.account_id, alert.account_id) || !activity.date) return false;
-        if (!inDateRange(activity.date, startDate, endDate)) return false;
-        return new Date(activity.date).getTime() >= alertTime;
-    });
+/** Format conversion as "eligible% / all%" (excl. dismissed base / all-triggers base). */
+function formatCognitoConversionFraction(converted, eligible, total) {
+    if (!total) return '—';
+    const eligiblePct = eligible > 0 ? `${Math.round((converted / eligible) * 100)}%` : '—';
+    const totalPct = `${Math.round((converted / total) * 100)}%`;
+    return `${eligiblePct} / ${totalPct}`;
 }
 
 function filterByUserAndDate(rows, dateField) {
@@ -208,6 +190,11 @@ function kpiHtml(items) {
         <div class="insights-kpi">
             <p class="insights-kpi-label">${escapeHtml(item.label)}</p>
             <p class="insights-kpi-value">${escapeHtml(String(item.value))}</p>
+            ${
+                item.hint
+                    ? `<p class="insights-kpi-hint">${escapeHtml(item.hint)}</p>`
+                    : ''
+            }
         </div>`
         )
         .join('');
@@ -310,16 +297,20 @@ function computeSnapshot() {
         .sort((a, b) => b.members - a.members)
         .slice(0, 12);
 
+    // Triggers = Cognito alerts created in the selected period (all statuses).
+    const alerts = (state.data.cognito_alerts || []).filter((alert) => {
+        if (!isUserIncluded(alert.user_id) || !userMatchesFilter(alert.user_id)) return false;
+        return inDateRange(alert.created_at, startDate, endDate);
+    });
     const outreachActivities = (state.data.activities || []).filter(
         (a) => isUserIncluded(a.user_id) && userMatchesFilter(a.user_id)
     );
-    const alerts = (state.data.cognito_alerts || []).filter((alert) =>
-        isCognitoAlertRelevant(alert, startDate, endDate, outreachActivities)
-    );
     let cognitoConverted = 0;
+    let cognitoDismissed = 0;
     const cognitoByStatus = new Map();
     alerts.forEach((alert) => {
         const status = alert.status || 'Unknown';
+        if (status === 'Dismissed') cognitoDismissed += 1;
         if (!cognitoByStatus.has(status)) cognitoByStatus.set(status, { status, triggers: 0, converted: 0 });
         const bucket = cognitoByStatus.get(status);
         bucket.triggers += 1;
@@ -328,7 +319,17 @@ function computeSnapshot() {
             cognitoConverted += 1;
         }
     });
-    const cognitoRate = alerts.length ? Math.round((cognitoConverted / alerts.length) * 100) : 0;
+    const cognitoEligible = alerts.length - cognitoDismissed;
+    const cognitoRateEligible =
+        cognitoEligible > 0 ? Math.round((cognitoConverted / cognitoEligible) * 100) : 0;
+    const cognitoRateTotal = alerts.length
+        ? Math.round((cognitoConverted / alerts.length) * 100)
+        : 0;
+    const cognitoConversionDisplay = formatCognitoConversionFraction(
+        cognitoConverted,
+        cognitoEligible,
+        alerts.length
+    );
     const cognitoTable = [...cognitoByStatus.values()].sort((a, b) => b.triggers - a.triggers);
 
     const accounts = (state.data.accounts || []).filter(
@@ -391,9 +392,15 @@ function computeSnapshot() {
             const repAlerts = alerts.filter((a) => a.user_id === uid);
             const repOutreach = outreachActivities.filter((a) => a.user_id === uid);
             let repConverted = 0;
+            let repDismissed = 0;
             repAlerts.forEach((alert) => {
+                if ((alert.status || '') === 'Dismissed') {
+                    repDismissed += 1;
+                    return;
+                }
                 if (activityConvertsAlert(alert, repOutreach)) repConverted += 1;
             });
+            const repEligible = repAlerts.length - repDismissed;
             const staleAccounts = penetration.filter((p) => p.ownerId === uid).length;
             const coachingPrompts = [];
             if (repTasks.length > 0) coachingPrompts.push(`Clear ${repTasks.length} past-due task${repTasks.length === 1 ? '' : 's'} this week.`);
@@ -403,7 +410,7 @@ function computeSnapshot() {
                     `Quota gap: ${formatCurrencyK(Math.max(quota - wonValue, 0))} remaining vs ${formatCurrencyK(quota)} target (${monthsInView} mo).`
                 );
             }
-            if (repAlerts.length > 0 && repConverted / repAlerts.length < 0.5) {
+            if (repEligible > 0 && repConverted / repEligible < 0.5) {
                 coachingPrompts.push('Cognito follow-through is light — convert more triggers into logged outreach.');
             }
             if (staleAccounts > 0) coachingPrompts.push(`Re-engage ${staleAccounts} low-activity account${staleAccounts === 1 ? '' : 's'}.`);
@@ -423,6 +430,7 @@ function computeSnapshot() {
                 seqActive: repSeqActive.length,
                 seqOverdue: repSeqOverdue.length,
                 cognitoTriggers: repAlerts.length,
+                cognitoDismissed: repDismissed,
                 cognitoConverted: repConverted,
                 staleAccounts,
                 coachingPrompts,
@@ -440,7 +448,7 @@ function computeSnapshot() {
         `${activities.length} activities logged, ${newDeals.length} deals added (${formatCurrencyK(newDealsValue)}), and ${tasks.length} past-due tasks outstanding.`
     );
     talkingPoints.push(
-        `Motion: ${seqActive.length} active sequences (${seqOverdue.length} overdue), campaign completion ${campaignRate}%, Cognito conversion ${cognitoRate}%.`
+        `Motion: ${seqActive.length} active sequences (${seqOverdue.length} overdue), campaign completion ${campaignRate}%, Cognito conversion ${cognitoConversionDisplay} (excl. dismissed / all triggers).`
     );
     talkingPoints.push(
         `SAOS coverage is ${saosCoverage}% (${coveredIds.size}/${accounts.length} accounts); ${saosStale} plans stale 14+ days.`
@@ -507,8 +515,14 @@ function computeSnapshot() {
         },
         cognito: {
             triggers: alerts.length,
+            dismissed: cognitoDismissed,
             converted: cognitoConverted,
-            rate: cognitoRate,
+            eligible: cognitoEligible,
+            rateEligible: cognitoRateEligible,
+            rateTotal: cognitoRateTotal,
+            conversionDisplay: cognitoConversionDisplay,
+            // Backward-compatible alias: all-triggers conversion rate
+            rate: cognitoRateTotal,
             table: cognitoTable,
         },
         saos: {
@@ -873,14 +887,19 @@ function renderCampaigns(snapshot) {
 function renderCognitoOutreach(snapshot) {
     const { cognito } = snapshot;
     document.getElementById('insights-cognito-kpis').innerHTML = kpiHtml([
-        { label: 'Triggers', value: cognito.triggers },
-        { label: 'Converted', value: cognito.converted },
-        { label: 'Conversion', value: `${cognito.rate}%` },
+        { label: 'Triggers', value: cognito.triggers, hint: 'Created in period' },
+        { label: 'Dismissed', value: cognito.dismissed, hint: 'Not converted' },
+        { label: 'Converted', value: cognito.converted, hint: 'Actioned w/ outreach' },
+        {
+            label: 'Conversion',
+            value: cognito.conversionDisplay,
+            hint: 'Excl. dismissed / all triggers',
+        },
     ]);
     const tbody = document.querySelector('#insights-cognito-table tbody');
     if (!tbody) return;
     if (!cognito.table.length) {
-        tbody.innerHTML = emptyRow(3, 'No open Cognito triggers or triggers created in this period.');
+        tbody.innerHTML = emptyRow(3, 'No Cognito triggers created in this period.');
         return;
     }
     tbody.innerHTML = cognito.table
@@ -889,7 +908,7 @@ function renderCognitoOutreach(snapshot) {
         <tr>
             <td>${escapeHtml(row.status)}</td>
             <td>${row.triggers}</td>
-            <td>${row.converted}</td>
+            <td>${row.status === 'Dismissed' ? '—' : row.converted}</td>
         </tr>`
         )
         .join('');
@@ -973,7 +992,7 @@ function buildLeadershipExportHtml(snapshot, managerName) {
           <tbody>
             <tr><td>Sequences</td><td>${sequences.active} active / ${sequences.overdue} overdue</td><td>${sequences.completed} completed, ${sequences.removed} removed</td></tr>
             <tr><td>Campaigns</td><td>${campaigns.rate}% completion</td><td>${campaigns.count} campaigns · ${campaigns.completed}/${campaigns.members} members done</td></tr>
-            <tr><td>Cognito → Outreach</td><td>${cognito.rate}% converted</td><td>${cognito.converted}/${cognito.triggers} triggers followed with activity</td></tr>
+            <tr><td>Cognito → Outreach</td><td>${escapeHtml(cognito.conversionDisplay)} converted</td><td>${cognito.converted} converted · ${cognito.dismissed} dismissed · ${cognito.converted}/${cognito.eligible || 0} eligible (excl. dismissed) · ${cognito.converted}/${cognito.triggers} all triggers</td></tr>
             <tr><td>SAOS</td><td>${saos.coverage}% coverage</td><td>${saos.plans}/${saos.accounts} accounts planned · ${saos.stale} stale 14+ days</td></tr>
           </tbody>
         </table>
