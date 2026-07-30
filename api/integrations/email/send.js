@@ -5,6 +5,7 @@ const {
   assertOrgIntegrationsEnabled,
   getUserEmailSignature,
   getUserIntegration,
+  plainTextToEmailHtml,
   sendMessage,
 } = require("../../_lib/nylas");
 
@@ -30,7 +31,8 @@ module.exports = async function handler(req, res) {
     }
 
     const signature = await getUserEmailSignature(user.id);
-    const messageBody = appendEmailSignature(body.body, signature);
+    // Append signature as plain text first, then convert for Nylas HTML body.
+    const messageBody = plainTextToEmailHtml(appendEmailSignature(body.body, signature));
 
     const result = await sendMessage(integration.nylas_grant_id, {
       to,

@@ -70,7 +70,13 @@
         refreshBrandBackgrounds();
 
         function showToast(message, type) {
-            type = type === 'error' ? 'error' : 'success';
+            var icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info'
+            };
+            type = icons[type] ? type : 'info';
             var container = document.getElementById('toast-container');
             if (!container) {
                 container = document.createElement('div');
@@ -81,12 +87,27 @@
             }
             var el = document.createElement('div');
             el.className = 'toast toast-' + type + ' pointer-events-auto';
+            el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+            var icon = document.createElement('i');
+            icon.className = 'fas ' + icons[type];
+            icon.setAttribute('aria-hidden', 'true');
             var span = document.createElement('span');
             span.className = 'toast-message';
             span.textContent = message;
+            el.appendChild(icon);
             el.appendChild(span);
             container.appendChild(el);
-            setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3500);
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() { el.classList.add('show'); });
+            });
+            setTimeout(function() {
+                if (!el.isConnected) return;
+                el.classList.remove('show');
+                el.classList.add('hide');
+                var remove = function() { if (el.parentNode) el.parentNode.removeChild(el); };
+                el.addEventListener('transitionend', remove, { once: true });
+                setTimeout(remove, 500);
+            }, 3500);
         }
 
         function findBracketedPlaceholders() {

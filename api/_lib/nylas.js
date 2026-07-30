@@ -232,6 +232,25 @@ function appendEmailSignature(body, signature) {
   return `${base}\n\n${sig}`;
 }
 
+/** Nylas messages/send treats `body` as HTML; plain \\n is collapsed by clients. */
+function looksLikeHtml(text) {
+  return /<[a-z][\s\S]*>/i.test(String(text || ""));
+}
+
+function plainTextToEmailHtml(text) {
+  const value = String(text ?? "");
+  if (!value) return "";
+  if (looksLikeHtml(value)) return value;
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/\r\n|\r/g, "\n")
+    .replace(/\n/g, "<br>");
+}
+
 async function upsertUserIntegration(row) {
   const rows = await supabaseRest("user_integrations?on_conflict=user_id", {
     method: "POST",
@@ -275,6 +294,7 @@ function verifyNylasWebhookSignature(rawBody, signatureHeader) {
 
 module.exports = {
   appendEmailSignature,
+  plainTextToEmailHtml,
   assertOrgIntegrationsEnabled,
   buildHostedAuthUrl,
   createEvent,

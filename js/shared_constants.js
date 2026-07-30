@@ -664,10 +664,15 @@ export function hideGlobalLoader() {
     }
 }
 
-// --- TOAST NOTIFICATIONS ---
+// --- TOAST NOTIFICATIONS (bottom-center pill) ---
 const TOAST_CONTAINER_ID = 'toast-container';
-/** Positioned over the left rail; width capped so copy wraps inside the column. */
 const TOAST_CONTAINER_CLASSES = 'toast-container pointer-events-none';
+const TOAST_ICON_BY_TYPE = {
+    success: 'fa-check-circle',
+    error: 'fa-exclamation-circle',
+    warning: 'fa-triangle-exclamation',
+    info: 'fa-circle-info',
+};
 
 function getOrCreateToastContainer() {
     let toastContainer = document.getElementById(TOAST_CONTAINER_ID);
@@ -683,30 +688,53 @@ function getOrCreateToastContainer() {
 
 /**
  * @param {string} message
- * @param {string} [type]
+ * @param {string} [type] success | error | warning | info
  * @returns {HTMLDivElement}
  */
 export function createToastElement(message, type = 'success') {
+    const normalizedType = TOAST_ICON_BY_TYPE[type] ? type : 'info';
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type} pointer-events-auto`;
+    toast.className = `toast toast-${normalizedType} pointer-events-auto`;
+    toast.setAttribute('role', normalizedType === 'error' ? 'alert' : 'status');
+
+    const icon = document.createElement('i');
+    icon.className = `fas ${TOAST_ICON_BY_TYPE[normalizedType]}`;
+    icon.setAttribute('aria-hidden', 'true');
+
     const span = document.createElement('span');
     span.className = 'toast-message';
     span.textContent = String(message ?? '');
+
+    toast.appendChild(icon);
     toast.appendChild(span);
     return toast;
 }
 
-/** durationMs 0 = stay until returned dismiss() is called (cancels auto-hide). */
-export function showToast(message, type = 'success', durationMs = 4000) {
+/**
+ * Show a bottom-center pill toast.
+ * @param {string} message
+ * @param {string} [type] success | error | warning | info
+ * @param {number} [durationMs] 0 = stay until returned dismiss() is called
+ * @returns {() => void} dismiss function
+ */
+export function showToast(message, type = 'success', durationMs = 3500) {
     const toastContainer = getOrCreateToastContainer();
-
     const toast = createToastElement(message, type);
     toastContainer.appendChild(toast);
 
+    // Enter animation on next frame so the transition from the default state plays.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+    });
+
     const dismiss = () => {
         if (!toast.isConnected) return;
+        toast.classList.remove('show');
         toast.classList.add('hide');
-        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+        const remove = () => toast.remove();
+        toast.addEventListener('transitionend', remove, { once: true });
+        // Fallback if transitionend doesn't fire (detached / reduced-motion).
+        setTimeout(remove, 500);
     };
 
     let timeoutId;

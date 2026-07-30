@@ -2,7 +2,7 @@ import {
     SUPABASE_URL, SUPABASE_ANON_KEY, setupUserMenuAndAuth, 
     loadSVGs, updateActiveNavLink, initializeAppState, 
     setupModalListeners, setupGlobalSearch, checkAndSetNotifications,
-    injectGlobalNavigation, hideGlobalLoader
+    injectGlobalNavigation, hideGlobalLoader, showToast
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS } from './ai-memory.js';
 import {
@@ -65,28 +65,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const integrationsActions = document.getElementById("integrations-actions");
     const emailSignatureInput = document.getElementById("email-signature-input");
     const saveSignatureBtn = document.getElementById("save-signature-btn");
-
-    function showToast(message, type = 'success') {
-        const existingToast = document.querySelector('.constellation-toast');
-        if (existingToast) existingToast.remove();
-
-        const toast = document.createElement('div');
-        toast.className = `constellation-toast toast-${type}`;
-        const icon = document.createElement('i');
-        icon.className = `fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}`;
-        icon.setAttribute('aria-hidden', 'true');
-        const span = document.createElement('span');
-        span.className = 'toast-message';
-        span.textContent = String(message ?? '');
-        toast.appendChild(icon);
-        toast.appendChild(span);
-        document.body.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 100);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 500);
-        }, 3000);
-    }
 
     function setActiveTab(tabId) {
         const next = tabId === 'ai-admin' ? 'ai-admin' : 'integrations';

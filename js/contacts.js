@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows, applyEmailMergeFields } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows, applyEmailMergeFields } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
 
@@ -277,19 +277,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const aiClearInsightBtn = document.getElementById("ai-clear-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
     const aiAssistantContent = document.getElementById("ai-assistant-content");
-    const aiToastContainer = document.getElementById("ai-toast-container");
     const sortFirstLastBtn = document.getElementById("sort-first-last-btn");
     const sortLastFirstBtn = document.getElementById("sort-last-first-btn");
-
-    function showAIToast(message, type = 'success') {
-        if (!aiToastContainer) return;
-        const toast = createToastElement(message, type);
-        aiToastContainer.appendChild(toast);
-        setTimeout(() => {
-            toast.classList.add('hide');
-            toast.addEventListener('transitionend', () => toast.remove());
-        }, 4000);
-    }
 
     function setAIEmailComposeMode(active) {
         document.body.classList.toggle('ai-email-compose-active', Boolean(active));
@@ -1184,7 +1173,7 @@ async function loadAllData() {
 
     async function generateEmailWithAI(contact) {
         if (!contact?.email) {
-            showAIToast("Contact has no email address.", "error");
+            showToast("Contact has no email address.", "error");
             return;
         }
         const userPrompt = document.getElementById('ai-email-prompt')?.value;
@@ -1193,7 +1182,7 @@ async function loadAllData() {
         const generateButton = document.getElementById('ai-generate-email-btn');
 
         if (!userPrompt) {
-            showAIToast("Please enter a prompt.", "error");
+            showToast("Please enter a prompt.", "error");
             return;
         }
 
@@ -1240,7 +1229,7 @@ async function loadAllData() {
                 label: 'Was this email draft useful?',
                 functionId: AI_FUNCTION_IDS.CONTACTS_EMAIL
             });
-            showAIToast("Email generated successfully!", "success");
+            showToast("Email generated successfully!", "success");
 
         } catch (e) {
             console.error("Error generating email:", e);
@@ -1248,7 +1237,7 @@ async function loadAllData() {
             if (aiEmailBody) aiEmailBody.value = "An error occurred while generating the email. Please try again.";
             setAIEmailComposeMode(false);
             showAIEmailResponse();
-            showAIToast("Failed to generate email.", "error");
+            showToast("Failed to generate email.", "error");
         } finally {
             if (generateButton) {
                 generateButton.disabled = false;
@@ -1259,7 +1248,7 @@ async function loadAllData() {
 
 async function openEmailClient(contact) {
     if (!contact?.email) {
-        showAIToast("Contact has no email address.", "error");
+        showToast("Contact has no email address.", "error");
         return;
     }
     const account = contact.account_id
@@ -1288,7 +1277,7 @@ async function openEmailClient(contact) {
             { onNotice: (msg, type) => showToast(msg, type) }
         );
     } catch (error) {
-        showAIToast(error.message || "Could not send email.", "error");
+        showToast(error.message || "Could not send email.", "error");
         return;
     }
 
@@ -1455,7 +1444,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         if (zoominfoContactBtn) {
             const ZOOMINFO_HOME = "https://app.zoominfo.com";
             const ZOOMINFO_OPEN_DELAY_MS = 1200;
-            zoominfoContactBtn.addEventListener("click", async (e) => {
+            zoominfoContactBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) return;
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) return;
@@ -1464,23 +1453,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 try {
                     await navigator.clipboard.writeText(name);
                 } catch (_) {}
-                const btn = e.currentTarget;
-                const rect = btn.getBoundingClientRect();
-                const toast = document.createElement("div");
-                toast.className = "toast toast-info toast-near-button pointer-events-auto";
-                const toastMsg = document.createElement("span");
-                toastMsg.className = "toast-message";
-                toastMsg.textContent = msg;
-                toast.appendChild(toastMsg);
-                toast.style.position = "fixed";
-                toast.style.right = `${window.innerWidth - rect.left}px`;
-                toast.style.top = `${rect.bottom + 8}px`;
-                toast.style.zIndex = "1001";
-                document.body.appendChild(toast);
-                setTimeout(() => {
-                    toast.classList.add("hide");
-                    toast.addEventListener("transitionend", () => toast.remove());
-                }, 4000);
+                showToast(msg, 'info');
                 setTimeout(() => {
                     window.open(ZOOMINFO_HOME, "_blank");
                 }, ZOOMINFO_OPEN_DELAY_MS);
@@ -2153,13 +2126,13 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         if (aiActivityInsightBtn) {
             aiActivityInsightBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) {
-                    showAIToast("Please select a contact to get AI insights.", "error");
+                    showToast("Please select a contact to get AI insights.", "error");
                     return;
                 }
 
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) {
-                    showAIToast("Selected contact not found.", "error");
+                    showToast("Selected contact not found.", "error");
                     return;
                 }
 
@@ -2169,7 +2142,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 if (relevantActivities.length === 0) {
-                    showAIToast("No activities found for this contact to generate insights.", "info");
+                    showToast("No activities found for this contact to generate insights.", "info");
                     return;
                 }
 
