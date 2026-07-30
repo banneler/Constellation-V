@@ -3046,11 +3046,14 @@ body.theme-green {
   }
   .cc-day-timeline-hour {
     position: absolute;
-    right: calc(var(--spacing) * 0);
-    left: calc(var(--spacing) * 0);
+    left: 0;
+    right: 0;
+    height: 0;
+    margin: 0;
     display: flex;
     align-items: flex-start;
     transform: translateY(-0.3em);
+    pointer-events: none;
   }
   .cc-day-timeline-hour-label {
     width: 100%;
@@ -3063,20 +3066,8 @@ body.theme-green {
     font-weight: var(--font-weight-medium);
     color: var(--text-muted);
   }
-  .cc-day-timeline-hour-line {
+  .cc-day-timeline-hour-line, .cc-day-timeline-half {
     display: none;
-  }
-  .cc-day-timeline-half {
-    position: absolute;
-    right: calc(var(--spacing) * 0);
-    left: calc(var(--spacing) * 0);
-    border-top: 1px dashed var(--border-color);
-    @supports (color: color-mix(in lab, red, red)) {
-      border-top: 1px dashed color-mix(in srgb, var(--border-color) 65%, transparent);
-    }
-    opacity: 0.5;
-    pointer-events: none;
-    z-index: 0;
   }
   .cc-day-timeline-track {
     position: relative;
@@ -3102,8 +3093,8 @@ body.theme-green {
   }
   .cc-day-timeline-hover {
     position: absolute;
-    left: 0;
-    right: 0;
+    left: 0.125rem;
+    right: 0.125rem;
     top: 0;
     height: 0;
     margin: 0;
@@ -3112,6 +3103,7 @@ body.theme-green {
     pointer-events: none;
     z-index: 0;
     opacity: 0;
+    border-radius: 0.25rem;
     background-color: var(--primary-blue);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in srgb, var(--primary-blue) 12%, transparent);
@@ -3140,15 +3132,16 @@ body.theme-green {
     color: var(--text-muted);
   }
   .cc-day-timeline-event {
-    pointer-events: none;
     position: absolute;
-    right: calc(var(--spacing) * 0.5);
-    left: calc(var(--spacing) * 0.5);
+    left: 0.125rem;
+    right: 0.125rem;
+    z-index: 1;
     overflow: hidden;
     border-radius: 0.25rem;
-    padding-inline: calc(var(--spacing) * 1);
-    padding-block: 1px;
-    z-index: 1;
+    padding: 2px 0.55rem 2px 0.65rem;
+    margin: 0;
+    pointer-events: none;
+    box-sizing: border-box;
     background-color: var(--cc-event-color, var(--primary-blue));
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 22%, var(--bg-light));

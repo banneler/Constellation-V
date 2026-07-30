@@ -120,11 +120,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         return snapTimelineToHourStart(TIMELINE_START_MIN + ratio * TIMELINE_SPAN_MIN);
     }
 
+    /** Normalize API timestamps to unix seconds (accepts seconds or ms). */
+    function toUnixSeconds(value) {
+        if (value == null || value === "") return null;
+        const n = Number(value);
+        if (!Number.isFinite(n)) return null;
+        // ms timestamps are >= 1e12; unix seconds for current dates are ~1e9.
+        return n >= 1e12 ? Math.floor(n / 1000) : Math.floor(n);
+    }
+
+    /** Local Date from event startTime (unix seconds). */
     function eventLocalDate(ev) {
-        if (ev?.startTime == null) return null;
-        const d = new Date(Number(ev.startTime) * 1000);
+        const sec = toUnixSeconds(ev?.startTime);
+        if (sec == null) return null;
+        const d = new Date(sec * 1000);
         if (Number.isNaN(d.getTime())) return null;
         return d;
+    }
+
+    /** Local minutes-from-midnight for a Date (browser local timezone). */
+    function localMinutesFromDate(d) {
+        if (!d || Number.isNaN(d.getTime())) return null;
+        return d.getHours() * 60 + d.getMinutes();
     }
 
     function dayKeyFromDate(d) {
@@ -144,11 +161,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function formatCalendarEventTime(ev) {
-        if (ev?.startTime == null) return "";
-        const d = new Date(Number(ev.startTime) * 1000);
-        if (Number.isNaN(d.getTime())) return "";
+        const d = eventLocalDate(ev);
+        if (!d) return "";
         if (ev.allDay) return "All day";
         return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    }
+
+    /** Pixel/percentage offset of local minutes within the 7am–6pm track. */
+    function timelineOffsetRatio(startMin) {
+        return (startMin - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN;
     }
 
     /** Safe `#RRGGBB` from API `color`, or null (UI falls back to theme default). */
@@ -384,16 +405,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         const intervals = [];
         for (const ev of events || []) {
             if (ev?.allDay || ev?.startTime == null) continue;
-            const start = new Date(Number(ev.startTime) * 1000);
-            if (Number.isNaN(start.getTime()) || dayKeyFromDate(start) !== dayKey) continue;
-            const endSec = ev.endTime != null ? Number(ev.endTime) : Number(ev.startTime) + 3600;
+            const start = eventLocalDate(ev);
+            if (!start || dayKeyFromDate(start) !== dayKey) continue;
+            const startSec = toUnixSeconds(ev.startTime);
+            const endSec = toUnixSeconds(ev.endTime) ?? startSec + 3600;
             const end = new Date(endSec * 1000);
-            let startMin = start.getHours() * 60 + start.getMinutes();
+            let startMin = localMinutesFromDate(start);
             let endMin = Number.isNaN(end.getTime())
                 ? startMin + 60
                 : dayKeyFromDate(end) !== dayKey
                   ? TIMELINE_END_MIN
-                  : end.getHours() * 60 + end.getMinutes();
+                  : localMinutesFromDate(end);
             if (endMin <= startMin) endMin = startMin + 15;
             startMin = Math.max(TIMELINE_START_MIN, startMin);
             endMin = Math.min(TIMELINE_END_MIN, endMin);
@@ -744,34 +766,30 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const hourMarks = [];
         for (let h = 7; h <= 18; h++) {
-            const topPct = ((h * 60 - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
+            const topPct = timelineOffsetRatio(h * 60) * 100;
             hourMarks.push(
-                `<div class="cc-day-timeline-hour" style="top: ${topPct}%">
+                `<div class="cc-day-timeline-hour" style="position:absolute;left:0;right:0;top:${topPct}%;height:0;margin:0">
                     <span class="cc-day-timeline-hour-label">${formatHourLabel(h)}</span>
                 </div>`
             );
         }
-        const halfMarks = [];
-        for (let h = 7; h < 18; h++) {
-            const halfPct = ((h * 60 + 30 - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
-            halfMarks.push(
-                `<div class="cc-day-timeline-half" style="top: ${halfPct}%" aria-hidden="true"></div>`
-            );
-        }
-
+        // Hour grid only — half-hour ticks stacked as zero-height borders read as a dense
+        // vertical-line artifact near the top of the track when layout is tight.
         const eventBlocks = timedEvents
             .map((ev) => {
-                if (ev.startTime == null) return "";
-                const start = new Date(Number(ev.startTime) * 1000);
-                const endSec = ev.endTime != null ? Number(ev.endTime) : Number(ev.startTime) + 3600;
+                const start = eventLocalDate(ev);
+                if (!start) return "";
+                const startSec = toUnixSeconds(ev.startTime);
+                const endSec = toUnixSeconds(ev.endTime) ?? startSec + 3600;
                 const end = new Date(endSec * 1000);
-                let startMin = start.getHours() * 60 + start.getMinutes();
+                let startMin = localMinutesFromDate(start);
+                if (startMin == null) return "";
                 let endMin = Number.isNaN(end.getTime())
                     ? startMin + 60
                     : dayKeyFromDate(end) !== dayKey
                       ? TIMELINE_END_MIN
-                      : end.getHours() * 60 + end.getMinutes();
-                if (endMin <= startMin) endMin = startMin + 15;
+                      : localMinutesFromDate(end);
+                if (endMin == null || endMin <= startMin) endMin = startMin + 15;
 
                 const overflowBefore = startMin < TIMELINE_START_MIN;
                 const overflowAfter = endMin > TIMELINE_END_MIN;
@@ -781,7 +799,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // Entirely outside visible window — show as overflow chip in all-day strip via separate list
                     return "";
                 }
-                const topPct = ((clampedStart - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
+                const topPct = timelineOffsetRatio(clampedStart) * 100;
                 const heightPct = Math.max(
                     2.2,
                     ((clampedEnd - clampedStart) / TIMELINE_SPAN_MIN) * 100
@@ -792,11 +810,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (overflowBefore) classes.push("is-overflow-start");
                 if (overflowAfter) classes.push("is-overflow-end");
                 const whenLabel = formatCalendarEventTime(ev);
+                const color = normalizeEventColor(ev?.color);
+                // Inline absolute + inset so a stale stylesheet can't drop events into flow
+                // (which stacks them at 7–8am and paints a dense left-border “vertical lines” artifact).
                 return `
-                    <div class="${classes.join(" ")}" style="top: ${topPct}%; height: ${heightPct}%;${
-                    normalizeEventColor(ev?.color)
-                        ? ` --cc-event-color: ${normalizeEventColor(ev.color)};`
-                        : ""
+                    <div class="${classes.join(" ")}" style="position:absolute;left:0.125rem;right:0.125rem;top:${topPct}%;height:${heightPct}%;margin:0;z-index:1;${
+                    color ? ` --cc-event-color: ${color};` : ""
                 }" title="${escapeHtml(ev.title || "(No title)")}">
                         <div class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
                     overflowBefore || overflowAfter ? " · outside 7–6" : ""
@@ -810,16 +829,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             .join("");
 
         const outsideTimed = timedEvents.filter((ev) => {
-            if (ev.startTime == null) return false;
-            const start = new Date(Number(ev.startTime) * 1000);
-            const endSec = ev.endTime != null ? Number(ev.endTime) : Number(ev.startTime) + 3600;
+            const start = eventLocalDate(ev);
+            if (!start) return false;
+            const startSec = toUnixSeconds(ev.startTime);
+            const endSec = toUnixSeconds(ev.endTime) ?? startSec + 3600;
             const end = new Date(endSec * 1000);
-            const startMin = start.getHours() * 60 + start.getMinutes();
+            const startMin = localMinutesFromDate(start);
             const endMin = Number.isNaN(end.getTime())
                 ? startMin + 60
                 : dayKeyFromDate(end) !== dayKey
                   ? 24 * 60
-                  : end.getHours() * 60 + end.getMinutes();
+                  : localMinutesFromDate(end);
             return endMin <= TIMELINE_START_MIN || startMin >= TIMELINE_END_MIN;
         });
 
@@ -844,14 +864,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
                 <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
                 <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
-                    ${halfMarks.join("")}
                     ${eventBlocks || ""}
                     ${
                         !timedEvents.length
                             ? '<span class="cc-day-timeline-empty-hint">Click a time to add</span>'
                             : ""
                     }
-                    <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:0;margin:0;pointer-events:none;z-index:0"></div>
+                    <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:0.125rem;right:0.125rem;top:0;height:0;margin:0;pointer-events:none;z-index:0"></div>
                 </div>
             </div>
         `;
@@ -1040,14 +1059,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             const rect = track.getBoundingClientRect();
             if (!rect.height) return;
             // Inline positioning so a stale/cached stylesheet can't leave this in flow.
+            // Insets match .cc-day-timeline-event (event column, not full pane / rail).
             hoverEl.style.position = "absolute";
-            hoverEl.style.left = "0";
-            hoverEl.style.right = "0";
+            hoverEl.style.left = "0.125rem";
+            hoverEl.style.right = "0.125rem";
             hoverEl.style.margin = "0";
             hoverEl.style.pointerEvents = "none";
             hoverEl.style.zIndex = "0";
             const hourStart = hourStartFromTrackClientY(track, clientY);
-            const topPx = ((hourStart - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * rect.height;
+            const topPx = timelineOffsetRatio(hourStart) * rect.height;
             const heightPx = (TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * rect.height;
             hoverEl.style.top = `${topPx}px`;
             hoverEl.style.height = `${heightPx}px`;

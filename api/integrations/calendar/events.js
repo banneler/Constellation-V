@@ -18,7 +18,9 @@ function stripHtml(value) {
 function parseUnixSeconds(value) {
   if (value == null || value === "") return null;
   const n = Number(value);
-  return Number.isFinite(n) ? Math.floor(n) : null;
+  if (!Number.isFinite(n)) return null;
+  // Nylas uses unix seconds; tolerate accidental ms (>= 1e12).
+  return n >= 1e12 ? Math.floor(n / 1000) : Math.floor(n);
 }
 
 /** Normalize provider/calendar hex colors to `#RRGGBB` (or null). */
