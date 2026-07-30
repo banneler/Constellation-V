@@ -2554,7 +2554,7 @@ body.theme-green {
     flex: 1;
     flex-direction: column;
     padding-inline: calc(var(--spacing) * 4);
-    padding-bottom: calc(var(--spacing) * 4);
+    padding-bottom: calc(var(--spacing) * 3);
     overflow-y: auto;
   }
   .cc-calendar-day-group {
@@ -2563,21 +2563,22 @@ body.theme-green {
     flex-direction: column;
   }
   .cc-calendar-day-group + .cc-calendar-day-group {
-    margin-top: calc(var(--spacing) * 1);
+    margin-top: calc(var(--spacing) * 0.5);
     border-top: 1px solid var(--border-color);
     @supports (color: color-mix(in lab, red, red)) {
       border-top: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
     }
-    padding-top: 0.35rem;
+    padding-top: 0.25rem;
   }
   .cc-calendar-day-header {
     position: sticky;
     top: calc(var(--spacing) * 0);
     z-index: 1;
     padding-inline: calc(var(--spacing) * 0.5);
-    padding-block: calc(var(--spacing) * 1.5);
-    font-size: var(--text-xs);
-    line-height: var(--tw-leading, var(--text-xs--line-height));
+    padding-block: calc(var(--spacing) * 1);
+    font-size: 0.65rem;
+    --tw-leading: 1;
+    line-height: 1;
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
     --tw-tracking: var(--tracking-wide);
@@ -2591,11 +2592,11 @@ body.theme-green {
     display: flex;
     min-width: calc(var(--spacing) * 0);
     align-items: flex-start;
-    gap: calc(var(--spacing) * 3);
+    gap: calc(var(--spacing) * 2.5);
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 1px;
     border-color: var(--border-color);
-    padding-block: calc(var(--spacing) * 2);
+    padding-block: calc(var(--spacing) * 1.5);
     &:last-child {
       border-bottom-style: var(--tw-border-style);
       border-bottom-width: 0px;
@@ -2606,38 +2607,38 @@ body.theme-green {
   }
   .cc-calendar-item-when {
     flex-shrink: 0;
-    padding-top: calc(var(--spacing) * 0.5);
-    font-size: var(--text-xs);
-    line-height: var(--tw-leading, var(--text-xs--line-height));
+    padding-top: 1px;
+    font-size: 0.7rem;
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
     color: var(--text-medium);
-    min-width: 4.25rem;
-    max-width: 5.5rem;
+    min-width: 3.75rem;
+    max-width: 5rem;
   }
   .cc-calendar-item-body {
     display: flex;
     min-width: calc(var(--spacing) * 0);
     flex: 1;
     flex-direction: column;
+    gap: 1px;
   }
   .cc-calendar-item-title {
     min-width: calc(var(--spacing) * 0);
-    font-size: var(--text-sm);
-    line-height: var(--tw-leading, var(--text-sm--line-height));
-    --tw-leading: var(--leading-snug);
-    line-height: var(--leading-snug);
+    font-size: 0.8125rem;
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     color: var(--text-light);
     overflow-wrap: break-word;
     word-break: break-word;
   }
   .cc-calendar-item-desc {
-    margin-top: calc(var(--spacing) * 0.5);
+    margin-top: 1px;
     min-width: calc(var(--spacing) * 0);
-    font-size: var(--text-xs);
-    line-height: var(--tw-leading, var(--text-xs--line-height));
-    --tw-leading: var(--leading-snug);
-    line-height: var(--leading-snug);
+    font-size: 0.7rem;
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     color: var(--text-muted);
     overflow: hidden;
     display: -webkit-box;
@@ -2678,9 +2679,9 @@ body.theme-green {
     flex-shrink: 0;
     align-items: center;
     justify-content: space-between;
-    gap: calc(var(--spacing) * 3);
-    padding-inline: calc(var(--spacing) * 4);
-    padding-block: calc(var(--spacing) * 3);
+    gap: calc(var(--spacing) * 2);
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: calc(var(--spacing) * 2);
     border-bottom: 1px solid var(--border-color);
     background-color: var(--bg-medium);
   }
@@ -2688,28 +2689,32 @@ body.theme-green {
     display: flex;
     min-width: calc(var(--spacing) * 0);
     align-items: center;
-    gap: calc(var(--spacing) * 2);
+    gap: calc(var(--spacing) * 1.5);
   }
   .cc-month-calendar-title {
     margin: calc(var(--spacing) * 0);
-    min-width: 9rem;
+    min-width: 8.5rem;
     text-align: center;
-    font-size: var(--text-base);
-    line-height: var(--tw-leading, var(--text-base--line-height));
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
     color: var(--text-light);
   }
   .cc-month-nav-btn, .cc-month-calendar-close {
     display: flex;
-    height: calc(var(--spacing) * 8);
-    width: calc(var(--spacing) * 8);
+    height: calc(var(--spacing) * 7);
+    width: calc(var(--spacing) * 7);
     cursor: pointer;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     border-style: var(--tw-border-style);
     border-width: 0px;
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
     background-color: transparent;
     color: var(--text-medium);
     transition: background-color 0.15s, color 0.15s;
@@ -2730,33 +2735,36 @@ body.theme-green {
     min-width: calc(var(--spacing) * 0);
     flex: 1;
     flex-direction: column;
-    padding: calc(var(--spacing) * 3);
+    padding: calc(var(--spacing) * 2);
     border-right: 1px solid var(--border-color);
   }
   .cc-month-weekday-row {
-    margin-bottom: calc(var(--spacing) * 1);
+    margin-bottom: calc(var(--spacing) * 0.5);
     display: grid;
     flex-shrink: 0;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: calc(var(--spacing) * 1);
+    gap: calc(var(--spacing) * 0.5);
   }
   .cc-month-weekday {
-    padding-block: calc(var(--spacing) * 1);
+    padding-block: calc(var(--spacing) * 0.5);
     text-align: center;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
+    --tw-leading: 1;
+    line-height: 1;
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
     --tw-tracking: var(--tracking-wide);
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
     color: var(--text-muted);
+    letter-spacing: 0.03em;
   }
   .cc-month-grid {
     display: grid;
     min-height: calc(var(--spacing) * 0);
     flex: 1;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: calc(var(--spacing) * 1);
+    gap: calc(var(--spacing) * 0.5);
     grid-auto-rows: minmax(0, 1fr);
   }
   .cc-month-cell {
@@ -2764,12 +2772,12 @@ body.theme-green {
     min-height: calc(var(--spacing) * 0);
     cursor: pointer;
     flex-direction: column;
-    gap: calc(var(--spacing) * 0.5);
+    gap: 1px;
     overflow: hidden;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     border-style: var(--tw-border-style);
     border-width: 1px;
-    padding: calc(var(--spacing) * 1.5);
+    padding: calc(var(--spacing) * 1);
     text-align: left;
     background-color: var(--bg-medium);
     border-color: transparent;
@@ -2799,8 +2807,9 @@ body.theme-green {
   }
   .cc-month-cell-day {
     flex-shrink: 0;
-    font-size: var(--text-xs);
-    line-height: var(--tw-leading, var(--text-xs--line-height));
+    font-size: 0.7rem;
+    --tw-leading: 1;
+    line-height: 1;
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
     color: var(--text-light);
@@ -2810,7 +2819,7 @@ body.theme-green {
     min-height: calc(var(--spacing) * 0);
     flex: 1;
     flex-direction: column;
-    gap: calc(var(--spacing) * 0.5);
+    gap: 1px;
     overflow: hidden;
   }
   .cc-month-cell-event {
@@ -2818,11 +2827,11 @@ body.theme-green {
     text-overflow: ellipsis;
     white-space: nowrap;
     border-radius: 0.25rem;
-    padding-inline: calc(var(--spacing) * 1);
-    padding-block: calc(var(--spacing) * 0.5);
-    font-size: 0.65rem;
-    --tw-leading: var(--leading-tight);
-    line-height: var(--leading-tight);
+    padding-inline: calc(var(--spacing) * 0.5);
+    padding-block: 1px;
+    font-size: 0.6rem;
+    --tw-leading: 1;
+    line-height: 1;
     background-color: var(--primary-blue);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-light));
@@ -2830,7 +2839,9 @@ body.theme-green {
     color: var(--text-light);
   }
   .cc-month-cell-more {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
+    --tw-leading: 1;
+    line-height: 1;
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
     color: var(--text-muted);
@@ -2842,8 +2853,8 @@ body.theme-green {
     gap: calc(var(--spacing) * 0.5);
   }
   .cc-month-dot {
-    height: calc(var(--spacing) * 1.5);
-    width: calc(var(--spacing) * 1.5);
+    height: calc(var(--spacing) * 1);
+    width: calc(var(--spacing) * 1);
     border-radius: calc(infinity * 1px);
     background-color: var(--primary-blue);
   }
@@ -2854,15 +2865,16 @@ body.theme-green {
     max-width: 22rem;
     min-width: 12rem;
     flex-direction: column;
-    padding: calc(var(--spacing) * 3);
+    padding: calc(var(--spacing) * 2.5);
     background-color: var(--bg-light);
   }
   .cc-month-day-heading {
     margin: calc(var(--spacing) * 0);
-    margin-bottom: calc(var(--spacing) * 2);
+    margin-bottom: calc(var(--spacing) * 1.5);
     flex-shrink: 0;
-    font-size: var(--text-sm);
-    line-height: var(--tw-leading, var(--text-sm--line-height));
+    font-size: 0.8125rem;
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
     color: var(--text-light);
@@ -2876,45 +2888,45 @@ body.theme-green {
     overflow-y: auto;
   }
   .cc-month-day-empty {
-    padding-block: calc(var(--spacing) * 2);
-    font-size: var(--text-sm);
-    line-height: var(--tw-leading, var(--text-sm--line-height));
+    padding-block: calc(var(--spacing) * 1.5);
+    font-size: 0.8125rem;
+    --tw-leading: var(--leading-snug);
+    line-height: var(--leading-snug);
     color: var(--text-medium);
   }
   .cc-month-day-item {
     display: flex;
     min-width: calc(var(--spacing) * 0);
     flex-direction: column;
-    gap: calc(var(--spacing) * 0.5);
+    gap: 1px;
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 1px;
     border-color: var(--border-color);
-    padding-block: calc(var(--spacing) * 2.5);
+    padding-block: calc(var(--spacing) * 1.5);
     &:last-child {
       border-bottom-style: var(--tw-border-style);
       border-bottom-width: 0px;
     }
   }
   .cc-month-day-item-when {
-    font-size: var(--text-xs);
-    line-height: var(--tw-leading, var(--text-xs--line-height));
+    font-size: 0.7rem;
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
     color: var(--text-medium);
   }
   .cc-month-day-item-title {
-    font-size: var(--text-sm);
-    line-height: var(--tw-leading, var(--text-sm--line-height));
-    --tw-leading: var(--leading-snug);
-    line-height: var(--leading-snug);
+    font-size: 0.8125rem;
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     color: var(--text-light);
     overflow-wrap: break-word;
   }
   .cc-month-day-item-desc {
-    font-size: var(--text-xs);
-    line-height: var(--tw-leading, var(--text-xs--line-height));
-    --tw-leading: var(--leading-snug);
-    line-height: var(--leading-snug);
+    font-size: 0.7rem;
+    --tw-leading: var(--leading-tight);
+    line-height: var(--leading-tight);
     color: var(--text-muted);
     overflow: hidden;
     display: -webkit-box;
