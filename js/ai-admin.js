@@ -91,6 +91,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Single section when org integrations are off — no tab chrome needed.
             settingsTabs.hidden = !orgIntegrationsEnabled;
         }
+        const subtitle = document.getElementById('user-settings-subtitle');
+        if (subtitle) {
+            subtitle.textContent = orgIntegrationsEnabled
+                ? 'Manage your email integrations, signature, and AI personalization.'
+                : 'Manage your AI personalization.';
+        }
         if (!orgIntegrationsEnabled) {
             document.getElementById('settings-tab-integrations')?.setAttribute('hidden', '');
         }
@@ -98,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function initTabs() {
         try {
-            const integrationState = await getIntegrationState(supabase);
+            const integrationState = await getIntegrationState(supabase, { force: true });
             orgIntegrationsEnabled = Boolean(integrationState?.orgEnabled);
         } catch (error) {
             console.warn('Could not load integration state for settings tabs:', error);
