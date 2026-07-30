@@ -1,14 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getDateRange } from '../../js/insights-period.mjs';
 import {
     activityConvertsAlert,
-    activityTimeForCompare,
+    activityEffectiveTime,
     sameAccountId,
 } from '../../js/insights-cognito.mjs';
-
-const NOW = new Date(2026, 6, 30, 17, 39, 0); // Jul 30, 2026 local
-const { startDate, endDate } = getDateRange('this_month', NOW);
 
 describe('insights-cognito sameAccountId', () => {
     it('rejects nulls and matches string/number ids', () => {
@@ -25,63 +21,26 @@ describe('insights-cognito activityConvertsAlert', () => {
         status: 'New',
     };
 
-    it('requires in-period activity on same account on/after trigger', () => {
+    it('matches same-account activity on/after the trigger', () => {
         assert.equal(
-            activityConvertsAlert(
-                alert,
-                [{ account_id: 10, date: '2026-07-12' }],
-                startDate,
-                endDate
-            ),
+            activityConvertsAlert(alert, [{ account_id: 10, date: '2026-07-12' }]),
             true
-        );
-    });
-
-    it('does not match activities outside the selected period', () => {
-        assert.equal(
-            activityConvertsAlert(
-                alert,
-                [{ account_id: 10, date: '2026-06-20' }],
-                startDate,
-                endDate
-            ),
-            false
-        );
-        assert.equal(
-            activityConvertsAlert(
-                alert,
-                [{ account_id: 10, date: '2026-08-01' }],
-                startDate,
-                endDate
-            ),
-            false
         );
     });
 
     it('does not match activities before the trigger', () => {
         assert.equal(
-            activityConvertsAlert(
-                alert,
-                [{ account_id: 10, date: '2026-07-09' }],
-                startDate,
-                endDate
-            ),
+            activityConvertsAlert(alert, [{ account_id: 10, date: '2026-07-09' }]),
             false
         );
     });
 
-    it('counts same-calendar-day date-only activity (date-safe)', () => {
-        // Local Jul 10 end-of-day is after 14:00Z on Jul 10 in US timezones
-        // and still on the alert calendar day for local date-only semantics.
-        const compare = activityTimeForCompare('2026-07-10');
+    it('counts same-calendar-day date-only activity (date-safe end-of-day)', () => {
+        const compare = activityEffectiveTime('2026-07-10');
         assert.ok(compare);
+        assert.equal(compare.getHours(), 23);
         assert.equal(
-            activityConvertsAlert(
-                alert,
-                [{ account_id: 10, date: '2026-07-10' }],
-                startDate,
-                endDate
-            ),
+            activityConvertsAlert(alert, [{ account_id: 10, date: '2026-07-10' }]),
             true
         );
     });
@@ -90,9 +49,7 @@ describe('insights-cognito activityConvertsAlert', () => {
         assert.equal(
             activityConvertsAlert(
                 { ...alert, status: 'Dismissed' },
-                [{ account_id: 10, date: '2026-07-12' }],
-                startDate,
-                endDate
+                [{ account_id: 10, date: '2026-07-12' }]
             ),
             false
         );
@@ -102,28 +59,26 @@ describe('insights-cognito activityConvertsAlert', () => {
         const acts = [{ account_id: 10, date: '2026-07-20' }];
         const a1 = { ...alert, created_at: '2026-07-05T12:00:00.000Z' };
         const a2 = { ...alert, created_at: '2026-07-15T12:00:00.000Z' };
-        assert.equal(activityConvertsAlert(a1, acts, startDate, endDate), true);
-        assert.equal(activityConvertsAlert(a2, acts, startDate, endDate), true);
+        assert.equal(activityConvertsAlert(a1, acts), true);
+        assert.equal(activityConvertsAlert(a2, acts), true);
     });
 
     it('rejects different accounts and null account_id', () => {
         assert.equal(
-            activityConvertsAlert(
-                alert,
-                [{ account_id: 99, date: '2026-07-12' }],
-                startDate,
-                endDate
-            ),
+            activityConvertsAlert(alert, [{ account_id: 99, date: '2026-07-12' }]),
             false
         );
         assert.equal(
             activityConvertsAlert(
                 { ...alert, account_id: null },
-                [{ account_id: 10, date: '2026-07-12' }],
-                startDate,
-                endDate
+                [{ account_id: 10, date: '2026-07-12' }]
             ),
             false
         );
+    });
+
+    it('returns false when outreach pool is empty (period pre-filter)', () => {
+        // Callers pass Activities-KPI rows only; out-of-period acts never enter the pool.
+        assert.equal(activityConvertsAlert(alert, []), false);
     });
 });
