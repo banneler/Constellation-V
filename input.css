@@ -918,10 +918,9 @@ body.theme-green {
     }
     /*
      * Overlay only — out of flow. Canvas-relative insets (ledger-safe).
-     * Visibility is background + height (JS sets hour band). Do NOT gate with
-     * opacity: the opacity transition from 0→1 was sticking at computed 0 in
-     * Chromium/WebKit even while .is-active background applied, so the ghost
-     * stayed invisible after hard refresh.
+     * Visibility = .is-active background + JS hour-band height (height:0 when off).
+     * Do NOT gate with opacity: opacity:0 hides the painted background even when
+     * .is-active styles apply, and the 0→1 transition left the ghost invisible.
      */
     .cc-day-timeline-hover {
         position: absolute;

@@ -1098,8 +1098,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const rect = track.getBoundingClientRect();
             if (!rect.height) return;
             // Canvas-relative abspos (same containing block + % math as events).
-            // Show via .is-active background + hour band height — never opacity
-            // (opacity 0→1 transitions were sticking at computed 0 while bg applied).
+            // Visible via .is-active background + hour-band height — never opacity.
             hoverEl.style.position = "absolute";
             hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.25rem)";
             hoverEl.style.right = "var(--cc-day-timeline-event-right, 0.7rem)";

@@ -7,7 +7,7 @@
 // one with the backticks-in-CSS-comment bug — on every client even after
 // the fix shipped, because the SW intercepts script requests with a
 // stale-while-revalidate policy.)
-const CACHE_VERSION = 'constellation-v82';
+const CACHE_VERSION = 'constellation-v83';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -82,10 +82,29 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Static assets: stale-while-revalidate.
+    // JS/CSS: network-first so Command Center / calendar fixes ship on hard refresh
+    // (cache-first SWR previously kept stale hover/opacity logic alive across deploys).
+    if (request.destination === 'style' || request.destination === 'script') {
+        event.respondWith(
+            (async () => {
+                const cache = await caches.open(RUNTIME_CACHE);
+                try {
+                    const networkResponse = await fetch(request);
+                    if (networkResponse && networkResponse.ok) {
+                        cache.put(request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                } catch (_) {
+                    const cached = await cache.match(request);
+                    return cached || new Response('', { status: 504 });
+                }
+            })()
+        );
+        return;
+    }
+
+    // Images/fonts/manifest: stale-while-revalidate.
     if (
-        request.destination === 'style' ||
-        request.destination === 'script' ||
         request.destination === 'image' ||
         request.destination === 'font' ||
         request.destination === 'manifest'
