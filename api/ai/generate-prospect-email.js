@@ -4,6 +4,15 @@ const { getUserFromRequest, supabaseRest, encodeEq } = require("../_lib/supabase
 
 const FUNCTION_ID = "contacts-email";
 
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    subject: { type: "STRING" },
+    body: { type: "STRING" },
+  },
+  required: ["subject", "body"],
+};
+
 const SYSTEM_PROMPT = `You write high-quality sales emails for Great Plains Communications.
 
 Write like a thoughtful account executive, not a marketing blast. Use the user's requested goal as the primary instruction, then ground the draft in contact, account, recent activity, active sequence, deal, product, and industry context when available.
@@ -57,6 +66,7 @@ module.exports = async function handler(req, res) {
       functionId: FUNCTION_ID,
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
+      responseSchema: RESPONSE_SCHEMA,
       temperature: 0.55,
       maxOutputTokens: 1400,
     });

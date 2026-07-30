@@ -1233,6 +1233,9 @@
   .text-\[var\(--text-primary\)\] {
     color: var(--text-primary);
   }
+  .text-amber-600 {
+    color: var(--color-amber-600);
+  }
   .text-black {
     color: var(--color-black);
   }
@@ -1955,7 +1958,7 @@ body.theme-green {
     border-bottom-right-radius: var(--radius-lg);
     padding-inline: calc(var(--spacing) * 2.5);
     padding-block: calc(var(--spacing) * 5);
-    width: min(200px, max(160px, 10.5vw));
+    width: min(216px, max(184px, 11.25vw));
     background-color: var(--bg-light);
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     border-right: 1px solid var(--border-color);
@@ -1979,6 +1982,9 @@ body.theme-green {
   }
   .nav-collapse-icon {
     transition: transform 0.25s ease;
+  }
+  .nav-label-text {
+    white-space: nowrap;
   }
   @media (min-width: 769px) {
     .nav-sidebar-collapsed {
@@ -2195,7 +2201,7 @@ body.theme-green {
     min-width: calc(var(--spacing) * 0);
     flex-shrink: 0;
     overflow: hidden;
-    padding-inline: calc(var(--spacing) * 2);
+    padding-inline: calc(var(--spacing) * 1);
     padding-block: calc(var(--spacing) * 2);
     border-top: 1px solid var(--border-color);
   }
@@ -2209,7 +2215,7 @@ body.theme-green {
     gap: calc(var(--spacing) * 1.5);
     border-radius: var(--radius-xl);
     text-decoration-line: none;
-    padding: 0.375rem 0.5rem;
+    padding: 0.375rem 1.75rem 0.375rem 0.5rem;
     background-color: var(--bg-dark);
     border: 1px solid var(--border-color);
     color: var(--text-medium);
@@ -3579,6 +3585,21 @@ body.theme-green {
   }
   body:not(.theme-green) .metric-card {
     border-radius: var(--radius-2xl);
+  }
+  body:not(.theme-green) .deals-top-section .metric-card {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: #e2e8f0;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+  .deals-top-section .metric-card {
+    min-height: 6.5rem;
+    padding: 1.25rem 1.35rem;
+  }
+  .deals-top-section .metric-title {
+    margin-bottom: 0.55rem;
+  }
+  .deals-top-section .metric-value {
+    padding-bottom: 0.35rem;
   }
   .metric-card-won {
     background-color: var(--completed-color) !important;
@@ -6663,6 +6684,18 @@ body.theme-green {
     }
     padding: 0.625rem 0.75rem;
   }
+  .momentum-timeline-card[data-momentum-milestone-edit] {
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+  .momentum-timeline-card[data-momentum-milestone-edit]:hover {
+    border-color: var(--primary-blue);
+    box-shadow: 0 6px 18px var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      box-shadow: 0 6px 18px color-mix(in srgb, var(--primary-blue) 18%, transparent);
+    }
+    transform: translateY(-1px);
+  }
   .momentum-timeline-card-head {
     display: flex;
     flex-wrap: wrap;
@@ -6693,6 +6726,18 @@ body.theme-green {
     line-height: var(--tw-leading, var(--text-xs--line-height));
     line-height: 1.45;
     color: var(--text-medium);
+  }
+  .momentum-date-field label, .milestone-edit-modal label {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-light);
+  }
+  .milestone-edit-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
   @media (max-width: 768px) {
     .momentum-timeline-trunk {
@@ -11763,9 +11808,122 @@ body.theme-green {
     text-align: center;
     min-width: 20rem;
   }
+  .deals-pipeline-card .section-card-header {
+    align-items: flex-start;
+  }
+  .deals-pipeline-card .deals-filters {
+    display: grid !important;
+    flex-basis: 100%;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+  }
+  .deals-filters .deals-filter-group:has(#filter-committed-pills) {
+    justify-self: start;
+  }
+  .deals-filters .deals-filter-group:has(#filter-stage-pills) {
+    justify-self: center;
+  }
+  .deals-filters .deals-filter-group:has(.deals-close-month-filter) {
+    justify-self: end;
+    margin-left: 0;
+  }
+  .deals-filters .deals-filter-reset {
+    justify-self: end;
+  }
+  .deals-mobile-filter-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: var(--bg-medium);
+    color: var(--text-medium);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .deals-mobile-filter-toggle i {
+    font-size: 0.7rem;
+    transition: transform 0.15s ease;
+  }
+  .deals-pipeline-card.deals-filters-expanded .deals-mobile-filter-toggle i {
+    transform: rotate(180deg);
+  }
+  .deals-mobile-filter-toggle:hover {
+    color: var(--text-light);
+    border-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in srgb, var(--primary-blue) 45%, var(--border-color));
+    }
+  }
+  @media (max-width: 700px) {
+    .deals-pipeline-card .section-card-header {
+      gap: 1rem;
+    }
+    .deals-mobile-filter-toggle {
+      display: inline-flex;
+      order: 2;
+      flex-basis: 100%;
+    }
+    .deals-pipeline-card .deals-filters {
+      display: none !important;
+      order: 3;
+      flex-basis: 100%;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+    .deals-pipeline-card.deals-filters-expanded .deals-filters {
+      display: flex !important;
+    }
+    .deals-filters .deals-filter-group {
+      width: 100%;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.35rem;
+      justify-self: stretch;
+    }
+    .deals-filters .deals-filter-group > span {
+      white-space: nowrap;
+    }
+    .deals-filters .deals-filter-pills {
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .deals-filters #filter-stage-pills, .deals-filters #filter-committed-pills {
+      flex-wrap: wrap;
+    }
+    .deals-filters .deals-filter-group:has(#filter-committed-pills), .deals-filters .deals-filter-group:has(#filter-stage-pills), .deals-filters .deals-filter-group:has(.deals-close-month-filter), .deals-filters .deals-filter-reset {
+      justify-self: stretch;
+    }
+    .deals-filters .deals-close-month-filter {
+      width: 100%;
+      min-width: 0;
+    }
+    .deals-filters .deals-close-month-scroll {
+      flex: 1 1 auto;
+      width: auto !important;
+      min-width: 0;
+    }
+    .deals-filters .deals-filter-reset {
+      align-self: flex-end;
+    }
+  }
   #deals-table tbody tr {
     height: 4rem;
     max-height: 4rem;
+  }
+  #deals-table tbody tr.deal-row-notes-expanded {
+    height: auto;
+    max-height: none;
   }
   #deals-table tbody td {
     overflow: hidden;
@@ -11786,13 +11944,17 @@ body.theme-green {
   #deals-table tbody .deal-notes-cell-inner {
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: 4rem;
     max-height: 4rem;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 0.5rem 0.75rem;
     line-height: 1.5;
     color: var(--text-medium);
     cursor: text;
+  }
+  #deals-table tbody tr.deal-row-notes-expanded .deal-notes-cell-inner {
+    max-height: none;
+    overflow: visible;
   }
   #deals-table tbody .deal-notes-cell-inner:focus {
     outline: 1px solid var(--primary-blue);
@@ -12454,6 +12616,19 @@ body.theme-green {
   .user-menu-download-link:hover {
     background-color: var(--bg-medium);
     text-decoration: underline;
+  }
+  .user-integrations-menu .user-integrations-status {
+    margin: 0;
+    padding-inline: calc(var(--spacing) * 2);
+    padding-bottom: calc(var(--spacing) * 1);
+    font-size: var(--text-xs);
+    line-height: 1.35;
+    color: var(--text-medium);
+  }
+  .user-integrations-actions {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 0.5);
   }
   .nav-search-trigger {
     display: none;
@@ -13255,7 +13430,7 @@ body.theme-green {
   .cognito-nav-btn + .nav-notification-dot, .cognito-nav-link + .nav-notification-dot {
     position: absolute;
     top: calc(1 / 2 * 100%);
-    right: calc(var(--spacing) * 4);
+    right: calc(var(--spacing) * 3);
     margin-left: calc(var(--spacing) * 0);
     --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
     translate: var(--tw-translate-x) var(--tw-translate-y);
@@ -14090,7 +14265,7 @@ body.theme-green ::-webkit-scrollbar-track {
   justify-content: center !important;
 }
 .nav-sidebar a.cognito-nav-btn {
-  padding: 0.375rem 0.5rem !important;
+  padding: 0.375rem 1.75rem 0.375rem 0.5rem !important;
   margin: 0.25rem 0 !important;
   background-color: var(--bg-dark) !important;
   border: 1px solid var(--border-color) !important;
@@ -14925,6 +15100,12 @@ body:not(.theme-green) .list-item.selected {
     border-color: var(--border-color);
     color: var(--text-light);
   }
+  .agenda-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2);
+    margin-top: calc(var(--spacing) * 2);
+  }
   .agenda-copy-btn {
     display: flex;
     cursor: pointer;
@@ -15598,7 +15779,7 @@ body:not(.theme-green) .list-item.selected {
     .sequence-ai-form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      grid-template-areas: "goal persona" "inline inline" "types types";
+      grid-template-areas: "goal persona" "inline inline" "guidance guidance" "types types";
     }
     .sequence-ai-two-col:first-child {
       grid-area: goal;
@@ -15609,7 +15790,10 @@ body:not(.theme-green) .list-item.selected {
     .sequence-ai-inline-row {
       grid-area: inline;
     }
-    .sequence-ai-full-width {
+    .sequence-guidance-row {
+      grid-area: guidance;
+    }
+    .sequence-ai-types-row {
       grid-area: types;
     }
   }
@@ -15642,6 +15826,88 @@ body:not(.theme-green) .list-item.selected {
   .sequence-ai-inline-row input[type="number"]:focus {
     outline: none;
     border-color: var(--primary-blue);
+  }
+  .sequence-guidance-toggle {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+    border-radius: var(--radius-xl);
+    border-style: var(--tw-border-style);
+    border-width: 1px;
+    padding: calc(var(--spacing) * 3);
+    border-color: var(--border-color);
+    background-color: var(--bg-medium);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--bg-medium) 72%, var(--bg-light));
+    }
+  }
+  .sequence-guidance-toggle:hover {
+    border-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in srgb, var(--primary-blue) 40%, var(--border-color));
+    }
+  }
+  .sequence-guidance-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .sequence-guidance-slider {
+    position: relative;
+    display: inline-block;
+    height: calc(var(--spacing) * 6);
+    width: calc(var(--spacing) * 11);
+    flex-shrink: 0;
+    border-radius: calc(infinity * 1px);
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s, border-color 0.2s;
+  }
+  .sequence-guidance-slider::after {
+    content: '';
+    position: absolute;
+    top: calc(1 / 2 * 100%);
+    left: calc(var(--spacing) * 0.5);
+    height: calc(var(--spacing) * 5);
+    width: calc(var(--spacing) * 5);
+    --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+    border-radius: calc(infinity * 1px);
+    background-color: var(--text-medium);
+    transition: transform 0.2s, background-color 0.2s;
+  }
+  .sequence-guidance-input:checked + .sequence-guidance-slider {
+    background-color: var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in srgb, var(--primary-blue) 35%, var(--bg-dark));
+    }
+    border-color: var(--primary-blue);
+  }
+  .sequence-guidance-input:checked + .sequence-guidance-slider::after {
+    transform: translateX(1.25rem) translateY(-50%);
+    background-color: white;
+  }
+  .sequence-guidance-toggle strong {
+    display: block;
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    color: var(--text-light);
+  }
+  .sequence-guidance-toggle small {
+    margin-top: calc(var(--spacing) * 0.5);
+    display: block;
+    font-size: var(--text-xs);
+    line-height: var(--tw-leading, var(--text-xs--line-height));
+    --tw-leading: var(--leading-snug);
+    line-height: var(--leading-snug);
+    color: var(--text-medium);
   }
   .sequence-step-type-other-pill.sequence-step-type-pill {
     min-width: 5rem;
@@ -16006,8 +16272,24 @@ body:not(.theme-green) .list-item.selected {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-  body.deals-page .deals-view-toggle, body.deals-page .view-mode-toggle, body.deals-page .deals-filters, body.deals-page .deals-filter-toggle, body.deals-page .deals-charts-section, body.deals-page #list-view-container, body.deals-page #manager-pipeline-select-wrap, body.deals-page #deals-by-stage-chart-container {
+  body.deals-page .deals-view-toggle, body.deals-page .view-mode-toggle, body.deals-page .deals-filter-toggle, body.deals-page .deals-charts-section, body.deals-page #list-view-container, body.deals-page #manager-pipeline-select-wrap, body.deals-page #deals-by-stage-chart-container {
     display: none !important;
+  }
+  body.deals-page .deals-mobile-filter-toggle {
+    display: inline-flex !important;
+    order: 2;
+    flex-basis: 100%;
+  }
+  body.deals-page .deals-pipeline-card .deals-filters {
+    display: none !important;
+    order: 3;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  body.deals-page .deals-pipeline-card.deals-filters-expanded .deals-filters {
+    display: flex !important;
   }
   body.deals-page #kanban-board-view {
     display: grid !important;

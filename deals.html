@@ -95,7 +95,11 @@
                             <h2 class="section-title m-0">Deal Pipeline</h2>
                             <button type="button" id="add-deal-btn" class="btn-icon-header" title="New Deal" aria-label="New Deal"><i class="fas fa-plus"></i></button>
                         </div>
-                        <div class="deals-filters flex flex-wrap items-center gap-4">
+                        <button type="button" id="deals-mobile-filter-toggle" class="deals-mobile-filter-toggle" aria-expanded="false" aria-controls="deals-pipeline-filters">
+                            <span>Show filters</span>
+                            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <div id="deals-pipeline-filters" class="deals-filters flex flex-wrap items-center gap-4">
                             <div class="deals-filter-group flex items-center gap-2">
                                 <span class="text-xs font-semibold uppercase tracking-wider text-[var(--text-medium)]">Committed</span>
                                 <div id="filter-committed-pills" class="deals-filter-pills flex gap-1 rounded-lg border border-[var(--border-color)] p-0.5 bg-[var(--bg-medium)]"></div>

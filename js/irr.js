@@ -6,9 +6,8 @@
  *
  * Key features:
  * - Saves/Loads projects to/from Supabase 'irr_projects' table (includes business_case_start YYYY-MM; see sql/add_business_case_start_to_irr_projects.sql).
- * - Uses a single GLOBAL Target IRR for all calculations.
  * - Calculates and displays TCV, IRR, Payback, and Capital Investment.
- * - Exports a CSV with LIVE EXCEL FORMULAS for TCV, IRR, and Decision.
+ * - Exports a CSV with project and site financial detail.
  * - Factors in SG&A (Commission) to all IRR calculations.
  */
 
@@ -59,7 +58,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Project Inputs
     const projectNameInput = document.getElementById('project-name');
-    const globalTargetIrrInput = document.getElementById('global-target-irr');
     const globalDiscountRateInput = document.getElementById('global-discount-rate');
 
     // Site Containers
@@ -73,8 +71,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const globalPaybackEl = document.getElementById('global-payback');
     const globalRunRatePaybackEl = document.getElementById('global-run-rate-payback');
     const globalCapitalInvestmentEl = document.getElementById('global-capital-investment');
+    const globalMrcEl = document.getElementById('global-mrc');
     const globalNpvEl = document.getElementById('global-npv');
     const globalErrorMessageEl = document.getElementById('global-error-message');
+    const globalFreeMonthsToggle = document.getElementById('global-free-months-toggle');
+    const globalFreeMonthsSelect = document.getElementById('global-free-months-select');
 
     // Load Modal Elements
     const loadProjectModal = document.getElementById('load-project-modal-backdrop');
@@ -101,6 +102,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /** Stress test modifiers: applied only during chart/table render; do not mutate state.sites */
     let stressModifiers = { capex: 1.0, mrr: 1.0 };
+    let globalFreeMonthsTomSelect = null;
+    const siteFreeMonthsTomSelects = new Map();
 
     function defaultBusinessCaseStartStr() {
         const d = new Date();
@@ -293,22 +296,119 @@ document.addEventListener('DOMContentLoaded', async () => {
         return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     }
 
-    // Dial elements
-    const dialFill = document.querySelector('.irr-dial-fill');
-    const DIAL_CIRCUMFERENCE = 2 * Math.PI * 52; // r=52
+    function normalizeFreeMonths(value) {
+        const parsed = parseInt(String(value ?? 0), 10);
+        if (!Number.isFinite(parsed)) return 0;
+        return Math.min(3, Math.max(0, parsed));
+    }
 
-    function updateDialVisual() {
-        if (!dialFill) return;
-        const val = Math.min(Math.max(parseFloat(globalTargetIrrInput?.value) || 0, 0), 100);
-        const offset = DIAL_CIRCUMFERENCE * (1 - val / 100);
-        dialFill.style.strokeDashoffset = offset;
-        if (val >= 20) {
-            dialFill.style.stroke = 'var(--completed-color)';
-        } else if (val >= 10) {
-            dialFill.style.stroke = 'var(--primary-blue)';
-        } else {
-            dialFill.style.stroke = 'var(--danger-red)';
+    function getFreeMonths(inputs) {
+        return normalizeFreeMonths(inputs?.freeMonths);
+    }
+
+    function getPaidTermMonths(inputs) {
+        return Math.max(0, parseInt(String(inputs?.term ?? 0), 10) || 0);
+    }
+
+    function getEffectiveTermMonths(inputs) {
+        return getPaidTermMonths(inputs) + getFreeMonths(inputs);
+    }
+
+    function calculateSiteTcv(inputs) {
+        return ((inputs?.mrr || 0) * getPaidTermMonths(inputs)) + (inputs?.nrr || 0);
+    }
+
+    function getIrrPerformanceState(annualIRR) {
+        if (!Number.isFinite(annualIRR)) return 'default';
+        if (annualIRR >= 0.18) return 'go';
+        if (annualIRR >= 0.15) return 'warn';
+        return 'nogo';
+    }
+
+    function initPickerTomSelect(selectEl, onChange, placeholder = 'Months') {
+        if (!(selectEl instanceof HTMLSelectElement) || typeof window.TomSelect !== 'function') return null;
+        if (selectEl.tomselect) {
+            try { selectEl.tomselect.destroy(); } catch (_) { /* noop */ }
         }
+        try {
+            return new window.TomSelect(selectEl, {
+                create: false,
+                maxItems: 1,
+                placeholder,
+                controlInput: null,
+                searchField: [],
+                dropdownParent: 'body',
+                plugins: ['input_autogrow'],
+                onDropdownOpen() {
+                    const input = this.control_input;
+                    if (input) input.blur();
+                },
+                onChange,
+            });
+        } catch (err) {
+            console.warn('[IRR] TomSelect init failed, using native select:', err);
+            return null;
+        }
+    }
+
+    function setSelectDisabled(selectEl, disabled) {
+        if (!(selectEl instanceof HTMLSelectElement)) return;
+        selectEl.disabled = disabled;
+        if (selectEl.tomselect) {
+            if (disabled) selectEl.tomselect.disable();
+            else selectEl.tomselect.enable();
+        }
+    }
+
+    function syncSiteFreeMonthsControls(formWrapper, freeMonths) {
+        const normalized = normalizeFreeMonths(freeMonths);
+        const toggle = formWrapper?.querySelector('.free-months-toggle');
+        const select = formWrapper?.querySelector('select.free-months-select');
+        if (toggle instanceof HTMLInputElement) toggle.checked = normalized > 0;
+        if (select instanceof HTMLSelectElement) {
+            select.value = String(normalized || 1);
+            if (select.tomselect) select.tomselect.setValue(String(normalized || 1), true);
+            setSelectDisabled(select, normalized === 0);
+        }
+    }
+
+    function refreshGlobalFreeMonthsControls() {
+        if (!(globalFreeMonthsToggle instanceof HTMLInputElement) || !(globalFreeMonthsSelect instanceof HTMLSelectElement)) return;
+        const siteValues = state.sites.map(site => getFreeMonths(site.inputs));
+        const first = siteValues[0] || 0;
+        const allSame = siteValues.length > 0 && siteValues.every(value => value === first);
+        globalFreeMonthsToggle.checked = allSame && first > 0;
+        globalFreeMonthsSelect.value = String((allSame && first > 0) ? first : 1);
+        if (globalFreeMonthsSelect.tomselect) {
+            globalFreeMonthsSelect.tomselect.setValue(globalFreeMonthsSelect.value, true);
+        }
+        setSelectDisabled(globalFreeMonthsSelect, !globalFreeMonthsToggle.checked);
+    }
+
+    function initGlobalFreeMonthsPicker() {
+        if (!(globalFreeMonthsSelect instanceof HTMLSelectElement)) return;
+        if (globalFreeMonthsTomSelect) {
+            try { globalFreeMonthsTomSelect.destroy(); } catch (_) { /* noop */ }
+            globalFreeMonthsTomSelect = null;
+        }
+        globalFreeMonthsTomSelect = initPickerTomSelect(globalFreeMonthsSelect, () => handleGlobalFreeMonthsChange(), 'Free months');
+        refreshGlobalFreeMonthsControls();
+    }
+
+    function initSiteFreeMonthsPicker(formWrapper, siteId) {
+        const select = formWrapper?.querySelector('select.free-months-select');
+        if (!(select instanceof HTMLSelectElement)) return;
+        const existing = siteFreeMonthsTomSelects.get(siteId);
+        if (existing) {
+            try { existing.destroy(); } catch (_) { /* noop */ }
+            siteFreeMonthsTomSelects.delete(siteId);
+        }
+        const instance = initPickerTomSelect(select, () => {
+            state.isFormDirty = true;
+            runSiteCalculation(siteId);
+            refreshGlobalFreeMonthsControls();
+        }, 'Free months');
+        if (instance) siteFreeMonthsTomSelects.set(siteId, instance);
     }
 
     // --- 3. Core Project/Site Management Functions ---
@@ -324,12 +424,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.nextSiteId = 1;
             state.activeSiteId = null;
             state.isFormDirty = false;
+            siteFreeMonthsTomSelects.forEach((instance) => {
+                try { instance.destroy(); } catch (_) { /* noop */ }
+            });
+            siteFreeMonthsTomSelects.clear();
 
             projectNameInput.value = '';
-            globalTargetIrrInput.value = '15';
             if (globalDiscountRateInput) globalDiscountRateInput.value = '15';
+            if (globalFreeMonthsToggle instanceof HTMLInputElement) globalFreeMonthsToggle.checked = false;
+            if (globalFreeMonthsSelect instanceof HTMLSelectElement) {
+                globalFreeMonthsSelect.value = '1';
+                if (globalFreeMonthsSelect.tomselect) globalFreeMonthsSelect.tomselect.setValue('1', true);
+                setSelectDisabled(globalFreeMonthsSelect, true);
+            }
             setBusinessCaseStartFromYYYYMM(defaultBusinessCaseStartStr());
-            updateDialVisual();
 
             siteFormsContainer.innerHTML = '';
             siteTabsContainer.innerHTML = '';
@@ -359,6 +467,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const prevSite = state.sites.length ? state.sites[state.sites.length - 1] : null;
         const rawPrevTerm = prevSite ? parseInt(prevSite.inputs.term, 10) : NaN;
         const termForNewSite = Number.isFinite(rawPrevTerm) && rawPrevTerm > 0 ? rawPrevTerm : 60;
+        const globalPromoMonths = globalFreeMonthsToggle instanceof HTMLInputElement && globalFreeMonthsToggle.checked
+            ? normalizeFreeMonths(globalFreeMonthsSelect?.value)
+            : 0;
 
         const templateClone = siteFormTemplate.content.cloneNode(true);
         const newFormWrapper = templateClone.querySelector('.site-form-wrapper');
@@ -372,8 +483,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         newFormWrapper.querySelector('.monthly-cost-input').value = '0';
         newFormWrapper.querySelector('.nrr-input').value = '0';
         newFormWrapper.querySelector('.mrr-input').value = '0';
+        syncSiteFreeMonthsControls(newFormWrapper, globalPromoMonths);
         
         siteFormsContainer.appendChild(templateClone);
+        initSiteFreeMonthsPicker(newFormWrapper, newSiteId);
+        syncSiteFreeMonthsControls(newFormWrapper, globalPromoMonths);
 
         const newSite = {
             id: newSiteId,
@@ -386,6 +500,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 nrr: 0,
                 mrr: 0,
                 term: termForNewSite,
+                freeMonths: globalPromoMonths,
             },
             timeline: (() => {
                 const bcs = getBusinessCaseStartStr();
@@ -403,6 +518,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 annualIRR: null,
                 npv: null,
                 tcv: 0,
+                effectiveTerm: termForNewSite + globalPromoMonths,
                 payback: null,
                 paybackRogerMonth: null,
                 paybackRatio: null,
@@ -418,6 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderTabs();
         setActiveSite(newSiteId);
         runGlobalCalculation();
+        refreshGlobalFreeMonthsControls();
         state.isFormDirty = true;
     }
 
@@ -439,6 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             annualIRR: null,
             npv: null,
             tcv: 0,
+            effectiveTerm: null,
             payback: null,
             paybackRogerMonth: null,
             paybackRatio: null,
@@ -457,6 +575,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         state.sites = state.sites.filter(site => site.id !== siteId);
+        const sitePicker = siteFreeMonthsTomSelects.get(siteId);
+        if (sitePicker) {
+            try { sitePicker.destroy(); } catch (_) { /* noop */ }
+            siteFreeMonthsTomSelects.delete(siteId);
+        }
 
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
         if (formWrapper) formWrapper.remove();
@@ -468,6 +591,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         runGlobalCalculation();
+        refreshGlobalFreeMonthsControls();
         state.isFormDirty = true;
     }
 
@@ -504,8 +628,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 resultClass = 'error';
                 resultText = 'Error';
             } else if (site.result.annualIRR !== null) {
-                const hurdle = (parseFloat(globalTargetIrrInput?.value) || 0) / 100;
-                resultClass = site.result.annualIRR >= hurdle ? 'go' : 'nogo';
+                resultClass = getIrrPerformanceState(site.result.annualIRR);
                 resultText = `${(site.result.annualIRR * 100).toFixed(2)}%`;
             }
 
@@ -529,7 +652,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const site = state.sites.find(s => s.id === siteId);
         if (!site) return;
 
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
 
         const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${siteId}"]`);
@@ -565,10 +687,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         site.inputs.monthlyCost = parseFloat(formWrapper.querySelector('.monthly-cost-input').value) || 0;
         site.inputs.nrr = parseFloat(formWrapper.querySelector('.nrr-input').value) || 0;
         site.inputs.mrr = parseFloat(formWrapper.querySelector('.mrr-input').value) || 0;
+        const freeMonthsToggle = formWrapper.querySelector('.free-months-toggle');
+        const freeMonthsSelect = formWrapper.querySelector('select.free-months-select');
+        site.inputs.freeMonths = freeMonthsToggle instanceof HTMLInputElement && freeMonthsToggle.checked
+            ? normalizeFreeMonths(freeMonthsSelect instanceof HTMLSelectElement ? freeMonthsSelect.value : 1)
+            : 0;
+        syncSiteFreeMonthsControls(formWrapper, site.inputs.freeMonths);
         
         // 2. Calculate TCV
-        const siteTCV = (site.inputs.mrr * site.inputs.term) + site.inputs.nrr;
+        const siteTCV = calculateSiteTcv(site.inputs);
         site.result.tcv = siteTCV;
+        site.result.effectiveTerm = getEffectiveTermMonths(site.inputs);
         site.result.runRatePayback = computeSiteRunRatePaybackMonths(site.inputs);
 
         // 3. Calculate Payback
@@ -594,7 +723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             showSiteError(
                 errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl,
                 combinedError,
-                site.inputs.term,
+                    site.result.effectiveTerm,
                 site.result.runRatePayback
             );
         } else {
@@ -607,18 +736,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showSiteError(
                     errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl,
                     site.result.error,
-                    site.inputs.term,
+                    site.result.effectiveTerm,
                     site.result.runRatePayback
                 );
             } else {
                 site.result.error = null;
                 site.result.annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
                 site.result.npv = calculateNPV(globalDiscountRate, cashFlows);
-                const irrDisplayState = site.result.annualIRR >= globalTargetIRR ? 'go' : 'nogo';
                 showSiteResults(
                     errorMessageEl, annualIRREl, tcvEl, npvEl, paybackEl, runRatePaybackEl,
-                    site.result.annualIRR, irrDisplayState, site.result.tcv,
-                    site.result.npv, site.result.payback, site.inputs.term, site.result.paybackRatio,
+                    site.result.annualIRR, getIrrPerformanceState(site.result.annualIRR), site.result.tcv,
+                    site.result.npv, site.result.payback, site.result.effectiveTerm, site.result.paybackRatio,
                     site.result.paybackRogerMonth,
                     site.result.runRatePayback
                 );
@@ -630,6 +758,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (runGlobal) {
             runGlobalCalculation();
+            refreshGlobalFreeMonthsControls();
         }
     }
 
@@ -649,6 +778,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             setResultUI(globalAnnualIRREl, '--%', 'pending');
             setResultUI(globalTcvEl, '$0', 'tcv');
             globalTcvEl.style.color = 'var(--color-primary, #3b82f6)';
+            if (globalMrcEl) {
+                setResultUI(globalMrcEl, '$0', 'tcv');
+                globalMrcEl.style.color = 'var(--color-primary, #3b82f6)';
+            }
             setResultUI(globalCapitalInvestmentEl, '$0', 'default');
             globalCapitalInvestmentEl.style.color = 'var(--text-light, #333)';
             setResultUI(globalNpvEl, '$0', 'default');
@@ -658,18 +791,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
         const siteCashFlowBundles = [];
         let globalNetInvestment = 0;
         let globalGrossMargin = 0;
+        let globalMrc = 0;
 
         for (const site of state.sites) {
             if (!site.timeline) {
                 site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
             }
-            if (site.inputs.term > maxTerm) {
-                maxTerm = site.inputs.term;
+            const effectiveTerm = getEffectiveTermMonths(site.inputs);
+            if (effectiveTerm > maxTerm) {
+                maxTerm = effectiveTerm;
             }
             globalTCV += site.result.tcv || 0;
             totalGlobalConstructionCost += site.inputs.constructionCost || 0;
@@ -680,6 +814,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const siteCapex = (inp.constructionCost || 0) + (inp.engineeringCost || 0) + (inp.productCost || 0);
             const nrr = inp.nrr || 0;
             const mrr = inp.mrr || 0;
+            globalMrc += mrr;
             globalNetInvestment += siteCapex + (nrr * 0.03 + mrr) - nrr;
             globalGrossMargin += mrr - (inp.monthlyCost || 0);
 
@@ -719,7 +854,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         showGlobalResults(
             globalMonthlyIRR,
-            globalTargetIRR,
             globalTCV,
             globalPaybackMonths,
             globalPaybackRogerMonth,
@@ -727,7 +861,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             globalPaybackRatio,
             totalGlobalCapitalInvestment,
             globalNPV,
-            globalRunRatePayback
+            globalRunRatePayback,
+            globalMrc
         );
 
         renderCashflowChart();
@@ -882,6 +1017,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         } = inputs || {};
 
         const termMonths = parseInt(term, 10) || 0;
+        const freeMonths = getFreeMonths(inputs);
+        const effectiveTermMonths = termMonths + freeMonths;
         const bcsStr = getBusinessCaseStartStr();
         const resolved = resolveTimelineToModelMonths(timeline, bcsStr);
         if (resolved.error) return { error: resolved.error };
@@ -895,7 +1032,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const constructionMonths = constructionDurationMonths;
         // SG&A is split across two model months (Roger-style); when billing starts at month 0,
         // still use months 0 and 1 — not 100% in 0 — so length may need at least 2 even for term 1.
-        let minSeriesTail = billingStartMonth + termMonths;
+        let minSeriesTail = billingStartMonth + effectiveTermMonths;
         if (sgaTotal !== 0 && billingStartMonth === 0) {
             minSeriesTail = Math.max(minSeriesTail, 2);
         }
@@ -929,8 +1066,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // NRC/NRR is recognized in billing start month in Roger's workbook model.
         revenue[billingStartMonth] += (nrr || 0);
-        for (let month = billingStartMonth; month < billingStartMonth + termMonths; month++) {
+        for (let month = billingStartMonth + freeMonths; month < billingStartMonth + freeMonths + termMonths; month++) {
             revenue[month] += (mrr || 0);
+        }
+        for (let month = billingStartMonth; month < billingStartMonth + effectiveTermMonths; month++) {
             cos[month] += (monthlyCost || 0);
         }
 
@@ -1413,7 +1552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (error) {
             return { paybackMonths: Infinity, paybackRogerMonth: null, paybackRatio: Infinity, error };
         }
-        return getPaybackFromCashFlows(cashFlows, inputs.term);
+        return getPaybackFromCashFlows(cashFlows, getEffectiveTermMonths(inputs));
     }
 
     /**
@@ -1434,13 +1573,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 5. UI Update Functions ---
 
-    function setResultUI(el, text, state) { // state: 'go', 'nogo', 'error', 'pending', 'default'
+    function setResultUI(el, text, state) { // state: 'go', 'warn', 'nogo', 'error', 'pending', 'default'
         el.textContent = text;
-        el.classList.remove('go', 'nogo', 'error', 'pending');
+        el.classList.remove('go', 'warn', 'nogo', 'error', 'pending');
         
         switch (state) {
             case 'go':
                 el.style.color = 'var(--color-success, #22c55e)';
+                break;
+            case 'warn':
+                el.style.color = 'var(--warning-color, #d97706)';
                 break;
             case 'nogo':
                 el.style.color = 'var(--color-danger, #ef4444)';
@@ -1521,11 +1663,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         setPaybackUI(runRatePaybackEl, runRateMonths, term, runRateRatioForUi(term, runRateMonths), null);
     }
 
-    function showGlobalResults(monthlyIRR, targetIRR, tcv, globalPaybackMonths, globalPaybackRogerMonth, globalTerm, globalPaybackRatio, totalCapitalInvestment, npv, globalRunRatePayback) {
+    function showGlobalResults(monthlyIRR, tcv, globalPaybackMonths, globalPaybackRogerMonth, globalTerm, globalPaybackRatio, totalCapitalInvestment, npv, globalRunRatePayback, globalMrc = 0) {
         globalErrorMessageEl.classList.add('hidden');
         
         setResultUI(globalTcvEl, `$${tcv.toLocaleString()}`, 'tcv');
         globalTcvEl.style.color = 'var(--color-primary, #3b82f6)';
+        if (globalMrcEl) {
+            setResultUI(globalMrcEl, `$${(globalMrc || 0).toLocaleString()}`, 'tcv');
+            globalMrcEl.style.color = 'var(--color-primary, #3b82f6)';
+        }
         
         setResultUI(globalCapitalInvestmentEl, `$${(totalCapitalInvestment || 0).toLocaleString()}`, 'default');
         globalCapitalInvestmentEl.style.color = 'var(--text-light, #333)';
@@ -1545,17 +1691,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const annualIRR = Math.pow(1 + monthlyIRR, 12) - 1;
-        
-        if (annualIRR >= targetIRR) {
-            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'go');
-        } else {
-            setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', 'nogo');
-        }
+        setResultUI(globalAnnualIRREl, (annualIRR * 100).toFixed(2) + '%', getIrrPerformanceState(annualIRR));
     }
 
     function showGlobalError(message) {
         setResultUI(globalAnnualIRREl, '--%', 'error');
         setResultUI(globalTcvEl, '$0', 'error');
+        if (globalMrcEl) setResultUI(globalMrcEl, '$0', 'error');
         setResultUI(globalCapitalInvestmentEl, '$0', 'error');
         setResultUI(globalNpvEl, '$0', 'error');
 
@@ -1588,6 +1730,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function formatPdfNumber(value, { prefix = '', suffix = '' } = {}) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return '';
+        const rounded = Math.round((number + Number.EPSILON) * 100) / 100;
+        const fractionDigits = Math.abs(rounded - Math.round(rounded)) < 1e-9 ? 0 : 2;
+        return `${prefix}${rounded.toLocaleString('en-US', {
+            minimumFractionDigits: fractionDigits,
+            maximumFractionDigits: fractionDigits,
+        })}${suffix}`;
+    }
+
+    function formatPdfCurrency(value) {
+        return formatPdfNumber(value, { prefix: '$' });
+    }
+
+    function formatPdfPercentFromPct(value) {
+        return formatPdfNumber(value, { suffix: '%' });
+    }
+
+    function formatPdfElementNumberText(el) {
+        const text = el?.textContent || '';
+        const number = Number(String(text).replace(/[$,%\s,]/g, ''));
+        if (!Number.isFinite(number)) return text || '--';
+        if (text.includes('$')) return formatPdfCurrency(number);
+        if (text.includes('%')) return formatPdfPercentFromPct(number);
+        return formatPdfNumber(number);
+    }
+
+    function formatPdfPaybackText(text) {
+        const raw = String(text || '').trim();
+        const match = raw.match(/^([0-9.,]+)\s*\/\s*([0-9.,]+)$/);
+        if (!match) return raw || '-- / --';
+        return `${formatPdfNumber(Number(match[1].replace(/,/g, '')))} / ${formatPdfNumber(Number(match[2].replace(/,/g, '')))}`;
+    }
+
     /**
      * Shared print/PDF report styles. PDF capture adds shadow/filter stripping on the capture root.
      * @param {boolean} includePrintPageRules - @page rules for browser print; omit for snapdom PDF raster.
@@ -1611,15 +1788,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             .page-1-wrapper { width: 7.5in; margin: 0 auto; }
             
-            .report-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 3px solid #3b82f6; padding-bottom: 8px; margin-bottom: 12px; overflow: visible; }
+            .report-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 12px; overflow: visible; }
             .report-header h1 { flex: 1; min-width: 0; font-size: 1.25rem; color: #1e293b; margin: 0; line-height: 1.2; }
-            .report-header-meta { flex: 0 1 auto; max-width: 58%; text-align: right; line-height: 1.35; overflow: visible; min-width: 0; }
-            .report-header-meta-row { font-size: 7pt; color: #64748b; white-space: nowrap; overflow: visible; }
+            .report-header-meta { flex: 0 0 2.15in; max-width: none; text-align: right; line-height: 1.45; overflow: visible; min-width: 2.15in; }
+            .report-header-meta-row { display: block; font-size: 7pt; color: #64748b; white-space: nowrap; overflow: visible; }
             
             .summary-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
             .summary-card h2 { font-size: 0.9rem; color: #3b82f6; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
             
-            .kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; text-align: center; }
+            .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 12px; text-align: center; }
             .kpi-item .kpi-label { font-size: 7.5pt; color: #64748b; text-transform: uppercase; }
             .kpi-item .kpi-value { font-size: 1.25rem; font-weight: 700; margin-top: 2px; }
             
@@ -1701,12 +1878,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function runIrrPdfExportJob() {
         const projectName = projectNameInput.value.trim() || "IRR Project Approval Report";
-        const globalTargetIRR = (parseFloat(globalTargetIrrInput.value) || 0) / 100;
         const globalDiscountRate = (parseFloat(globalDiscountRateInput?.value) || 15) / 100;
         const npvDiscountPctPrint = (() => {
             const pct = globalDiscountRate * 100;
             if (!Number.isFinite(pct)) return '15';
-            return Math.abs(pct - Math.round(pct)) < 1e-6 ? String(Math.round(pct)) : pct.toFixed(1);
+            return formatPdfNumber(pct);
         })();
         const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         const printBcs = getBusinessCaseStartParsed();
@@ -1798,16 +1974,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = site.result;
             ensureSiteTimelineISOFromLegacy(site, getBusinessCaseStartStr());
             const timeline = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
-            const irrText = res.error ? 'Error' : `${(res.annualIRR * 100).toFixed(2)}%`;
-            const irrClass = res.error ? 'error' : (res.annualIRR >= globalTargetIRR ? 'go' : 'nogo');
+            const irrText = res.error ? 'Error' : formatPdfPercentFromPct(res.annualIRR * 100);
+            const irrClass = res.error ? 'error' : getIrrPerformanceState(res.annualIRR);
 
             let pText = '-- / --';
             let pClass = '';
             if (!isFinite(res.paybackRatio)) {
-                pText = `Never / ${inp.term}`;
+                pText = `Never / ${getEffectiveTermMonths(inp)}`;
                 pClass = 'nogo';
             } else if (res.paybackRatio !== null && isFinite(res.payback)) {
-                pText = `${(res.paybackRogerMonth != null ? res.paybackRogerMonth : res.payback.toFixed(1))} / ${inp.term}`;
+                pText = `${formatPdfNumber(res.paybackRogerMonth != null ? res.paybackRogerMonth : res.payback)} / ${getEffectiveTermMonths(inp)}`;
                 if (res.paybackRatio <= 0.5) pClass = 'go';
                 else if (res.paybackRatio < 1) pClass = 'warn';
                 else pClass = 'nogo';
@@ -1815,15 +1991,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const rrMonthsPdf = computeSiteRunRatePaybackMonths(inp);
             const termRow = inp.term || 0;
+            const freeMonthsRow = getFreeMonths(inp);
+            const effectiveTermRow = getEffectiveTermMonths(inp);
             let rrText = '-- / --';
             let rrClass = '';
-            if (termRow > 0) {
+            if (effectiveTermRow > 0) {
                 if (!Number.isFinite(rrMonthsPdf)) {
-                    rrText = `Never / ${termRow}`;
+                    rrText = `Never / ${effectiveTermRow}`;
                     rrClass = 'nogo';
                 } else {
-                    const rrRatio = rrMonthsPdf / termRow;
-                    rrText = `${formatPaybackMonthTwoDecimals(rrMonthsPdf)} / ${termRow}`;
+                    const rrRatio = rrMonthsPdf / effectiveTermRow;
+                    rrText = `${formatPdfNumber(rrMonthsPdf)} / ${effectiveTermRow}`;
                     if (rrRatio <= 0.5) rrClass = 'go';
                     else if (rrRatio < 1) rrClass = 'warn';
                     else rrClass = 'nogo';
@@ -1833,17 +2011,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             siteRows += `<tr>
                 <td style="text-align:left;font-weight:600;">${escapeHtmlForPrint(site.name)}</td>
                 <td class="${irrClass}">${irrText}</td>
-                <td>$${(res.tcv || 0).toLocaleString()}</td>
-                <td>$${(inp.constructionCost || 0).toLocaleString()}</td>
-                <td>$${(inp.engineeringCost || 0).toLocaleString()}</td>
-                <td>$${(inp.productCost || 0).toLocaleString()}</td>
-                <td>$${(inp.nrr || 0).toLocaleString()}</td>
-                <td>$${(inp.mrr || 0).toLocaleString()}</td>
-                <td>$${(inp.monthlyCost || 0).toLocaleString()}</td>
+                <td>${formatPdfCurrency(res.tcv || 0)}</td>
+                <td>${formatPdfCurrency(inp.constructionCost || 0)}</td>
+                <td>${formatPdfCurrency(inp.engineeringCost || 0)}</td>
+                <td>${formatPdfCurrency(inp.productCost || 0)}</td>
+                <td>${formatPdfCurrency(inp.nrr || 0)}</td>
+                <td>${formatPdfCurrency(inp.mrr || 0)}</td>
+                <td>${formatPdfCurrency(inp.monthlyCost || 0)}</td>
                 <td class="site-bd-date-cell">${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.constructionStartMonthISO))}</td>
                 <td>${Math.max(1, parseInt(timeline.constructionDurationMonths, 10) || 3)}</td>
                 <td>${escapeHtmlForPrint(formatTimelineMonthISOForDisplay(timeline.billingStartMonthISO))}</td>
-                <td>${inp.term}</td>
+                <td>${termRow}</td>
+                <td>${freeMonthsRow}</td>
+                <td>${effectiveTermRow}</td>
                 <td class="${rrClass}">${rrText}</td>
                 <td class="${pClass}">${pText}</td>
             </tr>`;
@@ -1870,20 +2050,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="report-header">
                     <h1>${escapeHtmlForPrint(projectName)}</h1>
                     <div class="report-header-meta">
-                        <div class="report-header-meta-row">Generated ${reportDate}</div>
-                        <div class="report-header-meta-row">Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong> · Target <strong>${(globalTargetIRR * 100).toFixed(1)}%</strong></div>
+                        <div class="report-header-meta-row">${reportDate}</div>
+                        <div class="report-header-meta-row">Start: <strong>${escapeHtmlForPrint(businessCaseStartLabel)}</strong></div>
                         <div class="report-header-meta-row">NPV discount <strong>${npvDiscountPctForPrint}%</strong></div>
                     </div>
                 </div>
 
                 <div class="summary-card">
                     <div class="kpi-grid">
-                        <div class="kpi-item"><div class="kpi-label">Annual IRR</div><div class="kpi-value"${irrKpiComputedColorAttr(globalAnnualIRREl)}>${globalAnnualIRREl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value"${irrKpiComputedColorAttr(globalCapitalInvestmentEl)}>${globalCapitalInvestmentEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalTcvEl)}>${globalTcvEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalNpvEl)}>${globalNpvEl.textContent}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">Run-Rate Payback</div><div class="kpi-value"${irrKpiComputedColorAttr(globalRunRatePaybackEl)}>${globalRunRatePaybackEl ? globalRunRatePaybackEl.textContent : '-- / --'}</div></div>
-                        <div class="kpi-item"><div class="kpi-label">CF Break-Even</div><div class="kpi-value"${irrKpiComputedColorAttr(globalPaybackEl)}>${globalPaybackEl.textContent}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Annual IRR</div><div class="kpi-value"${irrKpiComputedColorAttr(globalAnnualIRREl)}>${formatPdfElementNumberText(globalAnnualIRREl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total CapEx</div><div class="kpi-value"${irrKpiComputedColorAttr(globalCapitalInvestmentEl)}>${formatPdfElementNumberText(globalCapitalInvestmentEl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total TCV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalTcvEl)}>${formatPdfElementNumberText(globalTcvEl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Total MRC</div><div class="kpi-value"${irrKpiComputedColorAttr(globalMrcEl)}>${globalMrcEl ? formatPdfElementNumberText(globalMrcEl) : '$0'}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Project NPV</div><div class="kpi-value"${irrKpiComputedColorAttr(globalNpvEl)}>${formatPdfElementNumberText(globalNpvEl)}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">Run-Rate Payback</div><div class="kpi-value"${irrKpiComputedColorAttr(globalRunRatePaybackEl)}>${globalRunRatePaybackEl ? formatPdfPaybackText(globalRunRatePaybackEl.textContent) : '-- / --'}</div></div>
+                        <div class="kpi-item"><div class="kpi-label">CF Break-Even</div><div class="kpi-value"${irrKpiComputedColorAttr(globalPaybackEl)}>${formatPdfPaybackText(globalPaybackEl.textContent)}</div></div>
                     </div>
                 </div>
 
@@ -1920,7 +2101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <table class="site-breakdown-print-table">
                     <colgroup>
                         <col class="site-bd-col-site" />
-                        <col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" />
+                        <col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" /><col class="site-bd-col-num" />
                     </colgroup>
                     <thead><tr>
                         <th>Site</th>
@@ -1935,7 +2116,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <th>Const. Start</th>
                         <th>Duration</th>
                         <th>Billing start</th>
-                        <th>Term</th>
+                        <th>Paid<br/>term</th>
+                        <th>Free<br/>mo.</th>
+                        <th>Eff.<br/>term</th>
                         <th>RR<br/>payback</th>
                         <th>CF<br/>payback</th>
                     </tr></thead>
@@ -2197,6 +2380,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ensureSiteTimelineISOFromLegacy(site, csvBcs);
             const t = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
             const term = parseInt(i.term, 10) || 0;
+            const effectiveTerm = getEffectiveTermMonths(i);
             const construction = i.constructionCost || 0;
             const engineering = i.engineeringCost || 0;
             const product = i.productCost || 0;
@@ -2205,14 +2389,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nrr = i.nrr || 0;
             const mrr = i.mrr || 0;
 
-            maxTerm = Math.max(maxTerm, term);
+            maxTerm = Math.max(maxTerm, effectiveTerm);
             totalConstruction += construction;
             totalEngineering += engineering;
             totalProduct += product;
             totalMonthlyCost += monthlyCost;
             totalNrr += nrr;
             totalMrr += mrr;
-            totalTcv += (mrr * term) + nrr;
+            totalTcv += calculateSiteTcv(i);
             globalNetInvestment += capex + (nrr * 0.03 + mrr) - nrr;
             globalGrossMargin += mrr - monthlyCost;
 
@@ -2242,7 +2426,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             siteCount: state.sites.length,
             maxTerm,
             annualIrr,
-            targetIrr: (parseFloat(globalTargetIrrInput.value) || 0) / 100,
             discountRate: globalDiscountRate,
             totalCapitalInvestment: totalConstruction + totalEngineering + totalProduct,
             totalConstruction,
@@ -2271,8 +2454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ['Metric', 'Value'].map(escapeCSV).join(','),
             ['Project Name', projectName].map(escapeCSV).join(','),
             ['Site Count', summary.siteCount].map(escapeCSV).join(','),
-            ['Max Term', summary.maxTerm].map(escapeCSV).join(','),
-            ['Target IRR (%)', (summary.targetIrr * 100).toFixed(2)].map(escapeCSV).join(','),
+            ['Max Effective Term', summary.maxTerm].map(escapeCSV).join(','),
             ['Discount Rate (%)', (summary.discountRate * 100).toFixed(2)].map(escapeCSV).join(','),
             ['Global Annual IRR (%)', formatCsvPercentValue(summary.annualIrr)].map(escapeCSV).join(','),
             ['Total Capital Investment', formatCsvCurrencyValue(summary.totalCapitalInvestment)].map(escapeCSV).join(','),
@@ -2292,7 +2474,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const headers = [
             "Site Name",
             "Address",
-            "Term",
+            "Paid Term",
+            "Free Months",
+            "Effective Term",
             "Est. CapEx",
             "MCOS",
             "SG&A",
@@ -2313,7 +2497,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const t = site.timeline || { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
             const capex = (i.constructionCost || 0) + (i.engineeringCost || 0) + (i.productCost || 0);
             const sga = ((i.mrr || 0) * 1) + ((i.nrr || 0) * 0.03);
-            const tcv = ((i.mrr || 0) * (i.term || 0)) + (i.nrr || 0);
+            const freeMonths = getFreeMonths(i);
+            const effectiveTerm = getEffectiveTermMonths(i);
+            const tcv = calculateSiteTcv(i);
 
             const { cashFlows, error } = getCashFlowsForSite(i, t);
             let annualIrrText = '';
@@ -2323,7 +2509,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const monthlyIrr = calculateIRR(cashFlows);
                 const annualIrr = (isFinite(monthlyIrr) && !isNaN(monthlyIrr)) ? (Math.pow(1 + monthlyIrr, 12) - 1) : null;
                 const npv = calculateNPV(globalDiscountRate, cashFlows);
-                const { paybackMonths, paybackRogerMonth: csvRogerPb } = getPaybackFromCashFlows(cashFlows, i.term || 0);
+                const { paybackMonths, paybackRogerMonth: csvRogerPb } = getPaybackFromCashFlows(cashFlows, effectiveTerm);
                 annualIrrText = annualIrr === null ? '' : (annualIrr * 100).toFixed(6);
                 npvText = isFinite(npv) ? npv.toFixed(2) : '';
                 paybackText = isFinite(paybackMonths)
@@ -2335,6 +2521,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 escapeCSV(site.name || ''),
                 escapeCSV(site.note || site.name || ''),
                 i.term || 0,
+                freeMonths,
+                effectiveTerm,
                 capex.toFixed(2),
                 (i.monthlyCost || 0).toFixed(2),
                 sga.toFixed(2),
@@ -2465,6 +2653,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         nrr: 0,
                         mrr: 0,
                         term: importedTerm,
+                        freeMonths: 0,
                     }
                 });
             }
@@ -2500,7 +2689,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return {
             id: null,
             project_name: projectName || 'Imported Salesforce Project',
-            global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
             global_discount_rate: parseFloat(globalDiscountRateInput?.value) || 15,
             business_case_start: getBusinessCaseStartStr(),
             sites
@@ -2552,7 +2740,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const projectData = {
             project_name: projectName,
-            global_target_irr: parseFloat(globalTargetIrrInput.value) || 15,
             global_discount_rate: parseFloat(globalDiscountRateInput?.value) || 15,
             business_case_start: (getBusinessCaseStartStr()),
             sites: state.sites,
@@ -2669,6 +2856,10 @@ document.addEventListener('DOMContentLoaded', async () => {
      */
     function hydrateState(projectData) {
         // 1. Clear existing DOM
+        siteFreeMonthsTomSelects.forEach((instance) => {
+            try { instance.destroy(); } catch (_) { /* noop */ }
+        });
+        siteFreeMonthsTomSelects.clear();
         siteFormsContainer.innerHTML = '';
         siteTabsContainer.innerHTML = '';
 
@@ -2682,7 +2873,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 3. Set global inputs
         projectNameInput.value = projectData.project_name || '';
-        globalTargetIrrInput.value = projectData.global_target_irr || 15;
         if (globalDiscountRateInput) {
             globalDiscountRateInput.value = projectData.global_discount_rate || 15;
         }
@@ -2692,7 +2882,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? String(loadedBcs).trim()
                 : defaultBusinessCaseStartStr()
         );
-        updateDialVisual();
         
         // 4. Rebuild DOM for each site
         state.sites.forEach(site => {
@@ -2704,6 +2893,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Populate all inputs from saved data
             newFormWrapper.querySelector('.site-name-input').value = site.name;
             const inputs = site.inputs || {};
+            inputs.freeMonths = getFreeMonths(inputs);
+            site.inputs = inputs;
             newFormWrapper.querySelector('.term-input').value = inputs.term || 0; // <-- MODIFIED
             newFormWrapper.querySelector('.construction-cost-input').value = inputs.constructionCost || 0;
             newFormWrapper.querySelector('.engineering-cost-input').value = inputs.engineeringCost || 0;
@@ -2711,6 +2902,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             newFormWrapper.querySelector('.monthly-cost-input').value = inputs.monthlyCost || 0;
             newFormWrapper.querySelector('.nrr-input').value = inputs.nrr || 0;
             newFormWrapper.querySelector('.mrr-input').value = inputs.mrr || 0;
+            syncSiteFreeMonthsControls(newFormWrapper, inputs.freeMonths);
             
             if (!site.timeline) site.timeline = { constructionStartMonth: 0, billingStartMonth: 1, constructionDurationMonths: 3 };
             if (!site.timeline.constructionDurationMonths || site.timeline.constructionDurationMonths < 1) {
@@ -2726,6 +2918,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             siteFormsContainer.appendChild(templateClone);
+            initSiteFreeMonthsPicker(newFormWrapper, site.id);
+            syncSiteFreeMonthsControls(newFormWrapper, inputs.freeMonths);
             attachFormListeners(newFormWrapper);
             
             runSiteCalculation(site.id, false);
@@ -2734,11 +2928,60 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 5. Run final calculations and renders
         runGlobalCalculation();
         renderTabs();
+        refreshGlobalFreeMonthsControls();
         if (state.activeSiteId) {
             setActiveSite(state.activeSiteId);
         }
     }
 
+    function applyFreeMonthsToAllSites(freeMonths) {
+        const normalized = normalizeFreeMonths(freeMonths);
+        state.sites.forEach(site => {
+            if (!site.inputs) site.inputs = {};
+            site.inputs.freeMonths = normalized;
+            const formWrapper = siteFormsContainer.querySelector(`.site-form-wrapper[data-site-id="${site.id}"]`);
+            syncSiteFreeMonthsControls(formWrapper, normalized);
+            runSiteCalculation(site.id, false);
+        });
+        runGlobalCalculation();
+        refreshGlobalFreeMonthsControls();
+        renderAnnualTable();
+        renderCashflowChart();
+        state.isFormDirty = true;
+    }
+
+    function handleGlobalFreeMonthsChange() {
+        if (!(globalFreeMonthsToggle instanceof HTMLInputElement) || !(globalFreeMonthsSelect instanceof HTMLSelectElement)) return;
+
+        const desiredFreeMonths = globalFreeMonthsToggle.checked
+            ? normalizeFreeMonths(globalFreeMonthsSelect.value || 1)
+            : 0;
+        setSelectDisabled(globalFreeMonthsSelect, !globalFreeMonthsToggle.checked);
+
+        const conflictingPromoSites = desiredFreeMonths > 0
+            ? state.sites.filter(site => {
+                const current = getFreeMonths(site.inputs);
+                return current > 0 && current !== desiredFreeMonths;
+            })
+            : [];
+
+        if (conflictingPromoSites.length > 0) {
+            showModal(
+                'Overwrite Site Promo Settings?',
+                `${conflictingPromoSites.length} site${conflictingPromoSites.length === 1 ? ' already has' : 's already have'} a different free-month promo. Applying the global promo will overwrite those site-level settings.`,
+                () => {
+                    applyFreeMonthsToAllSites(desiredFreeMonths);
+                    return true;
+                },
+                true,
+                '<button id="modal-confirm-btn" class="btn-primary">Apply to All Sites</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>',
+                refreshGlobalFreeMonthsControls
+            );
+            return;
+        }
+
+        applyFreeMonthsToAllSites(desiredFreeMonths);
+    }
 
     // --- 9. Event Listener Setup ---
 
@@ -2758,6 +3001,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 runSiteCalculation(siteId);
             }
+        });
+
+        formWrapper.addEventListener('change', (e) => {
+            const target = e.target;
+            if (!target?.classList?.contains('free-months-toggle') && !target?.classList?.contains('free-months-select')) return;
+            state.isFormDirty = true;
+            runSiteCalculation(siteId);
+            refreshGlobalFreeMonthsControls();
         });
 
         formWrapper.querySelector('.delete-site-btn').addEventListener('click', () => {
@@ -2845,15 +3096,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // Global Target IRR listener
-        if (globalTargetIrrInput) {
-            globalTargetIrrInput.addEventListener('input', () => {
-                state.isFormDirty = true;
-                updateDialVisual();
-                state.sites.forEach(site => runSiteCalculation(site.id, false));  
-                runGlobalCalculation();  
-            });
-        }
         if (globalDiscountRateInput) {
             globalDiscountRateInput.addEventListener('input', () => {
                 state.isFormDirty = true;
@@ -2861,7 +3103,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 runGlobalCalculation();
             });
         }
-        updateDialVisual();
+        if (globalFreeMonthsToggle instanceof HTMLInputElement) {
+            globalFreeMonthsToggle.addEventListener('change', handleGlobalFreeMonthsChange);
+        }
+        if (globalFreeMonthsSelect instanceof HTMLSelectElement) {
+            globalFreeMonthsSelect.addEventListener('change', handleGlobalFreeMonthsChange);
+        }
+        initGlobalFreeMonthsPicker();
         
         // Project Name listener
         if (projectNameInput) {

@@ -29,7 +29,7 @@ function readJsonBody(req) {
     try {
       return Promise.resolve(JSON.parse(req.body));
     } catch {
-      return Promise.resolve({});
+      return Promise.reject(Object.assign(new Error("Request body must be valid JSON."), { status: 400 }));
     }
   }
 

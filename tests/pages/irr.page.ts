@@ -14,10 +14,6 @@ export class IrrPage {
     return this.page.locator('#new-project-btn');
   }
 
-  globalTargetIrr(): ReturnType<Page['locator']> {
-    return this.page.locator('#global-target-irr');
-  }
-
   globalAnnualIrr(): ReturnType<Page['locator']> {
     return this.page.locator('#global-annual-irr');
   }
@@ -43,8 +39,4 @@ export class IrrPage {
     await input.blur();
   }
 
-  async setGlobalTargetIrr(value: string): Promise<void> {
-    await this.globalTargetIrr().fill(value);
-    await this.globalTargetIrr().blur();
-  }
 }

@@ -2,7 +2,7 @@ const { callGemini, parseJsonObject } = require("../_lib/gemini");
 const { handleOptions, sendError, sendJson } = require("../_lib/http");
 const { encodeEq, supabaseRest } = require("../_lib/supabase");
 
-const SYNTHESIS_MODEL = process.env.GEMINI_SYNTHESIS_MODEL || "gemini-3.1-pro";
+const SYNTHESIS_MODEL = process.env.GEMINI_SYNTHESIS_MODEL || "gemini-3.6-flash";
 const MAX_ROWS_PER_RUN = Number(process.env.AI_PROFILE_SYNTHESIS_LIMIT || 1000);
 
 const SYSTEM_PROMPT = `You synthesize raw user feedback about AI outputs into a durable, personalized system prompt for one specific AI function.

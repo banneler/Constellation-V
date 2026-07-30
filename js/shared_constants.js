@@ -2,10 +2,17 @@
 
 // --- SHARED CONSTANTS AND FUNCTIONS ---
 import { initHUD, refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes } from './hud.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env.config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS } from './env.config.js';
+import {
+    clearIntegrationStateCache,
+    disconnectIntegration,
+    getIntegrationState,
+    handleIntegrationsQueryToast,
+    startConnect,
+} from './integrations.js';
 
 export { refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes };
-export { SUPABASE_URL, SUPABASE_ANON_KEY };
+export { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS };
 
 export const themes = ["dark", "light", "green", "blue", "corporate"];
 
@@ -56,6 +63,38 @@ const appState = {
     isManager: false,           // Is the logged-in user a manager?
     managedUsers: []            // Array of users the manager can view as
 };
+
+const EFFECTIVE_USER_STORAGE_KEY = 'crm-effective-user';
+
+function readStoredEffectiveUser() {
+    try {
+        const raw = localStorage.getItem(EFFECTIVE_USER_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.id) return null;
+        return {
+            id: String(parsed.id),
+            fullName: parsed.fullName ? String(parsed.fullName) : ''
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+function writeStoredEffectiveUser(userId, fullName) {
+    try {
+        localStorage.setItem(EFFECTIVE_USER_STORAGE_KEY, JSON.stringify({
+            id: String(userId || ''),
+            fullName: String(fullName || '')
+        }));
+    } catch (_) {}
+}
+
+function clearStoredEffectiveUser() {
+    try {
+        localStorage.removeItem(EFFECTIVE_USER_STORAGE_KEY);
+    } catch (_) {}
+}
 
 function updateManagerOnlyNavigation() {
     const shouldShow = appState.isManager === true;
@@ -145,6 +184,9 @@ export function filterOutOwnershipOrphanedCrmRows(rows, accounts, contacts) {
 export function setEffectiveUser(userId, fullName) {
     appState.effectiveUserId = userId;
     appState.effectiveUserFullName = fullName;
+    if (appState.isManager) {
+        writeStoredEffectiveUser(userId, fullName);
+    }
     console.log(`Viewing as: ${fullName} (${userId})`);
     
     // This is the key part for triggering a UI refresh.
@@ -160,6 +202,7 @@ export function setEffectiveUser(userId, fullName) {
 export async function initializeAppState(supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+        clearStoredEffectiveUser();
         window.location.href = "index.html";
         return; // Return early if no user
     }
@@ -170,7 +213,7 @@ export async function initializeAppState(supabase) {
     // Fetch the current user's profile to check if they are a manager
     const { data: currentUserProfile, error: profileError } = await supabase
         .from('user_quotas')
-        .select('full_name, is_manager')
+        .select('full_name, is_manager, deactivated_at')
         .eq('user_id', user.id)
         .single();
 
@@ -179,6 +222,8 @@ export async function initializeAppState(supabase) {
         // Handle error case, maybe by setting default non-manager state
         appState.isManager = false;
         appState.effectiveUserFullName = 'User';
+        appState.managedUsers = [];
+        clearStoredEffectiveUser();
         return appState;
     }
     
@@ -193,6 +238,14 @@ export async function initializeAppState(supabase) {
         appState.effectiveUserFullName = 'User'; // Fallback name
     }
 
+    if (currentUserProfile?.deactivated_at) {
+        clearStoredEffectiveUser();
+        await supabase.auth.signOut();
+        window.location.href = "index.html";
+        appState.currentUser = null;
+        return appState;
+    }
+
 
     // Check if the user is a manager (user_quotas or user_metadata fallback - deals uses user_metadata)
     const isManagerFromQuotas = currentUserProfile?.is_manager === true;
@@ -203,22 +256,43 @@ export async function initializeAppState(supabase) {
         // If they are a manager, fetch all other users to populate the impersonation dropdown
         const { data: allUsers, error: allUsersError } = await supabase
             .from('user_quotas')
-            .select('user_id, full_name')
+            .select('user_id, full_name, deactivated_at, exclude_from_reporting')
             .neq('user_id', user.id); // Exclude the manager themselves from the list of managed users
 
         if (allUsersError) {
             console.error("Error fetching managed users:", allUsersError);
             appState.managedUsers = [];
         } else {
-            appState.managedUsers = allUsers.map(u => ({
-                id: u.user_id,
-                user_id: u.user_id,
-                full_name: u.full_name
-            }));
+            appState.managedUsers = allUsers
+                .filter(u => !u.deactivated_at && !u.exclude_from_reporting)
+                .map(u => ({
+                    id: u.user_id,
+                    user_id: u.user_id,
+                    full_name: u.full_name
+                }));
+        }
+
+        const storedEffectiveUser = readStoredEffectiveUser();
+        if (storedEffectiveUser?.id) {
+            const managerView = {
+                id: user.id,
+                user_id: user.id,
+                full_name: appState.effectiveUserFullName || user.user_metadata?.full_name || 'Me'
+            };
+            const viewableUsers = [managerView, ...appState.managedUsers];
+            const matchedUser = viewableUsers.find((candidate) => String(candidate.id || candidate.user_id) === storedEffectiveUser.id);
+            if (matchedUser) {
+                appState.effectiveUserId = matchedUser.id || matchedUser.user_id;
+                appState.effectiveUserFullName = matchedUser.full_name || storedEffectiveUser.fullName || appState.effectiveUserFullName;
+                writeStoredEffectiveUser(appState.effectiveUserId, appState.effectiveUserFullName);
+            } else {
+                clearStoredEffectiveUser();
+            }
         }
     } else {
         appState.isManager = false;
         appState.managedUsers = [];
+        clearStoredEffectiveUser();
     }
 
     updateManagerOnlyNavigation();
@@ -849,14 +923,18 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
             
             await initializeAppState(supabase);
             await setupUserMenuAndAuth(supabase, getState());
-
             return true;
 
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
+        // Still attach integrations for users who already have a profile after welcome path is skipped next load.
     
     } else {
         await setupTheme(supabase, appState.currentUser);
         attachUserMenuListeners();
+        await setupIntegrationsMenu(supabase);
+        handleIntegrationsQueryToast((msg, type) => {
+            try { showToast?.(msg, type); } catch (_) { /* optional */ }
+        });
     }
 
     function attachUserMenuListeners() {
@@ -866,6 +944,7 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
         logoutBtn.addEventListener("click", async () => {
             sessionStorage.removeItem('crm-briefing-generated');
             sessionStorage.removeItem('crm-briefing-html');
+            clearStoredEffectiveUser();
             await supabase.auth.signOut();
             window.location.href = "index.html";
         });
@@ -873,6 +952,84 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
         if (userMenu) userMenu.dataset.listenerAttached = 'true';
     }
 }
+
+async function setupIntegrationsMenu(supabase) {
+    const popup = document.getElementById('user-menu-popup');
+    if (!popup) return;
+
+    document.getElementById('user-integrations-menu')?.remove();
+
+    let state;
+    try {
+        state = await getIntegrationState(supabase, { force: true });
+    } catch (error) {
+        console.warn('[integrations] menu state unavailable', error);
+        return;
+    }
+
+    if (!state.orgEnabled) return;
+
+    const section = document.createElement('div');
+    section.id = 'user-integrations-menu';
+    section.className = 'user-integrations-menu';
+
+    const providerLabel =
+        state.provider === 'microsoft' ? 'Outlook' : state.provider === 'google' ? 'Google' : '';
+    const statusText = state.connected
+        ? `Connected${providerLabel ? ` via ${providerLabel}` : ''}${state.email ? ` · ${state.email}` : ''}`
+        : 'Not connected';
+
+    section.innerHTML = `
+        <div class="user-menu-downloads">
+            <span class="user-menu-downloads-label">Integrations</span>
+            <p class="user-integrations-status" id="user-integrations-status">${statusText}</p>
+            <div class="user-integrations-actions">
+                ${
+                    state.connected
+                        ? `<button type="button" class="nav-button" id="integrations-disconnect-btn" title="Disconnect">Disconnect</button>`
+                        : `<button type="button" class="nav-button" id="integrations-connect-google-btn" title="Connect Google">Connect Google</button>
+                           <button type="button" class="nav-button" id="integrations-connect-outlook-btn" title="Connect Outlook">Connect Outlook</button>`
+                }
+            </div>
+        </div>
+    `;
+
+    const aiAdmin = popup.querySelector('a[href="ai-admin.html"]');
+    const logout = document.getElementById('logout-btn');
+    if (aiAdmin) popup.insertBefore(section, aiAdmin);
+    else if (logout) popup.insertBefore(section, logout);
+    else popup.appendChild(section);
+
+    section.querySelector('#integrations-connect-google-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+            await startConnect(supabase, 'google');
+        } catch (error) {
+            alert(error.message || 'Could not start Google connection.');
+        }
+    });
+    section.querySelector('#integrations-connect-outlook-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+            await startConnect(supabase, 'microsoft');
+        } catch (error) {
+            alert(error.message || 'Could not start Outlook connection.');
+        }
+    });
+    section.querySelector('#integrations-disconnect-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!confirm('Disconnect your email & calendar account?')) return;
+        try {
+            await disconnectIntegration(supabase);
+            clearIntegrationStateCache();
+            await setupIntegrationsMenu(supabase);
+            showToast?.('Disconnected email & calendar.', 'success');
+        } catch (error) {
+            alert(error.message || 'Could not disconnect.');
+        }
+    });
+}
+
 export async function loadSVGs() {
     const svgPlaceholders = document.querySelectorAll('[data-svg-loader]');
     
@@ -954,7 +1111,9 @@ const GLOBAL_NAV_TEMPLATE = `
     <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i><span class="nav-label-text">Deals</span></a>
     <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i><span class="nav-label-text">Contacts</span></a>
     <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i><span class="nav-label-text">Accounts</span></a>
+    <a href="insights.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-chart-line nav-icon"></i><span class="nav-label-text">Insights</span></a>
     <a href="saos-dashboard.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-sitemap nav-icon"></i><span class="nav-label-text">SAOS</span></a>
+    <a href="admin.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-shield-halved nav-icon"></i><span class="nav-label-text">Admin</span></a>
     <a href="proposals.html" class="nav-button"><i class="fa-solid fa-file-lines nav-icon"></i><span class="nav-label-text">Proposals</span></a>
     <a href="irr.html" class="nav-button"><i class="fa-solid fa-calculator nav-icon"></i><span class="nav-label-text">IRR</span></a>
     <a href="campaigns.html" class="nav-button"><i class="fa-solid fa-bullhorn nav-icon"></i><span class="nav-label-text">Campaigns</span></a>

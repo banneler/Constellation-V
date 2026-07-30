@@ -12,6 +12,7 @@ import {
     showGlobalLoader,
     showToast,
     formatSimpleDate,
+    setEffectiveUser,
 } from './shared_constants.js';
 import { normalizePlan } from './account-plan-data.js';
 import { PLAN_SECTIONS } from './account-plan-sections.js';
@@ -22,7 +23,9 @@ const SECTION_ICON_MAP = Object.freeze({
     influence_mapping: 'fa-people-arrows',
     white_space: 'fa-chart-line',
     competitive_landscape: 'fa-chess-knight',
+    entry_points: 'fa-door-open',
     plan_30_60_90: 'fa-calendar-check',
+    momentum_timeline: 'fa-timeline',
 });
 
 const DASHBOARD_SECTION_IDS = Object.freeze([
@@ -31,7 +34,9 @@ const DASHBOARD_SECTION_IDS = Object.freeze([
     'influence_mapping',
     'white_space',
     'competitive_landscape',
+    'entry_points',
     'plan_30_60_90',
+    'momentum_timeline',
 ]);
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -46,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         list: document.getElementById('saos-account-list'),
         detail: document.getElementById('saos-detail-panel'),
         search: document.getElementById('saos-search-input'),
+        sort: document.getElementById('saos-sort-select'),
         ownerFilter: document.getElementById('saos-owner-filter'),
         refresh: document.getElementById('saos-refresh-btn'),
     };
@@ -55,7 +61,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         filteredRows: [],
         ownerOptions: [],
         selectedAccountId: null,
+        totalTeamAccounts: 0,
     };
+
+    let ownerTomSelect = null;
+    let sortTomSelect = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -85,6 +95,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const text = toText(value).replace(/\s+/g, ' ').trim();
         if (!text) return '';
         return text.length > max ? `${text.slice(0, max - 1).trim()}…` : text;
+    }
+
+    function formatNumber(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number) || number <= 0) return '';
+        return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(number);
+    }
+
+    function formatLocation(account) {
+        return [account.city, account.state].map((item) => String(item || '').trim()).filter(Boolean).join(', ');
     }
 
     function getSections(plan) {
@@ -210,9 +230,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             thesis: sections.pursuit_thesis?.thesis || '',
             whyNow: sections.pursuit_thesis?.action_forcing_event || '',
             expansion: sections.white_space?.expansion_path || sections.white_space?.initial_entry || '',
+            industry: account.industry || '',
+            location: formatLocation(account),
+            sites: account.quantity_of_sites || null,
+            employees: account.employee_count || null,
+            customerStatus: account.is_customer === true ? 'Customer' : 'Prospect',
             mappedInfluence: ['executive', 'mid_level', 'technical'].reduce((sum, key) => sum + nonEmptyArray(sections.influence_mapping?.[key]).length, 0),
             openDeals: 0,
         };
+    }
+
+    function hasMeaningfulSaos(row) {
+        return row.plan && row.progress > 0;
     }
 
     function getStatusClass(progress) {
@@ -223,7 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderKpis() {
         const total = state.rows.length;
-        const withPlans = state.rows.filter((row) => row.plan).length;
+        const withPlans = state.rows.length;
         const complete = state.rows.filter((row) => row.progress >= 80).length;
         const avg = withPlans
             ? Math.round(state.rows.reduce((sum, row) => sum + row.progress, 0) / withPlans)
@@ -231,8 +260,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const staleCutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
         const stale = state.rows.filter((row) => row.updatedAt && new Date(row.updatedAt).getTime() < staleCutoff).length;
         const kpis = [
-            { label: 'Team Accounts', value: total, icon: 'fa-building' },
-            { label: 'SAOS Started', value: withPlans, icon: 'fa-sitemap' },
+            { label: 'Team Accounts', value: state.totalTeamAccounts, icon: 'fa-building' },
+            { label: 'Active SAOS', value: withPlans, icon: 'fa-sitemap' },
             { label: 'Avg Progress', value: `${avg}%`, icon: 'fa-chart-simple' },
             { label: 'Ready / Strong', value: complete, icon: 'fa-circle-check' },
             { label: 'Stale 14+ Days', value: stale, icon: 'fa-clock-rotate-left' },
@@ -256,6 +285,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         els.ownerFilter.value = state.ownerOptions.some((owner) => owner.id === currentValue) ? currentValue : 'all';
     }
 
+    function initDashboardTomSelect(selectEl, existingInstance, placeholder) {
+        if (!(selectEl instanceof HTMLSelectElement) || typeof window.TomSelect !== 'function') {
+            return null;
+        }
+        if (existingInstance && typeof existingInstance.destroy === 'function') {
+            try { existingInstance.destroy(); } catch (_) {}
+        }
+        try {
+            return new window.TomSelect(selectEl, {
+                create: false,
+                maxItems: 1,
+                placeholder,
+                controlInput: null,
+                searchField: [],
+                dropdownParent: 'body',
+                onDropdownOpen() {
+                    const d = this.dropdown;
+                    if (d) d.className = 'ts-dropdown tom-select-no-search';
+                },
+                onChange: () => applyFilters(),
+                render: {
+                    dropdown: () => {
+                        const d = document.createElement('div');
+                        d.className = 'ts-dropdown tom-select-no-search';
+                        return d;
+                    },
+                },
+            });
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function initFilterControls() {
+        sortTomSelect = initDashboardTomSelect(els.sort, sortTomSelect, 'Sort');
+        ownerTomSelect = initDashboardTomSelect(els.ownerFilter, ownerTomSelect, 'Owner');
+    }
+
     function renderSectionIcons(row) {
         return DASHBOARD_SECTION_IDS.map((id) => {
             const section = row.sectionStates.find((item) => item.id === id);
@@ -270,19 +337,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).join('');
     }
 
+    function getRowSortValue(row, sortBy) {
+        if (sortBy.startsWith('updated')) {
+            const time = row.updatedAt ? new Date(row.updatedAt).getTime() : 0;
+            return Number.isFinite(time) ? time : 0;
+        }
+        if (sortBy.startsWith('progress')) return row.progress || 0;
+        return String(row.account.name || '').toLowerCase();
+    }
+
+    function sortRows(rows) {
+        const sortBy = els.sort.value || 'updated_desc';
+        const sorted = [...rows].sort((a, b) => {
+            const aValue = getRowSortValue(a, sortBy);
+            const bValue = getRowSortValue(b, sortBy);
+            if (sortBy === 'name_asc') return String(aValue).localeCompare(String(bValue));
+            const direction = sortBy.endsWith('_asc') ? 1 : -1;
+            return (Number(aValue) - Number(bValue)) * direction || String(a.account.name || '').localeCompare(String(b.account.name || ''));
+        });
+        return sorted;
+    }
+
+    function renderFirmographicChips(row) {
+        const chips = [
+            row.industry ? { icon: 'fa-industry', label: row.industry } : null,
+            row.location ? { icon: 'fa-location-dot', label: row.location } : null,
+            row.sites ? { icon: 'fa-network-wired', label: `${formatNumber(row.sites)} sites` } : null,
+            row.employees ? { icon: 'fa-users', label: `${formatNumber(row.employees)} employees` } : null,
+            row.customerStatus ? { icon: row.customerStatus === 'Customer' ? 'fa-circle-check' : 'fa-user-plus', label: row.customerStatus } : null,
+        ].filter(Boolean);
+        if (!chips.length) return '';
+        return `<div class="saos-row-chips">${chips.map((chip) => `
+            <span class="saos-row-chip"><i class="fa-solid ${chip.icon}"></i> ${escapeHtml(chip.label)}</span>
+        `).join('')}</div>`;
+    }
+
     function renderList() {
         const search = (els.search.value || '').trim().toLowerCase();
         const owner = els.ownerFilter.value || 'all';
         state.filteredRows = state.rows.filter((row) => {
             const matchesOwner = owner === 'all' || String(row.account.user_id) === owner;
-            const haystack = `${row.account.name || ''} ${row.owner?.name || ''} ${row.tier || ''} ${row.priority || ''}`.toLowerCase();
+            const haystack = `${row.account.name || ''} ${row.owner?.name || ''} ${row.tier || ''} ${row.priority || ''} ${row.industry || ''} ${row.location || ''} ${row.thesis || ''}`.toLowerCase();
             return matchesOwner && (!search || haystack.includes(search));
         });
+        state.filteredRows = sortRows(state.filteredRows);
 
-        els.caption.textContent = `${state.filteredRows.length} of ${state.rows.length} accounts shown`;
+        els.caption.textContent = `${state.filteredRows.length} of ${state.rows.length} active SAOS plans shown (${state.totalTeamAccounts} team accounts total)`;
 
         if (!state.filteredRows.length) {
-            els.list.innerHTML = '<div class="saos-empty-list">No matching SAOS accounts found.</div>';
+            els.list.innerHTML = '<div class="saos-empty-list">No active SAOS plans match the current filters.</div>';
             return;
         }
 
@@ -296,8 +399,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="saos-account-meta">
                             <span><i class="fa-solid fa-user"></i> ${escapeHtml(row.owner?.name || 'Unassigned')}</span>
                             <span><i class="fa-solid fa-layer-group"></i> ${escapeHtml(row.tier)}</span>
-                            ${row.updatedAt ? `<span><i class="fa-solid fa-clock"></i> ${escapeHtml(formatSimpleDate(row.updatedAt))}</span>` : '<span>No SAOS yet</span>'}
+                            ${row.priority ? `<span><i class="fa-solid fa-flag"></i> ${escapeHtml(row.priority)}</span>` : ''}
+                            ${row.updatedAt ? `<span><i class="fa-solid fa-clock"></i> ${escapeHtml(formatSimpleDate(row.updatedAt))}</span>` : ''}
                         </div>
+                        ${renderFirmographicChips(row)}
+                    </div>
+                    <div class="saos-account-strategy">
+                        <span>Big Play</span>
+                        <p>${escapeHtml(truncate(row.thesis || row.whyNow || row.expansion, 190) || 'No Big Play summary captured yet.')}</p>
                     </div>
                     <div class="saos-row-progress" aria-label="Progress ${row.progress}%">
                         <div class="saos-progress-ring saos-progress-ring--${statusClass}">${row.progress}%</div>
@@ -308,6 +417,98 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </button>
             `;
         }).join('');
+    }
+
+    function renderDetailListCard(title, items, emptyText, extraClass = '') {
+        const normalized = (items || []).map((item) => {
+            if (typeof item === 'string') return { label: '', text: item };
+            return item || {};
+        }).filter((item) => hasText(item.label) || hasText(item.text));
+        return `
+            <article class="saos-detail-readout-card ${extraClass} ${normalized.length ? '' : 'is-empty'}">
+                <h3>${escapeHtml(title)}</h3>
+                ${normalized.length ? `
+                    <ul>
+                        ${normalized.map((item) => `
+                            <li>
+                                ${item.label ? `<strong>${escapeHtml(item.label)}</strong>` : ''}
+                                <span>${escapeHtml(item.text)}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                ` : `<p class="saos-muted">${escapeHtml(emptyText)}</p>`}
+            </article>
+        `;
+    }
+
+    function pillItems(values, label) {
+        const items = nonEmptyArray(values);
+        if (!items.length) return [];
+        return [{ label, text: items.join(', ') }];
+    }
+
+    function buildBattlefieldItems(section = {}) {
+        return [
+            { label: 'Incumbents', text: section.incumbents },
+            { label: 'Positioning', text: section.narrative },
+            { label: 'Compound Relationships', text: section.compound_relationships },
+            { label: 'Difficult to Remove', text: section.difficult_to_remove },
+            ...pillItems(section.positioning_pills, 'Positioning Pills'),
+            ...pillItems(section.moat_pills, 'Moat Pills'),
+        ];
+    }
+
+    function buildPlanItems(section = {}) {
+        return [
+            { label: '30 Days', text: section.days_30 },
+            { label: '60 Days', text: section.days_60 },
+            { label: '90 Days', text: section.days_90 },
+            ...pillItems(section.client_commitments, 'Client Commitments'),
+        ];
+    }
+
+    function buildEntryPointItems(entries = []) {
+        return (Array.isArray(entries) ? entries : []).slice(0, 4).map((entry) => ({
+            label: entry.contact_name || entry.title || 'Entry Point',
+            text: [
+                entry.why_they_matter,
+                entry.operational_pain,
+                entry.conversation_wedge,
+                entry.next_move,
+            ].map((value) => truncate(value, 170)).filter(Boolean).join(' • '),
+        }));
+    }
+
+    function buildTimelineItems(entries = []) {
+        return (Array.isArray(entries) ? entries : []).slice(0, 5).map((entry) => ({
+            label: entry.date || entry.date_label || entry.source || 'Signal',
+            text: entry.text || entry.interaction || entry.key_insight || entry.note,
+        }));
+    }
+
+    function buildInfluenceItems(section = {}) {
+        const tiers = [
+            ['executive', 'Executive'],
+            ['mid_level', 'Mid-Level'],
+            ['technical', 'Technical'],
+        ];
+        return tiers.flatMap(([key, label]) => (
+            (Array.isArray(section[key]) ? section[key] : []).slice(0, 4).map((contact) => {
+                const name = contact.name || contact.contact_name || contact.full_name || contact.title || 'Mapped Contact';
+                const details = [
+                    contact.title,
+                    contact.role,
+                    contact.influence_level ? `Influence: ${contact.influence_level}` : '',
+                    contact.relationship_temperature ? `Temp: ${contact.relationship_temperature}` : '',
+                    contact.personality_style,
+                    contact.notes || contact.relationship_notes || contact.hook,
+                ].map((value) => truncate(value, 180)).filter(Boolean);
+                return {
+                    label: `${label}: ${name}`,
+                    text: details.join(' • ') || 'No additional influence details captured.',
+                };
+            })
+        ));
     }
 
     function renderDetail(row) {
@@ -325,8 +526,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sections = getSections(row.plan);
         const openUrl = `accounts.html?accountId=${encodeURIComponent(row.account.id)}&saos=1`;
         const importantSections = row.sectionStates.filter((item) => DASHBOARD_SECTION_IDS.includes(item.id));
-        const blindspots = nonEmptyArray(sections.critical_unknowns?.blindspots).slice(0, 3);
-        const whiteSpaceRows = Array.isArray(sections.white_space?.rows) ? sections.white_space.rows.filter((item) => hasText(item?.name) || hasText(item?.area) || hasText(item?.opportunity)).slice(0, 3) : [];
+        const pursuit = sections.pursuit_thesis || {};
+        const influence = sections.influence_mapping || {};
+        const whiteSpace = sections.white_space || {};
+        const battlefield = sections.competitive_landscape || {};
+        const plan306090 = sections.plan_30_60_90 || {};
+        const blindspots = nonEmptyArray(sections.critical_unknowns?.blindspots).slice(0, 5).map((item) => ({ text: item }));
+        const whiteSpaceRows = Array.isArray(whiteSpace.rows)
+            ? whiteSpace.rows.filter((item) => hasText(item?.name) || hasText(item?.area) || hasText(item?.opportunity)).slice(0, 5)
+                .map((item) => ({
+                    label: item.name || item.area || 'Opportunity',
+                    text: [item.opportunity, item.confidence, item.owner].filter(Boolean).join(' • '),
+                }))
+            : [];
+        const whiteSpaceItems = [
+            { label: 'Initial Entry', text: whiteSpace.initial_entry },
+            { label: 'Trust Creation', text: whiteSpace.trust_creation },
+            { label: 'Expansion Path', text: whiteSpace.expansion_path },
+            ...whiteSpaceRows,
+        ];
 
         els.detail.innerHTML = `
             <div class="saos-detail-header">
@@ -339,7 +557,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span><i class="fa-solid fa-clock"></i> ${row.updatedAt ? escapeHtml(formatSimpleDate(row.updatedAt)) : 'Not started'}</span>
                     </div>
                 </div>
-                <a class="btn-primary saos-open-account-btn" href="${openUrl}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full SAOS</a>
+                <a class="btn-primary saos-open-account-btn" href="${openUrl}" data-owner-id="${escapeHtml(row.owner?.id || row.account.user_id || '')}" data-owner-name="${escapeHtml(row.owner?.name || 'Unassigned')}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full SAOS</a>
             </div>
             <div class="saos-detail-grid">
                 <div class="saos-detail-score-card">
@@ -360,28 +578,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             </div>
             <div class="saos-insight-grid">
-                ${renderInsightCard('The Big Play', row.thesis, 'No pursuit thesis captured yet.')}
-                ${renderInsightCard('Why Now', row.whyNow, 'No action-forcing event captured yet.')}
-                ${renderInsightCard('Expansion Path', row.expansion, 'No expansion wedge captured yet.')}
-                ${renderInsightCard('Influence Coverage', `${row.mappedInfluence || 0} mapped contact${row.mappedInfluence === 1 ? '' : 's'}`, 'No influence map contacts yet.')}
+                ${renderInsightCard('The Big Play', row.thesis, 'No pursuit thesis captured yet.', 'saos-insight-card--wide')}
+                ${renderInsightCard('Why Now', row.whyNow, 'No action-forcing event captured yet.', 'saos-insight-card--wide')}
+                ${renderInsightCard('Executive Narrative', pursuit.executive_narrative || pursuit.why_account_matters || pursuit.timing, 'No executive narrative captured yet.', 'saos-insight-card--wide')}
+                ${renderDetailListCard('Influence Coverage', buildInfluenceItems(influence), 'No influence map contacts yet.', 'saos-insight-card saos-insight-card--third saos-influence-card')}
             </div>
-            <div class="saos-detail-lists">
-                <div>
-                    <h3>Blindspots</h3>
-                    ${blindspots.length ? `<ul>${blindspots.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : '<p class="saos-muted">No blindspots logged.</p>'}
-                </div>
-                <div>
-                    <h3>White Space</h3>
-                    ${whiteSpaceRows.length ? `<ul>${whiteSpaceRows.map((rowItem) => `<li>${escapeHtml(rowItem.name || rowItem.area || rowItem.opportunity)}</li>`).join('')}</ul>` : '<p class="saos-muted">No expansion opportunities logged.</p>'}
-                </div>
+            <div class="saos-detail-lists saos-detail-lists--rich">
+                ${renderDetailListCard('The Battlefield', buildBattlefieldItems(battlefield), 'No competitive battlefield captured yet.')}
+                ${renderDetailListCard('Strategic Entry Points', buildEntryPointItems(sections.entry_points), 'No strategic entry points captured yet.')}
+                ${renderDetailListCard('30 / 60 / 90 Plan', buildPlanItems(plan306090), 'No execution plan captured yet.')}
+                ${renderDetailListCard('Relationship Timeline', buildTimelineItems(sections.interaction_log), 'No relationship timeline signals logged yet.')}
+                ${renderDetailListCard('Blindspots', blindspots, 'No blindspots logged.', 'saos-detail-readout-card--half')}
+                ${renderDetailListCard('White Space', whiteSpaceItems, 'No expansion opportunities logged.', 'saos-detail-readout-card--half')}
             </div>
         `;
     }
 
-    function renderInsightCard(title, value, emptyText) {
+    function renderInsightCard(title, value, emptyText, extraClass = '') {
         const text = truncate(value);
         return `
-            <article class="saos-insight-card ${text ? '' : 'is-empty'}">
+            <article class="saos-insight-card ${extraClass} ${text ? '' : 'is-empty'}">
                 <h3>${escapeHtml(title)}</h3>
                 <p>${escapeHtml(text || emptyText)}</p>
             </article>
@@ -422,18 +638,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .map((planRow) => [Number(planRow.account_id), planRow]));
 
             state.ownerOptions = Array.from(ownerMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+            state.totalTeamAccounts = (accountsRes.data || []).length;
             state.rows = (accountsRes.data || []).map((account) => buildDashboardRow(
                 account,
                 ownerMap.get(String(account.user_id)) || { id: String(account.user_id || ''), name: 'Unassigned' },
                 planByAccountId.get(Number(account.id))
-            ));
+            )).filter(hasMeaningfulSaos);
 
             renderOwnerFilter();
+            initFilterControls();
             renderKpis();
             renderList();
             if (state.selectedAccountId) {
                 const selected = state.rows.find((row) => Number(row.account.id) === Number(state.selectedAccountId));
-                renderDetail(selected || null);
+                if (selected) renderDetail(selected);
+                else {
+                    state.selectedAccountId = null;
+                    renderDetail(null);
+                }
             }
         } catch (error) {
             console.error('[saos-dashboard] load failed:', error);
@@ -447,6 +669,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function bindEvents() {
         els.search.addEventListener('input', applyFilters);
         els.ownerFilter.addEventListener('change', applyFilters);
+        els.sort.addEventListener('change', applyFilters);
         els.refresh.addEventListener('click', loadDashboardData);
         els.list.addEventListener('click', (event) => {
             const rowEl = event.target.closest('.saos-account-row');
@@ -456,6 +679,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const row = state.rows.find((item) => Number(item.account.id) === state.selectedAccountId);
             renderDetail(row);
             els.detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        els.detail.addEventListener('click', (event) => {
+            const openLink = event.target.closest('.saos-open-account-btn');
+            if (!openLink) return;
+            const ownerId = openLink.dataset.ownerId;
+            if (!ownerId) return;
+            setEffectiveUser(ownerId, openLink.dataset.ownerName || 'Selected Owner');
         });
     }
 

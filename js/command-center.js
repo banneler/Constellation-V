@@ -22,9 +22,11 @@ import {
     showGlobalLoader,
     hideGlobalLoader,
     refreshHUDNodes,
-    filterOutOwnershipOrphanedCrmRows
+    filterOutOwnershipOrphanedCrmRows,
+    showToast
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
+import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -702,6 +704,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!step) return alert("Sequence step not found.");
                 const subject = replacePlaceholders(step.subject, contact, account);
                 const message = replacePlaceholders(step.message, contact, account);
+                const integrationState = await getIntegrationState(supabase);
+                const confirmLabel = emailActionLabel(integrationState);
                 showModal('Compose Email', `
                     <div class="form-group">
                         <label for="modal-email-subject">Subject:</label>
@@ -714,8 +718,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `, async () => {
                     const finalSubject = document.getElementById('modal-email-subject').value;
                     const finalMessage = document.getElementById('modal-email-body').value;
-                    const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`;
-                    window.open(mailtoLink, "_blank");
+                    const result = await sendEmail(
+                        supabase,
+                        { to: contact.email, subject: finalSubject, body: finalMessage },
+                        { onNotice: (msg, type) => showToast(msg, type) }
+                    );
+                    if (result?.mode === 'nylas') {
+                        await completeStep(csId, `Email Sent: ${finalSubject}`);
+                        hideModal();
+                        return true;
+                    }
                     showActionSuccessConfirm({
                         title: 'Email sent?',
                         message: 'Did your email client open and were you able to send the message successfully?',
@@ -728,7 +740,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return false;
                 },
                 true,
-                `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button>
+                `<button id="modal-confirm-btn" class="btn-primary">${confirmLabel}</button>
                  <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`,
                 null,
                 { closeOnBackdropClick: false, closeOnEscape: false }

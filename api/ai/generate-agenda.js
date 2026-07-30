@@ -49,10 +49,14 @@ module.exports = async function handler(req, res) {
       temperature: 0.6,
       maxOutputTokens: 1024,
     });
+    const agenda = String(result.text || "").trim();
+    if (!agenda) {
+      throw Object.assign(new Error("No agenda copy returned."), { status: 502 });
+    }
 
-    const contextId = await createPersonalContext(user.id, userMessage, result.text, FUNCTION_ID);
+    const contextId = await createPersonalContext(user.id, userMessage, agenda, FUNCTION_ID);
     return sendJson(res, 200, {
-      agenda: result.text,
+      agenda,
       generated_at: new Date().toISOString(),
       model: result.model,
       personal_context_id: contextId,

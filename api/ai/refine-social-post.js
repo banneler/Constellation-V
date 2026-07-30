@@ -4,6 +4,14 @@ const { getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "social-post-refine";
 
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    suggestion: { type: "STRING" },
+  },
+  required: ["suggestion"],
+};
+
 const SYSTEM_PROMPT = `You are a professional LinkedIn content editor for Great Plains Communications.
 
 Apply the user's requested edits while preserving the strongest point of view, business relevance, and LinkedIn readability. Improve clarity, hook strength, flow, and specificity without turning the post into a generic marketing asset.
@@ -39,8 +47,9 @@ module.exports = async function handler(req, res) {
       functionId: FUNCTION_ID,
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
+      responseSchema: RESPONSE_SCHEMA,
       temperature: 0.45,
-      maxOutputTokens: 1200,
+      maxOutputTokens: 1800,
     });
 
     return sendJson(res, 200, { ...data, model });

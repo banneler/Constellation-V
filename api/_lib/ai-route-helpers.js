@@ -14,17 +14,48 @@ function required(value, message) {
 
 async function callScopedJson({ userId, functionId, systemPrompt, userMessage, responseSchema, tools, temperature = 0.5, maxOutputTokens = 2048 }) {
   const dynamicPrompts = await getDynamicPrompts(userId, functionId);
+  const scopedSystemPrompt = withDynamicPrompts(systemPrompt, dynamicPrompts);
+  let lastParseError = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await callGemini({
+      systemPrompt: scopedSystemPrompt,
+      userMessage,
+      responseMimeType: tools ? undefined : "application/json",
+      responseSchema,
+      tools,
+      temperature: attempt === 0 ? temperature : Math.min(temperature, 0.2),
+      maxOutputTokens: attempt === 0 ? maxOutputTokens : Math.min(Math.max(maxOutputTokens * 2, maxOutputTokens + 1024), 8192),
+    });
+
+    try {
+      return {
+        data: parseJsonObject(result.text),
+        model: result.model,
+        rawText: result.text,
+      };
+    } catch (error) {
+      lastParseError = error;
+      const shouldRetry = attempt === 0 && (result.finishReason === "MAX_TOKENS" || error instanceof SyntaxError);
+      if (!shouldRetry) break;
+    }
+  }
+
+  const detail = lastParseError instanceof Error ? lastParseError.message : String(lastParseError || "unknown parse error");
+  throw Object.assign(new Error(`AI returned malformed JSON after retry: ${detail}`), { status: 502 });
+}
+
+async function callScopedText({ userId, functionId, systemPrompt, userMessage, tools, temperature = 0.5, maxOutputTokens = 2048 }) {
+  const dynamicPrompts = await getDynamicPrompts(userId, functionId);
   const result = await callGemini({
     systemPrompt: withDynamicPrompts(systemPrompt, dynamicPrompts),
     userMessage,
-    responseMimeType: tools ? undefined : "application/json",
-    responseSchema,
     tools,
     temperature,
     maxOutputTokens,
   });
   return {
-    data: parseJsonObject(result.text),
+    text: String(result.text || "").trim(),
     model: result.model,
   };
 }
@@ -65,6 +96,7 @@ async function loadProductVerbiage(productNames, industry = "General") {
 module.exports = {
   asText,
   callScopedJson,
+  callScopedText,
   loadProductVerbiage,
   required,
 };

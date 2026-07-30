@@ -1,18 +1,8 @@
-const { callScopedJson, loadProductVerbiage, required } = require("../_lib/ai-route-helpers");
+const { callScopedText, loadProductVerbiage, required } = require("../_lib/ai-route-helpers");
 const { handleOptions, readJsonBody, sendError, sendJson } = require("../_lib/http");
 const { getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "social-post";
-
-const RESPONSE_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    post_body: { type: "STRING" },
-    suggestion: { type: "STRING" },
-    hashtags: { type: "STRING" },
-  },
-  required: ["post_body", "suggestion", "hashtags"],
-};
 
 const SYSTEM_PROMPT = `You are a LinkedIn thought leadership writer for Great Plains Communications.
 
@@ -27,7 +17,7 @@ Rules:
 - If product context is provided, weave it in as strategic relevance, not a sales pitch.
 - End with a thoughtful question or discussion prompt when natural.
 - Keep hashtags limited and relevant.
-- Return only JSON. Put the main content into both "post_body" and "suggestion"; put hashtags in "hashtags".`;
+- Return only the final LinkedIn post text. Do not return JSON, markdown fences, labels, commentary, or explanations.`;
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
@@ -47,17 +37,20 @@ module.exports = async function handler(req, res) {
       "Create a post that adds perspective beyond the source material.",
     ].filter(Boolean).join("\n\n");
 
-    const { data, model } = await callScopedJson({
+    const { text, model } = await callScopedText({
       userId: user.id,
       functionId: FUNCTION_ID,
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
-      responseSchema: RESPONSE_SCHEMA,
       temperature: 0.6,
-      maxOutputTokens: 1400,
+      maxOutputTokens: 2200,
     });
+    const suggestion = text.trim();
+    if (!suggestion) {
+      throw Object.assign(new Error("No social post suggestion returned."), { status: 502 });
+    }
 
-    return sendJson(res, 200, { ...data, model });
+    return sendJson(res, 200, { suggestion, post_body: suggestion, hashtags: "", model });
   } catch (error) {
     console.error("[api/ai/generate-social-post]", error);
     return sendError(res, error);

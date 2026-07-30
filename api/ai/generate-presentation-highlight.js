@@ -1,6 +1,6 @@
-const { callGemini, parseJsonObject, withDynamicPrompts } = require("../_lib/gemini");
+const { callScopedJson } = require("../_lib/ai-route-helpers");
 const { handleOptions, readJsonBody, sendError, sendJson } = require("../_lib/http");
-const { createPersonalContext, getDynamicPrompts, getUserFromRequest } = require("../_lib/supabase");
+const { createPersonalContext, getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "presentation-highlight";
 
@@ -114,7 +114,6 @@ module.exports = async function handler(req, res) {
     const accountName = body.accountName != null ? String(body.accountName).trim() : "Account";
     const plan = compactPlanForPresentation(body.plan || {});
     const accountContext = isPlainObject(body.accountContext) ? body.accountContext : null;
-    const dynamicPrompts = await getDynamicPrompts(user.id, FUNCTION_ID);
     const userMessage = [
       `Account: ${accountName}`,
       "",
@@ -124,20 +123,20 @@ module.exports = async function handler(req, res) {
       accountContext ? JSON.stringify(accountContext, null, 2) : "",
     ].join("\n");
 
-    const result = await callGemini({
-      systemPrompt: withDynamicPrompts(SYSTEM_PROMPT, dynamicPrompts),
+    const { data: highlight, model, rawText } = await callScopedJson({
+      userId: user.id,
+      functionId: FUNCTION_ID,
+      systemPrompt: SYSTEM_PROMPT,
       userMessage,
-      responseMimeType: "application/json",
       temperature: 0.45,
       maxOutputTokens: 8192,
     });
 
-    const highlight = parseJsonObject(result.text);
-    const contextId = await createPersonalContext(user.id, userMessage, result.text, FUNCTION_ID);
+    const contextId = await createPersonalContext(user.id, userMessage, rawText, FUNCTION_ID);
     return sendJson(res, 200, {
       highlight,
       generated_at: new Date().toISOString(),
-      model: result.model,
+      model,
       personal_context_id: contextId,
     });
   } catch (error) {

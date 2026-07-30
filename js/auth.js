@@ -2,9 +2,17 @@
 import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
+    APPROVED_SIGNUP_DOMAINS,
     setupModalListeners,
     loadSVGs
 } from './shared_constants.js';
+
+function isApprovedSignupEmail(email) {
+    const domains = Array.isArray(APPROVED_SIGNUP_DOMAINS) ? APPROVED_SIGNUP_DOMAINS : [];
+    if (!domains.length) return true; // no client restriction configured; server hook may still enforce
+    const domain = String(email || '').trim().toLowerCase().split('@')[1] || '';
+    return domains.includes(domain);
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -100,17 +108,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                 authSubmitBtn.textContent = "Sign Up";
                 return;
             }
+            if (!isApprovedSignupEmail(email)) {
+                const allowed = (APPROVED_SIGNUP_DOMAINS || []).join(', ');
+                showTemporaryMessage(
+                    allowed
+                        ? `Only approved company emails can sign up (${allowed}).`
+                        : 'Signups are restricted to approved company email domains.',
+                    false
+                );
+                authSubmitBtn.disabled = false;
+                authSubmitBtn.textContent = "Sign Up";
+                return;
+            }
             const { data, error } = await supabase.auth.signUp({ email, password });
             if (error) {
                 showTemporaryMessage(error.message, false);
             } else if (data.user && data.user.identities && data.user.identities.length === 0) {
                  showTemporaryMessage("This email is already in use. Please try logging in.", false);
             } else {
-                showTemporaryMessage("Account created! Please check your email for a verification link.", true);
+                showTemporaryMessage("Account created! You can log in now.", true);
                 setTimeout(() => {
                     isLoginMode = true;
                     updateAuthUI();
-                }, 3000);
+                }, 2000);
             }
         }
         if (isLoginMode) {
@@ -128,7 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const email = document.getElementById("reset-email").value;
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://www.constellation-crm.com/reset-password.html',
+            redirectTo: `${window.location.origin}/reset-password.html`,
         });
 
         if (error) {

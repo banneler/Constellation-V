@@ -2,13 +2,17 @@ import {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     formatDate,
-    formatCurrencyK,
     setupModalListeners,
     showModal,
     hideModal,
     loadSVGs,
     initializeAppState,
-    hideGlobalLoader
+    hideGlobalLoader,
+    injectGlobalNavigation,
+    setupUserMenuAndAuth,
+    setupGlobalSearch,
+    checkAndSetNotifications,
+    updateActiveNavLink
 } from './shared_constants.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -19,20 +23,14 @@ let state = {
     allTemplates: [],
     allSequences: [],
     activityLog: [],
-    analyticsData: {},
     dealStages: [],
     activityTypes: [],
-    charts: {},
+    orgSettings: { email_calendar_enabled: false },
     scriptLogs: [],
     reassignmentAccounts: [],
     reassignmentAccountsLoading: false,
     currentView: 'user-management',
     contentView: 'templates',
-    analyticsFilters: {
-        userId: 'all',
-        dateRange: 'this_month',
-        chartView: 'combined'
-    }
 };
 
 function escapeHtml(value) {
@@ -49,7 +47,6 @@ const loadAllDataForView = async () => {
     switch (state.currentView) {
         case 'user-management': await loadUserData(); break;
         case 'content-management': await loadContentData(); break;
-        case 'analytics': await loadAnalyticsData(); break;
         case 'script-logs': await loadScriptLogs(); break;
         case 'settings': await loadSettingsData(); break;
     }
@@ -57,18 +54,27 @@ const loadAllDataForView = async () => {
 };
 
 async function loadSettingsData() {
-    const [{ data: stages, error: stagesError }, { data: types, error: typesError }] = await Promise.all([
+    const [
+        { data: stages, error: stagesError },
+        { data: types, error: typesError },
+        { data: orgSettings, error: orgError },
+    ] = await Promise.all([
         supabase.from('deal_stages').select('*').order('sort_order'),
-        supabase.from('activity_types').select('*').order('type_name')
+        supabase.from('activity_types').select('*').order('type_name'),
+        supabase.from('org_settings').select('*').eq('id', 1).maybeSingle(),
     ]);
 
     if (stagesError || typesError) {
         alert('Error loading settings: ' + (stagesError?.message || typesError?.message));
         return;
     }
+    if (orgError) {
+        console.warn('org_settings load failed (migration may be pending):', orgError.message);
+    }
 
     state.dealStages = stages || [];
     state.activityTypes = types || [];
+    state.orgSettings = orgSettings || { id: 1, email_calendar_enabled: false };
     renderSettingsPage();
 }
 
@@ -91,6 +97,54 @@ function renderSettingsPage() {
             <button class="btn-danger btn-sm delete-setting-btn" data-type="activity_type">&times;</button>
         </li>
     `).join('');
+
+    const toggle = document.getElementById('email-calendar-enabled-toggle');
+    const hint = document.getElementById('email-calendar-enabled-hint');
+    const enabled = Boolean(state.orgSettings?.email_calendar_enabled);
+    if (toggle) toggle.checked = enabled;
+    if (hint) {
+        hint.textContent = enabled
+            ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
+            : 'Currently off — mailto only.';
+    }
+}
+
+async function handleIntegrationsToggle(e) {
+    const enabled = Boolean(e.target.checked);
+    const previous = Boolean(state.orgSettings?.email_calendar_enabled);
+    const hint = document.getElementById('email-calendar-enabled-hint');
+    if (hint) hint.textContent = 'Saving…';
+
+    const { data, error } = await supabase
+        .from('org_settings')
+        .upsert(
+            {
+                id: 1,
+                email_calendar_enabled: enabled,
+                updated_by: state.currentUser?.id || null,
+            },
+            { onConflict: 'id' }
+        )
+        .select('*')
+        .maybeSingle();
+
+    if (error) {
+        e.target.checked = previous;
+        alert('Could not update integrations setting: ' + error.message);
+        if (hint) {
+            hint.textContent = previous
+                ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
+                : 'Currently off — mailto only.';
+        }
+        return;
+    }
+
+    state.orgSettings = data || { id: 1, email_calendar_enabled: enabled };
+    if (hint) {
+        hint.textContent = enabled
+            ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
+            : 'Currently off — mailto only.';
+    }
 }
 
 
@@ -166,13 +220,18 @@ function renderReassignmentTool() {
 
     if (!reassignmentSection || !fromUserSelect || !toUserSelect) return;
 
-    const userOptions = state.allUsers
+    const sourceUserOptions = state.allUsers
+        .sort((a, b) => (a.full_name || 'Z').localeCompare(b.full_name || 'Z'))
+        .map(user => `<option value="${user.user_id}">${user.full_name || user.email}</option>`)
+        .join('');
+    const targetUserOptions = state.allUsers
+        .filter(user => !isUserDeactivated(user))
         .sort((a, b) => (a.full_name || 'Z').localeCompare(b.full_name || 'Z'))
         .map(user => `<option value="${user.user_id}">${user.full_name || user.email}</option>`)
         .join('');
 
-    fromUserSelect.innerHTML = `<option value="">-- Select User --</option>${userOptions}`;
-    toUserSelect.innerHTML = `<option value="">-- Select User --</option>${userOptions}`;
+    fromUserSelect.innerHTML = `<option value="">-- Select User --</option>${sourceUserOptions}`;
+    toUserSelect.innerHTML = `<option value="">-- Select User --</option>${targetUserOptions}`;
 
     reassignmentSection.classList.remove('hidden');
     renderReassignmentAccountList();
@@ -355,51 +414,28 @@ async function loadContentData() {
     renderContentTable();
 }
 
-async function loadAnalyticsData() {
-    const tablesToFetch = ['activities', 'contact_sequences', 'campaigns', 'tasks', 'deals'];
-    
-    const { data: users, error: userError } = await supabase.rpc('get_admin_users');
-    if(userError) {
-        alert('Could not load user data for analytics.');
-        return;
-    }
-    state.allUsers = users || [];
-
-    const { data: log, error: logError } = await supabase.rpc('get_admin_activity_log', { _limit: 200 });
-    if(logError) {
-         alert('Could not load system activity log: ' + logError.message);
-         state.activityLog = [];
-    } else {
-        state.activityLog = log || [];
-    }
-
-    const promises = tablesToFetch.map(table => supabase.from(table).select('*'));
-    const results = await Promise.all(promises);
-
-    results.forEach((result, index) => {
-        const tableName = tablesToFetch[index];
-        if (result.error) {
-            console.error(`Error fetching analytics data for ${tableName}:`, result.error);
-            state.analyticsData[tableName] = [];
-        } else {
-            state.analyticsData[tableName] = result.data || [];
-        }
-    });
-    
-    populateAnalyticsFilters();
-    renderAnalyticsDashboard();
-    renderActivityLogTable();
-}
-
 async function loadScriptLogs() {
-    const { data, error } = await supabase.rpc('get_admin_script_logs');
+    const [{ data: scriptLogs, error: scriptError }, { data: activityLog, error: logError }] = await Promise.all([
+        supabase.rpc('get_admin_script_logs'),
+        supabase.rpc('get_admin_activity_log', { _limit: 200 }),
+    ]);
 
-    if (error) {
-        alert(`Could not load script logs: ${error.message}`);
-        return;
+    if (scriptError) {
+        alert(`Could not load script logs: ${scriptError.message}`);
+        state.scriptLogs = [];
+    } else {
+        state.scriptLogs = scriptLogs || [];
     }
-    state.scriptLogs = data || [];
+
+    if (logError) {
+        alert('Could not load system activity log: ' + logError.message);
+        state.activityLog = [];
+    } else {
+        state.activityLog = activityLog || [];
+    }
+
     renderScriptLogsTable();
+    renderActivityLogTable();
 }
 
 function renderScriptLogsTable() {
@@ -418,6 +454,10 @@ function renderScriptLogsTable() {
     }).join('');
 }
 
+function isUserDeactivated(user) {
+    return Boolean(user?.deactivated_at);
+}
+
 function renderUserTable() {
     const tableBody = document.querySelector("#user-management-table tbody");
     if (!tableBody) return;
@@ -425,16 +465,26 @@ function renderUserTable() {
         .sort((a, b) => (a.full_name || "z").localeCompare(b.full_name || "z"))
         .map(user => {
             const isSelf = user.user_id === state.currentUser.id;
-            const deactivateBtn = isSelf ? '' : `<button class="btn-danger btn-sm deactivate-user-btn" data-user-id="${user.user_id}" data-user-name="${user.full_name}">Deactivate</button>`;
+            const isDeactivated = isUserDeactivated(user);
+            const statusLabel = isDeactivated ? `Deactivated${user.deactivated_at ? ` ${formatDate(user.deactivated_at)}` : ''}` : 'Active';
+            const statusClass = isDeactivated ? 'admin-user-status admin-user-status--inactive' : 'admin-user-status admin-user-status--active';
+            const statusBtn = isSelf ? '' : `
+                <button
+                    class="${isDeactivated ? 'btn-secondary' : 'btn-danger'} btn-sm user-status-btn"
+                    data-action="${isDeactivated ? 'reactivate' : 'deactivate'}"
+                    data-user-id="${user.user_id}"
+                    data-user-name="${escapeHtml(user.full_name || user.email || 'this user')}"
+                >${isDeactivated ? 'Reactivate' : 'Deactivate'}</button>`;
             return `
             <tr data-user-id="${user.user_id}">
                 <td><input type="text" class="form-control user-name-input" value="${user.full_name || ''}"></td>
                 <td>${user.email || 'N/A'}</td>
+                <td><span class="${statusClass}" title="${escapeHtml(user.deactivation_reason || '')}">${statusLabel}</span></td>
                 <td>${user.last_login ? formatDate(user.last_login) : 'Never'}</td>
                 <td><input type="number" class="form-control user-quota-input" value="${user.monthly_quota || 0}"></td>
                 <td><input type="checkbox" class="is-manager-checkbox" ${user.is_manager ? 'checked' : ''} ${isSelf ? 'disabled' : ''}></td>
                 <td><input type="checkbox" class="exclude-reporting-checkbox" ${user.exclude_from_reporting ? 'checked' : ''}></td>
-                <td class="action-buttons">${deactivateBtn}<button class="btn-primary btn-sm save-user-btn">Save</button></td>
+                <td class="action-buttons">${statusBtn}<button class="btn-primary btn-sm save-user-btn">Save</button></td>
             </tr>`;
         }).join('');
 }
@@ -479,176 +529,15 @@ function renderActivityLogTable() {
         </tr>`).join('');
 }
 
-function populateAnalyticsFilters() {
-    const repFilter = document.getElementById('analytics-rep-filter');
-    repFilter.innerHTML = '<option value="all">All Reps</option>';
-    state.allUsers.filter(u => !u.exclude_from_reporting).forEach(user => {
-        repFilter.innerHTML += `<option value="${user.user_id}">${user.full_name}</option>`;
-    });
-}
-
-function renderAnalyticsDashboard() {
-    const { userId, dateRange, chartView } = state.analyticsFilters;
-    const { startDate, endDate } = getDateRange(dateRange);
-    const usersForAnalytics = state.allUsers.filter(u => !u.exclude_from_reporting);
-    
-    const filterDataByCreationDate = (data, dateField) => data.filter(item => {
-        if (!item[dateField]) return false;
-        const itemDate = new Date(item[dateField]);
-        const userMatch = (userId === 'all' || item.user_id === userId);
-        const userIncluded = usersForAnalytics.some(u => u.user_id === item.user_id);
-        return userIncluded && userMatch && itemDate >= startDate && itemDate <= endDate;
-    });
-
-    const filterTasks = (data) => data.filter(t => {
-        const userMatch = (userId === 'all' || t.user_id === userId);
-        const userIncluded = usersForAnalytics.some(u => u.user_id === t.user_id);
-        const isPastDue = new Date(t.due_date) < new Date();
-        return userIncluded && userMatch && isPastDue && t.status === 'Pending';
-    });
-
-    const groupByUser = (data, valueField = null) => {
-        return usersForAnalytics.map(user => {
-            const userItems = data.filter(item => item.user_id === user.user_id);
-            const value = valueField ? userItems.reduce((sum, item) => sum + (item[valueField] || 0), 0) : userItems.length;
-            return { label: user.full_name, value };
-        }).sort((a,b) => b.value - a.value);
-    };
-    
-    const activities = filterDataByCreationDate(state.analyticsData.activities, 'date');
-    const sequences = filterDataByCreationDate(state.analyticsData.contact_sequences, 'last_completed_date');
-    const campaigns = filterDataByCreationDate(state.analyticsData.campaigns, 'completed_at');
-    const tasks = filterTasks(state.analyticsData.tasks);
-    const newDeals = filterDataByCreationDate(state.analyticsData.deals, 'created_at');
-    const closedWonDeals = state.analyticsData.deals.filter(d => {
-        const userMatch = (userId === 'all' || d.user_id === userId);
-        const userIncluded = usersForAnalytics.some(u => u.user_id === d.user_id);
-        if (!d.close_month) return false;
-        const closedDate = new Date(d.close_month + '-02');
-        return userIncluded && userMatch && d.stage === 'Closed Won' && closedDate >= startDate && closedDate <= endDate;
-    });
-
-    const isIndividualView = (userId === 'all' && chartView === 'individual');
-    
-    document.querySelectorAll('.chart-container').forEach(container => {
-        const metricCard = container.querySelector('.analytics-metric-card');
-        const chartWrapper = container.querySelector('.chart-wrapper');
-        const toggleBtn = container.querySelector('.chart-toggle-btn');
-        
-        if (isIndividualView) {
-            metricCard.classList.add('hidden');
-            chartWrapper.classList.remove('hidden');
-            toggleBtn.classList.remove('hidden');
-        } else {
-            metricCard.classList.remove('hidden');
-            chartWrapper.classList.add('hidden');
-            toggleBtn.classList.add('hidden');
-        }
-    });
-
-    document.getElementById('activities-metric').textContent = activities.length;
-    document.getElementById('sequences-metric').textContent = sequences.length;
-    document.getElementById('campaigns-metric').textContent = campaigns.length;
-    document.getElementById('tasks-metric').textContent = tasks.length;
-    document.getElementById('new-deals-metric').textContent = newDeals.length;
-    document.getElementById('new-deals-value-metric').textContent = formatCurrencyK(newDeals.reduce((s, d) => s + (d.mrc || 0), 0));
-    document.getElementById('closed-won-metric').textContent = formatCurrencyK(closedWonDeals.reduce((s, d) => s + (d.mrc || 0), 0));
-
-    renderChart('activities-chart', groupByUser(activities), false);
-    renderChart('sequences-chart', groupByUser(sequences), false);
-    renderChart('campaigns-chart', groupByUser(campaigns), false);
-    renderChart('tasks-chart', groupByUser(tasks), false);
-    renderChart('new-deals-chart', groupByUser(newDeals), false);
-    renderChart('new-deals-value-chart', groupByUser(newDeals, 'mrc'), true);
-    renderChart('closed-won-chart', groupByUser(closedWonDeals, 'mrc'), true);
-}
-
-function renderChart(canvasId, data, isCurrency = false) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
-    if (state.charts[canvasId]) state.charts[canvasId].destroy();
-    
-    const chartData = Array.isArray(data) ? data : [data];
-    const chartLabels = chartData.map(d => d.label);
-    const chartValues = chartData.map(d => d.value);
-
-    state.charts[canvasId] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: chartLabels,
-            datasets: [{
-                label: 'Total',
-                data: chartValues,
-                backgroundColor: 'rgba(74, 144, 226, 0.6)',
-                borderColor: 'rgba(74, 144, 226, 1)',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.label || '';
-                            if (label) { label += ': '; }
-                            let value = context.parsed.x;
-                            label += isCurrency ? formatCurrencyK(value) : value;
-                            return label;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { display: false },
-                    ticks: { color: 'var(--text-medium)' }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: {
-                        color: 'var(--text-medium)',
-                        callback: function(value) {
-                            return isCurrency ? formatCurrencyK(value) : value;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-function renderTableForChart(containerId, data, isCurrency = false) {
-    const container = document.getElementById(containerId);
-    const tableView = container.querySelector('.chart-table-view');
-    if (!tableView) return;
-
-    let tableHtml = '<table><thead><tr><th>User</th><th>Value</th></tr></thead><tbody>';
-    data.forEach(item => {
-        tableHtml += `<tr><td>${item.label}</td><td>${isCurrency ? formatCurrencyK(item.value) : item.value}</td></tr>`;
-    });
-    tableHtml += '</tbody></table>';
-    tableView.innerHTML = tableHtml;
-}
-
-
-// admin.js
-
-// admin.js
-
 async function handleSaveUser(e) {
     // This is the key: 'row' now refers to the specific table row being edited.
     const row = e.target.closest('tr');
     const userId = row.dataset.userId;
+    const isSelf = userId === state.currentUser.id;
     
     // --- FIX IS HERE ---
     // We now use row.querySelector to find the checkboxes *inside this specific row*.
-    const isManagerStatus = row.querySelector('.is-manager-checkbox').checked;
+    const isManagerStatus = isSelf ? true : row.querySelector('.is-manager-checkbox').checked;
     const excludeReportingStatus = row.querySelector('.exclude-reporting-checkbox').checked;
     // --- END FIX ---
 
@@ -682,7 +571,65 @@ async function handleSaveUser(e) {
         loadUserData(); // Refresh the user list
     }
 }
-function handleDeactivateUser(e) { showModal('Deactivate User', 'Feature coming soon!', null, false, '<button id="modal-ok-btn" class="btn-primary">OK</button>');}
+
+async function callUserActivationApi({ targetUserId, action, reason }) {
+    const { data, error } = await supabase.functions.invoke('admin-user-deactivation', {
+        body: { targetUserId, action, reason }
+    });
+
+    if (error) throw new Error(data?.error || error.message || 'User status update failed.');
+    return data;
+}
+
+function handleDeactivateUser(e) {
+    const button = e.target.closest('.user-status-btn');
+    if (!button) return;
+
+    const action = button.dataset.action === 'reactivate' ? 'reactivate' : 'deactivate';
+    const userId = button.dataset.userId;
+    const userName = button.dataset.userName || 'this user';
+    const isDeactivate = action === 'deactivate';
+
+    showModal(
+        isDeactivate ? 'Deactivate User' : 'Reactivate User',
+        isDeactivate
+            ? `
+                <p>Deactivate <strong>${escapeHtml(userName)}</strong>?</p>
+                <p class="placeholder-text">This prevents future login, removes manager access, excludes the user from reporting and pipeline selectors, and keeps existing CRM records for history.</p>
+                <label for="deactivation-reason">Optional reason</label>
+                <textarea id="deactivation-reason" class="form-control" rows="3" placeholder="Offboarding, territory change, duplicate user, etc."></textarea>
+            `
+            : `
+                <p>Reactivate <strong>${escapeHtml(userName)}</strong>?</p>
+                <p class="placeholder-text">This clears the CRM deactivation flag and removes the Supabase Auth login ban. Manager access is not automatically restored.</p>
+            `,
+        async (modalBody) => {
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            const reason = modalBody.querySelector('#deactivation-reason')?.value || '';
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = isDeactivate ? 'Deactivating...' : 'Reactivating...';
+            }
+            try {
+                await callUserActivationApi({ targetUserId: userId, action, reason });
+                alert(`${userName} ${isDeactivate ? 'deactivated' : 'reactivated'} successfully.`);
+                await loadUserData();
+            } catch (error) {
+                alert(`Failed to ${action} user: ${error.message}`);
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Confirm';
+                }
+                return false;
+            }
+            return true;
+        },
+        true,
+        null,
+        null,
+        { closeOnBackdropClick: false, closeOnEscape: false }
+    );
+}
 
 async function handleContentToggle(e) {
     const row = e.target.closest('tr');
@@ -720,7 +667,12 @@ async function handleDeleteContent(e) {
 }
 
 function handleNavigation() {
-    const hash = window.location.hash || '#user-management';
+    let hash = window.location.hash || '#user-management';
+    if (hash === '#analytics') {
+        hash = '#script-logs';
+        window.location.hash = hash;
+        return;
+    }
     state.currentView = hash.substring(1);
     document.querySelectorAll('.admin-nav').forEach(link => link.classList.remove('active'));
     document.querySelector(`.admin-nav[href="${hash}"]`)?.classList.add('active');
@@ -729,27 +681,18 @@ function handleNavigation() {
     loadAllDataForView();
 }
 
-function getDateRange(rangeKey) {
-    const now = new Date();
-    let startDate = new Date();
-    const endDate = new Date(now);
-    switch (rangeKey) {
-        case 'this_month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
-        case 'last_month': startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1); endDate.setDate(0); break;
-        case 'last_2_months': startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1); break;
-        case 'this_fiscal_year': startDate = new Date(now.getFullYear(), 0, 1); break;
-        case 'last_365_days': startDate.setDate(now.getDate() - 365); break;
-    }
-    return { startDate, endDate };
-}
-
 function setupPageEventListeners() {
     window.addEventListener('hashchange', handleNavigation);
     
     document.getElementById('user-management-table')?.addEventListener('click', e => {
-        e.preventDefault();
-        if (e.target.matches('.save-user-btn')) handleSaveUser(e);
-        if (e.target.matches('.deactivate-user-btn')) handleDeactivateUser(e);
+        if (e.target.matches('.save-user-btn')) {
+            e.preventDefault();
+            handleSaveUser(e);
+        }
+        if (e.target.matches('.user-status-btn')) {
+            e.preventDefault();
+            handleDeactivateUser(e);
+        }
     });
 
     document.getElementById('reassign-btn')?.addEventListener('click', handleReassignment);
@@ -793,57 +736,6 @@ function setupPageEventListeners() {
         renderContentTable();
     }));
 
-    document.getElementById('analytics-rep-filter')?.addEventListener('change', e => {
-        e.preventDefault();
-        state.analyticsFilters.userId = e.target.value;
-        document.getElementById('analytics-chart-view-toggle').style.display = e.target.value === 'all' ? 'flex' : 'none';
-        renderAnalyticsDashboard();
-    });
-    document.getElementById('analytics-date-filter')?.addEventListener('change', e => { e.preventDefault();
-        state.analyticsFilters.dateRange = e.target.value;
-        renderAnalyticsDashboard();
-    });
-    document.getElementById('analytics-chart-view-toggle')?.addEventListener('click', e => {
-        if (e.target.matches('button')) {
-            document.querySelectorAll('#analytics-chart-view-toggle button').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            state.analyticsFilters.chartView = e.target.id === 'view-individual-btn' ? 'individual' : 'combined';
-            renderAnalyticsDashboard();
-        }
-    });
-
-    
-    document.getElementById('analytics-charts-container').addEventListener('click', e => {
-        const toggleBtn = e.target.closest('.chart-toggle-btn');
-        if (toggleBtn) {
-            const chartHeader = toggleBtn.closest('.chart-header');
-            const container = chartHeader.closest('.chart-container');
-            const canvas = container.querySelector('canvas');
-            const tableView = container.querySelector('.chart-table-view');
-            
-            if (toggleBtn.dataset.view === 'chart') {
-                const chartInstance = state.charts[canvas.id];
-                if (chartInstance) {
-                    const chartData = chartInstance.data.labels.map((label, index) => ({
-                        label: label,
-                        value: chartInstance.data.datasets[0].data[index]
-                    }));
-                    const isCurrency = canvas.id.includes('value') || canvas.id.includes('won');
-                    renderTableForChart(container.id, chartData, isCurrency);
-                }
-                canvas.classList.add('hidden');
-                tableView.classList.remove('hidden');
-                toggleBtn.dataset.view = 'table';
-                toggleBtn.innerHTML = '<i class="fas fa-chart-bar"></i>';
-            } else {
-                canvas.classList.remove('hidden');
-                tableView.classList.add('hidden');
-                toggleBtn.dataset.view = 'chart';
-                toggleBtn.innerHTML = '<i class="fas fa-table"></i>';
-            }
-        }
-    });
-    
     document.getElementById('add-deal-stage-btn')?.addEventListener('click', (e) => { e.preventDefault(); handleAddSetting('deal_stage'); });
     document.getElementById('add-activity-type-btn')?.addEventListener('click', (e) => { e.preventDefault(); handleAddSetting('activity_type'); });
     document.getElementById('settings-view')?.addEventListener('click', e => {
@@ -851,20 +743,26 @@ function setupPageEventListeners() {
             handleDeleteSetting(e); 
         }
     });
+    document.getElementById('email-calendar-enabled-toggle')?.addEventListener('change', handleIntegrationsToggle);
 }
 
 async function initializePage() {
+    injectGlobalNavigation();
     setupModalListeners();
     await loadSVGs();
     const appState = await initializeAppState(supabase);
     if (!appState.currentUser) { hideGlobalLoader(); window.location.href = "index.html"; return; }
     state.currentUser = appState.currentUser;
-    if (state.currentUser.user_metadata?.is_admin !== true) {
+    if (appState.isManager !== true && state.currentUser.user_metadata?.is_admin !== true) {
         hideGlobalLoader();
-        alert("Access Denied: You must be an admin to view this page.");
+        alert("Access Denied: You must be a manager or admin to view this page.");
         window.location.href = "command-center.html";
         return;
     }
+    await setupUserMenuAndAuth(supabase, appState);
+    await setupGlobalSearch(supabase, state.currentUser);
+    await checkAndSetNotifications(supabase);
+    updateActiveNavLink();
     setupPageEventListeners();
     handleNavigation();
     hideGlobalLoader();

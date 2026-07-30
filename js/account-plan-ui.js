@@ -50,6 +50,7 @@ import {
 } from './account-plan-export.js';
 import { fetchPresentationHighlight } from './account-plan-presentation-ai.js';
 import { generateExecPresentationPptx } from './account-plan-presentation-pptx.js';
+import { showModal } from './shared_constants.js';
 
 const STORAGE_KEY = 'accounts_view_mode';
 const MOMENTUM_LABELS = Object.freeze(['Stalled', 'Cooling', 'Neutral', 'Warming', 'Champion']);
@@ -1860,6 +1861,15 @@ function buildEntryPointContactSelect(index, value, _contacts) {
         <div class="entry-point-contact-row entry-point-contact-row--inline">
             <span class="entry-point-contact-label">Contact</span>
             <span class="${displayClass}" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+            <button
+                type="button"
+                class="entry-point-delete-btn"
+                data-entry-point-remove="${index}"
+                title="Delete entry point"
+                aria-label="Delete entry point"
+            >
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
             <input
                 type="hidden"
                 id="${fieldId}"
@@ -1974,9 +1984,7 @@ function buildEntryPointCarouselHtml(section, entryPoints, activeIndex) {
             >${escapeHtml(label)}${unmappedDot}</button>`;
     }).join('');
 
-    const addButton = points.length < MAX_ENTRY_POINTS
-        ? `<button type="button" class="entry-point-tab entry-point-tab--add" data-entry-point-add aria-label="Add entry point">+ Add Point</button>`
-        : '';
+    const addButton = buildEntryPointAddControl(points, contacts);
 
     const cards = points.map((point, index) => buildEntryPointCardHtml(
         isPlainObject(point) ? point : createEmptyEntryPoint(),
@@ -2025,6 +2033,57 @@ function updateEntryPointTabLabel(index) {
     if (unmappedDot) tab.appendChild(unmappedDot);
 }
 
+function formatEntryPointContactOptionLabel(contact) {
+    if (!contact || typeof contact !== 'object') return 'Unknown contact';
+    const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
+    const title = contact.title || contact.job_title || '';
+    if (name && title) return `${name} — ${title}`;
+    return name || title || 'Unknown contact';
+}
+
+function buildEntryPointAddControl(points, contacts) {
+    if (!Array.isArray(points) || points.length >= MAX_ENTRY_POINTS) return '';
+
+    const usedContactIds = new Set(
+        points
+            .map((point) => (isPlainObject(point) ? String(point.contact_id ?? '').trim() : ''))
+            .filter(Boolean)
+    );
+    const availableContacts = (Array.isArray(contacts) ? contacts : [])
+        .filter((contact) => contact && contact.id != null && !usedContactIds.has(String(contact.id)));
+
+    const contactButtons = availableContacts.length
+        ? availableContacts.map((contact) => `
+            <button
+                type="button"
+                class="entry-point-add-menu-item"
+                data-entry-point-add-contact="${escapeHtml(contact.id)}"
+            >
+                <span>${escapeHtml(formatEntryPointContactOptionLabel(contact))}</span>
+            </button>
+        `).join('')
+        : '<div class="entry-point-add-menu-empty">No unused account contacts.</div>';
+
+    return `
+        <div class="entry-point-add-wrap">
+            <button
+                type="button"
+                class="entry-point-tab entry-point-tab--add"
+                data-entry-point-add-toggle
+                aria-expanded="false"
+                aria-label="Add entry point"
+            >+ Add Point</button>
+            <div class="entry-point-add-menu hidden" data-entry-point-add-menu>
+                <div class="entry-point-add-menu-label">Choose account contact</div>
+                ${contactButtons}
+                <button type="button" class="entry-point-add-menu-item entry-point-add-menu-item--cancel" data-entry-point-add-cancel>
+                    <span>Cancel</span>
+                    <small>Close without adding an entry point.</small>
+                </button>
+            </div>
+        </div>`;
+}
+
 function switchEntryPointTab(index) {
     _entryPointActiveIndex = index;
     const section = document.getElementById('strategic-section-entry_points');
@@ -2047,16 +2106,69 @@ function switchEntryPointTab(index) {
     });
 }
 
-function addEntryPoint() {
-    if (!_liveSections) return;
+function addEntryPointForContact(contactId) {
+    if (!_liveSections || !contactId) return;
+    const contacts = getAccountContacts();
+    const contact = contacts.find((row) => String(row.id) === String(contactId));
+    if (!contact) {
+        _options.onToast?.('Contact not found on this account.', 'error');
+        return;
+    }
+
     const points = Array.isArray(_liveSections.entry_points)
         ? [..._liveSections.entry_points]
         : [createEmptyEntryPoint()];
-    if (points.length >= MAX_ENTRY_POINTS) return;
+    const existingIndex = points.findIndex((point) => (
+        isPlainObject(point) && String(point.contact_id ?? '') === String(contactId)
+    ));
+    if (existingIndex >= 0) {
+        _entryPointActiveIndex = existingIndex;
+        paintCanvas();
+        _options.onToast?.('That contact already has an entry point.', 'warning');
+        return;
+    }
+    if (points.length >= MAX_ENTRY_POINTS) {
+        _options.onToast?.(
+            `Entry-point roster is full (max ${MAX_ENTRY_POINTS}). Remove one before adding another contact.`,
+            'error'
+        );
+        return;
+    }
 
-    points.push(createEmptyEntryPoint());
+    points.push({
+        ...createEmptyEntryPoint(),
+        contact_id: String(contact.id),
+        contact_name: formatEntryPointContactOptionLabel(contact),
+    });
     _liveSections.entry_points = points;
     _entryPointActiveIndex = points.length - 1;
+    paintCanvas();
+    queueAutosave();
+}
+
+function toggleEntryPointAddMenu(toggleButton) {
+    const wrap = toggleButton.closest('.entry-point-add-wrap');
+    const menu = wrap?.querySelector('[data-entry-point-add-menu]');
+    if (!(menu instanceof HTMLElement)) return;
+    const nextOpen = menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', !nextOpen);
+    toggleButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+}
+
+function removeEntryPoint(index) {
+    if (!_liveSections || !Number.isFinite(index)) return;
+    const points = Array.isArray(_liveSections.entry_points)
+        ? [..._liveSections.entry_points]
+        : [createEmptyEntryPoint()];
+    if (!points[index]) return;
+
+    const point = isPlainObject(points[index]) ? points[index] : {};
+    const label = String(point.contact_name ?? '').trim() || `Entry Point ${index + 1}`;
+    if (!window.confirm(`Delete ${label}? This will remove its relationship profile notes from the plan.`)) return;
+
+    points.splice(index, 1);
+    _liveSections.entry_points = points.length > 0 ? points : [createEmptyEntryPoint()];
+    _entryPointActiveIndex = Math.min(index, _liveSections.entry_points.length - 1);
     paintCanvas();
     queueAutosave();
 }
@@ -2974,7 +3086,7 @@ function collectMomentumTimelineItems() {
     /** @type {MomentumTimelineItem[]} */
     const items = [];
 
-    log.forEach((entry) => {
+    log.forEach((entry, logIndex) => {
         if (!isPlainObject(entry)) return;
         const date = new Date(String(entry.date ?? ''));
         if (Number.isNaN(date.getTime())) return;
@@ -2987,6 +3099,7 @@ function collectMomentumTimelineItems() {
             label: interactionLogSourceLabel(source),
             desc: summary,
             momentumScore: entry.momentum_score != null ? clampScale(entry.momentum_score, 3) : null,
+            logIndex,
         });
     });
 
@@ -3024,10 +3137,14 @@ function buildMomentumTimelineDisplayHtml() {
                 : 'timeline-item-signal';
         const dateLabel = formatCommittedDate(item.date.toISOString());
 
+        const editableAttrs = item.type === 'signal' && Number.isInteger(item.logIndex)
+            ? ` data-momentum-milestone-edit="${item.logIndex}" tabindex="0" role="button" title="Edit milestone"`
+            : '';
+
         return `
             <div class="momentum-timeline-item ${sideClass} ${typeClass}">
                 <div class="momentum-timeline-node" aria-hidden="true"></div>
-                <article class="momentum-timeline-card">
+                <article class="momentum-timeline-card"${editableAttrs}>
                     <div class="momentum-timeline-card-head">
                         <span class="momentum-timeline-card-label">${escapeHtml(item.label)}</span>
                         ${item.momentumScore != null ? `<span class="momentum-timeline-card-score">${item.momentumScore} — ${escapeHtml(MOMENTUM_LABELS[item.momentumScore - 1])}</span>` : ''}
@@ -3050,6 +3167,15 @@ function buildMomentumTimelineHtml() {
     return `
         <div class="momentum-timeline-body">
             <div class="momentum-timeline-log">
+                <div class="momentum-field momentum-date-field">
+                    <label for="momentum-milestone-date">Milestone date</label>
+                    <input
+                        type="date"
+                        id="momentum-milestone-date"
+                        class="strategic-field momentum-milestone-date-input"
+                        value="${escapeHtml(getTodayDateInputValue())}"
+                    />
+                </div>
                 <textarea
                     id="momentum-signal-input"
                     class="strategic-field strategic-textarea momentum-signal-input"
@@ -3397,15 +3523,102 @@ function appendInteractionLogEntry(entry) {
     _liveSections.interaction_log = log;
 }
 
+function getTodayDateInputValue() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function dateInputValueToIso(value) {
+    const cleaned = String(value || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return new Date().toISOString();
+    return new Date(`${cleaned}T12:00:00`).toISOString();
+}
+
+function isoToDateInputValue(iso) {
+    const date = new Date(String(iso || ''));
+    if (Number.isNaN(date.getTime())) return getTodayDateInputValue();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function buildMomentumScoreOptions(selectedScore) {
+    return MOMENTUM_LABELS.map((label, index) => {
+        const value = index + 1;
+        const selected = selectedScore === value ? ' selected' : '';
+        return `<option value="${value}"${selected}>${value} — ${escapeHtml(label)}</option>`;
+    }).join('');
+}
+
+function openEditStrategicMilestone(logIndex) {
+    if (!_liveSections) return;
+    const log = Array.isArray(_liveSections.interaction_log) ? [..._liveSections.interaction_log] : [];
+    const entry = log[logIndex];
+    if (!isPlainObject(entry) || String(entry.source ?? 'signal') !== 'signal') return;
+
+    const text = String(entry.text ?? entry.interaction ?? '').trim();
+    const score = entry.momentum_score != null ? clampScale(entry.momentum_score, 3) : 3;
+    const dateValue = isoToDateInputValue(entry.date);
+
+    showModal(
+        'Edit Strategic Milestone',
+        `
+            <div class="milestone-edit-modal">
+                <label for="milestone-edit-date">Milestone date</label>
+                <input type="date" id="milestone-edit-date" class="strategic-field" value="${escapeHtml(dateValue)}">
+
+                <label for="milestone-edit-score">Momentum score</label>
+                <select id="milestone-edit-score" class="strategic-field">
+                    ${buildMomentumScoreOptions(score)}
+                </select>
+
+                <label for="milestone-edit-text">Milestone</label>
+                <textarea id="milestone-edit-text" class="strategic-field strategic-textarea" rows="5">${escapeHtml(text)}</textarea>
+            </div>
+        `,
+        (modalBody) => {
+            const dateInput = modalBody.querySelector('#milestone-edit-date');
+            const scoreInput = modalBody.querySelector('#milestone-edit-score');
+            const textInput = modalBody.querySelector('#milestone-edit-text');
+            if (!(dateInput instanceof HTMLInputElement) || !(scoreInput instanceof HTMLSelectElement) || !(textInput instanceof HTMLTextAreaElement)) return false;
+
+            const nextText = textInput.value.trim();
+            if (!nextText) {
+                _options.onToast?.('Milestone text is required.', 'error');
+                return false;
+            }
+
+            log[logIndex] = {
+                ...entry,
+                source: 'signal',
+                date: dateInputValueToIso(dateInput.value),
+                text: nextText,
+                momentum_score: clampScale(scoreInput.value, 3),
+            };
+            _liveSections.interaction_log = log;
+            refreshMomentumTimelineSection();
+            refreshInteractionLogSection();
+            updateRailSummaries(_liveSections);
+            queueAutosave();
+            _options.onToast?.('Strategic milestone updated.', 'success');
+            return true;
+        },
+        true,
+        '<button id="modal-confirm-btn" class="btn-primary">Update Milestone</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>'
+    );
+}
+
 function logStrategicMilestone() {
     if (!_liveSections) return;
 
     const textarea = document.getElementById('momentum-signal-input');
     const scoreInput = document.getElementById('momentum-milestone-score');
+    const dateInput = document.getElementById('momentum-milestone-date');
     if (!(textarea instanceof HTMLTextAreaElement) || !(scoreInput instanceof HTMLInputElement)) return;
 
     const text = textarea.value.trim();
     const score = clampScale(scoreInput.value, 3);
+    const dateIso = dateInput instanceof HTMLInputElement
+        ? dateInputValueToIso(dateInput.value)
+        : new Date().toISOString();
     if (!text) {
         _options.onToast?.('Describe the strategic milestone before logging.', 'error');
         return;
@@ -3414,12 +3627,13 @@ function logStrategicMilestone() {
     appendInteractionLogEntry({
         ...createEmptyInteractionLogEntry(),
         source: 'signal',
-        date: new Date().toISOString(),
+        date: dateIso,
         text,
         momentum_score: score,
     });
 
     textarea.value = '';
+    if (dateInput instanceof HTMLInputElement) dateInput.value = getTodayDateInputValue();
     scoreInput.value = '3';
     scoreInput.setAttribute('aria-valuenow', '3');
     const wrap = scoreInput.closest('.momentum-slider-wrap');
@@ -4581,15 +4795,48 @@ function bindCanvasFormEvents(canvas) {
             return;
         }
 
-        if (target.closest('[data-entry-point-add]')) {
+        const entryPointRemove = target.closest('[data-entry-point-remove]');
+        if (entryPointRemove instanceof HTMLElement) {
             event.preventDefault();
-            addEntryPoint();
+            removeEntryPoint(Number(entryPointRemove.dataset.entryPointRemove));
+            return;
+        }
+
+        const entryPointAddContact = target.closest('[data-entry-point-add-contact]');
+        if (entryPointAddContact instanceof HTMLElement) {
+            event.preventDefault();
+            addEntryPointForContact(entryPointAddContact.dataset.entryPointAddContact);
+            return;
+        }
+
+        const entryPointAddCancel = target.closest('[data-entry-point-add-cancel]');
+        if (entryPointAddCancel instanceof HTMLElement) {
+            event.preventDefault();
+            const wrap = entryPointAddCancel.closest('.entry-point-add-wrap');
+            const toggle = wrap?.querySelector('[data-entry-point-add-toggle]');
+            const menu = wrap?.querySelector('[data-entry-point-add-menu]');
+            if (menu instanceof HTMLElement) menu.classList.add('hidden');
+            if (toggle instanceof HTMLElement) toggle.setAttribute('aria-expanded', 'false');
+            return;
+        }
+
+        const entryPointAddToggle = target.closest('[data-entry-point-add-toggle]');
+        if (entryPointAddToggle instanceof HTMLElement) {
+            event.preventDefault();
+            toggleEntryPointAddMenu(entryPointAddToggle);
             return;
         }
 
         if (target.closest('[data-momentum-milestone-log]')) {
             event.preventDefault();
             logStrategicMilestone();
+            return;
+        }
+
+        const milestoneEdit = target.closest('[data-momentum-milestone-edit]');
+        if (milestoneEdit instanceof HTMLElement) {
+            event.preventDefault();
+            openEditStrategicMilestone(Number(milestoneEdit.dataset.momentumMilestoneEdit));
             return;
         }
 

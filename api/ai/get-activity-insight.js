@@ -4,6 +4,15 @@ const { getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "contacts-activity-insight";
 
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    insight: { type: "STRING" },
+    next_steps: { type: "STRING" },
+  },
+  required: ["insight", "next_steps"],
+};
+
 const SYSTEM_PROMPT = `You are a relationship intelligence analyst for Great Plains Communications.
 
 Analyze the contact's activity history and relationship context to identify what is really happening in the relationship, where momentum exists, and what the seller should do next. This is not a recap. It should help the seller decide how to advance the relationship.
@@ -38,6 +47,7 @@ module.exports = async function handler(req, res) {
       functionId: FUNCTION_ID,
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
+      responseSchema: RESPONSE_SCHEMA,
       temperature: 0.35,
       maxOutputTokens: 1200,
     });

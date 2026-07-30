@@ -7,6 +7,7 @@
     <title>Constellation CRM - SAOS Dashboard</title>
     <link rel="stylesheet" href="output.css">
     <link rel="stylesheet" href="css/global-loader.css">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/css/tom-select.css" rel="stylesheet">
     <link rel="stylesheet" href="css/saos-dashboard.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -31,15 +32,12 @@
         </nav>
         <main class="content-area">
             <section id="saos-dashboard" class="content-view active-view saos-dashboard-shell">
-                <div class="saos-dashboard-hero">
+                <div class="saos-dashboard-page-header">
                     <div>
                         <p class="saos-dashboard-eyebrow">Manager View</p>
                         <h1>Strategic Account OS</h1>
-                        <p class="saos-dashboard-subtitle">Inspect every team SAOS plan in one place, spot stale strategy, and drill into the account without leaving the dashboard.</p>
                     </div>
-                    <div class="saos-dashboard-actions">
-                        <button type="button" id="saos-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-                    </div>
+                    <button type="button" id="saos-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
                 </div>
 
                 <div id="saos-access-denied" class="section-card saos-access-denied hidden">
@@ -51,9 +49,8 @@
                 </div>
 
                 <div id="saos-dashboard-content" class="saos-dashboard-content hidden">
-                    <div id="saos-kpi-grid" class="saos-kpi-grid" aria-label="SAOS summary metrics"></div>
-
                     <div class="section-card saos-table-card">
+                        <div id="saos-kpi-grid" class="saos-kpi-grid" aria-label="SAOS summary metrics"></div>
                         <div class="saos-table-toolbar">
                             <div>
                                 <h2 class="section-title">Team SAOS Plans</h2>
@@ -61,6 +58,13 @@
                             </div>
                             <div class="saos-table-filters">
                                 <input type="search" id="saos-search-input" class="item-search-input" placeholder="Search account or owner…">
+                                <select id="saos-sort-select" class="saos-filter-select" aria-label="Sort SAOS plans">
+                                    <option value="updated_desc">Updated newest</option>
+                                    <option value="updated_asc">Updated oldest</option>
+                                    <option value="progress_desc">Completeness high</option>
+                                    <option value="progress_asc">Completeness low</option>
+                                    <option value="name_asc">Account A-Z</option>
+                                </select>
                                 <select id="saos-owner-filter" class="saos-filter-select" aria-label="Filter by owner">
                                     <option value="all">All owners</option>
                                 </select>
@@ -89,6 +93,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>
     <script type="module" src="js/saos-dashboard.js"></script>
 </body>
 </html>

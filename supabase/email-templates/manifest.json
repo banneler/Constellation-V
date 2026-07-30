@@ -1,0 +1,22 @@
+{
+  "confirmation": {
+    "subject": "Welcome to Constellation — confirm your email",
+    "file": "confirmation.html"
+  },
+  "invite": {
+    "subject": "You're invited to Constellation CRM",
+    "file": "invite.html"
+  },
+  "recovery": {
+    "subject": "Reset your Constellation password",
+    "file": "recovery.html"
+  },
+  "magic_link": {
+    "subject": "Your Constellation sign-in link",
+    "file": "magic_link.html"
+  },
+  "email_change": {
+    "subject": "Confirm your new Constellation email",
+    "file": "email_change.html"
+  }
+}

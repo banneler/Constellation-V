@@ -1,5 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
+import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -1271,19 +1272,28 @@ async function openEmailClient(contact) {
     const emailSubject = document.getElementById('ai-email-subject')?.value || '';
     const emailBody = document.getElementById('ai-email-body')?.value || '';
 
-    // CORRECTED: Let encodeURIComponent handle the newlines automatically.
-    const encodedBody = encodeURIComponent(emailBody); 
-    
-    const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodedBody}`;
-    window.open(mailtoLink, '_blank');
+    let sendResult;
+    try {
+        sendResult = await sendEmail(
+            supabase,
+            { to: contact.email, subject: emailSubject, body: emailBody },
+            { onNotice: (msg, type) => showToast(msg, type) }
+        );
+    } catch (error) {
+        showAIToast(error.message || "Could not send email.", "error");
+        return;
+    }
 
     try {
         let emailActivityLogged = false;
+        const viaNylas = sendResult?.mode === 'nylas';
         const { error } = await supabase.from('activities').insert({
             contact_id: state.selectedContactId,
             account_id: contact?.account_id,
             type: 'AI-Generated Email',
-            description: `AI-generated email draft opened in mail client. Subject: "${emailSubject}".`,
+            description: viaNylas
+                ? `AI-generated email sent via connected inbox. Subject: "${emailSubject}".`
+                : `AI-generated email draft opened in mail client. Subject: "${emailSubject}".`,
             user_id: getState().effectiveUserId,
             date: new Date().toISOString()
         });
@@ -2016,13 +2026,24 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
             const subject = replacePlaceholders(step.subject, contact, account);
             const message = replacePlaceholders(step.message, contact, account);
+            const integrationState = await getIntegrationState(supabase);
+            const confirmLabel = emailActionLabel(integrationState);
             showModal('Compose Email', `
                 <div class="form-group"><label for="modal-email-subject">Subject:</label><input type="text" id="modal-email-subject" class="form-control" value="${(subject || '').replace(/"/g, '&quot;')}"></div>
                 <div class="form-group"><label for="modal-email-body">Message:</label><textarea id="modal-email-body" class="form-control" rows="10">${(message || '')}</textarea></div>
             `, async () => {
                 const finalSubject = document.getElementById('modal-email-subject').value;
                 const finalMessage = document.getElementById('modal-email-body').value;
-                window.open(`mailto:${contact.email}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalMessage)}`, '_blank');
+                const result = await sendEmail(
+                    supabase,
+                    { to: contact.email, subject: finalSubject, body: finalMessage },
+                    { onNotice: (msg, type) => showToast(msg, type) }
+                );
+                if (result?.mode === 'nylas') {
+                    await completeStep(csId, `Email Sent: ${finalSubject}`);
+                    hideModal();
+                    return true;
+                }
                 showActionSuccessConfirm({
                     title: 'Email sent?',
                     message: 'Did your email client open and were you able to send the message successfully?',
@@ -2033,7 +2054,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     onNo: () => {}
                 });
                 return false;
-            }, true, `<button id="modal-confirm-btn" class="btn-primary">Send with Email Client</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, null, { closeOnBackdropClick: false, closeOnEscape: false });
+            }, true, `<button id="modal-confirm-btn" class="btn-primary">${confirmLabel}</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`, null, { closeOnBackdropClick: false, closeOnEscape: false });
         } else if (btn.matches('.send-linkedin-message-btn')) {
             const account = contact.account_id ? state.accounts.find(a => a.id === contact.account_id) : null;
             const message = replacePlaceholders(step.message, contact, account);

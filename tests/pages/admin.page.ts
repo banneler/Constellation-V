@@ -30,6 +30,18 @@ export class AdminPage {
     return this.page.locator('#content-management-table .share-toggle').first();
   }
 
+  async gotoSettings(): Promise<void> {
+    await this.gotoAdmin('#settings');
+  }
+
+  emailCalendarToggle(): ReturnType<Page['locator']> {
+    return this.page.locator('#email-calendar-enabled-toggle');
+  }
+
+  integrationsSettingsPanel(): ReturnType<Page['locator']> {
+    return this.page.locator('#integrations-settings-panel');
+  }
+
   /** --- AI Admin (ai-admin.html) --- */
   async gotoAiAdmin(): Promise<void> {
     await this.page.goto('/ai-admin.html');

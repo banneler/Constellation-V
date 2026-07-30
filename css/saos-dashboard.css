@@ -1,5 +1,6 @@
 .saos-dashboard-page .content-area {
     overflow-y: auto;
+    scroll-behavior: smooth;
 }
 
 .saos-dashboard-shell {
@@ -9,18 +10,11 @@
     padding: 1.5rem;
 }
 
-.saos-dashboard-hero {
+.saos-dashboard-page-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
-    padding: 1.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 1rem;
-    background:
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 34rem),
-        linear-gradient(135deg, color-mix(in srgb, var(--bg-dark) 88%, #0f172a), var(--bg-dark));
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
 }
 
 .saos-dashboard-eyebrow {
@@ -32,7 +26,7 @@
     text-transform: uppercase;
 }
 
-.saos-dashboard-hero h1,
+.saos-dashboard-page-header h1,
 .saos-detail-header h2 {
     margin: 0;
     color: var(--text-light);
@@ -40,15 +34,7 @@
     line-height: 1.05;
 }
 
-.saos-dashboard-subtitle {
-    max-width: 58rem;
-    margin: 0.65rem 0 0;
-    color: var(--text-medium);
-    font-size: 0.95rem;
-    line-height: 1.55;
-}
-
-.saos-dashboard-actions {
+.saos-dashboard-page-header .btn-primary {
     flex-shrink: 0;
 }
 
@@ -116,6 +102,7 @@
 
 .saos-table-card {
     overflow: hidden;
+    padding: 1.25rem;
 }
 
 .saos-table-toolbar {
@@ -123,7 +110,7 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
-    padding-bottom: 1rem;
+    padding: 1.15rem 0 1rem;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -150,20 +137,46 @@
     background: var(--bg-medium);
 }
 
+.saos-table-filters .ts-wrapper {
+    min-width: 11rem;
+}
+
+.saos-table-filters .ts-wrapper .ts-control {
+    min-height: 2.45rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.65rem;
+    color: var(--text-light);
+    background: var(--bg-medium);
+    box-shadow: none;
+}
+
+.saos-table-filters .ts-wrapper .ts-control > input {
+    display: none !important;
+}
+
+.saos-table-filters .ts-wrapper.single .ts-control,
+.saos-table-filters .ts-wrapper.single.input-active .ts-control {
+    background: var(--bg-medium);
+}
+
+.saos-table-filters .ts-wrapper .item {
+    color: var(--text-light);
+}
+
 .saos-account-list {
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
-    padding-top: 1rem;
+    padding-top: 1.15rem;
 }
 
 .saos-account-row {
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(16rem, 1fr) auto minmax(18rem, auto);
+    grid-template-columns: minmax(16rem, 0.9fr) minmax(22rem, 1.25fr) auto minmax(18rem, auto);
     gap: 1rem;
     align-items: center;
-    padding: 0.95rem 1rem;
+    padding: 1.15rem 1.25rem;
     border: 1px solid var(--border-color);
     border-radius: 0.85rem;
     text-align: left;
@@ -184,6 +197,29 @@
     font-size: 1rem;
 }
 
+.saos-account-strategy {
+    min-width: 0;
+    padding-left: 1rem;
+    border-left: 1px solid var(--border-color);
+}
+
+.saos-account-strategy span {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--primary-blue);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.saos-account-strategy p {
+    margin: 0;
+    color: var(--text-medium);
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
 .saos-account-meta {
     display: flex;
     flex-wrap: wrap;
@@ -194,6 +230,30 @@
 }
 
 .saos-account-meta i {
+    color: var(--primary-blue);
+}
+
+.saos-row-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+}
+
+.saos-row-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.45rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+    color: var(--text-medium);
+    background: rgba(148, 163, 184, 0.08);
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.saos-row-chip i {
     color: var(--primary-blue);
 }
 
@@ -261,7 +321,11 @@
 }
 
 .saos-detail-panel {
-    min-height: 18rem;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 3rem);
+    padding: 1.5rem;
+    scroll-margin-top: 1.5rem;
 }
 
 .saos-empty-detail,
@@ -288,7 +352,7 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
-    padding-bottom: 1rem;
+    padding-bottom: 1.25rem;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -299,15 +363,15 @@
 
 .saos-detail-grid {
     display: grid;
-    grid-template-columns: minmax(16rem, 0.85fr) minmax(0, 1.65fr);
-    gap: 1rem;
-    margin-top: 1rem;
+    grid-template-columns: minmax(18rem, 0.7fr) minmax(0, 1.85fr);
+    gap: 1.25rem;
+    margin-top: 1.25rem;
 }
 
 .saos-detail-score-card,
 .saos-detail-section-state,
 .saos-insight-card,
-.saos-detail-lists > div {
+.saos-detail-readout-card {
     border: 1px solid var(--border-color);
     border-radius: 0.85rem;
     background: color-mix(in srgb, var(--bg-medium) 74%, transparent);
@@ -317,15 +381,23 @@
     display: flex;
     gap: 1rem;
     align-items: center;
-    padding: 1rem;
+    padding: 1.25rem;
 }
 
-.saos-detail-score-card h3,
-.saos-insight-card h3,
-.saos-detail-lists h3 {
+.saos-detail-score-card h3 {
     margin: 0 0 0.35rem;
     color: var(--text-light);
     font-size: 0.92rem;
+}
+
+.saos-insight-card h3,
+.saos-detail-readout-card h3 {
+    margin: 0 0 0.55rem;
+    color: var(--primary-blue);
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 .saos-detail-score-card p,
@@ -338,8 +410,8 @@
 
 .saos-detail-section-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.6rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
 }
 
 .saos-detail-section-state {
@@ -347,7 +419,7 @@
     grid-template-columns: auto 1fr auto;
     gap: 0.6rem;
     align-items: center;
-    padding: 0.75rem;
+    padding: 0.85rem 0.95rem;
     color: var(--text-medium);
     font-size: 0.82rem;
 }
@@ -371,13 +443,42 @@
 .saos-insight-grid,
 .saos-detail-lists {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin-top: 1rem;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
 }
 
 .saos-insight-card {
+    grid-column: span 3;
+    min-height: 8.5rem;
+    padding: 1rem;
+}
+
+.saos-insight-card--wide {
+    grid-column: span 4;
+}
+
+.saos-insight-card--third {
+    grid-column: span 3;
+}
+
+.saos-influence-card {
+    grid-column: span 12;
+    min-height: auto;
+}
+
+.saos-influence-card ul {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.saos-influence-card li {
+    min-height: 7.25rem;
     padding: 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+    border-radius: 0.7rem;
+    background: color-mix(in srgb, var(--bg-dark) 45%, transparent);
 }
 
 .saos-insight-card.is-empty p {
@@ -385,19 +486,52 @@
 }
 
 .saos-detail-lists {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    flex: 1;
+    align-items: stretch;
 }
 
-.saos-detail-lists > div {
-    padding: 0.95rem;
+.saos-detail-readout-card {
+    grid-column: span 3;
+    min-height: 12rem;
+    padding: 1.1rem;
 }
 
-.saos-detail-lists ul {
+.saos-detail-readout-card--half {
+    grid-column: span 6;
+}
+
+.saos-detail-readout-card.saos-influence-card {
+    grid-column: 1 / -1;
+}
+
+.saos-detail-readout-card ul {
     margin: 0;
-    padding-left: 1.1rem;
+    padding: 0;
+    list-style: none;
     color: var(--text-medium);
     font-size: 0.83rem;
     line-height: 1.5;
+}
+
+.saos-detail-readout-card li {
+    padding: 0.55rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+}
+
+.saos-detail-readout-card li:last-child {
+    border-bottom: 0;
+}
+
+.saos-detail-readout-card li strong {
+    display: block;
+    margin-bottom: 0.12rem;
+    color: var(--text-light);
+    font-size: 0.75rem;
+}
+
+.saos-detail-readout-card li span {
+    white-space: pre-line;
 }
 
 @media (max-width: 1100px) {
@@ -406,9 +540,34 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .saos-insight-card,
+    .saos-insight-card--wide,
+    .saos-insight-card--third,
+    .saos-influence-card,
+    .saos-detail-readout-card,
+    .saos-detail-readout-card--half {
+        grid-column: auto;
+    }
+
+    .saos-influence-card ul {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .saos-detail-readout-card.saos-influence-card {
+        grid-column: 1 / -1;
+    }
+
     .saos-account-row,
-    .saos-detail-grid {
+    .saos-detail-grid,
+    .saos-detail-section-grid {
         grid-template-columns: 1fr;
+    }
+
+    .saos-account-strategy {
+        padding-left: 0;
+        padding-top: 0.75rem;
+        border-left: 0;
+        border-top: 1px solid var(--border-color);
     }
 
     .saos-section-icons {
@@ -421,7 +580,7 @@
         padding: 1rem;
     }
 
-    .saos-dashboard-hero,
+    .saos-dashboard-page-header,
     .saos-table-toolbar,
     .saos-detail-header,
     .saos-table-filters {
@@ -433,6 +592,16 @@
     .saos-detail-section-grid,
     .saos-insight-grid,
     .saos-detail-lists {
+        grid-template-columns: 1fr;
+    }
+
+    .saos-insight-card,
+    .saos-insight-card--wide,
+    .saos-insight-card--third {
+        grid-column: auto;
+    }
+
+    .saos-influence-card ul {
         grid-template-columns: 1fr;
     }
 
