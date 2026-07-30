@@ -771,19 +771,21 @@ body.theme-green {
     }
     .cc-day-timeline {
         /*
-         * Columns live on .cc-day-timeline-plane:
-         * [ label rail | vertical rule | event track ]
-         * Event/hover abspos MUST use .cc-day-timeline-track as containing block
-         * (insets are track-relative only — never plane/label width).
+         * Hard ledger layout — grid columns on the timeline itself:
+         * [ label rail | 1px rule | event track ]
+         * Timeline is NOT a positioning context. Events/hover abspos ONLY inside
+         * .cc-day-timeline-canvas (child of track). Never plane-relative left.
          */
         --cc-day-timeline-label-col: 2.5rem;
         --cc-day-timeline-rule-col: 1px;
-        --cc-day-timeline-event-left: 0.25rem;
-        --cc-day-timeline-event-right: 0.7rem;
-        /* Outer shell only — Y math lives on .cc-day-timeline-plane */
-        position: relative;
-        display: flex;
-        flex-direction: column;
+        position: static;
+        display: grid;
+        grid-template-columns:
+            var(--cc-day-timeline-label-col, 2.5rem)
+            var(--cc-day-timeline-rule-col, 1px)
+            minmax(0, 1fr);
+        align-items: stretch;
+        column-gap: 0.3rem;
         flex: 1 1 0;
         min-height: 0;
         overflow: hidden; /* clip label overhang so parent doesn't micro-scroll */
@@ -792,27 +794,13 @@ body.theme-green {
         padding-block: 0.55rem;
         box-sizing: border-box;
     }
-    /* Shared Y plane: real columns so events never paint under labels.
-       Not a positioning context — abs events/hover anchor to the track only. */
+    /* Legacy wrapper (if any stale markup) — never a positioning context. */
     .cc-day-timeline-plane {
         position: static;
-        flex: 1 1 0;
-        min-height: 0;
-        display: grid;
-        grid-template-columns:
-            var(--cc-day-timeline-label-col, 2.5rem)
-            var(--cc-day-timeline-rule-col, 1px)
-            minmax(0, 1fr);
-        align-items: stretch;
-        column-gap: 0.3rem;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        box-sizing: border-box;
-        overflow: visible;
+        display: contents;
     }
     .cc-day-timeline-rail {
-        position: relative;
+        position: relative; /* hour-mark abspos only */
         grid-column: 1;
         width: 100%;
         min-width: 0;
@@ -866,14 +854,14 @@ body.theme-green {
         box-shadow: none !important;
     }
     .cc-day-timeline-track {
-        /* Sole containing block for event + hover abspos (keep above plane). */
+        /* Track column only — clips; canvas inside is the abspos containing block. */
         position: relative;
-        transform: translateZ(0);
         grid-column: 3;
         min-width: 0;
         width: 100%;
         align-self: stretch;
         overflow: hidden;
+        contain: layout paint;
         isolation: isolate;
         z-index: 1;
         margin: 0;
@@ -894,11 +882,23 @@ body.theme-green {
         );
         outline: none;
     }
-    /* Overlay only — out of flow. Same left/right insets + % tops as events. */
+    /* Sole abspos containing block for events + hover (inset to track edges). */
+    .cc-day-timeline-canvas {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
+        pointer-events: none;
+    }
+    /* Overlay only — out of flow. Track-relative insets (ledger-safe). */
     .cc-day-timeline-hover {
         position: absolute;
-        left: var(--cc-day-timeline-event-left, 0.25rem);
-        right: var(--cc-day-timeline-event-right, 0.7rem);
+        left: 0.25rem;
+        right: 0.7rem;
+        width: auto;
         top: 0;
         height: 0;
         margin: 0;
@@ -928,8 +928,9 @@ body.theme-green {
     }
     .cc-day-timeline-event {
         position: absolute;
-        left: var(--cc-day-timeline-event-left, 0.25rem);
-        right: var(--cc-day-timeline-event-right, 0.7rem);
+        left: 0.25rem;
+        right: 0.7rem;
+        width: auto;
         z-index: 3;
         overflow: hidden;
         border-radius: 0.25rem;

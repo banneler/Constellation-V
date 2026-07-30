@@ -3033,11 +3033,11 @@ body.theme-green {
   .cc-day-timeline {
     --cc-day-timeline-label-col: 2.5rem;
     --cc-day-timeline-rule-col: 1px;
-    --cc-day-timeline-event-left: 0.25rem;
-    --cc-day-timeline-event-right: 0.7rem;
-    position: relative;
-    display: flex;
-    flex-direction: column;
+    position: static;
+    display: grid;
+    grid-template-columns: var(--cc-day-timeline-label-col, 2.5rem) var(--cc-day-timeline-rule-col, 1px) minmax(0, 1fr);
+    align-items: stretch;
+    column-gap: 0.3rem;
     flex: 1 1 0;
     min-height: 0;
     overflow: hidden;
@@ -3047,17 +3047,7 @@ body.theme-green {
   }
   .cc-day-timeline-plane {
     position: static;
-    flex: 1 1 0;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: var(--cc-day-timeline-label-col, 2.5rem) var(--cc-day-timeline-rule-col, 1px) minmax(0, 1fr);
-    align-items: stretch;
-    column-gap: 0.3rem;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    box-sizing: border-box;
-    overflow: visible;
+    display: contents;
   }
   .cc-day-timeline-rail {
     position: relative;
@@ -3122,12 +3112,12 @@ body.theme-green {
   }
   .cc-day-timeline-track {
     position: relative;
-    transform: translateZ(0);
     grid-column: 3;
     min-width: 0;
     width: 100%;
     align-self: stretch;
     overflow: hidden;
+    contain: layout paint;
     isolation: isolate;
     z-index: 1;
     margin: 0;
@@ -3147,10 +3137,21 @@ body.theme-green {
     }
     outline: none;
   }
+  .cc-day-timeline-canvas {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-sizing: border-box;
+    pointer-events: none;
+  }
   .cc-day-timeline-hover {
     position: absolute;
-    left: var(--cc-day-timeline-event-left, 0.25rem);
-    right: var(--cc-day-timeline-event-right, 0.7rem);
+    left: 0.25rem;
+    right: 0.7rem;
+    width: auto;
     top: 0;
     height: 0;
     margin: 0;
@@ -3193,8 +3194,9 @@ body.theme-green {
   }
   .cc-day-timeline-event {
     position: absolute;
-    left: var(--cc-day-timeline-event-left, 0.25rem);
-    right: var(--cc-day-timeline-event-right, 0.7rem);
+    left: 0.25rem;
+    right: 0.7rem;
+    width: auto;
     z-index: 3;
     overflow: hidden;
     border-radius: 0.25rem;

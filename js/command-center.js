@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const logoutBtn = document.getElementById("logout-btn");
     const sequenceStepsList = document.getElementById("sequence-steps-list");
     const recentActivitiesList = document.getElementById("recent-activities-list");
+    const ccCalendarCard = document.getElementById("cc-calendar-card");
     const ccCalendarList = document.getElementById("cc-calendar-list");
     const ccCalendarActions = document.getElementById("cc-calendar-actions");
     const ccCalendarAddBtn = document.getElementById("cc-calendar-add-btn");
@@ -255,6 +256,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 section.appendChild(renderCalendarEventItem(ev, { timeOnly: true }));
             }
             container.appendChild(section);
+        }
+    }
+
+    function setCalendarCardVisible(visible) {
+        if (!ccCalendarCard) return;
+        ccCalendarCard.classList.toggle("hidden", !visible);
+        if (!visible) {
+            setCalendarActionsVisible(false);
+            closeMonthCalendarModal();
         }
     }
 
@@ -818,9 +828,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (overflowAfter) classes.push("is-overflow-end");
                 const whenLabel = formatCalendarEventTime(ev);
                 const color = normalizeEventColor(ev?.color);
-                // Abspos inside .cc-day-timeline-track only (left/right are track insets).
+                // Only top/height inline — left/right come from CSS on the track canvas.
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
+                    <div class="${classes.join(" ")}" style="top:${topPct}%;height:${heightPct}%;${
                     color ? ` --cc-event-color: ${color};` : ""
                 }" title="${escapeHtml(ev.title || "(No title)")}">
                         <div class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
@@ -865,16 +875,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                </div>`
             : "";
 
-        // Plane: [labels | vertical rule | event track] — shared unpadded height for % tops.
-        // Events + hover are children of track only (track is the abspos containing block).
+        // Grid on timeline: [labels | rule | track]. Events/hover live only in track canvas
+        // (track-relative abspos — never plane/label-width left offsets).
         ccMonthDayList.innerHTML = `
             ${allDayHtml}
             <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
-                <div class="cc-day-timeline-plane">
-                    <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
-                    <div class="cc-day-timeline-rule" aria-hidden="true"></div>
-                    <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
-                        <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:0;height:0;margin:0;opacity:0;pointer-events:none;z-index:2"></div>
+                <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
+                <div class="cc-day-timeline-rule" aria-hidden="true"></div>
+                <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
+                    <div class="cc-day-timeline-canvas">
+                        <div class="cc-day-timeline-hover" aria-hidden="true"></div>
                         ${eventBlocks || ""}
                         ${
                             !timedEvents.length
@@ -1050,14 +1060,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         const getDayTimelineEls = () => {
             const timeline = ccMonthDayList?.querySelector?.(".cc-day-timeline");
-            const plane = timeline?.querySelector?.(".cc-day-timeline-plane") || null;
             const track = timeline?.querySelector?.(".cc-day-timeline-track") || null;
-            return { timeline, plane, track };
+            return { timeline, track };
         };
-        const pointerInTimeline = (plane, track, clientX, clientY) => {
-            // Hit the plane (labels + track) so moving over the scale still updates hover.
-            // Prefer plane over outer timeline so padding-block is outside the hit Y range.
-            const hitEl = plane || track;
+        const pointerInTimeline = (timeline, track, clientX, clientY) => {
+            // Hit the grid (labels + track) so moving over the scale still updates hover.
+            const hitEl = timeline || track;
             if (!hitEl) return false;
             const rect = hitEl.getBoundingClientRect();
             return (
@@ -1068,9 +1076,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             );
         };
         const handleTimelineAddClick = (e) => {
-            const { plane, track } = getDayTimelineEls();
+            const { timeline, track } = getDayTimelineEls();
             if (!track) return;
-            if (!pointerInTimeline(plane, track, e.clientX, e.clientY)) return;
+            if (!pointerInTimeline(timeline, track, e.clientX, e.clientY)) return;
             const rect = track.getBoundingClientRect();
             if (!rect.height) {
                 openAddEventForSelectedDay();
@@ -1083,40 +1091,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!hoverEl) return;
             const rect = track.getBoundingClientRect();
             if (!rect.height) return;
-            // Track-relative abspos (same containing block + % math as events).
-            hoverEl.style.position = "absolute";
-            hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.25rem)";
-            hoverEl.style.right = "var(--cc-day-timeline-event-right, 0.7rem)";
-            hoverEl.style.margin = "0";
-            hoverEl.style.padding = "0";
-            hoverEl.style.border = "0";
-            hoverEl.style.boxSizing = "border-box";
-            hoverEl.style.pointerEvents = "none";
-            hoverEl.style.zIndex = "2";
+            // Only top/height — left/right are CSS track-canvas insets (ledger-safe).
             const hourStart = hourStartFromTrackClientY(track, clientY);
             hoverEl.style.top = `${timelineOffsetRatio(hourStart) * 100}%`;
             hoverEl.style.height = `${(TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * 100}%`;
-            // Inline opacity so the band is visible even if layered CSS lags.
-            hoverEl.style.opacity = "1";
             hoverEl.classList.add("is-active");
         };
         const clearTimelineHoverBlock = (root = ccMonthDayList) => {
             root?.querySelectorAll?.(".cc-day-timeline-hover").forEach((el) => {
                 el.classList.remove("is-active");
-                el.style.opacity = "0";
                 el.style.height = "0%";
                 el.style.top = "0%";
             });
         };
         ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
-        // Bounds-based hit test on the plane (rail is pointer-events: none).
+        // Bounds-based hit test on the timeline grid (rail is pointer-events: none).
         ccMonthDayList?.addEventListener("pointermove", (e) => {
-            const { plane, track } = getDayTimelineEls();
+            const { timeline, track } = getDayTimelineEls();
             if (!track) {
                 clearTimelineHoverBlock();
                 return;
             }
-            if (!pointerInTimeline(plane, track, e.clientX, e.clientY)) {
+            if (!pointerInTimeline(timeline, track, e.clientX, e.clientY)) {
                 clearTimelineHoverBlock();
                 return;
             }
@@ -1141,20 +1137,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function loadCalendarPanel() {
-        if (!ccCalendarList) return;
-        ccCalendarList.innerHTML =
-            '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Loading calendar...</p>';
+        if (!ccCalendarCard && !ccCalendarList) return;
         setCalendarActionsVisible(false);
 
         try {
             const integrationState = await getIntegrationState(supabase);
             calendarIntegrationState = integrationState;
+
+            // Org integrations OFF → hide whole Upcoming Calendar (pre-calendar layout).
             if (!integrationState.orgEnabled) {
-                ccCalendarList.innerHTML =
-                    '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Calendar preview is available when your organization enables email &amp; calendar integrations.</p>';
+                setCalendarCardVisible(false);
+                if (ccCalendarList) ccCalendarList.innerHTML = "";
                 return;
             }
 
+            setCalendarCardVisible(true);
+            if (!ccCalendarList) return;
+
+            ccCalendarList.innerHTML =
+                '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Loading calendar...</p>';
             setCalendarActionsVisible(true);
 
             if (!integrationState.connected) {
@@ -1180,8 +1181,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderGroupedCalendarList(ccCalendarList, events);
         } catch (error) {
             console.warn("[command-center] calendar panel:", error);
-            ccCalendarList.innerHTML =
-                '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Couldn\'t load calendar events right now.</p>';
+            // Only surface the card on error when org integrations are known-on.
+            if (calendarIntegrationState?.orgEnabled) {
+                setCalendarCardVisible(true);
+                if (ccCalendarList) {
+                    ccCalendarList.innerHTML =
+                        '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Couldn\'t load calendar events right now.</p>';
+                }
+            } else {
+                setCalendarCardVisible(false);
+            }
             if (typeof showToast === "function") {
                 showToast(error?.message || "Couldn't load calendar events.", "warning");
             }
