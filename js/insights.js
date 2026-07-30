@@ -136,6 +136,51 @@ function inDateRange(value, startDate, endDate) {
     return itemDate >= startDate && itemDate <= endDate;
 }
 
+function sameAccountId(a, b) {
+    if (a == null || b == null) return false;
+    return Number(a) === Number(b) || String(a) === String(b);
+}
+
+function activityConvertsAlert(alert, outreachActivities) {
+    const alertTime = alert?.created_at ? new Date(alert.created_at).getTime() : NaN;
+    if (!Number.isFinite(alertTime)) return false;
+    return (outreachActivities || []).some((activity) => {
+        if (!sameAccountId(activity.account_id, alert.account_id) || !activity.date) return false;
+        return new Date(activity.date).getTime() >= alertTime;
+    });
+}
+
+/**
+ * Cognito Insights relevance (aligned with Cognito page semantics):
+ * - Alerts created in the selected period (any status, including Dismissed)
+ * - Still-open / undismissed alerts (status === 'New'), even if created earlier
+ * - Older Actioned alerts that have matching outreach activity in this period
+ *
+ * "Dismissed" is a status string on cognito_alerts (no dismissed_at column).
+ * Cognito dashboard shows all status === 'New' with no date filter; Insights
+ * previously only counted created_at-in-range, so open backlog and same-day
+ * follow-through on older triggers looked like Triggers=0.
+ */
+function isCognitoAlertRelevant(alert, startDate, endDate, outreachActivities) {
+    if (!alert) return false;
+    if (!isUserIncluded(alert.user_id) || !userMatchesFilter(alert.user_id)) return false;
+
+    const status = alert.status || 'New';
+    if (inDateRange(alert.created_at, startDate, endDate)) return true;
+    if (status === 'New') return true;
+    if (status === 'Dismissed') return false;
+
+    // Actioned (or other non-New) outside the creation window: include when
+    // there is period outreach on the same account after the trigger.
+    const alertTime = alert.created_at ? new Date(alert.created_at).getTime() : NaN;
+    if (!Number.isFinite(alertTime)) return false;
+    return (outreachActivities || []).some((activity) => {
+        if (!sameAccountId(activity.account_id, alert.account_id) || !activity.date) return false;
+        if (!inDateRange(activity.date, startDate, endDate)) return false;
+        return new Date(activity.date).getTime() >= alertTime;
+    });
+}
+
 function filterByUserAndDate(rows, dateField) {
     const { startDate, endDate } = getDateRange(state.filters.dateRange);
     return (rows || []).filter((item) => {
@@ -265,12 +310,11 @@ function computeSnapshot() {
         .sort((a, b) => b.members - a.members)
         .slice(0, 12);
 
-    const alerts = (state.data.cognito_alerts || []).filter((alert) => {
-        if (!isUserIncluded(alert.user_id) || !userMatchesFilter(alert.user_id)) return false;
-        return inDateRange(alert.created_at, startDate, endDate);
-    });
     const outreachActivities = (state.data.activities || []).filter(
         (a) => isUserIncluded(a.user_id) && userMatchesFilter(a.user_id)
+    );
+    const alerts = (state.data.cognito_alerts || []).filter((alert) =>
+        isCognitoAlertRelevant(alert, startDate, endDate, outreachActivities)
     );
     let cognitoConverted = 0;
     const cognitoByStatus = new Map();
@@ -279,12 +323,7 @@ function computeSnapshot() {
         if (!cognitoByStatus.has(status)) cognitoByStatus.set(status, { status, triggers: 0, converted: 0 });
         const bucket = cognitoByStatus.get(status);
         bucket.triggers += 1;
-        const alertTime = new Date(alert.created_at).getTime();
-        const matched = outreachActivities.some((activity) => {
-            if (activity.account_id !== alert.account_id || !activity.date) return false;
-            return new Date(activity.date).getTime() >= alertTime;
-        });
-        if (matched) {
+        if (activityConvertsAlert(alert, outreachActivities)) {
             bucket.converted += 1;
             cognitoConverted += 1;
         }
@@ -350,20 +389,10 @@ function computeSnapshot() {
             const repSeqActive = seqActive.filter((r) => r.user_id === uid);
             const repSeqOverdue = seqOverdue.filter((r) => r.user_id === uid);
             const repAlerts = alerts.filter((a) => a.user_id === uid);
+            const repOutreach = outreachActivities.filter((a) => a.user_id === uid);
             let repConverted = 0;
             repAlerts.forEach((alert) => {
-                const alertTime = new Date(alert.created_at).getTime();
-                if (
-                    outreachActivities.some(
-                        (activity) =>
-                            activity.user_id === uid &&
-                            activity.account_id === alert.account_id &&
-                            activity.date &&
-                            new Date(activity.date).getTime() >= alertTime
-                    )
-                ) {
-                    repConverted += 1;
-                }
+                if (activityConvertsAlert(alert, repOutreach)) repConverted += 1;
             });
             const staleAccounts = penetration.filter((p) => p.ownerId === uid).length;
             const coachingPrompts = [];
@@ -532,15 +561,20 @@ async function loadInsightsData() {
         ];
 
         const results = await Promise.all(fetches.map(([, query]) => query));
+        const failedKeys = [];
         results.forEach((result, index) => {
             const key = fetches[index][0];
             if (result.error) {
                 console.error(`[insights] failed to load ${key}:`, result.error);
                 state.data[key] = [];
+                failedKeys.push(key);
             } else {
                 state.data[key] = result.data || [];
             }
         });
+        if (failedKeys.includes('cognito_alerts')) {
+            showToast('Unable to load Cognito alerts for Insights — Triggers may show as zero.', 'error');
+        }
 
         populateFilters();
         renderAll();
@@ -846,7 +880,7 @@ function renderCognitoOutreach(snapshot) {
     const tbody = document.querySelector('#insights-cognito-table tbody');
     if (!tbody) return;
     if (!cognito.table.length) {
-        tbody.innerHTML = emptyRow(3, 'No Cognito triggers in this period.');
+        tbody.innerHTML = emptyRow(3, 'No open Cognito triggers or triggers created in this period.');
         return;
     }
     tbody.innerHTML = cognito.table
