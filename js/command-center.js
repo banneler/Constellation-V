@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, sendEmail } from './integrations.js';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail } from './integrations.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -62,6 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const ccMonthGrid = document.getElementById("cc-month-grid");
     const ccMonthDayHeading = document.getElementById("cc-month-day-heading");
     const ccMonthDayList = document.getElementById("cc-month-day-list");
+    const ccMonthDayAddBtn = document.getElementById("cc-month-day-add-btn");
     const ccMonthPrevBtn = document.getElementById("cc-month-prev-btn");
     const ccMonthNextBtn = document.getElementById("cc-month-next-btn");
     const ccMonthCloseBtn = document.getElementById("cc-month-calendar-close");
@@ -93,6 +94,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     let monthViewEvents = [];
     let monthSelectedDayKey = null;
     let monthEventsLoading = false;
+    let cachedNylasCalendars = null;
+    let cachedNylasCalendarsAt = 0;
+
+    /** Day-panel timeline window (local minutes from midnight). */
+    const TIMELINE_START_MIN = 7 * 60; // 7:00 AM
+    const TIMELINE_END_MIN = 18 * 60; // 6:00 PM
+    const TIMELINE_SPAN_MIN = TIMELINE_END_MIN - TIMELINE_START_MIN;
 
     function eventLocalDate(ev) {
         if (ev?.startTime == null) return null;
@@ -228,11 +236,144 @@ document.addEventListener("DOMContentLoaded", async () => {
         return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
     }
 
+    function minutesToTimeInputValue(totalMinutes) {
+        const clamped = Math.max(0, Math.min(24 * 60 - 1, Math.round(totalMinutes)));
+        return `${pad2(Math.floor(clamped / 60))}:${pad2(clamped % 60)}`;
+    }
+
+    function timeInputValueToMinutes(timeStr) {
+        if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) return null;
+        const [h, m] = timeStr.split(":").map(Number);
+        if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+        return h * 60 + m;
+    }
+
+    function formatHourLabel(hour24) {
+        const h = ((hour24 % 24) + 24) % 24;
+        if (h === 0) return "12 AM";
+        if (h === 12) return "12 PM";
+        if (h < 12) return `${h} AM`;
+        return `${h - 12} PM`;
+    }
+
+    function formatMinutesLabel(totalMinutes) {
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        const base = formatHourLabel(h);
+        if (m === 0) return base;
+        const ampm = base.slice(-2);
+        const hourPart = base.slice(0, -3);
+        return `${hourPart}:${pad2(m)} ${ampm}`;
+    }
+
     function localDateTimeToUnixSeconds(dateStr, timeStr) {
         if (!dateStr || !timeStr) return null;
         const d = new Date(`${dateStr}T${timeStr}:00`);
         if (Number.isNaN(d.getTime())) return null;
         return Math.floor(d.getTime() / 1000);
+    }
+
+    async function ensureNylasCalendars({ force = false } = {}) {
+        const CACHE_MS = 60_000;
+        if (!force && cachedNylasCalendars && Date.now() - cachedNylasCalendarsAt < CACHE_MS) {
+            return cachedNylasCalendars;
+        }
+        try {
+            const data = await listCalendars(supabase, { limit: 50 });
+            cachedNylasCalendars = Array.isArray(data?.calendars) ? data.calendars : [];
+            cachedNylasCalendarsAt = Date.now();
+            return cachedNylasCalendars;
+        } catch (error) {
+            console.warn("[command-center] list calendars:", error);
+            if (cachedNylasCalendars) return cachedNylasCalendars;
+            return [];
+        }
+    }
+
+    function writableCalendars(calendars) {
+        const list = Array.isArray(calendars) ? calendars : [];
+        const writable = list.filter((c) => c?.id && !c.readOnly);
+        return writable.length ? writable : list.filter((c) => c?.id);
+    }
+
+    function defaultCalendarId(calendars) {
+        const list = writableCalendars(calendars);
+        return list.find((c) => c.isPrimary)?.id || list[0]?.id || "primary";
+    }
+
+    function calendarOptionsHtml(calendars, selectedId) {
+        const list = writableCalendars(calendars);
+        if (!list.length) {
+            return `<option value="primary">Primary calendar</option>`;
+        }
+        return list
+            .map((c) => {
+                const sel = c.id === selectedId ? " selected" : "";
+                return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(c.name)}</option>`;
+            })
+            .join("");
+    }
+
+    /** Busy intervals in local minutes-from-midnight for a day key (timed events only). */
+    function busyIntervalsForDay(dayKey, events) {
+        const intervals = [];
+        for (const ev of events || []) {
+            if (ev?.allDay || ev?.startTime == null) continue;
+            const start = new Date(Number(ev.startTime) * 1000);
+            if (Number.isNaN(start.getTime()) || dayKeyFromDate(start) !== dayKey) continue;
+            const endSec = ev.endTime != null ? Number(ev.endTime) : Number(ev.startTime) + 3600;
+            const end = new Date(endSec * 1000);
+            let startMin = start.getHours() * 60 + start.getMinutes();
+            let endMin = Number.isNaN(end.getTime())
+                ? startMin + 60
+                : dayKeyFromDate(end) !== dayKey
+                  ? TIMELINE_END_MIN
+                  : end.getHours() * 60 + end.getMinutes();
+            if (endMin <= startMin) endMin = startMin + 15;
+            startMin = Math.max(TIMELINE_START_MIN, startMin);
+            endMin = Math.min(TIMELINE_END_MIN, endMin);
+            if (endMin > startMin) intervals.push({ start: startMin, end: endMin });
+        }
+        intervals.sort((a, b) => a.start - b.start);
+        const merged = [];
+        for (const iv of intervals) {
+            const last = merged[merged.length - 1];
+            if (!last || iv.start > last.end) merged.push({ ...iv });
+            else last.end = Math.max(last.end, iv.end);
+        }
+        return merged;
+    }
+
+    /**
+     * Suggest free slots within 7am–6pm that fit `durationMinutes` without overlapping busy times.
+     * @returns {{ startMin: number, endMin: number, label: string }[]}
+     */
+    function suggestAvailableSlots(dayKey, durationMinutes, events, { step = 30, max = 6 } = {}) {
+        const duration = Math.max(15, Math.round(Number(durationMinutes) || 60));
+        if (duration > TIMELINE_SPAN_MIN) return [];
+        const busy = busyIntervalsForDay(dayKey, events);
+        const free = [];
+        let cursor = TIMELINE_START_MIN;
+        for (const iv of busy) {
+            if (iv.start > cursor) free.push({ start: cursor, end: iv.start });
+            cursor = Math.max(cursor, iv.end);
+        }
+        if (cursor < TIMELINE_END_MIN) free.push({ start: cursor, end: TIMELINE_END_MIN });
+
+        const suggestions = [];
+        for (const gap of free) {
+            let t = gap.start;
+            if (t % step !== 0) t += step - (t % step);
+            for (; t + duration <= gap.end; t += step) {
+                suggestions.push({
+                    startMin: t,
+                    endMin: t + duration,
+                    label: `${formatMinutesLabel(t)} – ${formatMinutesLabel(t + duration)}`,
+                });
+                if (suggestions.length >= max) return suggestions;
+            }
+        }
+        return suggestions;
     }
 
     function monthRangeUnix(year, monthIndex) {
@@ -258,7 +399,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
     }
 
-    function openAddCalendarEventForm() {
+    /**
+     * @param {{ date?: string, start?: string, end?: string, calendarId?: string }} [prefill]
+     *   date = YYYY-MM-DD; start/end = HH:MM local
+     */
+    async function openAddCalendarEventForm(prefill = {}) {
         if (!calendarIntegrationState?.orgEnabled) return;
         if (!calendarIntegrationState?.connected) {
             promptCalendarConnect();
@@ -270,21 +415,48 @@ document.addEventListener("DOMContentLoaded", async () => {
         startDefault.setHours(startDefault.getHours() + 1);
         const endDefault = new Date(startDefault.getTime() + 60 * 60 * 1000);
 
+        let dateValue = prefill.date || toLocalDateInputValue(startDefault);
+        let startValue = prefill.start || toLocalTimeInputValue(startDefault);
+        let endValue = prefill.end || toLocalTimeInputValue(endDefault);
+        if (prefill.start && !prefill.end) {
+            const startMin = timeInputValueToMinutes(prefill.start) ?? 9 * 60;
+            endValue = minutesToTimeInputValue(startMin + 60);
+        }
+
+        const calendars = await ensureNylasCalendars();
+        const selectedCalId = prefill.calendarId || defaultCalendarId(calendars);
+        const selectedCal = writableCalendars(calendars).find((c) => c.id === selectedCalId);
+        const swatchColor = normalizeEventColor(selectedCal?.color);
+        const swatchStyle = swatchColor
+            ? ` style="background-color: ${swatchColor}"`
+            : ` style="background-color: var(--primary-blue)"`;
+
         const bodyHtml = `
             <form id="cc-add-event-form" class="modal-form">
                 <label for="cc-event-title">Title</label>
                 <input type="text" id="cc-event-title" name="title" required placeholder="Event title" autocomplete="off">
+                <label for="cc-event-calendar">Calendar</label>
+                <div class="cc-event-calendar-row">
+                    <span class="cc-event-calendar-swatch" id="cc-event-calendar-swatch"${swatchStyle} aria-hidden="true"></span>
+                    <select id="cc-event-calendar" name="calendarId" required>
+                        ${calendarOptionsHtml(calendars, selectedCalId)}
+                    </select>
+                </div>
                 <label for="cc-event-date">Date</label>
-                <input type="date" id="cc-event-date" name="date" required value="${toLocalDateInputValue(startDefault)}">
+                <input type="date" id="cc-event-date" name="date" required value="${escapeHtml(dateValue)}">
                 <div class="modal-form-row">
                     <div>
                         <label for="cc-event-start">Start</label>
-                        <input type="time" id="cc-event-start" name="start" required value="${toLocalTimeInputValue(startDefault)}">
+                        <input type="time" id="cc-event-start" name="start" required value="${escapeHtml(startValue)}">
                     </div>
                     <div>
                         <label for="cc-event-end">End</label>
-                        <input type="time" id="cc-event-end" name="end" required value="${toLocalTimeInputValue(endDefault)}">
+                        <input type="time" id="cc-event-end" name="end" required value="${escapeHtml(endValue)}">
                     </div>
+                </div>
+                <div class="cc-event-suggestions" id="cc-event-suggestions">
+                    <div class="cc-event-suggestions-label">Available times</div>
+                    <div class="cc-event-suggestions-list" id="cc-event-suggestions-list"></div>
                 </div>
                 <label for="cc-event-desc">Description <span class="text-[var(--text-muted)] font-normal">(optional)</span></label>
                 <textarea id="cc-event-desc" name="description" rows="3" placeholder="Notes for the invite"></textarea>
@@ -300,6 +472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const startEl = document.getElementById("cc-event-start");
                 const endEl = document.getElementById("cc-event-end");
                 const descEl = document.getElementById("cc-event-desc");
+                const calEl = document.getElementById("cc-event-calendar");
                 const title = (titleEl?.value || "").trim();
                 if (!title) {
                     showToast("Enter an event title.", "warning");
@@ -315,6 +488,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (endTime <= startTime) {
                     endTime = startTime + 3600;
                 }
+                const calendarId = (calEl?.value || "").trim() || "primary";
                 try {
                     const result = await createCalendarEvent(
                         supabase,
@@ -323,6 +497,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             description: (descEl?.value || "").trim() || undefined,
                             startTime,
                             endTime,
+                            calendarId,
                         },
                         { onNotice: (msg, type) => showToast(msg, type) }
                     );
@@ -341,7 +516,111 @@ document.addEventListener("DOMContentLoaded", async () => {
             `<button id="modal-confirm-btn" class="btn-primary">Create</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
         );
 
-        queueMicrotask(() => document.getElementById("cc-event-title")?.focus());
+        queueMicrotask(() => {
+            document.getElementById("cc-event-title")?.focus();
+            wireAddEventFormExtras(calendars);
+        });
+    }
+
+    async function fetchEventsForDayKey(dayKey) {
+        if (!dayKey) return [];
+        const [y, mo] = dayKey.split("-").map(Number);
+        if (
+            monthViewYear === y &&
+            monthViewMonth === mo - 1 &&
+            Array.isArray(monthViewEvents)
+        ) {
+            return eventsForDayKey(dayKey);
+        }
+        try {
+            const [, , dd] = dayKey.split("-").map(Number);
+            const start = new Date(y, mo - 1, dd, 0, 0, 0, 0);
+            const end = new Date(y, mo - 1, dd, 23, 59, 59, 999);
+            const data = await listCalendarEvents(supabase, {
+                start: Math.floor(start.getTime() / 1000),
+                end: Math.floor(end.getTime() / 1000),
+                limit: 50,
+            });
+            return Array.isArray(data?.events) ? data.events : [];
+        } catch (error) {
+            console.warn("[command-center] day availability:", error);
+            return eventsForDayKey(dayKey);
+        }
+    }
+
+    function wireAddEventFormExtras(calendars) {
+        const dateEl = document.getElementById("cc-event-date");
+        const startEl = document.getElementById("cc-event-start");
+        const endEl = document.getElementById("cc-event-end");
+        const calEl = document.getElementById("cc-event-calendar");
+        const swatchEl = document.getElementById("cc-event-calendar-swatch");
+        const listEl = document.getElementById("cc-event-suggestions-list");
+        if (!dateEl || !startEl || !endEl || !listEl) return;
+
+        let suggestionEvents = [];
+        let loadToken = 0;
+
+        const syncSwatch = () => {
+            if (!swatchEl || !calEl) return;
+            const cal = writableCalendars(calendars).find((c) => c.id === calEl.value);
+            const color = normalizeEventColor(cal?.color);
+            swatchEl.style.backgroundColor = color || "var(--primary-blue)";
+        };
+
+        const renderSuggestions = () => {
+            const dayKey = dateEl.value;
+            const startMin = timeInputValueToMinutes(startEl.value);
+            const endMin = timeInputValueToMinutes(endEl.value);
+            let duration = 60;
+            if (startMin != null && endMin != null && endMin > startMin) {
+                duration = endMin - startMin;
+            }
+            const slots = dayKey
+                ? suggestAvailableSlots(dayKey, duration, suggestionEvents)
+                : [];
+            if (!slots.length) {
+                listEl.innerHTML =
+                    '<p class="cc-event-suggestions-empty">No open slots in 7 AM–6 PM for this duration.</p>';
+                return;
+            }
+            listEl.innerHTML = slots
+                .map(
+                    (s) =>
+                        `<button type="button" class="cc-event-suggestion-btn" data-start-min="${s.startMin}" data-end-min="${s.endMin}">${escapeHtml(s.label)}</button>`
+                )
+                .join("");
+        };
+
+        const refreshBusyAndSuggestions = async () => {
+            const token = ++loadToken;
+            const dayKey = dateEl.value;
+            listEl.innerHTML =
+                '<p class="cc-event-suggestions-empty">Checking availability…</p>';
+            const events = await fetchEventsForDayKey(dayKey);
+            if (token !== loadToken) return;
+            suggestionEvents = events;
+            renderSuggestions();
+        };
+
+        calEl?.addEventListener("change", syncSwatch);
+        dateEl.addEventListener("change", () => {
+            refreshBusyAndSuggestions();
+        });
+        startEl.addEventListener("change", renderSuggestions);
+        endEl.addEventListener("change", renderSuggestions);
+        listEl.addEventListener("click", (e) => {
+            const btn = e.target.closest(".cc-event-suggestion-btn");
+            if (!btn) return;
+            const sMin = Number(btn.dataset.startMin);
+            const eMin = Number(btn.dataset.endMin);
+            if (!Number.isFinite(sMin) || !Number.isFinite(eMin)) return;
+            startEl.value = minutesToTimeInputValue(sMin);
+            endEl.value = minutesToTimeInputValue(eMin);
+            renderSuggestions();
+        });
+
+        syncSwatch();
+        refreshBusyAndSuggestions();
     }
 
     function renderMonthWeekdayRow() {
@@ -359,11 +638,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    function setMonthDayAddVisible(visible) {
+        if (!ccMonthDayAddBtn) return;
+        ccMonthDayAddBtn.classList.toggle("hidden", !visible);
+    }
+
+    function openAddEventForSelectedDay(startMinPrefill = null) {
+        if (!monthSelectedDayKey) {
+            openAddCalendarEventForm();
+            return;
+        }
+        const prefill = { date: monthSelectedDayKey };
+        if (startMinPrefill != null && Number.isFinite(startMinPrefill)) {
+            const snapped = Math.round(startMinPrefill / 15) * 15;
+            const clamped = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN - 15, snapped));
+            prefill.start = minutesToTimeInputValue(clamped);
+            prefill.end = minutesToTimeInputValue(Math.min(TIMELINE_END_MIN, clamped + 60));
+        }
+        openAddCalendarEventForm(prefill);
+    }
+
     function renderMonthDayPanel(dayKey) {
         if (!ccMonthDayHeading || !ccMonthDayList) return;
         if (!dayKey) {
             ccMonthDayHeading.textContent = "Select a day";
             ccMonthDayList.innerHTML = '<p class="cc-month-day-empty">Click a day to see events.</p>';
+            setMonthDayAddVisible(false);
             return;
         }
         const [y, m, d] = dayKey.split("-").map(Number);
@@ -373,27 +673,124 @@ document.addEventListener("DOMContentLoaded", async () => {
             month: "long",
             day: "numeric",
         });
+        setMonthDayAddVisible(Boolean(calendarIntegrationState?.connected));
+
         const dayEvents = eventsForDayKey(dayKey);
-        if (!dayEvents.length) {
-            ccMonthDayList.innerHTML = '<p class="cc-month-day-empty">No events this day.</p>';
-            return;
+        const allDayEvents = dayEvents.filter((ev) => ev.allDay);
+        const timedEvents = dayEvents.filter((ev) => !ev.allDay);
+
+        const hourMarks = [];
+        for (let h = 7; h <= 18; h++) {
+            const topPct = ((h * 60 - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
+            hourMarks.push(
+                `<div class="cc-day-timeline-hour" style="top: ${topPct}%">
+                    <span class="cc-day-timeline-hour-label">${formatHourLabel(h)}</span>
+                </div>`
+            );
         }
-        ccMonthDayList.innerHTML = dayEvents
+        const halfMarks = [];
+        for (let h = 7; h < 18; h++) {
+            const halfPct = ((h * 60 + 30 - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
+            halfMarks.push(
+                `<div class="cc-day-timeline-half" style="top: ${halfPct}%" aria-hidden="true"></div>`
+            );
+        }
+
+        const eventBlocks = timedEvents
             .map((ev) => {
+                if (ev.startTime == null) return "";
+                const start = new Date(Number(ev.startTime) * 1000);
+                const endSec = ev.endTime != null ? Number(ev.endTime) : Number(ev.startTime) + 3600;
+                const end = new Date(endSec * 1000);
+                let startMin = start.getHours() * 60 + start.getMinutes();
+                let endMin = Number.isNaN(end.getTime())
+                    ? startMin + 60
+                    : dayKeyFromDate(end) !== dayKey
+                      ? TIMELINE_END_MIN
+                      : end.getHours() * 60 + end.getMinutes();
+                if (endMin <= startMin) endMin = startMin + 15;
+
+                const overflowBefore = startMin < TIMELINE_START_MIN;
+                const overflowAfter = endMin > TIMELINE_END_MIN;
+                const clampedStart = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN, startMin));
+                const clampedEnd = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN, endMin));
+                if (clampedEnd <= TIMELINE_START_MIN || clampedStart >= TIMELINE_END_MIN) {
+                    // Entirely outside visible window — show as overflow chip in all-day strip via separate list
+                    return "";
+                }
+                const topPct = ((clampedStart - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
+                const heightPct = Math.max(
+                    2.2,
+                    ((clampedEnd - clampedStart) / TIMELINE_SPAN_MIN) * 100
+                );
                 const desc = (ev.description || "").trim();
                 const showDesc = desc && desc.length > 2 && desc !== ev.title;
+                const classes = ["cc-day-timeline-event"];
+                if (overflowBefore) classes.push("is-overflow-start");
+                if (overflowAfter) classes.push("is-overflow-end");
+                const whenLabel = formatCalendarEventTime(ev);
                 return `
-                    <div class="cc-month-day-item"${eventColorStyleAttr(ev)}>
-                        <span class="cc-event-bullet" aria-hidden="true"></span>
-                        <div class="cc-month-day-item-main">
-                            <div class="cc-month-day-item-when">${escapeHtml(formatCalendarEventTime(ev))}</div>
-                            <div class="cc-month-day-item-title">${escapeHtml(ev.title || "(No title)")}</div>
-                            ${showDesc ? `<div class="cc-month-day-item-desc">${escapeHtml(desc)}</div>` : ""}
-                        </div>
+                    <div class="${classes.join(" ")}" style="top: ${topPct}%; height: ${heightPct}%;${
+                    normalizeEventColor(ev?.color)
+                        ? ` --cc-event-color: ${normalizeEventColor(ev.color)};`
+                        : ""
+                }" title="${escapeHtml(ev.title || "(No title)")}">
+                        <div class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
+                    overflowBefore || overflowAfter ? " · outside 7–6" : ""
+                }</div>
+                        <div class="cc-day-timeline-event-title">${escapeHtml(ev.title || "(No title)")}</div>
+                        ${showDesc ? `<div class="cc-day-timeline-event-desc">${escapeHtml(desc)}</div>` : ""}
                     </div>
                 `;
             })
+            .filter(Boolean)
             .join("");
+
+        const outsideTimed = timedEvents.filter((ev) => {
+            if (ev.startTime == null) return false;
+            const start = new Date(Number(ev.startTime) * 1000);
+            const endSec = ev.endTime != null ? Number(ev.endTime) : Number(ev.startTime) + 3600;
+            const end = new Date(endSec * 1000);
+            const startMin = start.getHours() * 60 + start.getMinutes();
+            const endMin = Number.isNaN(end.getTime())
+                ? startMin + 60
+                : dayKeyFromDate(end) !== dayKey
+                  ? 24 * 60
+                  : end.getHours() * 60 + end.getMinutes();
+            return endMin <= TIMELINE_START_MIN || startMin >= TIMELINE_END_MIN;
+        });
+
+        const stripEvents = [...allDayEvents, ...outsideTimed];
+        const allDayHtml = stripEvents.length
+            ? `<div class="cc-day-allday">
+                ${stripEvents
+                    .map((ev) => {
+                        const label = ev.allDay ? "All day" : formatCalendarEventTime(ev);
+                        return `<div class="cc-day-allday-item"${eventColorStyleAttr(ev)}>
+                            <span class="cc-event-bullet" aria-hidden="true"></span>
+                            <span class="cc-day-allday-when">${escapeHtml(label)}</span>
+                            <span class="cc-day-allday-title">${escapeHtml(ev.title || "(No title)")}</span>
+                        </div>`;
+                    })
+                    .join("")}
+               </div>`
+            : "";
+
+        ccMonthDayList.innerHTML = `
+            ${allDayHtml}
+            <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
+                <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
+                <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click to add an event at that time">
+                    ${halfMarks.join("")}
+                    ${eventBlocks || ""}
+                    ${
+                        !timedEvents.length
+                            ? '<span class="cc-day-timeline-empty-hint">Click a time to add</span>'
+                            : ""
+                    }
+                </div>
+            </div>
+        `;
     }
 
     function renderMonthGrid() {
@@ -511,6 +908,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderMonthWeekdayRow();
         ccMonthBackdrop.classList.remove("hidden");
         ccMonthBackdrop.setAttribute("aria-hidden", "false");
+        ensureNylasCalendars();
         loadMonthCalendarEvents();
     }
 
@@ -518,12 +916,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!ccMonthBackdrop) return;
         ccMonthBackdrop.classList.add("hidden");
         ccMonthBackdrop.setAttribute("aria-hidden", "true");
+        setMonthDayAddVisible(false);
     }
 
     function setupCalendarPanelListeners() {
         ccCalendarAddBtn?.addEventListener("click", () => openAddCalendarEventForm());
         ccCalendarMonthBtn?.addEventListener("click", () => openMonthCalendarModal());
         ccMonthCloseBtn?.addEventListener("click", () => closeMonthCalendarModal());
+        ccMonthDayAddBtn?.addEventListener("click", () => openAddEventForSelectedDay());
         ccMonthPrevBtn?.addEventListener("click", () => {
             if (monthViewMonth == null || monthViewYear == null || monthEventsLoading) return;
             monthViewMonth -= 1;
@@ -553,6 +953,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             cell.classList.add("is-selected");
             renderMonthDayPanel(monthSelectedDayKey);
+        });
+        const handleTimelineAddClick = (e) => {
+            if (e.target.closest(".cc-day-timeline-event")) return;
+            const track = e.target.closest(".cc-day-timeline-track");
+            if (!track) return;
+            const rect = track.getBoundingClientRect();
+            if (!rect.height) {
+                openAddEventForSelectedDay();
+                return;
+            }
+            const ratio = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+            const startMin = TIMELINE_START_MIN + ratio * TIMELINE_SPAN_MIN;
+            openAddEventForSelectedDay(startMin);
+        };
+        ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
+        ccMonthDayList?.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            if (!e.target.closest?.(".cc-day-timeline-track")) return;
+            e.preventDefault();
+            openAddEventForSelectedDay(9 * 60);
         });
         ccMonthBackdrop?.addEventListener("click", (e) => {
             if (e.target === ccMonthBackdrop) closeMonthCalendarModal();

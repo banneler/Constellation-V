@@ -154,6 +154,21 @@ export async function listCalendarEvents(supabase, opts = {}) {
     );
 }
 
+/**
+ * List Nylas calendars (labels) for the connected grant — name, color, primary.
+ * @param {{ limit?: number }} [opts]
+ * @returns {Promise<{ ok: boolean, provider?: string, calendars: Array }>}
+ */
+export async function listCalendars(supabase, opts = {}) {
+    const params = new URLSearchParams();
+    if (opts.limit != null) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return callIntegrationsApi(
+        supabase,
+        `/api/integrations/calendar/calendars${qs ? `?${qs}` : ""}`
+    );
+}
+
 export async function createCalendarEvent(supabase, event = {}, options = {}) {
     const state = await getIntegrationState(supabase, { force: options.forceRefresh });
     const toast = typeof options.onNotice === "function" ? options.onNotice : () => {};

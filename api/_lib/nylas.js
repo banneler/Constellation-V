@@ -199,6 +199,14 @@ async function getCalendar(grantId, calendarId = "primary") {
   return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/calendars/${encodeURIComponent(id)}`);
 }
 
+/** List calendars for a grant (name, color, primary, read_only). */
+async function listCalendars(grantId, { limit = 50 } = {}) {
+  const params = new URLSearchParams({
+    limit: String(Math.min(Math.max(Number(limit) || 50, 1), 200)),
+  });
+  return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/calendars?${params.toString()}`);
+}
+
 async function getOrgSettings() {
   const rows = await supabaseRest("org_settings?id=eq.1&select=*&limit=1", { serviceRole: true });
   return rows?.[0] || { id: 1, email_calendar_enabled: false };
@@ -317,6 +325,7 @@ module.exports = {
   getRedirectUri,
   getUserEmailSignature,
   getUserIntegration,
+  listCalendars,
   listEvents,
   markGrantInvalid,
   nylasFetch,

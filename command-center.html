@@ -157,7 +157,12 @@
                     <div class="cc-month-grid" id="cc-month-grid"></div>
                 </div>
                 <aside class="cc-month-day-panel" aria-live="polite">
-                    <h4 id="cc-month-day-heading" class="cc-month-day-heading">Select a day</h4>
+                    <div class="cc-month-day-panel-header">
+                        <h4 id="cc-month-day-heading" class="cc-month-day-heading">Select a day</h4>
+                        <button type="button" id="cc-month-day-add-btn" class="cc-month-day-add-btn hidden" title="Add event" aria-label="Add event on this day">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
                     <div id="cc-month-day-list" class="cc-month-day-list"></div>
                 </aside>
             </div>
