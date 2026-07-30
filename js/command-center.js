@@ -819,9 +819,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const whenLabel = formatCalendarEventTime(ev);
                 const color = normalizeEventColor(ev?.color);
                 // Inline absolute + top/height so stale CSS can't drop events into flow.
-                // Left/right use shared CSS vars (same as hover); top% uses timelineOffsetRatio.
+                // Left/right use shared CSS vars (track column only); top% uses timelineOffsetRatio.
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.35rem);right:var(--cc-day-timeline-event-right,1.35rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
+                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.4rem);right:var(--cc-day-timeline-event-right,1.85rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
                     color ? ` --cc-event-color: ${color};` : ""
                 }" title="${escapeHtml(ev.title || "(No title)")}">
                         <div class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
@@ -866,14 +866,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                </div>`
             : "";
 
-        // Plane wraps rail + track so both share one unpadded height for % tops.
+        // Plane: [labels | vertical rule | event track] — shared unpadded height for % tops.
         ccMonthDayList.innerHTML = `
             ${allDayHtml}
             <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
                 <div class="cc-day-timeline-plane">
                     <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
+                    <div class="cc-day-timeline-rule" aria-hidden="true"></div>
                     <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
-                        <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.35rem);right:var(--cc-day-timeline-event-right,1.35rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
+                        <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.4rem);right:var(--cc-day-timeline-event-right,1.85rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
                         ${eventBlocks || ""}
                         ${
                             !timedEvents.length
@@ -1084,8 +1085,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!rect.height) return;
             // Same containing block + % math as events (not px from a different box).
             hoverEl.style.position = "absolute";
-            hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.35rem)";
-            hoverEl.style.right = "var(--cc-day-timeline-event-right, 1.35rem)";
+            hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.4rem)";
+            hoverEl.style.right = "var(--cc-day-timeline-event-right, 1.85rem)";
             hoverEl.style.margin = "0";
             hoverEl.style.padding = "0";
             hoverEl.style.border = "0";
