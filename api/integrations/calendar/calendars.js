@@ -62,7 +62,15 @@ module.exports = async function handler(req, res) {
 
     const result = await listCalendars(integration.nylas_grant_id, { limit });
     const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-    const calendars = raw.map(normalizeCalendar).filter(Boolean);
+    const looksLikeHoliday = (cal) => {
+      const n = String(cal?.name || "").toLowerCase();
+      return /\bholidays?\b|\bweather\b|\bbirthdays?\b/.test(n);
+    };
+    // Prefer labels users can write to; drop read-only holiday/weather junk from the list.
+    const calendars = raw
+      .map(normalizeCalendar)
+      .filter(Boolean)
+      .filter((c) => !(c.readOnly && looksLikeHoliday(c)));
 
     // Prefer writable calendars first; keep primary near the top.
     calendars.sort((a, b) => {

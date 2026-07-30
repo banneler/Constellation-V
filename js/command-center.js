@@ -290,10 +290,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    /** Writable Nylas calendars/labels (skip read-only / holiday junk when possible). */
     function writableCalendars(calendars) {
         const list = Array.isArray(calendars) ? calendars : [];
-        const writable = list.filter((c) => c?.id && !c.readOnly);
-        return writable.length ? writable : list.filter((c) => c?.id);
+        const looksLikeHoliday = (c) => {
+            const n = String(c?.name || "").toLowerCase();
+            return /\bholidays?\b|\bweather\b|\bbirthdays?\b/.test(n);
+        };
+        const writable = list.filter((c) => c?.id && !c.readOnly && !looksLikeHoliday(c));
+        if (writable.length) return writable;
+        const anyWritable = list.filter((c) => c?.id && !c.readOnly);
+        if (anyWritable.length) return anyWritable;
+        return list.filter((c) => c?.id && !looksLikeHoliday(c));
+    }
+
+    /** Friendly label name — avoid framing primary as an account email. */
+    function calendarLabelName(cal) {
+        const name = (cal?.name && String(cal.name).trim()) || "Label";
+        if (cal?.isPrimary && /@/.test(name)) return "Primary";
+        if (/@/.test(name) && !/\s/.test(name)) {
+            return name.split("@")[0] || name;
+        }
+        return name;
     }
 
     function defaultCalendarId(calendars) {
@@ -304,14 +322,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     function calendarOptionsHtml(calendars, selectedId) {
         const list = writableCalendars(calendars);
         if (!list.length) {
-            return `<option value="primary">Primary calendar</option>`;
+            return `<option value="primary">Primary</option>`;
         }
         return list
             .map((c) => {
                 const sel = c.id === selectedId ? " selected" : "";
-                return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(c.name)}</option>`;
+                return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(calendarLabelName(c))}</option>`;
             })
             .join("");
+    }
+
+    /** Label field: dropdown when multiple; read-only swatch+name when single. */
+    function calendarLabelFieldHtml(calendars, selectedId, swatchStyle) {
+        const list = writableCalendars(calendars);
+        const selected =
+            list.find((c) => c.id === selectedId) || list[0] || { id: selectedId || "primary", name: "Primary" };
+        const labelName = calendarLabelName(selected);
+        if (list.length <= 1) {
+            return `
+                <div class="cc-event-label-field">
+                    <span class="cc-event-label-heading">Label</span>
+                    <div class="cc-event-calendar-row cc-event-label-readonly">
+                        <span class="cc-event-calendar-swatch" id="cc-event-calendar-swatch"${swatchStyle} aria-hidden="true"></span>
+                        <span class="cc-event-label-name" id="cc-event-label-name">${escapeHtml(labelName)}</span>
+                        <input type="hidden" id="cc-event-calendar" name="calendarId" value="${escapeHtml(selected.id || "primary")}">
+                    </div>
+                </div>`;
+        }
+        return `
+            <div class="cc-event-label-field">
+                <label for="cc-event-calendar">Label</label>
+                <div class="cc-event-calendar-row">
+                    <span class="cc-event-calendar-swatch" id="cc-event-calendar-swatch"${swatchStyle} aria-hidden="true"></span>
+                    <select id="cc-event-calendar" name="calendarId" required aria-label="Event label">
+                        ${calendarOptionsHtml(calendars, selectedId)}
+                    </select>
+                </div>
+            </div>`;
     }
 
     /** Busy intervals in local minutes-from-midnight for a day key (timed events only). */
@@ -435,13 +482,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <form id="cc-add-event-form" class="modal-form">
                 <label for="cc-event-title">Title</label>
                 <input type="text" id="cc-event-title" name="title" required placeholder="Event title" autocomplete="off">
-                <label for="cc-event-calendar">Calendar</label>
-                <div class="cc-event-calendar-row">
-                    <span class="cc-event-calendar-swatch" id="cc-event-calendar-swatch"${swatchStyle} aria-hidden="true"></span>
-                    <select id="cc-event-calendar" name="calendarId" required>
-                        ${calendarOptionsHtml(calendars, selectedCalId)}
-                    </select>
-                </div>
+                ${calendarLabelFieldHtml(calendars, selectedCalId, swatchStyle)}
                 <label for="cc-event-date">Date</label>
                 <input type="date" id="cc-event-date" name="date" required value="${escapeHtml(dateValue)}">
                 <div class="modal-form-row">
@@ -561,7 +602,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let loadToken = 0;
 
         const syncSwatch = () => {
-            if (!swatchEl || !calEl) return;
+            if (!swatchEl || !calEl || calEl.tagName !== "SELECT") return;
             const cal = writableCalendars(calendars).find((c) => c.id === calEl.value);
             const color = normalizeEventColor(cal?.color);
             swatchEl.style.backgroundColor = color || "var(--primary-blue)";
@@ -602,7 +643,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderSuggestions();
         };
 
-        calEl?.addEventListener("change", syncSwatch);
+        if (calEl?.tagName === "SELECT") {
+            calEl.addEventListener("change", syncSwatch);
+        }
         dateEl.addEventListener("change", () => {
             refreshBusyAndSuggestions();
         });
