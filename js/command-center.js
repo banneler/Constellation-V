@@ -101,6 +101,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const TIMELINE_START_MIN = 7 * 60; // 7:00 AM
     const TIMELINE_END_MIN = 18 * 60; // 6:00 PM
     const TIMELINE_SPAN_MIN = TIMELINE_END_MIN - TIMELINE_START_MIN;
+    const TIMELINE_HOUR_MIN = 60;
+
+    /** Snap a minute offset to the start of its 1-hour block within the timeline. */
+    function snapTimelineToHourStart(startMin) {
+        const floored = Math.floor(startMin / TIMELINE_HOUR_MIN) * TIMELINE_HOUR_MIN;
+        return Math.max(
+            TIMELINE_START_MIN,
+            Math.min(TIMELINE_END_MIN - TIMELINE_HOUR_MIN, floored)
+        );
+    }
+
+    /** Map a Y position within the track to the hour-block start (minutes). */
+    function hourStartFromTrackClientY(track, clientY) {
+        const rect = track.getBoundingClientRect();
+        if (!rect.height) return TIMELINE_START_MIN;
+        const ratio = Math.max(0, Math.min(0.9999, (clientY - rect.top) / rect.height));
+        return snapTimelineToHourStart(TIMELINE_START_MIN + ratio * TIMELINE_SPAN_MIN);
+    }
 
     function eventLocalDate(ev) {
         if (ev?.startTime == null) return null;
@@ -693,10 +711,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         const prefill = { date: monthSelectedDayKey };
         if (startMinPrefill != null && Number.isFinite(startMinPrefill)) {
-            const snapped = Math.round(startMinPrefill / 15) * 15;
-            const clamped = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN - 15, snapped));
-            prefill.start = minutesToTimeInputValue(clamped);
-            prefill.end = minutesToTimeInputValue(Math.min(TIMELINE_END_MIN, clamped + 60));
+            const hourStart = snapTimelineToHourStart(startMinPrefill);
+            prefill.start = minutesToTimeInputValue(hourStart);
+            // Prefill fills the highlighted hour block (existing 60-min default).
+            prefill.end = minutesToTimeInputValue(
+                Math.min(TIMELINE_END_MIN, hourStart + TIMELINE_HOUR_MIN)
+            );
         }
         openAddCalendarEventForm(prefill);
     }
@@ -823,7 +843,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${allDayHtml}
             <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
                 <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
-                <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click to add an event at that time">
+                <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
+                    <div class="cc-day-timeline-hover" aria-hidden="true"></div>
                     ${halfMarks.join("")}
                     ${eventBlocks || ""}
                     ${
@@ -1006,11 +1027,33 @@ document.addEventListener("DOMContentLoaded", async () => {
                 openAddEventForSelectedDay();
                 return;
             }
-            const ratio = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-            const startMin = TIMELINE_START_MIN + ratio * TIMELINE_SPAN_MIN;
-            openAddEventForSelectedDay(startMin);
+            openAddEventForSelectedDay(hourStartFromTrackClientY(track, e.clientY));
+        };
+        const setTimelineHoverBlock = (track, clientY) => {
+            const hoverEl = track?.querySelector?.(".cc-day-timeline-hover");
+            if (!hoverEl) return;
+            const hourStart = hourStartFromTrackClientY(track, clientY);
+            const topPct = ((hourStart - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
+            const heightPct = (TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * 100;
+            hoverEl.style.top = `${topPct}%`;
+            hoverEl.style.height = `${heightPct}%`;
+            hoverEl.classList.add("is-active");
+        };
+        const clearTimelineHoverBlock = (root = ccMonthDayList) => {
+            root?.querySelectorAll?.(".cc-day-timeline-hover.is-active").forEach((el) => {
+                el.classList.remove("is-active");
+            });
         };
         ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
+        ccMonthDayList?.addEventListener("pointermove", (e) => {
+            const track = e.target.closest?.(".cc-day-timeline-track");
+            if (!track) {
+                clearTimelineHoverBlock();
+                return;
+            }
+            setTimelineHoverBlock(track, e.clientY);
+        });
+        ccMonthDayList?.addEventListener("pointerleave", () => clearTimelineHoverBlock());
         ccMonthDayList?.addEventListener("keydown", (e) => {
             if (e.key !== "Enter" && e.key !== " ") return;
             if (!e.target.closest?.(".cc-day-timeline-track")) return;

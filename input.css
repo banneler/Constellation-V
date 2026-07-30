@@ -805,8 +805,16 @@ body.theme-green {
         );
         outline: none;
     }
-    .cc-day-timeline-track:hover {
-        background-color: color-mix(in srgb, var(--primary-blue) 6%, var(--bg-medium));
+    .cc-day-timeline-hover {
+        @apply absolute left-0 right-0 pointer-events-none;
+        z-index: 0;
+        opacity: 0;
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-blue) 22%, transparent);
+        transition: opacity 0.08s ease;
+    }
+    .cc-day-timeline-hover.is-active {
+        opacity: 1;
     }
     .cc-day-timeline-track:focus-visible {
         box-shadow: inset 0 0 0 1px var(--primary-blue);
