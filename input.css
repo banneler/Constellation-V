@@ -767,38 +767,60 @@ body.theme-green {
         @apply truncate min-w-0;
     }
     .cc-day-timeline {
-        /* Label column + event/hover inset — keep events in the track, clear of hour labels */
+        /* Label column + event/hover insets (track column only; leave right margin). */
         --cc-day-timeline-label-col: 2.75rem;
-        --cc-day-timeline-event-inset: 0.25rem;
-        @apply relative flex flex-1 min-h-0 items-stretch;
-        gap: 0.2rem;
+        --cc-day-timeline-event-left: 0.35rem;
+        --cc-day-timeline-event-right: 1.35rem;
+        /* Outer shell only — Y math lives on .cc-day-timeline-plane */
+        @apply relative flex flex-col flex-1 min-h-0;
         font-family: var(--font-main);
-        /* Pad so 7am / 6pm hour labels are not clipped */
+        /* Breathing room for centered hour labels; not part of the Y plane */
         padding-block: 0.35rem;
+        box-sizing: border-box;
+    }
+    /* Single shared Y coordinate system for hour marks, events, and hour-hover. */
+    .cc-day-timeline-plane {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        align-items: stretch;
+        gap: 0.2rem;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
     }
     .cc-day-timeline-rail {
         position: relative;
         width: var(--cc-day-timeline-label-col, 2.75rem);
-        flex-shrink: 0;
+        flex: 0 0 var(--cc-day-timeline-label-col, 2.75rem);
         align-self: stretch;
         z-index: 2;
         pointer-events: none;
         overflow: visible;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
     }
     .cc-day-timeline-hour {
         position: absolute;
         left: 0;
         width: 100%;
-        height: auto;
+        height: 0;
         margin: 0;
         border: 0;
         padding: 0;
         box-shadow: none;
         background: none;
         display: block;
-        transform: translateY(-0.3em);
+        /* Center label on the hour mark (same Y as event/hover tops at that %). */
+        transform: translateY(-50%);
         pointer-events: none;
         line-height: 1;
+        box-sizing: border-box;
+        overflow: visible;
     }
     .cc-day-timeline-hour-label {
         @apply text-[0.55rem] font-medium leading-none w-full text-right pr-1.5;
@@ -812,11 +834,16 @@ body.theme-green {
         box-shadow: none !important;
     }
     .cc-day-timeline-track {
-        @apply relative flex-1 min-w-0 rounded-md cursor-pointer border-0 p-0 m-0 text-left;
+        @apply relative flex-1 min-w-0 rounded-md cursor-pointer text-left;
+        align-self: stretch;
         overflow: hidden;
         isolation: isolate;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
         background-color: color-mix(in srgb, var(--bg-medium) 80%, transparent);
-        /* 11 hour slots (7am–6pm): one horizontal rule per hour */
+        /* 11 hour slots (7am–6pm): one horizontal rule per hour — same span as TIMELINE_SPAN */
         background-image: repeating-linear-gradient(
             to bottom,
             transparent 0,
@@ -826,16 +853,17 @@ body.theme-green {
         );
         outline: none;
     }
-    /* Overlay only — out of flow. Same horizontal inset as events (track column, not under labels). */
+    /* Overlay only — out of flow. Same left/right insets + % tops as events. */
     .cc-day-timeline-hover {
         position: absolute;
-        left: var(--cc-day-timeline-event-inset, 0.25rem);
-        right: var(--cc-day-timeline-event-inset, 0.25rem);
+        left: var(--cc-day-timeline-event-left, 0.35rem);
+        right: var(--cc-day-timeline-event-right, 1.35rem);
         top: 0;
         height: 0;
         margin: 0;
         padding: 0;
         border: 0;
+        box-sizing: border-box;
         pointer-events: none;
         z-index: 2;
         opacity: 0;
@@ -861,8 +889,8 @@ body.theme-green {
     }
     .cc-day-timeline-event {
         position: absolute;
-        left: var(--cc-day-timeline-event-inset, 0.25rem);
-        right: var(--cc-day-timeline-event-inset, 0.25rem);
+        left: var(--cc-day-timeline-event-left, 0.35rem);
+        right: var(--cc-day-timeline-event-right, 1.35rem);
         z-index: 3;
         overflow: hidden;
         border-radius: 0.25rem;
