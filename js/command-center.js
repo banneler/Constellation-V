@@ -767,14 +767,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const hourMarks = [];
         for (let h = 7; h <= 18; h++) {
             const topPct = timelineOffsetRatio(h * 60) * 100;
+            // Only set top — width/position come from CSS (avoid zero-height boxes that paint edge artifacts).
             hourMarks.push(
-                `<div class="cc-day-timeline-hour" style="position:absolute;left:0;right:0;top:${topPct}%;height:0;margin:0">
+                `<div class="cc-day-timeline-hour" style="top:${topPct}%">
                     <span class="cc-day-timeline-hour-label">${formatHourLabel(h)}</span>
                 </div>`
             );
         }
-        // Hour grid only — half-hour ticks stacked as zero-height borders read as a dense
-        // vertical-line artifact near the top of the track when layout is tight.
+        // Hour grid only — half-hour ticks removed (zero-height borders read as vertical artifacts).
         const eventBlocks = timedEvents
             .map((ev) => {
                 const start = eventLocalDate(ev);
@@ -811,10 +811,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (overflowAfter) classes.push("is-overflow-end");
                 const whenLabel = formatCalendarEventTime(ev);
                 const color = normalizeEventColor(ev?.color);
-                // Inline absolute + inset so a stale stylesheet can't drop events into flow
-                // (which stacks them at 7–8am and paints a dense left-border “vertical lines” artifact).
+                // Inline absolute + top/height so stale CSS can't drop events into flow.
+                // Left/right use --cc-day-timeline-event-inset (track column, right of label rail).
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;left:0.125rem;right:0.125rem;top:${topPct}%;height:${heightPct}%;margin:0;z-index:1;${
+                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-inset,0.25rem);right:var(--cc-day-timeline-event-inset,0.25rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
                     color ? ` --cc-event-color: ${color};` : ""
                 }" title="${escapeHtml(ev.title || "(No title)")}">
                         <div class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
@@ -864,13 +864,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
                 <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
                 <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
+                    <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-inset,0.25rem);right:var(--cc-day-timeline-event-inset,0.25rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
                     ${eventBlocks || ""}
                     ${
                         !timedEvents.length
                             ? '<span class="cc-day-timeline-empty-hint">Click a time to add</span>'
                             : ""
                     }
-                    <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:0.125rem;right:0.125rem;top:0;height:0;margin:0;pointer-events:none;z-index:0"></div>
                 </div>
             </div>
         `;
@@ -1037,16 +1037,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             cell.classList.add("is-selected");
             renderMonthDayPanel(monthSelectedDayKey);
         });
+        const getDayTimelineEls = () => {
+            const timeline = ccMonthDayList?.querySelector?.(".cc-day-timeline");
+            const track = timeline?.querySelector?.(".cc-day-timeline-track") || null;
+            return { timeline, track };
+        };
+        const pointerInTimeline = (timeline, track, clientX, clientY) => {
+            // Hit the full timeline (labels + track) so moving over the scale still updates hover.
+            const hitEl = timeline || track;
+            if (!hitEl) return false;
+            const rect = hitEl.getBoundingClientRect();
+            return (
+                clientX >= rect.left &&
+                clientX <= rect.right &&
+                clientY >= rect.top &&
+                clientY <= rect.bottom
+            );
+        };
         const handleTimelineAddClick = (e) => {
-            const track = ccMonthDayList?.querySelector?.(".cc-day-timeline-track");
+            const { timeline, track } = getDayTimelineEls();
             if (!track) return;
+            if (!pointerInTimeline(timeline, track, e.clientX, e.clientY)) return;
             const rect = track.getBoundingClientRect();
-            const inside =
-                e.clientX >= rect.left &&
-                e.clientX <= rect.right &&
-                e.clientY >= rect.top &&
-                e.clientY <= rect.bottom;
-            if (!inside) return;
             if (!rect.height) {
                 openAddEventForSelectedDay();
                 return;
@@ -1058,14 +1070,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!hoverEl) return;
             const rect = track.getBoundingClientRect();
             if (!rect.height) return;
-            // Inline positioning so a stale/cached stylesheet can't leave this in flow.
-            // Insets match .cc-day-timeline-event (event column, not full pane / rail).
+            // Keep overlay out of flow; horizontal inset matches events via CSS variable.
             hoverEl.style.position = "absolute";
-            hoverEl.style.left = "0.125rem";
-            hoverEl.style.right = "0.125rem";
+            hoverEl.style.left = "var(--cc-day-timeline-event-inset, 0.25rem)";
+            hoverEl.style.right = "var(--cc-day-timeline-event-inset, 0.25rem)";
             hoverEl.style.margin = "0";
             hoverEl.style.pointerEvents = "none";
-            hoverEl.style.zIndex = "0";
+            hoverEl.style.zIndex = "2";
             const hourStart = hourStartFromTrackClientY(track, clientY);
             const topPx = timelineOffsetRatio(hourStart) * rect.height;
             const heightPx = (TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * rect.height;
@@ -1077,23 +1088,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             root?.querySelectorAll?.(".cc-day-timeline-hover.is-active").forEach((el) => {
                 el.classList.remove("is-active");
                 el.style.height = "0px";
+                el.style.top = "0px";
             });
         };
         ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
-        // Bounds-based hit test (not e.target.closest) so overlays/labels can't stall updates.
+        // Bounds-based hit test on the whole timeline (rail is pointer-events: none).
         ccMonthDayList?.addEventListener("pointermove", (e) => {
-            const track = ccMonthDayList.querySelector(".cc-day-timeline-track");
+            const { timeline, track } = getDayTimelineEls();
             if (!track) {
                 clearTimelineHoverBlock();
                 return;
             }
-            const rect = track.getBoundingClientRect();
-            const inside =
-                e.clientX >= rect.left &&
-                e.clientX <= rect.right &&
-                e.clientY >= rect.top &&
-                e.clientY <= rect.bottom;
-            if (!inside) {
+            if (!pointerInTimeline(timeline, track, e.clientX, e.clientY)) {
                 clearTimelineHoverBlock();
                 return;
             }
