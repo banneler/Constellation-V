@@ -33,6 +33,10 @@ test.describe('Command Center day timeline ledger', () => {
 
       const results = nodes.map((el) => {
         const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const opacity = Number.parseFloat(cs.opacity);
+        const isHover = el.classList.contains('cc-day-timeline-hover');
+        const hoverVisible = !isHover || (el.classList.contains('is-active') && opacity > 0.5);
         const insideModal =
           r.top >= modalRect.top - 1 &&
           r.bottom <= modalRect.bottom + 1 &&
@@ -51,14 +55,25 @@ test.describe('Command Center day timeline ledger', () => {
           left: r.left,
           width: r.width,
           height: r.height,
+          opacity,
+          hoverVisible,
           ruleRight,
           insideModal,
           insidePanel,
           rightOfRule,
           notViewportAirBall,
-          ok: insideModal && insidePanel && rightOfRule && notViewportAirBall && r.height > 0,
+          ok:
+            insideModal &&
+            insidePanel &&
+            rightOfRule &&
+            notViewportAirBall &&
+            r.height > 0 &&
+            hoverVisible,
         };
       });
+
+      const hover = document.querySelector('.cc-day-timeline-hover.is-active');
+      const hoverOpacity = hover ? getComputedStyle(hover).opacity : null;
 
       return {
         ok:
@@ -66,11 +81,13 @@ test.describe('Command Center day timeline ledger', () => {
           results.every((r) => r.ok) &&
           canvasCs.position === 'relative' &&
           canvasRect.height > 40 &&
-          trackRect.height > 40,
+          trackRect.height > 40 &&
+          hoverOpacity === '1',
         canvasPosition: canvasCs.position,
         canvasHeight: canvasRect.height,
         trackHeight: trackRect.height,
         modalTop: modalRect.top,
+        hoverOpacity,
         results,
       };
     });

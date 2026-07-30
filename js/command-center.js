@@ -886,7 +886,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="cc-day-timeline-rule" aria-hidden="true"></div>
                     <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
                         <div class="cc-day-timeline-canvas">
-                            <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:0;height:0;margin:0;opacity:0;pointer-events:none;z-index:2"></div>
+                            <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
                             ${eventBlocks || ""}
                             ${
                                 !timedEvents.length
@@ -1098,12 +1098,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const rect = track.getBoundingClientRect();
             if (!rect.height) return;
             // Canvas-relative abspos (same containing block + % math as events).
+            // Opacity stays in CSS (.is-active) — never inline, or the ghost stays invisible.
             hoverEl.style.position = "absolute";
             hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.25rem)";
             hoverEl.style.right = "var(--cc-day-timeline-event-right, 0.7rem)";
             hoverEl.style.margin = "0";
             hoverEl.style.pointerEvents = "none";
             hoverEl.style.zIndex = "2";
+            hoverEl.style.removeProperty("opacity");
             const hourStart = hourStartFromTrackClientY(track, clientY);
             hoverEl.style.top = `${timelineOffsetRatio(hourStart) * 100}%`;
             hoverEl.style.height = `${(TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * 100}%`;
@@ -1114,6 +1116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 el.classList.remove("is-active");
                 el.style.height = "0%";
                 el.style.top = "0%";
+                el.style.removeProperty("opacity");
             });
         };
         ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
