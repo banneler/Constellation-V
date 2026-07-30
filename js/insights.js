@@ -14,8 +14,17 @@ import {
     updateActiveNavLink,
     showToast,
 } from './shared_constants.js';
+import {
+    getDateRange,
+    getMonthsInRange,
+    inDateRange,
+    getInsightsFetchFloor,
+} from './insights-period.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/** PostgREST default max rows per request — must page past this or recent rows disappear. */
+const INSIGHTS_PAGE_SIZE = 1000;
 
 const PERIOD_LABELS = {
     this_month: 'This Month',
@@ -81,47 +90,6 @@ function getReportableUsers() {
     return state.allUsers.filter((u) => !u.exclude_from_reporting && !isUserDeactivated(u));
 }
 
-function getDateRange(rangeKey) {
-    const now = new Date();
-    let startDate = new Date();
-    const endDate = new Date(now);
-    switch (rangeKey) {
-        case 'this_month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            break;
-        case 'last_month':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            endDate.setDate(0);
-            break;
-        case 'last_2_months':
-            // Current month + previous month (2 calendar months of quota/activity).
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            break;
-        case 'this_fiscal_year':
-            startDate = new Date(now.getFullYear(), 0, 1);
-            break;
-        case 'last_365_days':
-            startDate.setDate(now.getDate() - 365);
-            break;
-        default:
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    }
-    return { startDate, endDate };
-}
-
-/** Months of quota covered by the selected Insights period. */
-function getMonthsInRange(startDate, endDate) {
-    // Month-aligned ranges (e.g. This Month, Previous 2 Months) use inclusive calendar months.
-    if (startDate.getDate() === 1) {
-        const startMonths = startDate.getFullYear() * 12 + startDate.getMonth();
-        const endMonths = endDate.getFullYear() * 12 + endDate.getMonth();
-        return Math.max(1, endMonths - startMonths + 1);
-    }
-    // Day-based ranges (e.g. Last 365 Days) use average-month duration.
-    const avgMonthMs = 30.437 * 24 * 60 * 60 * 1000;
-    return Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / avgMonthMs));
-}
-
 function userMatchesFilter(userId) {
     return state.filters.userId === 'all' || userId === state.filters.userId;
 }
@@ -130,10 +98,24 @@ function isUserIncluded(userId) {
     return getReportableUsers().some((u) => u.user_id === userId);
 }
 
-function inDateRange(value, startDate, endDate) {
-    if (!value) return false;
-    const itemDate = new Date(value);
-    return itemDate >= startDate && itemDate <= endDate;
+/**
+ * Page through PostgREST results. A bare `.select('*')` silently stops at
+ * 1000 rows (oldest first by default), which made Cognito "This Month" empty
+ * while FY/365 still showed older alerts that landed in the first page.
+ */
+async function fetchAllRows(buildQuery, { pageSize = INSIGHTS_PAGE_SIZE, maxRows = 50000 } = {}) {
+    const rows = [];
+    let from = 0;
+    while (from < maxRows) {
+        const to = from + pageSize - 1;
+        const { data, error } = await buildQuery().range(from, to);
+        if (error) return { data: null, error };
+        const batch = data || [];
+        rows.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+    }
+    return { data: rows, error: null };
 }
 
 function sameAccountId(a, b) {
@@ -565,21 +547,74 @@ async function loadInsightsData() {
     try {
         await loadUsers();
 
+        // Widest Insights preset window (FY vs 365). Bound date-heavy tables so
+        // pagination stays bounded while still covering every period option.
+        const fetchFloor = getInsightsFetchFloor();
+        const floorIso = fetchFloor.toISOString();
+        const floorDate = floorIso.slice(0, 10);
+
         const fetches = [
-            ['activities', supabase.from('activities').select('*')],
-            ['tasks', supabase.from('tasks').select('*')],
-            ['deals', supabase.from('deals').select('*')],
-            ['contact_sequences', supabase.from('contact_sequences').select('*')],
-            ['sequences', supabase.from('sequences').select('id, name, user_id')],
-            ['campaigns', supabase.from('campaigns').select('*')],
-            ['campaign_members', supabase.from('campaign_members').select('*')],
-            ['cognito_alerts', supabase.from('cognito_alerts').select('*')],
-            ['accounts', supabase.from('accounts').select('id, user_id, name')],
-            ['contacts', supabase.from('contacts').select('id, user_id, account_id')],
-            ['account_plans', supabase.from('account_plans').select('id, account_id, updated_at, created_by, plan')],
+            [
+                'activities',
+                () =>
+                    supabase
+                        .from('activities')
+                        .select('*')
+                        .gte('date', floorDate)
+                        .order('date', { ascending: true }),
+            ],
+            ['tasks', () => supabase.from('tasks').select('*').order('id', { ascending: true })],
+            ['deals', () => supabase.from('deals').select('*').order('id', { ascending: true })],
+            [
+                'contact_sequences',
+                () => supabase.from('contact_sequences').select('*').order('id', { ascending: true }),
+            ],
+            [
+                'sequences',
+                () =>
+                    supabase.from('sequences').select('id, name, user_id').order('id', { ascending: true }),
+            ],
+            [
+                'campaigns',
+                () => supabase.from('campaigns').select('*').order('id', { ascending: true }),
+            ],
+            [
+                'campaign_members',
+                () => supabase.from('campaign_members').select('*').order('id', { ascending: true }),
+            ],
+            [
+                'cognito_alerts',
+                () =>
+                    supabase
+                        .from('cognito_alerts')
+                        .select('*')
+                        .gte('created_at', floorIso)
+                        .order('created_at', { ascending: true }),
+            ],
+            [
+                'accounts',
+                () =>
+                    supabase.from('accounts').select('id, user_id, name').order('id', { ascending: true }),
+            ],
+            [
+                'contacts',
+                () =>
+                    supabase
+                        .from('contacts')
+                        .select('id, user_id, account_id')
+                        .order('id', { ascending: true }),
+            ],
+            [
+                'account_plans',
+                () =>
+                    supabase
+                        .from('account_plans')
+                        .select('id, account_id, updated_at, created_by, plan')
+                        .order('id', { ascending: true }),
+            ],
         ];
 
-        const results = await Promise.all(fetches.map(([, query]) => query));
+        const results = await Promise.all(fetches.map(([, buildQuery]) => fetchAllRows(buildQuery)));
         const failedKeys = [];
         results.forEach((result, index) => {
             const key = fetches[index][0];

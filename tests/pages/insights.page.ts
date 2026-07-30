@@ -46,6 +46,10 @@ export class InsightsPage {
     return this.page.locator('#insights-saos-kpis');
   }
 
+  cognitoKpis(): ReturnType<Page['locator']> {
+    return this.page.locator('#insights-cognito-kpis');
+  }
+
   repFilter(): ReturnType<Page['locator']> {
     return this.page.locator('#insights-rep-filter');
   }
