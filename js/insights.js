@@ -28,6 +28,12 @@ const PERIOD_LABELS = {
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
 const PDF_MARGIN_PT = 36;
+const PDF_PAGE_WIDTH_PX = 744;
+const PDF_PAGE_HEIGHT_PX = Math.round(PDF_PAGE_WIDTH_PX * (LETTER_HEIGHT_PT / LETTER_WIDTH_PT));
+const PDF_PAGE_PAD_TOP_PX = 28;
+const PDF_PAGE_PAD_BOTTOM_PX = 36;
+const PDF_PAGE_CONTENT_HEIGHT_PX =
+    PDF_PAGE_HEIGHT_PX - PDF_PAGE_PAD_TOP_PX - PDF_PAGE_PAD_BOTTOM_PX;
 
 const state = {
     currentUser: null,
@@ -881,14 +887,14 @@ function renderAll() {
 function buildLeadershipExportHtml(snapshot, managerName) {
     const { core, sequences, campaigns, cognito, saos, penetration, talkingPoints } = snapshot;
     return `
-      <header class="report-hero">
+      <header class="report-hero insights-export-section">
         <p class="kicker">Constellation Insights</p>
         <h1>Leadership Business Brief</h1>
         <p class="meta">${escapeHtml(snapshot.periodLabel)} · ${escapeHtml(snapshot.selectedRepName)} · Prepared by ${escapeHtml(managerName)} · ${escapeHtml(formatDate(new Date().toISOString()))}</p>
         <p class="purpose">Use this brief to speak about the business: utilization, pipeline creation, attainment, and where leadership attention is needed.</p>
       </header>
 
-      <section>
+      <section class="insights-export-section">
         <h2>Executive Scorecard</h2>
         <div class="score-grid">
           <div class="score"><span>Quota Attainment</span><strong>${core.quotaPct}%</strong></div>
@@ -900,14 +906,14 @@ function buildLeadershipExportHtml(snapshot, managerName) {
         </div>
       </section>
 
-      <section>
+      <section class="insights-export-section">
         <h2>Talking Points</h2>
         <ol class="talking-points">
           ${talkingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join('')}
         </ol>
       </section>
 
-      <section>
+      <section class="insights-export-section">
         <h2>Go-to-Market Motion</h2>
         <table>
           <thead><tr><th>Motion</th><th>Signal</th><th>Detail</th></tr></thead>
@@ -920,7 +926,7 @@ function buildLeadershipExportHtml(snapshot, managerName) {
         </table>
       </section>
 
-      <section>
+      <section class="insights-export-section">
         <h2>Low-Activity Accounts (Leadership Focus)</h2>
         ${
             penetration.length
@@ -950,7 +956,7 @@ function buildCoachingExportHtml(snapshot, managerName) {
     const reps = snapshot.byRep;
     const single = snapshot.userId !== 'all';
     return `
-      <header class="report-hero coaching">
+      <header class="report-hero coaching insights-export-section">
         <p class="kicker">Constellation Insights</p>
         <h1>Coaching Guideline</h1>
         <p class="meta">${escapeHtml(snapshot.periodLabel)} · ${escapeHtml(snapshot.selectedRepName)} · Prepared by ${escapeHtml(managerName)} · ${escapeHtml(formatDate(new Date().toISOString()))}</p>
@@ -961,7 +967,7 @@ function buildCoachingExportHtml(snapshot, managerName) {
         }</p>
       </header>
 
-      <section>
+      <section class="insights-export-section">
         <h2>${single ? 'Rep Snapshot' : 'Team Coaching Rank'}</h2>
         <table>
           <thead>
@@ -992,7 +998,7 @@ function buildCoachingExportHtml(snapshot, managerName) {
       ${reps
           .map(
               (rep) => `
-        <section class="rep-card">
+        <section class="rep-card insights-export-section">
           <h2>${escapeHtml(rep.name)}</h2>
           <p class="muted">Activities ${rep.activities} · Past due ${rep.pastDueTasks} · Quota ${rep.quotaPct}% · Overdue sequences ${rep.seqOverdue} · Stale accounts ${rep.staleAccounts}</p>
           <h3>Coaching prompts</h3>
@@ -1007,20 +1013,33 @@ function buildCoachingExportHtml(snapshot, managerName) {
 
 function getInsightsExportStyles() {
     return `
-      .insights-pdf-doc {
-        width: 744px;
-        margin: 0;
-        padding: 28px 32px 36px;
+      .insights-pdf-measure,
+      .insights-pdf-page {
+        width: ${PDF_PAGE_WIDTH_PX}px;
         box-sizing: border-box;
         font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif;
         color: #0f172a;
         background: #ffffff;
         line-height: 1.45;
       }
+      .insights-pdf-measure {
+        padding: ${PDF_PAGE_PAD_TOP_PX}px 32px ${PDF_PAGE_PAD_BOTTOM_PX}px;
+      }
+      .insights-pdf-page {
+        min-height: ${PDF_PAGE_HEIGHT_PX}px;
+        padding: ${PDF_PAGE_PAD_TOP_PX}px 32px ${PDF_PAGE_PAD_BOTTOM_PX}px;
+      }
+      .insights-export-section {
+        margin: 0 0 22px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .insights-export-section:last-child {
+        margin-bottom: 0;
+      }
       .report-hero {
         border-bottom: 3px solid #1d4ed8;
         padding-bottom: 16px;
-        margin-bottom: 22px;
       }
       .report-hero.coaching { border-bottom-color: #0f766e; }
       .kicker {
@@ -1037,7 +1056,6 @@ function getInsightsExportStyles() {
       .meta, .muted, .purpose { color: #475569; }
       .meta { margin: 0 0 10px; font-size: 12px; }
       .purpose { margin: 0; font-size: 13px; }
-      section { margin: 0 0 22px; }
       .score-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -1088,7 +1106,6 @@ function getInsightsExportStyles() {
         border: 1px solid #e2e8f0;
         border-radius: 10px;
         padding: 14px 16px;
-        margin-bottom: 14px;
       }
     `;
 }
@@ -1101,35 +1118,63 @@ function waitForDomSettle() {
     });
 }
 
-async function tallCanvasToPdfBytes(canvas) {
+function packExportSections(sections) {
+    const pages = [];
+    let current = [];
+    let currentHeight = 0;
+
+    sections.forEach((section) => {
+        const styles = window.getComputedStyle(section);
+        const marginBottom = Number.parseFloat(styles.marginBottom) || 0;
+        const height = Math.ceil(section.getBoundingClientRect().height + marginBottom);
+
+        if (current.length > 0 && currentHeight + height > PDF_PAGE_CONTENT_HEIGHT_PX) {
+            pages.push(current);
+            current = [];
+            currentHeight = 0;
+        }
+
+        current.push(section);
+        currentHeight += height;
+
+        // Oversized section gets its own page so content stays together as a unit.
+        if (current.length === 1 && height > PDF_PAGE_CONTENT_HEIGHT_PX) {
+            pages.push(current);
+            current = [];
+            currentHeight = 0;
+        }
+    });
+
+    if (current.length) pages.push(current);
+    return pages;
+}
+
+async function captureExportPage(pageEl, snapdomFn) {
+    const capture = await snapdomFn(pageEl, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        outerShadows: false,
+        outerTransforms: false,
+    });
+    return capture.toCanvas();
+}
+
+async function canvasesToPdfBytes(canvases) {
     const { PDFDocument } = window.PDFLib;
     const pdfDoc = await PDFDocument.create();
     const usableWidth = LETTER_WIDTH_PT - PDF_MARGIN_PT * 2;
     const usableHeight = LETTER_HEIGHT_PT - PDF_MARGIN_PT * 2;
-    const scale = usableWidth / canvas.width;
-    const pageHeightPx = Math.max(1, Math.floor(usableHeight / scale));
 
-    let offsetY = 0;
-    while (offsetY < canvas.height) {
-        const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
-        const slice = document.createElement('canvas');
-        slice.width = canvas.width;
-        slice.height = sliceHeight;
-        const ctx = slice.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, slice.width, slice.height);
-        ctx.drawImage(canvas, 0, offsetY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
-
-        const png = await pdfDoc.embedPng(slice.toDataURL('image/png'));
+    for (const canvas of canvases) {
+        const png = await pdfDoc.embedPng(canvas.toDataURL('image/png'));
         const page = pdfDoc.addPage([LETTER_WIDTH_PT, LETTER_HEIGHT_PT]);
-        const drawHeight = sliceHeight * scale;
+        const fitted = png.scaleToFit(usableWidth, usableHeight);
         page.drawImage(png, {
-            x: PDF_MARGIN_PT,
-            y: LETTER_HEIGHT_PT - PDF_MARGIN_PT - drawHeight,
-            width: usableWidth,
-            height: drawHeight,
+            x: PDF_MARGIN_PT + (usableWidth - fitted.width) / 2,
+            y: LETTER_HEIGHT_PT - PDF_MARGIN_PT - fitted.height,
+            width: fitted.width,
+            height: fitted.height,
         });
-        offsetY += sliceHeight;
     }
 
     return pdfDoc.save();
@@ -1193,10 +1238,10 @@ async function exportInsightsReport() {
     try {
         exportRoot.innerHTML = `
           <style>${getInsightsExportStyles()}</style>
-          <div class="insights-pdf-doc">${bodyHtml}</div>
+          <div class="insights-pdf-measure">${bodyHtml}</div>
         `;
-        const captureRoot = exportRoot.querySelector('.insights-pdf-doc');
-        if (!captureRoot) throw new Error('Export capture root missing.');
+        const measureRoot = exportRoot.querySelector('.insights-pdf-measure');
+        if (!measureRoot) throw new Error('Export measure root missing.');
 
         try {
             if (document.fonts?.ready) await document.fonts.ready;
@@ -1205,14 +1250,23 @@ async function exportInsightsReport() {
         }
         await waitForDomSettle();
 
-        const capture = await snapdomFn(captureRoot, {
-            scale: 2,
-            backgroundColor: '#ffffff',
-            outerShadows: false,
-            outerTransforms: false,
-        });
-        const canvas = await capture.toCanvas();
-        const bytes = await tallCanvasToPdfBytes(canvas);
+        const sections = [...measureRoot.querySelectorAll('.insights-export-section')];
+        if (!sections.length) throw new Error('No export sections found.');
+
+        const pageGroups = packExportSections(sections);
+        const pageCanvases = [];
+
+        for (const group of pageGroups) {
+            const pageEl = document.createElement('div');
+            pageEl.className = 'insights-pdf-page';
+            group.forEach((section) => pageEl.appendChild(section.cloneNode(true)));
+            exportRoot.appendChild(pageEl);
+            await waitForDomSettle();
+            pageCanvases.push(await captureExportPage(pageEl, snapdomFn));
+            pageEl.remove();
+        }
+
+        const bytes = await canvasesToPdfBytes(pageCanvases);
         downloadPdfBytes(bytes, buildExportFilename(snapshot));
         showToast('Insights PDF exported.', 'success');
     } catch (error) {
