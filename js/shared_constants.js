@@ -1485,13 +1485,18 @@ export async function checkAndSetNotifications(supabase) {
     const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
 
     for (const page of pagesToCheck) {
-        const { data: latestItem } = await supabase
+        // maybeSingle: 0 rows is valid (empty table / RLS) — .single() returns HTTP 406 (PGRST116).
+        const { data: latestItem, error: latestError } = await supabase
             .from(page.table)
             .select('created_at')
             .order('created_at', { ascending: false })
             .limit(1)
-            .single();
-        
+            .maybeSingle();
+
+        if (latestError) {
+            console.warn(`[notifications] failed to check ${page.table}:`, latestError.message || latestError);
+        }
+
         const notificationDot = document.getElementById(`${page.name}-notification`);
         if (notificationDot && latestItem) {
             const lastVisitTime = lastVisits.get(page.name) || 0;
