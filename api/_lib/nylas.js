@@ -212,6 +212,26 @@ async function getUserIntegration(userId) {
   return rows?.[0] || null;
 }
 
+async function getUserEmailSignature(userId) {
+  if (!userId) return "";
+  const rows = await supabaseRest(
+    `user_settings?user_id=eq.${encodeEq(userId)}&select=email_signature&limit=1`,
+    { serviceRole: true }
+  );
+  return String(rows?.[0]?.email_signature || "").trim();
+}
+
+function appendEmailSignature(body, signature) {
+  const sig = String(signature || "").trim();
+  if (!sig) return body || "";
+  const base = String(body || "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\s+$/g, "");
+  if (!base) return sig;
+  if (base.endsWith(sig)) return base;
+  return `${base}\n\n${sig}`;
+}
+
 async function upsertUserIntegration(row) {
   const rows = await supabaseRest("user_integrations?on_conflict=user_id", {
     method: "POST",
@@ -254,6 +274,7 @@ function verifyNylasWebhookSignature(rawBody, signatureHeader) {
 }
 
 module.exports = {
+  appendEmailSignature,
   assertOrgIntegrationsEnabled,
   buildHostedAuthUrl,
   createEvent,
@@ -263,6 +284,7 @@ module.exports = {
   getAppOrigin,
   getOrgSettings,
   getRedirectUri,
+  getUserEmailSignature,
   getUserIntegration,
   listEvents,
   markGrantInvalid,

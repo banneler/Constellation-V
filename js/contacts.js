@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows, applyEmailMergeFields } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
 
@@ -146,20 +146,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceNextStepWrapper = document.getElementById("sequence-next-step-wrapper");
 
     function replacePlaceholders(template, contact, account) {
-        if (!template) return '';
-        let result = String(template);
-        if (contact) {
-            const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
-            result = result.replace(/\[FirstName\]/gi, contact.first_name || '');
-            result = result.replace(/\[LastName\]/gi, contact.last_name || '');
-            result = result.replace(/\[FullName\]/gi, fullName);
-            result = result.replace(/\[Name\]/gi, fullName);
-        }
-        if (account) {
-            result = result.replace(/\[AccountName\]/gi, account.name || '');
-            result = result.replace(/\[Account\]/gi, account.name || '');
-        }
-        return result;
+        return applyEmailMergeFields(template, contact, account);
     }
 
     async function completeStep(csId, processedDescription = null) {
@@ -1232,9 +1219,15 @@ async function loadAllData() {
                 context: buildContactEmailContext(contact)
             };
             const data = await callAiApi(supabase, 'generate-prospect-email', requestBody);
-            
-            const generatedSubject = data.subject || "No Subject";
-            const generatedBody = data.body || "Failed to generate email content.";
+            const account = contact.account_id
+                ? state.accounts.find((acc) => acc.id === contact.account_id)
+                : null;
+            const generatedSubject = applyEmailMergeFields(data.subject || "No Subject", contact, account);
+            const generatedBody = applyEmailMergeFields(
+                data.body || "Failed to generate email content.",
+                contact,
+                account
+            );
             
             if (aiEmailSubject) aiEmailSubject.value = generatedSubject;
             if (aiEmailBody) aiEmailBody.value = generatedBody;
@@ -1269,8 +1262,23 @@ async function openEmailClient(contact) {
         showAIToast("Contact has no email address.", "error");
         return;
     }
-    const emailSubject = document.getElementById('ai-email-subject')?.value || '';
-    const emailBody = document.getElementById('ai-email-body')?.value || '';
+    const account = contact.account_id
+        ? state.accounts.find((acc) => acc.id === contact.account_id)
+        : null;
+    const emailSubject = applyEmailMergeFields(
+        document.getElementById('ai-email-subject')?.value || '',
+        contact,
+        account
+    );
+    const emailBody = applyEmailMergeFields(
+        document.getElementById('ai-email-body')?.value || '',
+        contact,
+        account
+    );
+    const subjectEl = document.getElementById('ai-email-subject');
+    const bodyEl = document.getElementById('ai-email-body');
+    if (subjectEl) subjectEl.value = emailSubject;
+    if (bodyEl) bodyEl.value = emailBody;
 
     let sendResult;
     try {

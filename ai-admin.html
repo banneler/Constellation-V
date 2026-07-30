@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constellation CRM - AI Admin</title>
+    <title>Constellation CRM - User Settings</title>
     <link rel="stylesheet" href="output.css">
     <link rel="stylesheet" href="css/global-loader.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -20,7 +20,6 @@
         #loading-screen.hidden { opacity: 0; pointer-events: none; }
         #loading-screen video { width: 100%; max-width: 1200px; height: auto; }
 
-        /* TAB STYLING: Mirroring IRR Page structure */
         .ai-admin-tabs-wrapper {
             display: flex;
             background-color: var(--bg-medium);
@@ -29,6 +28,7 @@
             border-radius: 8px 8px 0 0;
             overflow-x: auto;
             gap: 5px;
+            margin-top: 1.25rem;
         }
 
         .irr-tab {
@@ -56,12 +56,108 @@
             color: var(--text-light);
         }
 
-        /* Isolated Font: Cognito logo keeps Orbitron while page titles use standard fonts */
+        .settings-tab-panel[hidden] {
+            display: none !important;
+        }
+
+        .settings-tab-panel {
+            padding-top: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .user-settings-panel {
+            padding: 1.5rem 1.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-medium);
+        }
+
+        .user-settings-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .user-settings-panel-header h3 {
+            margin: 0 0 0.35rem 0;
+            color: var(--text-light);
+        }
+
+        .user-settings-panel-header .placeholder-text {
+            margin: 0;
+        }
+
+        .user-settings-status {
+            margin: 0 0 1rem 0;
+            color: var(--text-medium);
+            font-size: 0.95rem;
+        }
+
+        .user-settings-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+        }
+
+        .user-settings-actions .btn-primary,
+        .user-settings-actions .btn-secondary,
+        .user-settings-actions .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        #user-settings-view .form-group {
+            margin-bottom: 0;
+        }
+
+        #user-settings-view .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-light);
+            margin-bottom: 0.5rem;
+        }
+
+        #user-settings-view .form-control {
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background-color: var(--bg-light);
+            color: var(--text-light);
+            font-family: inherit;
+            line-height: 1.45;
+        }
+
+        #user-settings-view .form-control:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        #email-signature-input {
+            min-height: 160px;
+            resize: vertical;
+            white-space: pre-wrap;
+        }
+
+        .signature-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 0.85rem;
+        }
+
         .cognito-nav-link h1 {
             font-family: 'Orbitron', sans-serif !important;
         }
 
-        /* Toast Notification Styling */
         .constellation-toast {
             position: fixed;
             bottom: 30px;
@@ -235,38 +331,77 @@
         </nav>
         
         <main class="content-area">
-            <div id="ai-admin-view" class="content-view active-view">
+            <div id="user-settings-view" class="content-view active-view">
                 <div class="tasks-header">
                     <div class="tasks-header-left">
-                        <h2 class="page-title">AI Voice Administration</h2>
-                        <p class="placeholder-text">Monitor the feedback-driven AI memory profile for your Constellation experience.</p>
+                        <h2 class="page-title">User Settings</h2>
+                        <p class="placeholder-text">Manage your email integrations, signature, and AI personalization.</p>
                     </div>
                 </div>
 
-                <div class="section-card ai-memory-card" style="margin-top: 20px;">
-                    <div class="ai-memory-card-header">
-                        <div>
-                            <p class="ai-memory-eyebrow">Feedback-Driven Personalization</p>
-                            <h3 class="section-title ai-memory-title">Scoped AI Memory Profiles</h3>
-                            <p class="placeholder-text" style="margin: 0;">Synthesized by AI function so email, sequence, social, and briefing preferences stay distinct.</p>
+                <div class="ai-admin-tabs-wrapper" id="user-settings-tabs" role="tablist" aria-label="User settings sections">
+                    <button type="button" class="irr-tab active" role="tab" aria-selected="true" data-settings-tab="integrations" id="tab-integrations">Integrations</button>
+                    <button type="button" class="irr-tab" role="tab" aria-selected="false" data-settings-tab="ai-admin" id="tab-ai-admin">AI Admin</button>
+                </div>
+
+                <div id="settings-tab-integrations" class="settings-tab-panel" role="tabpanel" aria-labelledby="tab-integrations">
+                    <section class="user-settings-panel" id="integrations-panel" aria-labelledby="integrations-heading">
+                        <div class="user-settings-panel-header">
+                            <div>
+                                <h3 id="integrations-heading">Email &amp; Calendar</h3>
+                                <p class="placeholder-text">Connect Google or Outlook to send email and create calendar events in Constellation.</p>
+                            </div>
                         </div>
-                        <button id="refresh-memory-btn" class="btn-secondary ai-memory-refresh-btn" type="button"><i class="fas fa-rotate"></i><span>Refresh</span></button>
-                    </div>
-                    <div class="ai-memory-scope-row">
-                        <div class="ai-memory-scope-field">
-                            <label for="memory-function-select" class="ai-memory-prompt-label">AI Function</label>
-                            <select id="memory-function-select" class="form-control ai-memory-scope-select"></select>
+                        <p class="user-settings-status" id="integrations-status-text">Checking connection…</p>
+                        <div class="user-settings-actions" id="integrations-actions"></div>
+                    </section>
+
+                    <section class="user-settings-panel" id="signature-panel" aria-labelledby="signature-heading">
+                        <div class="user-settings-panel-header">
+                            <div>
+                                <h3 id="signature-heading">Email Signature</h3>
+                                <p class="placeholder-text">AI drafts omit a signature on purpose. Yours is appended automatically when you send through a connected inbox.</p>
+                            </div>
                         </div>
-                        <p id="memory-scope-summary" class="ai-memory-scope-summary placeholder-text">Choose a function to inspect its captured feedback and synthesized prompt.</p>
+                        <div class="form-group">
+                            <label for="email-signature-input">Signature</label>
+                            <textarea id="email-signature-input" class="form-control" rows="8" placeholder="Bryan Anneler&#10;Sales Leader&#10;Great Plains Communications&#10;(402) 555-0100"></textarea>
+                        </div>
+                        <div class="signature-actions">
+                            <button type="button" class="btn-primary" id="save-signature-btn">
+                                <i class="fas fa-floppy-disk" aria-hidden="true"></i>
+                                <span>Save Signature</span>
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+                <div id="settings-tab-ai-admin" class="settings-tab-panel" role="tabpanel" aria-labelledby="tab-ai-admin" hidden>
+                    <div class="section-card ai-memory-card">
+                        <div class="ai-memory-card-header">
+                            <div>
+                                <p class="ai-memory-eyebrow">Feedback-Driven Personalization</p>
+                                <h3 class="section-title ai-memory-title">Scoped AI Memory Profiles</h3>
+                                <p class="placeholder-text" style="margin: 0;">Synthesized by AI function so email, sequence, social, and briefing preferences stay distinct.</p>
+                            </div>
+                            <button id="refresh-memory-btn" class="btn-secondary ai-memory-refresh-btn" type="button"><i class="fas fa-rotate"></i><span>Refresh</span></button>
+                        </div>
+                        <div class="ai-memory-scope-row">
+                            <div class="ai-memory-scope-field">
+                                <label for="memory-function-select" class="ai-memory-prompt-label">AI Function</label>
+                                <select id="memory-function-select" class="form-control ai-memory-scope-select"></select>
+                            </div>
+                            <p id="memory-scope-summary" class="ai-memory-scope-summary placeholder-text">Choose a function to inspect its captured feedback and synthesized prompt.</p>
+                        </div>
+                        <div class="ai-memory-metrics">
+                            <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-total-count">0</span><span class="ai-memory-stat-label">Captured Responses</span></div>
+                            <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-rated-count">0</span><span class="ai-memory-stat-label">Rated Responses</span></div>
+                            <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-pending-count">0</span><span class="ai-memory-stat-label">Pending Synthesis</span></div>
+                        </div>
+                        <label for="dynamic-prompt-preview" class="ai-memory-prompt-label">Current Dynamic Prompt</label>
+                        <textarea id="dynamic-prompt-preview" rows="5" class="form-control ai-memory-prompt" readonly placeholder="No dynamic prompt has been synthesized yet."></textarea>
+                        <p id="memory-latest-update" class="placeholder-text" style="margin-top: 8px;"></p>
                     </div>
-                    <div class="ai-memory-metrics">
-                        <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-total-count">0</span><span class="ai-memory-stat-label">Captured Responses</span></div>
-                        <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-rated-count">0</span><span class="ai-memory-stat-label">Rated Responses</span></div>
-                        <div class="ai-memory-stat"><span class="ai-memory-stat-value" id="memory-pending-count">0</span><span class="ai-memory-stat-label">Pending Synthesis</span></div>
-                    </div>
-                    <label for="dynamic-prompt-preview" class="ai-memory-prompt-label">Current Dynamic Prompt</label>
-                    <textarea id="dynamic-prompt-preview" rows="5" class="form-control ai-memory-prompt" readonly placeholder="No dynamic prompt has been synthesized yet."></textarea>
-                    <p id="memory-latest-update" class="placeholder-text" style="margin-top: 8px;"></p>
                 </div>
             </div>
         </main>

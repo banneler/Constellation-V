@@ -198,14 +198,17 @@ Integrations are **off by default** (`org_settings.email_calendar_enabled = fals
 1. Create (or reuse) a Nylas application for the customer deploy
 2. Add callback URI: `https://{customer}.constellation-crm.com/api/integrations/nylas/callback` (plus Vercel alias / localhost for debug)
 3. Set Vercel env vars from §2.2 (`NYLAS_*`)
-4. Apply migration `supabase/migrations/20260730120000_org_settings_user_integrations.sql`
+4. Apply migrations:
+   - `supabase/migrations/20260730120000_org_settings_user_integrations.sql`
+   - `supabase/migrations/20260730140000_user_settings_email_signature.sql`
 5. Optional webhook: `https://{customer}.constellation-crm.com/api/integrations/nylas/webhook` (grant lifecycle)
-6. In-app: Admin enables **Email & calendar integrations** → a user connects **Google** or **Outlook** from the Menu → send/calendar use Nylas
+6. In-app: Admin enables **Email & calendar integrations** → user opens **User Settings → Integrations** → connects **Google** or **Outlook** (and optionally saves an email signature) → send/calendar use Nylas
 
 Smoke:
 
 - [ ] Toggle off → mailto still opens OS client  
-- [ ] Toggle on → Menu shows Integrations  
+- [ ] Toggle on → User Settings → Integrations shows Connect Google / Outlook  
+- [ ] Save email signature → Nylas send appends it  
 - [ ] Connect Google + send a test email  
 - [ ] Connect Outlook (or second test user) + create a calendar event from Draft Agenda  
 

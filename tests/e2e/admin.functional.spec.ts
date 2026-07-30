@@ -64,13 +64,14 @@ test.describe('Admin + AI Admin (functional)', () => {
     await req;
   });
 
-  test('AI Admin: scoped memory profile loads without legacy override editor', async ({ page }) => {
+  test('User Settings AI Admin tab: scoped memory profile loads without legacy override editor', async ({ page }) => {
     const admin = new AdminPage(page);
-    guardian.step('Opening AI Admin');
+    guardian.step('Opening User Settings → AI Admin');
     await admin.gotoAiAdmin();
+    await page.getByRole('tab', { name: 'AI Admin' }).click();
 
     guardian.step('Checking scoped memory admin layout');
-    await expect(page.getByRole('heading', { name: 'AI Voice Administration' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'User Settings' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Scoped AI Memory Profiles' })).toBeVisible();
     await expect(admin.aiMemoryCard()).toBeVisible();
     await expect(admin.memoryFunctionSelect()).toBeVisible();
@@ -87,3 +88,4 @@ test.describe('Admin + AI Admin (functional)', () => {
     await expect(page.locator('#save-config-btn')).toHaveCount(0);
   });
 });
+

@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
     const integration = await getUserIntegration(user.id);
     if (!integration || integration.status !== "connected" || !integration.nylas_grant_id) {
       return sendJson(res, 409, {
-        error: "Connect Google or Outlook from the user menu to use calendar.",
+        error: "Connect Google or Outlook in User Settings to use calendar.",
         code: "not_connected",
       });
     }

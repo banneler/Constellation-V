@@ -23,7 +23,8 @@ import {
     hideGlobalLoader,
     refreshHUDNodes,
     filterOutOwnershipOrphanedCrmRows,
-    showToast
+    showToast,
+    applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
@@ -66,20 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function replacePlaceholders(template, contact, account) {
-        if (!template) return '';
-        let result = template;
-        if (contact) {
-            const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
-            result = result.replace(/\[FirstName\]/gi, contact.first_name || '');
-            result = result.replace(/\[LastName\]/gi, contact.last_name || '');
-            result = result.replace(/\[FullName\]/gi, fullName);
-            result = result.replace(/\[Name\]/gi, fullName);
-        }
-        if (account) {
-            result = result.replace(/\[AccountName\]/gi, account.name || '');
-            result = result.replace(/\[Account\]/gi, account.name || '');
-        }
-        return result;
+        return applyEmailMergeFields(template, contact, account);
     }
 
     // --- DATA FETCHING ---

@@ -115,7 +115,7 @@ export async function sendEmail(supabase, { to, subject = "", body = "", cc, bcc
     }
 
     if (!state.connected) {
-        toast("Connect Google or Outlook from the Menu to send in-app. Opening your email client for now.", "info");
+        toast("Connect Google or Outlook in User Settings to send in-app. Opening your email client for now.", "info");
         const result = openMailto({ to, subject, body });
         return { ...result, prompted: true };
     }
@@ -145,7 +145,7 @@ export async function createCalendarEvent(supabase, event = {}, options = {}) {
                 await navigator.clipboard.writeText(event.description);
                 toast(
                     state.orgEnabled
-                        ? "Connect Google or Outlook from the Menu to add calendar events. Agenda copied to clipboard."
+                        ? "Connect Google or Outlook in User Settings to add calendar events. Agenda copied to clipboard."
                         : "Agenda copied to clipboard.",
                     "info"
                 );
@@ -155,7 +155,7 @@ export async function createCalendarEvent(supabase, event = {}, options = {}) {
         } else {
             toast(
                 state.orgEnabled
-                    ? "Connect Google or Outlook from the Menu to use calendar."
+                    ? "Connect Google or Outlook in User Settings to use calendar."
                     : "Calendar integrations are disabled for this organization.",
                 "info"
             );

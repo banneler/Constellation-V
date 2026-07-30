@@ -115,7 +115,7 @@ Opening the relevant page updates your last-visited timestamp and clears the bel
 Open the bottom **Menu** to access:
 
 - CSV templates for Contacts, Accounts, and Sequence Steps.
-- AI Admin link, if available to your user.
+- User Settings (integrations, email signature, and AI Admin).
 - Logout.
 
 CSV templates are only templates. The actual import workflows happen on Contacts, Accounts, or Sequences.

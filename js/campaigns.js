@@ -20,7 +20,8 @@ import {
     checkAndSetNotifications,
     injectGlobalNavigation,
     filterOutOwnershipOrphanedCrmRows,
-    showToast
+    showToast,
+    applyEmailMergeFields
 } from './shared_constants.js';
 import { sendEmail } from './integrations.js';
 
@@ -1032,10 +1033,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         openEmailBtn.dataset.memberId = currentMember.id;
         skipEmailBtn.dataset.memberId = currentMember.id;
 
-        let emailBody = (campaign.email_body || '').trim();
-        emailBody = emailBody.replace(/\[FirstName\]/g, contact.first_name || '');
-        emailBody = emailBody.replace(/\[LastName\]/g, contact.last_name || '');
-        emailBody = emailBody.replace(/\[AccountName\]/g, account ? account.name : '');
+        const emailBody = applyEmailMergeFields((campaign.email_body || '').trim(), contact, account);
+        const emailSubject = applyEmailMergeFields(campaign.email_subject || '', contact, account);
 
         const nextMember = pending[1];
         const nextContact = nextMember ? state.contacts.find(c => c.id === nextMember.contact_id) : null;
@@ -1049,7 +1048,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         fitContactLink(contactEmailGuided.querySelector('span') || contactEmailGuided);
 
         emailToAddressEl.textContent = contact.email || 'No Email';
-        emailSubjectEl.value = campaign.email_subject || '';
+        emailSubjectEl.value = emailSubject;
         emailBodyTextareaEl.value = emailBody;
         updateNotesPlaceholder('email-body-textarea', 'email-body-placeholder');
         emailBodyTextareaEl.focus();
@@ -1057,8 +1056,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const handleOpenEmailClient = async (event) => {
         const to = document.getElementById('email-to-address')?.textContent;
-        const subject = document.getElementById('email-subject')?.value;
-        const body = document.getElementById('email-body-textarea')?.value;
+        const memberId = event?.currentTarget?.dataset?.memberId || openEmailBtn?.dataset?.memberId;
+        const member = state.campaign_members.find((m) => String(m.id) === String(memberId));
+        const contact = member ? state.contacts.find((c) => c.id === member.contact_id) : null;
+        const account = contact?.account_id
+            ? state.accounts.find((a) => a.id === contact.account_id)
+            : null;
+        const subject = applyEmailMergeFields(
+            document.getElementById('email-subject')?.value || '',
+            contact,
+            account
+        );
+        const body = applyEmailMergeFields(
+            document.getElementById('email-body-textarea')?.value || '',
+            contact,
+            account
+        );
+        const subjectEl = document.getElementById('email-subject');
+        const bodyEl = document.getElementById('email-body-textarea');
+        if (subjectEl) subjectEl.value = subject;
+        if (bodyEl) bodyEl.value = body;
 
         if (!to || to === 'No Email') {
             alert("Cannot open email client: Contact has no email address.");
@@ -1068,7 +1085,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             await sendEmail(
                 supabase,
-                { to, subject: subject || '', body: body || '' },
+                { to, subject, body },
                 { onNotice: (msg, type) => showToast(msg, type) }
             );
         } catch (error) {

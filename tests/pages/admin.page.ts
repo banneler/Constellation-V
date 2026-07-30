@@ -42,10 +42,18 @@ export class AdminPage {
     return this.page.locator('#integrations-settings-panel');
   }
 
-  /** --- AI Admin (ai-admin.html) --- */
+  /** --- User Settings / AI Admin (ai-admin.html) --- */
   async gotoAiAdmin(): Promise<void> {
-    await this.page.goto('/ai-admin.html');
+    await this.page.goto('/ai-admin.html?tab=ai-admin');
     await waitForAppReady(this.page);
+  }
+
+  integrationsPanel(): ReturnType<Page['locator']> {
+    return this.page.locator('#integrations-panel');
+  }
+
+  emailSignatureInput(): ReturnType<Page['locator']> {
+    return this.page.locator('#email-signature-input');
   }
 
   aiEngineTab(name: string): ReturnType<Page['locator']> {

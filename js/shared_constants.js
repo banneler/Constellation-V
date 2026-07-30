@@ -3,13 +3,7 @@
 // --- SHARED CONSTANTS AND FUNCTIONS ---
 import { initHUD, refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes } from './hud.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS } from './env.config.js';
-import {
-    clearIntegrationStateCache,
-    disconnectIntegration,
-    getIntegrationState,
-    handleIntegrationsQueryToast,
-    startConnect,
-} from './integrations.js';
+import { handleIntegrationsQueryToast } from './integrations.js';
 
 export { refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes };
 export { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS };
@@ -745,6 +739,39 @@ function getFirstName(fullName) {
 }
 
 /**
+ * Replace email/sequence merge tokens with contact + account values.
+ * Supports [Token] and {Token} forms used across AI drafts, sequences, and campaigns.
+ * @param {string} template
+ * @param {{ first_name?: string, last_name?: string }|null} contact
+ * @param {{ name?: string }|null} account
+ * @returns {string}
+ */
+export function applyEmailMergeFields(template, contact = null, account = null) {
+    if (template == null) return '';
+    let result = String(template);
+    if (!result) return result;
+
+    const firstName = contact?.first_name || '';
+    const lastName = contact?.last_name || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    const accountName = account?.name || '';
+
+    const replacements = [
+        [/[\[{]FirstName[\]}]/gi, firstName],
+        [/[\[{]LastName[\]}]/gi, lastName],
+        [/[\[{]FullName[\]}]/gi, fullName],
+        [/[\[{]Name[\]}]/gi, fullName],
+        [/[\[{]AccountName[\]}]/gi, accountName],
+        [/[\[{]Account[\]}]/gi, accountName],
+    ];
+
+    for (const [pattern, value] of replacements) {
+        result = result.replace(pattern, value);
+    }
+    return result;
+}
+
+/**
  * Scales the user name font size down until it fits within its container.
  * @param {HTMLElement} el - The #user-name-display element
  */
@@ -926,12 +953,9 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
             return true;
 
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
-        // Still attach integrations for users who already have a profile after welcome path is skipped next load.
-    
     } else {
         await setupTheme(supabase, appState.currentUser);
         attachUserMenuListeners();
-        await setupIntegrationsMenu(supabase);
         handleIntegrationsQueryToast((msg, type) => {
             try { showToast?.(msg, type); } catch (_) { /* optional */ }
         });
@@ -951,83 +975,6 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
 
         if (userMenu) userMenu.dataset.listenerAttached = 'true';
     }
-}
-
-async function setupIntegrationsMenu(supabase) {
-    const popup = document.getElementById('user-menu-popup');
-    if (!popup) return;
-
-    document.getElementById('user-integrations-menu')?.remove();
-
-    let state;
-    try {
-        state = await getIntegrationState(supabase, { force: true });
-    } catch (error) {
-        console.warn('[integrations] menu state unavailable', error);
-        return;
-    }
-
-    if (!state.orgEnabled) return;
-
-    const section = document.createElement('div');
-    section.id = 'user-integrations-menu';
-    section.className = 'user-integrations-menu';
-
-    const providerLabel =
-        state.provider === 'microsoft' ? 'Outlook' : state.provider === 'google' ? 'Google' : '';
-    const statusText = state.connected
-        ? `Connected${providerLabel ? ` via ${providerLabel}` : ''}${state.email ? ` · ${state.email}` : ''}`
-        : 'Not connected';
-
-    section.innerHTML = `
-        <div class="user-menu-downloads">
-            <span class="user-menu-downloads-label">Integrations</span>
-            <p class="user-integrations-status" id="user-integrations-status">${statusText}</p>
-            <div class="user-integrations-actions">
-                ${
-                    state.connected
-                        ? `<button type="button" class="nav-button" id="integrations-disconnect-btn" title="Disconnect">Disconnect</button>`
-                        : `<button type="button" class="nav-button" id="integrations-connect-google-btn" title="Connect Google">Connect Google</button>
-                           <button type="button" class="nav-button" id="integrations-connect-outlook-btn" title="Connect Outlook">Connect Outlook</button>`
-                }
-            </div>
-        </div>
-    `;
-
-    const aiAdmin = popup.querySelector('a[href="ai-admin.html"]');
-    const logout = document.getElementById('logout-btn');
-    if (aiAdmin) popup.insertBefore(section, aiAdmin);
-    else if (logout) popup.insertBefore(section, logout);
-    else popup.appendChild(section);
-
-    section.querySelector('#integrations-connect-google-btn')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        try {
-            await startConnect(supabase, 'google');
-        } catch (error) {
-            alert(error.message || 'Could not start Google connection.');
-        }
-    });
-    section.querySelector('#integrations-connect-outlook-btn')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        try {
-            await startConnect(supabase, 'microsoft');
-        } catch (error) {
-            alert(error.message || 'Could not start Outlook connection.');
-        }
-    });
-    section.querySelector('#integrations-disconnect-btn')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (!confirm('Disconnect your email & calendar account?')) return;
-        try {
-            await disconnectIntegration(supabase);
-            clearIntegrationStateCache();
-            await setupIntegrationsMenu(supabase);
-            showToast?.('Disconnected email & calendar.', 'success');
-        } catch (error) {
-            alert(error.message || 'Could not disconnect.');
-        }
-    });
 }
 
 export async function loadSVGs() {
@@ -1141,7 +1088,7 @@ const GLOBAL_NAV_TEMPLATE = `
                 <a href="accounts_template.csv" class="user-menu-download-link" download>Accounts</a>
                 <a href="sequence_steps_template.csv" class="user-menu-download-link" download>Sequence Steps</a>
             </div>
-            <a href="ai-admin.html" class="nav-button" title="AI Admin"><span class="nav-label-text">AI Admin</span></a>
+            <a href="ai-admin.html" class="nav-button" title="User Settings"><span class="nav-label-text">User Settings</span></a>
             <button id="logout-btn" class="nav-button nav-button-logout"><i class="fa-solid fa-right-from-bracket nav-icon"></i><span class="nav-label-text">Logout</span></button>
         </div>
     </div>

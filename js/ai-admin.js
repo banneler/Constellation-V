@@ -5,6 +5,13 @@ import {
     injectGlobalNavigation, hideGlobalLoader
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS } from './ai-memory.js';
+import {
+    clearIntegrationStateCache,
+    disconnectIntegration,
+    getIntegrationState,
+    handleIntegrationsQueryToast,
+    startConnect,
+} from './integrations.js';
 
 const AI_FUNCTION_LABELS = {
     [AI_FUNCTION_IDS.COGNITO_OUTREACH]: 'Cognito Outreach',
@@ -36,6 +43,8 @@ const DEFAULT_FUNCTION_ORDER = [
     'global'
 ];
 
+const SETTINGS_RETURN_TO = '/ai-admin.html?tab=integrations';
+
 document.addEventListener("DOMContentLoaded", async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -51,6 +60,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const memoryLatestUpdate = document.getElementById("memory-latest-update");
     const memoryFunctionSelect = document.getElementById("memory-function-select");
     const memoryScopeSummary = document.getElementById("memory-scope-summary");
+    const settingsTabs = document.getElementById("user-settings-tabs");
+    const integrationsStatusText = document.getElementById("integrations-status-text");
+    const integrationsActions = document.getElementById("integrations-actions");
+    const emailSignatureInput = document.getElementById("email-signature-input");
+    const saveSignatureBtn = document.getElementById("save-signature-btn");
 
     function showToast(message, type = 'success') {
         const existingToast = document.querySelector('.constellation-toast');
@@ -72,6 +86,149 @@ document.addEventListener("DOMContentLoaded", async () => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 500);
         }, 3000);
+    }
+
+    function setActiveTab(tabId) {
+        const next = tabId === 'ai-admin' ? 'ai-admin' : 'integrations';
+        settingsTabs?.querySelectorAll('[data-settings-tab]').forEach((btn) => {
+            const active = btn.dataset.settingsTab === next;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        document.getElementById('settings-tab-integrations')?.toggleAttribute('hidden', next !== 'integrations');
+        document.getElementById('settings-tab-ai-admin')?.toggleAttribute('hidden', next !== 'ai-admin');
+
+        const url = new URL(window.location.href);
+        if (next === 'integrations') url.searchParams.delete('tab');
+        else url.searchParams.set('tab', next);
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    function initTabs() {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get('tab');
+        setActiveTab(requested === 'ai-admin' ? 'ai-admin' : 'integrations');
+        settingsTabs?.addEventListener('click', (event) => {
+            const btn = event.target.closest('[data-settings-tab]');
+            if (!btn) return;
+            setActiveTab(btn.dataset.settingsTab);
+        });
+    }
+
+    async function renderIntegrationsPanel() {
+        if (!integrationsStatusText || !integrationsActions) return;
+
+        let integrationState;
+        try {
+            integrationState = await getIntegrationState(supabase, { force: true });
+        } catch (error) {
+            console.error('Integrations state load failed:', error);
+            integrationsStatusText.textContent = 'Unable to load integration status.';
+            integrationsActions.innerHTML = '';
+            return;
+        }
+
+        if (!integrationState.orgEnabled) {
+            integrationsStatusText.textContent =
+                'Email & calendar integrations are turned off for this organization. Ask an admin to enable them under Admin → System Settings.';
+            integrationsActions.innerHTML = '';
+            return;
+        }
+
+        const providerLabel =
+            integrationState.provider === 'microsoft'
+                ? 'Outlook'
+                : integrationState.provider === 'google'
+                    ? 'Google'
+                    : '';
+        integrationsStatusText.textContent = integrationState.connected
+            ? `Connected${providerLabel ? ` via ${providerLabel}` : ''}${integrationState.email ? ` · ${integrationState.email}` : ''}`
+            : 'Not connected — choose a provider to authorize Constellation.';
+
+        if (integrationState.connected) {
+            integrationsActions.innerHTML = `
+                <button type="button" class="btn-danger" id="settings-integrations-disconnect-btn">
+                    <i class="fas fa-link-slash" aria-hidden="true"></i>
+                    <span>Disconnect</span>
+                </button>
+            `;
+            integrationsActions.querySelector('#settings-integrations-disconnect-btn')?.addEventListener('click', async () => {
+                if (!confirm('Disconnect your email & calendar account?')) return;
+                try {
+                    await disconnectIntegration(supabase);
+                    clearIntegrationStateCache();
+                    showToast('Disconnected email & calendar.', 'success');
+                    await renderIntegrationsPanel();
+                } catch (error) {
+                    showToast(error.message || 'Could not disconnect.', 'error');
+                }
+            });
+            return;
+        }
+
+        integrationsActions.innerHTML = `
+            <button type="button" class="btn-primary" id="settings-connect-google-btn">
+                <i class="fa-brands fa-google" aria-hidden="true"></i>
+                <span>Connect Google</span>
+            </button>
+            <button type="button" class="btn-secondary" id="settings-connect-outlook-btn">
+                <i class="fa-brands fa-microsoft" aria-hidden="true"></i>
+                <span>Connect Outlook</span>
+            </button>
+        `;
+        integrationsActions.querySelector('#settings-connect-google-btn')?.addEventListener('click', async () => {
+            try {
+                await startConnect(supabase, 'google', SETTINGS_RETURN_TO);
+            } catch (error) {
+                showToast(error.message || 'Could not start Google connection.', 'error');
+            }
+        });
+        integrationsActions.querySelector('#settings-connect-outlook-btn')?.addEventListener('click', async () => {
+            try {
+                await startConnect(supabase, 'microsoft', SETTINGS_RETURN_TO);
+            } catch (error) {
+                showToast(error.message || 'Could not start Outlook connection.', 'error');
+            }
+        });
+    }
+
+    async function loadEmailSignature() {
+        if (!state.currentUser || !emailSignatureInput) return;
+        const { data, error } = await supabase
+            .from('user_settings')
+            .select('email_signature')
+            .eq('user_id', state.currentUser.id)
+            .maybeSingle();
+        if (error) {
+            console.error('Email signature load failed:', error);
+            showToast('Unable to load email signature.', 'error');
+            return;
+        }
+        emailSignatureInput.value = data?.email_signature || '';
+    }
+
+    async function saveEmailSignature() {
+        if (!state.currentUser || !emailSignatureInput) return;
+        const signature = emailSignatureInput.value ?? '';
+        saveSignatureBtn.disabled = true;
+        try {
+            const { error } = await supabase
+                .from('user_settings')
+                .upsert(
+                    {
+                        user_id: state.currentUser.id,
+                        email_signature: signature,
+                    },
+                    { onConflict: 'user_id' }
+                );
+            if (error) throw error;
+            showToast('Email signature saved.', 'success');
+        } catch (error) {
+            console.error('Email signature save failed:', error);
+            showToast(error.message || 'Could not save signature.', 'error');
+        } finally {
+            saveSignatureBtn.disabled = false;
+        }
     }
 
     function formatFunctionLabel(functionId) {
@@ -216,10 +373,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             await checkAndSetNotifications(supabase);
             updateActiveNavLink();
             setupModalListeners();
+            initTabs();
+            handleIntegrationsQueryToast(showToast);
+
             memoryFunctionSelect?.addEventListener('change', () => {
                 renderSelectedFunction(state.scopedMemory || new Map());
             });
+            saveSignatureBtn?.addEventListener('click', () => {
+                saveEmailSignature().catch((error) => {
+                    console.error(error);
+                    showToast('Could not save signature.', 'error');
+                });
+            });
+
             hideGlobalLoader();
+
+            await Promise.all([
+                renderIntegrationsPanel(),
+                loadEmailSignature(),
+            ]);
+
             loadMemoryOverview().catch((error) => {
                 console.error('AI memory overview load failed:', error);
                 showToast('Unable to load AI memory overview.', 'error');

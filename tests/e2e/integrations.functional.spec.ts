@@ -54,7 +54,7 @@ test.describe('Email & calendar integrations', () => {
     await expect(toggle).toHaveJSProperty('checked', before);
   });
 
-  test('User menu Integrations section follows org toggle', async ({ page }) => {
+  test('User Settings Integrations panel follows org toggle', async ({ page }) => {
     page.on('dialog', (d) => d.accept().catch(() => {}));
 
     guardian.step('Ensure integrations disabled via Admin');
@@ -77,13 +77,16 @@ test.describe('Email & calendar integrations', () => {
       await req;
     }
 
-    guardian.step('Menu should hide Integrations when org toggle is off');
-    await page.goto('/command-center.html');
+    guardian.step('User Settings shows org-disabled message when toggle is off');
+    await page.goto('/ai-admin.html');
     await page.waitForTimeout(2500);
-    await page.locator('#nav-menu-toggle').click();
+    await expect(page.getByRole('heading', { name: 'User Settings' })).toBeVisible();
     await expect(page.locator('#user-integrations-menu')).toHaveCount(0);
+    await expect(page.locator('#integrations-status-text')).toContainText(/turned off for this organization/i);
+    await expect(page.locator('#settings-connect-google-btn')).toHaveCount(0);
+    await expect(page.locator('#email-signature-input')).toBeVisible();
 
-    guardian.step('Enable integrations and confirm Menu section appears');
+    guardian.step('Enable integrations and confirm Connect actions appear');
     await page.goto('/admin.html#settings');
     await page.waitForTimeout(2000);
     const enableReq = page.waitForRequest(
@@ -93,11 +96,12 @@ test.describe('Email & calendar integrations', () => {
     await admin.emailCalendarToggle().check();
     await enableReq;
 
-    await page.goto('/command-center.html');
+    await page.goto('/ai-admin.html');
     await page.waitForTimeout(2500);
-    await page.locator('#nav-menu-toggle').click();
-    await expect(page.locator('#user-integrations-menu')).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('#user-integrations-menu')).toContainText(/Integrations|Connect Google|Connect Outlook|Connected/i);
+    await expect(page.locator('#integrations-status-text')).toContainText(/Not connected|Connected/i);
+    await expect(page.locator('#settings-connect-google-btn, #settings-integrations-disconnect-btn').first()).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Leave disabled for mailto regression default.
     await page.goto('/admin.html#settings');
@@ -112,3 +116,4 @@ test.describe('Email & calendar integrations', () => {
     }
   });
 });
+

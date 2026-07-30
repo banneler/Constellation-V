@@ -1,7 +1,9 @@
 const { handleOptions, readJsonBody, sendError, sendJson } = require("../../_lib/http");
 const { getUserFromRequest } = require("../../_lib/supabase");
 const {
+  appendEmailSignature,
   assertOrgIntegrationsEnabled,
+  getUserEmailSignature,
   getUserIntegration,
   sendMessage,
 } = require("../../_lib/nylas");
@@ -16,7 +18,7 @@ module.exports = async function handler(req, res) {
     const integration = await getUserIntegration(user.id);
     if (!integration || integration.status !== "connected" || !integration.nylas_grant_id) {
       return sendJson(res, 409, {
-        error: "Connect Google or Outlook from the user menu to send email in-app.",
+        error: "Connect Google or Outlook in User Settings to send email in-app.",
         code: "not_connected",
       });
     }
@@ -27,10 +29,13 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 400, { error: 'Missing "to" recipient.' });
     }
 
+    const signature = await getUserEmailSignature(user.id);
+    const messageBody = appendEmailSignature(body.body, signature);
+
     const result = await sendMessage(integration.nylas_grant_id, {
       to,
       subject: body.subject,
-      body: body.body,
+      body: messageBody,
       cc: body.cc,
       bcc: body.bcc,
     });
@@ -39,6 +44,7 @@ module.exports = async function handler(req, res) {
       ok: true,
       provider: integration.provider,
       from: integration.email,
+      signatureApplied: Boolean(signature),
       result,
     });
   } catch (error) {
