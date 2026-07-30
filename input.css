@@ -773,12 +773,13 @@ body.theme-green {
         /*
          * Columns live on .cc-day-timeline-plane:
          * [ label rail | vertical rule | event track ]
-         * Event left/right insets apply only inside the track column.
+         * Event/hover abspos MUST use .cc-day-timeline-track as containing block
+         * (insets are track-relative only — never plane/label width).
          */
         --cc-day-timeline-label-col: 2.5rem;
         --cc-day-timeline-rule-col: 1px;
-        --cc-day-timeline-event-left: 0.4rem;
-        --cc-day-timeline-event-right: 1.85rem;
+        --cc-day-timeline-event-left: 0.25rem;
+        --cc-day-timeline-event-right: 0.7rem;
         /* Outer shell only — Y math lives on .cc-day-timeline-plane */
         position: relative;
         display: flex;
@@ -788,12 +789,13 @@ body.theme-green {
         overflow: hidden; /* clip label overhang so parent doesn't micro-scroll */
         font-family: var(--font-main);
         /* Room for centered 7am/6pm labels; included in flex height via border-box */
-        padding-block: 0.28rem;
+        padding-block: 0.55rem;
         box-sizing: border-box;
     }
-    /* Shared Y plane: real columns so events never paint under labels. */
+    /* Shared Y plane: real columns so events never paint under labels.
+       Not a positioning context — abs events/hover anchor to the track only. */
     .cc-day-timeline-plane {
-        position: relative;
+        position: static;
         flex: 1 1 0;
         min-height: 0;
         display: grid;
@@ -864,13 +866,16 @@ body.theme-green {
         box-shadow: none !important;
     }
     .cc-day-timeline-track {
+        /* Sole containing block for event + hover abspos (keep above plane). */
         position: relative;
+        transform: translateZ(0);
         grid-column: 3;
         min-width: 0;
         width: 100%;
         align-self: stretch;
         overflow: hidden;
         isolation: isolate;
+        z-index: 1;
         margin: 0;
         padding: 0;
         border: 0;
@@ -892,8 +897,8 @@ body.theme-green {
     /* Overlay only — out of flow. Same left/right insets + % tops as events. */
     .cc-day-timeline-hover {
         position: absolute;
-        left: var(--cc-day-timeline-event-left, 0.4rem);
-        right: var(--cc-day-timeline-event-right, 1.85rem);
+        left: var(--cc-day-timeline-event-left, 0.25rem);
+        right: var(--cc-day-timeline-event-right, 0.7rem);
         top: 0;
         height: 0;
         margin: 0;
@@ -903,7 +908,6 @@ body.theme-green {
         pointer-events: none;
         z-index: 2;
         opacity: 0;
-        visibility: hidden;
         border-radius: 0.25rem;
         background-color: transparent;
         box-shadow: none;
@@ -911,9 +915,8 @@ body.theme-green {
     }
     .cc-day-timeline-hover.is-active {
         opacity: 1;
-        visibility: visible;
-        background-color: color-mix(in srgb, var(--primary-blue) 16%, transparent);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-blue) 28%, transparent);
+        background-color: color-mix(in srgb, var(--primary-blue) 20%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-blue) 32%, transparent);
     }
     .cc-day-timeline-track:focus-visible {
         box-shadow: inset 0 0 0 1px var(--primary-blue);
@@ -925,8 +928,8 @@ body.theme-green {
     }
     .cc-day-timeline-event {
         position: absolute;
-        left: var(--cc-day-timeline-event-left, 0.4rem);
-        right: var(--cc-day-timeline-event-right, 1.85rem);
+        left: var(--cc-day-timeline-event-left, 0.25rem);
+        right: var(--cc-day-timeline-event-right, 0.7rem);
         z-index: 3;
         overflow: hidden;
         border-radius: 0.25rem;

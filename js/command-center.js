@@ -818,10 +818,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (overflowAfter) classes.push("is-overflow-end");
                 const whenLabel = formatCalendarEventTime(ev);
                 const color = normalizeEventColor(ev?.color);
-                // Inline absolute + top/height so stale CSS can't drop events into flow.
-                // Left/right use shared CSS vars (track column only); top% uses timelineOffsetRatio.
+                // Abspos inside .cc-day-timeline-track only (left/right are track insets).
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.4rem);right:var(--cc-day-timeline-event-right,1.85rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
+                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
                     color ? ` --cc-event-color: ${color};` : ""
                 }" title="${escapeHtml(ev.title || "(No title)")}">
                         <div class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
@@ -867,6 +866,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             : "";
 
         // Plane: [labels | vertical rule | event track] — shared unpadded height for % tops.
+        // Events + hover are children of track only (track is the abspos containing block).
         ccMonthDayList.innerHTML = `
             ${allDayHtml}
             <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
@@ -874,7 +874,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
                     <div class="cc-day-timeline-rule" aria-hidden="true"></div>
                     <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
-                        <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.4rem);right:var(--cc-day-timeline-event-right,1.85rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
+                        <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:0;height:0;margin:0;opacity:0;pointer-events:none;z-index:2"></div>
                         ${eventBlocks || ""}
                         ${
                             !timedEvents.length
@@ -1083,10 +1083,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!hoverEl) return;
             const rect = track.getBoundingClientRect();
             if (!rect.height) return;
-            // Same containing block + % math as events (not px from a different box).
+            // Track-relative abspos (same containing block + % math as events).
             hoverEl.style.position = "absolute";
-            hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.4rem)";
-            hoverEl.style.right = "var(--cc-day-timeline-event-right, 1.85rem)";
+            hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.25rem)";
+            hoverEl.style.right = "var(--cc-day-timeline-event-right, 0.7rem)";
             hoverEl.style.margin = "0";
             hoverEl.style.padding = "0";
             hoverEl.style.border = "0";
@@ -1096,11 +1096,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const hourStart = hourStartFromTrackClientY(track, clientY);
             hoverEl.style.top = `${timelineOffsetRatio(hourStart) * 100}%`;
             hoverEl.style.height = `${(TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * 100}%`;
+            // Inline opacity so the band is visible even if layered CSS lags.
+            hoverEl.style.opacity = "1";
             hoverEl.classList.add("is-active");
         };
         const clearTimelineHoverBlock = (root = ccMonthDayList) => {
-            root?.querySelectorAll?.(".cc-day-timeline-hover.is-active").forEach((el) => {
+            root?.querySelectorAll?.(".cc-day-timeline-hover").forEach((el) => {
                 el.classList.remove("is-active");
+                el.style.opacity = "0";
                 el.style.height = "0%";
                 el.style.top = "0%";
             });
