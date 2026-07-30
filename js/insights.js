@@ -432,6 +432,11 @@ function computeSnapshot() {
                 cognitoTriggers: repAlerts.length,
                 cognitoDismissed: repDismissed,
                 cognitoConverted: repConverted,
+                cognitoRateFraction: formatCognitoConversionFraction(
+                    repConverted,
+                    repEligible,
+                    repAlerts.length
+                ),
                 staleAccounts,
                 coachingPrompts,
             };
@@ -889,7 +894,7 @@ function renderCognitoOutreach(snapshot) {
     document.getElementById('insights-cognito-kpis').innerHTML = kpiHtml([
         { label: 'Triggers', value: cognito.triggers, hint: 'Created in period' },
         { label: 'Dismissed', value: cognito.dismissed, hint: 'Not converted' },
-        { label: 'Converted', value: cognito.converted, hint: 'Actioned w/ outreach' },
+        { label: 'Converted', value: cognito.converted, hint: 'Outreach after trigger' },
         {
             label: 'Conversion',
             value: cognito.conversionDisplay,
@@ -1059,7 +1064,7 @@ function buildCoachingExportHtml(snapshot, managerName) {
               <td>${escapeHtml(formatCurrencyK(rep.closedWonValue))}</td>
               <td>${rep.quotaPct}%</td>
               <td>${rep.seqOverdue}</td>
-              <td>${rep.cognitoConverted}/${rep.cognitoTriggers}</td>
+              <td>${escapeHtml(rep.cognitoRateFraction)} (${rep.cognitoConverted}/${rep.cognitoTriggers})</td>
             </tr>`
                 )
                 .join('')}
