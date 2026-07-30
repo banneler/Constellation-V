@@ -7,33 +7,55 @@
   <link rel="stylesheet" href="../../output.css">
   <style>
     body { margin: 0; background: #0f1419; color: #e8eef5; }
-    .wrap { width: 320px; height: 480px; padding: 12px; box-sizing: border-box; }
-    .cc-month-day-list { display: flex; flex-direction: column; height: 100%; min-height: 0; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="cc-month-day-list" id="day-list">
-      <div class="cc-day-timeline" data-day-key="2026-07-30">
-        <div class="cc-day-timeline-rail" aria-hidden="true">
-          <div class="cc-day-timeline-hour" style="top:0%;height:0"><span class="cc-day-timeline-hour-label">7 AM</span></div>
-          <div class="cc-day-timeline-hour" style="top:50%;height:0"><span class="cc-day-timeline-hour-label">12 PM</span></div>
-          <div class="cc-day-timeline-hour" style="top:100%;height:0"><span class="cc-day-timeline-hour-label">6 PM</span></div>
+  <!-- Mirror month-calendar modal shell so geometry asserts against real containing blocks. -->
+  <div id="cc-month-calendar-backdrop" class="modal-backdrop cc-month-calendar-backdrop" aria-hidden="false">
+    <div class="cc-month-calendar-modal" role="dialog" aria-modal="true">
+      <div class="cc-month-calendar-header">
+        <h3 class="cc-month-calendar-title">July 2026</h3>
+      </div>
+      <div class="cc-month-calendar-body">
+        <div class="cc-month-grid-wrap">
+          <div class="cc-month-weekday-row" aria-hidden="true">
+            <div class="cc-month-weekday">S</div><div class="cc-month-weekday">M</div>
+            <div class="cc-month-weekday">T</div><div class="cc-month-weekday">W</div>
+            <div class="cc-month-weekday">T</div><div class="cc-month-weekday">F</div>
+            <div class="cc-month-weekday">S</div>
+          </div>
+          <div class="cc-month-grid" aria-hidden="true"></div>
         </div>
-        <div class="cc-day-timeline-rule" aria-hidden="true"></div>
-        <div class="cc-day-timeline-track" id="cc-day-timeline-track">
-          <div class="cc-day-timeline-canvas">
-            <div class="cc-day-timeline-hover is-active" style="top:9.09%;height:9.09%"></div>
-            <div class="cc-day-timeline-event" style="top:18.18%;height:13.64%">
-              <div class="cc-day-timeline-event-when">9:00 AM</div>
-              <div class="cc-day-timeline-event-title">Ledger check A</div>
-            </div>
-            <div class="cc-day-timeline-event" style="top:45.45%;height:9.09%">
-              <div class="cc-day-timeline-event-when">12:00 PM</div>
-              <div class="cc-day-timeline-event-title">Ledger check B</div>
+        <aside class="cc-month-day-panel">
+          <div class="cc-month-day-panel-header">
+            <h4 class="cc-month-day-heading">Thursday, July 30</h4>
+          </div>
+          <div class="cc-month-day-list" id="day-list">
+            <div class="cc-day-timeline" data-day-key="2026-07-30">
+              <div class="cc-day-timeline-plane">
+                <div class="cc-day-timeline-rail" aria-hidden="true">
+                  <div class="cc-day-timeline-hour" style="top:0%;height:0"><span class="cc-day-timeline-hour-label">7 AM</span></div>
+                  <div class="cc-day-timeline-hour" style="top:50%;height:0"><span class="cc-day-timeline-hour-label">12 PM</span></div>
+                  <div class="cc-day-timeline-hour" style="top:100%;height:0"><span class="cc-day-timeline-hour-label">6 PM</span></div>
+                </div>
+                <div class="cc-day-timeline-rule" aria-hidden="true"></div>
+                <div class="cc-day-timeline-track" id="cc-day-timeline-track">
+                  <div class="cc-day-timeline-canvas">
+                    <div class="cc-day-timeline-hover is-active" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:9.09%;height:9.09%"></div>
+                    <div class="cc-day-timeline-event" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:18.18%;height:13.64%">
+                      <div class="cc-day-timeline-event-when">9:00 AM</div>
+                      <div class="cc-day-timeline-event-title">Ledger check A</div>
+                    </div>
+                    <div class="cc-day-timeline-event" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:45.45%;height:9.09%">
+                      <div class="cc-day-timeline-event-when">12:00 PM</div>
+                      <div class="cc-day-timeline-event-title">Ledger check B</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   </div>

@@ -771,21 +771,19 @@ body.theme-green {
     }
     .cc-day-timeline {
         /*
-         * Hard ledger layout — grid columns on the timeline itself:
-         * [ label rail | 1px rule | event track ]
-         * Timeline is NOT a positioning context. Events/hover abspos ONLY inside
-         * .cc-day-timeline-canvas (child of track). Never plane-relative left.
+         * Outer flex shell (gets day-pane height). Columns live on .cc-day-timeline-plane:
+         * [ label rail | 1px rule | event track ].
+         * Events/hover abspos ONLY inside .cc-day-timeline-canvas (in-flow, position:relative).
+         * Never absolute-fill the canvas — a zero-height track made abspos children
+         * resolve against the fixed modal backdrop (viewport "air ball").
          */
         --cc-day-timeline-label-col: 2.5rem;
         --cc-day-timeline-rule-col: 1px;
-        position: static;
-        display: grid;
-        grid-template-columns:
-            var(--cc-day-timeline-label-col, 2.5rem)
-            var(--cc-day-timeline-rule-col, 1px)
-            minmax(0, 1fr);
-        align-items: stretch;
-        column-gap: 0.3rem;
+        --cc-day-timeline-event-left: 0.25rem;
+        --cc-day-timeline-event-right: 0.7rem;
+        position: relative;
+        display: flex;
+        flex-direction: column;
         flex: 1 1 0;
         min-height: 0;
         overflow: hidden; /* clip label overhang so parent doesn't micro-scroll */
@@ -794,16 +792,31 @@ body.theme-green {
         padding-block: 0.55rem;
         box-sizing: border-box;
     }
-    /* Legacy wrapper (if any stale markup) — never a positioning context. */
+    /* Shared Y plane: definite height from flex so % tops resolve inside the modal. */
     .cc-day-timeline-plane {
-        position: static;
-        display: contents;
+        position: relative;
+        flex: 1 1 0;
+        min-height: 0;
+        display: grid;
+        grid-template-columns:
+            var(--cc-day-timeline-label-col, 2.5rem)
+            var(--cc-day-timeline-rule-col, 1px)
+            minmax(0, 1fr);
+        align-items: stretch;
+        column-gap: 0.3rem;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
+        overflow: hidden;
     }
     .cc-day-timeline-rail {
         position: relative; /* hour-mark abspos only */
         grid-column: 1;
         width: 100%;
+        height: 100%;
         min-width: 0;
+        min-height: 0;
         align-self: stretch;
         z-index: 1;
         pointer-events: none;
@@ -817,6 +830,7 @@ body.theme-green {
     .cc-day-timeline-rule {
         grid-column: 2;
         width: var(--cc-day-timeline-rule-col, 1px);
+        height: 100%;
         align-self: stretch;
         margin: 0;
         padding: 0;
@@ -854,14 +868,16 @@ body.theme-green {
         box-shadow: none !important;
     }
     .cc-day-timeline-track {
-        /* Track column only — clips; canvas inside is the abspos containing block. */
+        /* Hit target + hour grid; clips. Canvas (child) is the abspos containing block. */
         position: relative;
+        transform: translateZ(0);
         grid-column: 3;
         min-width: 0;
+        min-height: 0;
         width: 100%;
+        height: 100%;
         align-self: stretch;
         overflow: hidden;
-        contain: layout paint;
         isolation: isolate;
         z-index: 1;
         margin: 0;
@@ -882,10 +898,17 @@ body.theme-green {
         );
         outline: none;
     }
-    /* Sole abspos containing block for events + hover (inset to track edges). */
+    /*
+     * In-flow containing block for events + hover. Must be position:relative with
+     * height:100% (NOT position:absolute; inset:0) so the track keeps a real box
+     * and abspos % tops never fall through to the fixed month-calendar backdrop.
+     */
     .cc-day-timeline-canvas {
-        position: absolute;
-        inset: 0;
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
         overflow: hidden;
         margin: 0;
         padding: 0;
@@ -893,11 +916,11 @@ body.theme-green {
         box-sizing: border-box;
         pointer-events: none;
     }
-    /* Overlay only — out of flow. Track-relative insets (ledger-safe). */
+    /* Overlay only — out of flow. Canvas-relative insets (ledger-safe). */
     .cc-day-timeline-hover {
         position: absolute;
-        left: 0.25rem;
-        right: 0.7rem;
+        left: var(--cc-day-timeline-event-left, 0.25rem);
+        right: var(--cc-day-timeline-event-right, 0.7rem);
         width: auto;
         top: 0;
         height: 0;
@@ -928,8 +951,8 @@ body.theme-green {
     }
     .cc-day-timeline-event {
         position: absolute;
-        left: 0.25rem;
-        right: 0.7rem;
+        left: var(--cc-day-timeline-event-left, 0.25rem);
+        right: var(--cc-day-timeline-event-right, 0.7rem);
         width: auto;
         z-index: 3;
         overflow: hidden;
