@@ -135,6 +135,25 @@ export async function sendEmail(supabase, { to, subject = "", body = "", cc, bcc
     }
 }
 
+/**
+ * List upcoming calendar events from the connected Nylas primary calendar.
+ * @param {{ calendarId?: string, limit?: number, start?: number, end?: number }} [opts]
+ *   start/end are Unix seconds; server defaults to now → +7 days when omitted.
+ * @returns {Promise<{ ok: boolean, provider?: string, events: Array, result?: any }>}
+ */
+export async function listCalendarEvents(supabase, opts = {}) {
+    const params = new URLSearchParams();
+    if (opts.calendarId) params.set("calendarId", opts.calendarId);
+    if (opts.limit != null) params.set("limit", String(opts.limit));
+    if (opts.start != null) params.set("start", String(opts.start));
+    if (opts.end != null) params.set("end", String(opts.end));
+    const qs = params.toString();
+    return callIntegrationsApi(
+        supabase,
+        `/api/integrations/calendar/events${qs ? `?${qs}` : ""}`
+    );
+}
+
 export async function createCalendarEvent(supabase, event = {}, options = {}) {
     const state = await getIntegrationState(supabase, { force: options.forceRefresh });
     const toast = typeof options.onNotice === "function" ? options.onNotice : () => {};

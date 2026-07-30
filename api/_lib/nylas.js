@@ -183,10 +183,14 @@ async function createEvent(grantId, event) {
   });
 }
 
-async function listEvents(grantId, { calendarId = "primary", limit = 20 } = {}) {
-  return nylasFetch(
-    `/v3/grants/${encodeURIComponent(grantId)}/events?calendar_id=${encodeURIComponent(calendarId)}&limit=${encodeURIComponent(limit)}`
-  );
+async function listEvents(grantId, { calendarId = "primary", limit = 20, start, end } = {}) {
+  const params = new URLSearchParams({
+    calendar_id: calendarId,
+    limit: String(limit),
+  });
+  if (start != null && Number.isFinite(Number(start))) params.set("start", String(Math.floor(Number(start))));
+  if (end != null && Number.isFinite(Number(end))) params.set("end", String(Math.floor(Number(end))));
+  return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/events?${params.toString()}`);
 }
 
 async function getOrgSettings() {

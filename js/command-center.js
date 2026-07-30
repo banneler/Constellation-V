@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
+import { emailActionLabel, getIntegrationState, listCalendarEvents, sendEmail } from './integrations.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const logoutBtn = document.getElementById("logout-btn");
     const sequenceStepsList = document.getElementById("sequence-steps-list");
     const recentActivitiesList = document.getElementById("recent-activities-list");
+    const ccCalendarList = document.getElementById("cc-calendar-list");
     const myTasksList = document.getElementById("my-tasks-list");
     const sequenceToggleDue = document.getElementById("sequence-toggle-due");
     const sequenceToggleUpcoming = document.getElementById("sequence-toggle-upcoming");
@@ -66,8 +67,91 @@ document.addEventListener("DOMContentLoaded", async () => {
         return today.toISOString();
     }
 
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function formatCalendarEventWhen(ev) {
+        if (ev?.startTime == null) return "";
+        const d = new Date(Number(ev.startTime) * 1000);
+        if (Number.isNaN(d.getTime())) return "";
+        if (ev.allDay) {
+            return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · All day`;
+        }
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        if (d.toDateString() === now.toDateString()) return `Today · ${timeStr}`;
+        if (d.toDateString() === tomorrow.toDateString()) return `Tomorrow · ${timeStr}`;
+        const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        return `${dateStr} · ${timeStr}`;
+    }
+
     function replacePlaceholders(template, contact, account) {
         return applyEmailMergeFields(template, contact, account);
+    }
+
+    async function loadCalendarPanel() {
+        if (!ccCalendarList) return;
+        ccCalendarList.innerHTML =
+            '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Loading calendar...</p>';
+
+        try {
+            const integrationState = await getIntegrationState(supabase);
+            if (!integrationState.orgEnabled) {
+                ccCalendarList.innerHTML =
+                    '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Calendar preview is available when your organization enables email &amp; calendar integrations.</p>';
+                return;
+            }
+            if (!integrationState.connected) {
+                ccCalendarList.innerHTML =
+                    '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Connect Google or Outlook in <a href="ai-admin.html?tab=integrations" class="cc-calendar-settings-link">User Settings</a> to see upcoming events.</p>';
+                return;
+            }
+
+            const nowSec = Math.floor(Date.now() / 1000);
+            const data = await listCalendarEvents(supabase, {
+                start: nowSec,
+                end: nowSec + 7 * 24 * 60 * 60,
+                limit: 15,
+            });
+            const events = Array.isArray(data?.events) ? data.events : [];
+
+            if (!events.length) {
+                ccCalendarList.innerHTML =
+                    '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">No upcoming events</p>';
+                return;
+            }
+
+            ccCalendarList.innerHTML = "";
+            events.forEach((ev) => {
+                const item = document.createElement("div");
+                item.className = "cc-calendar-item";
+                const whenLabel = formatCalendarEventWhen(ev);
+                const desc = (ev.description || "").trim();
+                const showDesc = desc && desc.length > 2 && desc !== ev.title;
+                item.innerHTML = `
+                    <div class="cc-calendar-item-when">${escapeHtml(whenLabel)}</div>
+                    <div class="cc-calendar-item-body">
+                        <div class="cc-calendar-item-title">${escapeHtml(ev.title || "(No title)")}</div>
+                        ${showDesc ? `<div class="cc-calendar-item-desc">${escapeHtml(desc)}</div>` : ""}
+                    </div>
+                `;
+                ccCalendarList.appendChild(item);
+            });
+        } catch (error) {
+            console.warn("[command-center] calendar panel:", error);
+            ccCalendarList.innerHTML =
+                '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Couldn\'t load calendar events right now.</p>';
+            if (typeof showToast === "function") {
+                showToast(error?.message || "Couldn't load calendar events.", "warning");
+            }
+        }
     }
 
     // --- DATA FETCHING ---
@@ -828,6 +912,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             
             // Initial data load for the effective user (which is the current user by default)
             await loadAllData();
+            // Calendar panel is independent of CRM tables; soft-fail if integrations unavailable
+            loadCalendarPanel();
             
             // Setup event listeners (including Refresh button)
             setupPageEventListeners();

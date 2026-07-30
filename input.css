@@ -478,8 +478,54 @@ body.theme-green {
         contain: layout;
     }
     .dashboard-column-right .section-card {
-        @apply flex flex-col flex-1 min-h-0;
+        @apply flex flex-col min-h-0;
         overflow: clip;
+    }
+    .dashboard-column-right .cc-calendar-card {
+        flex: 0 1 auto;
+        max-height: 42%;
+    }
+    .dashboard-column-right .cc-recent-activities-card {
+        @apply flex-1;
+        min-height: 0;
+    }
+    .cc-calendar-list {
+        @apply flex flex-col flex-1 min-h-0 px-4 pb-4 min-w-0;
+        overflow-y: auto;
+    }
+    .cc-calendar-item {
+        @apply flex gap-3 py-2.5 border-b border-[var(--border-color)] last:border-b-0 items-start min-w-0;
+    }
+    .cc-calendar-item-when {
+        @apply flex-shrink-0 text-xs font-medium pt-0.5;
+        color: var(--text-medium);
+        min-width: 7.5rem;
+        max-width: 8.5rem;
+    }
+    .cc-calendar-item-body {
+        @apply flex flex-col flex-1 min-w-0;
+    }
+    .cc-calendar-item-title {
+        @apply text-sm leading-snug min-w-0;
+        color: var(--text-light);
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+    .cc-calendar-item-desc {
+        @apply text-xs mt-0.5 leading-snug min-w-0;
+        color: var(--text-muted);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    .cc-calendar-settings-link {
+        color: var(--primary-blue);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .cc-calendar-settings-link:hover {
+        filter: brightness(1.1);
     }
     .dashboard-column-left > .section-card {
         @apply flex flex-col flex-1 min-h-0 overflow-hidden;
@@ -521,7 +567,11 @@ body.theme-green {
         .dashboard-left-top-row .my-tasks-card {
             height: auto;
         }
-        .dashboard-column-right .section-card {
+        .dashboard-column-right .cc-calendar-card {
+            flex: 0 1 auto;
+            max-height: 42%;
+        }
+        .dashboard-column-right .cc-recent-activities-card {
             display: flex;
             flex-direction: column;
             flex: 1;
