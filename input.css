@@ -614,54 +614,61 @@ body.theme-green {
     .cc-month-weekday-row {
         @apply grid grid-cols-7 gap-0.5 mb-0.5 flex-shrink-0;
     }
-    .cc-month-weekday {
-        @apply text-[0.6rem] font-semibold uppercase tracking-wide text-center py-0.5 leading-none;
+    .cc-month-calendar-modal .cc-month-weekday {
+        @apply text-[0.55rem] font-semibold uppercase tracking-wide text-center py-0.5 leading-none;
         color: var(--text-muted);
-        letter-spacing: 0.03em;
+        letter-spacing: 0.04em;
     }
     .cc-month-grid {
         @apply grid grid-cols-7 gap-0.5 flex-1 min-h-0;
         grid-auto-rows: minmax(0, 1fr);
     }
-    .cc-month-cell {
-        @apply flex flex-col gap-px rounded-md p-1 min-h-0 overflow-hidden text-left cursor-pointer border;
+    .cc-month-calendar-modal .cc-month-cell {
+        @apply flex flex-col gap-px rounded-md p-0.5 min-h-0 overflow-hidden text-left cursor-pointer border;
         background-color: var(--bg-medium);
         border-color: transparent;
         transition: border-color 0.15s, background-color 0.15s;
+        font-family: var(--font-main);
+        font-size: 0.625rem;
+        line-height: 1.1;
     }
-    .cc-month-cell:hover {
+    .cc-month-calendar-modal .cc-month-cell:hover {
         border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
     }
-    .cc-month-cell.is-outside {
+    .cc-month-calendar-modal .cc-month-cell.is-outside {
         opacity: 0.42;
     }
-    .cc-month-cell.is-today {
+    .cc-month-calendar-modal .cc-month-cell.is-today {
         background-color: color-mix(in srgb, var(--primary-blue) 10%, var(--bg-medium));
     }
-    .cc-month-cell.is-selected {
+    .cc-month-calendar-modal .cc-month-cell.is-selected {
         border-color: var(--primary-blue);
         background-color: color-mix(in srgb, var(--primary-blue) 14%, var(--bg-medium));
     }
-    .cc-month-cell-day {
-        @apply text-[0.7rem] font-semibold flex-shrink-0 leading-none;
+    .cc-month-calendar-modal .cc-month-cell-day {
+        @apply font-semibold flex-shrink-0 leading-none;
+        font-size: 0.625rem;
         color: var(--text-light);
     }
-    .cc-month-cell-events {
+    .cc-month-calendar-modal .cc-month-cell-events {
         @apply flex flex-col gap-px min-h-0 overflow-hidden flex-1;
     }
-    .cc-month-cell-event {
-        @apply text-[0.6rem] leading-none truncate rounded px-0.5 py-px;
+    .cc-month-calendar-modal .cc-month-cell-event {
+        @apply leading-none truncate rounded px-0.5;
+        font-size: 0.55rem;
+        padding-block: 1px;
         background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-light));
         color: var(--text-light);
     }
-    .cc-month-cell-more {
-        @apply text-[0.55rem] font-medium leading-none;
+    .cc-month-calendar-modal .cc-month-cell-more {
+        @apply font-medium leading-none;
+        font-size: 0.5rem;
         color: var(--text-muted);
     }
-    .cc-month-cell-dots {
+    .cc-month-calendar-modal .cc-month-cell-dots {
         @apply flex gap-0.5 mt-auto flex-wrap;
     }
-    .cc-month-dot {
+    .cc-month-calendar-modal .cc-month-dot {
         @apply w-1 h-1 rounded-full;
         background-color: var(--primary-blue);
     }
