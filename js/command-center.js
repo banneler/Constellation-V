@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { emailActionLabel, getIntegrationState, listCalendarEvents, sendEmail } from './integrations.js';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, sendEmail } from './integrations.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -53,6 +53,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceStepsList = document.getElementById("sequence-steps-list");
     const recentActivitiesList = document.getElementById("recent-activities-list");
     const ccCalendarList = document.getElementById("cc-calendar-list");
+    const ccCalendarActions = document.getElementById("cc-calendar-actions");
+    const ccCalendarAddBtn = document.getElementById("cc-calendar-add-btn");
+    const ccCalendarMonthBtn = document.getElementById("cc-calendar-month-btn");
+    const ccMonthBackdrop = document.getElementById("cc-month-calendar-backdrop");
+    const ccMonthTitle = document.getElementById("cc-month-calendar-title");
+    const ccMonthWeekdayRow = document.getElementById("cc-month-weekday-row");
+    const ccMonthGrid = document.getElementById("cc-month-grid");
+    const ccMonthDayHeading = document.getElementById("cc-month-day-heading");
+    const ccMonthDayList = document.getElementById("cc-month-day-list");
+    const ccMonthPrevBtn = document.getElementById("cc-month-prev-btn");
+    const ccMonthNextBtn = document.getElementById("cc-month-next-btn");
+    const ccMonthCloseBtn = document.getElementById("cc-month-calendar-close");
     const myTasksList = document.getElementById("my-tasks-list");
     const sequenceToggleDue = document.getElementById("sequence-toggle-due");
     const sequenceToggleUpcoming = document.getElementById("sequence-toggle-upcoming");
@@ -75,39 +87,473 @@ document.addEventListener("DOMContentLoaded", async () => {
             .replace(/"/g, "&quot;");
     }
 
-    function formatCalendarEventWhen(ev) {
-        if (ev?.startTime == null) return "";
+    let calendarIntegrationState = null;
+    let monthViewYear = null;
+    let monthViewMonth = null; // 0-indexed
+    let monthViewEvents = [];
+    let monthSelectedDayKey = null;
+    let monthEventsLoading = false;
+
+    function eventLocalDate(ev) {
+        if (ev?.startTime == null) return null;
         const d = new Date(Number(ev.startTime) * 1000);
-        if (Number.isNaN(d.getTime())) return "";
-        if (ev.allDay) {
-            return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · All day`;
-        }
+        if (Number.isNaN(d.getTime())) return null;
+        return d;
+    }
+
+    function dayKeyFromDate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+    }
+
+    function formatDayGroupLabel(date) {
         const now = new Date();
         const tomorrow = new Date(now);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-        if (d.toDateString() === now.toDateString()) return `Today · ${timeStr}`;
-        if (d.toDateString() === tomorrow.toDateString()) return `Tomorrow · ${timeStr}`;
-        const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-        return `${dateStr} · ${timeStr}`;
+        if (date.toDateString() === now.toDateString()) return "Today";
+        if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+        return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    }
+
+    function formatCalendarEventTime(ev) {
+        if (ev?.startTime == null) return "";
+        const d = new Date(Number(ev.startTime) * 1000);
+        if (Number.isNaN(d.getTime())) return "";
+        if (ev.allDay) return "All day";
+        return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    }
+
+    function groupEventsByDay(events) {
+        const groups = [];
+        const indexByKey = new Map();
+        for (const ev of events) {
+            const d = eventLocalDate(ev);
+            if (!d) continue;
+            const key = dayKeyFromDate(d);
+            let group = indexByKey.get(key);
+            if (!group) {
+                group = { key, date: d, label: formatDayGroupLabel(d), events: [] };
+                indexByKey.set(key, group);
+                groups.push(group);
+            }
+            group.events.push(ev);
+        }
+        return groups;
+    }
+
+    function renderCalendarEventItem(ev, { timeOnly = true } = {}) {
+        const item = document.createElement("div");
+        item.className = "cc-calendar-item";
+        const whenLabel = timeOnly
+            ? formatCalendarEventTime(ev)
+            : (() => {
+                const d = eventLocalDate(ev);
+                if (!d) return "";
+                if (ev.allDay) return `${formatDayGroupLabel(d)} · All day`;
+                return `${formatDayGroupLabel(d)} · ${formatCalendarEventTime(ev)}`;
+            })();
+        const desc = (ev.description || "").trim();
+        const showDesc = desc && desc.length > 2 && desc !== ev.title;
+        item.innerHTML = `
+            <div class="cc-calendar-item-when">${escapeHtml(whenLabel)}</div>
+            <div class="cc-calendar-item-body">
+                <div class="cc-calendar-item-title">${escapeHtml(ev.title || "(No title)")}</div>
+                ${showDesc ? `<div class="cc-calendar-item-desc">${escapeHtml(desc)}</div>` : ""}
+            </div>
+        `;
+        return item;
+    }
+
+    function renderGroupedCalendarList(container, events) {
+        container.innerHTML = "";
+        const groups = groupEventsByDay(events);
+        if (!groups.length) {
+            container.innerHTML =
+                '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">No upcoming events</p>';
+            return;
+        }
+        for (const group of groups) {
+            const section = document.createElement("section");
+            section.className = "cc-calendar-day-group";
+            section.setAttribute("aria-label", group.label);
+            const header = document.createElement("div");
+            header.className = "cc-calendar-day-header";
+            header.textContent = group.label;
+            section.appendChild(header);
+            for (const ev of group.events) {
+                section.appendChild(renderCalendarEventItem(ev, { timeOnly: true }));
+            }
+            container.appendChild(section);
+        }
+    }
+
+    function setCalendarActionsVisible(visible) {
+        if (!ccCalendarActions) return;
+        ccCalendarActions.classList.toggle("hidden", !visible);
+    }
+
+    function pad2(n) {
+        return String(n).padStart(2, "0");
+    }
+
+    function toLocalDateInputValue(date = new Date()) {
+        return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function toLocalTimeInputValue(date = new Date()) {
+        return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    }
+
+    function localDateTimeToUnixSeconds(dateStr, timeStr) {
+        if (!dateStr || !timeStr) return null;
+        const d = new Date(`${dateStr}T${timeStr}:00`);
+        if (Number.isNaN(d.getTime())) return null;
+        return Math.floor(d.getTime() / 1000);
+    }
+
+    function monthRangeUnix(year, monthIndex) {
+        const start = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+        const end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+        return {
+            start: Math.floor(start.getTime() / 1000),
+            end: Math.floor(end.getTime() / 1000),
+        };
     }
 
     function replacePlaceholders(template, contact, account) {
         return applyEmailMergeFields(template, contact, account);
     }
 
+    function promptCalendarConnect() {
+        showModal(
+            "Connect calendar",
+            `<p class="text-sm text-[var(--text-medium)]">Connect Google or Outlook in <a href="ai-admin.html?tab=integrations" class="cc-calendar-settings-link">User Settings</a> to add events and browse your month view.</p>`,
+            null,
+            false,
+            `<button id="modal-ok-btn" class="btn-primary">OK</button><a href="ai-admin.html?tab=integrations" class="btn-secondary" style="display:inline-flex;align-items:center;">Open User Settings</a>`
+        );
+    }
+
+    function openAddCalendarEventForm() {
+        if (!calendarIntegrationState?.orgEnabled) return;
+        if (!calendarIntegrationState?.connected) {
+            promptCalendarConnect();
+            return;
+        }
+
+        const startDefault = new Date();
+        startDefault.setMinutes(0, 0, 0);
+        startDefault.setHours(startDefault.getHours() + 1);
+        const endDefault = new Date(startDefault.getTime() + 60 * 60 * 1000);
+
+        const bodyHtml = `
+            <form id="cc-add-event-form" class="modal-form">
+                <label for="cc-event-title">Title</label>
+                <input type="text" id="cc-event-title" name="title" required placeholder="Event title" autocomplete="off">
+                <label for="cc-event-date">Date</label>
+                <input type="date" id="cc-event-date" name="date" required value="${toLocalDateInputValue(startDefault)}">
+                <div class="modal-form-row">
+                    <div>
+                        <label for="cc-event-start">Start</label>
+                        <input type="time" id="cc-event-start" name="start" required value="${toLocalTimeInputValue(startDefault)}">
+                    </div>
+                    <div>
+                        <label for="cc-event-end">End</label>
+                        <input type="time" id="cc-event-end" name="end" required value="${toLocalTimeInputValue(endDefault)}">
+                    </div>
+                </div>
+                <label for="cc-event-desc">Description <span class="text-[var(--text-muted)] font-normal">(optional)</span></label>
+                <textarea id="cc-event-desc" name="description" rows="3" placeholder="Notes for the invite"></textarea>
+            </form>
+        `;
+
+        showModal(
+            "Add Event",
+            bodyHtml,
+            async () => {
+                const titleEl = document.getElementById("cc-event-title");
+                const dateEl = document.getElementById("cc-event-date");
+                const startEl = document.getElementById("cc-event-start");
+                const endEl = document.getElementById("cc-event-end");
+                const descEl = document.getElementById("cc-event-desc");
+                const title = (titleEl?.value || "").trim();
+                if (!title) {
+                    showToast("Enter an event title.", "warning");
+                    titleEl?.focus();
+                    return false;
+                }
+                const startTime = localDateTimeToUnixSeconds(dateEl?.value, startEl?.value);
+                let endTime = localDateTimeToUnixSeconds(dateEl?.value, endEl?.value);
+                if (startTime == null || endTime == null) {
+                    showToast("Enter a valid date and time.", "warning");
+                    return false;
+                }
+                if (endTime <= startTime) {
+                    endTime = startTime + 3600;
+                }
+                try {
+                    const result = await createCalendarEvent(
+                        supabase,
+                        {
+                            title,
+                            description: (descEl?.value || "").trim() || undefined,
+                            startTime,
+                            endTime,
+                        },
+                        { onNotice: (msg, type) => showToast(msg, type) }
+                    );
+                    if (!result?.ok) return false;
+                    await loadCalendarPanel();
+                    if (ccMonthBackdrop && !ccMonthBackdrop.classList.contains("hidden")) {
+                        await loadMonthCalendarEvents();
+                    }
+                    return true;
+                } catch (error) {
+                    showToast(error?.message || "Could not create calendar event.", "error");
+                    return false;
+                }
+            },
+            true,
+            `<button id="modal-confirm-btn" class="btn-primary">Create</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+        );
+
+        queueMicrotask(() => document.getElementById("cc-event-title")?.focus());
+    }
+
+    function renderMonthWeekdayRow() {
+        if (!ccMonthWeekdayRow) return;
+        const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        ccMonthWeekdayRow.innerHTML = labels
+            .map((label) => `<div class="cc-month-weekday">${label}</div>`)
+            .join("");
+    }
+
+    function eventsForDayKey(dayKey) {
+        return monthViewEvents.filter((ev) => {
+            const d = eventLocalDate(ev);
+            return d && dayKeyFromDate(d) === dayKey;
+        });
+    }
+
+    function renderMonthDayPanel(dayKey) {
+        if (!ccMonthDayHeading || !ccMonthDayList) return;
+        if (!dayKey) {
+            ccMonthDayHeading.textContent = "Select a day";
+            ccMonthDayList.innerHTML = '<p class="cc-month-day-empty">Click a day to see events.</p>';
+            return;
+        }
+        const [y, m, d] = dayKey.split("-").map(Number);
+        const date = new Date(y, m - 1, d);
+        ccMonthDayHeading.textContent = date.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+        });
+        const dayEvents = eventsForDayKey(dayKey);
+        if (!dayEvents.length) {
+            ccMonthDayList.innerHTML = '<p class="cc-month-day-empty">No events this day.</p>';
+            return;
+        }
+        ccMonthDayList.innerHTML = dayEvents
+            .map((ev) => {
+                const desc = (ev.description || "").trim();
+                const showDesc = desc && desc.length > 2 && desc !== ev.title;
+                return `
+                    <div class="cc-month-day-item">
+                        <div class="cc-month-day-item-when">${escapeHtml(formatCalendarEventTime(ev))}</div>
+                        <div class="cc-month-day-item-title">${escapeHtml(ev.title || "(No title)")}</div>
+                        ${showDesc ? `<div class="cc-month-day-item-desc">${escapeHtml(desc)}</div>` : ""}
+                    </div>
+                `;
+            })
+            .join("");
+    }
+
+    function renderMonthGrid() {
+        if (!ccMonthGrid || monthViewYear == null || monthViewMonth == null) return;
+        if (ccMonthTitle) {
+            ccMonthTitle.textContent = new Date(monthViewYear, monthViewMonth, 1).toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+            });
+        }
+
+        const firstOfMonth = new Date(monthViewYear, monthViewMonth, 1);
+        const startOffset = firstOfMonth.getDay(); // Sun=0
+        const gridStart = new Date(monthViewYear, monthViewMonth, 1 - startOffset);
+        const todayKey = dayKeyFromDate(new Date());
+        const eventsByDay = new Map();
+        for (const ev of monthViewEvents) {
+            const d = eventLocalDate(ev);
+            if (!d) continue;
+            const key = dayKeyFromDate(d);
+            if (!eventsByDay.has(key)) eventsByDay.set(key, []);
+            eventsByDay.get(key).push(ev);
+        }
+
+        const cells = [];
+        for (let i = 0; i < 42; i++) {
+            const cellDate = new Date(gridStart);
+            cellDate.setDate(gridStart.getDate() + i);
+            const key = dayKeyFromDate(cellDate);
+            const inMonth = cellDate.getMonth() === monthViewMonth;
+            const dayEvents = eventsByDay.get(key) || [];
+            const classes = ["cc-month-cell"];
+            if (!inMonth) classes.push("is-outside");
+            if (key === todayKey) classes.push("is-today");
+            if (key === monthSelectedDayKey) classes.push("is-selected");
+
+            const maxTitles = 3;
+            const titleHtml = dayEvents
+                .slice(0, maxTitles)
+                .map(
+                    (ev) =>
+                        `<div class="cc-month-cell-event" title="${escapeHtml(ev.title || "")}">${escapeHtml(ev.title || "(No title)")}</div>`
+                )
+                .join("");
+            const moreCount = dayEvents.length - maxTitles;
+            const moreHtml =
+                moreCount > 0 ? `<div class="cc-month-cell-more">+${moreCount} more</div>` : "";
+            const dotsHtml =
+                dayEvents.length > 0
+                    ? `<div class="cc-month-cell-dots" aria-hidden="true">${dayEvents
+                          .slice(0, 4)
+                          .map(() => '<span class="cc-month-dot"></span>')
+                          .join("")}</div>`
+                    : "";
+
+            cells.push(`
+                <button type="button" class="${classes.join(" ")}" data-day-key="${key}" aria-label="${escapeHtml(
+                cellDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })
+            )}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}` : ""}">
+                    <span class="cc-month-cell-day">${cellDate.getDate()}</span>
+                    <div class="cc-month-cell-events">${titleHtml}${moreHtml}</div>
+                    ${dotsHtml}
+                </button>
+            `);
+        }
+        ccMonthGrid.innerHTML = cells.join("");
+        renderMonthDayPanel(monthSelectedDayKey);
+    }
+
+    async function loadMonthCalendarEvents() {
+        if (!ccMonthGrid || monthViewYear == null || monthViewMonth == null) return;
+        monthEventsLoading = true;
+        ccMonthGrid.innerHTML =
+            '<p class="cc-month-day-empty col-span-7 self-center text-center">Loading events...</p>';
+        try {
+            const { start, end } = monthRangeUnix(monthViewYear, monthViewMonth);
+            // Pad a few days either side so adjacent-month cells can show events
+            const data = await listCalendarEvents(supabase, {
+                start: start - 7 * 24 * 60 * 60,
+                end: end + 7 * 24 * 60 * 60,
+                limit: 100,
+            });
+            monthViewEvents = Array.isArray(data?.events) ? data.events : [];
+            renderMonthGrid();
+        } catch (error) {
+            console.warn("[command-center] month calendar:", error);
+            monthViewEvents = [];
+            ccMonthGrid.innerHTML =
+                '<p class="cc-month-day-empty col-span-7 self-center text-center">Couldn\'t load month events.</p>';
+            showToast(error?.message || "Couldn't load month events.", "warning");
+        } finally {
+            monthEventsLoading = false;
+        }
+    }
+
+    function openMonthCalendarModal() {
+        if (!calendarIntegrationState?.orgEnabled) return;
+        if (!calendarIntegrationState?.connected) {
+            promptCalendarConnect();
+            return;
+        }
+        if (!ccMonthBackdrop) return;
+
+        const now = new Date();
+        if (monthViewYear == null || monthViewMonth == null) {
+            monthViewYear = now.getFullYear();
+            monthViewMonth = now.getMonth();
+        }
+        if (!monthSelectedDayKey) {
+            monthSelectedDayKey = dayKeyFromDate(now);
+        }
+        renderMonthWeekdayRow();
+        ccMonthBackdrop.classList.remove("hidden");
+        ccMonthBackdrop.setAttribute("aria-hidden", "false");
+        loadMonthCalendarEvents();
+    }
+
+    function closeMonthCalendarModal() {
+        if (!ccMonthBackdrop) return;
+        ccMonthBackdrop.classList.add("hidden");
+        ccMonthBackdrop.setAttribute("aria-hidden", "true");
+    }
+
+    function setupCalendarPanelListeners() {
+        ccCalendarAddBtn?.addEventListener("click", () => openAddCalendarEventForm());
+        ccCalendarMonthBtn?.addEventListener("click", () => openMonthCalendarModal());
+        ccMonthCloseBtn?.addEventListener("click", () => closeMonthCalendarModal());
+        ccMonthPrevBtn?.addEventListener("click", () => {
+            if (monthViewMonth == null || monthViewYear == null || monthEventsLoading) return;
+            monthViewMonth -= 1;
+            if (monthViewMonth < 0) {
+                monthViewMonth = 11;
+                monthViewYear -= 1;
+            }
+            monthSelectedDayKey = `${monthViewYear}-${pad2(monthViewMonth + 1)}-01`;
+            loadMonthCalendarEvents();
+        });
+        ccMonthNextBtn?.addEventListener("click", () => {
+            if (monthViewMonth == null || monthViewYear == null || monthEventsLoading) return;
+            monthViewMonth += 1;
+            if (monthViewMonth > 11) {
+                monthViewMonth = 0;
+                monthViewYear += 1;
+            }
+            monthSelectedDayKey = `${monthViewYear}-${pad2(monthViewMonth + 1)}-01`;
+            loadMonthCalendarEvents();
+        });
+        ccMonthGrid?.addEventListener("click", (e) => {
+            const cell = e.target.closest(".cc-month-cell");
+            if (!cell?.dataset?.dayKey) return;
+            monthSelectedDayKey = cell.dataset.dayKey;
+            ccMonthGrid.querySelectorAll(".cc-month-cell.is-selected").forEach((el) => {
+                el.classList.remove("is-selected");
+            });
+            cell.classList.add("is-selected");
+            renderMonthDayPanel(monthSelectedDayKey);
+        });
+        ccMonthBackdrop?.addEventListener("click", (e) => {
+            if (e.target === ccMonthBackdrop) closeMonthCalendarModal();
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key !== "Escape" || !ccMonthBackdrop || ccMonthBackdrop.classList.contains("hidden")) return;
+            const sharedModal = document.getElementById("modal-backdrop");
+            if (sharedModal && !sharedModal.classList.contains("hidden")) return;
+            closeMonthCalendarModal();
+        });
+    }
+
     async function loadCalendarPanel() {
         if (!ccCalendarList) return;
         ccCalendarList.innerHTML =
             '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Loading calendar...</p>';
+        setCalendarActionsVisible(false);
 
         try {
             const integrationState = await getIntegrationState(supabase);
+            calendarIntegrationState = integrationState;
             if (!integrationState.orgEnabled) {
                 ccCalendarList.innerHTML =
                     '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Calendar preview is available when your organization enables email &amp; calendar integrations.</p>';
                 return;
             }
+
+            setCalendarActionsVisible(true);
+
             if (!integrationState.connected) {
                 ccCalendarList.innerHTML =
                     '<p class="cc-calendar-empty text-sm text-[var(--text-medium)] px-4 py-4">Connect Google or Outlook in <a href="ai-admin.html?tab=integrations" class="cc-calendar-settings-link">User Settings</a> to see upcoming events.</p>';
@@ -128,22 +574,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            ccCalendarList.innerHTML = "";
-            events.forEach((ev) => {
-                const item = document.createElement("div");
-                item.className = "cc-calendar-item";
-                const whenLabel = formatCalendarEventWhen(ev);
-                const desc = (ev.description || "").trim();
-                const showDesc = desc && desc.length > 2 && desc !== ev.title;
-                item.innerHTML = `
-                    <div class="cc-calendar-item-when">${escapeHtml(whenLabel)}</div>
-                    <div class="cc-calendar-item-body">
-                        <div class="cc-calendar-item-title">${escapeHtml(ev.title || "(No title)")}</div>
-                        ${showDesc ? `<div class="cc-calendar-item-desc">${escapeHtml(desc)}</div>` : ""}
-                    </div>
-                `;
-                ccCalendarList.appendChild(item);
-            });
+            renderGroupedCalendarList(ccCalendarList, events);
         } catch (error) {
             console.warn("[command-center] calendar panel:", error);
             ccCalendarList.innerHTML =
@@ -621,6 +1052,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- EVENT LISTENER SETUP ---
     function setupPageEventListeners() {
         setupModalListeners();
+        setupCalendarPanelListeners();
 
         if (recentActivitiesList) {
             recentActivitiesList.addEventListener('click', async (e) => {

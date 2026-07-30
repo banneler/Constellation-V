@@ -489,18 +489,52 @@ body.theme-green {
         @apply flex-1;
         min-height: 0;
     }
+    .cc-calendar-actions {
+        @apply flex items-center gap-1.5 flex-shrink-0;
+    }
+    .cc-calendar-card .btn-icon-header {
+        @apply w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+        transition: filter 0.2s, transform 0.2s;
+    }
+    .cc-calendar-card .btn-icon-header:hover {
+        filter: brightness(1.12);
+        transform: scale(1.04);
+    }
+    .cc-calendar-card .btn-secondary.btn-icon-header {
+        background-color: var(--bg-medium);
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
     .cc-calendar-list {
         @apply flex flex-col flex-1 min-h-0 px-4 pb-4 min-w-0;
         overflow-y: auto;
     }
+    .cc-calendar-day-group {
+        @apply flex flex-col min-w-0;
+    }
+    .cc-calendar-day-group + .cc-calendar-day-group {
+        @apply mt-1;
+        border-top: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+        padding-top: 0.35rem;
+    }
+    .cc-calendar-day-header {
+        @apply sticky top-0 z-[1] text-xs font-semibold tracking-wide uppercase py-1.5 px-0.5;
+        color: var(--text-medium);
+        background-color: var(--bg-light);
+        letter-spacing: 0.04em;
+    }
     .cc-calendar-item {
-        @apply flex gap-3 py-2.5 border-b border-[var(--border-color)] last:border-b-0 items-start min-w-0;
+        @apply flex gap-3 py-2 border-b border-[var(--border-color)] last:border-b-0 items-start min-w-0;
+    }
+    .cc-calendar-day-group .cc-calendar-item:last-child {
+        border-bottom: 0;
     }
     .cc-calendar-item-when {
         @apply flex-shrink-0 text-xs font-medium pt-0.5;
         color: var(--text-medium);
-        min-width: 7.5rem;
-        max-width: 8.5rem;
+        min-width: 4.25rem;
+        max-width: 5.5rem;
     }
     .cc-calendar-item-body {
         @apply flex flex-col flex-1 min-w-0;
@@ -526,6 +560,173 @@ body.theme-green {
     }
     .cc-calendar-settings-link:hover {
         filter: brightness(1.1);
+    }
+    /* Month calendar modal (~75% viewport) */
+    .cc-month-calendar-backdrop {
+        background-color: rgba(15, 23, 42, 0.32);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        z-index: 10020;
+        padding: 1rem;
+        overflow-y: auto;
+    }
+    .cc-month-calendar-modal {
+        @apply flex flex-col rounded-2xl overflow-hidden;
+        width: min(75vw, 1100px);
+        height: min(75vh, 820px);
+        max-width: 95vw;
+        max-height: 92vh;
+        background-color: var(--bg-light);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-card);
+    }
+    .cc-month-calendar-header {
+        @apply flex items-center justify-between gap-3 px-4 py-3 flex-shrink-0;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--bg-medium);
+    }
+    .cc-month-calendar-nav {
+        @apply flex items-center gap-2 min-w-0;
+    }
+    .cc-month-calendar-title {
+        @apply m-0 text-base font-semibold min-w-[9rem] text-center;
+        color: var(--text-light);
+    }
+    .cc-month-nav-btn,
+    .cc-month-calendar-close {
+        @apply w-8 h-8 rounded-lg flex items-center justify-center border-0 cursor-pointer;
+        background-color: transparent;
+        color: var(--text-medium);
+        transition: background-color 0.15s, color 0.15s;
+    }
+    .cc-month-nav-btn:hover,
+    .cc-month-calendar-close:hover {
+        background-color: var(--bg-light);
+        color: var(--text-light);
+    }
+    .cc-month-calendar-body {
+        @apply flex flex-1 min-h-0 overflow-hidden;
+    }
+    .cc-month-grid-wrap {
+        @apply flex flex-col flex-1 min-w-0 min-h-0 p-3;
+        border-right: 1px solid var(--border-color);
+    }
+    .cc-month-weekday-row {
+        @apply grid grid-cols-7 gap-1 mb-1 flex-shrink-0;
+    }
+    .cc-month-weekday {
+        @apply text-[0.65rem] font-semibold uppercase tracking-wide text-center py-1;
+        color: var(--text-muted);
+    }
+    .cc-month-grid {
+        @apply grid grid-cols-7 gap-1 flex-1 min-h-0;
+        grid-auto-rows: minmax(0, 1fr);
+    }
+    .cc-month-cell {
+        @apply flex flex-col gap-0.5 rounded-lg p-1.5 min-h-0 overflow-hidden text-left cursor-pointer border;
+        background-color: var(--bg-medium);
+        border-color: transparent;
+        transition: border-color 0.15s, background-color 0.15s;
+    }
+    .cc-month-cell:hover {
+        border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    }
+    .cc-month-cell.is-outside {
+        opacity: 0.42;
+    }
+    .cc-month-cell.is-today {
+        background-color: color-mix(in srgb, var(--primary-blue) 10%, var(--bg-medium));
+    }
+    .cc-month-cell.is-selected {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 14%, var(--bg-medium));
+    }
+    .cc-month-cell-day {
+        @apply text-xs font-semibold flex-shrink-0;
+        color: var(--text-light);
+    }
+    .cc-month-cell-events {
+        @apply flex flex-col gap-0.5 min-h-0 overflow-hidden flex-1;
+    }
+    .cc-month-cell-event {
+        @apply text-[0.65rem] leading-tight truncate rounded px-1 py-0.5;
+        background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-light));
+        color: var(--text-light);
+    }
+    .cc-month-cell-more {
+        @apply text-[0.6rem] font-medium;
+        color: var(--text-muted);
+    }
+    .cc-month-cell-dots {
+        @apply flex gap-0.5 mt-auto flex-wrap;
+    }
+    .cc-month-dot {
+        @apply w-1.5 h-1.5 rounded-full;
+        background-color: var(--primary-blue);
+    }
+    .cc-month-day-panel {
+        @apply flex flex-col w-[38%] max-w-[22rem] min-w-[12rem] min-h-0 p-3;
+        background-color: var(--bg-light);
+    }
+    .cc-month-day-heading {
+        @apply m-0 mb-2 text-sm font-semibold flex-shrink-0;
+        color: var(--text-light);
+    }
+    .cc-month-day-list {
+        @apply flex flex-col flex-1 min-h-0 overflow-y-auto gap-0;
+    }
+    .cc-month-day-empty {
+        @apply text-sm py-2;
+        color: var(--text-medium);
+    }
+    .cc-month-day-item {
+        @apply flex flex-col gap-0.5 py-2.5 border-b border-[var(--border-color)] last:border-b-0 min-w-0;
+    }
+    .cc-month-day-item-when {
+        @apply text-xs font-medium;
+        color: var(--text-medium);
+    }
+    .cc-month-day-item-title {
+        @apply text-sm leading-snug;
+        color: var(--text-light);
+        overflow-wrap: break-word;
+    }
+    .cc-month-day-item-desc {
+        @apply text-xs leading-snug;
+        color: var(--text-muted);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+    @media (max-width: 800px) {
+        .cc-month-calendar-modal {
+            width: 95vw;
+            height: auto;
+            max-height: 92vh;
+        }
+        .cc-month-calendar-body {
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .cc-month-grid-wrap {
+            border-right: 0;
+            border-bottom: 1px solid var(--border-color);
+            min-height: 18rem;
+            flex: 0 0 auto;
+        }
+        .cc-month-grid {
+            min-height: 16rem;
+        }
+        .cc-month-cell-events {
+            display: none;
+        }
+        .cc-month-day-panel {
+            width: 100%;
+            max-width: none;
+            min-height: 10rem;
+            flex: 1 1 auto;
+        }
     }
     .dashboard-column-left > .section-card {
         @apply flex flex-col flex-1 min-h-0 overflow-hidden;
@@ -7600,12 +7801,22 @@ body.theme-green {
     .modal-form input[type="text"],
     .modal-form input[type="number"],
     .modal-form input[type="month"],
+    .modal-form input[type="date"],
+    .modal-form input[type="time"],
     .modal-form select,
     .modal-form textarea {
         @apply text-sm w-full rounded-lg px-3 py-2;
         background-color: var(--bg-medium);
         border: 1px solid var(--border-color);
         color: var(--text-light);
+    }
+    .modal-form .modal-form-row {
+        @apply grid grid-cols-2 gap-3;
+    }
+    @media (max-width: 520px) {
+        .modal-form .modal-form-row {
+            grid-template-columns: 1fr;
+        }
     }
     .modal-form textarea {
         @apply min-h-[4rem];
