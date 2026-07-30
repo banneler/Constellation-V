@@ -3,6 +3,7 @@ const { getUserFromRequest } = require("../../_lib/supabase");
 const {
   assertOrgIntegrationsEnabled,
   createEvent,
+  getCalendar,
   getUserIntegration,
   listEvents,
 } = require("../../_lib/nylas");
@@ -20,8 +21,32 @@ function parseUnixSeconds(value) {
   return Number.isFinite(n) ? Math.floor(n) : null;
 }
 
+/** Normalize provider/calendar hex colors to `#RRGGBB` (or null). */
+function normalizeHexColor(value) {
+  if (value == null) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const withHash = raw.startsWith("#") ? raw : `#${raw}`;
+  if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) return withHash.toUpperCase();
+  if (/^#[0-9A-Fa-f]{3}$/.test(withHash)) {
+    const [, r, g, b] = withHash;
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+  return null;
+}
+
+function extractCalendarHexColor(calendarPayload) {
+  const cal = calendarPayload?.data || calendarPayload || {};
+  return (
+    normalizeHexColor(cal.hex_color) ||
+    normalizeHexColor(cal.hexColor) ||
+    normalizeHexColor(cal.color) ||
+    null
+  );
+}
+
 /** Normalize Nylas v3 event `when` (timespan / date / datespan) for the UI. */
-function normalizeCalendarEvent(ev) {
+function normalizeCalendarEvent(ev, { calendarColor } = {}) {
   const when = ev?.when || {};
   let startTime = null;
   let endTime = null;
@@ -47,6 +72,14 @@ function normalizeCalendarEvent(ev) {
   const rawDesc = ev?.text_description || ev?.description || "";
   const description = stripHtml(rawDesc).slice(0, 160) || null;
 
+  // Prefer calendar label color; fall back to any event-level hex if present.
+  const color =
+    normalizeHexColor(calendarColor) ||
+    normalizeHexColor(ev?.hex_color) ||
+    normalizeHexColor(ev?.hexColor) ||
+    normalizeHexColor(ev?.color) ||
+    null;
+
   return {
     id: ev?.id || null,
     title: (ev?.title && String(ev.title).trim()) || "(No title)",
@@ -55,6 +88,8 @@ function normalizeCalendarEvent(ev) {
     endTime,
     allDay,
     location: ev?.location ? String(ev.location).trim() : null,
+    calendarId: ev?.calendar_id || null,
+    color,
   };
 }
 
@@ -85,15 +120,22 @@ module.exports = async function handler(req, res) {
       const end =
         parseUnixSeconds(url.searchParams.get("end")) ?? nowSec + 7 * 24 * 60 * 60;
 
-      const result = await listEvents(integration.nylas_grant_id, {
-        calendarId,
-        limit,
-        start,
-        end,
-      });
+      const [result, calendarResult] = await Promise.all([
+        listEvents(integration.nylas_grant_id, {
+          calendarId,
+          limit,
+          start,
+          end,
+        }),
+        getCalendar(integration.nylas_grant_id, calendarId).catch((err) => {
+          console.warn("[api/integrations/calendar/events] calendar color lookup failed:", err?.message || err);
+          return null;
+        }),
+      ]);
+      const calendarColor = extractCalendarHexColor(calendarResult);
       const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
       const events = raw
-        .map(normalizeCalendarEvent)
+        .map((ev) => normalizeCalendarEvent(ev, { calendarColor }))
         .filter((e) => e.startTime != null)
         .sort((a, b) => a.startTime - b.startTime)
         .slice(0, limit);
@@ -101,6 +143,7 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 200, {
         ok: true,
         provider: integration.provider,
+        calendarColor,
         events,
         result,
       });

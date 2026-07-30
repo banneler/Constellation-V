@@ -524,8 +524,16 @@ body.theme-green {
         background-color: var(--bg-light);
         letter-spacing: 0.04em;
     }
+    .cc-event-bullet {
+        flex-shrink: 0;
+        width: 0.4rem;
+        height: 0.4rem;
+        margin-top: 0.3rem;
+        border-radius: 9999px;
+        background-color: var(--cc-event-color, var(--primary-blue));
+    }
     .cc-calendar-item {
-        @apply flex gap-2.5 py-1.5 border-b border-[var(--border-color)] last:border-b-0 items-start min-w-0;
+        @apply flex gap-2 py-1.5 border-b border-[var(--border-color)] last:border-b-0 items-start min-w-0;
     }
     .cc-calendar-day-group .cc-calendar-item:last-child {
         border-bottom: 0;
@@ -649,28 +657,37 @@ body.theme-green {
         @apply font-semibold flex-shrink-0 leading-none;
         font-size: 0.625rem;
         color: var(--text-light);
+        margin-bottom: 0.2rem;
     }
     .cc-month-calendar-modal .cc-month-cell-events {
         @apply flex flex-col gap-px min-h-0 overflow-hidden flex-1;
     }
     .cc-month-calendar-modal .cc-month-cell-event {
-        @apply leading-none truncate rounded px-0.5;
+        @apply flex items-start gap-0.5 min-w-0 leading-none;
         font-size: 0.55rem;
         padding-block: 1px;
-        background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-light));
         color: var(--text-light);
+    }
+    .cc-month-calendar-modal .cc-month-cell-event .cc-event-bullet {
+        width: 0.3rem;
+        height: 0.3rem;
+        margin-top: 0.12rem;
+    }
+    .cc-month-calendar-modal .cc-month-cell-event-title {
+        @apply truncate min-w-0 flex-1;
     }
     .cc-month-calendar-modal .cc-month-cell-more {
         @apply font-medium leading-none;
         font-size: 0.5rem;
         color: var(--text-muted);
+        padding-left: 0.45rem;
     }
     .cc-month-calendar-modal .cc-month-cell-dots {
         @apply flex gap-0.5 mt-auto flex-wrap;
     }
     .cc-month-calendar-modal .cc-month-dot {
         @apply w-1 h-1 rounded-full;
-        background-color: var(--primary-blue);
+        background-color: var(--cc-event-color, var(--primary-blue));
     }
     .cc-month-day-panel {
         @apply flex flex-col w-[38%] max-w-[22rem] min-w-[12rem] min-h-0 p-2.5;
@@ -688,7 +705,13 @@ body.theme-green {
         color: var(--text-medium);
     }
     .cc-month-day-item {
-        @apply flex flex-col gap-px py-1.5 border-b border-[var(--border-color)] last:border-b-0 min-w-0;
+        @apply flex items-start gap-2 py-1.5 border-b border-[var(--border-color)] last:border-b-0 min-w-0;
+    }
+    .cc-month-day-item .cc-event-bullet {
+        margin-top: 0.35rem;
+    }
+    .cc-month-day-item-main {
+        @apply flex flex-col gap-px min-w-0 flex-1;
     }
     .cc-month-day-item-when {
         @apply text-[0.7rem] font-medium leading-tight;

@@ -2588,11 +2588,19 @@ body.theme-green {
     background-color: var(--bg-light);
     letter-spacing: 0.04em;
   }
+  .cc-event-bullet {
+    flex-shrink: 0;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin-top: 0.3rem;
+    border-radius: 9999px;
+    background-color: var(--cc-event-color, var(--primary-blue));
+  }
   .cc-calendar-item {
     display: flex;
     min-width: calc(var(--spacing) * 0);
     align-items: flex-start;
-    gap: calc(var(--spacing) * 2.5);
+    gap: calc(var(--spacing) * 2);
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 1px;
     border-color: var(--border-color);
@@ -2816,6 +2824,7 @@ body.theme-green {
     font-weight: var(--font-weight-semibold);
     font-size: 0.625rem;
     color: var(--text-light);
+    margin-bottom: 0.2rem;
   }
   .cc-month-calendar-modal .cc-month-cell-events {
     display: flex;
@@ -2826,20 +2835,27 @@ body.theme-green {
     overflow: hidden;
   }
   .cc-month-calendar-modal .cc-month-cell-event {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    border-radius: 0.25rem;
-    padding-inline: calc(var(--spacing) * 0.5);
+    display: flex;
+    min-width: calc(var(--spacing) * 0);
+    align-items: flex-start;
+    gap: calc(var(--spacing) * 0.5);
     --tw-leading: 1;
     line-height: 1;
     font-size: 0.55rem;
     padding-block: 1px;
-    background-color: var(--primary-blue);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in srgb, var(--primary-blue) 18%, var(--bg-light));
-    }
     color: var(--text-light);
+  }
+  .cc-month-calendar-modal .cc-month-cell-event .cc-event-bullet {
+    width: 0.3rem;
+    height: 0.3rem;
+    margin-top: 0.12rem;
+  }
+  .cc-month-calendar-modal .cc-month-cell-event-title {
+    min-width: calc(var(--spacing) * 0);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .cc-month-calendar-modal .cc-month-cell-more {
     --tw-leading: 1;
@@ -2848,6 +2864,7 @@ body.theme-green {
     font-weight: var(--font-weight-medium);
     font-size: 0.5rem;
     color: var(--text-muted);
+    padding-left: 0.45rem;
   }
   .cc-month-calendar-modal .cc-month-cell-dots {
     margin-top: auto;
@@ -2859,7 +2876,7 @@ body.theme-green {
     height: calc(var(--spacing) * 1);
     width: calc(var(--spacing) * 1);
     border-radius: calc(infinity * 1px);
-    background-color: var(--primary-blue);
+    background-color: var(--cc-event-color, var(--primary-blue));
   }
   .cc-month-day-panel {
     display: flex;
@@ -2900,8 +2917,8 @@ body.theme-green {
   .cc-month-day-item {
     display: flex;
     min-width: calc(var(--spacing) * 0);
-    flex-direction: column;
-    gap: 1px;
+    align-items: flex-start;
+    gap: calc(var(--spacing) * 2);
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 1px;
     border-color: var(--border-color);
@@ -2910,6 +2927,16 @@ body.theme-green {
       border-bottom-style: var(--tw-border-style);
       border-bottom-width: 0px;
     }
+  }
+  .cc-month-day-item .cc-event-bullet {
+    margin-top: 0.35rem;
+  }
+  .cc-month-day-item-main {
+    display: flex;
+    min-width: calc(var(--spacing) * 0);
+    flex: 1;
+    flex-direction: column;
+    gap: 1px;
   }
   .cc-month-day-item-when {
     font-size: 0.7rem;

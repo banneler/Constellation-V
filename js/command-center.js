@@ -125,6 +125,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
     }
 
+    /** Safe `#RRGGBB` from API `color`, or null (UI falls back to theme default). */
+    function normalizeEventColor(value) {
+        if (value == null) return null;
+        const raw = String(value).trim();
+        if (!raw) return null;
+        const withHash = raw.startsWith("#") ? raw : `#${raw}`;
+        if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) return withHash;
+        if (/^#[0-9A-Fa-f]{3}$/.test(withHash)) {
+            const r = withHash[1];
+            const g = withHash[2];
+            const b = withHash[3];
+            return `#${r}${r}${g}${g}${b}${b}`;
+        }
+        return null;
+    }
+
+    function eventColorStyleAttr(ev) {
+        const color = normalizeEventColor(ev?.color);
+        return color ? ` style="--cc-event-color: ${color}"` : "";
+    }
+
     function groupEventsByDay(events) {
         const groups = [];
         const indexByKey = new Map();
@@ -157,6 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const desc = (ev.description || "").trim();
         const showDesc = desc && desc.length > 2 && desc !== ev.title;
         item.innerHTML = `
+            <span class="cc-event-bullet" aria-hidden="true"${eventColorStyleAttr(ev)}></span>
             <div class="cc-calendar-item-when">${escapeHtml(whenLabel)}</div>
             <div class="cc-calendar-item-body">
                 <div class="cc-calendar-item-title">${escapeHtml(ev.title || "(No title)")}</div>
@@ -361,10 +383,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const desc = (ev.description || "").trim();
                 const showDesc = desc && desc.length > 2 && desc !== ev.title;
                 return `
-                    <div class="cc-month-day-item">
-                        <div class="cc-month-day-item-when">${escapeHtml(formatCalendarEventTime(ev))}</div>
-                        <div class="cc-month-day-item-title">${escapeHtml(ev.title || "(No title)")}</div>
-                        ${showDesc ? `<div class="cc-month-day-item-desc">${escapeHtml(desc)}</div>` : ""}
+                    <div class="cc-month-day-item"${eventColorStyleAttr(ev)}>
+                        <span class="cc-event-bullet" aria-hidden="true"></span>
+                        <div class="cc-month-day-item-main">
+                            <div class="cc-month-day-item-when">${escapeHtml(formatCalendarEventTime(ev))}</div>
+                            <div class="cc-month-day-item-title">${escapeHtml(ev.title || "(No title)")}</div>
+                            ${showDesc ? `<div class="cc-month-day-item-desc">${escapeHtml(desc)}</div>` : ""}
+                        </div>
                     </div>
                 `;
             })
@@ -408,10 +433,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             const maxTitles = 3;
             const titleHtml = dayEvents
                 .slice(0, maxTitles)
-                .map(
-                    (ev) =>
-                        `<div class="cc-month-cell-event" title="${escapeHtml(ev.title || "")}">${escapeHtml(ev.title || "(No title)")}</div>`
-                )
+                .map((ev) => {
+                    const title = ev.title || "(No title)";
+                    return `<div class="cc-month-cell-event" title="${escapeHtml(title)}"${eventColorStyleAttr(ev)}>
+                        <span class="cc-event-bullet" aria-hidden="true"></span>
+                        <span class="cc-month-cell-event-title">${escapeHtml(title)}</span>
+                    </div>`;
+                })
                 .join("");
             const moreCount = dayEvents.length - maxTitles;
             const moreHtml =
@@ -420,7 +448,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 dayEvents.length > 0
                     ? `<div class="cc-month-cell-dots" aria-hidden="true">${dayEvents
                           .slice(0, 4)
-                          .map(() => '<span class="cc-month-dot"></span>')
+                          .map((ev) => `<span class="cc-month-dot"${eventColorStyleAttr(ev)}></span>`)
                           .join("")}</div>`
                     : "";
 

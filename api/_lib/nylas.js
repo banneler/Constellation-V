@@ -193,6 +193,12 @@ async function listEvents(grantId, { calendarId = "primary", limit = 20, start, 
   return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/events?${params.toString()}`);
 }
 
+/** Fetch a single calendar (includes Google/Outlook `hex_color` label color). */
+async function getCalendar(grantId, calendarId = "primary") {
+  const id = calendarId || "primary";
+  return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/calendars/${encodeURIComponent(id)}`);
+}
+
 async function getOrgSettings() {
   const rows = await supabaseRest("org_settings?id=eq.1&select=*&limit=1", { serviceRole: true });
   return rows?.[0] || { id: 1, email_calendar_enabled: false };
@@ -306,6 +312,7 @@ module.exports = {
   destroyGrant,
   exchangeCodeForGrant,
   getAppOrigin,
+  getCalendar,
   getOrgSettings,
   getRedirectUri,
   getUserEmailSignature,
