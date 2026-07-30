@@ -3089,6 +3089,7 @@ body.theme-green {
     border-width: 0px;
     padding: calc(var(--spacing) * 0);
     text-align: left;
+    overflow: hidden;
     background-color: var(--bg-medium);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in srgb, var(--bg-medium) 80%, transparent);
@@ -3100,10 +3101,15 @@ body.theme-green {
     outline: none;
   }
   .cc-day-timeline-hover {
-    pointer-events: none;
     position: absolute;
-    right: calc(var(--spacing) * 0);
-    left: calc(var(--spacing) * 0);
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    pointer-events: none;
     z-index: 0;
     opacity: 0;
     background-color: var(--primary-blue);

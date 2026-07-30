@@ -844,7 +844,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="cc-day-timeline" data-day-key="${escapeHtml(dayKey)}">
                 <div class="cc-day-timeline-rail" aria-hidden="true">${hourMarks.join("")}</div>
                 <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0" aria-label="Click an hour to add an event">
-                    <div class="cc-day-timeline-hover" aria-hidden="true"></div>
                     ${halfMarks.join("")}
                     ${eventBlocks || ""}
                     ${
@@ -852,6 +851,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             ? '<span class="cc-day-timeline-empty-hint">Click a time to add</span>'
                             : ""
                     }
+                    <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:0;margin:0;pointer-events:none;z-index:0"></div>
                 </div>
             </div>
         `;
@@ -1019,10 +1019,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderMonthDayPanel(monthSelectedDayKey);
         });
         const handleTimelineAddClick = (e) => {
-            if (e.target.closest(".cc-day-timeline-event")) return;
-            const track = e.target.closest(".cc-day-timeline-track");
+            const track = ccMonthDayList?.querySelector?.(".cc-day-timeline-track");
             if (!track) return;
             const rect = track.getBoundingClientRect();
+            const inside =
+                e.clientX >= rect.left &&
+                e.clientX <= rect.right &&
+                e.clientY >= rect.top &&
+                e.clientY <= rect.bottom;
+            if (!inside) return;
             if (!rect.height) {
                 openAddEventForSelectedDay();
                 return;
@@ -1032,22 +1037,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         const setTimelineHoverBlock = (track, clientY) => {
             const hoverEl = track?.querySelector?.(".cc-day-timeline-hover");
             if (!hoverEl) return;
+            const rect = track.getBoundingClientRect();
+            if (!rect.height) return;
+            // Inline positioning so a stale/cached stylesheet can't leave this in flow.
+            hoverEl.style.position = "absolute";
+            hoverEl.style.left = "0";
+            hoverEl.style.right = "0";
+            hoverEl.style.margin = "0";
+            hoverEl.style.pointerEvents = "none";
+            hoverEl.style.zIndex = "0";
             const hourStart = hourStartFromTrackClientY(track, clientY);
-            const topPct = ((hourStart - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100;
-            const heightPct = (TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * 100;
-            hoverEl.style.top = `${topPct}%`;
-            hoverEl.style.height = `${heightPct}%`;
+            const topPx = ((hourStart - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * rect.height;
+            const heightPx = (TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * rect.height;
+            hoverEl.style.top = `${topPx}px`;
+            hoverEl.style.height = `${heightPx}px`;
             hoverEl.classList.add("is-active");
         };
         const clearTimelineHoverBlock = (root = ccMonthDayList) => {
             root?.querySelectorAll?.(".cc-day-timeline-hover.is-active").forEach((el) => {
                 el.classList.remove("is-active");
+                el.style.height = "0px";
             });
         };
         ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
+        // Bounds-based hit test (not e.target.closest) so overlays/labels can't stall updates.
         ccMonthDayList?.addEventListener("pointermove", (e) => {
-            const track = e.target.closest?.(".cc-day-timeline-track");
+            const track = ccMonthDayList.querySelector(".cc-day-timeline-track");
             if (!track) {
+                clearTimelineHoverBlock();
+                return;
+            }
+            const rect = track.getBoundingClientRect();
+            const inside =
+                e.clientX >= rect.left &&
+                e.clientX <= rect.right &&
+                e.clientY >= rect.top &&
+                e.clientY <= rect.bottom;
+            if (!inside) {
                 clearTimelineHoverBlock();
                 return;
             }
