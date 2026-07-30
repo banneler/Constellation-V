@@ -6,6 +6,7 @@ import {
     parseInsightsDate,
     getInsightsFetchFloor,
     getMonthsInRange,
+    formatLocalDate,
 } from '../../js/insights-period.mjs';
 
 const NOW = new Date(2026, 6, 30, 17, 39, 0); // Jul 30, 2026 local
@@ -81,5 +82,6 @@ describe('insights-period fetch floor', () => {
         const d365 = getDateRange('last_365_days', NOW).startDate;
         assert.equal(floor.getTime(), Math.min(fy.getTime(), d365.getTime()));
         assert.equal(floor.toDateString(), d365.toDateString());
+        assert.equal(formatLocalDate(floor), '2025-07-30');
     });
 });

@@ -19,6 +19,7 @@ import {
     getMonthsInRange,
     inDateRange,
     getInsightsFetchFloor,
+    formatLocalDate,
 } from './insights-period.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -551,7 +552,7 @@ async function loadInsightsData() {
         // pagination stays bounded while still covering every period option.
         const fetchFloor = getInsightsFetchFloor();
         const floorIso = fetchFloor.toISOString();
-        const floorDate = floorIso.slice(0, 10);
+        const floorDate = formatLocalDate(fetchFloor);
 
         const fetches = [
             [
