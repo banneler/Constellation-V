@@ -21,6 +21,7 @@ import {
     getInsightsFetchFloor,
     formatLocalDate,
 } from './insights-period.mjs';
+import { activityConvertsAlert } from './insights-cognito.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -117,25 +118,6 @@ async function fetchAllRows(buildQuery, { pageSize = INSIGHTS_PAGE_SIZE, maxRows
         from += pageSize;
     }
     return { data: rows, error: null };
-}
-
-function sameAccountId(a, b) {
-    if (a == null || b == null) return false;
-    return Number(a) === Number(b) || String(a) === String(b);
-}
-
-/**
- * Converted = logged activity on the same account after the trigger.
- * Dismissed alerts never count as converted (dismiss ≠ outreach follow-through).
- */
-function activityConvertsAlert(alert, outreachActivities) {
-    if (!alert || (alert.status || '') === 'Dismissed') return false;
-    const alertTime = alert.created_at ? new Date(alert.created_at).getTime() : NaN;
-    if (!Number.isFinite(alertTime)) return false;
-    return (outreachActivities || []).some((activity) => {
-        if (!sameAccountId(activity.account_id, alert.account_id) || !activity.date) return false;
-        return new Date(activity.date).getTime() >= alertTime;
-    });
 }
 
 /** Format conversion as "eligible% / all%" (excl. dismissed base / all-triggers base). */
@@ -281,13 +263,16 @@ function computeSnapshot() {
         .slice(0, 12);
 
     // Triggers = Cognito alerts created in the selected period (all statuses).
+    // Converted = those triggers with ≥1 matching activity by the same filtered
+    // rep(s), in this period, on the same account, on/after the alert (see
+    // insights-cognito.mjs). Pool is the Activities KPI set — not all-time.
+    // Multiple triggers on one account can share one activity (Converted can
+    // exceed Activities logged).
     const alerts = (state.data.cognito_alerts || []).filter((alert) => {
         if (!isUserIncluded(alert.user_id) || !userMatchesFilter(alert.user_id)) return false;
         return inDateRange(alert.created_at, startDate, endDate);
     });
-    const outreachActivities = (state.data.activities || []).filter(
-        (a) => isUserIncluded(a.user_id) && userMatchesFilter(a.user_id)
-    );
+    const outreachActivities = activities;
     let cognitoConverted = 0;
     let cognitoDismissed = 0;
     const cognitoByStatus = new Map();
@@ -930,7 +915,11 @@ function renderCognitoOutreach(snapshot) {
     document.getElementById('insights-cognito-kpis').innerHTML = kpiHtml([
         { label: 'Triggers', value: cognito.triggers, hint: 'Created in period' },
         { label: 'Dismissed', value: cognito.dismissed, hint: 'Not converted' },
-        { label: 'Converted', value: cognito.converted, hint: 'Outreach after trigger' },
+        {
+            label: 'Converted',
+            value: cognito.converted,
+            hint: 'Triggers with rep activity in period',
+        },
         {
             label: 'Conversion',
             value: cognito.conversionDisplay,
