@@ -25,6 +25,7 @@ let state = {
     activityLog: [],
     dealStages: [],
     activityTypes: [],
+    orgSettings: { email_calendar_enabled: false },
     scriptLogs: [],
     reassignmentAccounts: [],
     reassignmentAccountsLoading: false,
@@ -53,18 +54,27 @@ const loadAllDataForView = async () => {
 };
 
 async function loadSettingsData() {
-    const [{ data: stages, error: stagesError }, { data: types, error: typesError }] = await Promise.all([
+    const [
+        { data: stages, error: stagesError },
+        { data: types, error: typesError },
+        { data: orgSettings, error: orgError },
+    ] = await Promise.all([
         supabase.from('deal_stages').select('*').order('sort_order'),
-        supabase.from('activity_types').select('*').order('type_name')
+        supabase.from('activity_types').select('*').order('type_name'),
+        supabase.from('org_settings').select('*').eq('id', 1).maybeSingle(),
     ]);
 
     if (stagesError || typesError) {
         alert('Error loading settings: ' + (stagesError?.message || typesError?.message));
         return;
     }
+    if (orgError) {
+        console.warn('org_settings load failed (migration may be pending):', orgError.message);
+    }
 
     state.dealStages = stages || [];
     state.activityTypes = types || [];
+    state.orgSettings = orgSettings || { id: 1, email_calendar_enabled: false };
     renderSettingsPage();
 }
 
@@ -87,6 +97,54 @@ function renderSettingsPage() {
             <button class="btn-danger btn-sm delete-setting-btn" data-type="activity_type">&times;</button>
         </li>
     `).join('');
+
+    const toggle = document.getElementById('email-calendar-enabled-toggle');
+    const hint = document.getElementById('email-calendar-enabled-hint');
+    const enabled = Boolean(state.orgSettings?.email_calendar_enabled);
+    if (toggle) toggle.checked = enabled;
+    if (hint) {
+        hint.textContent = enabled
+            ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
+            : 'Currently off — mailto only.';
+    }
+}
+
+async function handleIntegrationsToggle(e) {
+    const enabled = Boolean(e.target.checked);
+    const previous = Boolean(state.orgSettings?.email_calendar_enabled);
+    const hint = document.getElementById('email-calendar-enabled-hint');
+    if (hint) hint.textContent = 'Saving…';
+
+    const { data, error } = await supabase
+        .from('org_settings')
+        .upsert(
+            {
+                id: 1,
+                email_calendar_enabled: enabled,
+                updated_by: state.currentUser?.id || null,
+            },
+            { onConflict: 'id' }
+        )
+        .select('*')
+        .maybeSingle();
+
+    if (error) {
+        e.target.checked = previous;
+        alert('Could not update integrations setting: ' + error.message);
+        if (hint) {
+            hint.textContent = previous
+                ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
+                : 'Currently off — mailto only.';
+        }
+        return;
+    }
+
+    state.orgSettings = data || { id: 1, email_calendar_enabled: enabled };
+    if (hint) {
+        hint.textContent = enabled
+            ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
+            : 'Currently off — mailto only.';
+    }
 }
 
 
@@ -685,6 +743,7 @@ function setupPageEventListeners() {
             handleDeleteSetting(e); 
         }
     });
+    document.getElementById('email-calendar-enabled-toggle')?.addEventListener('change', handleIntegrationsToggle);
 }
 
 async function initializePage() {

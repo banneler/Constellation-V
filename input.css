@@ -7706,6 +7706,13 @@ body.theme-green {
         background-color: var(--bg-medium);
         text-decoration: underline;
     }
+    .user-integrations-menu .user-integrations-status {
+        @apply text-xs leading-snug m-0 px-2 pb-1;
+        color: var(--text-medium);
+    }
+    .user-integrations-actions {
+        @apply flex flex-col gap-0.5;
+    }
     .nav-search-trigger {
         display: none;
     }
@@ -9532,6 +9539,9 @@ body:not(.theme-green) .list-item.selected {
         @apply w-full border rounded-lg p-3 text-sm resize-y bg-[var(--bg-dark)] mb-2;
         border-color: var(--border-color);
         color: var(--text-light);
+    }
+    .agenda-result-actions {
+        @apply flex flex-wrap gap-2 mt-2;
     }
     .agenda-copy-btn {
         @apply px-4 py-2 rounded-lg border text-sm font-medium cursor-pointer flex items-center gap-2;

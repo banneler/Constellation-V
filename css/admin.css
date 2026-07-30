@@ -114,6 +114,50 @@
     border: 1px solid rgba(239, 68, 68, 0.28);
 }
 
+.settings-split-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.integrations-toggle-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--bg-medium) 70%, transparent);
+    cursor: pointer;
+}
+
+.integrations-toggle-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.integrations-toggle-copy strong {
+    color: var(--text-light);
+    font-size: 0.92rem;
+}
+
+.integrations-toggle-hint {
+    color: var(--text-medium);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.integrations-toggle-input {
+    width: 1.15rem;
+    height: 1.15rem;
+    margin-top: 0.15rem;
+    accent-color: var(--primary-blue);
+    cursor: pointer;
+}
+
 @media (max-width: 760px) {
     .admin-page-header {
         flex-direction: column;

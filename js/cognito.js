@@ -26,6 +26,7 @@ import {
     createPersonalContext,
     renderAIFeedback
 } from './ai-memory.js';
+import { sendEmail } from './integrations.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -664,7 +665,7 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
         }
     }
 
-    function handleEmailAction(isCustom = false) { 
+    async function handleEmailAction(isCustom = false) { 
         const contactId = contactSelector.value;
         if (!contactId) {
             alert('Please select a contact to email.');
@@ -678,7 +679,15 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
 
         const subject = isCustom ? customOutreachSubjectInput.value : outreachSubjectInput.value;
         const body = isCustom ? customOutreachBodyTextarea.value : outreachBodyTextarea.value;
-        window.location.href = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        try {
+            await sendEmail(
+                supabase,
+                { to: contact.email, subject, body },
+                { onNotice: (msg, type) => showToast(msg, type) }
+            );
+        } catch (error) {
+            alert(error.message || 'Could not send email.');
+        }
     }
 
     function handleCopyAction(isCustom = false) { 

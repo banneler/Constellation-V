@@ -19,8 +19,10 @@ import {
     setupGlobalSearch,
     checkAndSetNotifications,
     injectGlobalNavigation,
-    filterOutOwnershipOrphanedCrmRows
+    filterOutOwnershipOrphanedCrmRows,
+    showToast
 } from './shared_constants.js';
+import { sendEmail } from './integrations.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -1063,8 +1065,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const mailtoLink = `mailto:${to}?subject=${encodeURIComponent(subject || '')}&body=${encodeURIComponent(body || '')}`;
-        window.location.href = mailtoLink;
+        try {
+            await sendEmail(
+                supabase,
+                { to, subject: subject || '', body: body || '' },
+                { onNotice: (msg, type) => showToast(msg, type) }
+            );
+        } catch (error) {
+            alert(error.message || 'Could not send email.');
+            return;
+        }
 
         // CORRECTED: Get memberId from the button that was clicked
         const memberId = Number(event.target.dataset.memberId);

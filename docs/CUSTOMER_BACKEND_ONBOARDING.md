@@ -171,6 +171,13 @@ Set at least:
 | `GEMINI_API_KEY` | **Per-customer** Google AI key (see §3) |
 | `GEMINI_SYNTHESIS_MODEL` | Optional; match stock default |
 | `CRON_SECRET` | Unique per project |
+| `NYLAS_API_KEY` | Nylas API key (email/calendar integrations; see §2.4) |
+| `NYLAS_CLIENT_ID` | Nylas application client ID |
+| `NYLAS_REDIRECT_URI` | Optional override; default `{origin}/api/integrations/nylas/callback` |
+| `NYLAS_WEBHOOK_SECRET` | Optional; verifies Nylas webhooks |
+| `NYLAS_API_URI` | Optional; default `https://api.us.nylas.com` |
+| `NYLAS_STATE_SECRET` | Optional HMAC secret for OAuth `state`; falls back to API key |
+| `APP_ORIGIN` | Optional public origin for OAuth redirects |
 
 Legacy aliases if still referenced: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
@@ -183,6 +190,24 @@ npx vercel --prod --yes
 ```
 
 Confirm `https://{project}.vercel.app/js/env.config.js` shows the **new** Supabase URL and approved domains (not GPC).
+
+### 2.4 Nylas email & calendar (optional, opt-in)
+
+Integrations are **off by default** (`org_settings.email_calendar_enabled = false`). Mailto / local email-client flows remain unchanged until an org admin enables them under **Admin → System Settings → Integrations**.
+
+1. Create (or reuse) a Nylas application for the customer deploy
+2. Add callback URI: `https://{customer}.constellation-crm.com/api/integrations/nylas/callback` (plus Vercel alias / localhost for debug)
+3. Set Vercel env vars from §2.2 (`NYLAS_*`)
+4. Apply migration `supabase/migrations/20260730120000_org_settings_user_integrations.sql`
+5. Optional webhook: `https://{customer}.constellation-crm.com/api/integrations/nylas/webhook` (grant lifecycle)
+6. In-app: Admin enables **Email & calendar integrations** → a user connects **Google** or **Outlook** from the Menu → send/calendar use Nylas
+
+Smoke:
+
+- [ ] Toggle off → mailto still opens OS client  
+- [ ] Toggle on → Menu shows Integrations  
+- [ ] Connect Google + send a test email  
+- [ ] Connect Outlook (or second test user) + create a calendar event from Draft Agenda  
 
 ---
 
@@ -321,6 +346,7 @@ From `Constellation-V/supabase/functions/`, deploy to the **new** project any fu
 - [ ] Cognito job writes an alert for a test account  
 - [ ] Social Hub job writes a post  
 - [ ] (If applicable) Website contact form creates account/contact/sequence under `LEAD_OWNER_USER_ID`
+- [ ] (If Nylas configured) Admin integrations toggle + Google/Outlook connect + send/calendar smoke
 
 ---
 
@@ -341,6 +367,8 @@ From `Constellation-V/supabase/functions/`, deploy to the **new** project any fu
 | Mac mini job path | |
 | launchd/cron label | |
 | Website lead capture | Y/N |
+| Nylas configured | Y/N |
+| Email/calendar integrations enabled | Y/N |
 | Date live | |
 | Operator | |
 
@@ -366,4 +394,6 @@ From `Constellation-V/supabase/functions/`, deploy to the **new** project any fu
 - `scripts/inject-env.js` — build-time client config  
 - `scripts/push-auth-email-templates.js` + `supabase/email-templates/` — Auth emails  
 - `supabase/migrations/20260729160000_signup_email_domain_allowlist.sql` — signup allow-list + hook function  
+- `supabase/migrations/20260730120000_org_settings_user_integrations.sql` — org integrations toggle + user Nylas grants  
+- `api/integrations/*` — Nylas auth, send, calendar, webhook  
 - `vercel.json` — AI profile synthesis cron  

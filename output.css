@@ -12617,6 +12617,19 @@ body.theme-green {
     background-color: var(--bg-medium);
     text-decoration: underline;
   }
+  .user-integrations-menu .user-integrations-status {
+    margin: 0;
+    padding-inline: calc(var(--spacing) * 2);
+    padding-bottom: calc(var(--spacing) * 1);
+    font-size: var(--text-xs);
+    line-height: 1.35;
+    color: var(--text-medium);
+  }
+  .user-integrations-actions {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 0.5);
+  }
   .nav-search-trigger {
     display: none;
   }
@@ -15086,6 +15099,12 @@ body:not(.theme-green) .list-item.selected {
     line-height: var(--tw-leading, var(--text-sm--line-height));
     border-color: var(--border-color);
     color: var(--text-light);
+  }
+  .agenda-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2);
+    margin-top: calc(var(--spacing) * 2);
   }
   .agenda-copy-btn {
     display: flex;
