@@ -61,13 +61,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const memoryFunctionSelect = document.getElementById("memory-function-select");
     const memoryScopeSummary = document.getElementById("memory-scope-summary");
     const settingsTabs = document.getElementById("user-settings-tabs");
+    const tabIntegrationsBtn = document.getElementById("tab-integrations");
     const integrationsStatusText = document.getElementById("integrations-status-text");
     const integrationsActions = document.getElementById("integrations-actions");
     const emailSignatureInput = document.getElementById("email-signature-input");
     const saveSignatureBtn = document.getElementById("save-signature-btn");
+    let orgIntegrationsEnabled = false;
 
     function setActiveTab(tabId) {
-        const next = tabId === 'ai-admin' ? 'ai-admin' : 'integrations';
+        const requested = tabId === 'ai-admin' ? 'ai-admin' : 'integrations';
+        const next = !orgIntegrationsEnabled || requested === 'ai-admin' ? 'ai-admin' : 'integrations';
         settingsTabs?.querySelectorAll('[data-settings-tab]').forEach((btn) => {
             const active = btn.dataset.settingsTab === next;
             btn.classList.toggle('active', active);
@@ -82,13 +85,40 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
     }
 
-    function initTabs() {
+    function applyIntegrationsTabVisibility() {
+        if (tabIntegrationsBtn) tabIntegrationsBtn.hidden = !orgIntegrationsEnabled;
+        if (settingsTabs) {
+            // Single section when org integrations are off — no tab chrome needed.
+            settingsTabs.hidden = !orgIntegrationsEnabled;
+        }
+        if (!orgIntegrationsEnabled) {
+            document.getElementById('settings-tab-integrations')?.setAttribute('hidden', '');
+        }
+    }
+
+    async function initTabs() {
+        try {
+            const integrationState = await getIntegrationState(supabase);
+            orgIntegrationsEnabled = Boolean(integrationState?.orgEnabled);
+        } catch (error) {
+            console.warn('Could not load integration state for settings tabs:', error);
+            orgIntegrationsEnabled = false;
+        }
+
+        applyIntegrationsTabVisibility();
+
         const params = new URLSearchParams(window.location.search);
         const requested = params.get('tab');
-        setActiveTab(requested === 'ai-admin' ? 'ai-admin' : 'integrations');
+        if (!orgIntegrationsEnabled) {
+            setActiveTab('ai-admin');
+        } else {
+            setActiveTab(requested === 'ai-admin' ? 'ai-admin' : 'integrations');
+        }
+
         settingsTabs?.addEventListener('click', (event) => {
             const btn = event.target.closest('[data-settings-tab]');
             if (!btn) return;
+            if (!orgIntegrationsEnabled && btn.dataset.settingsTab === 'integrations') return;
             setActiveTab(btn.dataset.settingsTab);
         });
     }
@@ -351,25 +381,29 @@ document.addEventListener("DOMContentLoaded", async () => {
             await checkAndSetNotifications(supabase);
             updateActiveNavLink();
             setupModalListeners();
-            initTabs();
+            await initTabs();
             handleIntegrationsQueryToast(showToast);
 
             memoryFunctionSelect?.addEventListener('change', () => {
                 renderSelectedFunction(state.scopedMemory || new Map());
             });
-            saveSignatureBtn?.addEventListener('click', () => {
-                saveEmailSignature().catch((error) => {
-                    console.error(error);
-                    showToast('Could not save signature.', 'error');
+            if (orgIntegrationsEnabled) {
+                saveSignatureBtn?.addEventListener('click', () => {
+                    saveEmailSignature().catch((error) => {
+                        console.error(error);
+                        showToast('Could not save signature.', 'error');
+                    });
                 });
-            });
+            }
 
             hideGlobalLoader();
 
-            await Promise.all([
-                renderIntegrationsPanel(),
-                loadEmailSignature(),
-            ]);
+            if (orgIntegrationsEnabled) {
+                await Promise.all([
+                    renderIntegrationsPanel(),
+                    loadEmailSignature(),
+                ]);
+            }
 
             loadMemoryOverview().catch((error) => {
                 console.error('AI memory overview load failed:', error);
