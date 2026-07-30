@@ -26,6 +26,11 @@ test.describe('Command Center day timeline ledger', () => {
       const trackRect = track.getBoundingClientRect();
       const canvasCs = getComputedStyle(canvas);
 
+      const isPaintedBackground = (bg: string) => {
+        const v = (bg || '').replace(/\s+/g, '').toLowerCase();
+        return !!v && v !== 'transparent' && v !== 'rgba(0,0,0,0)' && v !== '#0000';
+      };
+
       const nodes = [
         ...document.querySelectorAll('.cc-day-timeline-event'),
         ...document.querySelectorAll('.cc-day-timeline-hover'),
@@ -34,9 +39,9 @@ test.describe('Command Center day timeline ledger', () => {
       const results = nodes.map((el) => {
         const r = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
-        const opacity = Number.parseFloat(cs.opacity);
         const isHover = el.classList.contains('cc-day-timeline-hover');
-        const hoverVisible = !isHover || (el.classList.contains('is-active') && opacity > 0.5);
+        const hoverVisible =
+          !isHover || (el.classList.contains('is-active') && isPaintedBackground(cs.backgroundColor));
         const insideModal =
           r.top >= modalRect.top - 1 &&
           r.bottom <= modalRect.bottom + 1 &&
@@ -55,7 +60,7 @@ test.describe('Command Center day timeline ledger', () => {
           left: r.left,
           width: r.width,
           height: r.height,
-          opacity,
+          backgroundColor: cs.backgroundColor,
           hoverVisible,
           ruleRight,
           insideModal,
@@ -73,7 +78,7 @@ test.describe('Command Center day timeline ledger', () => {
       });
 
       const hover = document.querySelector('.cc-day-timeline-hover.is-active');
-      const hoverOpacity = hover ? getComputedStyle(hover).opacity : null;
+      const hoverBg = hover ? getComputedStyle(hover).backgroundColor : null;
 
       return {
         ok:
@@ -82,16 +87,47 @@ test.describe('Command Center day timeline ledger', () => {
           canvasCs.position === 'relative' &&
           canvasRect.height > 40 &&
           trackRect.height > 40 &&
-          hoverOpacity === '1',
+          isPaintedBackground(hoverBg || ''),
         canvasPosition: canvasCs.position,
         canvasHeight: canvasRect.height,
         trackHeight: trackRect.height,
         modalTop: modalRect.top,
-        hoverOpacity,
+        hoverBg,
         results,
       };
     });
 
     expect(geometry.ok, JSON.stringify(geometry, null, 2)).toBe(true);
+  });
+
+  test('pointermove activates hour-band hover ghost with painted background', async ({ page }) => {
+    await page.goto('/tests/fixtures/cc-day-timeline-hover-live.html');
+    await page.waitForSelector('#cc-day-timeline-track');
+
+    const track = page.locator('#cc-day-timeline-track');
+    const box = await track.boundingBox();
+    expect(box, 'track bounding box').toBeTruthy();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height * 0.35);
+    await page.waitForTimeout(50);
+
+    const hover = await page.evaluate(() => {
+      const el = document.querySelector('.cc-day-timeline-hover');
+      if (!el) return { ok: false, reason: 'missing hover' };
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      const bg = (cs.backgroundColor || '').replace(/\s+/g, '').toLowerCase();
+      const painted = !!bg && bg !== 'transparent' && bg !== 'rgba(0,0,0,0)' && bg !== '#0000';
+      return {
+        ok: el.classList.contains('is-active') && painted && r.height > 20 && r.width > 40,
+        isActive: el.classList.contains('is-active'),
+        backgroundColor: cs.backgroundColor,
+        opacity: cs.opacity,
+        height: r.height,
+        width: r.width,
+        top: el.style.top,
+      };
+    });
+
+    expect(hover.ok, JSON.stringify(hover, null, 2)).toBe(true);
   });
 });

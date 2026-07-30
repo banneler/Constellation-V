@@ -44,7 +44,7 @@ export default defineConfig({
     },
     {
       name: 'smoke-public',
-      testMatch: /smoke\/(public|cc-day-timeline-geometry)\.spec\.ts$/,
+      testMatch: /smoke\/(public|cc-day-timeline.*)\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     {

@@ -916,7 +916,13 @@ body.theme-green {
         box-sizing: border-box;
         pointer-events: none;
     }
-    /* Overlay only — out of flow. Canvas-relative insets (ledger-safe). */
+    /*
+     * Overlay only — out of flow. Canvas-relative insets (ledger-safe).
+     * Visibility is background + height (JS sets hour band). Do NOT gate with
+     * opacity: the opacity transition from 0→1 was sticking at computed 0 in
+     * Chromium/WebKit even while .is-active background applied, so the ghost
+     * stayed invisible after hard refresh.
+     */
     .cc-day-timeline-hover {
         position: absolute;
         left: var(--cc-day-timeline-event-left, 0.25rem);
@@ -930,16 +936,13 @@ body.theme-green {
         box-sizing: border-box;
         pointer-events: none;
         z-index: 2;
-        opacity: 0;
         border-radius: 0.25rem;
         background-color: transparent;
         box-shadow: none;
-        transition: opacity 0.08s ease;
     }
     .cc-day-timeline-hover.is-active {
-        opacity: 1;
-        background-color: color-mix(in srgb, var(--primary-blue) 20%, transparent);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-blue) 32%, transparent);
+        background-color: color-mix(in srgb, var(--primary-blue) 22%, var(--bg-light));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-blue) 40%, transparent);
     }
     .cc-day-timeline-track:focus-visible {
         box-shadow: inset 0 0 0 1px var(--primary-blue);

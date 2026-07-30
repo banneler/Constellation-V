@@ -1098,14 +1098,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const rect = track.getBoundingClientRect();
             if (!rect.height) return;
             // Canvas-relative abspos (same containing block + % math as events).
-            // Opacity stays in CSS (.is-active) — never inline, or the ghost stays invisible.
+            // Show via .is-active background + hour band height — never opacity
+            // (opacity 0→1 transitions were sticking at computed 0 while bg applied).
             hoverEl.style.position = "absolute";
             hoverEl.style.left = "var(--cc-day-timeline-event-left, 0.25rem)";
             hoverEl.style.right = "var(--cc-day-timeline-event-right, 0.7rem)";
             hoverEl.style.margin = "0";
             hoverEl.style.pointerEvents = "none";
             hoverEl.style.zIndex = "2";
-            hoverEl.style.removeProperty("opacity");
             const hourStart = hourStartFromTrackClientY(track, clientY);
             hoverEl.style.top = `${timelineOffsetRatio(hourStart) * 100}%`;
             hoverEl.style.height = `${(TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * 100}%`;
@@ -1116,12 +1116,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 el.classList.remove("is-active");
                 el.style.height = "0%";
                 el.style.top = "0%";
-                el.style.removeProperty("opacity");
             });
         };
-        ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
-        // Bounds-based hit test on the plane (rail is pointer-events: none).
-        ccMonthDayList?.addEventListener("pointermove", (e) => {
+        const onTimelinePointerMove = (e) => {
             const { plane, track } = getDayTimelineEls();
             if (!track) {
                 clearTimelineHoverBlock();
@@ -1132,8 +1129,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             setTimelineHoverBlock(track, e.clientY);
-        });
+        };
+        ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
+        // Bounds-based hit test on the plane (rail is pointer-events: none).
+        // pointermove + mousemove: some WebKit paths are flaky on pointer-only.
+        ccMonthDayList?.addEventListener("pointermove", onTimelinePointerMove);
+        ccMonthDayList?.addEventListener("mousemove", onTimelinePointerMove);
         ccMonthDayList?.addEventListener("pointerleave", () => clearTimelineHoverBlock());
+        ccMonthDayList?.addEventListener("mouseleave", () => clearTimelineHoverBlock());
         ccMonthDayList?.addEventListener("keydown", (e) => {
             if (e.key !== "Enter" && e.key !== " ") return;
             if (!e.target.closest?.(".cc-day-timeline-track")) return;

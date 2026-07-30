@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CC day timeline hover live</title>
+  <link rel="stylesheet" href="../../output.css">
+  <style>
+    body { margin: 0; background: #0f1419; color: #e8eef5; }
+    body.theme-light { --bg-light: #ffffff; --bg-medium: #f1f5f9; --text-light: #0f172a; --text-medium: #475569; --text-muted: #94a3b8; --border-color: #e2e8f0; --primary-blue: #3b82f6; --font-main: system-ui, sans-serif; }
+  </style>
+</head>
+<body class="theme-light">
+  <div id="cc-month-calendar-backdrop" class="modal-backdrop cc-month-calendar-backdrop" aria-hidden="false">
+    <div class="cc-month-calendar-modal" role="dialog" aria-modal="true">
+      <div class="cc-month-calendar-header">
+        <h3 class="cc-month-calendar-title">July 2026</h3>
+      </div>
+      <div class="cc-month-calendar-body">
+        <div class="cc-month-grid-wrap">
+          <div class="cc-month-weekday-row" aria-hidden="true">
+            <div class="cc-month-weekday">S</div><div class="cc-month-weekday">M</div>
+            <div class="cc-month-weekday">T</div><div class="cc-month-weekday">W</div>
+            <div class="cc-month-weekday">T</div><div class="cc-month-weekday">F</div>
+            <div class="cc-month-weekday">S</div>
+          </div>
+          <div class="cc-month-grid" aria-hidden="true"></div>
+        </div>
+        <aside class="cc-month-day-panel">
+          <div class="cc-month-day-panel-header">
+            <h4 class="cc-month-day-heading">Thursday, July 30</h4>
+          </div>
+          <div class="cc-month-day-list" id="cc-month-day-list">
+            <div class="cc-day-timeline" data-day-key="2026-07-30">
+              <div class="cc-day-timeline-plane">
+                <div class="cc-day-timeline-rail" aria-hidden="true">
+                  <div class="cc-day-timeline-hour" style="top:0%"><span class="cc-day-timeline-hour-label">7 AM</span></div>
+                  <div class="cc-day-timeline-hour" style="top:50%"><span class="cc-day-timeline-hour-label">12 PM</span></div>
+                  <div class="cc-day-timeline-hour" style="top:100%"><span class="cc-day-timeline-hour-label">6 PM</span></div>
+                </div>
+                <div class="cc-day-timeline-rule" aria-hidden="true"></div>
+                <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0">
+                  <div class="cc-day-timeline-canvas">
+                    <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
+                    <div class="cc-day-timeline-event" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:18.18%;height:4.55%">
+                      <div class="cc-day-timeline-event-when">9:00 AM</div>
+                      <div class="cc-day-timeline-event-title">Test Event 2</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Mirror command-center.js hover wiring (kept local so the fixture is standalone).
+    const TIMELINE_START_MIN = 7 * 60;
+    const TIMELINE_END_MIN = 18 * 60;
+    const TIMELINE_SPAN_MIN = TIMELINE_END_MIN - TIMELINE_START_MIN;
+    const TIMELINE_HOUR_MIN = 60;
+    const ccMonthDayList = document.getElementById('cc-month-day-list');
+    const snapTimelineToHourStart = (startMin) => {
+      const floored = Math.floor(startMin / TIMELINE_HOUR_MIN) * TIMELINE_HOUR_MIN;
+      return Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN - TIMELINE_HOUR_MIN, floored));
+    };
+    const hourStartFromTrackClientY = (track, clientY) => {
+      const rect = track.getBoundingClientRect();
+      if (!rect.height) return TIMELINE_START_MIN;
+      const ratio = Math.max(0, Math.min(0.9999, (clientY - rect.top) / rect.height));
+      return snapTimelineToHourStart(TIMELINE_START_MIN + ratio * TIMELINE_SPAN_MIN);
+    };
+    const timelineOffsetRatio = (startMin) => (startMin - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN;
+    const getDayTimelineEls = () => {
+      const timeline = ccMonthDayList?.querySelector?.('.cc-day-timeline');
+      const plane = timeline?.querySelector?.('.cc-day-timeline-plane') || null;
+      const track = timeline?.querySelector?.('.cc-day-timeline-track') || null;
+      const canvas = track?.querySelector?.('.cc-day-timeline-canvas') || null;
+      return { timeline, plane, track, canvas };
+    };
+    const pointerInTimeline = (plane, track, clientX, clientY) => {
+      const hitEl = plane || track;
+      if (!hitEl) return false;
+      const rect = hitEl.getBoundingClientRect();
+      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    };
+    const setTimelineHoverBlock = (track, clientY) => {
+      const hoverEl = track?.querySelector?.('.cc-day-timeline-hover');
+      if (!hoverEl) return;
+      const rect = track.getBoundingClientRect();
+      if (!rect.height) return;
+      hoverEl.style.position = 'absolute';
+      hoverEl.style.left = 'var(--cc-day-timeline-event-left, 0.25rem)';
+      hoverEl.style.right = 'var(--cc-day-timeline-event-right, 0.7rem)';
+      hoverEl.style.margin = '0';
+      hoverEl.style.pointerEvents = 'none';
+      hoverEl.style.zIndex = '2';
+      const hourStart = hourStartFromTrackClientY(track, clientY);
+      hoverEl.style.top = `${timelineOffsetRatio(hourStart) * 100}%`;
+      hoverEl.style.height = `${(TIMELINE_HOUR_MIN / TIMELINE_SPAN_MIN) * 100}%`;
+      hoverEl.classList.add('is-active');
+    };
+    const clearTimelineHoverBlock = (root = ccMonthDayList) => {
+      root?.querySelectorAll?.('.cc-day-timeline-hover').forEach((el) => {
+        el.classList.remove('is-active');
+        el.style.height = '0%';
+        el.style.top = '0%';
+      });
+    };
+    ccMonthDayList?.addEventListener('pointermove', (e) => {
+      const { plane, track } = getDayTimelineEls();
+      if (!track) {
+        clearTimelineHoverBlock();
+        return;
+      }
+      if (!pointerInTimeline(plane, track, e.clientX, e.clientY)) {
+        clearTimelineHoverBlock();
+        return;
+      }
+      setTimelineHoverBlock(track, e.clientY);
+    });
+    ccMonthDayList?.addEventListener('pointerleave', () => clearTimelineHoverBlock());
+    window.__ccHoverDebug = () => {
+      const hover = document.querySelector('.cc-day-timeline-hover');
+      const track = document.querySelector('.cc-day-timeline-track');
+      const canvas = document.querySelector('.cc-day-timeline-canvas');
+      if (!hover || !track || !canvas) return { ok: false };
+      const hs = getComputedStyle(hover);
+      const hr = hover.getBoundingClientRect();
+      return {
+        ok: true,
+        isActive: hover.classList.contains('is-active'),
+        opacity: hs.opacity,
+        bg: hs.backgroundColor,
+        top: hover.style.top,
+        height: hover.style.height,
+        rect: { top: hr.top, height: hr.height, width: hr.width },
+        trackH: track.getBoundingClientRect().height,
+        canvasH: canvas.getBoundingClientRect().height,
+      };
+    };
+  </script>
+</body>
+</html>
