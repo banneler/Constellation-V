@@ -366,7 +366,9 @@ function computeSnapshot() {
                     repDismissed += 1;
                     return;
                 }
-                if (activityConvertsAlert(alert, repOutreach)) repConverted += 1;
+                if (activityConvertsAlert(alert, repOutreach, startDate, endDate)) {
+                    repConverted += 1;
+                }
             });
             const repEligible = repAlerts.length - repDismissed;
             const staleAccounts = penetration.filter((p) => p.ownerId === uid).length;
