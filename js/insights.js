@@ -25,11 +25,16 @@ const PERIOD_LABELS = {
     last_365_days: 'Last 365 Days',
 };
 
+const LETTER_WIDTH_PT = 612;
+const LETTER_HEIGHT_PT = 792;
+const PDF_MARGIN_PT = 36;
+
 const state = {
     currentUser: null,
     allUsers: [],
     charts: {},
     snapshot: null,
+    exporting: false,
     filters: {
         userId: 'all',
         dateRange: 'this_month',
@@ -49,6 +54,9 @@ const state = {
         account_plans: [],
     },
 };
+
+let repTomSelect = null;
+let dateTomSelect = null;
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -519,20 +527,101 @@ async function loadInsightsData() {
     }
 }
 
+function destroyTomSelect(instance) {
+    if (instance && typeof instance.destroy === 'function') {
+        try {
+            instance.destroy();
+        } catch (_) {
+            /* noop */
+        }
+    }
+    return null;
+}
+
+function initFilterTomSelect(selectEl, existingInstance, placeholder, onChange) {
+    if (!(selectEl instanceof HTMLSelectElement) || typeof window.TomSelect !== 'function') {
+        return null;
+    }
+    destroyTomSelect(existingInstance);
+    try {
+        return new window.TomSelect(selectEl, {
+            create: false,
+            maxItems: 1,
+            placeholder,
+            controlInput: null,
+            searchField: [],
+            dropdownParent: 'body',
+            onDropdownOpen() {
+                const dropdown = this.dropdown;
+                if (dropdown) dropdown.className = 'ts-dropdown tom-select-no-search';
+            },
+            onChange: (value) => onChange(value || ''),
+            render: {
+                dropdown: () => {
+                    const dropdown = document.createElement('div');
+                    dropdown.className = 'ts-dropdown tom-select-no-search';
+                    return dropdown;
+                },
+            },
+        });
+    } catch (_) {
+        return null;
+    }
+}
+
+function syncReportViewToggleVisibility() {
+    const toggle = document.getElementById('insights-chart-view-toggle');
+    const field = toggle?.closest('.insights-filter-field--view');
+    const show = state.filters.userId === 'all';
+    if (toggle) toggle.style.display = show ? 'inline-flex' : 'none';
+    if (field) field.style.display = show ? 'flex' : 'none';
+    if (!show) {
+        state.filters.chartView = 'combined';
+        document.getElementById('insights-view-combined-btn')?.classList.add('active');
+        document.getElementById('insights-view-individual-btn')?.classList.remove('active');
+    }
+}
+
 function populateFilters() {
     const repFilter = document.getElementById('insights-rep-filter');
-    if (!repFilter) return;
-    const current = state.filters.userId;
+    const dateFilter = document.getElementById('insights-date-filter');
+    if (!repFilter || !dateFilter) return;
+
+    const currentRep = state.filters.userId;
+    const currentPeriod = state.filters.dateRange;
+
     repFilter.innerHTML = '<option value="all">All Reps</option>';
     getReportableUsers()
         .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
         .forEach((user) => {
             repFilter.innerHTML += `<option value="${user.user_id}">${escapeHtml(user.full_name || 'Unnamed')}</option>`;
         });
-    repFilter.value = [...repFilter.options].some((o) => o.value === current) ? current : 'all';
+    repFilter.value = [...repFilter.options].some((option) => option.value === currentRep)
+        ? currentRep
+        : 'all';
     state.filters.userId = repFilter.value;
-    const toggle = document.getElementById('insights-chart-view-toggle');
-    if (toggle) toggle.style.display = state.filters.userId === 'all' ? 'flex' : 'none';
+
+    if (![...dateFilter.options].some((option) => option.value === currentPeriod)) {
+        dateFilter.value = 'this_month';
+        state.filters.dateRange = 'this_month';
+    } else {
+        dateFilter.value = currentPeriod;
+    }
+
+    repTomSelect = initFilterTomSelect(repFilter, repTomSelect, 'Rep', (value) => {
+        state.filters.userId = value || 'all';
+        syncReportViewToggleVisibility();
+        renderAll();
+    });
+    dateTomSelect = initFilterTomSelect(dateFilter, dateTomSelect, 'Period', (value) => {
+        state.filters.dateRange = value || 'this_month';
+        renderAll();
+    });
+
+    if (repTomSelect) repTomSelect.setValue(state.filters.userId, true);
+    if (dateTomSelect) dateTomSelect.setValue(state.filters.dateRange, true);
+
+    syncReportViewToggleVisibility();
 }
 
 function renderChart(canvasId, data, isCurrency = false) {
@@ -916,166 +1005,228 @@ function buildCoachingExportHtml(snapshot, managerName) {
     `;
 }
 
-function exportInsightsReport() {
+function getInsightsExportStyles() {
+    return `
+      .insights-pdf-doc {
+        width: 744px;
+        margin: 0;
+        padding: 28px 32px 36px;
+        box-sizing: border-box;
+        font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif;
+        color: #0f172a;
+        background: #ffffff;
+        line-height: 1.45;
+      }
+      .report-hero {
+        border-bottom: 3px solid #1d4ed8;
+        padding-bottom: 16px;
+        margin-bottom: 22px;
+      }
+      .report-hero.coaching { border-bottom-color: #0f766e; }
+      .kicker {
+        margin: 0 0 6px;
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 800;
+      }
+      h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.15; }
+      h2 { margin: 0 0 10px; font-size: 18px; }
+      h3 { margin: 14px 0 6px; font-size: 14px; }
+      .meta, .muted, .purpose { color: #475569; }
+      .meta { margin: 0 0 10px; font-size: 12px; }
+      .purpose { margin: 0; font-size: 13px; }
+      section { margin: 0 0 22px; }
+      .score-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .score {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px;
+        background: #f8fafc;
+      }
+      .score span {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        font-weight: 700;
+      }
+      .score strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 22px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th, td {
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        padding: 8px 6px;
+        vertical-align: top;
+      }
+      th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+      }
+      .talking-points, .rep-card ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .talking-points li, .rep-card li { margin: 0 0 8px; }
+      .rep-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+      }
+    `;
+}
+
+function waitForDomSettle() {
+    return new Promise((resolve) => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resolve);
+        });
+    });
+}
+
+async function tallCanvasToPdfBytes(canvas) {
+    const { PDFDocument } = window.PDFLib;
+    const pdfDoc = await PDFDocument.create();
+    const usableWidth = LETTER_WIDTH_PT - PDF_MARGIN_PT * 2;
+    const usableHeight = LETTER_HEIGHT_PT - PDF_MARGIN_PT * 2;
+    const scale = usableWidth / canvas.width;
+    const pageHeightPx = Math.max(1, Math.floor(usableHeight / scale));
+
+    let offsetY = 0;
+    while (offsetY < canvas.height) {
+        const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width;
+        slice.height = sliceHeight;
+        const ctx = slice.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, offsetY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+        const png = await pdfDoc.embedPng(slice.toDataURL('image/png'));
+        const page = pdfDoc.addPage([LETTER_WIDTH_PT, LETTER_HEIGHT_PT]);
+        const drawHeight = sliceHeight * scale;
+        page.drawImage(png, {
+            x: PDF_MARGIN_PT,
+            y: LETTER_HEIGHT_PT - PDF_MARGIN_PT - drawHeight,
+            width: usableWidth,
+            height: drawHeight,
+        });
+        offsetY += sliceHeight;
+    }
+
+    return pdfDoc.save();
+}
+
+function downloadPdfBytes(bytes, filename) {
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+function buildExportFilename(snapshot) {
+    const kind = snapshot.coachingMode ? 'Coaching_Guideline' : 'Leadership_Brief';
+    const period = String(snapshot.periodLabel || 'Period').replace(/\s+/g, '_');
+    const scope = String(snapshot.selectedRepName || 'Team').replace(/\s+/g, '_').replace(/[^\w.-]/g, '');
+    return `Insights_${kind}_${scope}_${period}.pdf`;
+}
+
+async function exportInsightsReport() {
+    if (state.exporting) return;
+
+    const exportBtn = document.getElementById('insights-export-btn');
+    const exportLabel = document.getElementById('insights-export-label');
+    const previousLabel = exportLabel?.textContent || 'Export';
+
+    const snapdomFn = globalThis.snapdom;
+    if (typeof snapdomFn !== 'function') {
+        showToast('PDF export library (Snapdom) is not loaded. Refresh and try again.', 'error');
+        return;
+    }
+    if (!window.PDFLib) {
+        showToast('PDF library is not loaded. Refresh and try again.', 'error');
+        return;
+    }
+
+    const exportRoot = document.getElementById('insights-export-root');
+    if (!exportRoot) {
+        showToast('Export root is missing.', 'error');
+        return;
+    }
+
     const snapshot = state.snapshot || computeSnapshot();
     const managerName =
         getState()?.effectiveUserFullName ||
         state.currentUser?.user_metadata?.full_name ||
         'Manager';
-    const isCoaching = snapshot.coachingMode;
-    const title = isCoaching ? 'Coaching Guideline' : 'Leadership Business Brief';
-    const bodyHtml = isCoaching
+    const bodyHtml = snapshot.coachingMode
         ? buildCoachingExportHtml(snapshot, managerName)
         : buildLeadershipExportHtml(snapshot, managerName);
 
-    const printFrame = document.createElement('iframe');
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    printFrame.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(printFrame);
+    state.exporting = true;
+    if (exportBtn) exportBtn.disabled = true;
+    if (exportLabel) exportLabel.textContent = 'Compiling PDF…';
 
-    const frameDoc = printFrame.contentDocument || printFrame.contentWindow?.document;
-    if (!frameDoc) {
-        showToast('Unable to open export window.', 'error');
-        document.body.removeChild(printFrame);
-        return;
-    }
+    try {
+        exportRoot.innerHTML = `
+          <style>${getInsightsExportStyles()}</style>
+          <div class="insights-pdf-doc">${bodyHtml}</div>
+        `;
+        const captureRoot = exportRoot.querySelector('.insights-pdf-doc');
+        if (!captureRoot) throw new Error('Export capture root missing.');
 
-    frameDoc.open();
-    frameDoc.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>${escapeHtml(title)} — ${escapeHtml(snapshot.periodLabel)}</title>
-  <style>
-    @page { margin: 0.7in; }
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
-      color: #0f172a;
-      background: #fff;
-      line-height: 1.45;
-    }
-    .report-hero {
-      border-bottom: 3px solid #1d4ed8;
-      padding-bottom: 16px;
-      margin-bottom: 22px;
-    }
-    .report-hero.coaching { border-bottom-color: #0f766e; }
-    .kicker {
-      margin: 0 0 6px;
-      font-size: 11px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: #64748b;
-      font-weight: 800;
-    }
-    h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.15; }
-    h2 { margin: 0 0 10px; font-size: 18px; }
-    h3 { margin: 14px 0 6px; font-size: 14px; }
-    .meta, .muted, .purpose { color: #475569; }
-    .meta { margin: 0 0 10px; font-size: 12px; }
-    .purpose { margin: 0; font-size: 13px; }
-    section { margin: 0 0 22px; page-break-inside: avoid; }
-    .score-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-    .score {
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 12px;
-      background: #f8fafc;
-    }
-    .score span {
-      display: block;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #64748b;
-      font-weight: 700;
-    }
-    .score strong {
-      display: block;
-      margin-top: 6px;
-      font-size: 22px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-    th, td {
-      border-bottom: 1px solid #e2e8f0;
-      text-align: left;
-      padding: 8px 6px;
-      vertical-align: top;
-    }
-    th {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #64748b;
-    }
-    .talking-points, .rep-card ul {
-      margin: 0;
-      padding-left: 18px;
-    }
-    .talking-points li, .rep-card li { margin: 0 0 8px; }
-    .rep-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px 16px;
-      margin-bottom: 14px;
-      page-break-inside: avoid;
-    }
-    .toolbar {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .toolbar button {
-      border: 1px solid #cbd5e1;
-      background: #fff;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    @media print {
-      .toolbar { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="toolbar">
-    <button type="button" onclick="window.print()">Print / Save PDF</button>
-  </div>
-  ${bodyHtml}
-</body>
-</html>`);
-    frameDoc.close();
-
-    const originalTitle = document.title;
-    document.title = `${title}: ${snapshot.periodLabel}`;
-    setTimeout(() => {
         try {
-            printFrame.contentWindow?.focus();
-            printFrame.contentWindow?.print();
-        } catch (error) {
-            console.error('[insights] export print failed:', error);
-            showToast('Could not open print dialog. Check popup settings.', 'error');
-        } finally {
-            if (document.body.contains(printFrame)) document.body.removeChild(printFrame);
-            document.title = originalTitle;
+            if (document.fonts?.ready) await document.fonts.ready;
+        } catch (_) {
+            /* ignore */
         }
-    }, 250);
+        await waitForDomSettle();
+
+        const capture = await snapdomFn(captureRoot, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            outerShadows: false,
+            outerTransforms: false,
+        });
+        const canvas = await capture.toCanvas();
+        const bytes = await tallCanvasToPdfBytes(canvas);
+        downloadPdfBytes(bytes, buildExportFilename(snapshot));
+        showToast('Insights PDF exported.', 'success');
+    } catch (error) {
+        console.error('[insights] PDF export failed:', error);
+        showToast(error?.message || 'Could not generate Insights PDF.', 'error');
+    } finally {
+        exportRoot.innerHTML = '';
+        state.exporting = false;
+        if (exportBtn) exportBtn.disabled = false;
+        if (exportLabel) {
+            exportLabel.textContent = previousLabel;
+            updateModeChrome(state.snapshot || snapshot);
+        }
+    }
 }
 
 function setupEventListeners() {
@@ -1088,14 +1239,14 @@ function setupEventListeners() {
     });
 
     document.getElementById('insights-rep-filter')?.addEventListener('change', (e) => {
+        if (repTomSelect) return;
         state.filters.userId = e.target.value;
-        const toggle = document.getElementById('insights-chart-view-toggle');
-        if (toggle) toggle.style.display = e.target.value === 'all' ? 'flex' : 'none';
-        if (e.target.value !== 'all') state.filters.chartView = 'combined';
+        syncReportViewToggleVisibility();
         renderAll();
     });
 
     document.getElementById('insights-date-filter')?.addEventListener('change', (e) => {
+        if (dateTomSelect) return;
         state.filters.dateRange = e.target.value;
         renderAll();
     });

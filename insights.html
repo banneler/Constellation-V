@@ -7,9 +7,12 @@
     <title>Constellation CRM - Insights</title>
     <link rel="stylesheet" href="output.css">
     <link rel="stylesheet" href="css/global-loader.css">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/css/tom-select.css" rel="stylesheet">
     <link rel="stylesheet" href="css/insights.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@zumer/snapdom/dist/snapdom.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
@@ -54,12 +57,12 @@
 
                 <div id="insights-content" class="insights-content hidden">
                     <div class="section-card insights-filters-card">
-                        <div class="filter-bar insights-filter-bar">
-                            <label class="insights-filter-label">
+                        <div class="insights-filter-bar">
+                            <label class="insights-filter-field" for="insights-rep-filter">
                                 <span>Rep</span>
                                 <select id="insights-rep-filter" aria-label="Filter by rep"></select>
                             </label>
-                            <label class="insights-filter-label">
+                            <label class="insights-filter-field" for="insights-date-filter">
                                 <span>Period</span>
                                 <select id="insights-date-filter" aria-label="Filter by date range">
                                     <option value="this_month">This Month</option>
@@ -69,9 +72,9 @@
                                     <option value="last_365_days">Last 365 Days</option>
                                 </select>
                             </label>
-                            <div class="insights-view-controls">
-                                <span class="insights-filter-label-text">Report view</span>
-                                <div id="insights-chart-view-toggle" class="deals-view-toggle">
+                            <div class="insights-filter-field insights-filter-field--view">
+                                <span>Report view</span>
+                                <div id="insights-chart-view-toggle" class="deals-view-toggle insights-report-view-toggle" role="group" aria-label="Report view">
                                     <button type="button" id="insights-view-combined-btn" class="btn-secondary btn-sm active">Combined</button>
                                     <button type="button" id="insights-view-individual-btn" class="btn-secondary btn-sm">Individual</button>
                                 </div>
@@ -197,6 +200,8 @@
             </section>
         </main>
     </div>
+    <div id="insights-export-root" class="insights-export-root" aria-hidden="true"></div>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>
     <script type="module" src="js/insights.js"></script>
 </body>
 </html>

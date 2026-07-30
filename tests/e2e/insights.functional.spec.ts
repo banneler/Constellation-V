@@ -45,6 +45,7 @@ test.describe('Insights (functional)', () => {
     await expect(insights.dateFilter()).toBeVisible();
     await expect(page.locator('#insights-export-btn')).toBeVisible();
     await expect(page.locator('#insights-export-label')).toContainText(/Leadership Brief|Coaching Guide/);
+    await expect(page.locator('.insights-filters-card .ts-wrapper').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('non-manager is redirected away from Insights', async ({ page }) => {
