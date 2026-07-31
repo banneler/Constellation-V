@@ -1,0 +1,25 @@
+/**
+ * Command Center page overrides — loaded AFTER output.css (same pattern as
+ * css/insights.css). Keeps day-timeline event geometry/padding visible even when
+ * a stale layered output.css is served from HTTP disk cache.
+ */
+.cc-day-timeline-event {
+  padding: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  /* Timed shell only; never size from content */
+  display: block !important;
+}
+
+.cc-day-timeline-event-body {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  box-sizing: border-box !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  /* Visible inset above time|title — not on the timed outer box */
+  padding: 8px 0.5rem 4px 0.55rem !important;
+}

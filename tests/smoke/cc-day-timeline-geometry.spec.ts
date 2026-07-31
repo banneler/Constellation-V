@@ -100,6 +100,41 @@ test.describe('Command Center day timeline ledger', () => {
     expect(geometry.ok, JSON.stringify(geometry, null, 2)).toBe(true);
   });
 
+  test('60-min event height equals one hour slot; body has padding-top >= 6px', async ({ page }) => {
+    await page.goto('/tests/fixtures/cc-day-timeline-ledger.html');
+    await page.waitForSelector('.cc-day-timeline-event[data-duration-min="60"]');
+
+    const check = await page.evaluate(() => {
+      const canvas = document.querySelector('.cc-day-timeline-canvas');
+      const events = [...document.querySelectorAll('.cc-day-timeline-event[data-duration-min="60"]')];
+      if (!canvas || events.length < 1) {
+        return { ok: false, reason: 'missing canvas or 60-min events' };
+      }
+      const canvasH = canvas.getBoundingClientRect().height;
+      const hourSlot = canvasH / 11;
+      const results = events.map((el) => {
+        const body = el.querySelector('.cc-day-timeline-event-body');
+        const r = el.getBoundingClientRect();
+        const bodyCs = body ? getComputedStyle(body) : null;
+        const padTop = bodyCs ? parseFloat(bodyCs.paddingTop) : 0;
+        const heightOk = Math.abs(r.height - hourSlot) <= 1.5;
+        const padOk = padTop >= 6;
+        return {
+          title: el.textContent?.trim().slice(0, 40),
+          height: r.height,
+          hourSlot,
+          padTop,
+          heightOk,
+          padOk,
+          ok: heightOk && padOk,
+        };
+      });
+      return { ok: results.every((r) => r.ok), canvasH, hourSlot, results };
+    });
+
+    expect(check.ok, JSON.stringify(check, null, 2)).toBe(true);
+  });
+
   test('pointermove activates hour-band hover ghost with painted background', async ({ page }) => {
     await page.goto('/tests/fixtures/cc-day-timeline-hover-live.html');
     await page.waitForSelector('#cc-day-timeline-track');

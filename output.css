@@ -3213,13 +3213,10 @@ body.theme-green {
     right: var(--cc-day-timeline-event-right, 0.7rem);
     width: auto;
     z-index: 3;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
+    display: block;
     overflow: hidden;
     border-radius: 0.25rem;
-    padding: 6px 0.5rem 2px 0.55rem;
+    padding: 0;
     margin: 0;
     pointer-events: none;
     box-sizing: border-box;
@@ -3233,7 +3230,17 @@ body.theme-green {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 25%, transparent);
     }
     min-height: 0;
-    max-height: none;
+  }
+  .cc-day-timeline-event-body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    box-sizing: border-box;
+    min-height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    padding: 8px 0.5rem 4px 0.55rem;
   }
   .cc-day-timeline-event.is-overflow-start {
     border-top: 2px solid var(--cc-event-color, var(--primary-blue));

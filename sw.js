@@ -7,7 +7,7 @@
 // one with the backticks-in-CSS-comment bug — on every client even after
 // the fix shipped, because the SW intercepts script requests with a
 // stale-while-revalidate policy.)
-const CACHE_VERSION = 'constellation-v96';
+const CACHE_VERSION = 'constellation-v100';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -15,6 +15,7 @@ const SCOPE_URL = new URL(self.registration.scope);
 const PRECACHE_PATHS = [
     'index.html',
     'output.css',
+    'css/command-center.css',
     'manifest.json',
     'assets/constellation-logo-c.svg',
     'assets/constellation-logo-full.svg'
@@ -82,14 +83,15 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // JS/CSS: network-first so Command Center / calendar fixes ship on hard refresh
-    // (cache-first SWR previously kept stale hover/opacity logic alive across deploys).
+    // JS/CSS: network-first + bypass HTTP disk cache. Plain fetch(request) was still
+    // able to return a browser-cached output.css after SW version bumps, so timeline
+    // padding/height fixes looked like no-ops while page-specific CSS (insights) worked.
     if (request.destination === 'style' || request.destination === 'script') {
         event.respondWith(
             (async () => {
                 const cache = await caches.open(RUNTIME_CACHE);
                 try {
-                    const networkResponse = await fetch(request);
+                    const networkResponse = await fetch(request, { cache: 'reload' });
                     if (networkResponse && networkResponse.ok) {
                         cache.put(request, networkResponse.clone());
                     }

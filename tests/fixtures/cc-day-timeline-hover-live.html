@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CC day timeline hover live</title>
   <link rel="stylesheet" href="../../output.css">
+  <link rel="stylesheet" href="../../css/command-center.css">
   <style>
     body { margin: 0; background: #0f1419; color: #e8eef5; }
     body.theme-light { --bg-light: #ffffff; --bg-medium: #f1f5f9; --text-light: #0f172a; --text-medium: #475569; --text-muted: #94a3b8; --border-color: #e2e8f0; --primary-blue: #3b82f6; --font-main: system-ui, sans-serif; }
@@ -42,10 +43,12 @@
                 <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0">
                   <div class="cc-day-timeline-canvas">
                     <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
-                    <div class="cc-day-timeline-event" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:18.18%;bottom:77.27%;height:auto">
-                      <div class="cc-day-timeline-event-head">
-                        <span class="cc-day-timeline-event-when">9:00 AM</span>
-                        <span class="cc-day-timeline-event-title">Test Event 2</span>
+                    <div class="cc-day-timeline-event" data-duration-min="30" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:18.1818%;height:4.5455%;bottom:auto;max-height:4.5455%;padding:0;overflow:hidden;box-sizing:border-box">
+                      <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;">
+                        <div class="cc-day-timeline-event-head">
+                          <span class="cc-day-timeline-event-when">9:00–9:30 AM</span>
+                          <span class="cc-day-timeline-event-title">Test Event 2</span>
+                        </div>
                       </div>
                     </div>
                   </div>

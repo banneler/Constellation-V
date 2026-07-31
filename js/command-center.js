@@ -139,10 +139,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         return d;
     }
 
-    /** Local minutes-from-midnight for a Date (browser local timezone). */
+    /** Local minutes-from-midnight for a Date (browser local timezone; includes seconds). */
     function localMinutesFromDate(d) {
         if (!d || Number.isNaN(d.getTime())) return null;
-        return d.getHours() * 60 + d.getMinutes();
+        return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+    }
+
+    /** Stable CSS percentage string (avoids float noise in inline styles). */
+    function timelinePct(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "0";
+        return (Math.round(n * 10000) / 10000).toString();
     }
 
     function dayKeyFromDate(d) {
@@ -166,6 +173,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!d) return "";
         if (ev.allDay) return "All day";
         return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    }
+
+    /** Start–end label so short API durations are visible on the card (e.g. 2:00–2:45 PM). */
+    function formatCalendarEventTimeRange(ev, startMin, endMin) {
+        if (ev?.allDay) return "All day";
+        const startLabel = formatMinutesLabel(startMin);
+        if (endMin == null || !Number.isFinite(endMin) || endMin <= startMin) {
+            return startLabel;
+        }
+        const endLabel = formatMinutesLabel(endMin);
+        const startAmPm = startLabel.slice(-2);
+        const endAmPm = endLabel.slice(-2);
+        if (startAmPm === endAmPm) {
+            return `${startLabel.slice(0, -3)}–${endLabel}`;
+        }
+        return `${startLabel}–${endLabel}`;
     }
 
     /** Pixel/percentage offset of local minutes within the 7am–6pm track. */
@@ -306,8 +329,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function formatMinutesLabel(totalMinutes) {
-        const h = Math.floor(totalMinutes / 60);
-        const m = totalMinutes % 60;
+        const clamped = Math.max(0, Math.round(Number(totalMinutes) || 0));
+        const h = Math.floor(clamped / 60);
+        const m = clamped % 60;
         const base = formatHourLabel(h);
         if (m === 0) return base;
         const ampm = base.slice(-2);
@@ -816,15 +840,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // Entirely outside visible window — show as overflow chip in all-day strip via separate list
                     return "";
                 }
-                const topPct = timelineOffsetRatio(clampedStart) * 100;
-                // Prefer top+bottom (not height%) so the abspos box is stretched by the
-                // canvas — content/min-content cannot inflate the block past duration.
-                let bottomPct = (1 - timelineOffsetRatio(clampedEnd)) * 100;
-                const spanPct = ((clampedEnd - clampedStart) / TIMELINE_SPAN_MIN) * 100;
-                if (spanPct < 2.2) {
-                    bottomPct = Math.max(0, 100 - topPct - 2.2);
-                }
+                // Duration → track % (7am–6pm = 660 min = 11 hour slots).
+                // 2:00–3:00 → top 63.6363%, height 9.0909% (exactly one slot).
                 const durationMin = clampedEnd - clampedStart;
+                const topPct = timelinePct(timelineOffsetRatio(clampedStart) * 100);
+                const heightPct = timelinePct(
+                    Math.max(2.2, (durationMin / TIMELINE_SPAN_MIN) * 100)
+                );
                 const desc = (ev.description || "").trim();
                 // Description only when the timed block is tall enough for a second line.
                 const showDesc =
@@ -835,21 +857,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const classes = ["cc-day-timeline-event"];
                 if (overflowBefore) classes.push("is-overflow-start");
                 if (overflowAfter) classes.push("is-overflow-end");
-                const whenLabel = formatCalendarEventTime(ev);
+                const whenLabel = formatCalendarEventTimeRange(ev, startMin, endMin);
                 const color = normalizeEventColor(ev?.color);
                 // Abspos inside .cc-day-timeline-canvas only (in-flow relative containing block).
-                // Inline position/insets so a stale stylesheet cannot escape to the fixed backdrop.
+                // Explicit height% (not top/bottom+height:auto) so duration pins 1:1 to the
+                // hour grid; inner body carries padding so text inset can't be lost to a
+                // stale output.css / preflight padding:0.
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;bottom:${bottomPct}%;height:auto;max-height:none;margin:0;z-index:3;${
+                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;overflow:hidden;box-sizing:border-box;${
                     color ? ` --cc-event-color: ${color};` : ""
-                }" title="${escapeHtml(ev.title || "(No title)")}">
-                        <div class="cc-day-timeline-event-head">
-                            <span class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
+                }" title="${escapeHtml(ev.title || "(No title)")}" data-duration-min="${Math.round(durationMin)}">
+                        <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;">
+                            <div class="cc-day-timeline-event-head">
+                                <span class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
                     overflowBefore || overflowAfter ? " · outside 7–6" : ""
                 }</span>
-                            <span class="cc-day-timeline-event-title">${escapeHtml(ev.title || "(No title)")}</span>
+                                <span class="cc-day-timeline-event-title">${escapeHtml(ev.title || "(No title)")}</span>
+                            </div>
+                            ${showDesc ? `<div class="cc-day-timeline-event-desc">${escapeHtml(desc)}</div>` : ""}
                         </div>
-                        ${showDesc ? `<div class="cc-day-timeline-event-desc">${escapeHtml(desc)}</div>` : ""}
                     </div>
                 `;
             })
