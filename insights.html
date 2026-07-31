@@ -185,19 +185,24 @@
                         </div>
                     </div>
 
-                    <div class="section-card">
+                    <div class="section-card insights-feed-card">
                         <div class="section-card-header">
-                            <h2 class="section-title">Low Activity Penetration</h2>
-                        </div>
-                        <div class="px-5 pb-5">
-                            <p class="insights-note">Accounts with no logged activity in the selected period (top 25 by contact count).</p>
-                            <div class="insights-table-wrap">
-                                <table class="insights-table" id="insights-penetration-table">
-                                    <thead><tr><th>Account</th><th>Owner</th><th>Contacts</th><th>Last Activity</th></tr></thead>
-                                    <tbody></tbody>
-                                </table>
+                            <div>
+                                <h2 class="section-title">Low Activity Penetration</h2>
+                                <p class="insights-section-lede">Accounts with no logged activity in the selected period (top 25 by contact count).</p>
                             </div>
                         </div>
+                        <div id="insights-penetration-list" class="recent-activities-list insights-feed-list"></div>
+                    </div>
+
+                    <div class="section-card insights-feed-card insights-recent-activities-card">
+                        <div class="section-card-header">
+                            <div>
+                                <h2 class="section-title">Recent Activities</h2>
+                                <p class="insights-section-lede" id="insights-recent-activities-lede">Newest logged activities in the selected period.</p>
+                            </div>
+                        </div>
+                        <div id="insights-recent-activities-list" class="recent-activities-list insights-feed-list"></div>
                     </div>
                 </div>
             </section>

@@ -27,6 +27,8 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /** PostgREST default max rows per request — must page past this or recent rows disappear. */
 const INSIGHTS_PAGE_SIZE = 1000;
+/** Cap for Insights Recent Activities feed (CC uses 20; Insights shows a bit more). */
+const RECENT_ACTIVITIES_LIMIT = 25;
 
 const PERIOD_LABELS = {
     this_month: 'This Month',
@@ -45,6 +47,9 @@ const PDF_PAGE_PAD_TOP_PX = 28;
 const PDF_PAGE_PAD_BOTTOM_PX = 36;
 const PDF_PAGE_CONTENT_HEIGHT_PX =
     PDF_PAGE_HEIGHT_PX - PDF_PAGE_PAD_TOP_PX - PDF_PAGE_PAD_BOTTOM_PX;
+
+/** Match Command Center density; Insights may have denser periods so cap + note total. */
+const RECENT_ACTIVITIES_LIMIT = 40;
 
 const state = {
     currentUser: null,
@@ -331,6 +336,7 @@ function computeSnapshot() {
                 .map((a) => new Date(a.date))
                 .sort((a, b) => b - a);
             return {
+                id: account.id,
                 name: account.name || `Account #${account.id}`,
                 owner: ownerName(account.user_id),
                 ownerId: account.user_id,
@@ -340,6 +346,32 @@ function computeSnapshot() {
         })
         .sort((a, b) => b.contacts - a.contacts)
         .slice(0, 25);
+
+    const contactById = new Map((state.data.contacts || []).map((c) => [c.id, c]));
+    const accountById = new Map((state.data.accounts || []).map((a) => [a.id, a]));
+    const recentActivityItems = [...activities]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, RECENT_ACTIVITIES_LIMIT)
+        .map((act) => {
+            const contact = act.contact_id ? contactById.get(act.contact_id) : null;
+            const accountId = act.account_id || contact?.account_id || null;
+            const account = accountId != null ? accountById.get(accountId) : null;
+            const accountName = account?.name || 'N/A';
+            const contactName = contact
+                ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'N/A'
+                : 'N/A';
+            const repName = ownerName(act.user_id);
+            return {
+                id: act.id,
+                type: act.type || 'Activity',
+                description: act.description || '',
+                date: act.date,
+                accountName,
+                contactName,
+                repName,
+                accountId,
+            };
+        });
 
     const usersForBreakdown =
         userId === 'all' ? reportable : reportable.filter((u) => u.user_id === userId);
@@ -505,6 +537,11 @@ function computeSnapshot() {
             stale: saosStale,
         },
         penetration,
+        recentActivities: {
+            items: recentActivityItems,
+            total: activities.length,
+            limit: RECENT_ACTIVITIES_LIMIT,
+        },
         byRep,
         talkingPoints,
     };
@@ -587,7 +624,7 @@ async function loadInsightsData() {
                 () =>
                     supabase
                         .from('contacts')
-                        .select('id, user_id, account_id')
+                        .select('id, user_id, account_id, first_name, last_name')
                         .order('id', { ascending: true }),
             ],
             [
@@ -954,23 +991,100 @@ function renderSaosSnapshot(snapshot) {
     ]);
 }
 
+function getActivityIconInfo(act) {
+    const typeLower = String(act?.type || '').toLowerCase();
+    if (typeLower.includes('cognito') || typeLower.includes('intelligence')) {
+        return { iconClass: 'icon-default', icon: 'fa-magnifying-glass', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('email')) {
+        return { iconClass: 'icon-email', icon: 'fa-envelope', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('call')) {
+        return { iconClass: 'icon-call', icon: 'fa-phone', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('meeting')) {
+        return { iconClass: 'icon-meeting', icon: 'fa-video', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('linkedin')) {
+        return { iconClass: 'icon-linkedin', icon: 'fa-linkedin-in', iconPrefix: 'fa-brands' };
+    }
+    return { iconClass: 'icon-default', icon: 'fa-circle-info', iconPrefix: 'fas' };
+}
+
 function renderPenetration(snapshot) {
-    const tbody = document.querySelector('#insights-penetration-table tbody');
-    if (!tbody) return;
+    const list = document.getElementById('insights-penetration-list');
+    if (!list) return;
     if (!snapshot.penetration.length) {
-        tbody.innerHTML = emptyRow(4, 'Every reportable account has activity in this period.');
+        list.innerHTML =
+            '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Every reportable account has activity in this period.</p>';
         return;
     }
-    tbody.innerHTML = snapshot.penetration
-        .map(
-            (row) => `
-        <tr>
-            <td>${escapeHtml(row.name)}</td>
-            <td>${escapeHtml(row.owner)}</td>
-            <td>${row.contacts}</td>
-            <td>${row.lastActivity ? escapeHtml(formatDate(row.lastActivity.toISOString())) : 'Never'}</td>
-        </tr>`
-        )
+    list.innerHTML = snapshot.penetration
+        .map((row) => {
+            const accountHref =
+                row.id != null ? `accounts.html?accountId=${encodeURIComponent(row.id)}` : '';
+            const accountLabel = accountHref
+                ? `<a href="${accountHref}" class="insights-feed-account-link">${escapeHtml(row.name)}</a>`
+                : escapeHtml(row.name);
+            const lastLabel = row.lastActivity
+                ? `Last activity ${escapeHtml(formatDate(row.lastActivity.toISOString()))}`
+                : 'Last activity Never';
+            const contactLabel = `${row.contacts} contact${row.contacts === 1 ? '' : 's'}`;
+            return `
+        <div class="recent-activity-item insights-penetration-item">
+            <div class="activity-icon-wrap icon-default"><i class="fas fa-building"></i></div>
+            <div class="activity-body">
+                <div class="activity-meta">${escapeHtml(row.owner)}</div>
+                <div class="activity-description">${accountLabel}</div>
+                <div class="activity-date">${lastLabel}</div>
+            </div>
+            <div class="activity-actions">
+                <span class="insights-feed-chip">${escapeHtml(contactLabel)}</span>
+            </div>
+        </div>`;
+        })
+        .join('');
+}
+
+function renderRecentActivities(snapshot) {
+    const list = document.getElementById('insights-recent-activities-list');
+    const lede = document.getElementById('insights-recent-activities-lede');
+    if (!list) return;
+
+    const feed = snapshot.recentActivities || { items: [], total: 0, limit: RECENT_ACTIVITIES_LIMIT };
+    const showTeamRep = snapshot.userId === 'all';
+    if (lede) {
+        if (!feed.total) {
+            lede.textContent = 'Newest logged activities in the selected period.';
+        } else if (feed.total > feed.limit) {
+            lede.textContent = `Showing recent ${feed.limit} of ${feed.total} activities in period.`;
+        } else {
+            lede.textContent = `Showing ${feed.total} activit${feed.total === 1 ? 'y' : 'ies'} in period.`;
+        }
+    }
+
+    if (!feed.items.length) {
+        list.innerHTML =
+            '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No recent activities in this period.</p>';
+        return;
+    }
+
+    list.innerHTML = feed.items
+        .map((act) => {
+            const { iconClass, icon, iconPrefix } = getActivityIconInfo(act);
+            const metaParts = [act.accountName, act.contactName];
+            if (showTeamRep && act.repName) metaParts.push(act.repName);
+            const meta = metaParts.join(' · ');
+            return `
+        <div class="recent-activity-item">
+            <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix} ${icon}"></i></div>
+            <div class="activity-body">
+                <div class="activity-meta">${escapeHtml(meta)}</div>
+                <div class="activity-description">${escapeHtml(act.type)}: ${escapeHtml(act.description)}</div>
+                <div class="activity-date">${escapeHtml(formatDate(act.date))}</div>
+            </div>
+        </div>`;
+        })
         .join('');
 }
 
@@ -983,6 +1097,7 @@ function renderAll() {
     renderCognitoOutreach(snapshot);
     renderSaosSnapshot(snapshot);
     renderPenetration(snapshot);
+    renderRecentActivities(snapshot);
     updateModeChrome(snapshot);
 }
 

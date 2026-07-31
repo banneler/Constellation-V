@@ -320,6 +320,52 @@
     font-style: italic;
 }
 
+.insights-feed-card .section-card-header {
+    align-items: flex-start;
+}
+
+.insights-feed-list {
+    max-height: min(32rem, 70vh);
+    border-top: 1px solid var(--border-color);
+}
+
+.insights-feed-list.recent-activities-list {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.insights-penetration-item .activity-description {
+    font-weight: 700;
+}
+
+.insights-feed-account-link {
+    color: var(--text-light);
+    text-decoration: none;
+}
+
+.insights-feed-account-link:hover {
+    color: var(--primary-blue);
+    text-decoration: underline;
+}
+
+.insights-feed-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--bg-medium) 72%, transparent);
+    color: var(--text-medium);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.insights-penetration-item .activity-actions {
+    align-self: center;
+}
+
 .insights-export-root {
     position: fixed;
     left: -10000px;
