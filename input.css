@@ -1016,8 +1016,10 @@ body.theme-green {
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
     }
-    /* Add Event: Calendar picker (only when multiple writable calendars) */
-    .cc-event-label-field {
+    /* Add/Edit Event: Calendar picker (multi only) + Google color_id swatches */
+    .cc-event-label-field,
+    .cc-event-calendar-field,
+    .cc-event-color-field {
         @apply flex flex-col;
     }
     .cc-event-calendar-row {
@@ -1027,8 +1029,31 @@ body.theme-green {
         @apply w-3.5 h-3.5 rounded-sm flex-shrink-0;
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-color) 60%, transparent);
     }
-    .cc-event-calendar-row select {
+    .cc-event-calendar-row select,
+    .cc-event-calendar-field select {
         @apply flex-1 min-w-0;
+    }
+    .cc-event-color-heading {
+        @apply text-sm font-semibold block mb-1;
+        color: var(--text-light);
+    }
+    .cc-event-color-swatches {
+        @apply flex flex-wrap items-center gap-1.5;
+    }
+    .cc-event-color-swatch {
+        @apply w-6 h-6 rounded-sm flex-shrink-0 p-0 border-0 cursor-pointer;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-color) 55%, transparent);
+    }
+    .cc-event-color-swatch--default {
+        background:
+            linear-gradient(135deg, transparent 46%, color-mix(in srgb, var(--text-muted) 55%, transparent) 46%, color-mix(in srgb, var(--text-muted) 55%, transparent) 54%, transparent 54%),
+            var(--bg-light);
+    }
+    .cc-event-color-swatch--active {
+        box-shadow:
+            inset 0 0 0 1px color-mix(in srgb, var(--border-color) 40%, transparent),
+            0 0 0 2px var(--bg-light),
+            0 0 0 3.5px var(--primary-blue);
     }
     .cc-event-suggestions {
         @apply mt-1 mb-1;

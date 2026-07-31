@@ -3292,7 +3292,7 @@ body.theme-green {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
   }
-  .cc-event-label-field {
+  .cc-event-label-field, .cc-event-calendar-field, .cc-event-color-field {
     display: flex;
     flex-direction: column;
   }
@@ -3311,9 +3311,50 @@ body.theme-green {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-color) 60%, transparent);
     }
   }
-  .cc-event-calendar-row select {
+  .cc-event-calendar-row select, .cc-event-calendar-field select {
     min-width: calc(var(--spacing) * 0);
     flex: 1;
+  }
+  .cc-event-color-heading {
+    margin-bottom: calc(var(--spacing) * 1);
+    display: block;
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-light);
+  }
+  .cc-event-color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: calc(var(--spacing) * 1.5);
+  }
+  .cc-event-color-swatch {
+    height: calc(var(--spacing) * 6);
+    width: calc(var(--spacing) * 6);
+    flex-shrink: 0;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    border-style: var(--tw-border-style);
+    border-width: 0px;
+    padding: calc(var(--spacing) * 0);
+    box-shadow: inset 0 0 0 1px var(--border-color);
+    @supports (color: color-mix(in lab, red, red)) {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-color) 55%, transparent);
+    }
+  }
+  .cc-event-color-swatch--default {
+    background: linear-gradient(135deg, transparent 46%, var(--text-muted) 46%, var(--text-muted) 54%, transparent 54%), var(--bg-light);
+    @supports (color: color-mix(in lab, red, red)) {
+      background: linear-gradient(135deg, transparent 46%, color-mix(in srgb, var(--text-muted) 55%, transparent) 46%, color-mix(in srgb, var(--text-muted) 55%, transparent) 54%, transparent 54%), var(--bg-light);
+    }
+  }
+  .cc-event-color-swatch--active {
+    box-shadow: inset 0 0 0 1px var(--border-color), 0 0 0 2px var(--bg-light), 0 0 0 3.5px var(--primary-blue);
+    @supports (color: color-mix(in lab, red, red)) {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-color) 40%, transparent), 0 0 0 2px var(--bg-light), 0 0 0 3.5px var(--primary-blue);
+    }
   }
   .cc-event-suggestions {
     margin-top: calc(var(--spacing) * 1);

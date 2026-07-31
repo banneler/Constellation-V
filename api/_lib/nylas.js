@@ -159,10 +159,24 @@ async function sendMessage(grantId, { to, subject, body, cc, bcc }) {
   });
 }
 
+/** Google legacy event color_id ("1"…"11"), or null to clear. Undefined = omit. */
+function normalizeWritableColorId(event) {
+  if (!event || typeof event !== "object") return undefined;
+  const hasColorId = Object.prototype.hasOwnProperty.call(event, "colorId");
+  const hasColor_id = Object.prototype.hasOwnProperty.call(event, "color_id");
+  if (!hasColorId && !hasColor_id) return undefined;
+  const raw = hasColorId ? event.colorId : event.color_id;
+  if (raw == null || raw === "") return null;
+  const key = String(raw).trim();
+  if (!/^(1[01]|[1-9])$/.test(key)) return undefined;
+  return key;
+}
+
 async function createEvent(grantId, event) {
   const calendarId = event.calendarId || "primary";
   const start = event.startTime != null ? Number(event.startTime) : Math.floor(Date.now() / 1000) + 3600;
   const end = event.endTime != null ? Number(event.endTime) : start + 3600;
+  const colorId = normalizeWritableColorId(event);
   return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/events?calendar_id=${encodeURIComponent(calendarId)}`, {
     method: "POST",
     body: {
@@ -172,6 +186,7 @@ async function createEvent(grantId, event) {
         start_time: start,
         end_time: end,
       },
+      ...(colorId ? { color_id: colorId } : {}),
       ...(event.participants?.length
         ? {
             participants: event.participants.map((p) =>
@@ -203,6 +218,11 @@ async function updateEvent(grantId, eventId, event) {
     body.participants = event.participants.map((p) =>
       typeof p === "string" ? { email: p } : { email: p.email, name: p.name }
     );
+  }
+  const colorId = normalizeWritableColorId(event);
+  if (colorId !== undefined) {
+    // null clears Google event color; "1"…"11" sets legacy palette.
+    body.color_id = colorId;
   }
   return nylasFetch(
     `/v3/grants/${encodeURIComponent(grantId)}/events/${encodeURIComponent(id)}?calendar_id=${encodeURIComponent(calendarId)}`,

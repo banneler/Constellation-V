@@ -207,7 +207,8 @@ export async function createCalendarEvent(supabase, event = {}, options = {}) {
 }
 
 /**
- * Update an existing Nylas calendar event (title, times, description, calendar).
+ * Update an existing Nylas calendar event (title, times, description, calendar, colorId).
+ * `colorId` is Google legacy "1"…"11" (or null to clear); ignored by other providers.
  * @param {object} event - Must include `eventId` (or `id`) and usually `calendarId`.
  */
 export async function updateCalendarEvent(supabase, event = {}, options = {}) {

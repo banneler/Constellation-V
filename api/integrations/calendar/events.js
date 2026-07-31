@@ -284,14 +284,21 @@ module.exports = async function handler(req, res) {
       if (!eventId) {
         return sendJson(res, 400, { error: "Event id is required to update." });
       }
-      const result = await updateEvent(integration.nylas_grant_id, eventId, {
+      const updatePayload = {
         title: body.title,
         description: body.description,
         startTime: body.startTime,
         endTime: body.endTime,
         calendarId: body.calendarId,
         participants: body.participants,
-      });
+      };
+      // Google legacy color_id (1–11). Explicit null clears; omit when unset.
+      if (Object.prototype.hasOwnProperty.call(body, "colorId")) {
+        updatePayload.colorId = body.colorId;
+      } else if (Object.prototype.hasOwnProperty.call(body, "color_id")) {
+        updatePayload.color_id = body.color_id;
+      }
+      const result = await updateEvent(integration.nylas_grant_id, eventId, updatePayload);
       return sendJson(res, 200, {
         ok: true,
         provider: integration.provider,
@@ -300,14 +307,20 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const result = await createEvent(integration.nylas_grant_id, {
+    const createPayload = {
       title: body.title,
       description: body.description,
       startTime: body.startTime,
       endTime: body.endTime,
       calendarId: body.calendarId,
       participants: body.participants,
-    });
+    };
+    if (Object.prototype.hasOwnProperty.call(body, "colorId")) {
+      createPayload.colorId = body.colorId;
+    } else if (Object.prototype.hasOwnProperty.call(body, "color_id")) {
+      createPayload.color_id = body.color_id;
+    }
+    const result = await createEvent(integration.nylas_grant_id, createPayload);
 
     return sendJson(res, 200, {
       ok: true,
