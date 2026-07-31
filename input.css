@@ -1067,6 +1067,33 @@ body.theme-green {
         border-color: var(--primary-blue);
         background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
     }
+    .cc-event-duration {
+        @apply mt-1 mb-0.5;
+    }
+    .cc-event-duration-label {
+        @apply text-[0.7rem] font-semibold uppercase tracking-wide mb-1;
+        color: var(--text-muted);
+        letter-spacing: 0.04em;
+    }
+    .cc-event-duration-pills {
+        @apply flex flex-wrap gap-1.5;
+    }
+    .cc-event-duration-pill {
+        @apply text-[0.75rem] leading-tight px-2.5 py-1.5 rounded-md border cursor-pointer;
+        background-color: var(--bg-medium);
+        border-color: var(--border-color);
+        color: var(--text-light);
+        transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+    }
+    .cc-event-duration-pill:hover {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
+    }
+    .cc-event-duration-pill--active {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 22%, var(--bg-medium));
+        color: var(--text-light);
+    }
     @media (max-width: 800px) {
         .cc-month-calendar-modal {
             width: 95vw;

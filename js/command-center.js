@@ -388,9 +388,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         return Math.floor(d.getTime() / 1000);
     }
 
-    /** HH:MM bounds for in-app create/edit (matches day timeline). */
-    const TIME_INPUT_MIN = minutesToTimeInputValue(TIMELINE_START_MIN);
-    const TIME_INPUT_MAX = minutesToTimeInputValue(TIMELINE_END_MIN);
+    const EVENT_TIME_STEP_MIN = 15;
+    const EVENT_DURATION_PRESETS = [15, 30, 45, 60];
 
     /** Clamp a start/end minute pair into 7:00–18:00 with at least 15 minutes. */
     function clampEventMinutesToDayWindow(startMin, endMin) {
@@ -401,6 +400,52 @@ document.addEventListener("DOMContentLoaded", async () => {
         s = Math.max(TIMELINE_START_MIN, Math.min(s, TIMELINE_END_MIN - 15));
         e = Math.max(s + 15, Math.min(e, TIMELINE_END_MIN));
         return { startMin: s, endMin: e };
+    }
+
+    /** Snap a single minute value onto the step grid. */
+    function snapMinutesToStep(totalMinutes, step = EVENT_TIME_STEP_MIN) {
+        const n = Number(totalMinutes);
+        if (!Number.isFinite(n)) return TIMELINE_START_MIN;
+        return Math.round(n / step) * step;
+    }
+
+    /** Snap a start/end pair onto 15-minute steps inside the day window. */
+    function snapEventMinutesToStep(startMin, endMin, step = EVENT_TIME_STEP_MIN) {
+        let s = Number(startMin);
+        let e = Number(endMin);
+        if (!Number.isFinite(s)) s = TIMELINE_START_MIN;
+        if (!Number.isFinite(e)) e = s + 60;
+        const dur = Math.max(step, Math.round((e - s) / step) * step);
+        s = snapMinutesToStep(s, step);
+        return clampEventMinutesToDayWindow(s, s + dur);
+    }
+
+    /** Build `<option>` list for 15-min times (7:00–18:00). */
+    function buildTimeSelectOptions(selectedMin, { min, max, step = EVENT_TIME_STEP_MIN } = {}) {
+        const lo = Number.isFinite(min) ? min : TIMELINE_START_MIN;
+        const hi = Number.isFinite(max) ? max : TIMELINE_END_MIN;
+        const selected =
+            selectedMin != null && Number.isFinite(selectedMin) ? Math.round(selectedMin) : null;
+        const mins = [];
+        for (let m = lo; m <= hi; m += step) mins.push(m);
+        if (selected != null && selected >= lo && selected <= hi && !mins.includes(selected)) {
+            mins.push(selected);
+            mins.sort((a, b) => a - b);
+        }
+        return mins
+            .map((m) => {
+                const value = minutesToTimeInputValue(m);
+                const sel = selected === m ? " selected" : "";
+                return `<option value="${value}"${sel}>${escapeHtml(formatMinutesLabel(m))}</option>`;
+            })
+            .join("");
+    }
+
+    function durationPillsHtml(durationMin) {
+        return EVENT_DURATION_PRESETS.map((d) => {
+            const selected = d === durationMin;
+            return `<button type="button" class="cc-event-duration-pill${selected ? " cc-event-duration-pill--active" : ""}" data-duration-min="${d}" aria-pressed="${selected ? "true" : "false"}">${d} min</button>`;
+        }).join("");
     }
 
     /** Validate HH:MM inputs are inside 7:00–18:00 and end > start. */
@@ -640,15 +685,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             endValue = minutesToTimeInputValue(startMin + 60);
         }
 
-        // In-app times always land inside the day timeline window.
+        // In-app times always land inside the day timeline window on 15-min steps.
+        let startMinClamped;
+        let endMinClamped;
         {
-            const clamped = clampEventMinutesToDayWindow(
+            const snapped = snapEventMinutesToStep(
                 timeInputValueToMinutes(startValue) ?? TIMELINE_START_MIN,
                 timeInputValueToMinutes(endValue) ?? TIMELINE_START_MIN + 60
             );
-            startValue = minutesToTimeInputValue(clamped.startMin);
-            endValue = minutesToTimeInputValue(clamped.endMin);
+            startMinClamped = snapped.startMin;
+            endMinClamped = snapped.endMin;
+            startValue = minutesToTimeInputValue(startMinClamped);
+            endValue = minutesToTimeInputValue(endMinClamped);
         }
+        const initialDurationMin = Math.max(EVENT_TIME_STEP_MIN, endMinClamped - startMinClamped);
 
         const calendars = await ensureNylasCalendars();
         const selectedCalId = prefill.calendarId || defaultCalendarId(calendars);
@@ -685,11 +735,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <div class="modal-form-row">
                     <div>
                         <label for="cc-event-start">Start</label>
-                        <input type="time" id="cc-event-start" name="start" required min="${TIME_INPUT_MIN}" max="${TIME_INPUT_MAX}" value="${escapeHtml(startValue)}">
+                        <select id="cc-event-start" name="start" required aria-label="Start time">
+                            ${buildTimeSelectOptions(startMinClamped, {
+                                min: TIMELINE_START_MIN,
+                                max: TIMELINE_END_MIN - EVENT_TIME_STEP_MIN,
+                            })}
+                        </select>
                     </div>
                     <div>
                         <label for="cc-event-end">End</label>
-                        <input type="time" id="cc-event-end" name="end" required min="${TIME_INPUT_MIN}" max="${TIME_INPUT_MAX}" value="${escapeHtml(endValue)}">
+                        <select id="cc-event-end" name="end" required aria-label="End time">
+                            ${buildTimeSelectOptions(endMinClamped, {
+                                min: TIMELINE_START_MIN + EVENT_TIME_STEP_MIN,
+                                max: TIMELINE_END_MIN,
+                            })}
+                        </select>
+                    </div>
+                </div>
+                <div class="cc-event-duration" id="cc-event-duration">
+                    <div class="cc-event-duration-label">Duration</div>
+                    <div class="cc-event-duration-pills" id="cc-event-duration-pills" role="group" aria-label="Duration">
+                        ${durationPillsHtml(initialDurationMin)}
                     </div>
                 </div>
                 <p class="text-xs text-[var(--text-muted)]" style="margin:0.15rem 0 0.35rem">In-app times are limited to 7:00 AM–6:00 PM. Earlier or later events stay on Google/Outlook.</p>
@@ -850,15 +916,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         const calEl = document.getElementById("cc-event-calendar");
         const swatchEl = document.getElementById("cc-event-calendar-swatch");
         const listEl = document.getElementById("cc-event-suggestions-list");
+        const durationWrap = document.getElementById("cc-event-duration");
         if (!dateEl || !startEl || !endEl || !listEl) return;
-
-        startEl.min = TIME_INPUT_MIN;
-        startEl.max = TIME_INPUT_MAX;
-        endEl.min = TIME_INPUT_MIN;
-        endEl.max = TIME_INPUT_MAX;
 
         let suggestionEvents = [];
         let loadToken = 0;
+        let selectedDurationMin = (() => {
+            const s = timeInputValueToMinutes(startEl.value);
+            const e = timeInputValueToMinutes(endEl.value);
+            if (s != null && e != null && e > s) return e - s;
+            return 60;
+        })();
 
         const syncSwatch = () => {
             if (!swatchEl || !calEl || calEl.tagName !== "SELECT") return;
@@ -867,20 +935,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             swatchEl.style.backgroundColor = color || "var(--primary-blue)";
         };
 
-        const clampTimeInputs = () => {
-            const clamped = clampEventMinutesToDayWindow(
-                timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN,
-                timeInputValueToMinutes(endEl.value) ?? TIMELINE_START_MIN + 60
-            );
-            startEl.value = minutesToTimeInputValue(clamped.startMin);
-            endEl.value = minutesToTimeInputValue(clamped.endMin);
+        const syncDurationPills = () => {
+            if (!durationWrap) return;
+            durationWrap.querySelectorAll(".cc-event-duration-pill").forEach((btn) => {
+                const min = Number(btn.dataset.durationMin);
+                const active = min === selectedDurationMin;
+                btn.classList.toggle("cc-event-duration-pill--active", active);
+                btn.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+        };
+
+        const applyTimes = (startMin, endMin, { keepDuration = false } = {}) => {
+            const snapped = snapEventMinutesToStep(startMin, endMin);
+            startEl.value = minutesToTimeInputValue(snapped.startMin);
+            endEl.value = minutesToTimeInputValue(snapped.endMin);
+            // keepDuration: start/pill keep the chosen duration even when end clamps to 6pm.
+            // Otherwise (end change / suggestion) adopt the implied duration.
+            if (!keepDuration) {
+                selectedDurationMin = Math.max(
+                    EVENT_TIME_STEP_MIN,
+                    snapped.endMin - snapped.startMin
+                );
+            }
+            syncDurationPills();
+            renderSuggestions();
         };
 
         const renderSuggestions = () => {
             const dayKey = dateEl.value;
             const startMin = timeInputValueToMinutes(startEl.value);
             const endMin = timeInputValueToMinutes(endEl.value);
-            let duration = 60;
+            let duration = selectedDurationMin || 60;
             if (startMin != null && endMin != null && endMin > startMin) {
                 duration = endMin - startMin;
             }
@@ -921,12 +1006,31 @@ document.addEventListener("DOMContentLoaded", async () => {
             refreshBusyAndSuggestions();
         });
         startEl.addEventListener("change", () => {
-            clampTimeInputs();
-            renderSuggestions();
+            // Moving start keeps the current duration; end follows (clamped to 6pm).
+            const startMin = timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN;
+            const dur = Math.max(EVENT_TIME_STEP_MIN, selectedDurationMin || 60);
+            applyTimes(startMin, startMin + dur, { keepDuration: true });
         });
         endEl.addEventListener("change", () => {
-            clampTimeInputs();
-            renderSuggestions();
+            // Moving end updates implied duration (and pill highlight when it matches a preset).
+            let startMin = timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN;
+            let endMin = timeInputValueToMinutes(endEl.value) ?? startMin + 60;
+            if (endMin <= startMin) {
+                endMin = Math.min(startMin + EVENT_TIME_STEP_MIN, TIMELINE_END_MIN);
+                if (endMin <= startMin) {
+                    startMin = Math.max(TIMELINE_START_MIN, endMin - EVENT_TIME_STEP_MIN);
+                }
+            }
+            applyTimes(startMin, endMin);
+        });
+        durationWrap?.addEventListener("click", (e) => {
+            const btn = e.target.closest(".cc-event-duration-pill");
+            if (!btn || !durationWrap.contains(btn)) return;
+            const dur = Number(btn.dataset.durationMin);
+            if (!EVENT_DURATION_PRESETS.includes(dur)) return;
+            selectedDurationMin = dur;
+            const startMin = timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN;
+            applyTimes(startMin, startMin + dur, { keepDuration: true });
         });
         listEl.addEventListener("click", (e) => {
             const btn = e.target.closest(".cc-event-suggestion-btn");
@@ -934,14 +1038,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             const sMin = Number(btn.dataset.startMin);
             const eMin = Number(btn.dataset.endMin);
             if (!Number.isFinite(sMin) || !Number.isFinite(eMin)) return;
-            const clamped = clampEventMinutesToDayWindow(sMin, eMin);
-            startEl.value = minutesToTimeInputValue(clamped.startMin);
-            endEl.value = minutesToTimeInputValue(clamped.endMin);
-            renderSuggestions();
+            applyTimes(sMin, eMin);
         });
 
         syncSwatch();
-        clampTimeInputs();
+        syncDurationPills();
         refreshBusyAndSuggestions();
     }
 
