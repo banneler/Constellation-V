@@ -11,12 +11,26 @@
   display: block !important;
   /* Overlap columns set inline left/width; do not force full-bleed right */
   max-width: 100%;
+  /* Hit-test above canvas (pointer-events:none) + hover ghost — click opens edit */
+  pointer-events: auto !important;
   cursor: pointer;
+  z-index: 3;
+  background-color: color-mix(
+    in srgb,
+    var(--cc-event-color, var(--primary-blue)) 22%,
+    var(--bg-light)
+  ) !important;
+  border-left: 2px solid var(--cc-event-color, var(--primary-blue)) !important;
 }
 
 .cc-day-timeline-event:focus-visible {
   outline: 2px solid var(--primary-blue, #2563eb);
   outline-offset: 1px;
+}
+
+.cc-day-timeline-hover {
+  pointer-events: none !important;
+  z-index: 2;
 }
 
 .cc-day-timeline-event-body {
@@ -30,10 +44,12 @@
   overflow: hidden !important;
   /* Visible inset above time|title — not on the timed outer box */
   padding: 8px 0.5rem 4px 0.55rem !important;
+  /* Body must not steal hits from the chip shell */
+  pointer-events: none;
 }
 
 /* Google/Nylas hex_color — inline background-color on bullets/dots wins over theme */
 .cc-event-bullet,
 .cc-month-dot {
-  background-color: var(--cc-event-color, var(--primary-blue));
+  background-color: var(--cc-event-color, var(--primary-blue)) !important;
 }

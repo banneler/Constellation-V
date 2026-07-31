@@ -965,7 +965,9 @@ body.theme-green {
         border-radius: 0.25rem;
         padding: 0;
         margin: 0;
-        pointer-events: none;
+        /* Canvas is pointer-events:none; chips must re-enable hits for click-to-edit */
+        pointer-events: auto;
+        cursor: pointer;
         box-sizing: border-box;
         background-color: color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 22%, var(--bg-light));
         border-left: 2px solid var(--cc-event-color, var(--primary-blue));

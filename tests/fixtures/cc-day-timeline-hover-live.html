@@ -43,8 +43,8 @@
                 <div class="cc-day-timeline-track" id="cc-day-timeline-track" role="button" tabindex="0">
                   <div class="cc-day-timeline-canvas">
                     <div class="cc-day-timeline-hover" aria-hidden="true" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:0;height:0;margin:0;pointer-events:none;z-index:2"></div>
-                    <div class="cc-day-timeline-event" data-duration-min="30" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:18.1818%;height:4.5455%;bottom:auto;max-height:4.5455%;padding:0;overflow:hidden;box-sizing:border-box">
-                      <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;">
+                    <div class="cc-day-timeline-event" data-event-id="evt-2" data-event-color="#F83A22" data-duration-min="30" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:18.1818%;height:4.5455%;bottom:auto;max-height:4.5455%;padding:0;overflow:hidden;box-sizing:border-box;z-index:3;pointer-events:auto;cursor:pointer;--cc-event-color:#F83A22;border-left-color:#F83A22;background-color:color-mix(in srgb,#F83A22 22%,var(--bg-light))">
+                      <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;pointer-events:none;">
                         <div class="cc-day-timeline-event-head">
                           <span class="cc-day-timeline-event-when">9:00–9:30 AM</span>
                           <span class="cc-day-timeline-event-title">Test Event 2</span>
@@ -114,6 +114,17 @@
         el.style.top = '0%';
       });
     };
+    window.__ccLastAction = null;
+    const eventFromPoint = (clientX, clientY, target) => {
+      const fromTarget = target?.closest?.('.cc-day-timeline-event');
+      if (fromTarget) return fromTarget;
+      const stack = document.elementsFromPoint?.(clientX, clientY) || [];
+      for (const el of stack) {
+        const hit = el?.closest?.('.cc-day-timeline-event');
+        if (hit) return hit;
+      }
+      return null;
+    };
     ccMonthDayList?.addEventListener('pointermove', (e) => {
       const { plane, track } = getDayTimelineEls();
       if (!track) {
@@ -124,7 +135,21 @@
         clearTimelineHoverBlock();
         return;
       }
+      if (eventFromPoint(e.clientX, e.clientY, e.target)) {
+        clearTimelineHoverBlock();
+        return;
+      }
       setTimelineHoverBlock(track, e.clientY);
+    });
+    ccMonthDayList?.addEventListener('click', (e) => {
+      const eventEl = eventFromPoint(e.clientX, e.clientY, e.target);
+      if (eventEl) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.__ccLastAction = { type: 'edit', eventId: eventEl.dataset.eventId || null };
+        return;
+      }
+      window.__ccLastAction = { type: 'create' };
     });
     ccMonthDayList?.addEventListener('pointerleave', () => clearTimelineHoverBlock());
     window.__ccHoverDebug = () => {

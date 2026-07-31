@@ -31,6 +31,31 @@ function normalizeHexColor(value) {
   return null;
 }
 
+/**
+ * Google Calendar event `color_id` → hex (Nylas exposes color_id on events).
+ * @see https://developers.google.com/calendar/api/v3/reference/colors
+ */
+const GOOGLE_EVENT_COLOR_IDS = Object.freeze({
+  1: "#A4BDFC",
+  2: "#7AE7BF",
+  3: "#DBADFF",
+  4: "#FF887C",
+  5: "#FBD75B",
+  6: "#FFB878",
+  7: "#46D6DB",
+  8: "#E1E1E1",
+  9: "#5484ED",
+  10: "#51B749",
+  11: "#DC2127",
+});
+
+/** Map Google/Nylas `color_id` ("1"…"11") to `#RRGGBB`, or null. */
+function colorFromGoogleColorId(colorId) {
+  if (colorId == null || colorId === "") return null;
+  const key = String(colorId).trim();
+  return GOOGLE_EVENT_COLOR_IDS[key] || GOOGLE_EVENT_COLOR_IDS[Number(key)] || null;
+}
+
 function extractCalendarHexColor(calendarPayload) {
   const cal = calendarPayload?.data || calendarPayload || {};
   return (
@@ -129,9 +154,11 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
   const rawDesc = ev?.text_description || ev?.description || "";
   const description = stripHtml(rawDesc).slice(0, 160) || null;
   const calendarId = ev?.calendar_id || ev?.calendarId || null;
+  const colorId = ev?.color_id ?? ev?.colorId ?? null;
 
-  // Prefer this event's calendar label color; then request calendar; then event hex.
+  // Event color_id (Google override) → calendar label hex → request calendar → event hex.
   const color =
+    colorFromGoogleColorId(colorId) ||
     normalizeHexColor(calendarId && colorByCalendarId?.get?.(String(calendarId))) ||
     normalizeHexColor(calendarColor) ||
     normalizeHexColor(colorByCalendarId?.get?.("primary")) ||
@@ -149,6 +176,7 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
     allDay,
     location: ev?.location ? String(ev.location).trim() : null,
     calendarId,
+    colorId: colorId != null && colorId !== "" ? String(colorId) : null,
     color,
   };
 }
@@ -209,6 +237,8 @@ function assertTimelineBusinessHours(startTime, endTime, timezoneOffsetMin, loca
 module.exports = {
   parseUnixSeconds,
   normalizeHexColor,
+  colorFromGoogleColorId,
+  GOOGLE_EVENT_COLOR_IDS,
   extractCalendarHexColor,
   buildCalendarColorMap,
   parseEventWhen,

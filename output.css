@@ -3218,7 +3218,8 @@ body.theme-green {
     border-radius: 0.25rem;
     padding: 0;
     margin: 0;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: pointer;
     box-sizing: border-box;
     background-color: var(--cc-event-color, var(--primary-blue));
     @supports (color: color-mix(in lab, red, red)) {

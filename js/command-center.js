@@ -39,6 +39,7 @@ import {
     packOverlapColumns,
     columnPlacement,
     normalizeEventColor as geoNormalizeEventColor,
+    colorFromGoogleColorId as geoColorFromGoogleColorId,
 } from './cc-calendar-geometry.mjs';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -210,19 +211,27 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     /**
      * Resolve Google/Nylas calendar hex for an event.
-     * Prefers event.color from API; falls back to cached calendar list by calendarId.
+     * Prefers event.color / color_id from API; falls back to cached calendars by calendarId.
      */
     function resolveEventColor(ev) {
+        const fromColorId = geoColorFromGoogleColorId(ev?.colorId ?? ev?.color_id);
+        if (fromColorId) return fromColorId;
         const direct = normalizeEventColor(ev?.color);
         if (direct) return direct;
         const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
         if (!cals.length) return null;
-        const byId = ev?.calendarId
-            ? cals.find((c) => c && String(c.id) === String(ev.calendarId))
+        const calId = ev?.calendarId != null ? String(ev.calendarId) : "";
+        const byId = calId
+            ? cals.find((c) => c && String(c.id) === calId)
             : null;
         if (byId) {
             const fromId = normalizeEventColor(byId.color);
             if (fromId) return fromId;
+        }
+        if (calId === "primary") {
+            const primaryMatch = cals.find((c) => c?.isPrimary);
+            const fromPrimary = normalizeEventColor(primaryMatch?.color);
+            if (fromPrimary) return fromPrimary;
         }
         const primary = cals.find((c) => c?.isPrimary) || cals[0];
         return normalizeEventColor(primary?.color);
@@ -230,27 +239,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     /**
      * Inline --cc-event-color (+ optional background for bullets/dots so inheritance
-     * can't drop Google hex_color).
+     * can't drop Google hex_color). Always writes a real hex when known.
      */
     function eventColorStyleAttr(ev, { paintBackground = false } = {}) {
         const color = resolveEventColor(ev);
         if (!color) return "";
-        const bg = paintBackground ? ` background-color: ${color};` : "";
-        return ` style="--cc-event-color: ${color};${bg}"`;
+        const bg = paintBackground ? ` background-color: ${color} !important;` : "";
+        return ` style="--cc-event-color: ${color};${bg}" data-event-color="${escapeHtml(color)}"`;
     }
 
     /** Paint API/calendar colors onto events missing `color` using the calendars cache. */
     function enrichEventsWithCalendarColors(events) {
         const list = Array.isArray(events) ? events : [];
-        const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
-        if (!cals.length) return list;
-        const byId = new Map(cals.filter((c) => c?.id).map((c) => [String(c.id), c]));
-        const primary = cals.find((c) => c?.isPrimary) || cals[0];
         return list.map((ev) => {
-            if (normalizeEventColor(ev?.color)) return ev;
-            const cal = (ev?.calendarId && byId.get(String(ev.calendarId))) || primary;
-            const color = normalizeEventColor(cal?.color);
-            return color ? { ...ev, color } : ev;
+            const resolved = resolveEventColor(ev);
+            if (!resolved) return ev;
+            if (normalizeEventColor(ev?.color) === resolved) return ev;
+            return { ...ev, color: resolved };
         });
     }
 
@@ -1082,11 +1087,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // Abspos inside .cc-day-timeline-canvas only. Explicit height% pins
                 // duration 1:1 to the hour grid; columns sit side-by-side on conflicts.
                 const eventIdAttr = ev.id != null ? ` data-event-id="${escapeHtml(String(ev.id))}"` : "";
+                const colorAttr = color ? ` data-event-color="${escapeHtml(color)}"` : "";
+                // Inline hex so Google label colors survive CSS cache / inheritance gaps.
+                const colorInline = color
+                    ? `--cc-event-color:${color};border-left-color:${color};background-color:color-mix(in srgb,${color} 22%,var(--bg-light));`
+                    : "";
                 return `
-                    <div class="${classes.join(" ")}" role="button" tabindex="0" aria-label="Edit ${escapeHtml(ev.title || "event")}"${eventIdAttr} style="position:absolute;${horizStyle}top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;overflow:hidden;box-sizing:border-box;${
-                    color ? ` --cc-event-color: ${color};` : ""
-                }" title="${escapeHtml(ev.title || "(No title)")} — click to edit" data-duration-min="${Math.round(durationMin)}" data-start-min="${Math.round(clampedStart)}" data-col="${pack.columnIndex}" data-col-count="${pack.columnCount}">
-                        <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;">
+                    <div class="${classes.join(" ")}" role="button" tabindex="0" aria-label="Edit ${escapeHtml(ev.title || "event")}"${eventIdAttr}${colorAttr} style="position:absolute;${horizStyle}top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;pointer-events:auto;cursor:pointer;overflow:hidden;box-sizing:border-box;${colorInline}" title="${escapeHtml(ev.title || "(No title)")} — click to edit" data-duration-min="${Math.round(durationMin)}" data-start-min="${Math.round(clampedStart)}" data-col="${pack.columnIndex}" data-col-count="${pack.columnCount}">
+                        <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;pointer-events:none;">
                             <div class="cc-day-timeline-event-head">
                                 <span class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
                     overflowBefore || overflowAfter ? " · outside 7–6" : ""
@@ -1327,15 +1335,38 @@ document.addEventListener("DOMContentLoaded", async () => {
                 clientY <= rect.bottom
             );
         };
+        const timelineEventFromPoint = (clientX, clientY, fallbackTarget) => {
+            // Prefer event target; fall back to elementsFromPoint (canvas is none).
+            const fromTarget = fallbackTarget?.closest?.(".cc-day-timeline-event");
+            if (fromTarget) return fromTarget;
+            try {
+                const stack = document.elementsFromPoint?.(clientX, clientY) || [];
+                for (const el of stack) {
+                    const hit = el?.closest?.(".cc-day-timeline-event");
+                    if (hit) return hit;
+                }
+            } catch {
+                /* ignore */
+            }
+            return null;
+        };
+        const openEditFromTimelineEventEl = (eventEl) => {
+            if (!eventEl) return false;
+            const ev = findMonthEventById(eventEl.dataset.eventId);
+            if (ev) {
+                openEditCalendarEventForm(ev);
+                return true;
+            }
+            showToast("Couldn't load that event for editing.", "warning");
+            return true;
+        };
         const handleTimelineAddClick = (e) => {
             // Clicking an existing event opens edit — do not trigger hover-to-add.
-            const eventEl = e.target.closest?.(".cc-day-timeline-event");
+            const eventEl = timelineEventFromPoint(e.clientX, e.clientY, e.target);
             if (eventEl) {
                 e.preventDefault();
                 e.stopPropagation();
-                const ev = findMonthEventById(eventEl.dataset.eventId);
-                if (ev) openEditCalendarEventForm(ev);
-                else showToast("Couldn't load that event for editing.", "warning");
+                openEditFromTimelineEventEl(eventEl);
                 return;
             }
             const { plane, track } = getDayTimelineEls();
@@ -1347,6 +1378,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             openAddEventForSelectedDay(hourStartFromTrackClientY(track, e.clientY));
+        };
+        const handleTimelinePointerDown = (e) => {
+            // Stop create-path handlers before click when the chip is under the pointer.
+            const eventEl = timelineEventFromPoint(e.clientX, e.clientY, e.target);
+            if (!eventEl) return;
+            e.stopPropagation();
         };
         const setTimelineHoverBlock = (track, clientY) => {
             const hoverEl = track?.querySelector?.(".cc-day-timeline-hover");
@@ -1383,8 +1420,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 clearTimelineHoverBlock();
                 return;
             }
+            // Don't paint create-ghost over an existing event chip.
+            if (timelineEventFromPoint(e.clientX, e.clientY, e.target)) {
+                clearTimelineHoverBlock();
+                return;
+            }
             setTimelineHoverBlock(track, e.clientY);
         };
+        ccMonthDayList?.addEventListener("pointerdown", handleTimelinePointerDown, true);
         ccMonthDayList?.addEventListener("click", handleTimelineAddClick);
         // Bounds-based hit test on the plane (rail is pointer-events: none).
         // pointermove + mousemove: some WebKit paths are flaky on pointer-only.
@@ -1398,8 +1441,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (eventEl) {
                 e.preventDefault();
                 e.stopPropagation();
-                const ev = findMonthEventById(eventEl.dataset.eventId);
-                if (ev) openEditCalendarEventForm(ev);
+                openEditFromTimelineEventEl(eventEl);
                 return;
             }
             if (!e.target.closest?.(".cc-day-timeline-track")) return;

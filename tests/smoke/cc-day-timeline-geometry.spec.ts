@@ -187,4 +187,22 @@ test.describe('Command Center day timeline ledger', () => {
 
     expect(hover.ok, JSON.stringify(hover, null, 2)).toBe(true);
   });
+
+  test('clicking event chip opens edit, not create; Google color is on the DOM', async ({ page }) => {
+    await page.goto('/tests/fixtures/cc-day-timeline-hover-live.html');
+    await page.waitForSelector('.cc-day-timeline-event[data-event-id="evt-2"]');
+
+    const chip = page.locator('.cc-day-timeline-event[data-event-id="evt-2"]');
+    const pe = await chip.evaluate((el) => getComputedStyle(el).pointerEvents);
+    expect(pe).toBe('auto');
+
+    const colorAttr = await chip.getAttribute('data-event-color');
+    expect(colorAttr).toBe('#F83A22');
+    const inlineVar = await chip.evaluate((el) => (el as HTMLElement).style.getPropertyValue('--cc-event-color').trim());
+    expect(inlineVar.toUpperCase()).toBe('#F83A22');
+
+    await chip.click();
+    const action = await page.evaluate(() => (window as any).__ccLastAction);
+    expect(action).toEqual({ type: 'edit', eventId: 'evt-2' });
+  });
 });

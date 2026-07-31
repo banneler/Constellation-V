@@ -17,6 +17,35 @@ const {
   assertTimelineBusinessHours,
 } = require("../../_lib/calendar-event-normalize");
 
+function looksLikeHolidayCalendar(cal) {
+  const n = String(cal?.name || "").toLowerCase();
+  return /\bholidays?\b|\bweather\b|\bbirthdays?\b/.test(n);
+}
+
+/**
+ * Calendar ids to query for GET events.
+ * - Explicit `calendarId` → that calendar only
+ * - Omitted / `all` → writable non-holiday labels (so Google label colors appear)
+ */
+function resolveListCalendarIds(calendarIdParam, calendarsResult, colorByCalendarId) {
+  const raw = Array.isArray(calendarsResult?.data)
+    ? calendarsResult.data
+    : Array.isArray(calendarsResult)
+      ? calendarsResult
+      : [];
+  if (calendarIdParam && calendarIdParam !== "all") {
+    return [String(calendarIdParam)];
+  }
+  const writable = raw.filter(
+    (c) => c?.id && !(c.read_only ?? c.readOnly) && !looksLikeHolidayCalendar(c)
+  );
+  const ids = writable.map((c) => String(c.id));
+  if (ids.length) return ids;
+  if (colorByCalendarId?.has?.("primary")) return ["primary"];
+  if (raw[0]?.id) return [String(raw[0].id)];
+  return ["primary"];
+}
+
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
   if (req.method !== "GET" && req.method !== "POST" && req.method !== "PUT" && req.method !== "PATCH") {
@@ -36,7 +65,7 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "GET") {
       const url = new URL(req.url, "http://localhost");
-      const calendarId = url.searchParams.get("calendarId") || "primary";
+      const calendarIdParam = url.searchParams.get("calendarId");
       const limitRaw = Number(url.searchParams.get("limit") || 15);
       const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 15;
       const nowSec = Math.floor(Date.now() / 1000);
@@ -44,47 +73,92 @@ module.exports = async function handler(req, res) {
       const end =
         parseUnixSeconds(url.searchParams.get("end")) ?? nowSec + 7 * 24 * 60 * 60;
 
-      // Color map from all calendars (hex_color) + targeted getCalendar fallback.
-      const [result, calendarsResult, calendarResult] = await Promise.all([
-        listEvents(integration.nylas_grant_id, {
-          calendarId,
-          limit,
-          start,
-          end,
-        }),
-        listCalendars(integration.nylas_grant_id, { limit: 50 }).catch((err) => {
+      const calendarsResult = await listCalendars(integration.nylas_grant_id, { limit: 50 }).catch(
+        (err) => {
           console.warn("[api/integrations/calendar/events] list calendars failed:", err?.message || err);
           return null;
-        }),
-        getCalendar(integration.nylas_grant_id, calendarId).catch((err) => {
+        }
+      );
+      const colorByCalendarId = buildCalendarColorMap(calendarsResult);
+      const calendarIds = resolveListCalendarIds(calendarIdParam, calendarsResult, colorByCalendarId);
+
+      // Targeted getCalendar fills hex when list omitted it (esp. primary).
+      const primaryLookupId = calendarIds.includes("primary")
+        ? "primary"
+        : calendarIds[0] || "primary";
+      const calendarResult = await getCalendar(integration.nylas_grant_id, primaryLookupId).catch(
+        (err) => {
           console.warn("[api/integrations/calendar/events] calendar color lookup failed:", err?.message || err);
           return null;
-        }),
-      ]);
-
-      const colorByCalendarId = buildCalendarColorMap(calendarsResult);
+        }
+      );
       const calendarColor =
         extractCalendarHexColor(calendarResult) ||
-        colorByCalendarId.get(String(calendarId)) ||
+        colorByCalendarId.get(String(primaryLookupId)) ||
         colorByCalendarId.get("primary") ||
         null;
-      if (calendarColor && !colorByCalendarId.has(String(calendarId))) {
-        colorByCalendarId.set(String(calendarId), calendarColor);
+      if (calendarColor) {
+        if (!colorByCalendarId.has(String(primaryLookupId))) {
+          colorByCalendarId.set(String(primaryLookupId), calendarColor);
+        }
+        if (!colorByCalendarId.has("primary")) {
+          colorByCalendarId.set("primary", calendarColor);
+        }
       }
 
-      const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-      const events = raw
-        .map((ev) => normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId }))
-        .filter((e) => e.startTime != null)
-        .sort((a, b) => a.startTime - b.startTime)
-        .slice(0, limit);
+      // Per-calendar list (Nylas requires calendar_id). Merge + dedupe by event id.
+      const perCalLimit = Math.min(100, Math.max(limit, Math.ceil(limit / Math.max(1, calendarIds.length)) * 2));
+      const listResults = await Promise.all(
+        calendarIds.map((calId) =>
+          listEvents(integration.nylas_grant_id, {
+            calendarId: calId,
+            limit: perCalLimit,
+            start,
+            end,
+          }).catch((err) => {
+            console.warn(
+              "[api/integrations/calendar/events] list events failed for",
+              calId,
+              err?.message || err
+            );
+            return null;
+          })
+        )
+      );
+
+      const seen = new Set();
+      const events = [];
+      for (let i = 0; i < listResults.length; i++) {
+        const result = listResults[i];
+        const calId = calendarIds[i];
+        const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+        const fallbackColor = colorByCalendarId.get(String(calId)) || calendarColor;
+        for (const ev of raw) {
+          const id = ev?.id != null ? String(ev.id) : null;
+          if (id && seen.has(id)) continue;
+          if (id) seen.add(id);
+          // Prefer event.calendar_id; fall back to the calendar we queried.
+          if (!ev.calendar_id && !ev.calendarId && calId) {
+            ev.calendar_id = calId;
+          }
+          const normalized = normalizeCalendarEvent(ev, {
+            calendarColor: fallbackColor,
+            colorByCalendarId,
+          });
+          if (normalized.startTime == null) continue;
+          events.push(normalized);
+        }
+      }
+
+      events.sort((a, b) => a.startTime - b.startTime);
+      const sliced = events.slice(0, limit);
 
       return sendJson(res, 200, {
         ok: true,
         provider: integration.provider,
         calendarColor,
-        events,
-        result,
+        calendarIds,
+        events: sliced,
       });
     }
 

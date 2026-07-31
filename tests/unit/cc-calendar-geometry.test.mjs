@@ -7,6 +7,8 @@ import {
     clampToTimeline,
     packOverlapColumns,
     columnPlacement,
+    normalizeEventColor,
+    colorFromGoogleColorId,
 } from '../../js/cc-calendar-geometry.mjs';
 
 function dayKeyFromDate(d) {
@@ -98,5 +100,17 @@ describe('cc-calendar-geometry packOverlapColumns', () => {
         assert.ok(a.widthFrac < 0.5);
         assert.ok(b.leftFrac > a.leftFrac + a.widthFrac - 0.001);
         assert.ok(a.leftFrac + a.widthFrac + b.widthFrac < 1.01);
+    });
+});
+
+describe('cc-calendar-geometry colors', () => {
+    it('normalizes and uppercases hex', () => {
+        assert.equal(normalizeEventColor('7bd148'), '#7BD148');
+        assert.equal(normalizeEventColor('#f83a22'), '#F83A22');
+    });
+
+    it('maps Google color_id palette', () => {
+        assert.equal(colorFromGoogleColorId('9'), '#5484ED');
+        assert.equal(colorFromGoogleColorId(null), null);
     });
 });

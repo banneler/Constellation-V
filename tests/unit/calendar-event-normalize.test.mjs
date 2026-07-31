@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const {
     parseUnixSeconds,
     normalizeHexColor,
+    colorFromGoogleColorId,
     parseEventWhen,
     normalizeCalendarEvent,
     buildCalendarColorMap,
@@ -73,5 +74,25 @@ describe('calendar-event-normalize colors', () => {
         assert.equal(normalizeHexColor('f00'), '#FF0000');
         assert.equal(normalizeHexColor('#039BE5'), '#039BE5');
         assert.equal(normalizeHexColor('039be5'), '#039BE5');
+    });
+
+    it('maps Google color_id over calendar label color', () => {
+        assert.equal(colorFromGoogleColorId('11'), '#DC2127');
+        assert.equal(colorFromGoogleColorId(4), '#FF887C');
+        const colorByCalendarId = buildCalendarColorMap({
+            data: [{ id: 'cal-1', hex_color: '#a4bdfc', is_primary: true }],
+        });
+        const ev = normalizeCalendarEvent(
+            {
+                id: 'e-color',
+                title: 'Tomato event',
+                calendar_id: 'cal-1',
+                color_id: '11',
+                when: { start_time: 1000, end_time: 1900 },
+            },
+            { colorByCalendarId }
+        );
+        assert.equal(ev.color, '#DC2127');
+        assert.equal(ev.colorId, '11');
     });
 });

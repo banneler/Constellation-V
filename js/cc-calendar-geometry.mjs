@@ -143,12 +143,33 @@ export function normalizeEventColor(value) {
     const raw = String(value).trim();
     if (!raw) return null;
     const withHash = raw.startsWith("#") ? raw : `#${raw}`;
-    if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) return withHash;
+    if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) return withHash.toUpperCase();
     if (/^#[0-9A-Fa-f]{3}$/.test(withHash)) {
         const r = withHash[1];
         const g = withHash[2];
         const b = withHash[3];
-        return `#${r}${r}${g}${g}${b}${b}`;
+        return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
     }
     return null;
+}
+
+/** Google Calendar event color_id ("1"…"11") → `#RRGGBB`. */
+export const GOOGLE_EVENT_COLOR_IDS = Object.freeze({
+    1: "#A4BDFC",
+    2: "#7AE7BF",
+    3: "#DBADFF",
+    4: "#FF887C",
+    5: "#FBD75B",
+    6: "#FFB878",
+    7: "#46D6DB",
+    8: "#E1E1E1",
+    9: "#5484ED",
+    10: "#51B749",
+    11: "#DC2127",
+});
+
+export function colorFromGoogleColorId(colorId) {
+    if (colorId == null || colorId === "") return null;
+    const key = String(colorId).trim();
+    return GOOGLE_EVENT_COLOR_IDS[key] || GOOGLE_EVENT_COLOR_IDS[Number(key)] || null;
 }
