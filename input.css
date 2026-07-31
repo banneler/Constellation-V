@@ -532,7 +532,7 @@ body.theme-green {
         height: 0.4rem;
         margin-top: 0.3rem;
         border-radius: 9999px;
-        background-color: var(--cc-event-color, #039be5);
+        background-color: var(--cc-event-color, var(--primary-blue));
     }
     .cc-calendar-item {
         @apply flex gap-2 py-1.5 border-b border-[var(--border-color)] last:border-b-0 items-start min-w-0;
@@ -689,7 +689,7 @@ body.theme-green {
     }
     .cc-month-calendar-modal .cc-month-dot {
         @apply w-1 h-1 rounded-full;
-        background-color: var(--cc-event-color, #039be5);
+        background-color: var(--cc-event-color, var(--primary-blue));
     }
     .cc-month-day-panel {
         @apply flex flex-col w-[38%] max-w-[22rem] min-w-[12rem] min-h-0 p-2.5;
@@ -969,9 +969,9 @@ body.theme-green {
         pointer-events: auto;
         cursor: pointer;
         box-sizing: border-box;
-        background-color: color-mix(in srgb, var(--cc-event-color, #039be5) 40%, var(--bg-light));
-        border-left: 3px solid var(--cc-event-color, #039be5);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, #039be5) 45%, transparent);
+        background-color: color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 40%, var(--bg-light));
+        border-left: 3px solid var(--cc-event-color, var(--primary-blue));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 45%, transparent);
         min-height: 0;
     }
     .cc-day-timeline-event-body {
@@ -987,10 +987,10 @@ body.theme-green {
         padding: 8px 0.5rem 4px 0.55rem;
     }
     .cc-day-timeline-event.is-overflow-start {
-        border-top: 2px solid var(--cc-event-color, #039be5);
+        border-top: 2px solid var(--cc-event-color, var(--primary-blue));
     }
     .cc-day-timeline-event.is-overflow-end {
-        border-bottom: 2px solid var(--cc-event-color, #039be5);
+        border-bottom: 2px solid var(--cc-event-color, var(--primary-blue));
     }
     .cc-day-timeline-event-head {
         @apply flex items-baseline gap-1.5 min-w-0;

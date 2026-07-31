@@ -8,8 +8,7 @@ const {
     normalizeHexColor,
     colorFromGoogleColorId,
     colorFromGoogleCalendarColorId,
-    DEFAULT_EVENT_COLOR,
-    FALLBACK_CALENDAR_PALETTE,
+    deterministicColorFromKey,
     parseEventWhen,
     normalizeCalendarEvent,
     buildCalendarColorMap,
@@ -55,7 +54,7 @@ describe('calendar-event-normalize when parse', () => {
 });
 
 describe('calendar-event-normalize colors', () => {
-    it('ignores calendar map hex when event has no color_id (peacock default)', () => {
+    it('prefers calendar map hex_color over missing event color', () => {
         const colorByCalendarId = buildCalendarColorMap({
             data: [
                 { id: 'cal-1', hex_color: '#a4bdfc', is_primary: true },
@@ -72,8 +71,7 @@ describe('calendar-event-normalize colors', () => {
             },
             { calendarColor: '#A4BDFC', colorByCalendarId }
         );
-        assert.equal(ev.color, DEFAULT_EVENT_COLOR);
-        assert.equal(ev.colorSource, 'default');
+        assert.equal(ev.color, '#F83A22');
         assert.equal(ev.endTime - ev.startTime, 45 * 60);
     });
 
@@ -130,7 +128,8 @@ describe('calendar-event-normalize colors', () => {
         );
     });
 
-    it('unlabeled events on any calendar paint peacock default (calendar hex ignored)', () => {
+    it('does not paint Work/Stuff with primary color when their hex is missing', () => {
+        // Primary hex chosen outside the deterministic fallback palette.
         const primaryHex = '#112233';
         const colorByCalendarId = buildCalendarColorMap(
             {
@@ -152,7 +151,11 @@ describe('calendar-event-normalize colors', () => {
                 calendar_id: 'work-cal',
                 when: { start_time: 1000, end_time: 1900 },
             },
-            { calendarColor: null, colorByCalendarId }
+            {
+                // Bug regress: old code passed primary hex as calendarColor for every cal.
+                calendarColor: null,
+                colorByCalendarId,
+            }
         );
         const stuffEv = normalizeCalendarEvent(
             {
@@ -173,10 +176,12 @@ describe('calendar-event-normalize colors', () => {
             { calendarColor: primaryHex, colorByCalendarId }
         );
 
-        assert.equal(primaryEv.color, DEFAULT_EVENT_COLOR);
-        assert.equal(workEv.color, DEFAULT_EVENT_COLOR);
-        assert.equal(stuffEv.color, DEFAULT_EVENT_COLOR);
-        assert.equal(primaryEv.colorSource, 'default');
+        assert.equal(primaryEv.color, primaryHex);
+        assert.notEqual(workEv.color, primaryHex);
+        assert.notEqual(stuffEv.color, primaryHex);
+        assert.notEqual(workEv.color, stuffEv.color);
+        assert.equal(workEv.color, deterministicColorFromKey('work-cal'));
+        assert.equal(stuffEv.color, deterministicColorFromKey('stuff-cal'));
     });
 
     it('fillMissing assigns stable distinct colors for Work/Stuff', () => {
@@ -191,39 +196,11 @@ describe('calendar-event-normalize colors', () => {
         assert.notEqual(map.get('work-cal'), map.get('stuff-cal'));
     });
 
-    it('primary / no-provider-color defaults to peacock, not mint', () => {
-        assert.equal(DEFAULT_EVENT_COLOR, '#039BE5');
-        assert.equal(FALLBACK_CALENDAR_PALETTE[0], DEFAULT_EVENT_COLOR);
-        assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#0B8043'));
-        assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#33B679'));
-        assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#3B82F6'));
-
-        const map = buildCalendarColorMap({
-            data: [{ id: 'primary-cal', name: 'Primary', hex_color: null, is_primary: true }],
-        });
-        assert.equal(map.get('primary-cal'), DEFAULT_EVENT_COLOR);
-        assert.equal(map.get('primary'), DEFAULT_EVENT_COLOR);
-
-        const ev = normalizeCalendarEvent(
-            {
-                id: 'e-default',
-                title: 'No color event',
-                calendar_id: 'primary',
-                when: { start_time: 1000, end_time: 1900 },
-            },
-            { colorByCalendarId: new Map() }
-        );
-        assert.equal(ev.color, DEFAULT_EVENT_COLOR);
-        assert.equal(ev.colorSource, 'default');
-    });
-
-    it('same primary calendar + different color_id paints Test3 ≠ Test Event; Discovery = peacock default', () => {
-        // Non-peacock calendar hex must NOT paint unlabeled Discovery (source=default).
-        const primaryHex = '#F83A22';
+    it('same primary calendar + different color_id paints Test3 ≠ Test Event ≠ Discovery', () => {
+        const primaryHex = '#039BE5';
         const colorByCalendarId = buildCalendarColorMap({
             data: [{ id: 'primary-cal', hex_color: primaryHex, is_primary: true }],
         });
-        assert.equal(colorByCalendarId.get('primary-cal'), primaryHex);
         const work = normalizeCalendarEvent(
             {
                 id: 'test3',
@@ -251,16 +228,14 @@ describe('calendar-event-normalize colors', () => {
                 calendar_id: 'primary-cal',
                 when: { start_time: 3000, end_time: 3900 },
             },
-            { colorByCalendarId, calendarColor: primaryHex }
+            { colorByCalendarId }
         );
         assert.equal(work.color, '#DBADFF');
         assert.equal(work.colorSource, 'color_id');
         assert.equal(stuff.color, '#FFB878');
         assert.equal(stuff.colorSource, 'color_id');
-        assert.equal(discovery.color, DEFAULT_EVENT_COLOR);
-        assert.equal(discovery.color, '#039BE5');
-        assert.equal(discovery.colorSource, 'default');
-        assert.notEqual(discovery.color, primaryHex);
+        assert.equal(discovery.color, primaryHex);
+        assert.equal(discovery.colorSource, 'calendar');
         assert.notEqual(work.color, stuff.color);
         assert.notEqual(work.color, discovery.color);
         assert.notEqual(stuff.color, discovery.color);

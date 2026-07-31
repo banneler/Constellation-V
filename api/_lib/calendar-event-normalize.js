@@ -42,10 +42,7 @@ function normalizeHexColor(value) {
  *    Nylas v3 does NOT document or expose eventLabelId / labelProperties
  *    (Calendar has hexColor only; Event has no label fields in the Node SDK).
  *
- * Prefer: label hex (if ever passthrough) → legacy color_id → peacock default.
- * Calendar hex is NOT used for Command Center event paint — Google primary
- * calendar tints would otherwise override the predictable unlabeled default.
- * Distinct colors require a real per-event color_id.
+ * Prefer: label hex (if ever passthrough) → legacy color_id → calendar hex.
  * @see https://developers.google.com/workspace/calendar/api/guides/labels
  * @see https://developer.nylas.com/docs/cookbook/calendar/events/list-events-google/
  */
@@ -96,20 +93,14 @@ const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
   24: "#A47AE2",
 });
 
-/**
- * Google/Nylas peacock — default for events with no per-event color_id / label
- * (calendar hex ignored for Command Center paint).
- */
-const DEFAULT_EVENT_COLOR = "#039BE5";
-
 /** Stable distinct palette when provider returns no hex / colorId. */
 const FALLBACK_CALENDAR_PALETTE = Object.freeze([
-  DEFAULT_EVENT_COLOR, // Google peacock
+  "#039BE5",
   "#D50000",
   "#F4511E",
   "#F6BF26",
-  "#EF6C00", // was basil mint #0B8043
-  "#5E35B1", // was sage mint #33B679
+  "#0B8043",
+  "#33B679",
   "#8E24AA",
   "#E67C73",
   "#3F51B5",
@@ -197,12 +188,7 @@ function buildCalendarColorMap(calendarsPayload, { fillMissing = true } = {}) {
     if (!id) continue;
     let color = extractCalendarHexColor(cal);
     if (!color && fillMissing) {
-      // Primary / no-provider-color → peacock (not mint hash).
-      if (cal?.is_primary || cal?.isPrimary) {
-        color = DEFAULT_EVENT_COLOR;
-      } else {
-        color = deterministicColorFromKey(id) || deterministicColorFromKey(cal.name);
-      }
+      color = deterministicColorFromKey(id) || deterministicColorFromKey(cal.name);
     }
     if (color) map.set(id, color);
     if (cal?.is_primary || cal?.isPrimary) {
@@ -394,7 +380,7 @@ function mergeEventLabelColorMap(targetMap, calendarPayload) {
  *   labelColorById?: Map<string,{color?:string|null,name?:string|null}|string>,
  * }} [opts]
  */
-function normalizeCalendarEvent(ev, { calendarColor: _calendarColor, colorByCalendarId: _colorByCalendarId, labelColorById } = {}) {
+function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId, labelColorById } = {}) {
   const { startTime, endTime, allDay } = parseEventWhen(ev?.when);
 
   const rawDesc = ev?.text_description || ev?.description || "";
@@ -402,6 +388,7 @@ function normalizeCalendarEvent(ev, { calendarColor: _calendarColor, colorByCale
   const calendarId = ev?.calendar_id || ev?.calendarId || null;
   const colorId = extractEventColorId(ev);
   const eventLabelId = extractEventLabelId(ev);
+  const calKey = calendarId != null ? String(calendarId) : "";
   const calendarName =
     (ev?.calendar_name && String(ev.calendar_name).trim()) ||
     (ev?.calendarName && String(ev.calendarName).trim()) ||
@@ -417,9 +404,8 @@ function normalizeCalendarEvent(ev, { calendarColor: _calendarColor, colorByCale
     (ev?.labelName && String(ev.labelName).trim()) ||
     null;
 
-  // Per-event color only. Named Google Labels (Work/Stuff) share primary calendar_id.
-  // Ignore calendar hex / calendarColor — provider calendar tints must not paint
-  // unlabeled events; peacock (#039BE5) is the visible default.
+  // Per-event color beats calendar color. Named Google Labels (Work/Stuff) are
+  // NOT separate calendars — they share the primary calendar_id.
   let color = null;
   let colorSource = null;
   const fromColorId = colorFromGoogleColorId(colorId);
@@ -432,9 +418,21 @@ function normalizeCalendarEvent(ev, { calendarColor: _calendarColor, colorByCale
   } else if (normalizeHexColor(ev?.hex_color) || normalizeHexColor(ev?.hexColor)) {
     color = normalizeHexColor(ev?.hex_color) || normalizeHexColor(ev?.hexColor);
     colorSource = "event_hex";
-  } else {
-    color = DEFAULT_EVENT_COLOR;
-    colorSource = "default";
+  } else if (normalizeHexColor(calKey && colorByCalendarId?.get?.(calKey))) {
+    color = normalizeHexColor(colorByCalendarId.get(calKey));
+    colorSource = "calendar";
+  } else if (normalizeHexColor(calendarColor)) {
+    color = normalizeHexColor(calendarColor);
+    colorSource = "calendar";
+  } else if (normalizeHexColor(ev?.color)) {
+    color = normalizeHexColor(ev.color);
+    colorSource = "event_color_field";
+  } else if (calKey === "primary" && normalizeHexColor(colorByCalendarId?.get?.("primary"))) {
+    color = normalizeHexColor(colorByCalendarId.get("primary"));
+    colorSource = "calendar";
+  } else if (calKey) {
+    color = deterministicColorFromKey(calKey);
+    colorSource = color ? "deterministic" : null;
   }
 
   return {
@@ -514,7 +512,6 @@ module.exports = {
   colorFromGoogleColorId,
   colorFromGoogleCalendarColorId,
   deterministicColorFromKey,
-  DEFAULT_EVENT_COLOR,
   GOOGLE_EVENT_COLOR_IDS,
   GOOGLE_CALENDAR_COLOR_IDS,
   FALLBACK_CALENDAR_PALETTE,

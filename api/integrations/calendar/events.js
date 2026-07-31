@@ -18,7 +18,6 @@ const {
   normalizeCalendarEvent,
   assertTimelineBusinessHours,
   deterministicColorFromKey,
-  DEFAULT_EVENT_COLOR,
 } = require("../../_lib/calendar-event-normalize");
 
 function looksLikeHolidayCalendar(cal) {
@@ -136,26 +135,20 @@ module.exports = async function handler(req, res) {
       }
 
       // Stable distinct colors for any calendar still missing hex (sandbox nulls).
-      // Primary / no-color → peacock; other calendars keep distinct tints.
-      const primaryFromList = Array.isArray(calendarsResult?.data)
-        ? calendarsResult.data.find((c) => c?.is_primary || c?.isPrimary)
-        : null;
-      const primaryKey = primaryFromList?.id != null ? String(primaryFromList.id) : null;
       for (const calId of calendarIds) {
         const key = String(calId);
         if (!colorByCalendarId.has(key)) {
-          const isPrimary = key === "primary" || (primaryKey != null && key === primaryKey);
-          const fallback = isPrimary
-            ? DEFAULT_EVENT_COLOR
-            : deterministicColorFromKey(key);
+          const fallback = deterministicColorFromKey(key);
           if (fallback) colorByCalendarId.set(key, fallback);
         }
       }
       if (!colorByCalendarId.has("primary")) {
+        const primaryFromList = Array.isArray(calendarsResult?.data)
+          ? calendarsResult.data.find((c) => c?.is_primary || c?.isPrimary)
+          : null;
+        const primaryKey = primaryFromList?.id != null ? String(primaryFromList.id) : null;
         if (primaryKey && colorByCalendarId.has(primaryKey)) {
           colorByCalendarId.set("primary", colorByCalendarId.get(primaryKey));
-        } else {
-          colorByCalendarId.set("primary", DEFAULT_EVENT_COLOR);
         }
       }
 
@@ -205,6 +198,8 @@ module.exports = async function handler(req, res) {
         const result = listResults[i];
         const calId = calendarIds[i];
         const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
+        // Calendar fallback only — per-event color_id / eventLabelId win in normalize.
+        const fallbackColor = colorByCalendarId.get(String(calId)) || null;
         const calName = nameByCalendarId.get(String(calId)) || null;
         for (const ev of raw) {
           const id = ev?.id != null ? String(ev.id) : null;
@@ -217,17 +212,16 @@ module.exports = async function handler(req, res) {
           if (!ev.calendar_name && !ev.calendarName && calName) {
             ev.calendar_name = calName;
           }
-          // calendarColor / colorByCalendarId kept for API compat; paint ignores calendar hex.
           const normalized = normalizeCalendarEvent(ev, {
-            calendarColor: null,
+            calendarColor: fallbackColor,
             colorByCalendarId,
             labelColorById,
           });
           if (normalized.startTime == null) continue;
-          // Guarantee peacock default when normalize somehow left color empty.
-          if (!normalized.color) {
-            normalized.color = DEFAULT_EVENT_COLOR;
-            if (!normalized.colorSource) normalized.colorSource = "default";
+          // Guarantee the queried calendar's hex when map lookup missed a id variant.
+          if (!normalized.color && fallbackColor) {
+            normalized.color = fallbackColor;
+            if (!normalized.colorSource) normalized.colorSource = "calendar";
           }
           events.push(normalized);
         }
@@ -258,7 +252,7 @@ module.exports = async function handler(req, res) {
         // Google UI named Labels (Work/Stuff) need eventLabelId + label hex.
         // Nylas exposes legacy color_id (1–11) only — not custom Label names/colors.
         eventColorNote:
-          "Google named event Labels (Work/Stuff) need eventLabelId; Nylas returns legacy color_id (1–11) only. Without color_id, Command Center paints peacock #039BE5 (calendar hex is ignored).",
+          "Google named event Labels (Work/Stuff) use eventLabelId + labelProperties; Nylas returns legacy color_id (1–11) only. Without color_id, events inherit the calendar color.",
         calendars,
         events: sliced,
       });

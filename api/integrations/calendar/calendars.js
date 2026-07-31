@@ -8,25 +8,22 @@ const {
 const {
   extractCalendarHexColor,
   deterministicColorFromKey,
-  DEFAULT_EVENT_COLOR,
 } = require("../../_lib/calendar-event-normalize");
 
 function normalizeCalendar(cal) {
   const id = cal?.id ? String(cal.id) : null;
   if (!id) return null;
   const name = (cal?.name && String(cal.name).trim()) || "Calendar";
-  const isPrimary = Boolean(cal?.is_primary ?? cal?.isPrimary);
   const color =
     extractCalendarHexColor(cal) ||
-    (isPrimary ? DEFAULT_EVENT_COLOR : null) ||
     deterministicColorFromKey(id) ||
     deterministicColorFromKey(name) ||
-    DEFAULT_EVENT_COLOR;
+    null;
   return {
     id,
     name,
     color,
-    isPrimary,
+    isPrimary: Boolean(cal?.is_primary ?? cal?.isPrimary),
     readOnly: Boolean(cal?.read_only ?? cal?.readOnly),
     isOwnedByUser: cal?.is_owned_by_user ?? cal?.isOwnedByUser ?? null,
   };

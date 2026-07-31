@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=114';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=115';
 import {
     TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
     TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
@@ -40,9 +40,9 @@ import {
     columnPlacement,
     normalizeEventColor as geoNormalizeEventColor,
     colorFromGoogleColorId as geoColorFromGoogleColorId,
-    DEFAULT_EVENT_COLOR,
+    deterministicColorFromKey as geoDeterministicColorFromKey,
     GOOGLE_EVENT_COLOR_IDS,
-} from './cc-calendar-geometry.mjs?v=114';
+} from './cc-calendar-geometry.mjs?v=115';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -212,22 +212,44 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     /**
-     * Resolve paint hex for an event.
-     * Per-event only: color_id / eventLabel / explicit event hex.
-     * Calendar hex is ignored — unlabeled events always paint peacock (#039BE5).
+     * Resolve Google/Nylas hex for an event.
+     * Prefer: API color (already prefers event color_id / eventLabel) → color_id →
+     * calendar cache by id → deterministic. Google UI "Work"/"Stuff" are per-event
+     * Labels on the primary calendar, not separate calendars.
      */
     function resolveEventColor(ev) {
+        const direct = normalizeEventColor(ev?.color);
+        if (direct) return direct;
+
         const meta = ev?.metadata && typeof ev.metadata === "object" ? ev.metadata : {};
         const colorId = ev?.colorId ?? ev?.color_id ?? meta.color_id ?? meta.colorId;
         const fromColorId = geoColorFromGoogleColorId(colorId);
         if (fromColorId) return fromColorId;
 
-        const source = ev?.colorSource;
-        if (source === "event_label" || source === "event_hex" || source === "color_id") {
-            return normalizeEventColor(ev?.color) || DEFAULT_EVENT_COLOR;
+        const calId = ev?.calendarId != null ? String(ev.calendarId) : "";
+        const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
+        if (calId) {
+            const byId = cals.find((c) => c && String(c.id) === calId);
+            const fromId = normalizeEventColor(byId?.color);
+            if (fromId) return fromId;
+            if (calId === "primary") {
+                const primaryMatch = cals.find((c) => c?.isPrimary);
+                const fromPrimary = normalizeEventColor(primaryMatch?.color);
+                if (fromPrimary) return fromPrimary;
+            }
         }
-        // Ignore calendar / stale provider hex on ev.color when unlabeled.
-        return DEFAULT_EVENT_COLOR;
+        const calName = (ev?.calendarName || ev?.calendar_name || "").trim().toLowerCase();
+        if (calName) {
+            const byName = cals.find(
+                (c) => c?.name && String(c.name).trim().toLowerCase() === calName
+            );
+            const fromName = normalizeEventColor(byName?.color);
+            if (fromName) return fromName;
+        }
+
+        if (calId) return geoDeterministicColorFromKey(calId);
+        if (calName) return geoDeterministicColorFromKey(calName);
+        return null;
     }
 
     /**
@@ -363,6 +385,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                     calendarId: ev?.calendarId,
                     calendarName: ev?.calendarName,
                 }))
+            );
+        }
+        const colors = new Set(
+            enriched.map((ev) => normalizeEventColor(ev?.color)).filter(Boolean)
+        );
+        if (enriched.length >= 2 && colors.size < 2 && data?.calendars?.length > 1) {
+            console.warn(
+                "[command-center] events collapsed to one color despite multiple calendars — check Nylas hex_color / reconnect calendar scopes",
+                { calendarCount: data.calendars.length, colors: [...colors] }
             );
         }
         return enriched;

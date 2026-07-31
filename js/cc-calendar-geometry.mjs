@@ -196,20 +196,13 @@ export const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
     24: "#A47AE2",
 });
 
-/**
- * Google/Nylas peacock — default for events with no per-event color_id / label
- * (calendar hex ignored for Command Center paint).
- */
-export const DEFAULT_EVENT_COLOR = "#039BE5";
-
-/** Stable distinct palette when provider returns no hex / colorId. */
 const FALLBACK_CALENDAR_PALETTE = Object.freeze([
-    DEFAULT_EVENT_COLOR, // Google peacock
+    "#039BE5",
     "#D50000",
     "#F4511E",
     "#F6BF26",
-    "#EF6C00", // was basil mint #0B8043
-    "#5E35B1", // was sage mint #33B679
+    "#0B8043",
+    "#33B679",
     "#8E24AA",
     "#E67C73",
     "#3F51B5",
