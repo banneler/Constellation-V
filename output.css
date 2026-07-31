@@ -3215,7 +3215,7 @@ body.theme-green {
     z-index: 3;
     overflow: hidden;
     border-radius: 0.25rem;
-    padding: 2px 0.5rem 2px 0.55rem;
+    padding: 4px 0.5rem 2px 0.55rem;
     margin: 0;
     pointer-events: none;
     box-sizing: border-box;
@@ -3236,15 +3236,23 @@ body.theme-green {
   .cc-day-timeline-event.is-overflow-end {
     border-bottom: 2px solid var(--cc-event-color, var(--primary-blue));
   }
+  .cc-day-timeline-event-head {
+    display: flex;
+    min-width: calc(var(--spacing) * 0);
+    align-items: baseline;
+    gap: calc(var(--spacing) * 1.5);
+  }
   .cc-day-timeline-event-when {
+    flex-shrink: 0;
     font-size: 0.65rem;
     --tw-leading: 1;
     line-height: 1;
-    --tw-font-weight: var(--font-weight-medium);
-    font-weight: var(--font-weight-medium);
+    --tw-font-weight: var(--font-weight-normal);
+    font-weight: var(--font-weight-normal);
     color: var(--text-medium);
   }
   .cc-day-timeline-event-title {
+    min-width: calc(var(--spacing) * 0);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -3256,6 +3264,7 @@ body.theme-green {
     color: var(--text-light);
   }
   .cc-day-timeline-event-desc {
+    margin-top: calc(var(--spacing) * 0.5);
     font-size: 0.68rem;
     --tw-leading: var(--leading-tight);
     line-height: var(--leading-tight);

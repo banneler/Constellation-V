@@ -959,8 +959,8 @@ body.theme-green {
         z-index: 3;
         overflow: hidden;
         border-radius: 0.25rem;
-        /* Extra horizontal padding so time/title aren't flush to the accent edge */
-        padding: 2px 0.5rem 2px 0.55rem;
+        /* Top padding for breathing room; horizontal so text isn't flush to accent */
+        padding: 4px 0.5rem 2px 0.55rem;
         margin: 0;
         pointer-events: none;
         box-sizing: border-box;
@@ -975,16 +975,19 @@ body.theme-green {
     .cc-day-timeline-event.is-overflow-end {
         border-bottom: 2px solid var(--cc-event-color, var(--primary-blue));
     }
+    .cc-day-timeline-event-head {
+        @apply flex items-baseline gap-1.5 min-w-0;
+    }
     .cc-day-timeline-event-when {
-        @apply text-[0.65rem] font-medium leading-none;
+        @apply text-[0.65rem] font-normal leading-none shrink-0;
         color: var(--text-medium);
     }
     .cc-day-timeline-event-title {
-        @apply text-[0.78rem] font-semibold leading-tight truncate;
+        @apply text-[0.78rem] font-semibold leading-tight truncate min-w-0;
         color: var(--text-light);
     }
     .cc-day-timeline-event-desc {
-        @apply text-[0.68rem] leading-tight;
+        @apply text-[0.68rem] leading-tight mt-0.5;
         color: var(--text-muted);
         overflow: hidden;
         display: -webkit-box;

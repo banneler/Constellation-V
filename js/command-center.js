@@ -834,10 +834,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
                     color ? ` --cc-event-color: ${color};` : ""
                 }" title="${escapeHtml(ev.title || "(No title)")}">
-                        <div class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
+                        <div class="cc-day-timeline-event-head">
+                            <span class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
                     overflowBefore || overflowAfter ? " · outside 7–6" : ""
-                }</div>
-                        <div class="cc-day-timeline-event-title">${escapeHtml(ev.title || "(No title)")}</div>
+                }</span>
+                            <span class="cc-day-timeline-event-title">${escapeHtml(ev.title || "(No title)")}</span>
+                        </div>
                         ${showDesc ? `<div class="cc-day-timeline-event-desc">${escapeHtml(desc)}</div>` : ""}
                     </div>
                 `;
