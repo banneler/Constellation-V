@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import {
     activityConvertsAlert,
     activityEffectiveTime,
-    assignConvertedAlertIds,
+    buildConvertedAlertIds,
     sameAccountId,
 } from '../../js/insights-cognito.mjs';
 
@@ -61,11 +61,11 @@ describe('insights-cognito activityConvertsAlert / 1:1 assignment', () => {
         const acts = [{ id: 'a1', account_id: 10, date: '2026-07-20' }];
         const a1 = { ...alert, id: 101, created_at: '2026-07-05T12:00:00.000Z' };
         const a2 = { ...alert, id: 102, created_at: '2026-07-15T12:00:00.000Z' };
-        const converted = assignConvertedAlertIds([a1, a2], acts);
+        const converted = buildConvertedAlertIds([a1, a2], acts);
         assert.equal(converted.size, 1);
         // Nearest alert created_at ≤ activity wins (a2).
-        assert.equal(converted.has(102), true);
-        assert.equal(converted.has(101), false);
+        assert.equal(converted.has('102'), true);
+        assert.equal(converted.has('101'), false);
     });
 
     it('Best Buy case: 1 email converts 1 of 11 in-period alerts, not all 11', () => {
@@ -76,7 +76,7 @@ describe('insights-cognito activityConvertsAlert / 1:1 assignment', () => {
             status: 'New',
         }));
         const acts = [{ id: 'email-1', account_id: 10, date: '2026-07-20T16:00:00.000Z' }];
-        const converted = assignConvertedAlertIds(alerts, acts);
+        const converted = buildConvertedAlertIds(alerts, acts);
         assert.equal(converted.size, 1);
     });
 
@@ -91,8 +91,8 @@ describe('insights-cognito activityConvertsAlert / 1:1 assignment', () => {
                 cognito_alert_id: 301,
             },
         ];
-        const converted = assignConvertedAlertIds([early, late], acts);
-        assert.deepEqual([...converted], [301]);
+        const converted = buildConvertedAlertIds([early, late], acts);
+        assert.deepEqual([...converted], ['301']);
     });
 
     it('two activities convert two distinct alerts (not the same one twice)', () => {
@@ -102,10 +102,10 @@ describe('insights-cognito activityConvertsAlert / 1:1 assignment', () => {
             { id: 'e1', account_id: 10, date: '2026-07-10' },
             { id: 'e2', account_id: 10, date: '2026-07-20' },
         ];
-        const converted = assignConvertedAlertIds([a1, a2], acts);
+        const converted = buildConvertedAlertIds([a1, a2], acts);
         assert.equal(converted.size, 2);
-        assert.equal(converted.has(401), true);
-        assert.equal(converted.has(402), true);
+        assert.equal(converted.has('401'), true);
+        assert.equal(converted.has('402'), true);
     });
 
     it('rejects different accounts and null account_id', () => {
