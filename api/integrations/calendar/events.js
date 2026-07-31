@@ -205,8 +205,6 @@ module.exports = async function handler(req, res) {
         const result = listResults[i];
         const calId = calendarIds[i];
         const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-        // Calendar fallback only — per-event color_id / eventLabelId win in normalize.
-        const fallbackColor = colorByCalendarId.get(String(calId)) || null;
         const calName = nameByCalendarId.get(String(calId)) || null;
         for (const ev of raw) {
           const id = ev?.id != null ? String(ev.id) : null;
@@ -219,16 +217,17 @@ module.exports = async function handler(req, res) {
           if (!ev.calendar_name && !ev.calendarName && calName) {
             ev.calendar_name = calName;
           }
+          // calendarColor / colorByCalendarId kept for API compat; paint ignores calendar hex.
           const normalized = normalizeCalendarEvent(ev, {
-            calendarColor: fallbackColor,
+            calendarColor: null,
             colorByCalendarId,
             labelColorById,
           });
           if (normalized.startTime == null) continue;
-          // Guarantee the queried calendar's hex when map lookup missed a id variant.
-          if (!normalized.color && fallbackColor) {
-            normalized.color = fallbackColor;
-            if (!normalized.colorSource) normalized.colorSource = "calendar";
+          // Guarantee brand default when normalize somehow left color empty.
+          if (!normalized.color) {
+            normalized.color = DEFAULT_EVENT_COLOR;
+            if (!normalized.colorSource) normalized.colorSource = "default";
           }
           events.push(normalized);
         }
@@ -259,7 +258,7 @@ module.exports = async function handler(req, res) {
         // Google UI named Labels (Work/Stuff) need eventLabelId + label hex.
         // Nylas exposes legacy color_id (1–11) only — not custom Label names/colors.
         eventColorNote:
-          "Google named event Labels (Work/Stuff) use eventLabelId + labelProperties; Nylas returns legacy color_id (1–11) only. Without color_id, events inherit the calendar color.",
+          "Google named event Labels (Work/Stuff) need eventLabelId; Nylas returns legacy color_id (1–11) only. Without color_id, Command Center paints Constellation blue (calendar hex is ignored).",
         calendars,
         events: sliced,
       });

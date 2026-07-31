@@ -198,7 +198,7 @@ export const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
 
 /**
  * Constellation brand blue — matches `--primary-blue` / primary buttons & links.
- * Used when Google/Nylas provide no event or calendar color.
+ * Visible default for events with no per-event color_id / label (calendar hex ignored).
  */
 export const DEFAULT_EVENT_COLOR = "#3B82F6";
 

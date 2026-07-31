@@ -42,7 +42,10 @@ function normalizeHexColor(value) {
  *    Nylas v3 does NOT document or expose eventLabelId / labelProperties
  *    (Calendar has hexColor only; Event has no label fields in the Node SDK).
  *
- * Prefer: label hex (if ever passthrough) → legacy color_id → calendar hex.
+ * Prefer: label hex (if ever passthrough) → legacy color_id → brand default.
+ * Calendar hex is NOT used for Command Center event paint — Google primary
+ * peacock/teal (#039BE5, etc.) would otherwise override Constellation blue on
+ * every unlabeled event. Distinct colors require a real per-event color_id.
  * @see https://developers.google.com/workspace/calendar/api/guides/labels
  * @see https://developer.nylas.com/docs/cookbook/calendar/events/list-events-google/
  */
@@ -95,7 +98,7 @@ const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
 
 /**
  * Constellation brand blue — matches `--primary-blue` / primary buttons & links.
- * Used when Google/Nylas provide no event or calendar color.
+ * Visible default for events with no per-event color_id / label (calendar hex ignored).
  */
 const DEFAULT_EVENT_COLOR = "#3B82F6";
 
@@ -391,7 +394,7 @@ function mergeEventLabelColorMap(targetMap, calendarPayload) {
  *   labelColorById?: Map<string,{color?:string|null,name?:string|null}|string>,
  * }} [opts]
  */
-function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId, labelColorById } = {}) {
+function normalizeCalendarEvent(ev, { calendarColor: _calendarColor, colorByCalendarId: _colorByCalendarId, labelColorById } = {}) {
   const { startTime, endTime, allDay } = parseEventWhen(ev?.when);
 
   const rawDesc = ev?.text_description || ev?.description || "";
@@ -399,7 +402,6 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId, labelCol
   const calendarId = ev?.calendar_id || ev?.calendarId || null;
   const colorId = extractEventColorId(ev);
   const eventLabelId = extractEventLabelId(ev);
-  const calKey = calendarId != null ? String(calendarId) : "";
   const calendarName =
     (ev?.calendar_name && String(ev.calendar_name).trim()) ||
     (ev?.calendarName && String(ev.calendarName).trim()) ||
@@ -415,8 +417,9 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId, labelCol
     (ev?.labelName && String(ev.labelName).trim()) ||
     null;
 
-  // Per-event color beats calendar color. Named Google Labels (Work/Stuff) are
-  // NOT separate calendars — they share the primary calendar_id.
+  // Per-event color only. Named Google Labels (Work/Stuff) share primary calendar_id.
+  // Ignore calendar hex / calendarColor — Google primary defaults (peacock #039BE5)
+  // must not paint unlabeled events; Constellation blue is the visible default.
   let color = null;
   let colorSource = null;
   const fromColorId = colorFromGoogleColorId(colorId);
@@ -429,24 +432,6 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId, labelCol
   } else if (normalizeHexColor(ev?.hex_color) || normalizeHexColor(ev?.hexColor)) {
     color = normalizeHexColor(ev?.hex_color) || normalizeHexColor(ev?.hexColor);
     colorSource = "event_hex";
-  } else if (normalizeHexColor(calKey && colorByCalendarId?.get?.(calKey))) {
-    color = normalizeHexColor(colorByCalendarId.get(calKey));
-    colorSource = "calendar";
-  } else if (normalizeHexColor(calendarColor)) {
-    color = normalizeHexColor(calendarColor);
-    colorSource = "calendar";
-  } else if (normalizeHexColor(ev?.color)) {
-    color = normalizeHexColor(ev.color);
-    colorSource = "event_color_field";
-  } else if (calKey === "primary" && normalizeHexColor(colorByCalendarId?.get?.("primary"))) {
-    color = normalizeHexColor(colorByCalendarId.get("primary"));
-    colorSource = "calendar";
-  } else if (calKey === "primary") {
-    color = DEFAULT_EVENT_COLOR;
-    colorSource = "default";
-  } else if (calKey) {
-    color = deterministicColorFromKey(calKey);
-    colorSource = color ? "deterministic" : null;
   } else {
     color = DEFAULT_EVENT_COLOR;
     colorSource = "default";
