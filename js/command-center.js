@@ -40,6 +40,7 @@ import {
     columnPlacement,
     normalizeEventColor as geoNormalizeEventColor,
     colorFromGoogleColorId as geoColorFromGoogleColorId,
+    deterministicColorFromKey as geoDeterministicColorFromKey,
 } from './cc-calendar-geometry.mjs';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -212,29 +213,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     /**
      * Resolve Google/Nylas calendar hex for an event.
      * Prefers event.color / color_id from API; falls back to cached calendars by calendarId.
+     * Never paints another label with the primary calendar color (Work/Stuff bug).
      */
     function resolveEventColor(ev) {
         const fromColorId = geoColorFromGoogleColorId(ev?.colorId ?? ev?.color_id);
         if (fromColorId) return fromColorId;
         const direct = normalizeEventColor(ev?.color);
         if (direct) return direct;
-        const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
-        if (!cals.length) return null;
         const calId = ev?.calendarId != null ? String(ev.calendarId) : "";
-        const byId = calId
-            ? cals.find((c) => c && String(c.id) === calId)
-            : null;
-        if (byId) {
-            const fromId = normalizeEventColor(byId.color);
+        const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
+        if (calId) {
+            const byId = cals.find((c) => c && String(c.id) === calId);
+            const fromId = normalizeEventColor(byId?.color);
             if (fromId) return fromId;
+            if (calId === "primary") {
+                const primaryMatch = cals.find((c) => c?.isPrimary);
+                const fromPrimary = normalizeEventColor(primaryMatch?.color);
+                if (fromPrimary) return fromPrimary;
+            }
+            // Distinct stable color so Work ≠ Stuff ≠ Primary when hex is missing.
+            return geoDeterministicColorFromKey(calId);
         }
-        if (calId === "primary") {
-            const primaryMatch = cals.find((c) => c?.isPrimary);
-            const fromPrimary = normalizeEventColor(primaryMatch?.color);
-            if (fromPrimary) return fromPrimary;
-        }
-        const primary = cals.find((c) => c?.isPrimary) || cals[0];
-        return normalizeEventColor(primary?.color);
+        return null;
     }
 
     /**
@@ -244,12 +244,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     function eventColorStyleAttr(ev, { paintBackground = false } = {}) {
         const color = resolveEventColor(ev);
         if (!color) return "";
-        const bg = paintBackground ? ` background-color: ${color} !important;` : "";
+        const bg = paintBackground
+            ? ` background-color: ${color} !important; border-color: ${color} !important;`
+            : "";
         return ` style="--cc-event-color: ${color};${bg}" data-event-color="${escapeHtml(color)}"`;
     }
 
+    /** Merge `calendarColors` map from events API into the calendars cache. */
+    function mergeCalendarColorsFromEvents(data) {
+        const map = data?.calendarColors;
+        if (!map || typeof map !== "object") return;
+        const cals = Array.isArray(cachedNylasCalendars) ? [...cachedNylasCalendars] : [];
+        let changed = false;
+        for (const [id, hex] of Object.entries(map)) {
+            const color = normalizeEventColor(hex);
+            if (!color || id === "primary") continue;
+            const idx = cals.findIndex((c) => c && String(c.id) === String(id));
+            if (idx >= 0) {
+                if (normalizeEventColor(cals[idx].color) !== color) {
+                    cals[idx] = { ...cals[idx], color };
+                    changed = true;
+                }
+            } else {
+                cals.push({ id: String(id), name: String(id), color, isPrimary: false, readOnly: false });
+                changed = true;
+            }
+        }
+        if (changed) {
+            cachedNylasCalendars = cals;
+            cachedNylasCalendarsAt = Date.now();
+        }
+    }
+
     /** Paint API/calendar colors onto events missing `color` using the calendars cache. */
-    function enrichEventsWithCalendarColors(events) {
+    function enrichEventsWithCalendarColors(events, data) {
+        mergeCalendarColorsFromEvents(data);
         const list = Array.isArray(events) ? events : [];
         return list.map((ev) => {
             const resolved = resolveEventColor(ev);
@@ -420,8 +449,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         return clampEventMinutesToDayWindow(s, s + dur);
     }
 
-    /** Build `<option>` list for 15-min times (7:00–18:00). */
-    function buildTimeSelectOptions(selectedMin, { min, max, step = EVENT_TIME_STEP_MIN } = {}) {
+    /** 15-min minute values within [lo, hi], optionally injecting an off-grid selection. */
+    function listEventTimeMinutes(selectedMin, { min, max, step = EVENT_TIME_STEP_MIN } = {}) {
         const lo = Number.isFinite(min) ? min : TIMELINE_START_MIN;
         const hi = Number.isFinite(max) ? max : TIMELINE_END_MIN;
         const selected =
@@ -432,13 +461,142 @@ document.addEventListener("DOMContentLoaded", async () => {
             mins.push(selected);
             mins.sort((a, b) => a - b);
         }
-        return mins
+        return mins;
+    }
+
+    /** iOS-style snap-scroll time wheel + hidden HH:MM input for form submit. */
+    function buildTimeWheelHtml({
+        inputId,
+        name,
+        label,
+        selectedMin,
+        min,
+        max,
+    }) {
+        const mins = listEventTimeMinutes(selectedMin, { min, max });
+        const value = minutesToTimeInputValue(selectedMin);
+        const items = mins
             .map((m) => {
-                const value = minutesToTimeInputValue(m);
-                const sel = selected === m ? " selected" : "";
-                return `<option value="${value}"${sel}>${escapeHtml(formatMinutesLabel(m))}</option>`;
+                const on = m === selectedMin;
+                return `<button type="button" class="cc-event-time-wheel-item${on ? " is-selected" : ""}" role="option" data-min="${m}" aria-selected="${on ? "true" : "false"}">${escapeHtml(formatMinutesLabel(m))}</button>`;
             })
             .join("");
+        return `
+            <div class="cc-event-time-wheel-field">
+                <span class="cc-event-time-wheel-label" id="${escapeHtml(inputId)}-label">${escapeHtml(label)}</span>
+                <div class="cc-event-time-wheel" id="${escapeHtml(inputId)}-wheel">
+                    <div class="cc-event-time-wheel-highlight" aria-hidden="true"></div>
+                    <div class="cc-event-time-wheel-scroller" role="listbox" aria-labelledby="${escapeHtml(inputId)}-label" tabindex="0">
+                        ${items}
+                    </div>
+                </div>
+                <input type="hidden" id="${escapeHtml(inputId)}" name="${escapeHtml(name)}" value="${escapeHtml(value)}" required>
+            </div>
+        `;
+    }
+
+    /**
+     * Wire a snap-scroll time wheel. Returns { getMinutes, setMinutes }.
+     * @param {(min: number) => void} [onChange]
+     */
+    function wireTimeWheel(wheelEl, hiddenInput, { onChange } = {}) {
+        const scroller = wheelEl?.querySelector(".cc-event-time-wheel-scroller");
+        if (!wheelEl || !scroller || !hiddenInput) {
+            return {
+                getMinutes: () => timeInputValueToMinutes(hiddenInput?.value),
+                setMinutes: () => {},
+            };
+        }
+
+        let suppress = false;
+        let scrollEndTimer = null;
+
+        const itemHeight = () => {
+            const item = scroller.querySelector(".cc-event-time-wheel-item");
+            return item?.offsetHeight || 36;
+        };
+
+        const items = () => [...scroller.querySelectorAll(".cc-event-time-wheel-item")];
+
+        const syncSelectedClass = (min) => {
+            items().forEach((el) => {
+                const on = Number(el.dataset.min) === min;
+                el.classList.toggle("is-selected", on);
+                el.setAttribute("aria-selected", on ? "true" : "false");
+            });
+        };
+
+        const minutesFromScroll = () => {
+            const h = itemHeight();
+            if (!h) return timeInputValueToMinutes(hiddenInput.value);
+            const list = items();
+            if (!list.length) return timeInputValueToMinutes(hiddenInput.value);
+            const idx = Math.max(0, Math.min(list.length - 1, Math.round(scroller.scrollTop / h)));
+            const min = Number(list[idx].dataset.min);
+            return Number.isFinite(min) ? min : timeInputValueToMinutes(hiddenInput.value);
+        };
+
+        const scrollToMinutes = (min, behavior = "auto") => {
+            const list = items();
+            const item = list.find((el) => Number(el.dataset.min) === min) || null;
+            if (!item) {
+                hiddenInput.value = minutesToTimeInputValue(min);
+                return;
+            }
+            const h = itemHeight();
+            const idx = list.indexOf(item);
+            suppress = true;
+            scroller.scrollTo({ top: idx * h, behavior });
+            hiddenInput.value = minutesToTimeInputValue(min);
+            syncSelectedClass(min);
+            window.setTimeout(() => {
+                suppress = false;
+            }, behavior === "smooth" ? 180 : 0);
+        };
+
+        const commitFromScroll = () => {
+            if (suppress) return;
+            const min = minutesFromScroll();
+            if (min == null) return;
+            const prev = timeInputValueToMinutes(hiddenInput.value);
+            scrollToMinutes(min, "smooth");
+            if (prev !== min) onChange?.(min);
+        };
+
+        scroller.addEventListener("scroll", () => {
+            const min = minutesFromScroll();
+            if (min != null) syncSelectedClass(min);
+            window.clearTimeout(scrollEndTimer);
+            scrollEndTimer = window.setTimeout(commitFromScroll, 90);
+        }, { passive: true });
+
+        scroller.addEventListener("scrollend", () => {
+            window.clearTimeout(scrollEndTimer);
+            commitFromScroll();
+        });
+
+        scroller.addEventListener("click", (e) => {
+            const item = e.target.closest(".cc-event-time-wheel-item");
+            if (!item || !scroller.contains(item)) return;
+            const min = Number(item.dataset.min);
+            if (!Number.isFinite(min)) return;
+            const prev = timeInputValueToMinutes(hiddenInput.value);
+            scrollToMinutes(min, "smooth");
+            if (prev !== min) onChange?.(min);
+        });
+
+        requestAnimationFrame(() => {
+            const min = timeInputValueToMinutes(hiddenInput.value);
+            if (min != null) scrollToMinutes(min, "auto");
+        });
+
+        return {
+            getMinutes: () => timeInputValueToMinutes(hiddenInput.value),
+            setMinutes: (min, { behavior = "auto" } = {}) => {
+                if (!Number.isFinite(min)) return;
+                scrollToMinutes(min, behavior);
+            },
+        };
     }
 
     function durationPillsHtml(durationMin) {
@@ -732,31 +890,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ${labelHtml}
                 <label for="cc-event-date">Date</label>
                 <input type="date" id="cc-event-date" name="date" required value="${escapeHtml(dateValue)}">
-                <div class="modal-form-row">
-                    <div>
-                        <label for="cc-event-start">Start</label>
-                        <select id="cc-event-start" name="start" required aria-label="Start time">
-                            ${buildTimeSelectOptions(startMinClamped, {
-                                min: TIMELINE_START_MIN,
-                                max: TIMELINE_END_MIN - EVENT_TIME_STEP_MIN,
-                            })}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="cc-event-end">End</label>
-                        <select id="cc-event-end" name="end" required aria-label="End time">
-                            ${buildTimeSelectOptions(endMinClamped, {
-                                min: TIMELINE_START_MIN + EVENT_TIME_STEP_MIN,
-                                max: TIMELINE_END_MIN,
-                            })}
-                        </select>
-                    </div>
-                </div>
                 <div class="cc-event-duration" id="cc-event-duration">
                     <div class="cc-event-duration-label">Duration</div>
                     <div class="cc-event-duration-pills" id="cc-event-duration-pills" role="group" aria-label="Duration">
                         ${durationPillsHtml(initialDurationMin)}
                     </div>
+                </div>
+                <div class="cc-event-time-wheels" id="cc-event-time-wheels">
+                    ${buildTimeWheelHtml({
+                        inputId: "cc-event-start",
+                        name: "start",
+                        label: "Start",
+                        selectedMin: startMinClamped,
+                        min: TIMELINE_START_MIN,
+                        max: TIMELINE_END_MIN - EVENT_TIME_STEP_MIN,
+                    })}
+                    ${buildTimeWheelHtml({
+                        inputId: "cc-event-end",
+                        name: "end",
+                        label: "End",
+                        selectedMin: endMinClamped,
+                        min: TIMELINE_START_MIN + EVENT_TIME_STEP_MIN,
+                        max: TIMELINE_END_MIN,
+                    })}
                 </div>
                 <p class="text-xs text-[var(--text-muted)]" style="margin:0.15rem 0 0.35rem">In-app times are limited to 7:00 AM–6:00 PM. Earlier or later events stay on Google/Outlook.</p>
                 <div class="cc-event-suggestions" id="cc-event-suggestions">
@@ -787,7 +943,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const timeCheck = validateInAppEventTimes(startEl?.value, endEl?.value);
                 if (!timeCheck.ok) {
                     showToast(timeCheck.message, "warning");
-                    startEl?.focus();
+                    document
+                        .querySelector("#cc-event-start-wheel .cc-event-time-wheel-scroller")
+                        ?.focus();
                     return false;
                 }
                 const startTime = localDateTimeToUnixSeconds(dateEl?.value, startEl?.value);
@@ -913,14 +1071,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         const dateEl = document.getElementById("cc-event-date");
         const startEl = document.getElementById("cc-event-start");
         const endEl = document.getElementById("cc-event-end");
+        const startWheelEl = document.getElementById("cc-event-start-wheel");
+        const endWheelEl = document.getElementById("cc-event-end-wheel");
         const calEl = document.getElementById("cc-event-calendar");
         const swatchEl = document.getElementById("cc-event-calendar-swatch");
         const listEl = document.getElementById("cc-event-suggestions-list");
         const durationWrap = document.getElementById("cc-event-duration");
-        if (!dateEl || !startEl || !endEl || !listEl) return;
+        if (!dateEl || !startEl || !endEl || !listEl || !startWheelEl || !endWheelEl) return;
 
         let suggestionEvents = [];
         let loadToken = 0;
+        let applying = false;
+        let applyingClearTimer = null;
         let selectedDurationMin = (() => {
             const s = timeInputValueToMinutes(startEl.value);
             const e = timeInputValueToMinutes(endEl.value);
@@ -945,23 +1107,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         };
 
-        const applyTimes = (startMin, endMin, { keepDuration = false } = {}) => {
-            const snapped = snapEventMinutesToStep(startMin, endMin);
-            startEl.value = minutesToTimeInputValue(snapped.startMin);
-            endEl.value = minutesToTimeInputValue(snapped.endMin);
-            // keepDuration: start/pill keep the chosen duration even when end clamps to 6pm.
-            // Otherwise (end change / suggestion) adopt the implied duration.
-            if (!keepDuration) {
-                selectedDurationMin = Math.max(
-                    EVENT_TIME_STEP_MIN,
-                    snapped.endMin - snapped.startMin
-                );
-            }
-            syncDurationPills();
-            renderSuggestions();
-        };
+        let startWheel;
+        let endWheel;
 
-        const renderSuggestions = () => {
+        function renderSuggestions() {
             const dayKey = dateEl.value;
             const startMin = timeInputValueToMinutes(startEl.value);
             const endMin = timeInputValueToMinutes(endEl.value);
@@ -986,7 +1135,51 @@ document.addEventListener("DOMContentLoaded", async () => {
                         `<button type="button" class="cc-event-suggestion-btn" data-start-min="${s.startMin}" data-end-min="${s.endMin}">${escapeHtml(s.label)}</button>`
                 )
                 .join("");
+        }
+
+        const applyTimes = (startMin, endMin, { keepDuration = false, behavior = "auto" } = {}) => {
+            const snapped = snapEventMinutesToStep(startMin, endMin);
+            applying = true;
+            window.clearTimeout(applyingClearTimer);
+            startWheel?.setMinutes(snapped.startMin, { behavior });
+            endWheel?.setMinutes(snapped.endMin, { behavior });
+            applyingClearTimer = window.setTimeout(
+                () => {
+                    applying = false;
+                },
+                behavior === "smooth" ? 220 : 50
+            );
+            if (!keepDuration) {
+                selectedDurationMin = Math.max(
+                    EVENT_TIME_STEP_MIN,
+                    snapped.endMin - snapped.startMin
+                );
+            }
+            syncDurationPills();
+            renderSuggestions();
         };
+
+        startWheel = wireTimeWheel(startWheelEl, startEl, {
+            onChange: (min) => {
+                if (applying) return;
+                const dur = Math.max(EVENT_TIME_STEP_MIN, selectedDurationMin || 60);
+                applyTimes(min, min + dur, { keepDuration: true, behavior: "smooth" });
+            },
+        });
+        endWheel = wireTimeWheel(endWheelEl, endEl, {
+            onChange: (min) => {
+                if (applying) return;
+                let startMin = startWheel.getMinutes() ?? TIMELINE_START_MIN;
+                let endMin = min;
+                if (endMin <= startMin) {
+                    endMin = Math.min(startMin + EVENT_TIME_STEP_MIN, TIMELINE_END_MIN);
+                    if (endMin <= startMin) {
+                        startMin = Math.max(TIMELINE_START_MIN, endMin - EVENT_TIME_STEP_MIN);
+                    }
+                }
+                applyTimes(startMin, endMin, { behavior: "smooth" });
+            },
+        });
 
         const refreshBusyAndSuggestions = async () => {
             const token = ++loadToken;
@@ -1005,32 +1198,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         dateEl.addEventListener("change", () => {
             refreshBusyAndSuggestions();
         });
-        startEl.addEventListener("change", () => {
-            // Moving start keeps the current duration; end follows (clamped to 6pm).
-            const startMin = timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN;
-            const dur = Math.max(EVENT_TIME_STEP_MIN, selectedDurationMin || 60);
-            applyTimes(startMin, startMin + dur, { keepDuration: true });
-        });
-        endEl.addEventListener("change", () => {
-            // Moving end updates implied duration (and pill highlight when it matches a preset).
-            let startMin = timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN;
-            let endMin = timeInputValueToMinutes(endEl.value) ?? startMin + 60;
-            if (endMin <= startMin) {
-                endMin = Math.min(startMin + EVENT_TIME_STEP_MIN, TIMELINE_END_MIN);
-                if (endMin <= startMin) {
-                    startMin = Math.max(TIMELINE_START_MIN, endMin - EVENT_TIME_STEP_MIN);
-                }
-            }
-            applyTimes(startMin, endMin);
-        });
         durationWrap?.addEventListener("click", (e) => {
             const btn = e.target.closest(".cc-event-duration-pill");
             if (!btn || !durationWrap.contains(btn)) return;
             const dur = Number(btn.dataset.durationMin);
             if (!EVENT_DURATION_PRESETS.includes(dur)) return;
             selectedDurationMin = dur;
-            const startMin = timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN;
-            applyTimes(startMin, startMin + dur, { keepDuration: true });
+            const startMin = startWheel.getMinutes() ?? TIMELINE_START_MIN;
+            applyTimes(startMin, startMin + dur, { keepDuration: true, behavior: "smooth" });
         });
         listEl.addEventListener("click", (e) => {
             const btn = e.target.closest(".cc-event-suggestion-btn");
@@ -1038,7 +1213,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const sMin = Number(btn.dataset.startMin);
             const eMin = Number(btn.dataset.endMin);
             if (!Number.isFinite(sMin) || !Number.isFinite(eMin)) return;
-            applyTimes(sMin, eMin);
+            applyTimes(sMin, eMin, { behavior: "smooth" });
         });
 
         syncSwatch();

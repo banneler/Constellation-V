@@ -1094,6 +1094,54 @@ body.theme-green {
         background-color: color-mix(in srgb, var(--primary-blue) 22%, var(--bg-medium));
         color: var(--text-light);
     }
+    .cc-event-time-wheels {
+        @apply grid grid-cols-2 gap-3;
+    }
+    @media (max-width: 520px) {
+        .cc-event-time-wheels {
+            grid-template-columns: 1fr;
+        }
+    }
+    .cc-event-time-wheel-label {
+        @apply text-sm font-semibold block mb-1;
+        color: var(--text-light);
+    }
+    .cc-event-time-wheel {
+        --cc-time-wheel-item-h: 2.25rem;
+        --cc-time-wheel-visible: 5;
+        position: relative;
+        height: calc(var(--cc-time-wheel-item-h) * var(--cc-time-wheel-visible));
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        background-color: var(--bg-medium);
+        overflow: hidden;
+    }
+    .cc-event-time-wheel-scroller {
+        height: 100%;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scroll-snap-type: y mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-block: calc(var(--cc-time-wheel-item-h) * 2);
+    }
+    .cc-event-time-wheel-scroller::-webkit-scrollbar {
+        display: none;
+    }
+    .cc-event-time-wheel-item {
+        @apply flex items-center justify-center w-full m-0 p-0 border-0 cursor-pointer;
+        height: var(--cc-time-wheel-item-h);
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        opacity: 0.4;
+        scroll-snap-align: center;
+    }
+    .cc-event-time-wheel-item.is-selected {
+        color: var(--text-light);
+        font-weight: 600;
+        opacity: 1;
+    }
     @media (max-width: 800px) {
         .cc-month-calendar-modal {
             width: 95vw;
