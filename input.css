@@ -957,17 +957,24 @@ body.theme-green {
         right: var(--cc-day-timeline-event-right, 0.7rem);
         width: auto;
         z-index: 3;
+        /* Flex column + overflow so description never expands the timed box */
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
         overflow: hidden;
         border-radius: 0.25rem;
-        /* Top padding for breathing room; horizontal so text isn't flush to accent */
-        padding: 4px 0.5rem 2px 0.55rem;
+        /* Breathing room above time|title; horizontal inset from accent */
+        padding: 6px 0.5rem 2px 0.55rem;
         margin: 0;
         pointer-events: none;
         box-sizing: border-box;
         background-color: color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 22%, var(--bg-light));
         border-left: 2px solid var(--cc-event-color, var(--primary-blue));
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 25%, transparent);
-        min-height: 0.85rem;
+        /* Never content-size the abspos box (height comes from top/bottom insets) */
+        min-height: 0;
+        max-height: none;
     }
     .cc-day-timeline-event.is-overflow-start {
         border-top: 2px solid var(--cc-event-color, var(--primary-blue));
@@ -977,6 +984,9 @@ body.theme-green {
     }
     .cc-day-timeline-event-head {
         @apply flex items-baseline gap-1.5 min-w-0;
+        flex: 0 0 auto;
+        min-height: 0;
+        overflow: hidden;
     }
     .cc-day-timeline-event-when {
         @apply text-[0.65rem] font-normal leading-none shrink-0;
@@ -989,6 +999,8 @@ body.theme-green {
     .cc-day-timeline-event-desc {
         @apply text-[0.68rem] leading-tight mt-0.5;
         color: var(--text-muted);
+        flex: 1 1 auto;
+        min-height: 0;
         overflow: hidden;
         display: -webkit-box;
         -webkit-line-clamp: 2;

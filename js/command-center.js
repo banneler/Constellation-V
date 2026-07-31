@@ -817,12 +817,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return "";
                 }
                 const topPct = timelineOffsetRatio(clampedStart) * 100;
-                const heightPct = Math.max(
-                    2.2,
-                    ((clampedEnd - clampedStart) / TIMELINE_SPAN_MIN) * 100
-                );
+                // Prefer top+bottom (not height%) so the abspos box is stretched by the
+                // canvas — content/min-content cannot inflate the block past duration.
+                let bottomPct = (1 - timelineOffsetRatio(clampedEnd)) * 100;
+                const spanPct = ((clampedEnd - clampedStart) / TIMELINE_SPAN_MIN) * 100;
+                if (spanPct < 2.2) {
+                    bottomPct = Math.max(0, 100 - topPct - 2.2);
+                }
+                const durationMin = clampedEnd - clampedStart;
                 const desc = (ev.description || "").trim();
-                const showDesc = desc && desc.length > 2 && desc !== ev.title;
+                // Description only when the timed block is tall enough for a second line.
+                const showDesc =
+                    desc &&
+                    desc.length > 2 &&
+                    desc !== ev.title &&
+                    durationMin >= 40;
                 const classes = ["cc-day-timeline-event"];
                 if (overflowBefore) classes.push("is-overflow-start");
                 if (overflowAfter) classes.push("is-overflow-end");
@@ -831,7 +840,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // Abspos inside .cc-day-timeline-canvas only (in-flow relative containing block).
                 // Inline position/insets so a stale stylesheet cannot escape to the fixed backdrop.
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;height:${heightPct}%;margin:0;z-index:3;${
+                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;bottom:${bottomPct}%;height:auto;max-height:none;margin:0;z-index:3;${
                     color ? ` --cc-event-color: ${color};` : ""
                 }" title="${escapeHtml(ev.title || "(No title)")}">
                         <div class="cc-day-timeline-event-head">

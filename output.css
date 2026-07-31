@@ -3213,9 +3213,13 @@ body.theme-green {
     right: var(--cc-day-timeline-event-right, 0.7rem);
     width: auto;
     z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     overflow: hidden;
     border-radius: 0.25rem;
-    padding: 4px 0.5rem 2px 0.55rem;
+    padding: 6px 0.5rem 2px 0.55rem;
     margin: 0;
     pointer-events: none;
     box-sizing: border-box;
@@ -3228,7 +3232,8 @@ body.theme-green {
     @supports (color: color-mix(in lab, red, red)) {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 25%, transparent);
     }
-    min-height: 0.85rem;
+    min-height: 0;
+    max-height: none;
   }
   .cc-day-timeline-event.is-overflow-start {
     border-top: 2px solid var(--cc-event-color, var(--primary-blue));
@@ -3241,6 +3246,9 @@ body.theme-green {
     min-width: calc(var(--spacing) * 0);
     align-items: baseline;
     gap: calc(var(--spacing) * 1.5);
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: hidden;
   }
   .cc-day-timeline-event-when {
     flex-shrink: 0;
@@ -3269,6 +3277,8 @@ body.theme-green {
     --tw-leading: var(--leading-tight);
     line-height: var(--leading-tight);
     color: var(--text-muted);
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
