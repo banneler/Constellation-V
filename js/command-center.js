@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=115';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=116';
 import {
     TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
     TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
@@ -41,8 +41,7 @@ import {
     normalizeEventColor as geoNormalizeEventColor,
     colorFromGoogleColorId as geoColorFromGoogleColorId,
     deterministicColorFromKey as geoDeterministicColorFromKey,
-    GOOGLE_EVENT_COLOR_IDS,
-} from './cc-calendar-geometry.mjs?v=115';
+} from './cc-calendar-geometry.mjs?v=116';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -892,30 +891,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>`;
     }
 
-    /** Google legacy event colors (1–11). Empty = calendar default / clear override. */
-    function eventColorPickerHtml(selectedColorId) {
-        const selected =
-            selectedColorId != null && selectedColorId !== ""
-                ? String(selectedColorId).trim()
-                : "";
-        const defaultActive = !selected;
-        const swatches = Object.entries(GOOGLE_EVENT_COLOR_IDS)
-            .map(([id, hex]) => {
-                const active = selected === String(id);
-                return `<button type="button" class="cc-event-color-swatch${active ? " cc-event-color-swatch--active" : ""}" data-color-id="${escapeHtml(id)}" style="background-color: ${escapeHtml(hex)}" title="Color ${escapeHtml(id)}" aria-label="Event color ${escapeHtml(id)}" aria-pressed="${active ? "true" : "false"}"></button>`;
-            })
-            .join("");
-        return `
-            <div class="cc-event-color-field">
-                <span class="cc-event-color-heading" id="cc-event-color-label">Color</span>
-                <div class="cc-event-color-swatches" role="group" aria-labelledby="cc-event-color-label">
-                    <button type="button" class="cc-event-color-swatch cc-event-color-swatch--default${defaultActive ? " cc-event-color-swatch--active" : ""}" data-color-id="" title="Calendar default" aria-label="Calendar default color" aria-pressed="${defaultActive ? "true" : "false"}"></button>
-                    ${swatches}
-                </div>
-                <input type="hidden" id="cc-event-color-id" name="colorId" value="${escapeHtml(selected)}">
-            </div>`;
-    }
-
     /** Busy intervals in local minutes-from-midnight for a day key (timed events only). */
     function busyIntervalsForDay(dayKey, events) {
         const intervals = [];
@@ -1070,18 +1045,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const calendarField = calendarFieldHtml(calendars, selectedCalId, swatchStyle, {
             forceHidden: isEdit,
         });
-        // Google-only: Nylas writes legacy color_id (1–11); named Labels are unavailable.
-        const showColorPicker = calendarIntegrationState?.provider === "google";
-        const colorField = showColorPicker
-            ? eventColorPickerHtml(prefill.colorId)
-            : "";
 
         const bodyHtml = `
             <form id="cc-add-event-form" class="modal-form">
                 <label for="cc-event-title">Title</label>
                 <input type="text" id="cc-event-title" name="title" required placeholder="Event title" autocomplete="off" value="${escapeHtml(titleValue)}">
                 ${calendarField}
-                ${colorField}
                 <label for="cc-event-date">Date</label>
                 <input type="date" id="cc-event-date" name="date" required value="${escapeHtml(dateValue)}">
                 <div class="cc-event-duration" id="cc-event-duration">
@@ -1149,7 +1118,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return false;
                 }
                 const calendarId = (calEl?.value || "").trim() || "primary";
-                const colorEl = document.getElementById("cc-event-color-id");
                 const payload = {
                     title,
                     description: (descEl?.value || "").trim() || "",
@@ -1161,11 +1129,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // Server uses this to enforce 7am–6pm in the user's local zone.
                     timezoneOffsetMin: new Date().getTimezoneOffset(),
                 };
-                // Only when Google color picker is present — null clears override.
-                if (colorEl) {
-                    const raw = (colorEl.value || "").trim();
-                    payload.colorId = raw || null;
-                }
                 try {
                     const result = isEdit
                         ? await updateCalendarEvent(
@@ -1238,7 +1201,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             start: minutesToTimeInputValue(clamped.startMin),
             end: minutesToTimeInputValue(clamped.endMin),
             calendarId: ev.calendarId || undefined,
-            colorId: ev.colorId ?? ev.color_id ?? undefined,
         });
     }
 
@@ -1436,19 +1398,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (calEl?.tagName === "SELECT") {
             calEl.addEventListener("change", syncSwatch);
         }
-        const colorWrap = document.querySelector("#cc-add-event-form .cc-event-color-swatches");
-        const colorInput = document.getElementById("cc-event-color-id");
-        colorWrap?.addEventListener("click", (e) => {
-            const btn = e.target.closest(".cc-event-color-swatch");
-            if (!btn || !colorWrap.contains(btn) || !colorInput) return;
-            const id = btn.getAttribute("data-color-id") ?? "";
-            colorInput.value = id;
-            colorWrap.querySelectorAll(".cc-event-color-swatch").forEach((el) => {
-                const on = el === btn;
-                el.classList.toggle("cc-event-color-swatch--active", on);
-                el.setAttribute("aria-pressed", on ? "true" : "false");
-            });
-        });
         dateEl.addEventListener("change", () => {
             refreshBusyAndSuggestions();
         });
