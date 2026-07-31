@@ -135,6 +135,28 @@ test.describe('Command Center day timeline ledger', () => {
     expect(check.ok, JSON.stringify(check, null, 2)).toBe(true);
   });
 
+  test('45-min event height is 45/660 of the track (exclusive end)', async ({ page }) => {
+    await page.goto('/tests/fixtures/cc-day-timeline-ledger.html');
+    await page.waitForSelector('.cc-day-timeline-event[data-duration-min="45"]');
+
+    const check = await page.evaluate(() => {
+      const canvas = document.querySelector('.cc-day-timeline-canvas');
+      const el = document.querySelector('.cc-day-timeline-event[data-duration-min="45"]');
+      if (!canvas || !el) return { ok: false, reason: 'missing 45-min event' };
+      const canvasH = canvas.getBoundingClientRect().height;
+      const expected = (45 / 660) * canvasH;
+      const h = el.getBoundingClientRect().height;
+      return {
+        ok: Math.abs(h - expected) <= 1.5,
+        height: h,
+        expected,
+        canvasH,
+      };
+    });
+
+    expect(check.ok, JSON.stringify(check, null, 2)).toBe(true);
+  });
+
   test('pointermove activates hour-band hover ghost with painted background', async ({ page }) => {
     await page.goto('/tests/fixtures/cc-day-timeline-hover-live.html');
     await page.waitForSelector('#cc-day-timeline-track');

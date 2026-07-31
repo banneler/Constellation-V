@@ -9,6 +9,8 @@
   box-sizing: border-box !important;
   /* Timed shell only; never size from content */
   display: block !important;
+  /* Overlap columns set inline left/width; do not force full-bleed right */
+  max-width: 100%;
 }
 
 .cc-day-timeline-event-body {
@@ -22,4 +24,10 @@
   overflow: hidden !important;
   /* Visible inset above time|title — not on the timed outer box */
   padding: 8px 0.5rem 4px 0.55rem !important;
+}
+
+/* Google/Nylas hex_color — inline background-color on bullets/dots wins over theme */
+.cc-event-bullet,
+.cc-month-dot {
+  background-color: var(--cc-event-color, var(--primary-blue));
 }

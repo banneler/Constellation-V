@@ -1,0 +1,154 @@
+/**
+ * Command Center day-timeline geometry helpers (pure, unit-tested).
+ *
+ * Track window is 7:00–18:00 local (660 minutes). Timed event height is
+ * duration / 660 of the track. Nylas/Google `end_time` is exclusive unix seconds.
+ */
+
+export const TIMELINE_START_MIN = 7 * 60;
+export const TIMELINE_END_MIN = 18 * 60;
+export const TIMELINE_SPAN_MIN = TIMELINE_END_MIN - TIMELINE_START_MIN;
+
+/** Normalize API timestamps to unix seconds (accepts seconds, ms, or ISO). */
+export function toUnixSeconds(value) {
+    if (value == null || value === "") return null;
+    if (typeof value === "string" && value.includes("T")) {
+        const ms = Date.parse(value);
+        return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
+    }
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return n >= 1e12 ? Math.floor(n / 1000) : Math.floor(n);
+}
+
+/** Local minutes-from-midnight for a Date (includes fractional seconds). */
+export function localMinutesFromDate(d) {
+    if (!d || Number.isNaN(d.getTime())) return null;
+    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+}
+
+/**
+ * Resolve timed start/end minutes for an event on a local day.
+ * Uses startTime/endTime unix seconds; end is exclusive (duration = end − start).
+ * @returns {{ startMin: number, endMin: number, durationMin: number } | null}
+ */
+export function timedEventLocalMinutes(ev, dayKey, { dayKeyFromDate } = {}) {
+    if (!ev || ev.allDay || ev.startTime == null) return null;
+    const startSec = toUnixSeconds(ev.startTime);
+    if (startSec == null) return null;
+    const start = new Date(startSec * 1000);
+    if (Number.isNaN(start.getTime())) return null;
+    if (typeof dayKeyFromDate === "function" && dayKey && dayKeyFromDate(start) !== dayKey) {
+        return null;
+    }
+    const endSec = toUnixSeconds(ev.endTime) ?? startSec + 3600;
+    const end = new Date(endSec * 1000);
+    let startMin = localMinutesFromDate(start);
+    if (startMin == null) return null;
+    let endMin = Number.isNaN(end.getTime())
+        ? startMin + 60
+        : typeof dayKeyFromDate === "function" && dayKey && dayKeyFromDate(end) !== dayKey
+          ? 24 * 60
+          : localMinutesFromDate(end);
+    if (endMin == null || endMin <= startMin) endMin = startMin + 15;
+    return {
+        startMin,
+        endMin,
+        durationMin: endMin - startMin,
+    };
+}
+
+/** Clamp a timed interval into the 7am–6pm track (minutes). */
+export function clampToTimeline(startMin, endMin) {
+    const clampedStart = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN, startMin));
+    const clampedEnd = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN, endMin));
+    if (clampedEnd <= TIMELINE_START_MIN || clampedStart >= TIMELINE_END_MIN) {
+        return null;
+    }
+    return {
+        clampedStart,
+        clampedEnd,
+        durationMin: clampedEnd - clampedStart,
+        topPct: ((clampedStart - TIMELINE_START_MIN) / TIMELINE_SPAN_MIN) * 100,
+        heightPct: Math.max(2.2, ((clampedEnd - clampedStart) / TIMELINE_SPAN_MIN) * 100),
+    };
+}
+
+/**
+ * Pack intersecting half-open intervals [startMin, endMin) into columns.
+ * @param {{ id: string|number, startMin: number, endMin: number }[]} items
+ * @returns {Map<string|number, { columnIndex: number, columnCount: number }>}
+ */
+export function packOverlapColumns(items) {
+    const sorted = [...(items || [])].sort((a, b) => {
+        if (a.startMin !== b.startMin) return a.startMin - b.startMin;
+        if (a.endMin !== b.endMin) return a.endMin - b.endMin;
+        return String(a.id).localeCompare(String(b.id));
+    });
+
+    const clusters = [];
+    let current = [];
+    let clusterEnd = -Infinity;
+    for (const item of sorted) {
+        if (current.length && item.startMin >= clusterEnd) {
+            clusters.push(current);
+            current = [];
+            clusterEnd = -Infinity;
+        }
+        current.push(item);
+        clusterEnd = Math.max(clusterEnd, item.endMin);
+    }
+    if (current.length) clusters.push(current);
+
+    const layout = new Map();
+    for (const cluster of clusters) {
+        const colEnds = [];
+        const placed = [];
+        for (const item of cluster) {
+            let col = colEnds.findIndex((end) => end <= item.startMin);
+            if (col === -1) {
+                col = colEnds.length;
+                colEnds.push(item.endMin);
+            } else {
+                colEnds[col] = item.endMin;
+            }
+            placed.push({ item, col });
+        }
+        const columnCount = Math.max(1, colEnds.length);
+        for (const { item, col } of placed) {
+            layout.set(item.id, { columnIndex: col, columnCount });
+        }
+    }
+    return layout;
+}
+
+/**
+ * Horizontal placement inside the track (percent of content width after gutters).
+ * @returns {{ leftFrac: number, widthFrac: number }}
+ */
+export function columnPlacement(columnIndex, columnCount, { gapFrac = 0.04 } = {}) {
+    const n = Math.max(1, Math.round(Number(columnCount) || 1));
+    const i = Math.max(0, Math.min(n - 1, Math.round(Number(columnIndex) || 0)));
+    const slot = 1 / n;
+    const gap = Math.min(0.2, Math.max(0, Number(gapFrac) || 0)) * slot;
+    return {
+        leftFrac: i * slot + gap / 2,
+        widthFrac: Math.max(0.08, slot - gap),
+    };
+}
+
+/** Safe `#RRGGBB` from API `color`, or null. */
+export function normalizeEventColor(value) {
+    if (value == null) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    const withHash = raw.startsWith("#") ? raw : `#${raw}`;
+    if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) return withHash;
+    if (/^#[0-9A-Fa-f]{3}$/.test(withHash)) {
+        const r = withHash[1];
+        const g = withHash[2];
+        const b = withHash[3];
+        return `#${r}${r}${g}${g}${b}${b}`;
+    }
+    return null;
+}

@@ -28,6 +28,18 @@ import {
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail } from './integrations.js';
+import {
+    TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
+    TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
+    TIMELINE_SPAN_MIN as GEO_TIMELINE_SPAN_MIN,
+    toUnixSeconds as geoToUnixSeconds,
+    localMinutesFromDate as geoLocalMinutesFromDate,
+    timedEventLocalMinutes,
+    clampToTimeline,
+    packOverlapColumns,
+    columnPlacement,
+    normalizeEventColor as geoNormalizeEventColor,
+} from './cc-calendar-geometry.mjs';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -99,9 +111,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     let cachedNylasCalendarsAt = 0;
 
     /** Day-panel timeline window (local minutes from midnight). */
-    const TIMELINE_START_MIN = 7 * 60; // 7:00 AM
-    const TIMELINE_END_MIN = 18 * 60; // 6:00 PM
-    const TIMELINE_SPAN_MIN = TIMELINE_END_MIN - TIMELINE_START_MIN;
+    const TIMELINE_START_MIN = GEO_TIMELINE_START_MIN; // 7:00 AM
+    const TIMELINE_END_MIN = GEO_TIMELINE_END_MIN; // 6:00 PM
+    const TIMELINE_SPAN_MIN = GEO_TIMELINE_SPAN_MIN;
     const TIMELINE_HOUR_MIN = 60;
 
     /** Snap a minute offset to the start of its 1-hour block within the timeline. */
@@ -121,13 +133,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return snapTimelineToHourStart(TIMELINE_START_MIN + ratio * TIMELINE_SPAN_MIN);
     }
 
-    /** Normalize API timestamps to unix seconds (accepts seconds or ms). */
+    /** Normalize API timestamps to unix seconds (accepts seconds, ms, or ISO). */
     function toUnixSeconds(value) {
-        if (value == null || value === "") return null;
-        const n = Number(value);
-        if (!Number.isFinite(n)) return null;
-        // ms timestamps are >= 1e12; unix seconds for current dates are ~1e9.
-        return n >= 1e12 ? Math.floor(n / 1000) : Math.floor(n);
+        return geoToUnixSeconds(value);
     }
 
     /** Local Date from event startTime (unix seconds). */
@@ -141,8 +149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     /** Local minutes-from-midnight for a Date (browser local timezone; includes seconds). */
     function localMinutesFromDate(d) {
-        if (!d || Number.isNaN(d.getTime())) return null;
-        return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+        return geoLocalMinutesFromDate(d);
     }
 
     /** Stable CSS percentage string (avoids float noise in inline styles). */
@@ -198,23 +205,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     /** Safe `#RRGGBB` from API `color`, or null (UI falls back to theme default). */
     function normalizeEventColor(value) {
-        if (value == null) return null;
-        const raw = String(value).trim();
-        if (!raw) return null;
-        const withHash = raw.startsWith("#") ? raw : `#${raw}`;
-        if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) return withHash;
-        if (/^#[0-9A-Fa-f]{3}$/.test(withHash)) {
-            const r = withHash[1];
-            const g = withHash[2];
-            const b = withHash[3];
-            return `#${r}${r}${g}${g}${b}${b}`;
-        }
-        return null;
+        return geoNormalizeEventColor(value);
     }
 
-    function eventColorStyleAttr(ev) {
-        const color = normalizeEventColor(ev?.color);
-        return color ? ` style="--cc-event-color: ${color}"` : "";
+    /**
+     * Resolve Google/Nylas calendar hex for an event.
+     * Prefers event.color from API; falls back to cached calendar list by calendarId.
+     */
+    function resolveEventColor(ev) {
+        const direct = normalizeEventColor(ev?.color);
+        if (direct) return direct;
+        const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
+        if (!cals.length) return null;
+        const byId = ev?.calendarId
+            ? cals.find((c) => c && String(c.id) === String(ev.calendarId))
+            : null;
+        if (byId) {
+            const fromId = normalizeEventColor(byId.color);
+            if (fromId) return fromId;
+        }
+        const primary = cals.find((c) => c?.isPrimary) || cals[0];
+        return normalizeEventColor(primary?.color);
+    }
+
+    /**
+     * Inline --cc-event-color (+ optional background for bullets/dots so inheritance
+     * can't drop Google hex_color).
+     */
+    function eventColorStyleAttr(ev, { paintBackground = false } = {}) {
+        const color = resolveEventColor(ev);
+        if (!color) return "";
+        const bg = paintBackground ? ` background-color: ${color};` : "";
+        return ` style="--cc-event-color: ${color};${bg}"`;
+    }
+
+    /** Paint API/calendar colors onto events missing `color` using the calendars cache. */
+    function enrichEventsWithCalendarColors(events) {
+        const list = Array.isArray(events) ? events : [];
+        const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
+        if (!cals.length) return list;
+        const byId = new Map(cals.filter((c) => c?.id).map((c) => [String(c.id), c]));
+        const primary = cals.find((c) => c?.isPrimary) || cals[0];
+        return list.map((ev) => {
+            if (normalizeEventColor(ev?.color)) return ev;
+            const cal = (ev?.calendarId && byId.get(String(ev.calendarId))) || primary;
+            const color = normalizeEventColor(cal?.color);
+            return color ? { ...ev, color } : ev;
+        });
     }
 
     function groupEventsByDay(events) {
@@ -249,7 +286,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const desc = (ev.description || "").trim();
         const showDesc = desc && desc.length > 2 && desc !== ev.title;
         item.innerHTML = `
-            <span class="cc-event-bullet" aria-hidden="true"${eventColorStyleAttr(ev)}></span>
+            <span class="cc-event-bullet" aria-hidden="true"${eventColorStyleAttr(ev, { paintBackground: true })}></span>
             <div class="cc-calendar-item-when">${escapeHtml(whenLabel)}</div>
             <div class="cc-calendar-item-body">
                 <div class="cc-calendar-item-title">${escapeHtml(ev.title || "(No title)")}</div>
@@ -815,38 +852,48 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>`
             );
         }
-        // Hour grid only — half-hour ticks removed (zero-height borders read as vertical artifacts).
-        const eventBlocks = timedEvents
-            .map((ev) => {
-                const start = eventLocalDate(ev);
-                if (!start) return "";
-                const startSec = toUnixSeconds(ev.startTime);
-                const endSec = toUnixSeconds(ev.endTime) ?? startSec + 3600;
-                const end = new Date(endSec * 1000);
-                let startMin = localMinutesFromDate(start);
-                if (startMin == null) return "";
-                let endMin = Number.isNaN(end.getTime())
-                    ? startMin + 60
-                    : dayKeyFromDate(end) !== dayKey
-                      ? TIMELINE_END_MIN
-                      : localMinutesFromDate(end);
-                if (endMin == null || endMin <= startMin) endMin = startMin + 15;
+        // Timed layout: parse exclusive end_time → minutes, clamp to 7–6 track,
+        // pack overlapping intervals into side-by-side columns (not z-index stack).
+        const layoutItems = [];
+        const outsideTimed = [];
+        timedEvents.forEach((ev, idx) => {
+            const mins = timedEventLocalMinutes(ev, dayKey, { dayKeyFromDate });
+            if (!mins) return;
+            const { startMin, endMin, durationMin } = mins;
+            if (endMin <= TIMELINE_START_MIN || startMin >= TIMELINE_END_MIN) {
+                outsideTimed.push(ev);
+                return;
+            }
+            const clamped = clampToTimeline(startMin, endMin);
+            if (!clamped) {
+                outsideTimed.push(ev);
+                return;
+            }
+            layoutItems.push({
+                id: ev.id != null ? String(ev.id) : `idx-${idx}`,
+                ev,
+                startMin,
+                endMin,
+                durationMin,
+                ...clamped,
+            });
+        });
+        const overlapLayout = packOverlapColumns(
+            layoutItems.map((it) => ({
+                id: it.id,
+                startMin: it.clampedStart,
+                endMin: it.clampedEnd,
+            }))
+        );
 
+        const eventBlocks = layoutItems
+            .map((it) => {
+                const { ev, startMin, endMin, clampedStart, durationMin, topPct: rawTop, heightPct: rawHeight } =
+                    it;
                 const overflowBefore = startMin < TIMELINE_START_MIN;
                 const overflowAfter = endMin > TIMELINE_END_MIN;
-                const clampedStart = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN, startMin));
-                const clampedEnd = Math.max(TIMELINE_START_MIN, Math.min(TIMELINE_END_MIN, endMin));
-                if (clampedEnd <= TIMELINE_START_MIN || clampedStart >= TIMELINE_END_MIN) {
-                    // Entirely outside visible window — show as overflow chip in all-day strip via separate list
-                    return "";
-                }
-                // Duration → track % (7am–6pm = 660 min = 11 hour slots).
-                // 2:00–3:00 → top 63.6363%, height 9.0909% (exactly one slot).
-                const durationMin = clampedEnd - clampedStart;
-                const topPct = timelinePct(timelineOffsetRatio(clampedStart) * 100);
-                const heightPct = timelinePct(
-                    Math.max(2.2, (durationMin / TIMELINE_SPAN_MIN) * 100)
-                );
+                const topPct = timelinePct(rawTop);
+                const heightPct = timelinePct(rawHeight);
                 const desc = (ev.description || "").trim();
                 // Description only when the timed block is tall enough for a second line.
                 const showDesc =
@@ -857,16 +904,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const classes = ["cc-day-timeline-event"];
                 if (overflowBefore) classes.push("is-overflow-start");
                 if (overflowAfter) classes.push("is-overflow-end");
+                // Nylas/Google end_time is exclusive — label matches true duration
+                // (e.g. 2:00–2:45 PM = 45 min → height 45/660 of the track).
                 const whenLabel = formatCalendarEventTimeRange(ev, startMin, endMin);
-                const color = normalizeEventColor(ev?.color);
-                // Abspos inside .cc-day-timeline-canvas only (in-flow relative containing block).
-                // Explicit height% (not top/bottom+height:auto) so duration pins 1:1 to the
-                // hour grid; inner body carries padding so text inset can't be lost to a
-                // stale output.css / preflight padding:0.
+                const color = resolveEventColor(ev);
+                const pack = overlapLayout.get(it.id) || { columnIndex: 0, columnCount: 1 };
+                const gutterL = "var(--cc-day-timeline-event-left,0.25rem)";
+                const gutterR = "var(--cc-day-timeline-event-right,0.7rem)";
+                let horizStyle;
+                if (pack.columnCount <= 1) {
+                    horizStyle = `left:${gutterL};right:${gutterR};width:auto;`;
+                } else {
+                    const { leftFrac, widthFrac } = columnPlacement(
+                        pack.columnIndex,
+                        pack.columnCount
+                    );
+                    const leftExpr = `calc(${gutterL} + (100% - ${gutterL} - ${gutterR}) * ${timelinePct(leftFrac * 100)} / 100)`;
+                    const widthExpr = `calc((100% - ${gutterL} - ${gutterR}) * ${timelinePct(widthFrac * 100)} / 100)`;
+                    horizStyle = `left:${leftExpr};width:${widthExpr};right:auto;`;
+                }
+                // Abspos inside .cc-day-timeline-canvas only. Explicit height% pins
+                // duration 1:1 to the hour grid; columns sit side-by-side on conflicts.
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;left:var(--cc-day-timeline-event-left,0.25rem);right:var(--cc-day-timeline-event-right,0.7rem);top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;overflow:hidden;box-sizing:border-box;${
+                    <div class="${classes.join(" ")}" style="position:absolute;${horizStyle}top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;overflow:hidden;box-sizing:border-box;${
                     color ? ` --cc-event-color: ${color};` : ""
-                }" title="${escapeHtml(ev.title || "(No title)")}" data-duration-min="${Math.round(durationMin)}">
+                }" title="${escapeHtml(ev.title || "(No title)")}" data-duration-min="${Math.round(durationMin)}" data-start-min="${Math.round(clampedStart)}" data-col="${pack.columnIndex}" data-col-count="${pack.columnCount}">
                         <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;">
                             <div class="cc-day-timeline-event-head">
                                 <span class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
@@ -879,23 +941,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                 `;
             })
-            .filter(Boolean)
             .join("");
-
-        const outsideTimed = timedEvents.filter((ev) => {
-            const start = eventLocalDate(ev);
-            if (!start) return false;
-            const startSec = toUnixSeconds(ev.startTime);
-            const endSec = toUnixSeconds(ev.endTime) ?? startSec + 3600;
-            const end = new Date(endSec * 1000);
-            const startMin = localMinutesFromDate(start);
-            const endMin = Number.isNaN(end.getTime())
-                ? startMin + 60
-                : dayKeyFromDate(end) !== dayKey
-                  ? 24 * 60
-                  : localMinutesFromDate(end);
-            return endMin <= TIMELINE_START_MIN || startMin >= TIMELINE_END_MIN;
-        });
 
         const stripEvents = [...allDayEvents, ...outsideTimed];
         const allDayHtml = stripEvents.length
@@ -904,7 +950,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .map((ev) => {
                         const label = ev.allDay ? "All day" : formatCalendarEventTime(ev);
                         return `<div class="cc-day-allday-item"${eventColorStyleAttr(ev)}>
-                            <span class="cc-event-bullet" aria-hidden="true"></span>
+                            <span class="cc-event-bullet" aria-hidden="true"${eventColorStyleAttr(ev, { paintBackground: true })}></span>
                             <span class="cc-day-allday-when">${escapeHtml(label)}</span>
                             <span class="cc-day-allday-title">${escapeHtml(ev.title || "(No title)")}</span>
                         </div>`;
@@ -977,7 +1023,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .map((ev) => {
                     const title = ev.title || "(No title)";
                     return `<div class="cc-month-cell-event" title="${escapeHtml(title)}"${eventColorStyleAttr(ev)}>
-                        <span class="cc-event-bullet" aria-hidden="true"></span>
+                        <span class="cc-event-bullet" aria-hidden="true"${eventColorStyleAttr(ev, { paintBackground: true })}></span>
                         <span class="cc-month-cell-event-title">${escapeHtml(title)}</span>
                     </div>`;
                 })
@@ -989,7 +1035,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 dayEvents.length > 0
                     ? `<div class="cc-month-cell-dots" aria-hidden="true">${dayEvents
                           .slice(0, 4)
-                          .map((ev) => `<span class="cc-month-dot"${eventColorStyleAttr(ev)}></span>`)
+                          .map((ev) => `<span class="cc-month-dot"${eventColorStyleAttr(ev, { paintBackground: true })}></span>`)
                           .join("")}</div>`
                     : "";
 
@@ -1014,13 +1060,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             '<p class="cc-month-day-empty col-span-7 self-center text-center">Loading events...</p>';
         try {
             const { start, end } = monthRangeUnix(monthViewYear, monthViewMonth);
-            // Pad a few days either side so adjacent-month cells can show events
-            const data = await listCalendarEvents(supabase, {
-                start: start - 7 * 24 * 60 * 60,
-                end: end + 7 * 24 * 60 * 60,
-                limit: 100,
-            });
-            monthViewEvents = Array.isArray(data?.events) ? data.events : [];
+            // Pad a few days either side so adjacent-month cells can show events.
+            // Prefetch calendars so hex_color can fill any event missing color.
+            const [, data] = await Promise.all([
+                ensureNylasCalendars(),
+                listCalendarEvents(supabase, {
+                    start: start - 7 * 24 * 60 * 60,
+                    end: end + 7 * 24 * 60 * 60,
+                    limit: 100,
+                }),
+            ]);
+            monthViewEvents = enrichEventsWithCalendarColors(
+                Array.isArray(data?.events) ? data.events : []
+            );
             renderMonthGrid();
         } catch (error) {
             console.warn("[command-center] month calendar:", error);
@@ -1219,12 +1271,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const nowSec = Math.floor(Date.now() / 1000);
-            const data = await listCalendarEvents(supabase, {
-                start: nowSec,
-                end: nowSec + 7 * 24 * 60 * 60,
-                limit: 15,
-            });
-            const events = Array.isArray(data?.events) ? data.events : [];
+            const [, data] = await Promise.all([
+                ensureNylasCalendars(),
+                listCalendarEvents(supabase, {
+                    start: nowSec,
+                    end: nowSec + 7 * 24 * 60 * 60,
+                    limit: 15,
+                }),
+            ]);
+            const events = enrichEventsWithCalendarColors(
+                Array.isArray(data?.events) ? data.events : []
+            );
 
             if (!events.length) {
                 ccCalendarList.innerHTML =
