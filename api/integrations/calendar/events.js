@@ -18,6 +18,7 @@ const {
   normalizeCalendarEvent,
   assertTimelineBusinessHours,
   deterministicColorFromKey,
+  DEFAULT_EVENT_COLOR,
 } = require("../../_lib/calendar-event-normalize");
 
 function looksLikeHolidayCalendar(cal) {
@@ -135,20 +136,26 @@ module.exports = async function handler(req, res) {
       }
 
       // Stable distinct colors for any calendar still missing hex (sandbox nulls).
+      // Primary / no-color → Constellation blue; other calendars keep distinct tints.
+      const primaryFromList = Array.isArray(calendarsResult?.data)
+        ? calendarsResult.data.find((c) => c?.is_primary || c?.isPrimary)
+        : null;
+      const primaryKey = primaryFromList?.id != null ? String(primaryFromList.id) : null;
       for (const calId of calendarIds) {
         const key = String(calId);
         if (!colorByCalendarId.has(key)) {
-          const fallback = deterministicColorFromKey(key);
+          const isPrimary = key === "primary" || (primaryKey != null && key === primaryKey);
+          const fallback = isPrimary
+            ? DEFAULT_EVENT_COLOR
+            : deterministicColorFromKey(key);
           if (fallback) colorByCalendarId.set(key, fallback);
         }
       }
       if (!colorByCalendarId.has("primary")) {
-        const primaryFromList = Array.isArray(calendarsResult?.data)
-          ? calendarsResult.data.find((c) => c?.is_primary || c?.isPrimary)
-          : null;
-        const primaryKey = primaryFromList?.id != null ? String(primaryFromList.id) : null;
         if (primaryKey && colorByCalendarId.has(primaryKey)) {
           colorByCalendarId.set("primary", colorByCalendarId.get(primaryKey));
+        } else {
+          colorByCalendarId.set("primary", DEFAULT_EVENT_COLOR);
         }
       }
 

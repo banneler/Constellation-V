@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=111';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=112';
 import {
     TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
     TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
@@ -41,8 +41,9 @@ import {
     normalizeEventColor as geoNormalizeEventColor,
     colorFromGoogleColorId as geoColorFromGoogleColorId,
     deterministicColorFromKey as geoDeterministicColorFromKey,
+    DEFAULT_EVENT_COLOR,
     GOOGLE_EVENT_COLOR_IDS,
-} from './cc-calendar-geometry.mjs?v=111';
+} from './cc-calendar-geometry.mjs?v=112';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -247,9 +248,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (fromName) return fromName;
         }
 
-        if (calId) return geoDeterministicColorFromKey(calId);
+        if (calId === "primary") return DEFAULT_EVENT_COLOR;
+        if (calId) {
+            const byIdForPrimary = cals.find((c) => c && String(c.id) === calId);
+            if (byIdForPrimary?.isPrimary) return DEFAULT_EVENT_COLOR;
+            return geoDeterministicColorFromKey(calId);
+        }
         if (calName) return geoDeterministicColorFromKey(calName);
-        return null;
+        return DEFAULT_EVENT_COLOR;
     }
 
     /**

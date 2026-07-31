@@ -196,13 +196,20 @@ export const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
     24: "#A47AE2",
 });
 
+/**
+ * Constellation brand blue — matches `--primary-blue` / primary buttons & links.
+ * Used when Google/Nylas provide no event or calendar color.
+ */
+export const DEFAULT_EVENT_COLOR = "#3B82F6";
+
+/** Stable distinct palette when provider returns no hex / colorId. */
 const FALLBACK_CALENDAR_PALETTE = Object.freeze([
-    "#039BE5",
+    DEFAULT_EVENT_COLOR, // was Google peacock #039BE5 — brand default first
     "#D50000",
     "#F4511E",
     "#F6BF26",
-    "#0B8043",
-    "#33B679",
+    "#EF6C00", // was basil mint #0B8043
+    "#5E35B1", // was sage mint #33B679
     "#8E24AA",
     "#E67C73",
     "#3F51B5",

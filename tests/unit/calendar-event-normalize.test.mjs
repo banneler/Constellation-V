@@ -9,6 +9,8 @@ const {
     colorFromGoogleColorId,
     colorFromGoogleCalendarColorId,
     deterministicColorFromKey,
+    DEFAULT_EVENT_COLOR,
+    FALLBACK_CALENDAR_PALETTE,
     parseEventWhen,
     normalizeCalendarEvent,
     buildCalendarColorMap,
@@ -194,6 +196,31 @@ describe('calendar-event-normalize colors', () => {
         assert.ok(map.get('work-cal'));
         assert.ok(map.get('stuff-cal'));
         assert.notEqual(map.get('work-cal'), map.get('stuff-cal'));
+    });
+
+    it('primary / no-provider-color defaults to Constellation blue, not mint', () => {
+        assert.equal(DEFAULT_EVENT_COLOR, '#3B82F6');
+        assert.equal(FALLBACK_CALENDAR_PALETTE[0], DEFAULT_EVENT_COLOR);
+        assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#0B8043'));
+        assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#33B679'));
+
+        const map = buildCalendarColorMap({
+            data: [{ id: 'primary-cal', name: 'Primary', hex_color: null, is_primary: true }],
+        });
+        assert.equal(map.get('primary-cal'), DEFAULT_EVENT_COLOR);
+        assert.equal(map.get('primary'), DEFAULT_EVENT_COLOR);
+
+        const ev = normalizeCalendarEvent(
+            {
+                id: 'e-default',
+                title: 'No color event',
+                calendar_id: 'primary',
+                when: { start_time: 1000, end_time: 1900 },
+            },
+            { colorByCalendarId: new Map() }
+        );
+        assert.equal(ev.color, DEFAULT_EVENT_COLOR);
+        assert.equal(ev.colorSource, 'default');
     });
 
     it('same primary calendar + different color_id paints Test3 ≠ Test Event ≠ Discovery', () => {

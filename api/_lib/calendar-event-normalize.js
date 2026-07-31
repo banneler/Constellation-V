@@ -93,14 +93,20 @@ const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
   24: "#A47AE2",
 });
 
+/**
+ * Constellation brand blue — matches `--primary-blue` / primary buttons & links.
+ * Used when Google/Nylas provide no event or calendar color.
+ */
+const DEFAULT_EVENT_COLOR = "#3B82F6";
+
 /** Stable distinct palette when provider returns no hex / colorId. */
 const FALLBACK_CALENDAR_PALETTE = Object.freeze([
-  "#039BE5",
+  DEFAULT_EVENT_COLOR, // was Google peacock #039BE5 — brand default first
   "#D50000",
   "#F4511E",
   "#F6BF26",
-  "#0B8043",
-  "#33B679",
+  "#EF6C00", // was basil mint #0B8043
+  "#5E35B1", // was sage mint #33B679
   "#8E24AA",
   "#E67C73",
   "#3F51B5",
@@ -188,7 +194,12 @@ function buildCalendarColorMap(calendarsPayload, { fillMissing = true } = {}) {
     if (!id) continue;
     let color = extractCalendarHexColor(cal);
     if (!color && fillMissing) {
-      color = deterministicColorFromKey(id) || deterministicColorFromKey(cal.name);
+      // Primary / no-provider-color → Constellation blue (not mint hash).
+      if (cal?.is_primary || cal?.isPrimary) {
+        color = DEFAULT_EVENT_COLOR;
+      } else {
+        color = deterministicColorFromKey(id) || deterministicColorFromKey(cal.name);
+      }
     }
     if (color) map.set(id, color);
     if (cal?.is_primary || cal?.isPrimary) {
@@ -430,9 +441,15 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId, labelCol
   } else if (calKey === "primary" && normalizeHexColor(colorByCalendarId?.get?.("primary"))) {
     color = normalizeHexColor(colorByCalendarId.get("primary"));
     colorSource = "calendar";
+  } else if (calKey === "primary") {
+    color = DEFAULT_EVENT_COLOR;
+    colorSource = "default";
   } else if (calKey) {
     color = deterministicColorFromKey(calKey);
     colorSource = color ? "deterministic" : null;
+  } else {
+    color = DEFAULT_EVENT_COLOR;
+    colorSource = "default";
   }
 
   return {
@@ -512,6 +529,7 @@ module.exports = {
   colorFromGoogleColorId,
   colorFromGoogleCalendarColorId,
   deterministicColorFromKey,
+  DEFAULT_EVENT_COLOR,
   GOOGLE_EVENT_COLOR_IDS,
   GOOGLE_CALENDAR_COLOR_IDS,
   FALLBACK_CALENDAR_PALETTE,

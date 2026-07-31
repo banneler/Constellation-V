@@ -17,12 +17,12 @@
   z-index: 3;
   background-color: color-mix(
     in srgb,
-    var(--cc-event-color, var(--primary-blue)) 40%,
+    var(--cc-event-color, var(--primary-blue, #3b82f6)) 40%,
     var(--bg-light)
   ) !important;
-  border-left: 3px solid var(--cc-event-color, var(--primary-blue)) !important;
+  border-left: 3px solid var(--cc-event-color, var(--primary-blue, #3b82f6)) !important;
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 45%, transparent) !important;
+    color-mix(in srgb, var(--cc-event-color, var(--primary-blue, #3b82f6)) 45%, transparent) !important;
 }
 
 .cc-day-timeline-event:focus-visible {
@@ -53,8 +53,8 @@
 /* Google/Nylas hex_color — solid label colors on bullets/dots (inline + data-attr) */
 .cc-event-bullet,
 .cc-month-dot {
-  background-color: var(--cc-event-color, var(--primary-blue)) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 55%, transparent);
+  background-color: var(--cc-event-color, var(--primary-blue, #3b82f6)) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue, #3b82f6)) 55%, transparent);
 }
 .cc-event-bullet[data-event-color],
 .cc-month-dot[data-event-color] {
@@ -106,6 +106,11 @@
 .cc-event-duration-pill--active {
   border-color: var(--primary-blue);
   background-color: color-mix(in srgb, var(--primary-blue) 22%, var(--bg-medium));
+}
+
+/* Calendar-default color swatch = Constellation blue (not muted stripe) */
+.cc-event-color-swatch--default {
+  background: var(--primary-blue, #3b82f6) !important;
 }
 
 /* Event modal snap-scroll time wheels (7:00–18:00, 15-min steps) */
