@@ -321,18 +321,32 @@
 }
 
 /* Feed lists — mirror Command Center Recent Activities density on Insights */
+.insights-feeds-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+
 .insights-feed-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-bottom: 0;
     overflow: hidden;
 }
 
 .insights-feed-card .section-card-header {
+    flex-shrink: 0;
     align-items: flex-start;
 }
 
 .insights-feed-list.recent-activities-list {
-    flex: none;
-    max-height: min(32rem, 70vh);
-    min-height: 0;
+    flex: 1 1 auto;
+    min-height: 36rem;
+    max-height: min(52rem, 80vh);
+    overflow-x: hidden;
+    overflow-y: auto;
     border-top: 1px solid var(--border-color);
 }
 
@@ -381,8 +395,14 @@
 }
 
 @media (max-width: 980px) {
-    .insights-modules-grid {
+    .insights-modules-grid,
+    .insights-feeds-grid {
         grid-template-columns: 1fr;
+    }
+
+    .insights-feed-list.recent-activities-list {
+        min-height: 24rem;
+        max-height: min(40rem, 70vh);
     }
 
     .insights-core-charts.charts-grid {
