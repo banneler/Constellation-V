@@ -168,8 +168,71 @@ export const GOOGLE_EVENT_COLOR_IDS = Object.freeze({
     11: "#DC2127",
 });
 
+/** Google Calendar list colorId ("1"…"24") → background hex. */
+export const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
+    1: "#AC725E",
+    2: "#D06B64",
+    3: "#F83A22",
+    4: "#FA573C",
+    5: "#FF7537",
+    6: "#FFAD46",
+    7: "#42D692",
+    8: "#16A765",
+    9: "#7BD148",
+    10: "#B3DC6C",
+    11: "#FBE983",
+    12: "#FAD165",
+    13: "#92E1C0",
+    14: "#9FE1E7",
+    15: "#9FC6E7",
+    16: "#4986E7",
+    17: "#9A9CFF",
+    18: "#B99AFF",
+    19: "#C2C2C2",
+    20: "#CABDBF",
+    21: "#CCA6AC",
+    22: "#F691B2",
+    23: "#CD74E6",
+    24: "#A47AE2",
+});
+
+const FALLBACK_CALENDAR_PALETTE = Object.freeze([
+    "#039BE5",
+    "#D50000",
+    "#F4511E",
+    "#F6BF26",
+    "#0B8043",
+    "#33B679",
+    "#8E24AA",
+    "#E67C73",
+    "#3F51B5",
+    "#7986CB",
+    "#E4C441",
+    "#616161",
+]);
+
 export function colorFromGoogleColorId(colorId) {
     if (colorId == null || colorId === "") return null;
     const key = String(colorId).trim();
     return GOOGLE_EVENT_COLOR_IDS[key] || GOOGLE_EVENT_COLOR_IDS[Number(key)] || null;
+}
+
+export function colorFromGoogleCalendarColorId(colorId) {
+    if (colorId == null || colorId === "") return null;
+    const key = String(colorId).trim();
+    return GOOGLE_CALENDAR_COLOR_IDS[key] || GOOGLE_CALENDAR_COLOR_IDS[Number(key)] || null;
+}
+
+/** Stable distinct hex from calendar id/name when provider hex is missing. */
+export function deterministicColorFromKey(key) {
+    const s = String(key || "").trim();
+    if (!s) return null;
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    // Force unsigned — JS `%` of a negative imul result indexes as undefined.
+    const idx = (h >>> 0) % FALLBACK_CALENDAR_PALETTE.length;
+    return FALLBACK_CALENDAR_PALETTE[idx];
 }

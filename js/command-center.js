@@ -1366,7 +1366,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const colorAttr = color ? ` data-event-color="${escapeHtml(color)}"` : "";
                 // Inline hex so Google label colors survive CSS cache / inheritance gaps.
                 const colorInline = color
-                    ? `--cc-event-color:${color};border-left-color:${color};background-color:color-mix(in srgb,${color} 22%,var(--bg-light));`
+                    ? `--cc-event-color:${color};border-left-color:${color};border-left-width:3px;background-color:color-mix(in srgb,${color} 40%,var(--bg-light));box-shadow:inset 0 0 0 1px color-mix(in srgb,${color} 45%,transparent);`
                     : "";
                 return `
                     <div class="${classes.join(" ")}" role="button" tabindex="0" aria-label="Edit ${escapeHtml(ev.title || "event")}"${eventIdAttr}${colorAttr} style="position:absolute;${horizStyle}top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;pointer-events:auto;cursor:pointer;overflow:hidden;box-sizing:border-box;${colorInline}" title="${escapeHtml(ev.title || "(No title)")} — click to edit" data-duration-min="${Math.round(durationMin)}" data-start-min="${Math.round(clampedStart)}" data-col="${pack.columnIndex}" data-col-count="${pack.columnCount}">
@@ -1512,7 +1512,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }),
             ]);
             monthViewEvents = enrichEventsWithCalendarColors(
-                Array.isArray(data?.events) ? data.events : []
+                Array.isArray(data?.events) ? data.events : [],
+                data
             );
             renderMonthGrid();
         } catch (error) {
@@ -1773,7 +1774,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }),
             ]);
             const events = enrichEventsWithCalendarColors(
-                Array.isArray(data?.events) ? data.events : []
+                Array.isArray(data?.events) ? data.events : [],
+                data
             );
 
             if (!events.length) {

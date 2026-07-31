@@ -7,9 +7,12 @@ const {
     parseUnixSeconds,
     normalizeHexColor,
     colorFromGoogleColorId,
+    colorFromGoogleCalendarColorId,
+    deterministicColorFromKey,
     parseEventWhen,
     normalizeCalendarEvent,
     buildCalendarColorMap,
+    extractCalendarHexColor,
 } = require('../../api/_lib/calendar-event-normalize.js');
 
 describe('calendar-event-normalize when parse', () => {
@@ -94,5 +97,82 @@ describe('calendar-event-normalize colors', () => {
         );
         assert.equal(ev.color, '#DC2127');
         assert.equal(ev.colorId, '11');
+    });
+
+    it('maps Google calendar-list colorId when hex_color is null', () => {
+        assert.equal(colorFromGoogleCalendarColorId('3'), '#F83A22');
+        assert.equal(colorFromGoogleCalendarColorId('16'), '#4986E7');
+        assert.equal(
+            extractCalendarHexColor({ id: 'work', name: 'Work', hex_color: null, color_id: '3' }),
+            '#F83A22'
+        );
+    });
+
+    it('does not paint Work/Stuff with primary color when their hex is missing', () => {
+        // Primary hex chosen outside the deterministic fallback palette.
+        const primaryHex = '#112233';
+        const colorByCalendarId = buildCalendarColorMap(
+            {
+                data: [
+                    { id: 'primary-cal', hex_color: primaryHex, is_primary: true },
+                    { id: 'work-cal', name: 'Work', hex_color: null },
+                    { id: 'stuff-cal', name: 'Stuff', hex_color: null },
+                ],
+            },
+            { fillMissing: false }
+        );
+        assert.equal(colorByCalendarId.get('primary-cal'), primaryHex);
+        assert.equal(colorByCalendarId.get('work-cal'), undefined);
+
+        const workEv = normalizeCalendarEvent(
+            {
+                id: 'e-work',
+                title: 'Work meeting',
+                calendar_id: 'work-cal',
+                when: { start_time: 1000, end_time: 1900 },
+            },
+            {
+                // Bug regress: old code passed primary hex as calendarColor for every cal.
+                calendarColor: null,
+                colorByCalendarId,
+            }
+        );
+        const stuffEv = normalizeCalendarEvent(
+            {
+                id: 'e-stuff',
+                title: 'Stuff block',
+                calendar_id: 'stuff-cal',
+                when: { start_time: 2000, end_time: 2900 },
+            },
+            { calendarColor: null, colorByCalendarId }
+        );
+        const primaryEv = normalizeCalendarEvent(
+            {
+                id: 'e-pri',
+                title: 'Primary',
+                calendar_id: 'primary-cal',
+                when: { start_time: 3000, end_time: 3900 },
+            },
+            { calendarColor: primaryHex, colorByCalendarId }
+        );
+
+        assert.equal(primaryEv.color, primaryHex);
+        assert.notEqual(workEv.color, primaryHex);
+        assert.notEqual(stuffEv.color, primaryHex);
+        assert.notEqual(workEv.color, stuffEv.color);
+        assert.equal(workEv.color, deterministicColorFromKey('work-cal'));
+        assert.equal(stuffEv.color, deterministicColorFromKey('stuff-cal'));
+    });
+
+    it('fillMissing assigns stable distinct colors for Work/Stuff', () => {
+        const map = buildCalendarColorMap({
+            data: [
+                { id: 'work-cal', name: 'Work', hex_color: null },
+                { id: 'stuff-cal', name: 'Stuff', hex_color: null },
+            ],
+        });
+        assert.ok(map.get('work-cal'));
+        assert.ok(map.get('stuff-cal'));
+        assert.notEqual(map.get('work-cal'), map.get('stuff-cal'));
     });
 });

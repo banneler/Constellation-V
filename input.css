@@ -969,9 +969,9 @@ body.theme-green {
         pointer-events: auto;
         cursor: pointer;
         box-sizing: border-box;
-        background-color: color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 22%, var(--bg-light));
-        border-left: 2px solid var(--cc-event-color, var(--primary-blue));
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 25%, transparent);
+        background-color: color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 40%, var(--bg-light));
+        border-left: 3px solid var(--cc-event-color, var(--primary-blue));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 45%, transparent);
         min-height: 0;
     }
     .cc-day-timeline-event-body {

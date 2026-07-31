@@ -15,6 +15,7 @@ const {
   buildCalendarColorMap,
   normalizeCalendarEvent,
   assertTimelineBusinessHours,
+  deterministicColorFromKey,
 } = require("../../_lib/calendar-event-normalize");
 
 function looksLikeHolidayCalendar(cal) {
@@ -25,7 +26,9 @@ function looksLikeHolidayCalendar(cal) {
 /**
  * Calendar ids to query for GET events.
  * - Explicit `calendarId` → that calendar only
- * - Omitted / `all` → writable non-holiday labels (so Google label colors appear)
+ * - Omitted / `all` → all non-holiday calendars (owned + subscribed), writable first.
+ *   Work/Stuff and other Google labels must be included even when Nylas marks some
+ *   entries read_only; only holiday/weather/birthday junk is skipped.
  */
 function resolveListCalendarIds(calendarIdParam, calendarsResult, colorByCalendarId) {
   const raw = Array.isArray(calendarsResult?.data)
@@ -36,10 +39,18 @@ function resolveListCalendarIds(calendarIdParam, calendarsResult, colorByCalenda
   if (calendarIdParam && calendarIdParam !== "all") {
     return [String(calendarIdParam)];
   }
-  const writable = raw.filter(
-    (c) => c?.id && !(c.read_only ?? c.readOnly) && !looksLikeHolidayCalendar(c)
-  );
-  const ids = writable.map((c) => String(c.id));
+  const usable = raw.filter((c) => c?.id && !looksLikeHolidayCalendar(c));
+  // Writable first, then read-only subscribed labels (still colored in Google).
+  usable.sort((a, b) => {
+    const ar = Boolean(a.read_only ?? a.readOnly);
+    const br = Boolean(b.read_only ?? b.readOnly);
+    if (ar !== br) return ar ? 1 : -1;
+    const ap = Boolean(a.is_primary ?? a.isPrimary);
+    const bp = Boolean(b.is_primary ?? b.isPrimary);
+    if (ap !== bp) return ap ? -1 : 1;
+    return 0;
+  });
+  const ids = usable.map((c) => String(c.id));
   if (ids.length) return ids;
   if (colorByCalendarId?.has?.("primary")) return ["primary"];
   if (raw[0]?.id) return [String(raw[0].id)];
@@ -79,35 +90,64 @@ module.exports = async function handler(req, res) {
           return null;
         }
       );
-      const colorByCalendarId = buildCalendarColorMap(calendarsResult);
+      // fillMissing:false — prefer real provider hex; we'll enrich + fill after getCalendar.
+      const colorByCalendarId = buildCalendarColorMap(calendarsResult, { fillMissing: false });
       const calendarIds = resolveListCalendarIds(calendarIdParam, calendarsResult, colorByCalendarId);
 
-      // Targeted getCalendar fills hex when list omitted it (esp. primary).
-      const primaryLookupId = calendarIds.includes("primary")
-        ? "primary"
-        : calendarIds[0] || "primary";
-      const calendarResult = await getCalendar(integration.nylas_grant_id, primaryLookupId).catch(
-        (err) => {
-          console.warn("[api/integrations/calendar/events] calendar color lookup failed:", err?.message || err);
-          return null;
-        }
+      // getCalendar for EVERY listed id whose hex is missing. Prior fix only enriched
+      // primary, so Work/Stuff with null list hex_color inherited primary blue.
+      const idsNeedingColor = calendarIds.filter((id) => !colorByCalendarId.has(String(id)));
+      const colorLookups = await Promise.all(
+        idsNeedingColor.map((calId) =>
+          getCalendar(integration.nylas_grant_id, calId)
+            .then((payload) => ({ calId, payload }))
+            .catch((err) => {
+              console.warn(
+                "[api/integrations/calendar/events] calendar color lookup failed:",
+                calId,
+                err?.message || err
+              );
+              return { calId, payload: null };
+            })
+        )
       );
-      const calendarColor =
-        extractCalendarHexColor(calendarResult) ||
-        colorByCalendarId.get(String(primaryLookupId)) ||
-        colorByCalendarId.get("primary") ||
-        null;
-      if (calendarColor) {
-        if (!colorByCalendarId.has(String(primaryLookupId))) {
-          colorByCalendarId.set(String(primaryLookupId), calendarColor);
-        }
-        if (!colorByCalendarId.has("primary")) {
-          colorByCalendarId.set("primary", calendarColor);
+      for (const { calId, payload } of colorLookups) {
+        const hex = extractCalendarHexColor(payload);
+        if (hex) {
+          colorByCalendarId.set(String(calId), hex);
+          const cal = payload?.data || payload || {};
+          if (cal.is_primary || cal.isPrimary) colorByCalendarId.set("primary", hex);
         }
       }
 
+      // Stable distinct colors for any calendar still missing hex (sandbox nulls).
+      for (const calId of calendarIds) {
+        const key = String(calId);
+        if (!colorByCalendarId.has(key)) {
+          const fallback = deterministicColorFromKey(key);
+          if (fallback) colorByCalendarId.set(key, fallback);
+        }
+      }
+      if (!colorByCalendarId.has("primary")) {
+        const primaryFromList = Array.isArray(calendarsResult?.data)
+          ? calendarsResult.data.find((c) => c?.is_primary || c?.isPrimary)
+          : null;
+        const primaryKey = primaryFromList?.id != null ? String(primaryFromList.id) : null;
+        if (primaryKey && colorByCalendarId.has(primaryKey)) {
+          colorByCalendarId.set("primary", colorByCalendarId.get(primaryKey));
+        }
+      }
+
+      const calendarColor =
+        colorByCalendarId.get("primary") ||
+        colorByCalendarId.get(String(calendarIds[0] || "")) ||
+        null;
+
       // Per-calendar list (Nylas requires calendar_id). Merge + dedupe by event id.
-      const perCalLimit = Math.min(100, Math.max(limit, Math.ceil(limit / Math.max(1, calendarIds.length)) * 2));
+      const perCalLimit = Math.min(
+        100,
+        Math.max(limit, Math.ceil((limit * 2) / Math.max(1, calendarIds.length)) + 5)
+      );
       const listResults = await Promise.all(
         calendarIds.map((calId) =>
           listEvents(integration.nylas_grant_id, {
@@ -132,7 +172,8 @@ module.exports = async function handler(req, res) {
         const result = listResults[i];
         const calId = calendarIds[i];
         const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-        const fallbackColor = colorByCalendarId.get(String(calId)) || calendarColor;
+        // ONLY this calendar's color — never bleed primary onto Work/Stuff.
+        const fallbackColor = colorByCalendarId.get(String(calId)) || null;
         for (const ev of raw) {
           const id = ev?.id != null ? String(ev.id) : null;
           if (id && seen.has(id)) continue;
@@ -152,12 +193,14 @@ module.exports = async function handler(req, res) {
 
       events.sort((a, b) => a.startTime - b.startTime);
       const sliced = events.slice(0, limit);
+      const calendarColors = Object.fromEntries(colorByCalendarId.entries());
 
       return sendJson(res, 200, {
         ok: true,
         provider: integration.provider,
         calendarColor,
         calendarIds,
+        calendarColors,
         events: sliced,
       });
     }

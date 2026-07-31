@@ -5,29 +5,19 @@ const {
   getUserIntegration,
   listCalendars,
 } = require("../../_lib/nylas");
-
-/** Normalize provider/calendar hex colors to `#RRGGBB` (or null). */
-function normalizeHexColor(value) {
-  if (value == null) return null;
-  const raw = String(value).trim();
-  if (!raw) return null;
-  const withHash = raw.startsWith("#") ? raw : `#${raw}`;
-  if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) return withHash.toUpperCase();
-  if (/^#[0-9A-Fa-f]{3}$/.test(withHash)) {
-    const [, r, g, b] = withHash;
-    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
-  }
-  return null;
-}
+const {
+  extractCalendarHexColor,
+  deterministicColorFromKey,
+} = require("../../_lib/calendar-event-normalize");
 
 function normalizeCalendar(cal) {
   const id = cal?.id ? String(cal.id) : null;
   if (!id) return null;
   const name = (cal?.name && String(cal.name).trim()) || "Calendar";
   const color =
-    normalizeHexColor(cal?.hex_color) ||
-    normalizeHexColor(cal?.hexColor) ||
-    normalizeHexColor(cal?.color) ||
+    extractCalendarHexColor(cal) ||
+    deterministicColorFromKey(id) ||
+    deterministicColorFromKey(name) ||
     null;
   return {
     id,

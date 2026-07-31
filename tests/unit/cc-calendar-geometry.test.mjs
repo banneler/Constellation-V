@@ -9,6 +9,7 @@ import {
     columnPlacement,
     normalizeEventColor,
     colorFromGoogleColorId,
+    deterministicColorFromKey,
 } from '../../js/cc-calendar-geometry.mjs';
 
 function dayKeyFromDate(d) {
@@ -112,5 +113,14 @@ describe('cc-calendar-geometry colors', () => {
     it('maps Google color_id palette', () => {
         assert.equal(colorFromGoogleColorId('9'), '#5484ED');
         assert.equal(colorFromGoogleColorId(null), null);
+    });
+
+    it('deterministicColorFromKey keeps Work and Stuff distinct', () => {
+        const work = deterministicColorFromKey('work-cal');
+        const stuff = deterministicColorFromKey('stuff-cal');
+        assert.ok(work);
+        assert.ok(stuff);
+        assert.notEqual(work, stuff);
+        assert.equal(work, deterministicColorFromKey('work-cal'));
     });
 });

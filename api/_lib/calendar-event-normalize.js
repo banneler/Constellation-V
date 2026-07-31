@@ -49,19 +49,100 @@ const GOOGLE_EVENT_COLOR_IDS = Object.freeze({
   11: "#DC2127",
 });
 
-/** Map Google/Nylas `color_id` ("1"…"11") to `#RRGGBB`, or null. */
+/**
+ * Google Calendar *list* colorId (calendar labels) → background hex.
+ * Distinct from event color_id (1–11). Used when Nylas omits hex_color.
+ * @see https://developers.google.com/calendar/api/v3/reference/colors
+ */
+const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
+  1: "#AC725E",
+  2: "#D06B64",
+  3: "#F83A22",
+  4: "#FA573C",
+  5: "#FF7537",
+  6: "#FFAD46",
+  7: "#42D692",
+  8: "#16A765",
+  9: "#7BD148",
+  10: "#B3DC6C",
+  11: "#FBE983",
+  12: "#FAD165",
+  13: "#92E1C0",
+  14: "#9FE1E7",
+  15: "#9FC6E7",
+  16: "#4986E7",
+  17: "#9A9CFF",
+  18: "#B99AFF",
+  19: "#C2C2C2",
+  20: "#CABDBF",
+  21: "#CCA6AC",
+  22: "#F691B2",
+  23: "#CD74E6",
+  24: "#A47AE2",
+});
+
+/** Stable distinct palette when provider returns no hex / colorId. */
+const FALLBACK_CALENDAR_PALETTE = Object.freeze([
+  "#039BE5",
+  "#D50000",
+  "#F4511E",
+  "#F6BF26",
+  "#0B8043",
+  "#33B679",
+  "#8E24AA",
+  "#E67C73",
+  "#3F51B5",
+  "#7986CB",
+  "#E4C441",
+  "#616161",
+]);
+
+/** Map Google/Nylas event `color_id` ("1"…"11") to `#RRGGBB`, or null. */
 function colorFromGoogleColorId(colorId) {
   if (colorId == null || colorId === "") return null;
   const key = String(colorId).trim();
   return GOOGLE_EVENT_COLOR_IDS[key] || GOOGLE_EVENT_COLOR_IDS[Number(key)] || null;
 }
 
+/** Map Google calendar-list colorId ("1"…"24") to `#RRGGBB`, or null. */
+function colorFromGoogleCalendarColorId(colorId) {
+  if (colorId == null || colorId === "") return null;
+  const key = String(colorId).trim();
+  return GOOGLE_CALENDAR_COLOR_IDS[key] || GOOGLE_CALENDAR_COLOR_IDS[Number(key)] || null;
+}
+
+/** Deterministic `#RRGGBB` from calendar id/name so Work ≠ Stuff when hex is missing. */
+function deterministicColorFromKey(key) {
+  const s = String(key || "").trim();
+  if (!s) return null;
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  // Force unsigned — JS `%` of a negative imul result indexes as undefined.
+  const idx = (h >>> 0) % FALLBACK_CALENDAR_PALETTE.length;
+  return FALLBACK_CALENDAR_PALETTE[idx];
+}
+
+/**
+ * Resolve a calendar label hex from a Nylas/Google calendar object.
+ * Prefers hex_color; falls back to calendar-list colorId / backgroundColor.
+ */
 function extractCalendarHexColor(calendarPayload) {
   const cal = calendarPayload?.data || calendarPayload || {};
+  const meta = cal.metadata && typeof cal.metadata === "object" ? cal.metadata : {};
+  const calendarColorId =
+    cal.color_id ?? cal.colorId ?? meta.color_id ?? meta.colorId ?? meta.color ?? null;
   return (
     normalizeHexColor(cal.hex_color) ||
     normalizeHexColor(cal.hexColor) ||
+    normalizeHexColor(cal.backgroundColor) ||
+    normalizeHexColor(cal.background_color) ||
+    // Bare `color` may be hex OR a Google colorId ("1"…"24") — try hex first.
     normalizeHexColor(cal.color) ||
+    colorFromGoogleCalendarColorId(cal.color) ||
+    colorFromGoogleCalendarColorId(calendarColorId) ||
     null
   );
 }
@@ -69,25 +150,38 @@ function extractCalendarHexColor(calendarPayload) {
 /**
  * Build calendar_id → `#RRGGBB` from a Nylas calendars list payload/array.
  * Also indexes `"primary"` to the primary calendar's color when present.
+ * When hex is missing, assigns a stable deterministic color per id so labels
+ * like Work/Stuff never collapse to the same primary blue.
  */
-function buildCalendarColorMap(calendarsPayload) {
+function buildCalendarColorMap(calendarsPayload, { fillMissing = true } = {}) {
   const raw = Array.isArray(calendarsPayload?.data)
     ? calendarsPayload.data
     : Array.isArray(calendarsPayload)
       ? calendarsPayload
       : [];
   const map = new Map();
+  let primaryId = null;
   let primaryColor = null;
   for (const cal of raw) {
     const id = cal?.id != null ? String(cal.id) : null;
-    const color = extractCalendarHexColor(cal);
-    if (id && color) map.set(id, color);
-    if ((cal?.is_primary || cal?.isPrimary) && color) {
-      primaryColor = color;
-      map.set("primary", color);
+    if (!id) continue;
+    let color = extractCalendarHexColor(cal);
+    if (!color && fillMissing) {
+      color = deterministicColorFromKey(id) || deterministicColorFromKey(cal.name);
+    }
+    if (color) map.set(id, color);
+    if (cal?.is_primary || cal?.isPrimary) {
+      primaryId = id;
+      if (color) {
+        primaryColor = color;
+        map.set("primary", color);
+      }
     }
   }
   if (primaryColor && !map.has("primary")) map.set("primary", primaryColor);
+  if (primaryId && map.has(primaryId) && !map.has("primary")) {
+    map.set("primary", map.get(primaryId));
+  }
   return map;
 }
 
@@ -155,16 +249,22 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
   const description = stripHtml(rawDesc).slice(0, 160) || null;
   const calendarId = ev?.calendar_id || ev?.calendarId || null;
   const colorId = ev?.color_id ?? ev?.colorId ?? null;
+  const calKey = calendarId != null ? String(calendarId) : "";
 
-  // Event color_id (Google override) → calendar label hex → request calendar → event hex.
+  // Event color_id (Google override) → this calendar's hex → per-request calendar
+  // color (must be THAT calendar, not primary bleed) → event hex → stable id hash.
+  // Do NOT fall back to primary when the event belongs to another label (Work/Stuff).
   const color =
     colorFromGoogleColorId(colorId) ||
-    normalizeHexColor(calendarId && colorByCalendarId?.get?.(String(calendarId))) ||
+    normalizeHexColor(calKey && colorByCalendarId?.get?.(calKey)) ||
     normalizeHexColor(calendarColor) ||
-    normalizeHexColor(colorByCalendarId?.get?.("primary")) ||
     normalizeHexColor(ev?.hex_color) ||
     normalizeHexColor(ev?.hexColor) ||
     normalizeHexColor(ev?.color) ||
+    (calKey === "primary"
+      ? normalizeHexColor(colorByCalendarId?.get?.("primary"))
+      : null) ||
+    (calKey ? deterministicColorFromKey(calKey) : null) ||
     null;
 
   return {
@@ -238,7 +338,11 @@ module.exports = {
   parseUnixSeconds,
   normalizeHexColor,
   colorFromGoogleColorId,
+  colorFromGoogleCalendarColorId,
+  deterministicColorFromKey,
   GOOGLE_EVENT_COLOR_IDS,
+  GOOGLE_CALENDAR_COLOR_IDS,
+  FALLBACK_CALENDAR_PALETTE,
   extractCalendarHexColor,
   buildCalendarColorMap,
   parseEventWhen,
