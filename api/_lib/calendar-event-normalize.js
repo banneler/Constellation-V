@@ -153,6 +153,59 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
   };
 }
 
+/** Command Center day timeline window (local minutes from midnight). */
+const TIMELINE_START_MIN = 7 * 60;
+const TIMELINE_END_MIN = 18 * 60;
+
+/**
+ * Local minutes-from-midnight for a unix timestamp using a browser-style
+ * `Date#getTimezoneOffset()` value (minutes to add to local to get UTC).
+ */
+function localMinutesFromUnix(unixSec, timezoneOffsetMin) {
+  const sec = parseUnixSeconds(unixSec);
+  if (sec == null || !Number.isFinite(Number(timezoneOffsetMin))) return null;
+  const shifted = sec * 1000 - Number(timezoneOffsetMin) * 60 * 1000;
+  const d = new Date(shifted);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
+}
+
+function parseHhMmToMinutes(timeStr) {
+  if (timeStr == null || timeStr === "") return null;
+  const m = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
+ * Require start/end within 7:00–18:00 local when the client sends either
+ * `localStart`/`localEnd` (HH:MM) or `timezoneOffsetMin` (Date#getTimezoneOffset).
+ * Skips when neither is provided (backward compatible for non–Command Center callers).
+ */
+function assertTimelineBusinessHours(startTime, endTime, timezoneOffsetMin, localStart, localEnd) {
+  let startMin = parseHhMmToMinutes(localStart);
+  let endMin = parseHhMmToMinutes(localEnd);
+  if (startMin == null || endMin == null) {
+    if (timezoneOffsetMin == null || timezoneOffsetMin === "") return;
+    const offset = Number(timezoneOffsetMin);
+    if (!Number.isFinite(offset)) return;
+    startMin = localMinutesFromUnix(startTime, offset);
+    endMin = localMinutesFromUnix(endTime, offset);
+  }
+  if (startMin == null || endMin == null) {
+    throw Object.assign(new Error("Enter a valid date and time."), { status: 400 });
+  }
+  if (startMin < TIMELINE_START_MIN || endMin > TIMELINE_END_MIN || endMin <= startMin) {
+    throw Object.assign(
+      new Error("Event times must be between 7:00 AM and 6:00 PM. Use Google or Outlook for earlier or later times."),
+      { status: 400 }
+    );
+  }
+}
+
 module.exports = {
   parseUnixSeconds,
   normalizeHexColor,
@@ -160,4 +213,8 @@ module.exports = {
   buildCalendarColorMap,
   parseEventWhen,
   normalizeCalendarEvent,
+  TIMELINE_START_MIN,
+  TIMELINE_END_MIN,
+  localMinutesFromUnix,
+  assertTimelineBusinessHours,
 };

@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail } from './integrations.js';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js';
 import {
     TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
     TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
@@ -383,6 +383,46 @@ document.addEventListener("DOMContentLoaded", async () => {
         return Math.floor(d.getTime() / 1000);
     }
 
+    /** HH:MM bounds for in-app create/edit (matches day timeline). */
+    const TIME_INPUT_MIN = minutesToTimeInputValue(TIMELINE_START_MIN);
+    const TIME_INPUT_MAX = minutesToTimeInputValue(TIMELINE_END_MIN);
+
+    /** Clamp a start/end minute pair into 7:00–18:00 with at least 15 minutes. */
+    function clampEventMinutesToDayWindow(startMin, endMin) {
+        let s = Number(startMin);
+        let e = Number(endMin);
+        if (!Number.isFinite(s)) s = TIMELINE_START_MIN;
+        if (!Number.isFinite(e)) e = s + 60;
+        s = Math.max(TIMELINE_START_MIN, Math.min(s, TIMELINE_END_MIN - 15));
+        e = Math.max(s + 15, Math.min(e, TIMELINE_END_MIN));
+        return { startMin: s, endMin: e };
+    }
+
+    /** Validate HH:MM inputs are inside 7:00–18:00 and end > start. */
+    function validateInAppEventTimes(startStr, endStr) {
+        const startMin = timeInputValueToMinutes(startStr);
+        const endMin = timeInputValueToMinutes(endStr);
+        if (startMin == null || endMin == null) {
+            return { ok: false, message: "Enter a valid date and time." };
+        }
+        if (startMin < TIMELINE_START_MIN || endMin > TIMELINE_END_MIN) {
+            return {
+                ok: false,
+                message: "In-app events must stay within 7:00 AM–6:00 PM. Use Google or Outlook for earlier or later times.",
+            };
+        }
+        if (endMin <= startMin) {
+            return { ok: false, message: "End time must be after start time." };
+        }
+        return { ok: true, startMin, endMin };
+    }
+
+    function findMonthEventById(eventId) {
+        if (eventId == null || eventId === "") return null;
+        const id = String(eventId);
+        return (monthViewEvents || []).find((ev) => ev?.id != null && String(ev.id) === id) || null;
+    }
+
     async function ensureNylasCalendars({ force = false } = {}) {
         const CACHE_MS = 60_000;
         if (!force && cachedNylasCalendars && Date.now() - cachedNylasCalendarsAt < CACHE_MS) {
@@ -558,8 +598,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     /**
-     * @param {{ date?: string, start?: string, end?: string, calendarId?: string }} [prefill]
-     *   date = YYYY-MM-DD; start/end = HH:MM local
+     * Create or edit a calendar event (shared modal).
+     * @param {{
+     *   date?: string, start?: string, end?: string, calendarId?: string,
+     *   title?: string, description?: string,
+     *   mode?: 'create'|'edit', eventId?: string, excludeEventId?: string
+     * }} [prefill]
+     *   date = YYYY-MM-DD; start/end = HH:MM local (clamped to 7:00–18:00)
      */
     async function openAddCalendarEventForm(prefill = {}) {
         if (!calendarIntegrationState?.orgEnabled) return;
@@ -568,9 +613,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        const isEdit = prefill.mode === "edit" && Boolean(prefill.eventId);
+
         const startDefault = new Date();
         startDefault.setMinutes(0, 0, 0);
         startDefault.setHours(startDefault.getHours() + 1);
+        // Outside the day window → next business morning at 7:00.
+        if (localMinutesFromDate(startDefault) >= TIMELINE_END_MIN - 15) {
+            startDefault.setDate(startDefault.getDate() + 1);
+            startDefault.setHours(7, 0, 0, 0);
+        } else if (localMinutesFromDate(startDefault) < TIMELINE_START_MIN) {
+            startDefault.setHours(7, 0, 0, 0);
+        }
         const endDefault = new Date(startDefault.getTime() + 60 * 60 * 1000);
 
         let dateValue = prefill.date || toLocalDateInputValue(startDefault);
@@ -581,6 +635,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             endValue = minutesToTimeInputValue(startMin + 60);
         }
 
+        // In-app times always land inside the day timeline window.
+        {
+            const clamped = clampEventMinutesToDayWindow(
+                timeInputValueToMinutes(startValue) ?? TIMELINE_START_MIN,
+                timeInputValueToMinutes(endValue) ?? TIMELINE_START_MIN + 60
+            );
+            startValue = minutesToTimeInputValue(clamped.startMin);
+            endValue = minutesToTimeInputValue(clamped.endMin);
+        }
+
         const calendars = await ensureNylasCalendars();
         const selectedCalId = prefill.calendarId || defaultCalendarId(calendars);
         const selectedCal = writableCalendars(calendars).find((c) => c.id === selectedCalId);
@@ -589,34 +653,52 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? ` style="background-color: ${swatchColor}"`
             : ` style="background-color: var(--primary-blue)"`;
 
+        const titleValue = prefill.title != null ? String(prefill.title) : "";
+        const descValue = prefill.description != null ? String(prefill.description) : "";
+        // When editing, keep label read-only (Nylas update is scoped to the event's calendar).
+        const editLabelCalendars = [
+            selectedCal || {
+                id: selectedCalId,
+                name: "Primary",
+                isPrimary: true,
+                color: selectedCal?.color,
+            },
+        ];
+        const labelHtml = calendarLabelFieldHtml(
+            isEdit ? editLabelCalendars : calendars,
+            selectedCalId,
+            swatchStyle
+        );
+
         const bodyHtml = `
             <form id="cc-add-event-form" class="modal-form">
                 <label for="cc-event-title">Title</label>
-                <input type="text" id="cc-event-title" name="title" required placeholder="Event title" autocomplete="off">
-                ${calendarLabelFieldHtml(calendars, selectedCalId, swatchStyle)}
+                <input type="text" id="cc-event-title" name="title" required placeholder="Event title" autocomplete="off" value="${escapeHtml(titleValue)}">
+                ${labelHtml}
                 <label for="cc-event-date">Date</label>
                 <input type="date" id="cc-event-date" name="date" required value="${escapeHtml(dateValue)}">
                 <div class="modal-form-row">
                     <div>
                         <label for="cc-event-start">Start</label>
-                        <input type="time" id="cc-event-start" name="start" required value="${escapeHtml(startValue)}">
+                        <input type="time" id="cc-event-start" name="start" required min="${TIME_INPUT_MIN}" max="${TIME_INPUT_MAX}" value="${escapeHtml(startValue)}">
                     </div>
                     <div>
                         <label for="cc-event-end">End</label>
-                        <input type="time" id="cc-event-end" name="end" required value="${escapeHtml(endValue)}">
+                        <input type="time" id="cc-event-end" name="end" required min="${TIME_INPUT_MIN}" max="${TIME_INPUT_MAX}" value="${escapeHtml(endValue)}">
                     </div>
                 </div>
+                <p class="text-xs text-[var(--text-muted)]" style="margin:0.15rem 0 0.35rem">In-app times are limited to 7:00 AM–6:00 PM. Earlier or later events stay on Google/Outlook.</p>
                 <div class="cc-event-suggestions" id="cc-event-suggestions">
                     <div class="cc-event-suggestions-label">Available times</div>
                     <div class="cc-event-suggestions-list" id="cc-event-suggestions-list"></div>
                 </div>
                 <label for="cc-event-desc">Description <span class="text-[var(--text-muted)] font-normal">(optional)</span></label>
-                <textarea id="cc-event-desc" name="description" rows="3" placeholder="Notes for the invite"></textarea>
+                <textarea id="cc-event-desc" name="description" rows="3" placeholder="Notes for the invite">${escapeHtml(descValue)}</textarea>
             </form>
         `;
 
         showModal(
-            "Add Event",
+            isEdit ? "Edit Event" : "Add Event",
             bodyHtml,
             async () => {
                 const titleEl = document.getElementById("cc-event-title");
@@ -631,28 +713,40 @@ document.addEventListener("DOMContentLoaded", async () => {
                     titleEl?.focus();
                     return false;
                 }
+                const timeCheck = validateInAppEventTimes(startEl?.value, endEl?.value);
+                if (!timeCheck.ok) {
+                    showToast(timeCheck.message, "warning");
+                    startEl?.focus();
+                    return false;
+                }
                 const startTime = localDateTimeToUnixSeconds(dateEl?.value, startEl?.value);
-                let endTime = localDateTimeToUnixSeconds(dateEl?.value, endEl?.value);
+                const endTime = localDateTimeToUnixSeconds(dateEl?.value, endEl?.value);
                 if (startTime == null || endTime == null) {
                     showToast("Enter a valid date and time.", "warning");
                     return false;
                 }
-                if (endTime <= startTime) {
-                    endTime = startTime + 3600;
-                }
                 const calendarId = (calEl?.value || "").trim() || "primary";
+                const payload = {
+                    title,
+                    description: (descEl?.value || "").trim() || "",
+                    startTime,
+                    endTime,
+                    calendarId,
+                    // Server uses this to enforce 7am–6pm in the user's local zone.
+                    timezoneOffsetMin: new Date().getTimezoneOffset(),
+                };
                 try {
-                    const result = await createCalendarEvent(
-                        supabase,
-                        {
-                            title,
-                            description: (descEl?.value || "").trim() || undefined,
-                            startTime,
-                            endTime,
-                            calendarId,
-                        },
-                        { onNotice: (msg, type) => showToast(msg, type) }
-                    );
+                    const result = isEdit
+                        ? await updateCalendarEvent(
+                              supabase,
+                              { ...payload, id: prefill.eventId },
+                              { onNotice: (msg, type) => showToast(msg, type) }
+                          )
+                        : await createCalendarEvent(
+                              supabase,
+                              payload,
+                              { onNotice: (msg, type) => showToast(msg, type) }
+                          );
                     if (!result?.ok) return false;
                     // Close modal immediately; refresh list/timeline in the background.
                     const refreshMonth =
@@ -662,22 +756,57 @@ document.addEventListener("DOMContentLoaded", async () => {
                             await loadCalendarPanel();
                             if (refreshMonth) await loadMonthCalendarEvents();
                         } catch (refreshError) {
-                            console.warn("[command-center] post-create calendar refresh:", refreshError);
+                            console.warn("[command-center] post-save calendar refresh:", refreshError);
                         }
                     })();
                     return true;
                 } catch (error) {
-                    showToast(error?.message || "Could not create calendar event.", "error");
+                    showToast(
+                        error?.message || (isEdit ? "Could not update calendar event." : "Could not create calendar event."),
+                        "error"
+                    );
                     return false;
                 }
             },
             true,
-            `<button id="modal-confirm-btn" class="btn-primary">Create</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
+            `<button id="modal-confirm-btn" class="btn-primary">${isEdit ? "Save" : "Create"}</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`
         );
 
         queueMicrotask(() => {
             document.getElementById("cc-event-title")?.focus();
-            wireAddEventFormExtras(calendars);
+            wireAddEventFormExtras(calendars, {
+                excludeEventId: prefill.excludeEventId || prefill.eventId || null,
+            });
+        });
+    }
+
+    /** Open edit modal for a timeline/month event (times clamped into 7–6 for in-app editing). */
+    function openEditCalendarEventForm(ev) {
+        if (!ev?.id) {
+            showToast("This event can't be edited here.", "warning");
+            return;
+        }
+        const start = eventLocalDate(ev);
+        if (!start) {
+            showToast("This event has no start time.", "warning");
+            return;
+        }
+        const startSec = toUnixSeconds(ev.startTime);
+        const endSec = toUnixSeconds(ev.endTime) ?? (startSec != null ? startSec + 3600 : null);
+        const end = endSec != null ? new Date(endSec * 1000) : new Date(start.getTime() + 60 * 60 * 1000);
+        const startMin = localMinutesFromDate(start);
+        const endMin = Number.isNaN(end.getTime()) ? startMin + 60 : localMinutesFromDate(end);
+        const clamped = clampEventMinutesToDayWindow(startMin, endMin);
+        openAddCalendarEventForm({
+            mode: "edit",
+            eventId: String(ev.id),
+            excludeEventId: String(ev.id),
+            title: ev.title && ev.title !== "(No title)" ? ev.title : "",
+            description: ev.description || "",
+            date: dayKeyFromDate(start),
+            start: minutesToTimeInputValue(clamped.startMin),
+            end: minutesToTimeInputValue(clamped.endMin),
+            calendarId: ev.calendarId || undefined,
         });
     }
 
@@ -707,7 +836,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function wireAddEventFormExtras(calendars) {
+    function wireAddEventFormExtras(calendars, { excludeEventId = null } = {}) {
         const dateEl = document.getElementById("cc-event-date");
         const startEl = document.getElementById("cc-event-start");
         const endEl = document.getElementById("cc-event-end");
@@ -715,6 +844,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const swatchEl = document.getElementById("cc-event-calendar-swatch");
         const listEl = document.getElementById("cc-event-suggestions-list");
         if (!dateEl || !startEl || !endEl || !listEl) return;
+
+        startEl.min = TIME_INPUT_MIN;
+        startEl.max = TIME_INPUT_MAX;
+        endEl.min = TIME_INPUT_MIN;
+        endEl.max = TIME_INPUT_MAX;
 
         let suggestionEvents = [];
         let loadToken = 0;
@@ -726,6 +860,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             swatchEl.style.backgroundColor = color || "var(--primary-blue)";
         };
 
+        const clampTimeInputs = () => {
+            const clamped = clampEventMinutesToDayWindow(
+                timeInputValueToMinutes(startEl.value) ?? TIMELINE_START_MIN,
+                timeInputValueToMinutes(endEl.value) ?? TIMELINE_START_MIN + 60
+            );
+            startEl.value = minutesToTimeInputValue(clamped.startMin);
+            endEl.value = minutesToTimeInputValue(clamped.endMin);
+        };
+
         const renderSuggestions = () => {
             const dayKey = dateEl.value;
             const startMin = timeInputValueToMinutes(startEl.value);
@@ -734,8 +877,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (startMin != null && endMin != null && endMin > startMin) {
                 duration = endMin - startMin;
             }
+            const busyEvents = excludeEventId
+                ? suggestionEvents.filter((ev) => String(ev?.id) !== String(excludeEventId))
+                : suggestionEvents;
             const slots = dayKey
-                ? suggestAvailableSlots(dayKey, duration, suggestionEvents)
+                ? suggestAvailableSlots(dayKey, duration, busyEvents)
                 : [];
             if (!slots.length) {
                 listEl.innerHTML =
@@ -767,20 +913,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         dateEl.addEventListener("change", () => {
             refreshBusyAndSuggestions();
         });
-        startEl.addEventListener("change", renderSuggestions);
-        endEl.addEventListener("change", renderSuggestions);
+        startEl.addEventListener("change", () => {
+            clampTimeInputs();
+            renderSuggestions();
+        });
+        endEl.addEventListener("change", () => {
+            clampTimeInputs();
+            renderSuggestions();
+        });
         listEl.addEventListener("click", (e) => {
             const btn = e.target.closest(".cc-event-suggestion-btn");
             if (!btn) return;
             const sMin = Number(btn.dataset.startMin);
             const eMin = Number(btn.dataset.endMin);
             if (!Number.isFinite(sMin) || !Number.isFinite(eMin)) return;
-            startEl.value = minutesToTimeInputValue(sMin);
-            endEl.value = minutesToTimeInputValue(eMin);
+            const clamped = clampEventMinutesToDayWindow(sMin, eMin);
+            startEl.value = minutesToTimeInputValue(clamped.startMin);
+            endEl.value = minutesToTimeInputValue(clamped.endMin);
             renderSuggestions();
         });
 
         syncSwatch();
+        clampTimeInputs();
         refreshBusyAndSuggestions();
     }
 
@@ -925,10 +1079,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
                 // Abspos inside .cc-day-timeline-canvas only. Explicit height% pins
                 // duration 1:1 to the hour grid; columns sit side-by-side on conflicts.
+                const eventIdAttr = ev.id != null ? ` data-event-id="${escapeHtml(String(ev.id))}"` : "";
                 return `
-                    <div class="${classes.join(" ")}" style="position:absolute;${horizStyle}top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;overflow:hidden;box-sizing:border-box;${
+                    <div class="${classes.join(" ")}" role="button" tabindex="0" aria-label="Edit ${escapeHtml(ev.title || "event")}"${eventIdAttr} style="position:absolute;${horizStyle}top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;overflow:hidden;box-sizing:border-box;${
                     color ? ` --cc-event-color: ${color};` : ""
-                }" title="${escapeHtml(ev.title || "(No title)")}" data-duration-min="${Math.round(durationMin)}" data-start-min="${Math.round(clampedStart)}" data-col="${pack.columnIndex}" data-col-count="${pack.columnCount}">
+                }" title="${escapeHtml(ev.title || "(No title)")} — click to edit" data-duration-min="${Math.round(durationMin)}" data-start-min="${Math.round(clampedStart)}" data-col="${pack.columnIndex}" data-col-count="${pack.columnCount}">
                         <div class="cc-day-timeline-event-body" style="padding:8px 0.5rem 4px 0.55rem;box-sizing:border-box;min-height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;">
                             <div class="cc-day-timeline-event-head">
                                 <span class="cc-day-timeline-event-when">${escapeHtml(whenLabel)}${
@@ -1171,6 +1326,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             );
         };
         const handleTimelineAddClick = (e) => {
+            // Clicking an existing event opens edit — do not trigger hover-to-add.
+            const eventEl = e.target.closest?.(".cc-day-timeline-event");
+            if (eventEl) {
+                e.preventDefault();
+                e.stopPropagation();
+                const ev = findMonthEventById(eventEl.dataset.eventId);
+                if (ev) openEditCalendarEventForm(ev);
+                else showToast("Couldn't load that event for editing.", "warning");
+                return;
+            }
             const { plane, track } = getDayTimelineEls();
             if (!track) return;
             if (!pointerInTimeline(plane, track, e.clientX, e.clientY)) return;
@@ -1227,6 +1392,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         ccMonthDayList?.addEventListener("mouseleave", () => clearTimelineHoverBlock());
         ccMonthDayList?.addEventListener("keydown", (e) => {
             if (e.key !== "Enter" && e.key !== " ") return;
+            const eventEl = e.target.closest?.(".cc-day-timeline-event");
+            if (eventEl) {
+                e.preventDefault();
+                e.stopPropagation();
+                const ev = findMonthEventById(eventEl.dataset.eventId);
+                if (ev) openEditCalendarEventForm(ev);
+                return;
+            }
             if (!e.target.closest?.(".cc-day-timeline-track")) return;
             e.preventDefault();
             openAddEventForSelectedDay(9 * 60);

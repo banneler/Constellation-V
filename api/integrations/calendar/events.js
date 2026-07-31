@@ -7,17 +7,19 @@ const {
   getUserIntegration,
   listCalendars,
   listEvents,
+  updateEvent,
 } = require("../../_lib/nylas");
 const {
   parseUnixSeconds,
   extractCalendarHexColor,
   buildCalendarColorMap,
   normalizeCalendarEvent,
+  assertTimelineBusinessHours,
 } = require("../../_lib/calendar-event-normalize");
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
-  if (req.method !== "GET" && req.method !== "POST") {
+  if (req.method !== "GET" && req.method !== "POST" && req.method !== "PUT") {
     return sendJson(res, 405, { error: "Method Not Allowed" });
   }
 
@@ -87,8 +89,42 @@ module.exports = async function handler(req, res) {
     }
 
     const body = await readJsonBody(req);
-    if (!body.title && !body.description) {
+    if (!body.title && !body.description && req.method === "POST") {
       return sendJson(res, 400, { error: "Event title or description is required." });
+    }
+
+    if (req.method === "PUT") {
+      const eventId = body.id || body.eventId;
+      if (!eventId) {
+        return sendJson(res, 400, { error: "Event id is required to update." });
+      }
+      if (body.startTime != null && body.endTime != null) {
+        const start = Number(body.startTime);
+        const end = Number(body.endTime);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+          return sendJson(res, 400, { error: "Event end time must be after start time." });
+        }
+        // When Command Center sends timezoneOffsetMin, enforce 7am–6pm local window.
+        assertTimelineBusinessHours(start, end, body.timezoneOffsetMin);
+      }
+      const result = await updateEvent(integration.nylas_grant_id, eventId, {
+        title: body.title,
+        description: body.description,
+        startTime: body.startTime,
+        endTime: body.endTime,
+        calendarId: body.calendarId,
+        participants: body.participants,
+      });
+      return sendJson(res, 200, {
+        ok: true,
+        provider: integration.provider,
+        from: integration.email,
+        result,
+      });
+    }
+
+    if (body.startTime != null && body.endTime != null) {
+      assertTimelineBusinessHours(body.startTime, body.endTime, body.timezoneOffsetMin);
     }
 
     const result = await createEvent(integration.nylas_grant_id, {

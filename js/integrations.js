@@ -205,6 +205,38 @@ export async function createCalendarEvent(supabase, event = {}, options = {}) {
     return { mode: "nylas", ok: true, data };
 }
 
+/**
+ * Update an existing Nylas calendar event (title, times, description, calendar).
+ * @param {object} event - Must include `eventId` (or `id`) and usually `calendarId`.
+ */
+export async function updateCalendarEvent(supabase, event = {}, options = {}) {
+    const state = await getIntegrationState(supabase, { force: options.forceRefresh });
+    const toast = typeof options.onNotice === "function" ? options.onNotice : () => {};
+
+    if (!state.orgEnabled || !state.connected) {
+        toast(
+            state.orgEnabled
+                ? "Connect Google or Outlook in User Settings to edit calendar events."
+                : "Calendar integrations are disabled for this organization.",
+            "info"
+        );
+        return { mode: "disconnected", ok: false };
+    }
+
+    const eventId = event.eventId || event.id;
+    if (!eventId) {
+        toast("Missing event id.", "error");
+        return { mode: "nylas", ok: false };
+    }
+
+    const data = await callIntegrationsApi(supabase, "/api/integrations/calendar/events", {
+        method: "PATCH",
+        body: { ...event, eventId },
+    });
+    toast("Calendar event updated.", "success");
+    return { mode: "nylas", ok: true, data };
+}
+
 export function emailActionLabel(state) {
     if (state?.orgEnabled && state?.connected) return "Send Email";
     return "Send with Email Client";

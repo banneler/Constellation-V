@@ -11,6 +11,12 @@
   display: block !important;
   /* Overlap columns set inline left/width; do not force full-bleed right */
   max-width: 100%;
+  cursor: pointer;
+}
+
+.cc-day-timeline-event:focus-visible {
+  outline: 2px solid var(--primary-blue, #2563eb);
+  outline-offset: 1px;
 }
 
 .cc-day-timeline-event-body {

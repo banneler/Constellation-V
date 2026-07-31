@@ -183,6 +183,36 @@ async function createEvent(grantId, event) {
   });
 }
 
+/** Update an existing event (Nylas PUT). Nested `when` is replaced wholesale. */
+async function updateEvent(grantId, eventId, event) {
+  const id = String(eventId || "").trim();
+  if (!id) {
+    throw Object.assign(new Error("Event id is required."), { status: 400 });
+  }
+  const calendarId = event.calendarId || "primary";
+  const body = {};
+  if (event.title != null) body.title = event.title || "Meeting";
+  if (event.description != null) body.description = event.description || "";
+  if (event.startTime != null && event.endTime != null) {
+    body.when = {
+      start_time: Number(event.startTime),
+      end_time: Number(event.endTime),
+    };
+  }
+  if (event.participants?.length) {
+    body.participants = event.participants.map((p) =>
+      typeof p === "string" ? { email: p } : { email: p.email, name: p.name }
+    );
+  }
+  return nylasFetch(
+    `/v3/grants/${encodeURIComponent(grantId)}/events/${encodeURIComponent(id)}?calendar_id=${encodeURIComponent(calendarId)}`,
+    {
+      method: "PUT",
+      body,
+    }
+  );
+}
+
 async function listEvents(grantId, { calendarId = "primary", limit = 20, start, end } = {}) {
   const params = new URLSearchParams({
     calendar_id: calendarId,
@@ -316,6 +346,7 @@ module.exports = {
   assertOrgIntegrationsEnabled,
   buildHostedAuthUrl,
   createEvent,
+  updateEvent,
   deleteUserIntegration,
   destroyGrant,
   exchangeCodeForGrant,
