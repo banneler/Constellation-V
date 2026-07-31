@@ -214,7 +214,14 @@ const FALLBACK_CALENDAR_PALETTE = Object.freeze([
 export function colorFromGoogleColorId(colorId) {
     if (colorId == null || colorId === "") return null;
     const key = String(colorId).trim();
-    return GOOGLE_EVENT_COLOR_IDS[key] || GOOGLE_EVENT_COLOR_IDS[Number(key)] || null;
+    // Prefer event palette (1–11); fall back to 24-swatch calendar palette.
+    return (
+        GOOGLE_EVENT_COLOR_IDS[key] ||
+        GOOGLE_EVENT_COLOR_IDS[Number(key)] ||
+        GOOGLE_CALENDAR_COLOR_IDS[key] ||
+        GOOGLE_CALENDAR_COLOR_IDS[Number(key)] ||
+        null
+    );
 }
 
 export function colorFromGoogleCalendarColorId(colorId) {

@@ -13,6 +13,8 @@ const {
   parseUnixSeconds,
   extractCalendarHexColor,
   buildCalendarColorMap,
+  buildEventLabelColorMap,
+  mergeEventLabelColorMap,
   normalizeCalendarEvent,
   assertTimelineBusinessHours,
   deterministicColorFromKey,
@@ -27,8 +29,10 @@ function looksLikeHolidayCalendar(cal) {
  * Calendar ids to query for GET events.
  * - Explicit `calendarId` → that calendar only
  * - Omitted / `all` → all non-holiday calendars (owned + subscribed), writable first.
- *   Work/Stuff and other Google labels must be included even when Nylas marks some
- *   entries read_only; only holiday/weather/birthday junk is skipped.
+ *   Secondary calendars (and read_only subscribed ones) must be included;
+ *   only holiday/weather/birthday junk is skipped.
+ *   Note: Google UI "Work"/"Stuff" named Labels are NOT calendars — they are
+ *   per-event colors (eventLabelId); see calendar-event-normalize.js.
  */
 function resolveListCalendarIds(calendarIdParam, calendarsResult, colorByCalendarId) {
   const raw = Array.isArray(calendarsResult?.data)
@@ -92,13 +96,18 @@ module.exports = async function handler(req, res) {
       );
       // fillMissing:false — prefer real provider hex; we'll enrich + fill after getCalendar.
       const colorByCalendarId = buildCalendarColorMap(calendarsResult, { fillMissing: false });
+      // Google named event Labels (Work/Stuff) — usually empty via Nylas today.
+      const labelColorById = buildEventLabelColorMap(calendarsResult);
       const calendarIds = resolveListCalendarIds(calendarIdParam, calendarsResult, colorByCalendarId);
 
-      // getCalendar for EVERY listed id whose hex is missing. Prior fix only enriched
-      // primary, so Work/Stuff with null list hex_color inherited primary blue.
-      const idsNeedingColor = calendarIds.filter((id) => !colorByCalendarId.has(String(id)));
+      // getCalendar for EVERY listed id whose hex is missing + primary (for labels).
+      const idsNeedingColor = new Set(
+        calendarIds.filter((id) => !colorByCalendarId.has(String(id))).map(String)
+      );
+      // Always refresh primary detail — labelProperties would live here if Nylas passthrough.
+      idsNeedingColor.add("primary");
       const colorLookups = await Promise.all(
-        idsNeedingColor.map((calId) =>
+        [...idsNeedingColor].map((calId) =>
           getCalendar(integration.nylas_grant_id, calId)
             .then((payload) => ({ calId, payload }))
             .catch((err) => {
@@ -112,11 +121,16 @@ module.exports = async function handler(req, res) {
         )
       );
       for (const { calId, payload } of colorLookups) {
+        if (!payload) continue;
+        mergeEventLabelColorMap(labelColorById, payload);
         const hex = extractCalendarHexColor(payload);
         if (hex) {
           colorByCalendarId.set(String(calId), hex);
           const cal = payload?.data || payload || {};
-          if (cal.is_primary || cal.isPrimary) colorByCalendarId.set("primary", hex);
+          if (cal.is_primary || cal.isPrimary || calId === "primary") {
+            colorByCalendarId.set("primary", hex);
+            if (cal.id != null) colorByCalendarId.set(String(cal.id), hex);
+          }
         }
       }
 
@@ -184,7 +198,7 @@ module.exports = async function handler(req, res) {
         const result = listResults[i];
         const calId = calendarIds[i];
         const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
-        // ONLY this calendar's color — never bleed primary onto Work/Stuff.
+        // Calendar fallback only — per-event color_id / eventLabelId win in normalize.
         const fallbackColor = colorByCalendarId.get(String(calId)) || null;
         const calName = nameByCalendarId.get(String(calId)) || null;
         for (const ev of raw) {
@@ -201,11 +215,13 @@ module.exports = async function handler(req, res) {
           const normalized = normalizeCalendarEvent(ev, {
             calendarColor: fallbackColor,
             colorByCalendarId,
+            labelColorById,
           });
           if (normalized.startTime == null) continue;
           // Guarantee the queried calendar's hex when map lookup missed a id variant.
           if (!normalized.color && fallbackColor) {
             normalized.color = fallbackColor;
+            if (!normalized.colorSource) normalized.colorSource = "calendar";
           }
           events.push(normalized);
         }
@@ -214,7 +230,12 @@ module.exports = async function handler(req, res) {
       events.sort((a, b) => a.startTime - b.startTime);
       const sliced = events.slice(0, limit);
       const calendarColors = Object.fromEntries(colorByCalendarId.entries());
-      // Dev/client proof: named calendars with distinct hex (Work/Stuff).
+      const eventLabels = Object.fromEntries(
+        [...labelColorById.entries()].map(([id, v]) => [
+          id,
+          { color: v?.color || null, name: v?.name || null },
+        ])
+      );
       const calendars = calendarIds.map((id) => ({
         id: String(id),
         name: nameByCalendarId.get(String(id)) || String(id),
@@ -227,6 +248,11 @@ module.exports = async function handler(req, res) {
         calendarColor,
         calendarIds,
         calendarColors,
+        eventLabels,
+        // Google UI named Labels (Work/Stuff) need eventLabelId + label hex.
+        // Nylas exposes legacy color_id (1–11) only — not custom Label names/colors.
+        eventColorNote:
+          "Google named event Labels (Work/Stuff) use eventLabelId + labelProperties; Nylas returns legacy color_id (1–11) only. Without color_id, events inherit the calendar color.",
         calendars,
         events: sliced,
       });

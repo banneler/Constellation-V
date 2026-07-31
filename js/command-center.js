@@ -211,15 +211,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     /**
-     * Resolve Google/Nylas calendar hex for an event.
-     * Prefer: Google event color_id → calendar cache by id → API color → deterministic.
-     * Never paints another label with the primary calendar color (Work/Stuff bug).
+     * Resolve Google/Nylas hex for an event.
+     * Prefer: API color (already prefers event color_id / eventLabel) → color_id →
+     * calendar cache by id → deterministic. Google UI "Work"/"Stuff" are per-event
+     * Labels on the primary calendar, not separate calendars.
      */
     function resolveEventColor(ev) {
+        const direct = normalizeEventColor(ev?.color);
+        if (direct) return direct;
+
         const meta = ev?.metadata && typeof ev.metadata === "object" ? ev.metadata : {};
-        const fromColorId = geoColorFromGoogleColorId(
-            ev?.colorId ?? ev?.color_id ?? meta.color_id ?? meta.colorId
-        );
+        const colorId = ev?.colorId ?? ev?.color_id ?? meta.color_id ?? meta.colorId;
+        const fromColorId = geoColorFromGoogleColorId(colorId);
         if (fromColorId) return fromColorId;
 
         const calId = ev?.calendarId != null ? String(ev.calendarId) : "";
@@ -234,7 +237,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (fromPrimary) return fromPrimary;
             }
         }
-        // Name fallback (Work/Stuff) when id casing/encoding diverges.
         const calName = (ev?.calendarName || ev?.calendar_name || "").trim().toLowerCase();
         if (calName) {
             const byName = cals.find(
@@ -243,9 +245,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const fromName = normalizeEventColor(byName?.color);
             if (fromName) return fromName;
         }
-
-        const direct = normalizeEventColor(ev?.color);
-        if (direct) return direct;
 
         if (calId) return geoDeterministicColorFromKey(calId);
         if (calName) return geoDeterministicColorFromKey(calName);

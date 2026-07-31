@@ -12,7 +12,9 @@ const {
     parseEventWhen,
     normalizeCalendarEvent,
     buildCalendarColorMap,
+    buildEventLabelColorMap,
     extractCalendarHexColor,
+    extractEventLabelId,
 } = require('../../api/_lib/calendar-event-normalize.js');
 
 describe('calendar-event-normalize when parse', () => {
@@ -192,5 +194,83 @@ describe('calendar-event-normalize colors', () => {
         assert.ok(map.get('work-cal'));
         assert.ok(map.get('stuff-cal'));
         assert.notEqual(map.get('work-cal'), map.get('stuff-cal'));
+    });
+
+    it('same primary calendar + different color_id paints Test3 ≠ Test Event ≠ Discovery', () => {
+        const primaryHex = '#039BE5';
+        const colorByCalendarId = buildCalendarColorMap({
+            data: [{ id: 'primary-cal', hex_color: primaryHex, is_primary: true }],
+        });
+        const work = normalizeCalendarEvent(
+            {
+                id: 'test3',
+                title: 'Test3',
+                calendar_id: 'primary-cal',
+                color_id: '3', // grape / magenta-ish legacy palette
+                when: { start_time: 1000, end_time: 1900 },
+            },
+            { colorByCalendarId }
+        );
+        const stuff = normalizeCalendarEvent(
+            {
+                id: 'test-event',
+                title: 'Test Event',
+                calendar_id: 'primary-cal',
+                metadata: { color_id: '6' }, // tangerine
+                when: { start_time: 2000, end_time: 2900 },
+            },
+            { colorByCalendarId }
+        );
+        const discovery = normalizeCalendarEvent(
+            {
+                id: 'discovery',
+                title: 'Discovery call — Acme Corp',
+                calendar_id: 'primary-cal',
+                when: { start_time: 3000, end_time: 3900 },
+            },
+            { colorByCalendarId }
+        );
+        assert.equal(work.color, '#DBADFF');
+        assert.equal(work.colorSource, 'color_id');
+        assert.equal(stuff.color, '#FFB878');
+        assert.equal(stuff.colorSource, 'color_id');
+        assert.equal(discovery.color, primaryHex);
+        assert.equal(discovery.colorSource, 'calendar');
+        assert.notEqual(work.color, stuff.color);
+        assert.notEqual(work.color, discovery.color);
+        assert.notEqual(stuff.color, discovery.color);
+    });
+
+    it('prefers Google eventLabelId hex over calendar color when label map present', () => {
+        const colorByCalendarId = buildCalendarColorMap({
+            data: [{ id: 'primary-cal', hex_color: '#039BE5', is_primary: true }],
+        });
+        const labelColorById = buildEventLabelColorMap({
+            data: [
+                {
+                    id: 'primary-cal',
+                    labelProperties: {
+                        eventLabels: [
+                            { id: 'label-work', name: 'Work', backgroundColor: '#cd74e6' },
+                            { id: 'label-stuff', name: 'Stuff', backgroundColor: '#ffad46' },
+                        ],
+                    },
+                },
+            ],
+        });
+        assert.equal(extractEventLabelId({ eventLabelId: 'label-work' }), 'label-work');
+        const work = normalizeCalendarEvent(
+            {
+                id: 'e1',
+                title: 'Test3',
+                calendar_id: 'primary-cal',
+                event_label_id: 'label-work',
+                when: { start_time: 1000, end_time: 1900 },
+            },
+            { colorByCalendarId, labelColorById }
+        );
+        assert.equal(work.color, '#CD74E6');
+        assert.equal(work.labelName, 'Work');
+        assert.equal(work.colorSource, 'event_label');
     });
 });

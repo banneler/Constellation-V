@@ -32,8 +32,19 @@ function normalizeHexColor(value) {
 }
 
 /**
- * Google Calendar event `color_id` → hex (Nylas exposes color_id on events).
- * @see https://developers.google.com/calendar/api/v3/reference/colors
+ * Google Calendar EVENT colors — two different systems:
+ *
+ * 1) Legacy `color_id` / `colorId` ("1"…"11") — Nylas documents this for Google
+ *    and may return it top-level or under `metadata` (Java SDK; Node SDK untyped).
+ * 2) Named Labels in the Google UI (right-click → Labels: "Work", "Stuff", …) —
+ *    Google `eventLabelId` + calendar `labelProperties.eventLabels`
+ *    `[{ id, name, backgroundColor }]`. Requires Google's `eventLabelVersion=1`.
+ *    Nylas v3 does NOT document or expose eventLabelId / labelProperties
+ *    (Calendar has hexColor only; Event has no label fields in the Node SDK).
+ *
+ * Prefer: label hex (if ever passthrough) → legacy color_id → calendar hex.
+ * @see https://developers.google.com/workspace/calendar/api/guides/labels
+ * @see https://developer.nylas.com/docs/cookbook/calendar/events/list-events-google/
  */
 const GOOGLE_EVENT_COLOR_IDS = Object.freeze({
   1: "#A4BDFC",
@@ -50,8 +61,9 @@ const GOOGLE_EVENT_COLOR_IDS = Object.freeze({
 });
 
 /**
- * Google Calendar *list* colorId (calendar labels) → background hex.
- * Distinct from event color_id (1–11). Used when Nylas omits hex_color.
+ * Google Calendar *list* colorId (sidebar calendars / 24-swatch palette) → hex.
+ * Distinct from event color_id (1–11). Used when Nylas omits hex_color, and as a
+ * fallback if a numeric id outside 1–11 appears on an event.
  * @see https://developers.google.com/calendar/api/v3/reference/colors
  */
 const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
@@ -97,11 +109,20 @@ const FALLBACK_CALENDAR_PALETTE = Object.freeze([
   "#616161",
 ]);
 
-/** Map Google/Nylas event `color_id` ("1"…"11") to `#RRGGBB`, or null. */
+/**
+ * Map Google/Nylas event `color_id` to `#RRGGBB`.
+ * Prefers the event palette (1–11); falls back to the 24-swatch calendar palette.
+ */
 function colorFromGoogleColorId(colorId) {
   if (colorId == null || colorId === "") return null;
   const key = String(colorId).trim();
-  return GOOGLE_EVENT_COLOR_IDS[key] || GOOGLE_EVENT_COLOR_IDS[Number(key)] || null;
+  return (
+    GOOGLE_EVENT_COLOR_IDS[key] ||
+    GOOGLE_EVENT_COLOR_IDS[Number(key)] ||
+    GOOGLE_CALENDAR_COLOR_IDS[key] ||
+    GOOGLE_CALENDAR_COLOR_IDS[Number(key)] ||
+    null
+  );
 }
 
 /** Map Google calendar-list colorId ("1"…"24") to `#RRGGBB`, or null. */
@@ -238,13 +259,9 @@ function parseEventWhen(whenInput) {
 }
 
 /**
- * Normalize a Nylas event for Command Center.
- * @param {object} ev
- * @param {{ calendarColor?: string|null, colorByCalendarId?: Map<string,string> }} [opts]
- */
-/**
- * Google event color_id may be top-level (Nylas) or under metadata (Google via Nylas).
+ * Google legacy event color_id — top-level (Nylas) or under metadata (CLI shape).
  * @see https://developer.nylas.com/docs/cookbook/calendar/events/list-events-google/
+ * @see https://cli.nylas.com/guides/manage-google-calendar-cli
  */
 function extractEventColorId(ev) {
   const meta = ev?.metadata && typeof ev.metadata === "object" ? ev.metadata : {};
@@ -253,39 +270,170 @@ function extractEventColorId(ev) {
     ev?.colorId ??
     meta.color_id ??
     meta.colorId ??
+    meta.color ??
     null;
   if (raw == null || raw === "") return null;
   return String(raw);
 }
 
-function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
+/**
+ * Google named event Label id (`eventLabelId`). Nylas does not document this;
+ * extract defensively if a future/passthrough payload includes it.
+ * @see https://developers.google.com/workspace/calendar/api/guides/labels
+ */
+function extractEventLabelId(ev) {
+  const meta = ev?.metadata && typeof ev.metadata === "object" ? ev.metadata : {};
+  const raw =
+    ev?.event_label_id ??
+    ev?.eventLabelId ??
+    meta.event_label_id ??
+    meta.eventLabelId ??
+    null;
+  if (raw == null || raw === "") return null;
+  return String(raw);
+}
+
+/**
+ * Harvest Google `labelProperties.eventLabels` (or snake/passthrough variants)
+ * from a Nylas/Google calendar object. Returns [{ id, name, color }].
+ */
+function extractEventLabelsFromCalendar(calendarPayload) {
+  const cal = calendarPayload?.data || calendarPayload || {};
+  const meta = cal.metadata && typeof cal.metadata === "object" ? cal.metadata : {};
+  const labelProps =
+    cal.labelProperties ||
+    cal.label_properties ||
+    meta.labelProperties ||
+    meta.label_properties ||
+    null;
+  const rawList =
+    (labelProps && (labelProps.eventLabels || labelProps.event_labels)) ||
+    cal.eventLabels ||
+    cal.event_labels ||
+    meta.eventLabels ||
+    meta.event_labels ||
+    null;
+  if (!Array.isArray(rawList)) return [];
+  const out = [];
+  for (const entry of rawList) {
+    if (!entry || typeof entry !== "object") continue;
+    const id = entry.id != null ? String(entry.id) : null;
+    if (!id) continue;
+    const color =
+      normalizeHexColor(entry.backgroundColor) ||
+      normalizeHexColor(entry.background_color) ||
+      normalizeHexColor(entry.hex_color) ||
+      normalizeHexColor(entry.hexColor) ||
+      normalizeHexColor(entry.color) ||
+      null;
+    const name = (entry.name && String(entry.name).trim()) || null;
+    if (!color && !name) continue;
+    out.push({ id, name, color });
+  }
+  return out;
+}
+
+/**
+ * Build eventLabelId → `{ color, name }` from calendars list/detail payloads.
+ * Empty today for Nylas Google grants; ready if labels are ever passthrough.
+ */
+function buildEventLabelColorMap(calendarsPayload) {
+  const raw = Array.isArray(calendarsPayload?.data)
+    ? calendarsPayload.data
+    : Array.isArray(calendarsPayload)
+      ? calendarsPayload
+      : calendarsPayload
+        ? [calendarsPayload]
+        : [];
+  const map = new Map();
+  for (const cal of raw) {
+    for (const label of extractEventLabelsFromCalendar(cal)) {
+      const prev = map.get(label.id) || {};
+      map.set(label.id, {
+        color: label.color || prev.color || null,
+        name: label.name || prev.name || null,
+      });
+    }
+  }
+  return map;
+}
+
+/** Merge labels from one calendar payload into an existing label map. */
+function mergeEventLabelColorMap(targetMap, calendarPayload) {
+  const map = targetMap instanceof Map ? targetMap : new Map();
+  for (const label of extractEventLabelsFromCalendar(calendarPayload)) {
+    const prev = map.get(label.id) || {};
+    map.set(label.id, {
+      color: label.color || prev.color || null,
+      name: label.name || prev.name || null,
+    });
+  }
+  return map;
+}
+
+/**
+ * Normalize a Nylas event for Command Center.
+ * @param {object} ev
+ * @param {{
+ *   calendarColor?: string|null,
+ *   colorByCalendarId?: Map<string,string>,
+ *   labelColorById?: Map<string,{color?:string|null,name?:string|null}|string>,
+ * }} [opts]
+ */
+function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId, labelColorById } = {}) {
   const { startTime, endTime, allDay } = parseEventWhen(ev?.when);
 
   const rawDesc = ev?.text_description || ev?.description || "";
   const description = stripHtml(rawDesc).slice(0, 160) || null;
   const calendarId = ev?.calendar_id || ev?.calendarId || null;
   const colorId = extractEventColorId(ev);
+  const eventLabelId = extractEventLabelId(ev);
   const calKey = calendarId != null ? String(calendarId) : "";
   const calendarName =
     (ev?.calendar_name && String(ev.calendar_name).trim()) ||
     (ev?.calendarName && String(ev.calendarName).trim()) ||
     null;
 
-  // Event color_id (Google override) → this calendar's hex → per-request calendar
-  // color (must be THAT calendar, not primary bleed) → event hex → stable id hash.
-  // Do NOT fall back to primary when the event belongs to another label (Work/Stuff).
-  const color =
-    colorFromGoogleColorId(colorId) ||
-    normalizeHexColor(calKey && colorByCalendarId?.get?.(calKey)) ||
-    normalizeHexColor(calendarColor) ||
-    normalizeHexColor(ev?.hex_color) ||
-    normalizeHexColor(ev?.hexColor) ||
-    normalizeHexColor(ev?.color) ||
-    (calKey === "primary"
-      ? normalizeHexColor(colorByCalendarId?.get?.("primary"))
-      : null) ||
-    (calKey ? deterministicColorFromKey(calKey) : null) ||
+  const labelEntry = eventLabelId && labelColorById?.get?.(String(eventLabelId));
+  const labelHex = normalizeHexColor(
+    labelEntry && typeof labelEntry === "object" ? labelEntry.color : labelEntry
+  );
+  const labelName =
+    (labelEntry && typeof labelEntry === "object" && labelEntry.name) ||
+    (ev?.label_name && String(ev.label_name).trim()) ||
+    (ev?.labelName && String(ev.labelName).trim()) ||
     null;
+
+  // Per-event color beats calendar color. Named Google Labels (Work/Stuff) are
+  // NOT separate calendars — they share the primary calendar_id.
+  let color = null;
+  let colorSource = null;
+  const fromColorId = colorFromGoogleColorId(colorId);
+  if (labelHex) {
+    color = labelHex;
+    colorSource = "event_label";
+  } else if (fromColorId) {
+    color = fromColorId;
+    colorSource = "color_id";
+  } else if (normalizeHexColor(ev?.hex_color) || normalizeHexColor(ev?.hexColor)) {
+    color = normalizeHexColor(ev?.hex_color) || normalizeHexColor(ev?.hexColor);
+    colorSource = "event_hex";
+  } else if (normalizeHexColor(calKey && colorByCalendarId?.get?.(calKey))) {
+    color = normalizeHexColor(colorByCalendarId.get(calKey));
+    colorSource = "calendar";
+  } else if (normalizeHexColor(calendarColor)) {
+    color = normalizeHexColor(calendarColor);
+    colorSource = "calendar";
+  } else if (normalizeHexColor(ev?.color)) {
+    color = normalizeHexColor(ev.color);
+    colorSource = "event_color_field";
+  } else if (calKey === "primary" && normalizeHexColor(colorByCalendarId?.get?.("primary"))) {
+    color = normalizeHexColor(colorByCalendarId.get("primary"));
+    colorSource = "calendar";
+  } else if (calKey) {
+    color = deterministicColorFromKey(calKey);
+    colorSource = color ? "deterministic" : null;
+  }
 
   return {
     id: ev?.id || null,
@@ -298,7 +446,10 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
     calendarId,
     calendarName,
     colorId: colorId != null && colorId !== "" ? String(colorId) : null,
+    eventLabelId,
+    labelName,
     color,
+    colorSource,
   };
 }
 
@@ -366,6 +517,10 @@ module.exports = {
   FALLBACK_CALENDAR_PALETTE,
   extractCalendarHexColor,
   extractEventColorId,
+  extractEventLabelId,
+  extractEventLabelsFromCalendar,
+  buildEventLabelColorMap,
+  mergeEventLabelColorMap,
   buildCalendarColorMap,
   parseEventWhen,
   normalizeCalendarEvent,
