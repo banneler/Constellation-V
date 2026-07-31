@@ -19,7 +19,7 @@ const {
 
 module.exports = async function handler(req, res) {
   if (handleOptions(req, res)) return;
-  if (req.method !== "GET" && req.method !== "POST" && req.method !== "PUT") {
+  if (req.method !== "GET" && req.method !== "POST" && req.method !== "PUT" && req.method !== "PATCH") {
     return sendJson(res, 405, { error: "Method Not Allowed" });
   }
 
@@ -93,19 +93,26 @@ module.exports = async function handler(req, res) {
       return sendJson(res, 400, { error: "Event title or description is required." });
     }
 
-    if (req.method === "PUT") {
-      const eventId = body.id || body.eventId;
+    const startTime = body.startTime != null ? Number(body.startTime) : null;
+    const endTime = body.endTime != null ? Number(body.endTime) : null;
+    if (startTime != null && endTime != null) {
+      if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
+        return sendJson(res, 400, { error: "End time must be after start time." });
+      }
+      // Command Center sends timezoneOffsetMin and/or localStart/localEnd for 7–6 enforcement.
+      assertTimelineBusinessHours(
+        startTime,
+        endTime,
+        body.timezoneOffsetMin,
+        body.localStart,
+        body.localEnd
+      );
+    }
+
+    if (req.method === "PUT" || req.method === "PATCH") {
+      const eventId = body.eventId || body.id;
       if (!eventId) {
         return sendJson(res, 400, { error: "Event id is required to update." });
-      }
-      if (body.startTime != null && body.endTime != null) {
-        const start = Number(body.startTime);
-        const end = Number(body.endTime);
-        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-          return sendJson(res, 400, { error: "Event end time must be after start time." });
-        }
-        // When Command Center sends timezoneOffsetMin, enforce 7am–6pm local window.
-        assertTimelineBusinessHours(start, end, body.timezoneOffsetMin);
       }
       const result = await updateEvent(integration.nylas_grant_id, eventId, {
         title: body.title,
@@ -121,10 +128,6 @@ module.exports = async function handler(req, res) {
         from: integration.email,
         result,
       });
-    }
-
-    if (body.startTime != null && body.endTime != null) {
-      assertTimelineBusinessHours(body.startTime, body.endTime, body.timezoneOffsetMin);
     }
 
     const result = await createEvent(integration.nylas_grant_id, {

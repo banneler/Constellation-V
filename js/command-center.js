@@ -732,6 +732,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     startTime,
                     endTime,
                     calendarId,
+                    localStart: startEl.value,
+                    localEnd: endEl.value,
                     // Server uses this to enforce 7am–6pm in the user's local zone.
                     timezoneOffsetMin: new Date().getTimezoneOffset(),
                 };
