@@ -705,6 +705,22 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
                 { to: contact.email, subject, body },
                 { onNotice: (msg, type) => showToast(msg, type) }
             );
+            const alert = state.selectedAlert;
+            if (alert?.id != null) {
+                const { error: activityError } = await supabase.from('activities').insert({
+                    account_id: alert.account_id,
+                    contact_id: Number(contactId),
+                    type: 'Email',
+                    description: `Cognito outreach: [${alert.trigger_type}] ${alert.headline} — ${subject}`,
+                    user_id: getState().effectiveUserId,
+                    date: new Date().toISOString(),
+                    cognito_alert_id: alert.id,
+                });
+                if (activityError) {
+                    console.error('Error logging Cognito email activity:', activityError);
+                    showToast('Email sent, but could not link the activity to this alert.', 'warning');
+                }
+            }
         } catch (error) {
             alert(error.message || 'Could not send email.');
         }
@@ -753,7 +769,8 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
             type: 'Cognito Intelligence',
             description: `[${state.selectedAlert.trigger_type}] ${state.selectedAlert.headline} - Notes: ${notes}`,
             user_id: getState().effectiveUserId,
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            cognito_alert_id: state.selectedAlert.id,
         });
 
         if (error) {

@@ -21,7 +21,7 @@ import {
     getInsightsFetchFloor,
     formatLocalDate,
 } from './insights-period.mjs';
-import { activityConvertsAlert } from './insights-cognito.mjs';
+import { assignConvertedAlertIds } from './insights-cognito.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -263,16 +263,15 @@ function computeSnapshot() {
         .slice(0, 12);
 
     // Triggers = Cognito alerts created in the selected period (all statuses).
-    // Converted = those triggers with ≥1 matching activity by the same filtered
-    // rep(s), in this period, on the same account, on/after the alert (see
-    // insights-cognito.mjs). Pool is the Activities KPI set — not all-time.
-    // Multiple triggers on one account can share one activity (Converted can
-    // exceed Activities logged).
+    // Converted = unique 1:1 match to an activity (cognito_alert_id stamp, else
+    // greedy nearest same-account alert ≤ activity). Pool is Activities KPI set.
+    // One activity converts at most one trigger.
     const alerts = (state.data.cognito_alerts || []).filter((alert) => {
         if (!isUserIncluded(alert.user_id) || !userMatchesFilter(alert.user_id)) return false;
         return inDateRange(alert.created_at, startDate, endDate);
     });
     const outreachActivities = activities;
+    const convertedAlertIds = assignConvertedAlertIds(alerts, outreachActivities);
     let cognitoConverted = 0;
     let cognitoDismissed = 0;
     const cognitoByStatus = new Map();
@@ -282,7 +281,7 @@ function computeSnapshot() {
         if (!cognitoByStatus.has(status)) cognitoByStatus.set(status, { status, triggers: 0, converted: 0 });
         const bucket = cognitoByStatus.get(status);
         bucket.triggers += 1;
-        if (activityConvertsAlert(alert, outreachActivities)) {
+        if (alert?.id != null && convertedAlertIds.has(Number(alert.id))) {
             bucket.converted += 1;
             cognitoConverted += 1;
         }
@@ -359,6 +358,7 @@ function computeSnapshot() {
             const repSeqOverdue = seqOverdue.filter((r) => r.user_id === uid);
             const repAlerts = alerts.filter((a) => a.user_id === uid);
             const repOutreach = outreachActivities.filter((a) => a.user_id === uid);
+            const repConvertedIds = assignConvertedAlertIds(repAlerts, repOutreach);
             let repConverted = 0;
             let repDismissed = 0;
             repAlerts.forEach((alert) => {
@@ -366,7 +366,7 @@ function computeSnapshot() {
                     repDismissed += 1;
                     return;
                 }
-                if (activityConvertsAlert(alert, repOutreach)) repConverted += 1;
+                if (alert?.id != null && repConvertedIds.has(Number(alert.id))) repConverted += 1;
             });
             const repEligible = repAlerts.length - repDismissed;
             const staleAccounts = penetration.filter((p) => p.ownerId === uid).length;
@@ -918,7 +918,7 @@ function renderCognitoOutreach(snapshot) {
         {
             label: 'Converted',
             value: cognito.converted,
-            hint: 'Triggers with rep activity in period',
+            hint: '1 activity → 1 trigger (per alert)',
         },
         {
             label: 'Conversion',

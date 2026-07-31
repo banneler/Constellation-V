@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
     activityConvertsAlert,
     activityEffectiveTime,
+    assignConvertedAlertIds,
     sameAccountId,
 } from '../../js/insights-cognito.mjs';
 
@@ -14,8 +15,9 @@ describe('insights-cognito sameAccountId', () => {
     });
 });
 
-describe('insights-cognito activityConvertsAlert', () => {
+describe('insights-cognito activityConvertsAlert / 1:1 assignment', () => {
     const alert = {
+        id: 1,
         account_id: 10,
         created_at: '2026-07-10T14:00:00.000Z',
         status: 'New',
@@ -23,14 +25,14 @@ describe('insights-cognito activityConvertsAlert', () => {
 
     it('matches same-account activity on/after the trigger', () => {
         assert.equal(
-            activityConvertsAlert(alert, [{ account_id: 10, date: '2026-07-12' }]),
+            activityConvertsAlert(alert, [{ id: 'a1', account_id: 10, date: '2026-07-12' }]),
             true
         );
     });
 
     it('does not match activities before the trigger', () => {
         assert.equal(
-            activityConvertsAlert(alert, [{ account_id: 10, date: '2026-07-09' }]),
+            activityConvertsAlert(alert, [{ id: 'a1', account_id: 10, date: '2026-07-09' }]),
             false
         );
     });
@@ -40,7 +42,7 @@ describe('insights-cognito activityConvertsAlert', () => {
         assert.ok(compare);
         assert.equal(compare.getHours(), 23);
         assert.equal(
-            activityConvertsAlert(alert, [{ account_id: 10, date: '2026-07-10' }]),
+            activityConvertsAlert(alert, [{ id: 'a1', account_id: 10, date: '2026-07-10' }]),
             true
         );
     });
@@ -49,36 +51,78 @@ describe('insights-cognito activityConvertsAlert', () => {
         assert.equal(
             activityConvertsAlert(
                 { ...alert, status: 'Dismissed' },
-                [{ account_id: 10, date: '2026-07-12' }]
+                [{ id: 'a1', account_id: 10, date: '2026-07-12' }]
             ),
             false
         );
     });
 
-    it('allows multiple alerts on one account to share one activity', () => {
-        const acts = [{ account_id: 10, date: '2026-07-20' }];
-        const a1 = { ...alert, created_at: '2026-07-05T12:00:00.000Z' };
-        const a2 = { ...alert, created_at: '2026-07-15T12:00:00.000Z' };
-        assert.equal(activityConvertsAlert(a1, acts), true);
-        assert.equal(activityConvertsAlert(a2, acts), true);
+    it('one activity converts at most one alert on the same account (greedy 1:1)', () => {
+        const acts = [{ id: 'a1', account_id: 10, date: '2026-07-20' }];
+        const a1 = { ...alert, id: 101, created_at: '2026-07-05T12:00:00.000Z' };
+        const a2 = { ...alert, id: 102, created_at: '2026-07-15T12:00:00.000Z' };
+        const converted = assignConvertedAlertIds([a1, a2], acts);
+        assert.equal(converted.size, 1);
+        // Nearest alert created_at ≤ activity wins (a2).
+        assert.equal(converted.has(102), true);
+        assert.equal(converted.has(101), false);
+    });
+
+    it('Best Buy case: 1 email converts 1 of 11 in-period alerts, not all 11', () => {
+        const alerts = Array.from({ length: 11 }, (_, i) => ({
+            id: 200 + i,
+            account_id: 10,
+            created_at: `2026-07-${String(i + 1).padStart(2, '0')}T12:00:00.000Z`,
+            status: 'New',
+        }));
+        const acts = [{ id: 'email-1', account_id: 10, date: '2026-07-20T16:00:00.000Z' }];
+        const converted = assignConvertedAlertIds(alerts, acts);
+        assert.equal(converted.size, 1);
+    });
+
+    it('prefers explicit cognito_alert_id over greedy account match', () => {
+        const early = { ...alert, id: 301, created_at: '2026-07-05T12:00:00.000Z' };
+        const late = { ...alert, id: 302, created_at: '2026-07-15T12:00:00.000Z' };
+        const acts = [
+            {
+                id: 'a1',
+                account_id: 10,
+                date: '2026-07-20',
+                cognito_alert_id: 301,
+            },
+        ];
+        const converted = assignConvertedAlertIds([early, late], acts);
+        assert.deepEqual([...converted], [301]);
+    });
+
+    it('two activities convert two distinct alerts (not the same one twice)', () => {
+        const a1 = { ...alert, id: 401, created_at: '2026-07-05T12:00:00.000Z' };
+        const a2 = { ...alert, id: 402, created_at: '2026-07-15T12:00:00.000Z' };
+        const acts = [
+            { id: 'e1', account_id: 10, date: '2026-07-10' },
+            { id: 'e2', account_id: 10, date: '2026-07-20' },
+        ];
+        const converted = assignConvertedAlertIds([a1, a2], acts);
+        assert.equal(converted.size, 2);
+        assert.equal(converted.has(401), true);
+        assert.equal(converted.has(402), true);
     });
 
     it('rejects different accounts and null account_id', () => {
         assert.equal(
-            activityConvertsAlert(alert, [{ account_id: 99, date: '2026-07-12' }]),
+            activityConvertsAlert(alert, [{ id: 'a1', account_id: 99, date: '2026-07-12' }]),
             false
         );
         assert.equal(
             activityConvertsAlert(
                 { ...alert, account_id: null },
-                [{ account_id: 10, date: '2026-07-12' }]
+                [{ id: 'a1', account_id: 10, date: '2026-07-12' }]
             ),
             false
         );
     });
 
     it('returns false when outreach pool is empty (period pre-filter)', () => {
-        // Callers pass Activities-KPI rows only; out-of-period acts never enter the pool.
         assert.equal(activityConvertsAlert(alert, []), false);
     });
 });
