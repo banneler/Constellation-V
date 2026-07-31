@@ -166,6 +166,18 @@ module.exports = async function handler(req, res) {
         )
       );
 
+      const calListRaw = Array.isArray(calendarsResult?.data)
+        ? calendarsResult.data
+        : Array.isArray(calendarsResult)
+          ? calendarsResult
+          : [];
+      const nameByCalendarId = new Map();
+      for (const cal of calListRaw) {
+        if (cal?.id == null) continue;
+        const name = (cal.name && String(cal.name).trim()) || null;
+        if (name) nameByCalendarId.set(String(cal.id), name);
+      }
+
       const seen = new Set();
       const events = [];
       for (let i = 0; i < listResults.length; i++) {
@@ -174,6 +186,7 @@ module.exports = async function handler(req, res) {
         const raw = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
         // ONLY this calendar's color — never bleed primary onto Work/Stuff.
         const fallbackColor = colorByCalendarId.get(String(calId)) || null;
+        const calName = nameByCalendarId.get(String(calId)) || null;
         for (const ev of raw) {
           const id = ev?.id != null ? String(ev.id) : null;
           if (id && seen.has(id)) continue;
@@ -182,11 +195,18 @@ module.exports = async function handler(req, res) {
           if (!ev.calendar_id && !ev.calendarId && calId) {
             ev.calendar_id = calId;
           }
+          if (!ev.calendar_name && !ev.calendarName && calName) {
+            ev.calendar_name = calName;
+          }
           const normalized = normalizeCalendarEvent(ev, {
             calendarColor: fallbackColor,
             colorByCalendarId,
           });
           if (normalized.startTime == null) continue;
+          // Guarantee the queried calendar's hex when map lookup missed a id variant.
+          if (!normalized.color && fallbackColor) {
+            normalized.color = fallbackColor;
+          }
           events.push(normalized);
         }
       }
@@ -194,6 +214,12 @@ module.exports = async function handler(req, res) {
       events.sort((a, b) => a.startTime - b.startTime);
       const sliced = events.slice(0, limit);
       const calendarColors = Object.fromEntries(colorByCalendarId.entries());
+      // Dev/client proof: named calendars with distinct hex (Work/Stuff).
+      const calendars = calendarIds.map((id) => ({
+        id: String(id),
+        name: nameByCalendarId.get(String(id)) || String(id),
+        color: colorByCalendarId.get(String(id)) || null,
+      }));
 
       return sendJson(res, 200, {
         ok: true,
@@ -201,6 +227,7 @@ module.exports = async function handler(req, res) {
         calendarColor,
         calendarIds,
         calendarColors,
+        calendars,
         events: sliced,
       });
     }

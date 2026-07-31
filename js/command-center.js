@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=108';
 import {
     TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
     TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
@@ -41,7 +41,7 @@ import {
     normalizeEventColor as geoNormalizeEventColor,
     colorFromGoogleColorId as geoColorFromGoogleColorId,
     deterministicColorFromKey as geoDeterministicColorFromKey,
-} from './cc-calendar-geometry.mjs';
+} from './cc-calendar-geometry.mjs?v=108';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -212,14 +212,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     /**
      * Resolve Google/Nylas calendar hex for an event.
-     * Prefers event.color / color_id from API; falls back to cached calendars by calendarId.
+     * Prefer: Google event color_id → calendar cache by id → API color → deterministic.
      * Never paints another label with the primary calendar color (Work/Stuff bug).
      */
     function resolveEventColor(ev) {
-        const fromColorId = geoColorFromGoogleColorId(ev?.colorId ?? ev?.color_id);
+        const meta = ev?.metadata && typeof ev.metadata === "object" ? ev.metadata : {};
+        const fromColorId = geoColorFromGoogleColorId(
+            ev?.colorId ?? ev?.color_id ?? meta.color_id ?? meta.colorId
+        );
         if (fromColorId) return fromColorId;
-        const direct = normalizeEventColor(ev?.color);
-        if (direct) return direct;
+
         const calId = ev?.calendarId != null ? String(ev.calendarId) : "";
         const cals = Array.isArray(cachedNylasCalendars) ? cachedNylasCalendars : [];
         if (calId) {
@@ -231,43 +233,130 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const fromPrimary = normalizeEventColor(primaryMatch?.color);
                 if (fromPrimary) return fromPrimary;
             }
-            // Distinct stable color so Work ≠ Stuff ≠ Primary when hex is missing.
-            return geoDeterministicColorFromKey(calId);
         }
+        // Name fallback (Work/Stuff) when id casing/encoding diverges.
+        const calName = (ev?.calendarName || ev?.calendar_name || "").trim().toLowerCase();
+        if (calName) {
+            const byName = cals.find(
+                (c) => c?.name && String(c.name).trim().toLowerCase() === calName
+            );
+            const fromName = normalizeEventColor(byName?.color);
+            if (fromName) return fromName;
+        }
+
+        const direct = normalizeEventColor(ev?.color);
+        if (direct) return direct;
+
+        if (calId) return geoDeterministicColorFromKey(calId);
+        if (calName) return geoDeterministicColorFromKey(calName);
         return null;
     }
 
     /**
-     * Inline --cc-event-color (+ optional background for bullets/dots so inheritance
-     * can't drop Google hex_color). Always writes a real hex when known.
+     * Inline --cc-event-color + solid paint so theme !important can't drop Google hex.
+     * Always writes data-event-color for post-render forcePaint.
      */
-    function eventColorStyleAttr(ev, { paintBackground = false } = {}) {
+    function eventColorStyleAttr(ev, { paintBackground = false, paintCard = false } = {}) {
         const color = resolveEventColor(ev);
         if (!color) return "";
-        const bg = paintBackground
-            ? ` background-color: ${color} !important; border-color: ${color} !important;`
-            : "";
-        return ` style="--cc-event-color: ${color};${bg}" data-event-color="${escapeHtml(color)}"`;
+        const parts = [`--cc-event-color: ${color}`];
+        if (paintBackground) {
+            parts.push(`background-color: ${color} !important`);
+            parts.push(`border-color: ${color} !important`);
+        }
+        if (paintCard) {
+            parts.push(`border-left: 3px solid ${color} !important`);
+            parts.push(
+                `background-color: color-mix(in srgb, ${color} 40%, var(--bg-light)) !important`
+            );
+            parts.push(
+                `box-shadow: inset 0 0 0 1px color-mix(in srgb, ${color} 45%, transparent) !important`
+            );
+        }
+        return ` style="${parts.join("; ")}" data-event-color="${escapeHtml(color)}"`;
     }
 
-    /** Merge `calendarColors` map from events API into the calendars cache. */
+    /**
+     * Force hex onto rendered bullets/dots/cards after innerHTML — beats stylesheet
+     * !important via setProperty priority and proves paint can't silently no-op.
+     */
+    function forcePaintEventColors(root) {
+        const scope = root || document;
+        const nodes = scope.querySelectorAll
+            ? scope.querySelectorAll("[data-event-color]")
+            : [];
+        let painted = 0;
+        nodes.forEach((el) => {
+            const color = normalizeEventColor(el.getAttribute("data-event-color"));
+            if (!color) return;
+            el.style.setProperty("--cc-event-color", color);
+            if (
+                el.classList.contains("cc-event-bullet") ||
+                el.classList.contains("cc-month-dot")
+            ) {
+                el.style.setProperty("background-color", color, "important");
+                el.style.setProperty("border-color", color, "important");
+            }
+            if (el.classList.contains("cc-day-timeline-event")) {
+                el.style.setProperty("border-left-color", color, "important");
+                el.style.setProperty("border-left-width", "3px", "important");
+                el.style.setProperty(
+                    "background-color",
+                    `color-mix(in srgb, ${color} 40%, var(--bg-light))`,
+                    "important"
+                );
+                el.style.setProperty(
+                    "box-shadow",
+                    `inset 0 0 0 1px color-mix(in srgb, ${color} 45%, transparent)`,
+                    "important"
+                );
+            }
+            painted += 1;
+        });
+        return painted;
+    }
+
+    /** Merge `calendarColors` / `calendars` from events API into the calendars cache. */
     function mergeCalendarColorsFromEvents(data) {
-        const map = data?.calendarColors;
-        if (!map || typeof map !== "object") return;
         const cals = Array.isArray(cachedNylasCalendars) ? [...cachedNylasCalendars] : [];
         let changed = false;
-        for (const [id, hex] of Object.entries(map)) {
+
+        const upsert = (id, hex, name) => {
             const color = normalizeEventColor(hex);
-            if (!color || id === "primary") continue;
+            if (!color || !id || id === "primary") return;
             const idx = cals.findIndex((c) => c && String(c.id) === String(id));
             if (idx >= 0) {
-                if (normalizeEventColor(cals[idx].color) !== color) {
-                    cals[idx] = { ...cals[idx], color };
+                const next = { ...cals[idx] };
+                if (normalizeEventColor(next.color) !== color) {
+                    next.color = color;
                     changed = true;
                 }
+                if (name && !next.name) {
+                    next.name = name;
+                    changed = true;
+                }
+                cals[idx] = next;
             } else {
-                cals.push({ id: String(id), name: String(id), color, isPrimary: false, readOnly: false });
+                cals.push({
+                    id: String(id),
+                    name: name || String(id),
+                    color,
+                    isPrimary: false,
+                    readOnly: false,
+                });
                 changed = true;
+            }
+        };
+
+        if (Array.isArray(data?.calendars)) {
+            for (const cal of data.calendars) {
+                if (cal?.id != null) upsert(cal.id, cal.color, cal.name);
+            }
+        }
+        const map = data?.calendarColors;
+        if (map && typeof map === "object") {
+            for (const [id, hex] of Object.entries(map)) {
+                upsert(id, hex, null);
             }
         }
         if (changed) {
@@ -280,12 +369,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     function enrichEventsWithCalendarColors(events, data) {
         mergeCalendarColorsFromEvents(data);
         const list = Array.isArray(events) ? events : [];
-        return list.map((ev) => {
+        const enriched = list.map((ev) => {
             const resolved = resolveEventColor(ev);
             if (!resolved) return ev;
             if (normalizeEventColor(ev?.color) === resolved) return ev;
             return { ...ev, color: resolved };
         });
+        const missing = enriched.filter((ev) => !normalizeEventColor(ev?.color));
+        if (missing.length) {
+            console.warn(
+                `[command-center] ${missing.length} calendar event(s) still lack color after enrichment`,
+                missing.map((ev) => ({
+                    id: ev?.id,
+                    title: ev?.title,
+                    calendarId: ev?.calendarId,
+                    calendarName: ev?.calendarName,
+                }))
+            );
+        }
+        const colors = new Set(
+            enriched.map((ev) => normalizeEventColor(ev?.color)).filter(Boolean)
+        );
+        if (enriched.length >= 2 && colors.size < 2 && data?.calendars?.length > 1) {
+            console.warn(
+                "[command-center] events collapsed to one color despite multiple calendars — check Nylas hex_color / reconnect calendar scopes",
+                { calendarCount: data.calendars.length, colors: [...colors] }
+            );
+        }
+        return enriched;
     }
 
     function groupEventsByDay(events) {
@@ -351,6 +462,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             container.appendChild(section);
         }
+        forcePaintEventColors(container);
     }
 
     function setCalendarCardVisible(visible) {
@@ -496,20 +608,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     /**
-     * Wire a snap-scroll time wheel. Returns { getMinutes, setMinutes }.
-     * @param {(min: number) => void} [onChange]
+     * Wire a snap-scroll time wheel.
+     * User scrolls freely; value + onSettledChange fire once after settle
+     * (scrollend + debounce). Programmatic setMinutes never emits onSettledChange.
+     * @returns {{ getMinutes, setMinutes, isUserScrolling, whenSettled }}
      */
-    function wireTimeWheel(wheelEl, hiddenInput, { onChange } = {}) {
+    function wireTimeWheel(wheelEl, hiddenInput, { onSettledChange } = {}) {
         const scroller = wheelEl?.querySelector(".cc-event-time-wheel-scroller");
         if (!wheelEl || !scroller || !hiddenInput) {
             return {
                 getMinutes: () => timeInputValueToMinutes(hiddenInput?.value),
                 setMinutes: () => {},
+                isUserScrolling: () => false,
+                whenSettled: (cb) => {
+                    if (typeof cb === "function") cb();
+                },
             };
         }
 
-        let suppress = false;
-        let scrollEndTimer = null;
+        const SETTLE_MS = 150;
+        let isUserScrolling = false;
+        let isProgrammatic = false;
+        let settleTimer = null;
+        let settleWaiters = [];
+        let lastEmittedMin = timeInputValueToMinutes(hiddenInput.value);
 
         const itemHeight = () => {
             const item = scroller.querySelector(".cc-event-time-wheel-item");
@@ -536,65 +658,120 @@ document.addEventListener("DOMContentLoaded", async () => {
             return Number.isFinite(min) ? min : timeInputValueToMinutes(hiddenInput.value);
         };
 
+        const flushWaiters = () => {
+            const waiters = settleWaiters.splice(0);
+            for (const cb of waiters) {
+                try {
+                    cb();
+                } catch (_) {
+                    /* ignore */
+                }
+            }
+        };
+
         const scrollToMinutes = (min, behavior = "auto") => {
             const list = items();
             const item = list.find((el) => Number(el.dataset.min) === min) || null;
             if (!item) {
                 hiddenInput.value = minutesToTimeInputValue(min);
+                syncSelectedClass(min);
                 return;
             }
             const h = itemHeight();
             const idx = list.indexOf(item);
-            suppress = true;
-            scroller.scrollTo({ top: idx * h, behavior });
+            const target = idx * h;
+            // Avoid rAF thrash: only scroll when off the snap point.
+            if (Math.abs(scroller.scrollTop - target) > 1.5) {
+                isProgrammatic = true;
+                scroller.scrollTo({ top: target, behavior });
+            }
             hiddenInput.value = minutesToTimeInputValue(min);
             syncSelectedClass(min);
-            window.setTimeout(() => {
-                suppress = false;
-            }, behavior === "smooth" ? 180 : 0);
         };
 
-        const commitFromScroll = () => {
-            if (suppress) return;
+        const finishSettle = () => {
+            window.clearTimeout(settleTimer);
+            settleTimer = null;
             const min = minutesFromScroll();
-            if (min == null) return;
-            const prev = timeInputValueToMinutes(hiddenInput.value);
-            scrollToMinutes(min, "smooth");
-            if (prev !== min) onChange?.(min);
+            const wasUser = isUserScrolling;
+            if (min != null) {
+                // Instant final snap only — never smooth here (smooth re-triggers scroll).
+                scrollToMinutes(min, "auto");
+                const changed = lastEmittedMin !== min;
+                if (changed) lastEmittedMin = min;
+                if (changed && wasUser) onSettledChange?.(min);
+            }
+            isUserScrolling = false;
+            isProgrammatic = false;
+            flushWaiters();
         };
 
-        scroller.addEventListener("scroll", () => {
-            const min = minutesFromScroll();
-            if (min != null) syncSelectedClass(min);
-            window.clearTimeout(scrollEndTimer);
-            scrollEndTimer = window.setTimeout(commitFromScroll, 90);
-        }, { passive: true });
+        const scheduleSettle = () => {
+            window.clearTimeout(settleTimer);
+            settleTimer = window.setTimeout(finishSettle, SETTLE_MS);
+        };
+
+        scroller.addEventListener(
+            "scroll",
+            () => {
+                if (!isProgrammatic) isUserScrolling = true;
+                const min = minutesFromScroll();
+                if (min != null) syncSelectedClass(min);
+                scheduleSettle();
+            },
+            { passive: true }
+        );
 
         scroller.addEventListener("scrollend", () => {
-            window.clearTimeout(scrollEndTimer);
-            commitFromScroll();
+            finishSettle();
         });
+
+        scroller.addEventListener(
+            "pointerdown",
+            () => {
+                isUserScrolling = true;
+            },
+            { passive: true }
+        );
 
         scroller.addEventListener("click", (e) => {
             const item = e.target.closest(".cc-event-time-wheel-item");
             if (!item || !scroller.contains(item)) return;
             const min = Number(item.dataset.min);
             if (!Number.isFinite(min)) return;
-            const prev = timeInputValueToMinutes(hiddenInput.value);
+            isUserScrolling = true;
             scrollToMinutes(min, "smooth");
-            if (prev !== min) onChange?.(min);
+            scheduleSettle();
         });
 
         requestAnimationFrame(() => {
             const min = timeInputValueToMinutes(hiddenInput.value);
-            if (min != null) scrollToMinutes(min, "auto");
+            if (min != null) {
+                isProgrammatic = true;
+                scrollToMinutes(min, "auto");
+                lastEmittedMin = min;
+                scheduleSettle();
+            }
         });
 
         return {
             getMinutes: () => timeInputValueToMinutes(hiddenInput.value),
             setMinutes: (min, { behavior = "auto" } = {}) => {
                 if (!Number.isFinite(min)) return;
+                isProgrammatic = true;
+                isUserScrolling = false;
                 scrollToMinutes(min, behavior);
+                lastEmittedMin = min;
+                scheduleSettle();
+            },
+            isUserScrolling: () => isUserScrolling,
+            whenSettled: (cb) => {
+                if (typeof cb !== "function") return;
+                if (!isUserScrolling && !isProgrammatic && settleTimer == null) {
+                    cb();
+                    return;
+                }
+                settleWaiters.push(cb);
             },
         };
     }
@@ -1060,7 +1237,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 end: Math.floor(end.getTime() / 1000),
                 limit: 50,
             });
-            return Array.isArray(data?.events) ? data.events : [];
+            return enrichEventsWithCalendarColors(
+                Array.isArray(data?.events) ? data.events : [],
+                data
+            );
         } catch (error) {
             console.warn("[command-center] day availability:", error);
             return eventsForDayKey(dayKey);
@@ -1081,8 +1261,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         let suggestionEvents = [];
         let loadToken = 0;
-        let applying = false;
-        let applyingClearTimer = null;
+        /** Blocks cross-wheel sync while a dependent update is in flight. */
+        let linkLock = false;
         let selectedDurationMin = (() => {
             const s = timeInputValueToMinutes(startEl.value);
             const e = timeInputValueToMinutes(endEl.value);
@@ -1137,18 +1317,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .join("");
         }
 
+        /** Programmatic both-wheels set (pills / suggestions). Never fights mid-scroll. */
         const applyTimes = (startMin, endMin, { keepDuration = false, behavior = "auto" } = {}) => {
             const snapped = snapEventMinutesToStep(startMin, endMin);
-            applying = true;
-            window.clearTimeout(applyingClearTimer);
+            linkLock = true;
             startWheel?.setMinutes(snapped.startMin, { behavior });
             endWheel?.setMinutes(snapped.endMin, { behavior });
-            applyingClearTimer = window.setTimeout(
-                () => {
-                    applying = false;
-                },
-                behavior === "smooth" ? 220 : 50
-            );
             if (!keepDuration) {
                 selectedDurationMin = Math.max(
                     EVENT_TIME_STEP_MIN,
@@ -1157,27 +1331,70 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             syncDurationPills();
             renderSuggestions();
+            // Release lock after both wheels settle (or immediately if idle).
+            let pending = 2;
+            const done = () => {
+                pending -= 1;
+                if (pending <= 0) linkLock = false;
+            };
+            startWheel?.whenSettled(done);
+            endWheel?.whenSettled(done);
         };
 
         startWheel = wireTimeWheel(startWheelEl, startEl, {
-            onChange: (min) => {
-                if (applying) return;
-                const dur = Math.max(EVENT_TIME_STEP_MIN, selectedDurationMin || 60);
-                applyTimes(min, min + dur, { keepDuration: true, behavior: "smooth" });
+            onSettledChange: (min) => {
+                if (linkLock) return;
+                // Wait until end isn't mid-user-scroll, then sync end once.
+                const syncEndFromStart = () => {
+                    if (linkLock) return;
+                    if (endWheel?.isUserScrolling()) {
+                        endWheel.whenSettled(syncEndFromStart);
+                        return;
+                    }
+                    const dur = Math.max(EVENT_TIME_STEP_MIN, selectedDurationMin || 60);
+                    let endMin = min + dur;
+                    if (endMin > TIMELINE_END_MIN) {
+                        endMin = TIMELINE_END_MIN;
+                        selectedDurationMin = Math.max(EVENT_TIME_STEP_MIN, endMin - min);
+                    }
+                    linkLock = true;
+                    endWheel?.setMinutes(endMin, { behavior: "smooth" });
+                    endWheel?.whenSettled(() => {
+                        linkLock = false;
+                        syncDurationPills();
+                        renderSuggestions();
+                    });
+                };
+                syncEndFromStart();
             },
         });
         endWheel = wireTimeWheel(endWheelEl, endEl, {
-            onChange: (min) => {
-                if (applying) return;
-                let startMin = startWheel.getMinutes() ?? TIMELINE_START_MIN;
-                let endMin = min;
-                if (endMin <= startMin) {
-                    endMin = Math.min(startMin + EVENT_TIME_STEP_MIN, TIMELINE_END_MIN);
-                    if (endMin <= startMin) {
-                        startMin = Math.max(TIMELINE_START_MIN, endMin - EVENT_TIME_STEP_MIN);
+            onSettledChange: (min) => {
+                if (linkLock) return;
+                // Prefer: dragging end → update duration/pills only; don't yank start.
+                const syncDurationFromEnd = () => {
+                    if (linkLock) return;
+                    if (startWheel?.isUserScrolling()) {
+                        startWheel.whenSettled(syncDurationFromEnd);
+                        return;
                     }
-                }
-                applyTimes(startMin, endMin, { behavior: "smooth" });
+                    const startMin = startWheel?.getMinutes() ?? TIMELINE_START_MIN;
+                    let endMin = min;
+                    if (endMin <= startMin) {
+                        endMin = Math.min(startMin + EVENT_TIME_STEP_MIN, TIMELINE_END_MIN);
+                        if (endMin !== min) {
+                            linkLock = true;
+                            endWheel?.setMinutes(endMin, { behavior: "auto" });
+                            endWheel?.whenSettled(() => {
+                                linkLock = false;
+                            });
+                        }
+                    }
+                    selectedDurationMin = Math.max(EVENT_TIME_STEP_MIN, endMin - startMin);
+                    syncDurationPills();
+                    renderSuggestions();
+                };
+                syncDurationFromEnd();
             },
         });
 
@@ -1364,9 +1581,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // duration 1:1 to the hour grid; columns sit side-by-side on conflicts.
                 const eventIdAttr = ev.id != null ? ` data-event-id="${escapeHtml(String(ev.id))}"` : "";
                 const colorAttr = color ? ` data-event-color="${escapeHtml(color)}"` : "";
-                // Inline hex so Google label colors survive CSS cache / inheritance gaps.
+                // Inline hex + !important so theme/CSS cache can't force primary blue.
                 const colorInline = color
-                    ? `--cc-event-color:${color};border-left-color:${color};border-left-width:3px;background-color:color-mix(in srgb,${color} 40%,var(--bg-light));box-shadow:inset 0 0 0 1px color-mix(in srgb,${color} 45%,transparent);`
+                    ? `--cc-event-color:${color};border-left:3px solid ${color} !important;background-color:color-mix(in srgb,${color} 40%,var(--bg-light)) !important;box-shadow:inset 0 0 0 1px color-mix(in srgb,${color} 45%,transparent) !important;`
                     : "";
                 return `
                     <div class="${classes.join(" ")}" role="button" tabindex="0" aria-label="Edit ${escapeHtml(ev.title || "event")}"${eventIdAttr}${colorAttr} style="position:absolute;${horizStyle}top:${topPct}%;height:${heightPct}%;bottom:auto;max-height:${heightPct}%;min-height:0;margin:0;padding:0;z-index:3;pointer-events:auto;cursor:pointer;overflow:hidden;box-sizing:border-box;${colorInline}" title="${escapeHtml(ev.title || "(No title)")} — click to edit" data-duration-min="${Math.round(durationMin)}" data-start-min="${Math.round(clampedStart)}" data-col="${pack.columnIndex}" data-col-count="${pack.columnCount}">
@@ -1422,6 +1639,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>
         `;
+        forcePaintEventColors(ccMonthDayList);
     }
 
     function renderMonthGrid() {
@@ -1491,6 +1709,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             `);
         }
         ccMonthGrid.innerHTML = cells.join("");
+        forcePaintEventColors(ccMonthGrid);
         renderMonthDayPanel(monthSelectedDayKey);
     }
 

@@ -242,14 +242,34 @@ function parseEventWhen(whenInput) {
  * @param {object} ev
  * @param {{ calendarColor?: string|null, colorByCalendarId?: Map<string,string> }} [opts]
  */
+/**
+ * Google event color_id may be top-level (Nylas) or under metadata (Google via Nylas).
+ * @see https://developer.nylas.com/docs/cookbook/calendar/events/list-events-google/
+ */
+function extractEventColorId(ev) {
+  const meta = ev?.metadata && typeof ev.metadata === "object" ? ev.metadata : {};
+  const raw =
+    ev?.color_id ??
+    ev?.colorId ??
+    meta.color_id ??
+    meta.colorId ??
+    null;
+  if (raw == null || raw === "") return null;
+  return String(raw);
+}
+
 function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
   const { startTime, endTime, allDay } = parseEventWhen(ev?.when);
 
   const rawDesc = ev?.text_description || ev?.description || "";
   const description = stripHtml(rawDesc).slice(0, 160) || null;
   const calendarId = ev?.calendar_id || ev?.calendarId || null;
-  const colorId = ev?.color_id ?? ev?.colorId ?? null;
+  const colorId = extractEventColorId(ev);
   const calKey = calendarId != null ? String(calendarId) : "";
+  const calendarName =
+    (ev?.calendar_name && String(ev.calendar_name).trim()) ||
+    (ev?.calendarName && String(ev.calendarName).trim()) ||
+    null;
 
   // Event color_id (Google override) → this calendar's hex → per-request calendar
   // color (must be THAT calendar, not primary bleed) → event hex → stable id hash.
@@ -276,6 +296,7 @@ function normalizeCalendarEvent(ev, { calendarColor, colorByCalendarId } = {}) {
     allDay,
     location: ev?.location ? String(ev.location).trim() : null,
     calendarId,
+    calendarName,
     colorId: colorId != null && colorId !== "" ? String(colorId) : null,
     color,
   };
@@ -344,6 +365,7 @@ module.exports = {
   GOOGLE_CALENDAR_COLOR_IDS,
   FALLBACK_CALENDAR_PALETTE,
   extractCalendarHexColor,
+  extractEventColorId,
   buildCalendarColorMap,
   parseEventWhen,
   normalizeCalendarEvent,

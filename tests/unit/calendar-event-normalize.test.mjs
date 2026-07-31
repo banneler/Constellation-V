@@ -99,6 +99,24 @@ describe('calendar-event-normalize colors', () => {
         assert.equal(ev.colorId, '11');
     });
 
+    it('reads Google color_id from metadata (Nylas/Google shape)', () => {
+        const colorByCalendarId = buildCalendarColorMap({
+            data: [{ id: 'cal-1', hex_color: '#a4bdfc', is_primary: true }],
+        });
+        const ev = normalizeCalendarEvent(
+            {
+                id: 'e-meta',
+                title: 'Meta color',
+                calendar_id: 'cal-1',
+                metadata: { color_id: '4' },
+                when: { start_time: 1000, end_time: 1900 },
+            },
+            { colorByCalendarId }
+        );
+        assert.equal(ev.colorId, '4');
+        assert.equal(ev.color, '#FF887C');
+    });
+
     it('maps Google calendar-list colorId when hex_color is null', () => {
         assert.equal(colorFromGoogleCalendarColorId('3'), '#F83A22');
         assert.equal(colorFromGoogleCalendarColorId('16'), '#4986E7');

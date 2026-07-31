@@ -50,11 +50,23 @@
   pointer-events: none;
 }
 
-/* Google/Nylas hex_color — solid label colors on bullets/dots (inline wins too) */
+/* Google/Nylas hex_color — solid label colors on bullets/dots (inline + data-attr) */
 .cc-event-bullet,
 .cc-month-dot {
   background-color: var(--cc-event-color, var(--primary-blue)) !important;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 55%, transparent);
+}
+.cc-event-bullet[data-event-color],
+.cc-month-dot[data-event-color] {
+  background-color: var(--cc-event-color) !important;
+}
+.cc-day-timeline-event[data-event-color] {
+  border-left-color: var(--cc-event-color) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--cc-event-color) 40%,
+    var(--bg-light)
+  ) !important;
 }
 
 /* Event modal duration pills + time selects (cache-safe overrides) */
@@ -172,7 +184,8 @@
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scroll-snap-type: y mandatory;
+  /* proximity (not mandatory) — avoids fighting JS settle snap / linked wheels */
+  scroll-snap-type: y proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   padding-block: calc(var(--cc-time-wheel-item-h) * 2);

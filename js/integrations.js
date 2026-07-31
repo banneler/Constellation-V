@@ -136,10 +136,11 @@ export async function sendEmail(supabase, { to, subject = "", body = "", cc, bcc
 }
 
 /**
- * List upcoming calendar events from the connected Nylas primary calendar.
+ * List upcoming calendar events from connected Nylas calendars (all labels by default).
+ * Response includes `events[].color`, `calendarColors`, and `calendars[{id,name,color}]`.
  * @param {{ calendarId?: string, limit?: number, start?: number, end?: number }} [opts]
  *   start/end are Unix seconds; server defaults to now → +7 days when omitted.
- * @returns {Promise<{ ok: boolean, provider?: string, events: Array, result?: any }>}
+ * @returns {Promise<{ ok: boolean, provider?: string, events: Array, calendarColors?: object, calendars?: Array }>}
  */
 export async function listCalendarEvents(supabase, opts = {}) {
     const params = new URLSearchParams();

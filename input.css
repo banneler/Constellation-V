@@ -1120,7 +1120,7 @@ body.theme-green {
         height: 100%;
         overflow-y: auto;
         overscroll-behavior: contain;
-        scroll-snap-type: y mandatory;
+        scroll-snap-type: y proximity;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         padding-block: calc(var(--cc-time-wheel-item-h) * 2);
