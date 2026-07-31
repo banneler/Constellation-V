@@ -320,27 +320,34 @@
     font-style: italic;
 }
 
+/* Feed lists — mirror Command Center Recent Activities density on Insights */
+.insights-feed-card {
+    overflow: hidden;
+}
+
 .insights-feed-card .section-card-header {
     align-items: flex-start;
 }
 
-.insights-feed-list {
-    max-height: min(32rem, 70vh);
-    border-top: 1px solid var(--border-color);
-}
-
 .insights-feed-list.recent-activities-list {
-    flex: 1 1 auto;
+    flex: none;
+    max-height: min(32rem, 70vh);
     min-height: 0;
+    border-top: 1px solid var(--border-color);
 }
 
 .insights-penetration-item .activity-description {
     font-weight: 700;
 }
 
+.insights-penetration-item .activity-actions {
+    align-self: center;
+}
+
 .insights-feed-account-link {
     color: var(--text-light);
     text-decoration: none;
+    font-weight: 700;
 }
 
 .insights-feed-account-link:hover {
@@ -360,10 +367,6 @@
     font-weight: 700;
     letter-spacing: 0.02em;
     white-space: nowrap;
-}
-
-.insights-penetration-item .activity-actions {
-    align-self: center;
 }
 
 .insights-export-root {

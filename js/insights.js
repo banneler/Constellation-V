@@ -27,8 +27,9 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /** PostgREST default max rows per request — must page past this or recent rows disappear. */
 const INSIGHTS_PAGE_SIZE = 1000;
+
 /** Cap for Insights Recent Activities feed (CC uses 20; Insights shows a bit more). */
-const RECENT_ACTIVITIES_LIMIT = 25;
+const RECENT_ACTIVITIES_LIMIT = 40;
 
 const PERIOD_LABELS = {
     this_month: 'This Month',
@@ -47,9 +48,6 @@ const PDF_PAGE_PAD_TOP_PX = 28;
 const PDF_PAGE_PAD_BOTTOM_PX = 36;
 const PDF_PAGE_CONTENT_HEIGHT_PX =
     PDF_PAGE_HEIGHT_PX - PDF_PAGE_PAD_TOP_PX - PDF_PAGE_PAD_BOTTOM_PX;
-
-/** Match Command Center density; Insights may have denser periods so cap + note total. */
-const RECENT_ACTIVITIES_LIMIT = 40;
 
 const state = {
     currentUser: null,
