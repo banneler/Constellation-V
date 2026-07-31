@@ -42,10 +42,10 @@ function normalizeHexColor(value) {
  *    Nylas v3 does NOT document or expose eventLabelId / labelProperties
  *    (Calendar has hexColor only; Event has no label fields in the Node SDK).
  *
- * Prefer: label hex (if ever passthrough) → legacy color_id → brand default.
+ * Prefer: label hex (if ever passthrough) → legacy color_id → peacock default.
  * Calendar hex is NOT used for Command Center event paint — Google primary
- * peacock/teal (#039BE5, etc.) would otherwise override Constellation blue on
- * every unlabeled event. Distinct colors require a real per-event color_id.
+ * calendar tints would otherwise override the predictable unlabeled default.
+ * Distinct colors require a real per-event color_id.
  * @see https://developers.google.com/workspace/calendar/api/guides/labels
  * @see https://developer.nylas.com/docs/cookbook/calendar/events/list-events-google/
  */
@@ -97,14 +97,14 @@ const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
 });
 
 /**
- * Constellation brand blue — matches `--primary-blue` / primary buttons & links.
- * Visible default for events with no per-event color_id / label (calendar hex ignored).
+ * Google/Nylas peacock — default for events with no per-event color_id / label
+ * (calendar hex ignored for Command Center paint).
  */
-const DEFAULT_EVENT_COLOR = "#3B82F6";
+const DEFAULT_EVENT_COLOR = "#039BE5";
 
 /** Stable distinct palette when provider returns no hex / colorId. */
 const FALLBACK_CALENDAR_PALETTE = Object.freeze([
-  DEFAULT_EVENT_COLOR, // was Google peacock #039BE5 — brand default first
+  DEFAULT_EVENT_COLOR, // Google peacock
   "#D50000",
   "#F4511E",
   "#F6BF26",
@@ -197,7 +197,7 @@ function buildCalendarColorMap(calendarsPayload, { fillMissing = true } = {}) {
     if (!id) continue;
     let color = extractCalendarHexColor(cal);
     if (!color && fillMissing) {
-      // Primary / no-provider-color → Constellation blue (not mint hash).
+      // Primary / no-provider-color → peacock (not mint hash).
       if (cal?.is_primary || cal?.isPrimary) {
         color = DEFAULT_EVENT_COLOR;
       } else {
@@ -418,8 +418,8 @@ function normalizeCalendarEvent(ev, { calendarColor: _calendarColor, colorByCale
     null;
 
   // Per-event color only. Named Google Labels (Work/Stuff) share primary calendar_id.
-  // Ignore calendar hex / calendarColor — Google primary defaults (peacock #039BE5)
-  // must not paint unlabeled events; Constellation blue is the visible default.
+  // Ignore calendar hex / calendarColor — provider calendar tints must not paint
+  // unlabeled events; peacock (#039BE5) is the visible default.
   let color = null;
   let colorSource = null;
   const fromColorId = colorFromGoogleColorId(colorId);

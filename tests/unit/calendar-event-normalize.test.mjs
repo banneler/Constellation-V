@@ -55,7 +55,7 @@ describe('calendar-event-normalize when parse', () => {
 });
 
 describe('calendar-event-normalize colors', () => {
-    it('ignores calendar map hex when event has no color_id (brand blue default)', () => {
+    it('ignores calendar map hex when event has no color_id (peacock default)', () => {
         const colorByCalendarId = buildCalendarColorMap({
             data: [
                 { id: 'cal-1', hex_color: '#a4bdfc', is_primary: true },
@@ -130,7 +130,7 @@ describe('calendar-event-normalize colors', () => {
         );
     });
 
-    it('unlabeled events on any calendar paint brand blue (calendar hex ignored)', () => {
+    it('unlabeled events on any calendar paint peacock default (calendar hex ignored)', () => {
         const primaryHex = '#112233';
         const colorByCalendarId = buildCalendarColorMap(
             {
@@ -191,11 +191,12 @@ describe('calendar-event-normalize colors', () => {
         assert.notEqual(map.get('work-cal'), map.get('stuff-cal'));
     });
 
-    it('primary / no-provider-color defaults to Constellation blue, not mint', () => {
-        assert.equal(DEFAULT_EVENT_COLOR, '#3B82F6');
+    it('primary / no-provider-color defaults to peacock, not mint', () => {
+        assert.equal(DEFAULT_EVENT_COLOR, '#039BE5');
         assert.equal(FALLBACK_CALENDAR_PALETTE[0], DEFAULT_EVENT_COLOR);
         assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#0B8043'));
         assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#33B679'));
+        assert.ok(!FALLBACK_CALENDAR_PALETTE.includes('#3B82F6'));
 
         const map = buildCalendarColorMap({
             data: [{ id: 'primary-cal', name: 'Primary', hex_color: null, is_primary: true }],
@@ -216,9 +217,9 @@ describe('calendar-event-normalize colors', () => {
         assert.equal(ev.colorSource, 'default');
     });
 
-    it('same primary calendar + different color_id paints Test3 ≠ Test Event; Discovery = brand blue', () => {
-        // Provider peacock on primary must NOT paint unlabeled Discovery.
-        const primaryHex = '#039BE5';
+    it('same primary calendar + different color_id paints Test3 ≠ Test Event; Discovery = peacock default', () => {
+        // Non-peacock calendar hex must NOT paint unlabeled Discovery (source=default).
+        const primaryHex = '#F83A22';
         const colorByCalendarId = buildCalendarColorMap({
             data: [{ id: 'primary-cal', hex_color: primaryHex, is_primary: true }],
         });
@@ -257,6 +258,7 @@ describe('calendar-event-normalize colors', () => {
         assert.equal(stuff.color, '#FFB878');
         assert.equal(stuff.colorSource, 'color_id');
         assert.equal(discovery.color, DEFAULT_EVENT_COLOR);
+        assert.equal(discovery.color, '#039BE5');
         assert.equal(discovery.colorSource, 'default');
         assert.notEqual(discovery.color, primaryHex);
         assert.notEqual(work.color, stuff.color);

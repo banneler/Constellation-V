@@ -197,14 +197,14 @@ export const GOOGLE_CALENDAR_COLOR_IDS = Object.freeze({
 });
 
 /**
- * Constellation brand blue — matches `--primary-blue` / primary buttons & links.
- * Visible default for events with no per-event color_id / label (calendar hex ignored).
+ * Google/Nylas peacock — default for events with no per-event color_id / label
+ * (calendar hex ignored for Command Center paint).
  */
-export const DEFAULT_EVENT_COLOR = "#3B82F6";
+export const DEFAULT_EVENT_COLOR = "#039BE5";
 
 /** Stable distinct palette when provider returns no hex / colorId. */
 const FALLBACK_CALENDAR_PALETTE = Object.freeze([
-    DEFAULT_EVENT_COLOR, // was Google peacock #039BE5 — brand default first
+    DEFAULT_EVENT_COLOR, // Google peacock
     "#D50000",
     "#F4511E",
     "#F6BF26",

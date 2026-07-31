@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=113';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=114';
 import {
     TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
     TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
@@ -42,7 +42,7 @@ import {
     colorFromGoogleColorId as geoColorFromGoogleColorId,
     DEFAULT_EVENT_COLOR,
     GOOGLE_EVENT_COLOR_IDS,
-} from './cc-calendar-geometry.mjs?v=113';
+} from './cc-calendar-geometry.mjs?v=114';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -214,8 +214,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     /**
      * Resolve paint hex for an event.
      * Per-event only: color_id / eventLabel / explicit event hex.
-     * Calendar hex (Google peacock #039BE5, etc.) is ignored — unlabeled events
-     * always paint Constellation brand blue.
+     * Calendar hex is ignored — unlabeled events always paint peacock (#039BE5).
      */
     function resolveEventColor(ev) {
         const meta = ev?.metadata && typeof ev.metadata === "object" ? ev.metadata : {};

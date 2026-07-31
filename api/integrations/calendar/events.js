@@ -136,7 +136,7 @@ module.exports = async function handler(req, res) {
       }
 
       // Stable distinct colors for any calendar still missing hex (sandbox nulls).
-      // Primary / no-color → Constellation blue; other calendars keep distinct tints.
+      // Primary / no-color → peacock; other calendars keep distinct tints.
       const primaryFromList = Array.isArray(calendarsResult?.data)
         ? calendarsResult.data.find((c) => c?.is_primary || c?.isPrimary)
         : null;
@@ -224,7 +224,7 @@ module.exports = async function handler(req, res) {
             labelColorById,
           });
           if (normalized.startTime == null) continue;
-          // Guarantee brand default when normalize somehow left color empty.
+          // Guarantee peacock default when normalize somehow left color empty.
           if (!normalized.color) {
             normalized.color = DEFAULT_EVENT_COLOR;
             if (!normalized.colorSource) normalized.colorSource = "default";
@@ -258,7 +258,7 @@ module.exports = async function handler(req, res) {
         // Google UI named Labels (Work/Stuff) need eventLabelId + label hex.
         // Nylas exposes legacy color_id (1–11) only — not custom Label names/colors.
         eventColorNote:
-          "Google named event Labels (Work/Stuff) need eventLabelId; Nylas returns legacy color_id (1–11) only. Without color_id, Command Center paints Constellation blue (calendar hex is ignored).",
+          "Google named event Labels (Work/Stuff) need eventLabelId; Nylas returns legacy color_id (1–11) only. Without color_id, Command Center paints peacock #039BE5 (calendar hex is ignored).",
         calendars,
         events: sliced,
       });
