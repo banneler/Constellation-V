@@ -27,7 +27,7 @@ import {
     applyEmailMergeFields
 } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
-import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=108';
+import { createCalendarEvent, emailActionLabel, getIntegrationState, listCalendarEvents, listCalendars, sendEmail, updateCalendarEvent } from './integrations.js?v=110';
 import {
     TIMELINE_START_MIN as GEO_TIMELINE_START_MIN,
     TIMELINE_END_MIN as GEO_TIMELINE_END_MIN,
@@ -838,9 +838,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return list.filter((c) => c?.id && !looksLikeHoliday(c));
     }
 
-    /** Friendly label name — avoid framing primary as an account email. */
-    function calendarLabelName(cal) {
-        const name = (cal?.name && String(cal.name).trim()) || "Label";
+    /** Friendly calendar name for the multi-calendar picker (not shown as chrome). */
+    function calendarDisplayName(cal) {
+        const name = (cal?.name && String(cal.name).trim()) || "Calendar";
         if (cal?.isPrimary && /@/.test(name)) return "Primary";
         if (/@/.test(name) && !/\s/.test(name)) {
             return name.split("@")[0] || name;
@@ -861,34 +861,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         return list
             .map((c) => {
                 const sel = c.id === selectedId ? " selected" : "";
-                return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(calendarLabelName(c))}</option>`;
+                return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(calendarDisplayName(c))}</option>`;
             })
             .join("");
     }
 
-    /** Label field: dropdown when multiple; read-only swatch+name when single. */
-    function calendarLabelFieldHtml(calendars, selectedId, swatchStyle) {
+    /**
+     * Calendar field for create/edit.
+     * One calendar (or edit — Nylas update is scoped to the event's calendar): hidden id only.
+     * Multiple writable calendars on create: real Calendar picker. Never show "Label: primary".
+     */
+    function calendarFieldHtml(calendars, selectedId, swatchStyle, { forceHidden = false } = {}) {
         const list = writableCalendars(calendars);
         const selected =
-            list.find((c) => c.id === selectedId) || list[0] || { id: selectedId || "primary", name: "Primary" };
-        const labelName = calendarLabelName(selected);
-        if (list.length <= 1) {
-            return `
-                <div class="cc-event-label-field">
-                    <span class="cc-event-label-heading">Label</span>
-                    <div class="cc-event-calendar-row cc-event-label-readonly">
-                        <span class="cc-event-calendar-swatch" id="cc-event-calendar-swatch"${swatchStyle} aria-hidden="true"></span>
-                        <span class="cc-event-label-name" id="cc-event-label-name">${escapeHtml(labelName)}</span>
-                        <input type="hidden" id="cc-event-calendar" name="calendarId" value="${escapeHtml(selected.id || "primary")}">
-                    </div>
-                </div>`;
+            list.find((c) => c.id === selectedId) || list[0] || { id: selectedId || "primary", name: "Calendar" };
+        const calId = selected.id || "primary";
+        if (forceHidden || list.length <= 1) {
+            return `<input type="hidden" id="cc-event-calendar" name="calendarId" value="${escapeHtml(calId)}">`;
         }
         return `
             <div class="cc-event-label-field">
-                <label for="cc-event-calendar">Label</label>
+                <label for="cc-event-calendar">Calendar</label>
                 <div class="cc-event-calendar-row">
                     <span class="cc-event-calendar-swatch" id="cc-event-calendar-swatch"${swatchStyle} aria-hidden="true"></span>
-                    <select id="cc-event-calendar" name="calendarId" required aria-label="Event label">
+                    <select id="cc-event-calendar" name="calendarId" required aria-label="Calendar">
                         ${calendarOptionsHtml(calendars, selectedId)}
                     </select>
                 </div>
@@ -1044,26 +1040,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const titleValue = prefill.title != null ? String(prefill.title) : "";
         const descValue = prefill.description != null ? String(prefill.description) : "";
-        // When editing, keep label read-only (Nylas update is scoped to the event's calendar).
-        const editLabelCalendars = [
-            selectedCal || {
-                id: selectedCalId,
-                name: "Primary",
-                isPrimary: true,
-                color: selectedCal?.color,
-            },
-        ];
-        const labelHtml = calendarLabelFieldHtml(
-            isEdit ? editLabelCalendars : calendars,
-            selectedCalId,
-            swatchStyle
-        );
+        // Edit: hide calendar chrome (update is scoped to the event's calendar).
+        // Create with one calendar: hide too — "Label: primary" is noise.
+        const calendarField = calendarFieldHtml(calendars, selectedCalId, swatchStyle, {
+            forceHidden: isEdit,
+        });
 
         const bodyHtml = `
             <form id="cc-add-event-form" class="modal-form">
                 <label for="cc-event-title">Title</label>
                 <input type="text" id="cc-event-title" name="title" required placeholder="Event title" autocomplete="off" value="${escapeHtml(titleValue)}">
-                ${labelHtml}
+                ${calendarField}
                 <label for="cc-event-date">Date</label>
                 <input type="date" id="cc-event-date" name="date" required value="${escapeHtml(dateValue)}">
                 <div class="cc-event-duration" id="cc-event-duration">

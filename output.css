@@ -3296,32 +3296,10 @@ body.theme-green {
     display: flex;
     flex-direction: column;
   }
-  .cc-event-label-heading {
-    margin-bottom: calc(var(--spacing) * 1);
-    display: block;
-    font-size: var(--text-sm);
-    line-height: var(--tw-leading, var(--text-sm--line-height));
-    --tw-font-weight: var(--font-weight-semibold);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-light);
-  }
   .cc-event-calendar-row {
     display: flex;
     align-items: center;
     gap: calc(var(--spacing) * 2);
-  }
-  .cc-event-label-readonly {
-    padding-inline: calc(var(--spacing) * 0);
-    padding-block: calc(var(--spacing) * 1.5);
-  }
-  .cc-event-label-name {
-    min-width: calc(var(--spacing) * 0);
-    flex: 1;
-    font-size: var(--text-sm);
-    line-height: var(--tw-leading, var(--text-sm--line-height));
-    --tw-leading: var(--leading-tight);
-    line-height: var(--leading-tight);
-    color: var(--text-light);
   }
   .cc-event-calendar-swatch {
     height: calc(var(--spacing) * 3.5);
@@ -3395,8 +3373,10 @@ body.theme-green {
     font-size: 0.7rem;
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
-    color: var(--text-muted);
+    --tw-tracking: var(--tracking-wide);
+    letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
+    color: var(--text-muted);
     letter-spacing: 0.04em;
   }
   .cc-event-duration-pills {
@@ -3405,10 +3385,10 @@ body.theme-green {
     gap: calc(var(--spacing) * 1.5);
   }
   .cc-event-duration-pill {
+    cursor: pointer;
     border-radius: var(--radius-md);
     border-style: var(--tw-border-style);
     border-width: 1px;
-    cursor: pointer;
     padding-inline: calc(var(--spacing) * 2.5);
     padding-block: calc(var(--spacing) * 1.5);
     font-size: 0.75rem;
@@ -3429,10 +3409,73 @@ body.theme-green {
   .cc-event-duration-pill--active {
     border-color: var(--primary-blue);
     background-color: var(--primary-blue);
-    color: var(--text-light);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in srgb, var(--primary-blue) 22%, var(--bg-medium));
     }
+    color: var(--text-light);
+  }
+  .cc-event-time-wheels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(var(--spacing) * 3);
+  }
+  @media (max-width: 520px) {
+    .cc-event-time-wheels {
+      grid-template-columns: 1fr;
+    }
+  }
+  .cc-event-time-wheel-label {
+    margin-bottom: calc(var(--spacing) * 1);
+    display: block;
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    --tw-font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-light);
+  }
+  .cc-event-time-wheel {
+    --cc-time-wheel-item-h: 2.25rem;
+    --cc-time-wheel-visible: 5;
+    position: relative;
+    height: calc(var(--cc-time-wheel-item-h) * var(--cc-time-wheel-visible));
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    background-color: var(--bg-medium);
+    overflow: hidden;
+  }
+  .cc-event-time-wheel-scroller {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-snap-type: y proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-block: calc(var(--cc-time-wheel-item-h) * 2);
+  }
+  .cc-event-time-wheel-scroller::-webkit-scrollbar {
+    display: none;
+  }
+  .cc-event-time-wheel-item {
+    margin: calc(var(--spacing) * 0);
+    display: flex;
+    width: 100%;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    border-style: var(--tw-border-style);
+    border-width: 0px;
+    padding: calc(var(--spacing) * 0);
+    height: var(--cc-time-wheel-item-h);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    opacity: 0.4;
+    scroll-snap-align: center;
+  }
+  .cc-event-time-wheel-item.is-selected {
+    color: var(--text-light);
+    font-weight: 600;
+    opacity: 1;
   }
   @media (max-width: 800px) {
     .cc-month-calendar-modal {

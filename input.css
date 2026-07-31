@@ -1016,23 +1016,12 @@ body.theme-green {
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
     }
-    /* Add Event: Label (Nylas calendar) + availability */
+    /* Add Event: Calendar picker (only when multiple writable calendars) */
     .cc-event-label-field {
         @apply flex flex-col;
     }
-    .cc-event-label-heading {
-        @apply text-sm font-semibold block mb-1;
-        color: var(--text-light);
-    }
     .cc-event-calendar-row {
         @apply flex items-center gap-2;
-    }
-    .cc-event-label-readonly {
-        @apply py-1.5 px-0;
-    }
-    .cc-event-label-name {
-        @apply text-sm min-w-0 flex-1 leading-tight;
-        color: var(--text-light);
     }
     .cc-event-calendar-swatch {
         @apply w-3.5 h-3.5 rounded-sm flex-shrink-0;
