@@ -21,7 +21,7 @@ import {
     getInsightsFetchFloor,
     formatLocalDate,
 } from './insights-period.mjs';
-import { assignConvertedAlertIds } from './insights-cognito.mjs';
+import { activityConvertsAlert, buildConvertedAlertIds } from './insights-cognito.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -271,7 +271,7 @@ function computeSnapshot() {
         return inDateRange(alert.created_at, startDate, endDate);
     });
     const outreachActivities = activities;
-    const convertedAlertIds = assignConvertedAlertIds(alerts, outreachActivities);
+    const convertedAlertIds = buildConvertedAlertIds(alerts, outreachActivities);
     let cognitoConverted = 0;
     let cognitoDismissed = 0;
     const cognitoByStatus = new Map();
@@ -281,7 +281,7 @@ function computeSnapshot() {
         if (!cognitoByStatus.has(status)) cognitoByStatus.set(status, { status, triggers: 0, converted: 0 });
         const bucket = cognitoByStatus.get(status);
         bucket.triggers += 1;
-        if (alert?.id != null && convertedAlertIds.has(Number(alert.id))) {
+        if (activityConvertsAlert(alert, convertedAlertIds)) {
             bucket.converted += 1;
             cognitoConverted += 1;
         }
@@ -358,7 +358,7 @@ function computeSnapshot() {
             const repSeqOverdue = seqOverdue.filter((r) => r.user_id === uid);
             const repAlerts = alerts.filter((a) => a.user_id === uid);
             const repOutreach = outreachActivities.filter((a) => a.user_id === uid);
-            const repConvertedIds = assignConvertedAlertIds(repAlerts, repOutreach);
+            const repConvertedIds = buildConvertedAlertIds(repAlerts, repOutreach);
             let repConverted = 0;
             let repDismissed = 0;
             repAlerts.forEach((alert) => {
@@ -366,7 +366,7 @@ function computeSnapshot() {
                     repDismissed += 1;
                     return;
                 }
-                if (alert?.id != null && repConvertedIds.has(Number(alert.id))) repConverted += 1;
+                if (activityConvertsAlert(alert, repConvertedIds)) repConverted += 1;
             });
             const repEligible = repAlerts.length - repDismissed;
             const staleAccounts = penetration.filter((p) => p.ownerId === uid).length;
