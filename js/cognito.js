@@ -707,7 +707,7 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
             );
             const alert = state.selectedAlert;
             if (alert?.id != null) {
-                const { error: activityError } = await supabase.from('activities').insert({
+                const activityError = await insertCognitoLinkedActivity({
                     account_id: alert.account_id,
                     contact_id: Number(contactId),
                     type: 'Email',
@@ -718,7 +718,7 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
                 });
                 if (activityError) {
                     console.error('Error logging Cognito email activity:', activityError);
-                    showToast('Email sent, but could not link the activity to this alert.', 'warning');
+                    showToast('Email sent, but could not log the activity.', 'warning');
                 }
             }
         } catch (error) {
@@ -763,7 +763,7 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
             return;
         }
 
-        const { error } = await supabase.from('activities').insert({
+        const error = await insertCognitoLinkedActivity({
             account_id: state.selectedAlert.account_id,
             contact_id: Number(selectedContactId),
             type: 'Cognito Intelligence',
@@ -779,6 +779,20 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
             alert('Interaction logged to Constellation!');
             logInteractionNotes.value = '';
         }
+    }
+
+    /** Insert activity with cognito_alert_id; retry without if column not migrated yet. */
+    async function insertCognitoLinkedActivity(row) {
+        const { error } = await supabase.from('activities').insert(row);
+        if (!error) return null;
+        const missingCol =
+            /cognito_alert_id/i.test(error.message || '') ||
+            error.code === 'PGRST204' ||
+            error.code === '42703';
+        if (!missingCol || row.cognito_alert_id == null) return error;
+        const { cognito_alert_id, ...fallback } = row;
+        const retry = await supabase.from('activities').insert(fallback);
+        return retry.error || null;
     }
 
     async function handleCreateTask() {
