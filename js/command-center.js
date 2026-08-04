@@ -2194,8 +2194,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         `).join('');
         aiBriefingContainer.innerHTML = `${cardsHtml || '<p class="text-xs text-[var(--text-medium)]">No priorities for today.</p>'}<div id="daily-briefing-feedback-slot"></div>`;
         aiBriefingContainer.classList.remove('hidden');
+        const briefingUserId = getState().effectiveUserId || getState().currentUser?.id || '';
         sessionStorage.setItem('crm-briefing-generated', 'true');
         sessionStorage.setItem('crm-briefing-html', aiBriefingContainer.innerHTML);
+        sessionStorage.setItem('crm-briefing-user-id', briefingUserId);
     }
 
     function buildAIPromptRecord(functionId, payload) {
@@ -2529,6 +2531,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             logoutBtn.addEventListener("click", async () => {
                 sessionStorage.removeItem('crm-briefing-generated');
                 sessionStorage.removeItem('crm-briefing-html');
+                sessionStorage.removeItem('crm-briefing-user-id');
                 await supabase.auth.signOut();
                 window.location.href = "index.html";
             });
@@ -2758,8 +2761,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const appState = await initializeAppState(supabase);
         
         if (appState.currentUser) {
-            // Pass the whole appState object to setup the user menu
-            await setupUserMenuAndAuth(supabase, appState, { skipImpersonation: true }); 
+            // Pass the whole appState object to setup the user menu (includes View as for managers)
+            await setupUserMenuAndAuth(supabase, appState);
             
             // Setup other shared features
             await setupGlobalSearch(supabase);
@@ -2773,7 +2776,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Setup event listeners (including Refresh button)
             setupPageEventListeners();
 
-            // Auto-run briefing once per login (session)
+            // Auto-run briefing once per login (session), keyed to the effective (view-as) user
+            const effectiveId = appState.effectiveUserId || appState.currentUser.id;
+            const cachedBriefingUser = sessionStorage.getItem('crm-briefing-user-id');
+            if (cachedBriefingUser && cachedBriefingUser !== effectiveId) {
+                sessionStorage.removeItem('crm-briefing-generated');
+                sessionStorage.removeItem('crm-briefing-html');
+                sessionStorage.removeItem('crm-briefing-user-id');
+            }
             if (!sessionStorage.getItem('crm-briefing-generated')) {
                 handleGenerateBriefing();
             } else {
@@ -2787,7 +2797,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            
+            window.addEventListener('effectiveUserChanged', async () => {
+                showGlobalLoader();
+                try {
+                    sessionStorage.removeItem('crm-briefing-generated');
+                    sessionStorage.removeItem('crm-briefing-html');
+                    sessionStorage.removeItem('crm-briefing-user-id');
+                    await loadAllData();
+                    loadCalendarPanel();
+                    handleGenerateBriefing();
+                } finally {
+                    hideGlobalLoader();
+                }
+            });
         } else {
             hideGlobalLoader();
             window.location.href = "index.html";
