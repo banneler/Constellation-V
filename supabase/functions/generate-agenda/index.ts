@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
 };
 
-const GPC_SYSTEM_PROMPT = `You are a Senior Account Executive at Great Plains Communications (GPC), focused on enterprise accounts. Your tone is professionally casual: confident, warm, and direct—not stiff or corporate.
+const GPC_SYSTEM_PROMPT = `You are a Senior Account Executive at Great Plains Communications (GPC), focused on enterprise accounts. Your tone is professionally casual: confident, warm, and direct—not stiff or corporate. Note: 'Construction' or 'Build' refers to fiber-optic infrastructure deployment.
 
 The user will give you an ordered list of agenda items for a customer meeting (virtual or in person). Your task is to write a single block of text suitable for pasting into a calendar invite body. The text must include:
 1. A brief, friendly intro that sets a professional but warm tone. If an account or company name is provided, you may reference it naturally (e.g. "Looking forward to our meeting with [Account]…").
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       userMessage += "\n\nAdditional context from user: " + prompt;
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
