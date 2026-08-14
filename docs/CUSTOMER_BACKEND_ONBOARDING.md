@@ -287,9 +287,9 @@ Redeploy www after env changes.
 
 ---
 
-## 6. Mac mini automation (Social Hub + Cognito)
+## 6. Mac mini automation (Social Hub + Cognito + Pathfinder)
 
-Social Hub posts and Cognito alerts are **not** generated inside Vercel. They are written by Python jobs that run on the Mac mini (Tailscale host historically used for mini sync: `100.76.189.26`, user `ba`).
+Social Hub posts, Cognito alerts, and Pathfinder contact candidates are **not** generated inside Vercel. They are written by Python jobs that run on the Mac mini (Tailscale host historically used for mini sync: `100.76.189.26`, user `ba`).
 
 ### 6.1 Script locations (current)
 
@@ -297,6 +297,7 @@ Canonical working copies today live outside the git repos (iCloud / on-mini path
 
 - `cognito_constellation_ai.py` + `run_cognito.sh`
 - `social_hub.py` + `run_social_hub.sh`
+- Versioned Pathfinder source: `automation/pathfinder/` in this repository; install it in the customer folder with its mode-600 `.env`
 - On-mini expected root: `/Users/ba/Documents/Constellation-CRM/` (venv + scripts + `logs/`)
 
 > Gap to close later: move these into a proper repo with env-based config (no hardcoded service keys).
@@ -317,7 +318,19 @@ For each new customer instance:
 7. Confirm writes land in that project’s `cognito_alerts` / `social_hub_posts` / `script_run_logs`
 8. Confirm the customer app Social Hub + Cognito pages show the new rows
 
-### 6.3 Do not
+### 6.3 Pathfinder install
+
+Pathfinder uses the same customer-isolated Mac mini model, but its canonical source is versioned under `automation/pathfinder/`.
+
+1. Apply `20260814183000_add_pathfinder_contact_discovery.sql` to the customer Supabase project.
+2. Copy `automation/pathfinder/` to `/Users/ba/Documents/Constellation-CRM/customers/{customer}/pathfinder/`.
+3. Create `.env` from `.env.example` and set the customer-specific Supabase service role, Google CSE, Gemini, and monitored user-agent values.
+4. Run `./run_pathfinder.sh --dry-run --limit 5` and inspect every candidate and source.
+5. Enable `org_settings.pathfinder_enabled` only after the dry run is accepted.
+6. Install the launchd template. It starts daily, while the worker's seven-day account age gate enforces weekly discovery and still processes manual requests promptly.
+7. Confirm `pathfinder_scan_jobs`, `pathfinder_candidates`, and `pathfinder_candidate_sources` contain rows for the correct project and owner.
+
+### 6.4 Do not
 
 - Point a new customer’s mini job at the GPC Supabase project
 - Share one Gemini key across all customers if you care about usage attribution

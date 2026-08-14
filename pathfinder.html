@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="description" content="Pathfinder discovers evidence-backed technology and network contacts for Constellation accounts.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constellation CRM - Pathfinder</title>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/css/tom-select.css" rel="stylesheet">
+    <link rel="stylesheet" href="output.css">
+    <link rel="stylesheet" href="css/global-loader.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="pathfinder-page">
+    <div id="global-loader-overlay" class="global-loader-overlay active" aria-live="polite" aria-busy="true">
+        <div class="global-loader-content">
+            <div class="global-loader-spinner" aria-hidden="true">
+                <svg class="global-loader-svg global-loader-constellation" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="global-loader-constellation-line" pathLength="1" d="M24 8 L10 22 L18 38 L30 38 L38 22 L24 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle class="global-loader-star" cx="24" cy="8" r="2.2"/><circle class="global-loader-star" cx="10" cy="22" r="1.8"/><circle class="global-loader-star" cx="18" cy="38" r="2"/><circle class="global-loader-star" cx="30" cy="38" r="1.8"/><circle class="global-loader-star" cx="38" cy="22" r="2"/>
+                </svg>
+            </div>
+            <p class="global-loader-text">Loading…</p>
+        </div>
+    </div>
+
+    <div class="crm-container">
+        <nav class="nav-sidebar">
+            <script>(function(){try{if(localStorage.getItem('crm-nav-collapsed')==='1')document.currentScript.parentElement.classList.add('nav-sidebar-collapsed');}catch(e){}})();</script>
+            <div id="global-nav-container" class="flex flex-col flex-1 min-h-0"></div>
+        </nav>
+
+        <main class="content-area">
+            <div class="content-view active-view">
+                <div class="section-card pathfinder-shell">
+                    <div class="section-card-header pathfinder-header">
+                        <div>
+                            <h2 class="page-title">Pathfinder</h2>
+                            <p class="pathfinder-subtitle">Evidence-backed technology and network contacts awaiting review.</p>
+                        </div>
+                        <button id="pathfinder-refresh-btn" class="btn-secondary" type="button">
+                            <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                        </button>
+                    </div>
+
+                    <div id="pathfinder-disabled" class="pathfinder-empty hidden">
+                        <i class="fa-solid fa-compass"></i>
+                        <h3>Pathfinder is not enabled</h3>
+                        <p>An administrator can enable contact discovery for this Constellation instance.</p>
+                    </div>
+
+                    <div id="pathfinder-content" class="pathfinder-content">
+                        <div class="pathfinder-kpis" aria-label="Pathfinder candidate totals">
+                            <div class="pathfinder-kpi"><span id="pathfinder-pending-count">0</span><small>Pending</small></div>
+                            <div class="pathfinder-kpi"><span id="pathfinder-high-count">0</span><small>High confidence</small></div>
+                            <div class="pathfinder-kpi"><span id="pathfinder-approved-count">0</span><small>Approved</small></div>
+                        </div>
+
+                        <div class="filter-bar pathfinder-filter-bar">
+                            <select id="pathfinder-owner-filter" aria-label="Owner filter">
+                                <option value="">All Owners</option>
+                            </select>
+                            <select id="pathfinder-account-filter" aria-label="Account filter">
+                                <option value="">All Accounts</option>
+                            </select>
+                            <select id="pathfinder-status-filter" aria-label="Status filter">
+                                <option value="pending">Pending Review</option>
+                                <option value="">All Statuses</option>
+                                <option value="approved">Approved</option>
+                                <option value="duplicate">Duplicates</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="stale">Stale</option>
+                            </select>
+                            <select id="pathfinder-role-filter" aria-label="Role filter">
+                                <option value="">All Role Families</option>
+                                <option value="technology">Technology Leadership</option>
+                                <option value="network">Network &amp; Infrastructure</option>
+                            </select>
+                            <button id="pathfinder-clear-filters" class="btn-secondary" type="button">Clear Filters</button>
+                        </div>
+
+                        <div id="pathfinder-results-summary" class="pathfinder-results-summary" aria-live="polite"></div>
+                        <div id="pathfinder-candidates" class="pathfinder-candidate-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div id="modal-actions" class="modal-actions"></div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+        document.body.classList.add(`theme-${savedTheme}`);
+    })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>
+    <script type="module" src="js/pathfinder.js"></script>
+</body>
+</html>

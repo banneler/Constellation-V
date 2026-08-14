@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.constellationv.pathfinder</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/REPLACE_ME/Projects/Constellation-V/automation/pathfinder/run_pathfinder.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/REPLACE_ME/Projects/Constellation-V/automation/pathfinder</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>2</integer>
+    <key>Minute</key>
+    <integer>15</integer>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/Users/REPLACE_ME/Library/Logs/constellationv-pathfinder.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/REPLACE_ME/Library/Logs/constellationv-pathfinder-error.log</string>
+</dict>
+</plist>

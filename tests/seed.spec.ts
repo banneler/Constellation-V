@@ -105,7 +105,10 @@ setup.describe('setup', () => {
     await login.loginAs(email, password);
 
     try {
-      await page.waitForURL(/command-center\.html/i, { timeout: 45_000 });
+      await page.waitForFunction(
+        () => /command-center\.html/i.test(window.location.pathname) || document.querySelector('#dashboard') !== null,
+        { timeout: 45_000 }
+      );
     } catch {
       const errText = await page.locator('#auth-error').textContent().catch(() => '');
       await guardianScreenshot(page, 'seed-login-failed');

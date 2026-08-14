@@ -1085,6 +1085,7 @@ const GLOBAL_NAV_TEMPLATE = `
     <a href="command-center.html" class="nav-button"><i class="fa-solid fa-gauge-high nav-icon"></i><span class="nav-label-text">Command Center</span></a>
     <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i><span class="nav-label-text">Deals</span></a>
     <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i><span class="nav-label-text">Contacts</span></a>
+    <a href="pathfinder.html" id="pathfinder-nav-button" class="nav-button hidden" aria-hidden="true"><i class="fa-solid fa-compass nav-icon"></i><span class="nav-label-text">Pathfinder</span> <i class="fa-solid fa-bell nav-notification-dot hidden" id="pathfinder-notification"></i></a>
     <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i><span class="nav-label-text">Accounts</span></a>
     <a href="insights.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-chart-line nav-icon"></i><span class="nav-label-text">Insights</span></a>
     <a href="saos-dashboard.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-sitemap nav-icon"></i><span class="nav-label-text">SAOS</span></a>
@@ -1472,9 +1473,25 @@ export async function checkAndSetNotifications(supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const { data: orgSettings, error: orgSettingsError } = await supabase
+        .from('org_settings')
+        .select('pathfinder_enabled')
+        .eq('id', 1)
+        .maybeSingle();
+    if (orgSettingsError) {
+        console.warn('[notifications] failed to load Pathfinder setting:', orgSettingsError.message || orgSettingsError);
+    }
+    const pathfinderEnabled = orgSettings?.pathfinder_enabled === true;
+    const pathfinderNav = document.getElementById('pathfinder-nav-button');
+    if (pathfinderNav) {
+        pathfinderNav.classList.toggle('hidden', !pathfinderEnabled);
+        pathfinderNav.setAttribute('aria-hidden', pathfinderEnabled ? 'false' : 'true');
+    }
+
     const pagesToCheck = [
         { name: 'social_hub', table: 'social_hub_posts' },
-        { name: 'cognito', table: 'cognito_alerts' }
+        { name: 'cognito', table: 'cognito_alerts' },
+        ...(pathfinderEnabled ? [{ name: 'pathfinder', table: 'pathfinder_candidates' }] : [])
     ];
 
     const { data: visits } = await supabase
