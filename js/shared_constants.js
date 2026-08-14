@@ -4,6 +4,7 @@
 import { initHUD, refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes } from './hud.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS } from './env.config.js';
 import { handleIntegrationsQueryToast } from './integrations.js';
+import { applyPathfinderNavigation, isPathfinderEnabled } from './pathfinder-feature.mjs';
 
 export { refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes };
 export { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS };
@@ -1481,12 +1482,8 @@ export async function checkAndSetNotifications(supabase) {
     if (orgSettingsError) {
         console.warn('[notifications] failed to load Pathfinder setting:', orgSettingsError.message || orgSettingsError);
     }
-    const pathfinderEnabled = orgSettings?.pathfinder_enabled === true;
-    const pathfinderNav = document.getElementById('pathfinder-nav-button');
-    if (pathfinderNav) {
-        pathfinderNav.classList.toggle('hidden', !pathfinderEnabled);
-        pathfinderNav.setAttribute('aria-hidden', pathfinderEnabled ? 'false' : 'true');
-    }
+    const pathfinderEnabled = isPathfinderEnabled(orgSettings);
+    applyPathfinderNavigation(document, pathfinderEnabled);
 
     const pagesToCheck = [
         { name: 'social_hub', table: 'social_hub_posts' },

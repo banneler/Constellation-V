@@ -12,8 +12,10 @@ import {
     setupUserMenuAndAuth,
     setupGlobalSearch,
     checkAndSetNotifications,
-    updateActiveNavLink
+    updateActiveNavLink,
+    showToast
 } from './shared_constants.js';
+import { applyPathfinderNavigation } from './pathfinder-feature.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -186,6 +188,7 @@ async function handlePathfinderToggle(e) {
     }
 
     state.orgSettings = data || { ...state.orgSettings, pathfinder_enabled: enabled };
+    applyPathfinderNavigation(document, enabled);
     if (hint) hint.textContent = enabled
         ? 'On — Pathfinder queue and account discovery controls are available.'
         : 'Currently off — discovery is hidden.';

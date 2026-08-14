@@ -50,6 +50,16 @@ async function mockPathfinder(page: Page): Promise<void> {
 }
 
 test.describe('Pathfinder', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route(/\/rest\/v1\/user_page_visits/i, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+        return;
+      }
+      await route.fulfill({ status: 204, body: '' });
+    });
+  });
+
   test('loads evidence-backed candidates and preserves account deep link', async ({ page }) => {
     await mockPathfinder(page);
     const pathfinder = new PathfinderPage(page);
@@ -59,6 +69,8 @@ test.describe('Pathfinder', () => {
     await expect(pathfinder.candidateGrid()).toContainText('Avery Morgan');
     await expect(pathfinder.candidateGrid()).toContainText('Pattern inferred — unverified');
     await expect(pathfinder.pendingCount()).toHaveText('1');
+    await expect(page.locator('#pathfinder-nav-button')).not.toHaveClass(/\bhidden\b/);
+    await expect(page.locator('#pathfinder-nav-button')).toHaveAttribute('aria-hidden', 'false');
 
     await page.locator('.pathfinder-evidence-btn').click();
     await expect(page.locator('#modal-body')).toContainText('Avery Morgan leads network infrastructure');
@@ -102,5 +114,22 @@ test.describe('Pathfinder', () => {
     );
     await page.locator('#pathfinder-reject-btn').click();
     await rejection;
+  });
+
+  test('keeps Pathfinder navigation and content gated while disabled', async ({ page }) => {
+    await page.route(/\/rest\/v1\/org_settings/i, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 1, pathfinder_enabled: false })
+      });
+    });
+    const pathfinder = new PathfinderPage(page);
+    await pathfinder.goto();
+
+    await expect(page.locator('#pathfinder-nav-button')).toHaveClass(/\bhidden\b/);
+    await expect(page.locator('#pathfinder-nav-button')).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.locator('#pathfinder-disabled')).toBeVisible();
+    await expect(page.locator('#pathfinder-content')).toBeHidden();
   });
 });

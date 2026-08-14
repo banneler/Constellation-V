@@ -26,6 +26,7 @@ import {
     filterPathfinderCandidates,
     safeExternalUrl
 } from './pathfinder-core.mjs';
+import { isPathfinderEnabled } from './pathfinder-feature.mjs';
 
 document.addEventListener('DOMContentLoaded', async () => {
     injectGlobalNavigation();
@@ -190,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .maybeSingle();
             if (settingsError) throw settingsError;
 
-            state.enabled = orgSettings?.pathfinder_enabled === true;
+            state.enabled = isPathfinderEnabled(orgSettings);
             content.classList.toggle('hidden', !state.enabled);
             disabled.classList.toggle('hidden', state.enabled);
             if (!state.enabled) return;
