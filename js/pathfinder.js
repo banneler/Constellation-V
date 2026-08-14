@@ -7,7 +7,6 @@ import {
     updateActiveNavLink,
     setupUserMenuAndAuth,
     initializeAppState,
-    getState,
     loadSVGs,
     showGlobalLoader,
     hideGlobalLoader,
@@ -36,9 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         enabled: false,
         candidates: [],
         accounts: [],
-        users: [],
         filters: {
-            ownerId: '',
             accountId: new URLSearchParams(window.location.search).get('accountId') || '',
             status: 'pending',
             roleFamily: ''
@@ -50,7 +47,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const disabled = document.getElementById('pathfinder-disabled');
     const candidateGrid = document.getElementById('pathfinder-candidates');
     const resultsSummary = document.getElementById('pathfinder-results-summary');
-    const ownerFilter = document.getElementById('pathfinder-owner-filter');
     const accountFilter = document.getElementById('pathfinder-account-filter');
     const statusFilter = document.getElementById('pathfinder-status-filter');
     const roleFilter = document.getElementById('pathfinder-role-filter');
@@ -59,17 +55,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         return state.accounts.find((account) => String(account.id) === String(candidate.account_id));
     }
 
-    function ownerFor(candidate) {
-        return state.users.find((user) => String(user.user_id) === String(candidate.user_id));
-    }
-
     function sourcesFor(candidate) {
         return candidate.pathfinder_candidate_sources || candidate.sources || [];
     }
 
     function renderCandidate(candidate) {
         const account = accountFor(candidate);
-        const owner = ownerFor(candidate);
         const band = confidenceBand(candidate.confidence);
         const confidencePercent = Math.round((Number(candidate.confidence) || 0) * 100);
         const emailClass = candidate.email_status === 'inferred' ? 'is-inferred' : candidate.email_status === 'public' ? 'is-public' : 'is-unavailable';
@@ -95,7 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="pathfinder-candidate-context">
                     <span><i class="fa-solid fa-building"></i>${escapePathfinderHtml(account?.name || 'Unknown account')}</span>
                     <span><i class="fa-solid fa-layer-group"></i>${candidate.role_family === 'network' ? 'Network & Infrastructure' : 'Technology Leadership'}</span>
-                    ${owner ? `<span><i class="fa-solid fa-user"></i>${escapePathfinderHtml(owner.full_name || owner.email || 'Owner')}</span>` : ''}
                 </div>
                 <div class="pathfinder-email ${emailClass}">
                     <i class="fa-solid fa-envelope"></i>
@@ -152,29 +142,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function populateFilters() {
-        const accountOwner = state.filters.ownerId;
-        const visibleAccounts = accountOwner
-            ? state.accounts.filter((account) => String(account.user_id) === accountOwner)
-            : state.accounts;
-        accountFilter.innerHTML = '<option value="">All Accounts</option>' + visibleAccounts
+        accountFilter.innerHTML = '<option value="">All Accounts</option>' + state.accounts
             .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
             .map((account) => `<option value="${escapePathfinderHtml(account.id)}">${escapePathfinderHtml(account.name)}</option>`)
             .join('');
         accountFilter.value = state.filters.accountId;
 
-        if (getState().isManager) {
-            ownerFilter.innerHTML = '<option value="">All Owners</option>' + state.users
-                .sort((a, b) => (a.full_name || a.email || '').localeCompare(b.full_name || b.email || ''))
-                .map((user) => `<option value="${escapePathfinderHtml(user.user_id)}">${escapePathfinderHtml(user.full_name || user.email || 'User')}</option>`)
-                .join('');
-            ownerFilter.closest('.ts-wrapper')?.classList.remove('hidden');
-            ownerFilter.classList.remove('hidden');
-        } else {
-            ownerFilter.classList.add('hidden');
-        }
-
         initTomSelect(accountFilter, 'accountId');
-        if (getState().isManager) initTomSelect(ownerFilter, 'ownerId');
         initTomSelect(statusFilter, 'status');
         initTomSelect(roleFilter, 'roleFamily');
         state.tomSelects.accountId?.setValue(state.filters.accountId, true);
@@ -199,32 +173,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             const candidateQuery = supabase
                 .from('pathfinder_candidates')
                 .select('*, pathfinder_candidate_sources(*)')
+                .eq('user_id', state.currentUser.id)
                 .order('discovered_at', { ascending: false });
-            const accountQuery = supabase.from('accounts').select('id, name, user_id').order('name');
-            const usersQuery = getState().isManager
-                ? supabase.from('user_quotas').select('user_id, full_name, deactivated_at').is('deactivated_at', null)
-                : Promise.resolve({ data: [{
-                    user_id: getState().effectiveUserId,
-                    full_name: getState().effectiveUserFullName || state.currentUser?.user_metadata?.full_name || 'Me'
-                }], error: null });
-
-            if (!getState().isManager) {
-                candidateQuery.eq('user_id', getState().effectiveUserId);
-                accountQuery.eq('user_id', getState().effectiveUserId);
-            }
+            const accountQuery = supabase
+                .from('accounts')
+                .select('id, name, user_id')
+                .eq('user_id', state.currentUser.id)
+                .order('name');
 
             const [
                 { data: candidates, error: candidateError },
-                { data: accounts, error: accountError },
-                { data: users, error: usersError }
-            ] = await Promise.all([candidateQuery, accountQuery, usersQuery]);
+                { data: accounts, error: accountError }
+            ] = await Promise.all([candidateQuery, accountQuery]);
             if (candidateError) throw candidateError;
             if (accountError) throw accountError;
-            if (usersError) throw usersError;
 
             state.candidates = candidates || [];
             state.accounts = accounts || [];
-            state.users = users || [];
             populateFilters();
             render();
         } catch (error) {
@@ -379,7 +344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('pathfinder-clear-filters').addEventListener('click', () => {
-        state.filters = { ownerId: '', accountId: '', status: 'pending', roleFamily: '' };
+        state.filters = { accountId: '', status: 'pending', roleFamily: '' };
         Object.entries(state.tomSelects).forEach(([key, control]) => {
             control.setValue(state.filters[key] || '', true);
         });
@@ -387,8 +352,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         render();
     });
     document.getElementById('pathfinder-refresh-btn').addEventListener('click', loadData);
-    ownerFilter.addEventListener('change', () => populateFilters());
-    window.addEventListener('effectiveUserChanged', loadData);
 
     setupModalListeners();
     const globalState = await initializeAppState(supabase);

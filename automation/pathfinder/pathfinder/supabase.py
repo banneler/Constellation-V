@@ -58,7 +58,11 @@ class SupabaseRepository:
         if not owner_ids:
             return []
         params = [
-            ("select", "id,user_id,name,website,address"),
+            (
+                "select",
+                "id,user_id,name,website,industry,phone,address,"
+                "quantity_of_sites,employee_count",
+            ),
             ("user_id", f"in.({','.join(owner_ids)})"),
             ("order", "name.asc"),
         ]

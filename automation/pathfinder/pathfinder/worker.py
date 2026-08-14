@@ -105,43 +105,72 @@ class PathfinderWorker:
             return 0
 
     def _discover(self, account: dict, job: dict | None) -> int:
-        results = self.search.search_account(account)
-        grouped: dict[str, list[tuple[dict, SearchResult]]] = defaultdict(list)
+        contacts = self.repo.contacts_for_account(int(account["id"]))
+        known_email_domains = sorted({
+            email.rsplit("@", 1)[1].lower()
+            for contact in contacts
+            if "@" in (email := str(contact.get("email") or "").strip())
+        })
+        account_context = {
+            **account,
+            "known_email_domains": known_email_domains,
+        }
+        results = self.search.search_account(account_context)
+        grouped: dict[str, list[tuple[dict, SearchResult, str]]] = defaultdict(list)
         for result in results:
             page_text = self.fetcher.fetch_text(result.url)
             if not page_text:
                 LOGGER.info("Skipped unavailable/disallowed page url=%s", result.url)
                 continue
-            for person in self.extractor.extract(account["name"], result, page_text):
+            for person in self.extractor.extract(account_context, result, page_text):
                 role_family = classify_role(person["title"])
                 company_score = company_match_score(
-                    account["name"], person["company_name"], result.url,
+                    account["name"],
+                    person["company_name"],
+                    result.url,
+                    account=account_context,
+                    evidence_text=" ".join(
+                        (result.title, result.snippet, person["evidence_excerpt"], page_text)
+                    ),
                 )
                 if role_family is None or company_score < 0.6:
                     continue
                 fingerprint = identity_fingerprint(
                     account["id"], person["first_name"], person["last_name"],
                 )
-                grouped[fingerprint].append((person, result))
+                grouped[fingerprint].append((person, result, page_text))
 
-        contacts = self.repo.contacts_for_account(int(account["id"]))
         count = 0
         now = datetime.now(timezone.utc).isoformat()
         for fingerprint, observations in grouped.items():
-            person, primary_source = observations[0]
-            sources_by_url = {result.url: (item, result) for item, result in observations}
+            person, _, _ = observations[0]
+            sources_by_url = {
+                result.url: (item, result, page_text)
+                for item, result, page_text in observations
+            }
             email, email_status, pattern, samples, email_confidence = self._email(
                 person, contacts, account,
             )
             authority = max(
                 source_authority(result.url, account.get("website"))
-                for _, result in observations
+                for _, result, _ in observations
             )
             company_score = max(
-                company_match_score(account["name"], item["company_name"], result.url)
-                for item, result in observations
+                company_match_score(
+                    account["name"],
+                    item["company_name"],
+                    result.url,
+                    account=account_context,
+                    evidence_text=" ".join(
+                        (result.title, result.snippet, item["evidence_excerpt"], page_text)
+                    ),
+                )
+                for item, result, page_text in observations
             )
-            recency = max(recency_score(item.get("source_date")) for item, _ in observations)
+            recency = max(
+                recency_score(item.get("source_date"))
+                for item, _, _ in observations
+            )
             confidence, reasons = calculate_confidence(
                 authority, company_score, role_match_score(person["title"]),
                 recency, len(sources_by_url),
@@ -178,7 +207,7 @@ class PathfinderWorker:
                     "evidence_excerpt": item["evidence_excerpt"][:4000],
                     "observed_at": item["observed_at"],
                 }
-                for item, result in sources_by_url.values()
+                for item, result, _ in sources_by_url.values()
             ]
             if self.dry_run:
                 LOGGER.info(

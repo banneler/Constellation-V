@@ -15,6 +15,10 @@ Supabase PostgREST with a service-role key.
 - Never fetches LinkedIn, common gated/authentication URLs, CAPTCHA pages,
   private/loopback hosts, non-HTML content, oversized pages, or pages disallowed
   by `robots.txt`. A missing/unreachable robots policy fails closed.
+- Uses account name, website/domain, industry, address, phone, and known contact
+  email domains as company-identity context in discovery and extraction.
+- Rejects short acronym-only company matches unless the account domain or
+  multiple independent CRM identity details corroborate the source.
 - Applies deterministic company, role, source, recency, and corroboration
   scoring after model extraction.
 - Infers email addresses only when at least two same-account contacts establish

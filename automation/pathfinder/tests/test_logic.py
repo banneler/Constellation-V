@@ -27,6 +27,41 @@ class AccountDisambiguationTests(unittest.TestCase):
             0.5,
         )
 
+    def test_acronym_collision_requires_account_identity_evidence(self):
+        account = {
+            "name": "AGP",
+            "website": "www.agp.com",
+            "industry": "Automotive glass manufacturing",
+            "address": "2200 Glades Road, Boca Raton, Florida",
+            "phone": "555-010-2000",
+        }
+        self.assertEqual(
+            company_match_score(
+                "AGP",
+                "AGP Group",
+                "https://www.ampyrenergyusa.com/board-of-directors/",
+                account=account,
+                evidence_text=(
+                    "AGP Sustainable Real Assets and AMPYR Energy develop "
+                    "renewable energy projects."
+                ),
+            ),
+            0.0,
+        )
+
+    def test_acronym_match_accepts_the_account_domain(self):
+        account = {"name": "AGP", "website": "www.agp.com"}
+        self.assertEqual(
+            company_match_score(
+                "AGP",
+                "AGP",
+                "https://www.agp.com/leadership",
+                account=account,
+                evidence_text="AGP leadership",
+            ),
+            1.0,
+        )
+
 
 class RoleClassificationTests(unittest.TestCase):
     def test_technology_role(self):

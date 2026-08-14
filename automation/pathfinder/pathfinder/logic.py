@@ -29,6 +29,11 @@ GENERIC_COMPANY_SUFFIXES = {
     "inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation",
     "company", "co", "group", "holdings", "plc",
 }
+GENERIC_ADDRESS_TERMS = {
+    "street", "st", "road", "rd", "avenue", "ave", "drive", "dr", "lane",
+    "ln", "boulevard", "blvd", "suite", "floor", "north", "south", "east",
+    "west", "united", "states", "usa",
+}
 
 
 def normalize_text(value: str | None) -> str:
@@ -51,8 +56,78 @@ def hostname(value: str | None) -> str:
     return (urlparse(raw).hostname or "").lower().removeprefix("www.")
 
 
-def company_match_score(expected: str, observed: str, source_url: str = "") -> float:
-    """Score account disambiguation using names and an optional source hostname."""
+def is_ambiguous_company_name(value: str | None) -> bool:
+    """Return true for short, single-token names that commonly collide."""
+    original_tokens = [
+        token for token in re.findall(r"[A-Za-z0-9]+", value or "")
+        if token.lower() not in GENERIC_COMPANY_SUFFIXES
+    ]
+    return (
+        len(original_tokens) == 1
+        and len(original_tokens[0]) <= 5
+        and (
+            original_tokens[0].isupper()
+            or original_tokens[0].isdigit()
+        )
+    )
+
+
+def _identity_anchors(
+    account: dict,
+    source_url: str,
+    evidence_text: str,
+) -> tuple[bool, int]:
+    raw_evidence = (evidence_text or "").lower()
+    normalized_evidence = normalize_text(evidence_text)
+    source_host = hostname(source_url)
+    company_host = hostname(account.get("website"))
+    domain_match = bool(
+        company_host
+        and (
+            source_host == company_host
+            or source_host.endswith("." + company_host)
+            or company_host in raw_evidence
+        )
+    )
+
+    secondary_anchors = 0
+    phone_digits = re.sub(r"\D", "", account.get("phone") or "")
+    if len(phone_digits) >= 7 and phone_digits in re.sub(r"\D", "", evidence_text or ""):
+        secondary_anchors += 1
+
+    address_tokens = {
+        token for token in company_tokens(account.get("address"))
+        if len(token) >= 3 and token not in GENERIC_ADDRESS_TERMS
+    }
+    if address_tokens:
+        matched_address = sum(
+            1 for token in address_tokens
+            if _contains_term(normalized_evidence, token)
+        )
+        if matched_address >= min(2, len(address_tokens)):
+            secondary_anchors += 1
+
+    industry_tokens = company_tokens(account.get("industry"))
+    if industry_tokens:
+        matched_industry = sum(
+            1 for token in industry_tokens
+            if _contains_term(normalized_evidence, token)
+        )
+        if matched_industry / len(industry_tokens) >= 0.6:
+            secondary_anchors += 1
+
+    return domain_match, secondary_anchors
+
+
+def company_match_score(
+    expected: str,
+    observed: str,
+    source_url: str = "",
+    *,
+    account: dict | None = None,
+    evidence_text: str = "",
+) -> float:
+    """Score company identity using the CRM account and public-source context."""
     expected_tokens = company_tokens(expected)
     if not expected_tokens:
         return 0.0
@@ -60,6 +135,19 @@ def company_match_score(expected: str, observed: str, source_url: str = "") -> f
     host_tokens = company_tokens(urlparse(source_url).hostname or "")
     overlap = len(expected_tokens & (observed_tokens | host_tokens)) / len(expected_tokens)
     exact = normalize_text(expected) == normalize_text(observed)
+
+    if is_ambiguous_company_name(expected):
+        if not expected_tokens.issubset(observed_tokens | host_tokens):
+            return 0.0
+        domain_match, secondary_anchors = _identity_anchors(
+            account or {}, source_url, evidence_text,
+        )
+        if domain_match:
+            return 1.0
+        if secondary_anchors >= 2:
+            return 0.8
+        return 0.0
+
     return round(min(1.0, max(overlap, 1.0 if exact else 0.0)), 4)
 
 

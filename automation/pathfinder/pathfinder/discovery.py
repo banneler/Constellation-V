@@ -29,6 +29,51 @@ class SearchResult:
     snippet: str
 
 
+def account_identity_lines(account: dict) -> list[str]:
+    fields = (
+        ("Name", account.get("name")),
+        ("Website", account.get("website")),
+        ("Industry", account.get("industry")),
+        ("Address", account.get("address")),
+        ("Phone", account.get("phone")),
+    )
+    lines = [f"{label}: {str(value).strip()}" for label, value in fields if value]
+    email_domains = sorted(set(account.get("known_email_domains") or []))
+    if email_domains:
+        lines.append(f"Known email domains: {', '.join(email_domains)}")
+    return lines
+
+
+def build_search_query(account: dict) -> str:
+    roles = (
+        '("CIO" OR "CTO" OR "IT Director" OR "Technology Director" OR '
+        '"Network Director" OR "Network Manager" OR "Infrastructure Director")'
+    )
+    disambiguators = []
+    website_host = urllib.parse.urlparse(
+        account.get("website")
+        if "://" in str(account.get("website") or "")
+        else f"https://{account.get('website') or ''}"
+    ).hostname
+    if website_host:
+        disambiguators.append(f'"{website_host.removeprefix("www.")}"')
+    for value in (
+        account.get("industry"),
+        account.get("address"),
+        account.get("phone"),
+        *(account.get("known_email_domains") or []),
+    ):
+        clean = " ".join(str(value or "").split())
+        if clean and clean.lower() not in {item.strip('"').lower() for item in disambiguators}:
+            disambiguators.append(f'"{clean[:120]}"')
+    identity_clause = (
+        f" ({' OR '.join(disambiguators)})"
+        if disambiguators
+        else ""
+    )
+    return f'"{account["name"]}"{identity_clause} {roles} -site:linkedin.com'
+
+
 def is_public_fetch_candidate(url: str) -> bool:
     parsed = urllib.parse.urlparse(url)
     host = (parsed.hostname or "").lower()
@@ -55,13 +100,8 @@ class GoogleSearch:
         self.timeout = timeout
 
     def search_account(self, account: dict, max_results: int = 10) -> list[SearchResult]:
-        roles = (
-            '("CIO" OR "CTO" OR "IT Director" OR "Technology Director" OR '
-            '"Network Director" OR "Network Manager" OR "Infrastructure Director")'
-        )
-        query = f'"{account["name"]}" {roles} -site:linkedin.com'
         params = urllib.parse.urlencode({
-            "key": self.api_key, "cx": self.cse_id, "q": query,
+            "key": self.api_key, "cx": self.cse_id, "q": build_search_query(account),
             "num": min(10, max_results),
         })
         data, _ = request_json(
@@ -171,12 +211,16 @@ class GeminiExtractor:
         self.model = model
         self.timeout = timeout
 
-    def extract(self, account_name: str, source: SearchResult, page_text: str) -> list[dict]:
+    def extract(self, account: dict, source: SearchResult, page_text: str) -> list[dict]:
+        identity = "\n".join(account_identity_lines(account))
         prompt = (
             "Extract only people explicitly shown as current employees of the target "
             "company in technology, IT, infrastructure, telecom, or network roles. "
-            "Do not guess facts. Return [] if company identity or current role is ambiguous.\n"
-            f"TARGET COMPANY: {account_name}\nSOURCE URL: {source.url}\n"
+            "Treat every target identity field as a disambiguation constraint. A different "
+            "company that shares the same name or acronym is not the target. Do not guess "
+            "facts or copy target details into the result. Return [] unless the source "
+            "supports that this is the same organization and the role is current.\n"
+            f"TARGET COMPANY IDENTITY:\n{identity}\nSOURCE URL: {source.url}\n"
             f"SOURCE TITLE: {source.title}\nSEARCH SNIPPET: {source.snippet}\n"
             f"PAGE TEXT:\n{page_text}"
         )
