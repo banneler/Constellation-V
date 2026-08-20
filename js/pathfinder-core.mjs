@@ -25,6 +25,52 @@ export function confidenceBand(value) {
     return { key: 'low', label: 'Low confidence' };
 }
 
+const CONFIDENCE_FACTOR_LABELS = {
+    source_authority: 'Source authority',
+    company_match: 'Company match',
+    role_match: 'Role match',
+    recency: 'Recency',
+    corroboration: 'Corroboration'
+};
+
+const CONFIDENCE_FACTOR_SCORE_LABELS = {
+    source_authority: 'authoritative',
+    company_match: 'match',
+    role_match: 'match',
+    recency: 'freshness',
+    corroboration: 'corroboration'
+};
+
+function confidencePercentage(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    return Math.round(Math.max(0, Math.min(1, number)) * 100);
+}
+
+export function formatConfidenceReason(reason) {
+    if (typeof reason === 'string') return reason.trim();
+    if (!reason || typeof reason !== 'object' || Array.isArray(reason)) return '';
+
+    const fallbackText = [reason.label, reason.message, reason.reason]
+        .find((value) => typeof value === 'string' && value.trim());
+    const factor = typeof reason.factor === 'string'
+        ? reason.factor.trim().toLowerCase().replace(/[\s-]+/g, '_')
+        : '';
+    if (!factor) return fallbackText?.trim() || '';
+
+    const label = CONFIDENCE_FACTOR_LABELS[factor]
+        || factor.split('_').filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1)).join(' ');
+    const score = confidencePercentage(reason.score);
+    const weight = confidencePercentage(reason.weight);
+    const scoreDescription = score === null
+        ? ''
+        : `: ${score}% ${CONFIDENCE_FACTOR_SCORE_LABELS[factor] || 'score'}`;
+    const weightDescription = weight === null ? '' : ` (${weight}% weight)`;
+
+    return `${label}${scoreDescription}${weightDescription}`;
+}
+
 export function candidateDisplayName(candidate = {}) {
     return [candidate.first_name, candidate.last_name].filter(Boolean).join(' ').trim() || 'Unnamed candidate';
 }

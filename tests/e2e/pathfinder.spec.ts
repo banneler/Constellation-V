@@ -19,7 +19,13 @@ const candidate = {
   email_pattern_samples: 2,
   email_confidence: 0.75,
   confidence: 0.86,
-  confidence_reasons: ['Official company leadership page', 'Strong network role match'],
+  confidence_reasons: [
+    { factor: 'source_authority', score: 1, weight: 0.25 },
+    { factor: 'company_match', score: 0.9, weight: 0.3 },
+    { factor: 'role_match', score: 1, weight: 0.25 },
+    { factor: 'recency', score: 0.8, weight: 0.1 },
+    { factor: 'corroboration', score: 0.5, weight: 0.1 }
+  ],
   status: 'pending',
   crm_contact_id: null,
   discovered_at: '2026-08-14T12:00:00Z',
@@ -75,6 +81,12 @@ test.describe('Pathfinder', () => {
     await page.locator('.pathfinder-evidence-btn').click();
     await expect(page.locator('#modal-body')).toContainText('Avery Morgan leads network infrastructure');
     await expect(page.locator('#modal-body a')).toHaveAttribute('href', 'https://example.com/leadership');
+    await expect(page.locator('#modal-body')).toContainText('Source authority: 100% authoritative (25% weight)');
+    await expect(page.locator('#modal-body')).toContainText('Company match: 90% match (30% weight)');
+    await expect(page.locator('#modal-body')).toContainText('Role match: 100% match (25% weight)');
+    await expect(page.locator('#modal-body')).toContainText('Recency: 80% freshness (10% weight)');
+    await expect(page.locator('#modal-body')).toContainText('Corroboration: 50% corroboration (10% weight)');
+    await expect(page.locator('#modal-body')).not.toContainText('[object Object]');
   });
 
   test('edits and approves a candidate through the transactional RPC', async ({ page }) => {

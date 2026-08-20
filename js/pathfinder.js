@@ -24,6 +24,7 @@ import {
     emailStatusLabel,
     escapePathfinderHtml,
     filterPathfinderCandidates,
+    formatConfidenceReason,
     safeExternalUrl
 } from './pathfinder-core.mjs';
 import { isPathfinderEnabled } from './pathfinder-feature.mjs';
@@ -204,7 +205,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderEvidence(candidate) {
-        const reasons = Array.isArray(candidate.confidence_reasons) ? candidate.confidence_reasons : [];
+        const reasons = Array.isArray(candidate.confidence_reasons)
+            ? candidate.confidence_reasons.map(formatConfidenceReason).filter(Boolean)
+            : [];
         const sources = sourcesFor(candidate);
         const sourceHtml = sources.length
             ? sources.map((source) => {
