@@ -48,13 +48,13 @@ test('Pathfinder navigation remains hidden unless explicitly enabled', () => {
     assert.equal(attributes.get('aria-hidden'), 'false');
 });
 
-test('Pathfinder queue is scoped to the authenticated account owner', async () => {
-    const [pathfinderHtml, pathfinderJs, ownerOnlyMigration] = await Promise.all([
+test('Pathfinder queue scopes managers to the impersonated account owner', async () => {
+    const [pathfinderHtml, pathfinderJs, impersonationMigration] = await Promise.all([
         readFile(new URL('pathfinder.html', projectRoot), 'utf8'),
         readFile(new URL('js/pathfinder.js', projectRoot), 'utf8'),
         readFile(
             new URL(
-                'supabase/migrations/20260814203000_restrict_pathfinder_to_account_owner.sql',
+                'supabase/migrations/20260820193500_enable_pathfinder_manager_impersonation.sql',
                 projectRoot
             ),
             'utf8'
@@ -62,9 +62,13 @@ test('Pathfinder queue is scoped to the authenticated account owner', async () =
     ]);
 
     assert.equal(pathfinderHtml.includes('pathfinder-owner-filter'), false);
-    assert.match(pathfinderJs, /\.eq\('user_id', state\.currentUser\.id\)/);
+    assert.match(
+        pathfinderJs,
+        /getState\(\)\.effectiveUserId \|\| state\.currentUser\.id/
+    );
+    assert.match(pathfinderJs, /effectiveUserChanged/);
     assert.equal(pathfinderJs.includes('All Owners'), false);
-    assert.match(ownerOnlyMigration, /auth\.uid\(\) = target_user_id/);
-    assert.equal(ownerOnlyMigration.includes('is_manager'), false);
-    assert.equal(ownerOnlyMigration.includes('is_admin'), false);
+    assert.match(impersonationMigration, /auth\.uid\(\) = target_user_id/);
+    assert.match(impersonationMigration, /is_manager/);
+    assert.match(impersonationMigration, /is_admin/);
 });

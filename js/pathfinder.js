@@ -7,6 +7,7 @@ import {
     updateActiveNavLink,
     setupUserMenuAndAuth,
     initializeAppState,
+    getState,
     loadSVGs,
     showGlobalLoader,
     hideGlobalLoader,
@@ -170,15 +171,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             disabled.classList.toggle('hidden', state.enabled);
             if (!state.enabled) return;
 
+            const effectiveOwnerId = getState().effectiveUserId || state.currentUser.id;
             const candidateQuery = supabase
                 .from('pathfinder_candidates')
                 .select('*, pathfinder_candidate_sources(*)')
-                .eq('user_id', state.currentUser.id)
+                .eq('user_id', effectiveOwnerId)
                 .order('discovered_at', { ascending: false });
             const accountQuery = supabase
                 .from('accounts')
                 .select('id, name, user_id')
-                .eq('user_id', state.currentUser.id)
+                .eq('user_id', effectiveOwnerId)
                 .order('name');
 
             const [
@@ -352,6 +354,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         render();
     });
     document.getElementById('pathfinder-refresh-btn').addEventListener('click', loadData);
+    window.addEventListener('effectiveUserChanged', () => {
+        state.filters.accountId = '';
+        window.history.replaceState({}, '', 'pathfinder.html');
+        loadData();
+    });
 
     setupModalListeners();
     const globalState = await initializeAppState(supabase);

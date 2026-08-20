@@ -73,15 +73,18 @@ class PathfinderWorker:
 
     def run_account(self, account: dict, queued_job: dict | None) -> int:
         job = queued_job
-        if not self.dry_run:
-            if job is None:
-                job = self.repo.create_scheduled_job(account)
-            self.repo.update_job(
-                job["id"],
-                {"status": "running", "started_at": datetime.now(timezone.utc).isoformat(),
-                 "error_message": None},
-            )
         try:
+            if not self.dry_run:
+                if job is None:
+                    job = self.repo.create_scheduled_job(account)
+                self.repo.update_job(
+                    job["id"],
+                    {
+                        "status": "running",
+                        "started_at": datetime.now(timezone.utc).isoformat(),
+                        "error_message": None,
+                    },
+                )
             found = self._discover(account, job)
             if not self.dry_run and job:
                 self.repo.update_job(

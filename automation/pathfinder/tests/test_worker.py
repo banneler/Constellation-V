@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from pathfinder.worker import select_work
+from pathfinder.worker import PathfinderWorker, select_work
 
 
 class SelectionRepository:
@@ -34,6 +34,26 @@ class WorkSelectionTests(unittest.TestCase):
     def test_explicit_accounts_override_recent_gate_and_respect_limit(self):
         selected = select_work(SelectionRepository(), [2, 1], 1)
         self.assertEqual([account["id"] for account, _ in selected], [1])
+
+
+class ConflictingJobRepository:
+    def create_scheduled_job(self, account):
+        raise RuntimeError("HTTP 409: Conflict")
+
+
+class AccountIsolationTests(unittest.TestCase):
+    def test_job_creation_conflict_is_isolated_to_the_account(self):
+        worker = PathfinderWorker(
+            None,
+            ConflictingJobRepository(),
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(
+            worker.run_account({"id": 7, "user_id": "owner"}, None),
+            0,
+        )
 
 
 if __name__ == "__main__":
