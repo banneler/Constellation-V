@@ -28,6 +28,61 @@ test.describe('Contacts', () => {
     });
   });
 
+  test('persists safe public profile URLs and rejects unsafe schemes', async ({ page }) => {
+    const c = new ContactsPage(page);
+    const contact = {
+      id: 700001,
+      user_id: 'contact-profile-e2e-owner',
+      first_name: 'Avery',
+      last_name: 'Morgan',
+      email: 'avery.morgan@example.com',
+      phone: '',
+      title: 'Technology Leader',
+      profile_url: 'https://example.com/leadership',
+      account_id: null,
+      notes: '',
+      last_saved: '2026-08-20T12:00:00Z',
+      is_organic: false
+    };
+    let patchCount = 0;
+    let patchPayload: Record<string, unknown> | null = null;
+
+    await page.route(/\/rest\/v1\/contacts(?:\?|$)/i, async (route) => {
+      if (route.request().method() === 'PATCH') {
+        patchCount += 1;
+        patchPayload = route.request().postDataJSON();
+        Object.assign(contact, patchPayload);
+        await route.fulfill({ status: 204, body: '' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([contact])
+      });
+    });
+
+    await guardianRun(page, 'goto contacts', () => c.goto());
+    await page.locator('#contact-list .list-item').click();
+    await expect(page.locator('#contact-profile-url')).toHaveValue('https://example.com/leadership');
+    await expect(page.locator('#contact-profile-url-link')).toHaveAttribute('href', 'https://example.com/leadership');
+    await expect(page.locator('#contact-profile-url-link')).toHaveAttribute('rel', 'noopener noreferrer');
+
+    await page.locator('#contact-profile-url').fill('https://conference.example.com/speakers/avery');
+    await page.locator('#contact-form button[type="submit"]').click();
+    await expect.poll(() => patchCount).toBe(1);
+    expect(patchPayload).toMatchObject({
+      profile_url: 'https://conference.example.com/speakers/avery'
+    });
+
+    await page.locator('#modal-ok-btn').click();
+    await page.locator('#contact-profile-url').fill('javascript:alert(1)');
+    await expect(page.locator('#contact-profile-url-link')).toBeHidden();
+    await page.locator('#contact-form button[type="submit"]').click();
+    await expect(page.getByText('Public profile URL must start with http:// or https://.')).toBeVisible();
+    expect(patchCount).toBe(1);
+  });
+
   test('AI email generation uses wide compose mode until activity is logged', async ({ page }) => {
     const c = new ContactsPage(page);
 

@@ -108,8 +108,12 @@ test.describe('Pathfinder', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '900001' });
     });
     await page.locator('#modal-confirm-btn').click();
-    await update;
+    const updateRequest = await update;
     await approval;
+    expect(updateRequest.postDataJSON()).toMatchObject({
+      title: 'VP, Network Infrastructure',
+      profile_url: 'https://example.com/leadership'
+    });
   });
 
   test('rejects a candidate and records the suppression decision', async ({ page }) => {

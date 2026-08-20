@@ -1,6 +1,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows, applyEmailMergeFields } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
+import { safeExternalUrl } from './external-url.mjs';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -46,6 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const deleteContactBtn = document.getElementById("delete-contact-btn");
     const logActivityBtn = document.getElementById("log-activity-btn");
     const assignSequenceSelect = document.getElementById("assign-sequence-select");
+    const contactProfileUrlInput = document.getElementById("contact-profile-url");
+    const contactProfileUrlLink = document.getElementById("contact-profile-url-link");
     let tomSelectAccount = null;
     let tomSelectSequence = null;
     let tomSelectIndustry = null;
@@ -109,6 +112,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contactAccountNameSelect.appendChild(o);
             });
         tomSelectAccount = initTomSelect(contactAccountNameSelect, { placeholder: '-- No Account --' });
+    }
+
+    function updateContactProfileLink(value) {
+        const safeUrl = safeExternalUrl(value);
+        if (!contactProfileUrlLink) return safeUrl;
+        contactProfileUrlLink.href = safeUrl || '#';
+        contactProfileUrlLink.classList.toggle('hidden', !safeUrl);
+        return safeUrl;
     }
 
     const addTaskContactBtn = document.getElementById("add-task-contact-btn");
@@ -609,6 +620,9 @@ async function loadAllData() {
             contactForm.querySelector("#contact-email").value = contact.email || "";
             contactForm.querySelector("#contact-phone").value = contact.phone || "";
             contactForm.querySelector("#contact-title").value = contact.title || "";
+            const safeProfileUrl = safeExternalUrl(contact.profile_url);
+            if (contactProfileUrlInput) contactProfileUrlInput.value = safeProfileUrl;
+            updateContactProfileLink(safeProfileUrl);
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
             const accountVal = contact.account_id || "";
@@ -964,6 +978,7 @@ async function loadAllData() {
             contactForm.reset();
             contactForm.querySelector("#contact-id").value = "";
             contactForm.querySelector("#contact-last-saved").textContent = "Not yet saved.";
+            updateContactProfileLink('');
             const contactAccountInput = document.getElementById("contact-account-name");
             if (contactAccountInput) contactAccountInput.value = "";
         }
@@ -1463,6 +1478,9 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         contactForm.addEventListener('input', () => {
             state.isFormDirty = true;
         });
+        contactProfileUrlInput?.addEventListener('input', () => {
+            updateContactProfileLink(contactProfileUrlInput.value);
+        });
 
         window.addEventListener('beforeunload', (event) => {
             if (state.isFormDirty) {
@@ -1493,19 +1511,27 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 hideContactDetails(false, true);
                 showModal("New Contact", `
                     <label>First Name:</label><input type="text" id="modal-contact-first-name" required><br>
-                    <label>Last Name:</label><input type="text" id="modal-contact-last-name" required>
+                    <label>Last Name:</label><input type="text" id="modal-contact-last-name" required><br>
+                    <label>Public profile URL:</label><input type="url" id="modal-contact-profile-url" placeholder="https://example.com/profile">
                 `, async () => {
                     const firstName = document.getElementById("modal-contact-first-name")?.value.trim();
                     const lastName = document.getElementById("modal-contact-last-name")?.value.trim();
+                    const rawProfileUrl = document.getElementById("modal-contact-profile-url")?.value.trim() || '';
+                    const profileUrl = rawProfileUrl ? safeExternalUrl(rawProfileUrl) : null;
                     if (!firstName || !lastName) {
                         showModal("Error", "First Name and Last Name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return false;
+                    }
+                    if (rawProfileUrl && !profileUrl) {
+                        showToast("Public profile URL must start with http:// or https://.", "error");
                         return false;
                     }
 
                     const { data: newContactArr, error } = await supabase.from("contacts").insert([{ 
                         first_name: firstName, 
                         last_name: lastName, 
-                        user_id: getState().effectiveUserId 
+                        profile_url: profileUrl,
+                        user_id: getState().effectiveUserId
                     }]).select();
 
                     if (error) {
@@ -1562,12 +1588,15 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         contactForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const id = contactForm.querySelector("#contact-id").value ? Number(contactForm.querySelector("#contact-id").value) : null;
+            const rawProfileUrl = contactProfileUrlInput?.value.trim() || '';
+            const profileUrl = rawProfileUrl ? safeExternalUrl(rawProfileUrl) : null;
             const data = {
                 first_name: contactForm.querySelector("#contact-first-name").value.trim(),
                 last_name: contactForm.querySelector("#contact-last-name").value.trim(),
                 email: contactForm.querySelector("#contact-email").value.trim(),
                 phone: contactForm.querySelector("#contact-phone").value.trim(),
                 title: contactForm.querySelector("#contact-title").value.trim(),
+                profile_url: profileUrl,
                 account_id: contactForm.querySelector("#contact-account-name").value ? Number(contactForm.querySelector("#contact-account-name").value) : null,
                 notes: contactForm.querySelector("#contact-notes").value,
                 last_saved: new Date().toISOString(),
@@ -1575,6 +1604,10 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             };
             if (!data.first_name || !data.last_name) {
                 showModal("Error", "First and Last name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
+            if (rawProfileUrl && !profileUrl) {
+                showToast("Public profile URL must start with http:// or https://.", "error");
                 return;
             }
 

@@ -1,3 +1,7 @@
+import { safeExternalUrl } from './external-url.mjs';
+
+export { safeExternalUrl };
+
 export function normalizePathfinderFilters(filters = {}) {
     return {
         ownerId: String(filters.ownerId || ''),
@@ -88,15 +92,6 @@ export function candidateCounts(candidates = []) {
         if (candidate.status === 'pending' && Number(candidate.confidence) >= 0.8) counts.high += 1;
         return counts;
     }, { pending: 0, approved: 0, high: 0 });
-}
-
-export function safeExternalUrl(value) {
-    try {
-        const parsed = new URL(String(value || ''));
-        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
-    } catch {
-        return '';
-    }
 }
 
 export function escapePathfinderHtml(value) {
