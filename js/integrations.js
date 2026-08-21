@@ -115,7 +115,7 @@ export async function sendEmail(supabase, { to, subject = "", body = "", cc, bcc
     }
 
     if (!state.connected) {
-        toast("Connect Google or Outlook from the Menu to send in-app. Opening your email client for now.", "info");
+        toast("Connect Google or Outlook in User Settings to send in-app. Opening your email client for now.", "info");
         const result = openMailto({ to, subject, body });
         return { ...result, prompted: true };
     }
@@ -135,6 +135,41 @@ export async function sendEmail(supabase, { to, subject = "", body = "", cc, bcc
     }
 }
 
+/**
+ * List upcoming calendar events from connected Nylas calendars (all labels by default).
+ * Response includes `events[].color`, `calendarColors`, and `calendars[{id,name,color}]`.
+ * @param {{ calendarId?: string, limit?: number, start?: number, end?: number }} [opts]
+ *   start/end are Unix seconds; server defaults to now → +7 days when omitted.
+ * @returns {Promise<{ ok: boolean, provider?: string, events: Array, calendarColors?: object, calendars?: Array }>}
+ */
+export async function listCalendarEvents(supabase, opts = {}) {
+    const params = new URLSearchParams();
+    if (opts.calendarId) params.set("calendarId", opts.calendarId);
+    if (opts.limit != null) params.set("limit", String(opts.limit));
+    if (opts.start != null) params.set("start", String(opts.start));
+    if (opts.end != null) params.set("end", String(opts.end));
+    const qs = params.toString();
+    return callIntegrationsApi(
+        supabase,
+        `/api/integrations/calendar/events${qs ? `?${qs}` : ""}`
+    );
+}
+
+/**
+ * List Nylas calendars (labels) for the connected grant — name, color, primary.
+ * @param {{ limit?: number }} [opts]
+ * @returns {Promise<{ ok: boolean, provider?: string, calendars: Array }>}
+ */
+export async function listCalendars(supabase, opts = {}) {
+    const params = new URLSearchParams();
+    if (opts.limit != null) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return callIntegrationsApi(
+        supabase,
+        `/api/integrations/calendar/calendars${qs ? `?${qs}` : ""}`
+    );
+}
+
 export async function createCalendarEvent(supabase, event = {}, options = {}) {
     const state = await getIntegrationState(supabase, { force: options.forceRefresh });
     const toast = typeof options.onNotice === "function" ? options.onNotice : () => {};
@@ -145,7 +180,7 @@ export async function createCalendarEvent(supabase, event = {}, options = {}) {
                 await navigator.clipboard.writeText(event.description);
                 toast(
                     state.orgEnabled
-                        ? "Connect Google or Outlook from the Menu to add calendar events. Agenda copied to clipboard."
+                        ? "Connect Google or Outlook in User Settings to add calendar events. Agenda copied to clipboard."
                         : "Agenda copied to clipboard.",
                     "info"
                 );
@@ -155,7 +190,7 @@ export async function createCalendarEvent(supabase, event = {}, options = {}) {
         } else {
             toast(
                 state.orgEnabled
-                    ? "Connect Google or Outlook from the Menu to use calendar."
+                    ? "Connect Google or Outlook in User Settings to use calendar."
                     : "Calendar integrations are disabled for this organization.",
                 "info"
             );
@@ -168,6 +203,39 @@ export async function createCalendarEvent(supabase, event = {}, options = {}) {
         body: event,
     });
     toast("Calendar event created.", "success");
+    return { mode: "nylas", ok: true, data };
+}
+
+/**
+ * Update an existing Nylas calendar event (title, times, description, calendar, colorId).
+ * `colorId` is Google legacy "1"…"11" (or null to clear); ignored by other providers.
+ * @param {object} event - Must include `eventId` (or `id`) and usually `calendarId`.
+ */
+export async function updateCalendarEvent(supabase, event = {}, options = {}) {
+    const state = await getIntegrationState(supabase, { force: options.forceRefresh });
+    const toast = typeof options.onNotice === "function" ? options.onNotice : () => {};
+
+    if (!state.orgEnabled || !state.connected) {
+        toast(
+            state.orgEnabled
+                ? "Connect Google or Outlook in User Settings to edit calendar events."
+                : "Calendar integrations are disabled for this organization.",
+            "info"
+        );
+        return { mode: "disconnected", ok: false };
+    }
+
+    const eventId = event.eventId || event.id;
+    if (!eventId) {
+        toast("Missing event id.", "error");
+        return { mode: "nylas", ok: false };
+    }
+
+    const data = await callIntegrationsApi(supabase, "/api/integrations/calendar/events", {
+        method: "PATCH",
+        body: { ...event, eventId },
+    });
+    toast("Calendar event updated.", "success");
     return { mode: "nylas", ok: true, data };
 }
 

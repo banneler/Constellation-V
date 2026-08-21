@@ -198,14 +198,17 @@ Integrations are **off by default** (`org_settings.email_calendar_enabled = fals
 1. Create (or reuse) a Nylas application for the customer deploy
 2. Add callback URI: `https://{customer}.constellation-crm.com/api/integrations/nylas/callback` (plus Vercel alias / localhost for debug)
 3. Set Vercel env vars from §2.2 (`NYLAS_*`)
-4. Apply migration `supabase/migrations/20260730120000_org_settings_user_integrations.sql`
+4. Apply migrations:
+   - `supabase/migrations/20260730120000_org_settings_user_integrations.sql`
+   - `supabase/migrations/20260730140000_user_settings_email_signature.sql`
 5. Optional webhook: `https://{customer}.constellation-crm.com/api/integrations/nylas/webhook` (grant lifecycle)
-6. In-app: Admin enables **Email & calendar integrations** → a user connects **Google** or **Outlook** from the Menu → send/calendar use Nylas
+6. In-app: Admin enables **Email & calendar integrations** → user opens **User Settings → Integrations** → connects **Google** or **Outlook** (and optionally saves an email signature) → send/calendar use Nylas
 
 Smoke:
 
 - [ ] Toggle off → mailto still opens OS client  
-- [ ] Toggle on → Menu shows Integrations  
+- [ ] Toggle on → User Settings → Integrations shows Connect Google / Outlook  
+- [ ] Save email signature → Nylas send appends it  
 - [ ] Connect Google + send a test email  
 - [ ] Connect Outlook (or second test user) + create a calendar event from Draft Agenda  
 
@@ -284,9 +287,9 @@ Redeploy www after env changes.
 
 ---
 
-## 6. Mac mini automation (Social Hub + Cognito)
+## 6. Mac mini automation (Social Hub + Cognito + Pathfinder)
 
-Social Hub posts and Cognito alerts are **not** generated inside Vercel. They are written by Python jobs that run on the Mac mini (Tailscale host historically used for mini sync: `100.76.189.26`, user `ba`).
+Social Hub posts, Cognito alerts, and Pathfinder contact candidates are **not** generated inside Vercel. They are written by Python jobs that run on the Mac mini (Tailscale host historically used for mini sync: `100.76.189.26`, user `ba`).
 
 ### 6.1 Script locations (current)
 
@@ -294,6 +297,7 @@ Canonical working copies today live outside the git repos (iCloud / on-mini path
 
 - `cognito_constellation_ai.py` + `run_cognito.sh`
 - `social_hub.py` + `run_social_hub.sh`
+- Versioned Pathfinder source: `automation/pathfinder/` in this repository; install it in the customer folder with its mode-600 `.env`
 - On-mini expected root: `/Users/ba/Documents/Constellation-CRM/` (venv + scripts + `logs/`)
 
 > Gap to close later: move these into a proper repo with env-based config (no hardcoded service keys).
@@ -314,7 +318,19 @@ For each new customer instance:
 7. Confirm writes land in that project’s `cognito_alerts` / `social_hub_posts` / `script_run_logs`
 8. Confirm the customer app Social Hub + Cognito pages show the new rows
 
-### 6.3 Do not
+### 6.3 Pathfinder install
+
+Pathfinder uses the same customer-isolated Mac mini model, but its canonical source is versioned under `automation/pathfinder/`.
+
+1. Apply `20260814183000_add_pathfinder_contact_discovery.sql` to the customer Supabase project.
+2. Copy `automation/pathfinder/` to `/Users/ba/Documents/Constellation-CRM/customers/{customer}/pathfinder/`.
+3. Create `.env` from `.env.example` and set the customer-specific Supabase service role, Google CSE, Gemini, and monitored user-agent values.
+4. Run `./run_pathfinder.sh --dry-run --limit 5` and inspect every candidate and source.
+5. Enable `org_settings.pathfinder_enabled` only after the dry run is accepted.
+6. Install the launchd template. It starts daily, while the worker's seven-day account age gate enforces weekly discovery and still processes manual requests promptly.
+7. Confirm `pathfinder_scan_jobs`, `pathfinder_candidates`, and `pathfinder_candidate_sources` contain rows for the correct project and owner.
+
+### 6.4 Do not
 
 - Point a new customer’s mini job at the GPC Supabase project
 - Share one Gemini key across all customers if you care about usage attribution

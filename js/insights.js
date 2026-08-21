@@ -14,8 +14,22 @@ import {
     updateActiveNavLink,
     showToast,
 } from './shared_constants.js';
+import {
+    getDateRange,
+    getMonthsInRange,
+    inDateRange,
+    getInsightsFetchFloor,
+    formatLocalDate,
+} from './insights-period.mjs';
+import { activityConvertsAlert, buildConvertedAlertIds } from './insights-cognito.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/** PostgREST default max rows per request — must page past this or recent rows disappear. */
+const INSIGHTS_PAGE_SIZE = 1000;
+
+/** Cap for Insights Recent Activities feed (CC uses 20; Insights shows a bit more). */
+const RECENT_ACTIVITIES_LIMIT = 40;
 
 const PERIOD_LABELS = {
     this_month: 'This Month',
@@ -81,47 +95,6 @@ function getReportableUsers() {
     return state.allUsers.filter((u) => !u.exclude_from_reporting && !isUserDeactivated(u));
 }
 
-function getDateRange(rangeKey) {
-    const now = new Date();
-    let startDate = new Date();
-    const endDate = new Date(now);
-    switch (rangeKey) {
-        case 'this_month':
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            break;
-        case 'last_month':
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            endDate.setDate(0);
-            break;
-        case 'last_2_months':
-            // Current month + previous month (2 calendar months of quota/activity).
-            startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            break;
-        case 'this_fiscal_year':
-            startDate = new Date(now.getFullYear(), 0, 1);
-            break;
-        case 'last_365_days':
-            startDate.setDate(now.getDate() - 365);
-            break;
-        default:
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    }
-    return { startDate, endDate };
-}
-
-/** Months of quota covered by the selected Insights period. */
-function getMonthsInRange(startDate, endDate) {
-    // Month-aligned ranges (e.g. This Month, Previous 2 Months) use inclusive calendar months.
-    if (startDate.getDate() === 1) {
-        const startMonths = startDate.getFullYear() * 12 + startDate.getMonth();
-        const endMonths = endDate.getFullYear() * 12 + endDate.getMonth();
-        return Math.max(1, endMonths - startMonths + 1);
-    }
-    // Day-based ranges (e.g. Last 365 Days) use average-month duration.
-    const avgMonthMs = 30.437 * 24 * 60 * 60 * 1000;
-    return Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / avgMonthMs));
-}
-
 function userMatchesFilter(userId) {
     return state.filters.userId === 'all' || userId === state.filters.userId;
 }
@@ -130,10 +103,32 @@ function isUserIncluded(userId) {
     return getReportableUsers().some((u) => u.user_id === userId);
 }
 
-function inDateRange(value, startDate, endDate) {
-    if (!value) return false;
-    const itemDate = new Date(value);
-    return itemDate >= startDate && itemDate <= endDate;
+/**
+ * Page through PostgREST results. A bare `.select('*')` silently stops at
+ * 1000 rows (oldest first by default), which made Cognito "This Month" empty
+ * while FY/365 still showed older alerts that landed in the first page.
+ */
+async function fetchAllRows(buildQuery, { pageSize = INSIGHTS_PAGE_SIZE, maxRows = 50000 } = {}) {
+    const rows = [];
+    let from = 0;
+    while (from < maxRows) {
+        const to = from + pageSize - 1;
+        const { data, error } = await buildQuery().range(from, to);
+        if (error) return { data: null, error };
+        const batch = data || [];
+        rows.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+    }
+    return { data: rows, error: null };
+}
+
+/** Format conversion as "eligible% / all%" (excl. dismissed base / all-triggers base). */
+function formatCognitoConversionFraction(converted, eligible, total) {
+    if (!total) return '—';
+    const eligiblePct = eligible > 0 ? `${Math.round((converted / eligible) * 100)}%` : '—';
+    const totalPct = `${Math.round((converted / total) * 100)}%`;
+    return `${eligiblePct} / ${totalPct}`;
 }
 
 function filterByUserAndDate(rows, dateField) {
@@ -163,6 +158,11 @@ function kpiHtml(items) {
         <div class="insights-kpi">
             <p class="insights-kpi-label">${escapeHtml(item.label)}</p>
             <p class="insights-kpi-value">${escapeHtml(String(item.value))}</p>
+            ${
+                item.hint
+                    ? `<p class="insights-kpi-hint">${escapeHtml(item.hint)}</p>`
+                    : ''
+            }
         </div>`
         )
         .join('');
@@ -265,31 +265,41 @@ function computeSnapshot() {
         .sort((a, b) => b.members - a.members)
         .slice(0, 12);
 
+    // Triggers = Cognito alerts created in the selected period (all statuses).
+    // Converted = unique 1:1 match to an activity (cognito_alert_id stamp, else
+    // greedy nearest same-account alert ≤ activity). Pool is Activities KPI set.
+    // One activity converts at most one trigger.
     const alerts = (state.data.cognito_alerts || []).filter((alert) => {
         if (!isUserIncluded(alert.user_id) || !userMatchesFilter(alert.user_id)) return false;
         return inDateRange(alert.created_at, startDate, endDate);
     });
-    const outreachActivities = (state.data.activities || []).filter(
-        (a) => isUserIncluded(a.user_id) && userMatchesFilter(a.user_id)
-    );
+    const outreachActivities = activities;
+    const convertedAlertIds = buildConvertedAlertIds(alerts, outreachActivities);
     let cognitoConverted = 0;
+    let cognitoDismissed = 0;
     const cognitoByStatus = new Map();
     alerts.forEach((alert) => {
         const status = alert.status || 'Unknown';
+        if (status === 'Dismissed') cognitoDismissed += 1;
         if (!cognitoByStatus.has(status)) cognitoByStatus.set(status, { status, triggers: 0, converted: 0 });
         const bucket = cognitoByStatus.get(status);
         bucket.triggers += 1;
-        const alertTime = new Date(alert.created_at).getTime();
-        const matched = outreachActivities.some((activity) => {
-            if (activity.account_id !== alert.account_id || !activity.date) return false;
-            return new Date(activity.date).getTime() >= alertTime;
-        });
-        if (matched) {
+        if (activityConvertsAlert(alert, convertedAlertIds)) {
             bucket.converted += 1;
             cognitoConverted += 1;
         }
     });
-    const cognitoRate = alerts.length ? Math.round((cognitoConverted / alerts.length) * 100) : 0;
+    const cognitoEligible = alerts.length - cognitoDismissed;
+    const cognitoRateEligible =
+        cognitoEligible > 0 ? Math.round((cognitoConverted / cognitoEligible) * 100) : 0;
+    const cognitoRateTotal = alerts.length
+        ? Math.round((cognitoConverted / alerts.length) * 100)
+        : 0;
+    const cognitoConversionDisplay = formatCognitoConversionFraction(
+        cognitoConverted,
+        cognitoEligible,
+        alerts.length
+    );
     const cognitoTable = [...cognitoByStatus.values()].sort((a, b) => b.triggers - a.triggers);
 
     const accounts = (state.data.accounts || []).filter(
@@ -324,6 +334,7 @@ function computeSnapshot() {
                 .map((a) => new Date(a.date))
                 .sort((a, b) => b - a);
             return {
+                id: account.id,
                 name: account.name || `Account #${account.id}`,
                 owner: ownerName(account.user_id),
                 ownerId: account.user_id,
@@ -333,6 +344,32 @@ function computeSnapshot() {
         })
         .sort((a, b) => b.contacts - a.contacts)
         .slice(0, 25);
+
+    const contactById = new Map((state.data.contacts || []).map((c) => [c.id, c]));
+    const accountById = new Map((state.data.accounts || []).map((a) => [a.id, a]));
+    const recentActivityItems = [...activities]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, RECENT_ACTIVITIES_LIMIT)
+        .map((act) => {
+            const contact = act.contact_id ? contactById.get(act.contact_id) : null;
+            const accountId = act.account_id || contact?.account_id || null;
+            const account = accountId != null ? accountById.get(accountId) : null;
+            const accountName = account?.name || 'N/A';
+            const contactName = contact
+                ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'N/A'
+                : 'N/A';
+            const repName = ownerName(act.user_id);
+            return {
+                id: act.id,
+                type: act.type || 'Activity',
+                description: act.description || '',
+                date: act.date,
+                accountName,
+                contactName,
+                repName,
+                accountId,
+            };
+        });
 
     const usersForBreakdown =
         userId === 'all' ? reportable : reportable.filter((u) => u.user_id === userId);
@@ -350,21 +387,18 @@ function computeSnapshot() {
             const repSeqActive = seqActive.filter((r) => r.user_id === uid);
             const repSeqOverdue = seqOverdue.filter((r) => r.user_id === uid);
             const repAlerts = alerts.filter((a) => a.user_id === uid);
+            const repOutreach = outreachActivities.filter((a) => a.user_id === uid);
+            const repConvertedIds = buildConvertedAlertIds(repAlerts, repOutreach);
             let repConverted = 0;
+            let repDismissed = 0;
             repAlerts.forEach((alert) => {
-                const alertTime = new Date(alert.created_at).getTime();
-                if (
-                    outreachActivities.some(
-                        (activity) =>
-                            activity.user_id === uid &&
-                            activity.account_id === alert.account_id &&
-                            activity.date &&
-                            new Date(activity.date).getTime() >= alertTime
-                    )
-                ) {
-                    repConverted += 1;
+                if ((alert.status || '') === 'Dismissed') {
+                    repDismissed += 1;
+                    return;
                 }
+                if (activityConvertsAlert(alert, repConvertedIds)) repConverted += 1;
             });
+            const repEligible = repAlerts.length - repDismissed;
             const staleAccounts = penetration.filter((p) => p.ownerId === uid).length;
             const coachingPrompts = [];
             if (repTasks.length > 0) coachingPrompts.push(`Clear ${repTasks.length} past-due task${repTasks.length === 1 ? '' : 's'} this week.`);
@@ -374,7 +408,7 @@ function computeSnapshot() {
                     `Quota gap: ${formatCurrencyK(Math.max(quota - wonValue, 0))} remaining vs ${formatCurrencyK(quota)} target (${monthsInView} mo).`
                 );
             }
-            if (repAlerts.length > 0 && repConverted / repAlerts.length < 0.5) {
+            if (repEligible > 0 && repConverted / repEligible < 0.5) {
                 coachingPrompts.push('Cognito follow-through is light — convert more triggers into logged outreach.');
             }
             if (staleAccounts > 0) coachingPrompts.push(`Re-engage ${staleAccounts} low-activity account${staleAccounts === 1 ? '' : 's'}.`);
@@ -394,7 +428,13 @@ function computeSnapshot() {
                 seqActive: repSeqActive.length,
                 seqOverdue: repSeqOverdue.length,
                 cognitoTriggers: repAlerts.length,
+                cognitoDismissed: repDismissed,
                 cognitoConverted: repConverted,
+                cognitoRateFraction: formatCognitoConversionFraction(
+                    repConverted,
+                    repEligible,
+                    repAlerts.length
+                ),
                 staleAccounts,
                 coachingPrompts,
             };
@@ -411,7 +451,7 @@ function computeSnapshot() {
         `${activities.length} activities logged, ${newDeals.length} deals added (${formatCurrencyK(newDealsValue)}), and ${tasks.length} past-due tasks outstanding.`
     );
     talkingPoints.push(
-        `Motion: ${seqActive.length} active sequences (${seqOverdue.length} overdue), campaign completion ${campaignRate}%, Cognito conversion ${cognitoRate}%.`
+        `Motion: ${seqActive.length} active sequences (${seqOverdue.length} overdue), campaign completion ${campaignRate}%, Cognito conversion ${cognitoConversionDisplay} (excl. dismissed / all triggers).`
     );
     talkingPoints.push(
         `SAOS coverage is ${saosCoverage}% (${coveredIds.size}/${accounts.length} accounts); ${saosStale} plans stale 14+ days.`
@@ -478,8 +518,14 @@ function computeSnapshot() {
         },
         cognito: {
             triggers: alerts.length,
+            dismissed: cognitoDismissed,
             converted: cognitoConverted,
-            rate: cognitoRate,
+            eligible: cognitoEligible,
+            rateEligible: cognitoRateEligible,
+            rateTotal: cognitoRateTotal,
+            conversionDisplay: cognitoConversionDisplay,
+            // Backward-compatible alias: all-triggers conversion rate
+            rate: cognitoRateTotal,
             table: cognitoTable,
         },
         saos: {
@@ -489,6 +535,11 @@ function computeSnapshot() {
             stale: saosStale,
         },
         penetration,
+        recentActivities: {
+            items: recentActivityItems,
+            total: activities.length,
+            limit: RECENT_ACTIVITIES_LIMIT,
+        },
         byRep,
         talkingPoints,
     };
@@ -517,30 +568,88 @@ async function loadInsightsData() {
     try {
         await loadUsers();
 
+        // Widest Insights preset window (FY vs 365). Bound date-heavy tables so
+        // pagination stays bounded while still covering every period option.
+        const fetchFloor = getInsightsFetchFloor();
+        const floorIso = fetchFloor.toISOString();
+        const floorDate = formatLocalDate(fetchFloor);
+
         const fetches = [
-            ['activities', supabase.from('activities').select('*')],
-            ['tasks', supabase.from('tasks').select('*')],
-            ['deals', supabase.from('deals').select('*')],
-            ['contact_sequences', supabase.from('contact_sequences').select('*')],
-            ['sequences', supabase.from('sequences').select('id, name, user_id')],
-            ['campaigns', supabase.from('campaigns').select('*')],
-            ['campaign_members', supabase.from('campaign_members').select('*')],
-            ['cognito_alerts', supabase.from('cognito_alerts').select('*')],
-            ['accounts', supabase.from('accounts').select('id, user_id, name')],
-            ['contacts', supabase.from('contacts').select('id, user_id, account_id')],
-            ['account_plans', supabase.from('account_plans').select('id, account_id, updated_at, created_by, plan')],
+            [
+                'activities',
+                () =>
+                    supabase
+                        .from('activities')
+                        .select('*')
+                        .gte('date', floorDate)
+                        .order('date', { ascending: true }),
+            ],
+            ['tasks', () => supabase.from('tasks').select('*').order('id', { ascending: true })],
+            ['deals', () => supabase.from('deals').select('*').order('id', { ascending: true })],
+            [
+                'contact_sequences',
+                () => supabase.from('contact_sequences').select('*').order('id', { ascending: true }),
+            ],
+            [
+                'sequences',
+                () =>
+                    supabase.from('sequences').select('id, name, user_id').order('id', { ascending: true }),
+            ],
+            [
+                'campaigns',
+                () => supabase.from('campaigns').select('*').order('id', { ascending: true }),
+            ],
+            [
+                'campaign_members',
+                () => supabase.from('campaign_members').select('*').order('id', { ascending: true }),
+            ],
+            [
+                'cognito_alerts',
+                () =>
+                    supabase
+                        .from('cognito_alerts')
+                        .select('*')
+                        .gte('created_at', floorIso)
+                        .order('created_at', { ascending: true }),
+            ],
+            [
+                'accounts',
+                () =>
+                    supabase.from('accounts').select('id, user_id, name').order('id', { ascending: true }),
+            ],
+            [
+                'contacts',
+                () =>
+                    supabase
+                        .from('contacts')
+                        .select('id, user_id, account_id, first_name, last_name')
+                        .order('id', { ascending: true }),
+            ],
+            [
+                'account_plans',
+                () =>
+                    supabase
+                        .from('account_plans')
+                        .select('id, account_id, updated_at, created_by, plan')
+                        .order('id', { ascending: true }),
+            ],
         ];
 
-        const results = await Promise.all(fetches.map(([, query]) => query));
+        const results = await Promise.all(fetches.map(([, buildQuery]) => fetchAllRows(buildQuery)));
+        const failedKeys = [];
         results.forEach((result, index) => {
             const key = fetches[index][0];
             if (result.error) {
                 console.error(`[insights] failed to load ${key}:`, result.error);
                 state.data[key] = [];
+                failedKeys.push(key);
             } else {
                 state.data[key] = result.data || [];
             }
         });
+        if (failedKeys.includes('cognito_alerts')) {
+            showToast('Unable to load Cognito alerts for Insights — Triggers may show as zero.', 'error');
+        }
 
         populateFilters();
         renderAll();
@@ -839,14 +948,23 @@ function renderCampaigns(snapshot) {
 function renderCognitoOutreach(snapshot) {
     const { cognito } = snapshot;
     document.getElementById('insights-cognito-kpis').innerHTML = kpiHtml([
-        { label: 'Triggers', value: cognito.triggers },
-        { label: 'Converted', value: cognito.converted },
-        { label: 'Conversion', value: `${cognito.rate}%` },
+        { label: 'Triggers', value: cognito.triggers, hint: 'Created in period' },
+        { label: 'Dismissed', value: cognito.dismissed, hint: 'Not converted' },
+        {
+            label: 'Converted',
+            value: cognito.converted,
+            hint: '1 activity → 1 trigger (per alert)',
+        },
+        {
+            label: 'Conversion',
+            value: cognito.conversionDisplay,
+            hint: 'Excl. dismissed / all triggers',
+        },
     ]);
     const tbody = document.querySelector('#insights-cognito-table tbody');
     if (!tbody) return;
     if (!cognito.table.length) {
-        tbody.innerHTML = emptyRow(3, 'No Cognito triggers in this period.');
+        tbody.innerHTML = emptyRow(3, 'No Cognito triggers created in this period.');
         return;
     }
     tbody.innerHTML = cognito.table
@@ -855,7 +973,7 @@ function renderCognitoOutreach(snapshot) {
         <tr>
             <td>${escapeHtml(row.status)}</td>
             <td>${row.triggers}</td>
-            <td>${row.converted}</td>
+            <td>${row.status === 'Dismissed' ? '—' : row.converted}</td>
         </tr>`
         )
         .join('');
@@ -871,23 +989,100 @@ function renderSaosSnapshot(snapshot) {
     ]);
 }
 
+function getActivityIconInfo(act) {
+    const typeLower = String(act?.type || '').toLowerCase();
+    if (typeLower.includes('cognito') || typeLower.includes('intelligence')) {
+        return { iconClass: 'icon-default', icon: 'fa-magnifying-glass', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('email')) {
+        return { iconClass: 'icon-email', icon: 'fa-envelope', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('call')) {
+        return { iconClass: 'icon-call', icon: 'fa-phone', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('meeting')) {
+        return { iconClass: 'icon-meeting', icon: 'fa-video', iconPrefix: 'fas' };
+    }
+    if (typeLower.includes('linkedin')) {
+        return { iconClass: 'icon-linkedin', icon: 'fa-linkedin-in', iconPrefix: 'fa-brands' };
+    }
+    return { iconClass: 'icon-default', icon: 'fa-circle-info', iconPrefix: 'fas' };
+}
+
 function renderPenetration(snapshot) {
-    const tbody = document.querySelector('#insights-penetration-table tbody');
-    if (!tbody) return;
+    const list = document.getElementById('insights-penetration-list');
+    if (!list) return;
     if (!snapshot.penetration.length) {
-        tbody.innerHTML = emptyRow(4, 'Every reportable account has activity in this period.');
+        list.innerHTML =
+            '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Every reportable account has activity in this period.</p>';
         return;
     }
-    tbody.innerHTML = snapshot.penetration
-        .map(
-            (row) => `
-        <tr>
-            <td>${escapeHtml(row.name)}</td>
-            <td>${escapeHtml(row.owner)}</td>
-            <td>${row.contacts}</td>
-            <td>${row.lastActivity ? escapeHtml(formatDate(row.lastActivity.toISOString())) : 'Never'}</td>
-        </tr>`
-        )
+    list.innerHTML = snapshot.penetration
+        .map((row) => {
+            const accountHref =
+                row.id != null ? `accounts.html?accountId=${encodeURIComponent(row.id)}` : '';
+            const accountLabel = accountHref
+                ? `<a href="${accountHref}" class="insights-feed-account-link">${escapeHtml(row.name)}</a>`
+                : escapeHtml(row.name);
+            const lastLabel = row.lastActivity
+                ? `Last activity ${escapeHtml(formatDate(row.lastActivity.toISOString()))}`
+                : 'Last activity Never';
+            const contactLabel = `${row.contacts} contact${row.contacts === 1 ? '' : 's'}`;
+            return `
+        <div class="recent-activity-item insights-penetration-item">
+            <div class="activity-icon-wrap icon-default"><i class="fas fa-building"></i></div>
+            <div class="activity-body">
+                <div class="activity-meta">${escapeHtml(row.owner)}</div>
+                <div class="activity-description">${accountLabel}</div>
+                <div class="activity-date">${lastLabel}</div>
+            </div>
+            <div class="activity-actions">
+                <span class="insights-feed-chip">${escapeHtml(contactLabel)}</span>
+            </div>
+        </div>`;
+        })
+        .join('');
+}
+
+function renderRecentActivities(snapshot) {
+    const list = document.getElementById('insights-recent-activities-list');
+    const lede = document.getElementById('insights-recent-activities-lede');
+    if (!list) return;
+
+    const feed = snapshot.recentActivities || { items: [], total: 0, limit: RECENT_ACTIVITIES_LIMIT };
+    const showTeamRep = snapshot.userId === 'all';
+    if (lede) {
+        if (!feed.total) {
+            lede.textContent = 'Newest logged activities in the selected period.';
+        } else if (feed.total > feed.limit) {
+            lede.textContent = `Showing recent ${feed.limit} of ${feed.total} activities in period.`;
+        } else {
+            lede.textContent = `Showing ${feed.total} activit${feed.total === 1 ? 'y' : 'ies'} in period.`;
+        }
+    }
+
+    if (!feed.items.length) {
+        list.innerHTML =
+            '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">No recent activities in this period.</p>';
+        return;
+    }
+
+    list.innerHTML = feed.items
+        .map((act) => {
+            const { iconClass, icon, iconPrefix } = getActivityIconInfo(act);
+            const metaParts = [act.accountName, act.contactName];
+            if (showTeamRep && act.repName) metaParts.push(act.repName);
+            const meta = metaParts.join(' · ');
+            return `
+        <div class="recent-activity-item">
+            <div class="activity-icon-wrap ${iconClass}"><i class="${iconPrefix} ${icon}"></i></div>
+            <div class="activity-body">
+                <div class="activity-meta">${escapeHtml(meta)}</div>
+                <div class="activity-description">${escapeHtml(act.type)}: ${escapeHtml(act.description)}</div>
+                <div class="activity-date">${escapeHtml(formatDate(act.date))}</div>
+            </div>
+        </div>`;
+        })
         .join('');
 }
 
@@ -900,6 +1095,7 @@ function renderAll() {
     renderCognitoOutreach(snapshot);
     renderSaosSnapshot(snapshot);
     renderPenetration(snapshot);
+    renderRecentActivities(snapshot);
     updateModeChrome(snapshot);
 }
 
@@ -939,7 +1135,7 @@ function buildLeadershipExportHtml(snapshot, managerName) {
           <tbody>
             <tr><td>Sequences</td><td>${sequences.active} active / ${sequences.overdue} overdue</td><td>${sequences.completed} completed, ${sequences.removed} removed</td></tr>
             <tr><td>Campaigns</td><td>${campaigns.rate}% completion</td><td>${campaigns.count} campaigns · ${campaigns.completed}/${campaigns.members} members done</td></tr>
-            <tr><td>Cognito → Outreach</td><td>${cognito.rate}% converted</td><td>${cognito.converted}/${cognito.triggers} triggers followed with activity</td></tr>
+            <tr><td>Cognito → Outreach</td><td>${escapeHtml(cognito.conversionDisplay)} converted</td><td>${cognito.converted} converted · ${cognito.dismissed} dismissed · ${cognito.converted}/${cognito.eligible || 0} eligible (excl. dismissed) · ${cognito.converted}/${cognito.triggers} all triggers</td></tr>
             <tr><td>SAOS</td><td>${saos.coverage}% coverage</td><td>${saos.plans}/${saos.accounts} accounts planned · ${saos.stale} stale 14+ days</td></tr>
           </tbody>
         </table>
@@ -1006,7 +1202,7 @@ function buildCoachingExportHtml(snapshot, managerName) {
               <td>${escapeHtml(formatCurrencyK(rep.closedWonValue))}</td>
               <td>${rep.quotaPct}%</td>
               <td>${rep.seqOverdue}</td>
-              <td>${rep.cognitoConverted}/${rep.cognitoTriggers}</td>
+              <td>${escapeHtml(rep.cognitoRateFraction)} (${rep.cognitoConverted}/${rep.cognitoTriggers})</td>
             </tr>`
                 )
                 .join('')}

@@ -12,8 +12,10 @@ import {
     setupUserMenuAndAuth,
     setupGlobalSearch,
     checkAndSetNotifications,
-    updateActiveNavLink
+    updateActiveNavLink,
+    showToast
 } from './shared_constants.js';
+import { applyPathfinderNavigation } from './pathfinder-feature.mjs';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -25,7 +27,7 @@ let state = {
     activityLog: [],
     dealStages: [],
     activityTypes: [],
-    orgSettings: { email_calendar_enabled: false },
+    orgSettings: { email_calendar_enabled: false, pathfinder_enabled: false },
     scriptLogs: [],
     reassignmentAccounts: [],
     reassignmentAccountsLoading: false,
@@ -74,7 +76,7 @@ async function loadSettingsData() {
 
     state.dealStages = stages || [];
     state.activityTypes = types || [];
-    state.orgSettings = orgSettings || { id: 1, email_calendar_enabled: false };
+    state.orgSettings = orgSettings || { id: 1, email_calendar_enabled: false, pathfinder_enabled: false };
     renderSettingsPage();
 }
 
@@ -106,6 +108,16 @@ function renderSettingsPage() {
         hint.textContent = enabled
             ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
             : 'Currently off — mailto only.';
+    }
+
+    const pathfinderToggle = document.getElementById('pathfinder-enabled-toggle');
+    const pathfinderHint = document.getElementById('pathfinder-enabled-hint');
+    const pathfinderEnabled = Boolean(state.orgSettings?.pathfinder_enabled);
+    if (pathfinderToggle) pathfinderToggle.checked = pathfinderEnabled;
+    if (pathfinderHint) {
+        pathfinderHint.textContent = pathfinderEnabled
+            ? 'On — Pathfinder queue and account discovery controls are available.'
+            : 'Currently off — discovery is hidden.';
     }
 }
 
@@ -145,6 +157,42 @@ async function handleIntegrationsToggle(e) {
             ? 'On — users can connect Google/Outlook; send & calendar use connected accounts.'
             : 'Currently off — mailto only.';
     }
+}
+
+async function handlePathfinderToggle(e) {
+    const enabled = Boolean(e.target.checked);
+    const previous = Boolean(state.orgSettings?.pathfinder_enabled);
+    const hint = document.getElementById('pathfinder-enabled-hint');
+    if (hint) hint.textContent = 'Saving…';
+
+    const { data, error } = await supabase
+        .from('org_settings')
+        .upsert(
+            {
+                id: 1,
+                pathfinder_enabled: enabled,
+                updated_by: state.currentUser?.id || null,
+            },
+            { onConflict: 'id' }
+        )
+        .select('*')
+        .single();
+
+    if (error) {
+        e.target.checked = previous;
+        if (hint) hint.textContent = previous
+            ? 'On — Pathfinder queue and account discovery controls are available.'
+            : 'Currently off — discovery is hidden.';
+        showToast(`Unable to update Pathfinder: ${error.message}`, 'error');
+        return;
+    }
+
+    state.orgSettings = data || { ...state.orgSettings, pathfinder_enabled: enabled };
+    applyPathfinderNavigation(document, enabled);
+    if (hint) hint.textContent = enabled
+        ? 'On — Pathfinder queue and account discovery controls are available.'
+        : 'Currently off — discovery is hidden.';
+    showToast(`Pathfinder ${enabled ? 'enabled' : 'disabled'}.`, 'success');
 }
 
 
@@ -744,6 +792,7 @@ function setupPageEventListeners() {
         }
     });
     document.getElementById('email-calendar-enabled-toggle')?.addEventListener('change', handleIntegrationsToggle);
+    document.getElementById('pathfinder-enabled-toggle')?.addEventListener('change', handlePathfinderToggle);
 }
 
 async function initializePage() {

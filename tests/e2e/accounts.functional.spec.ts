@@ -40,6 +40,31 @@ test.describe('Accounts (functional)', () => {
     await acc.toggleToContactList();
     await expect(acc.contactListView()).toBeVisible();
   });
+
+  test('queues an on-demand Pathfinder scan for the selected account', async ({ page }) => {
+    await page.route(/\/rest\/v1\/org_settings/i, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, pathfinder_enabled: true }) });
+    });
+    await page.route(/\/rest\/v1\/pathfinder_candidates/i, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+    await page.route(/\/rest\/v1\/pathfinder_scan_jobs/i, async (route) => {
+      await route.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
+    });
+
+    const acc = new AccountsPage(page);
+    await acc.goto();
+    const unique = `E2E Pathfinder ${Date.now()}`;
+    await acc.createAccountViaModal(unique);
+    await acc.selectAccountByName(unique);
+
+    const scanRequest = page.waitForRequest((request) =>
+      /\/rest\/v1\/pathfinder_scan_jobs/i.test(request.url()) && request.method() === 'POST'
+    );
+    await expect(page.locator('#pathfinder-account-btn')).toBeVisible();
+    await page.locator('#pathfinder-account-btn').click();
+    await scanRequest;
+  });
 });
 
 test.describe('Strategic Account OS', () => {

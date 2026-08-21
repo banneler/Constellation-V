@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/inject-env.js",
     "test": "playwright test",
+    "test:unit": "node --test tests/unit/*.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

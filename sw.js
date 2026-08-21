@@ -7,7 +7,7 @@
 // one with the backticks-in-CSS-comment bug — on every client even after
 // the fix shipped, because the SW intercepts script requests with a
 // stale-while-revalidate policy.)
-const CACHE_VERSION = 'constellation-v78';
+const CACHE_VERSION = 'constellation-v118';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -15,6 +15,7 @@ const SCOPE_URL = new URL(self.registration.scope);
 const PRECACHE_PATHS = [
     'index.html',
     'output.css',
+    'css/command-center.css',
     'manifest.json',
     'assets/constellation-logo-c.svg',
     'assets/constellation-logo-full.svg'
@@ -82,10 +83,30 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Static assets: stale-while-revalidate.
+    // JS/CSS: network-first + bypass HTTP disk cache. Plain fetch(request) was still
+    // able to return a browser-cached output.css after SW version bumps, so timeline
+    // padding/height fixes looked like no-ops while page-specific CSS (insights) worked.
+    if (request.destination === 'style' || request.destination === 'script') {
+        event.respondWith(
+            (async () => {
+                const cache = await caches.open(RUNTIME_CACHE);
+                try {
+                    const networkResponse = await fetch(request, { cache: 'reload' });
+                    if (networkResponse && networkResponse.ok) {
+                        cache.put(request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                } catch (_) {
+                    const cached = await cache.match(request);
+                    return cached || new Response('', { status: 504 });
+                }
+            })()
+        );
+        return;
+    }
+
+    // Images/fonts/manifest: stale-while-revalidate.
     if (
-        request.destination === 'style' ||
-        request.destination === 'script' ||
         request.destination === 'image' ||
         request.destination === 'font' ||
         request.destination === 'manifest'

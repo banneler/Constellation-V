@@ -10,6 +10,7 @@ import {
     getState,
     initializeAppState,
     setupUserMenuAndAuth,
+    checkAndSetNotifications,
     SUPABASE_URL,
     SUPABASE_ANON_KEY
 } from './shared_constants.js';
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     await initializeAppState(supabase);
     await setupUserMenuAndAuth(supabase, getState());
+    await checkAndSetNotifications(supabase);
     window.showModal = showModal;
     window.hideModal = hideModal;
     window.getState = getState;

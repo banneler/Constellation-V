@@ -13,6 +13,7 @@ const CRM_HTML_PAGES = [
   'deals.html',
   'irr.html',
   'marketing-hub.html',
+  'pathfinder.html',
   'proposals.html',
   'sequences.html',
   'social_hub.html',

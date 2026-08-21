@@ -289,6 +289,13 @@
       "success_criteria": "Title Constellation; nav visible; no critical console errors"
     },
     {
+      "intent": "smoke_load_pathfinder",
+      "location": "pathfinder.html",
+      "primary_selector": "nav.nav-sidebar",
+      "semantic_fallback": "Left CRM navigation rail",
+      "success_criteria": "Title Constellation; nav visible; no critical console errors"
+    },
+    {
       "intent": "smoke_load_command_center",
       "location": "command-center.html",
       "primary_selector": "nav.nav-sidebar",

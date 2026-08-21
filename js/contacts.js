@@ -1,6 +1,7 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, createToastElement, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows } from './shared_constants.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, formatDate, formatMonthYear, formatSimpleDate, parseCsvRow, themes, setupModalListeners, showModal, hideModal, updateActiveNavLink, setupUserMenuAndAuth, initializeAppState, getState, loadSVGs, addDays, showToast, showGlobalLoader, hideGlobalLoader, setupGlobalSearch, checkAndSetNotifications, injectGlobalNavigation, logToSalesforce, showActionSuccessConfirm, filterOutOwnershipOrphanedCrmRows, applyEmailMergeFields } from './shared_constants.js';
 import { AI_FUNCTION_IDS, callAiApi, mountAIFeedback } from './ai-memory.js';
 import { emailActionLabel, getIntegrationState, sendEmail } from './integrations.js';
+import { safeExternalUrl } from './external-url.mjs';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -46,6 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const deleteContactBtn = document.getElementById("delete-contact-btn");
     const logActivityBtn = document.getElementById("log-activity-btn");
     const assignSequenceSelect = document.getElementById("assign-sequence-select");
+    const contactProfileUrlInput = document.getElementById("contact-profile-url");
+    const contactProfileUrlLink = document.getElementById("contact-profile-url-link");
     let tomSelectAccount = null;
     let tomSelectSequence = null;
     let tomSelectIndustry = null;
@@ -111,6 +114,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         tomSelectAccount = initTomSelect(contactAccountNameSelect, { placeholder: '-- No Account --' });
     }
 
+    function updateContactProfileLink(value) {
+        const safeUrl = safeExternalUrl(value);
+        if (!contactProfileUrlLink) return safeUrl;
+        contactProfileUrlLink.href = safeUrl || '#';
+        contactProfileUrlLink.classList.toggle('hidden', !safeUrl);
+        return safeUrl;
+    }
+
     const addTaskContactBtn = document.getElementById("add-task-contact-btn");
     const contactActivitiesList = document.getElementById("contact-activities-list");
     if (contactActivitiesList) {
@@ -146,20 +157,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sequenceNextStepWrapper = document.getElementById("sequence-next-step-wrapper");
 
     function replacePlaceholders(template, contact, account) {
-        if (!template) return '';
-        let result = String(template);
-        if (contact) {
-            const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
-            result = result.replace(/\[FirstName\]/gi, contact.first_name || '');
-            result = result.replace(/\[LastName\]/gi, contact.last_name || '');
-            result = result.replace(/\[FullName\]/gi, fullName);
-            result = result.replace(/\[Name\]/gi, fullName);
-        }
-        if (account) {
-            result = result.replace(/\[AccountName\]/gi, account.name || '');
-            result = result.replace(/\[Account\]/gi, account.name || '');
-        }
-        return result;
+        return applyEmailMergeFields(template, contact, account);
     }
 
     async function completeStep(csId, processedDescription = null) {
@@ -290,19 +288,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const aiClearInsightBtn = document.getElementById("ai-clear-insight-btn");
     const organicStarIndicator = document.getElementById("organic-star-indicator");
     const aiAssistantContent = document.getElementById("ai-assistant-content");
-    const aiToastContainer = document.getElementById("ai-toast-container");
     const sortFirstLastBtn = document.getElementById("sort-first-last-btn");
     const sortLastFirstBtn = document.getElementById("sort-last-first-btn");
-
-    function showAIToast(message, type = 'success') {
-        if (!aiToastContainer) return;
-        const toast = createToastElement(message, type);
-        aiToastContainer.appendChild(toast);
-        setTimeout(() => {
-            toast.classList.add('hide');
-            toast.addEventListener('transitionend', () => toast.remove());
-        }, 4000);
-    }
 
     function setAIEmailComposeMode(active) {
         document.body.classList.toggle('ai-email-compose-active', Boolean(active));
@@ -633,6 +620,9 @@ async function loadAllData() {
             contactForm.querySelector("#contact-email").value = contact.email || "";
             contactForm.querySelector("#contact-phone").value = contact.phone || "";
             contactForm.querySelector("#contact-title").value = contact.title || "";
+            const safeProfileUrl = safeExternalUrl(contact.profile_url);
+            if (contactProfileUrlInput) contactProfileUrlInput.value = safeProfileUrl;
+            updateContactProfileLink(safeProfileUrl);
             contactForm.querySelector("#contact-notes").value = contact.notes || "";
             contactForm.querySelector("#contact-last-saved").textContent = contact.last_saved ? `Last Saved: ${formatDate(contact.last_saved)}` : "Not yet saved.";
             const accountVal = contact.account_id || "";
@@ -988,6 +978,7 @@ async function loadAllData() {
             contactForm.reset();
             contactForm.querySelector("#contact-id").value = "";
             contactForm.querySelector("#contact-last-saved").textContent = "Not yet saved.";
+            updateContactProfileLink('');
             const contactAccountInput = document.getElementById("contact-account-name");
             if (contactAccountInput) contactAccountInput.value = "";
         }
@@ -1197,7 +1188,7 @@ async function loadAllData() {
 
     async function generateEmailWithAI(contact) {
         if (!contact?.email) {
-            showAIToast("Contact has no email address.", "error");
+            showToast("Contact has no email address.", "error");
             return;
         }
         const userPrompt = document.getElementById('ai-email-prompt')?.value;
@@ -1206,7 +1197,7 @@ async function loadAllData() {
         const generateButton = document.getElementById('ai-generate-email-btn');
 
         if (!userPrompt) {
-            showAIToast("Please enter a prompt.", "error");
+            showToast("Please enter a prompt.", "error");
             return;
         }
 
@@ -1232,9 +1223,15 @@ async function loadAllData() {
                 context: buildContactEmailContext(contact)
             };
             const data = await callAiApi(supabase, 'generate-prospect-email', requestBody);
-            
-            const generatedSubject = data.subject || "No Subject";
-            const generatedBody = data.body || "Failed to generate email content.";
+            const account = contact.account_id
+                ? state.accounts.find((acc) => acc.id === contact.account_id)
+                : null;
+            const generatedSubject = applyEmailMergeFields(data.subject || "No Subject", contact, account);
+            const generatedBody = applyEmailMergeFields(
+                data.body || "Failed to generate email content.",
+                contact,
+                account
+            );
             
             if (aiEmailSubject) aiEmailSubject.value = generatedSubject;
             if (aiEmailBody) aiEmailBody.value = generatedBody;
@@ -1247,7 +1244,7 @@ async function loadAllData() {
                 label: 'Was this email draft useful?',
                 functionId: AI_FUNCTION_IDS.CONTACTS_EMAIL
             });
-            showAIToast("Email generated successfully!", "success");
+            showToast("Email generated successfully!", "success");
 
         } catch (e) {
             console.error("Error generating email:", e);
@@ -1255,7 +1252,7 @@ async function loadAllData() {
             if (aiEmailBody) aiEmailBody.value = "An error occurred while generating the email. Please try again.";
             setAIEmailComposeMode(false);
             showAIEmailResponse();
-            showAIToast("Failed to generate email.", "error");
+            showToast("Failed to generate email.", "error");
         } finally {
             if (generateButton) {
                 generateButton.disabled = false;
@@ -1266,11 +1263,26 @@ async function loadAllData() {
 
 async function openEmailClient(contact) {
     if (!contact?.email) {
-        showAIToast("Contact has no email address.", "error");
+        showToast("Contact has no email address.", "error");
         return;
     }
-    const emailSubject = document.getElementById('ai-email-subject')?.value || '';
-    const emailBody = document.getElementById('ai-email-body')?.value || '';
+    const account = contact.account_id
+        ? state.accounts.find((acc) => acc.id === contact.account_id)
+        : null;
+    const emailSubject = applyEmailMergeFields(
+        document.getElementById('ai-email-subject')?.value || '',
+        contact,
+        account
+    );
+    const emailBody = applyEmailMergeFields(
+        document.getElementById('ai-email-body')?.value || '',
+        contact,
+        account
+    );
+    const subjectEl = document.getElementById('ai-email-subject');
+    const bodyEl = document.getElementById('ai-email-body');
+    if (subjectEl) subjectEl.value = emailSubject;
+    if (bodyEl) bodyEl.value = emailBody;
 
     let sendResult;
     try {
@@ -1280,7 +1292,7 @@ async function openEmailClient(contact) {
             { onNotice: (msg, type) => showToast(msg, type) }
         );
     } catch (error) {
-        showAIToast(error.message || "Could not send email.", "error");
+        showToast(error.message || "Could not send email.", "error");
         return;
     }
 
@@ -1447,7 +1459,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         if (zoominfoContactBtn) {
             const ZOOMINFO_HOME = "https://app.zoominfo.com";
             const ZOOMINFO_OPEN_DELAY_MS = 1200;
-            zoominfoContactBtn.addEventListener("click", async (e) => {
+            zoominfoContactBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) return;
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) return;
@@ -1456,23 +1468,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 try {
                     await navigator.clipboard.writeText(name);
                 } catch (_) {}
-                const btn = e.currentTarget;
-                const rect = btn.getBoundingClientRect();
-                const toast = document.createElement("div");
-                toast.className = "toast toast-info toast-near-button pointer-events-auto";
-                const toastMsg = document.createElement("span");
-                toastMsg.className = "toast-message";
-                toastMsg.textContent = msg;
-                toast.appendChild(toastMsg);
-                toast.style.position = "fixed";
-                toast.style.right = `${window.innerWidth - rect.left}px`;
-                toast.style.top = `${rect.bottom + 8}px`;
-                toast.style.zIndex = "1001";
-                document.body.appendChild(toast);
-                setTimeout(() => {
-                    toast.classList.add("hide");
-                    toast.addEventListener("transitionend", () => toast.remove());
-                }, 4000);
+                showToast(msg, 'info');
                 setTimeout(() => {
                     window.open(ZOOMINFO_HOME, "_blank");
                 }, ZOOMINFO_OPEN_DELAY_MS);
@@ -1481,6 +1477,9 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         
         contactForm.addEventListener('input', () => {
             state.isFormDirty = true;
+        });
+        contactProfileUrlInput?.addEventListener('input', () => {
+            updateContactProfileLink(contactProfileUrlInput.value);
         });
 
         window.addEventListener('beforeunload', (event) => {
@@ -1512,19 +1511,27 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                 hideContactDetails(false, true);
                 showModal("New Contact", `
                     <label>First Name:</label><input type="text" id="modal-contact-first-name" required><br>
-                    <label>Last Name:</label><input type="text" id="modal-contact-last-name" required>
+                    <label>Last Name:</label><input type="text" id="modal-contact-last-name" required><br>
+                    <label>Public profile URL:</label><input type="url" id="modal-contact-profile-url" placeholder="https://example.com/profile">
                 `, async () => {
                     const firstName = document.getElementById("modal-contact-first-name")?.value.trim();
                     const lastName = document.getElementById("modal-contact-last-name")?.value.trim();
+                    const rawProfileUrl = document.getElementById("modal-contact-profile-url")?.value.trim() || '';
+                    const profileUrl = rawProfileUrl ? safeExternalUrl(rawProfileUrl) : null;
                     if (!firstName || !lastName) {
                         showModal("Error", "First Name and Last Name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                        return false;
+                    }
+                    if (rawProfileUrl && !profileUrl) {
+                        showToast("Public profile URL must start with http:// or https://.", "error");
                         return false;
                     }
 
                     const { data: newContactArr, error } = await supabase.from("contacts").insert([{ 
                         first_name: firstName, 
                         last_name: lastName, 
-                        user_id: getState().effectiveUserId 
+                        profile_url: profileUrl,
+                        user_id: getState().effectiveUserId
                     }]).select();
 
                     if (error) {
@@ -1581,12 +1588,15 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         contactForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const id = contactForm.querySelector("#contact-id").value ? Number(contactForm.querySelector("#contact-id").value) : null;
+            const rawProfileUrl = contactProfileUrlInput?.value.trim() || '';
+            const profileUrl = rawProfileUrl ? safeExternalUrl(rawProfileUrl) : null;
             const data = {
                 first_name: contactForm.querySelector("#contact-first-name").value.trim(),
                 last_name: contactForm.querySelector("#contact-last-name").value.trim(),
                 email: contactForm.querySelector("#contact-email").value.trim(),
                 phone: contactForm.querySelector("#contact-phone").value.trim(),
                 title: contactForm.querySelector("#contact-title").value.trim(),
+                profile_url: profileUrl,
                 account_id: contactForm.querySelector("#contact-account-name").value ? Number(contactForm.querySelector("#contact-account-name").value) : null,
                 notes: contactForm.querySelector("#contact-notes").value,
                 last_saved: new Date().toISOString(),
@@ -1594,6 +1604,10 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
             };
             if (!data.first_name || !data.last_name) {
                 showModal("Error", "First and Last name are required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+                return;
+            }
+            if (rawProfileUrl && !profileUrl) {
+                showToast("Public profile URL must start with http:// or https://.", "error");
                 return;
             }
 
@@ -2145,13 +2159,13 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
         if (aiActivityInsightBtn) {
             aiActivityInsightBtn.addEventListener("click", async () => {
                 if (!state.selectedContactId) {
-                    showAIToast("Please select a contact to get AI insights.", "error");
+                    showToast("Please select a contact to get AI insights.", "error");
                     return;
                 }
 
                 const contact = state.contacts.find(c => c.id === state.selectedContactId);
                 if (!contact) {
-                    showAIToast("Selected contact not found.", "error");
+                    showToast("Selected contact not found.", "error");
                     return;
                 }
 
@@ -2161,7 +2175,7 @@ async function handleAssignSequenceToContact(contactId, sequenceId, userId) {
                     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 if (relevantActivities.length === 0) {
-                    showAIToast("No activities found for this contact to generate insights.", "info");
+                    showToast("No activities found for this contact to generate insights.", "info");
                     return;
                 }
 

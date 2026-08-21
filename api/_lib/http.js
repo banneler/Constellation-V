@@ -1,7 +1,7 @@
 function setJsonHeaders(res) {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Cron-Secret");
 }
 

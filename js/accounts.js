@@ -28,8 +28,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             deals: [],
             tasks: [],
             contact_sequences: [],
-            proposals: []
+            proposals: [],
+            pathfinderCandidates: []
         },
+        pathfinderEnabled: false,
 
         contactViewMode: 'list', // 'list' or 'org'
 
@@ -60,6 +62,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactListBtn = document.getElementById("contact-list-btn");
     const contactOrgChartBtn = document.getElementById("contact-org-chart-btn");
     const orgChartMaximizeBtn = document.getElementById("org-chart-maximize-btn");
+    const pathfinderAccountBtn = document.getElementById("pathfinder-account-btn");
+    const pathfinderPendingLink = document.getElementById("pathfinder-pending-link");
     const orgChartModalBackdrop = document.getElementById("org-chart-modal-backdrop");
     const orgChartModalContent = document.getElementById("org-chart-modal-content");
     const orgChartModalCloseBtn = document.getElementById("org-chart-modal-close-btn");
@@ -247,12 +251,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Data Fetching ---
     async function loadInitialData() {
         if (!state.currentUser) return;
-        const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes] = await Promise.all([
+        const [accountsRes, dealsRes, activitiesRes, contactsRes, dealStagesRes, orgSettingsRes] = await Promise.all([
             supabase.from("accounts").select("*").eq("user_id", getState().effectiveUserId),
             supabase.from("deals").select("id, account_id, stage").eq("user_id", getState().effectiveUserId),
             supabase.from("activities").select("id, account_id, contact_id, date").eq("user_id", getState().effectiveUserId),
             supabase.from("contacts").select("id, account_id, reports_to").eq("user_id", getState().effectiveUserId),
-            supabase.from("deal_stages").select("*").order('sort_order')
+            supabase.from("deal_stages").select("*").order('sort_order'),
+            supabase.from("org_settings").select("pathfinder_enabled").eq("id", 1).maybeSingle()
         ]);
 
         if (accountsRes.error) throw accountsRes.error;
@@ -260,12 +265,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (activitiesRes.error) throw activitiesRes.error;
         if (contactsRes.error) throw contactsRes.error;
         if (dealStagesRes.error) throw dealStagesRes.error;
+        if (orgSettingsRes.error) console.warn('[accounts] Pathfinder setting unavailable:', orgSettingsRes.error.message || orgSettingsRes.error);
         
         state.accounts = accountsRes.data || [];
         state.contacts = contactsRes.data || [];
         state.deals = filterOutOwnershipOrphanedCrmRows(dealsRes.data || [], state.accounts, state.contacts);
         state.activities = filterOutOwnershipOrphanedCrmRows(activitiesRes.data || [], state.accounts, state.contacts);
         state.dealStages = dealStagesRes.data || [];
+        state.pathfinderEnabled = orgSettingsRes.data?.pathfinder_enabled === true;
 
         renderAccountList();
     }
@@ -307,14 +314,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         const account = state.accounts.find(a => a.id === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
 
-        const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes, planResult, emailLogRes] = await Promise.all([
+        const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes, planResult, emailLogRes, pathfinderRes] = await Promise.all([
             supabase.from("contacts").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("deals").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("activities").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("tasks").select("*").eq("account_id", state.selectedAccountId),
             supabase.from("proposal_specs").select("id, name, updated_at").eq("account_id", state.selectedAccountId).order("updated_at", { ascending: false }),
             fetchPlanForAccount(supabase, state.selectedAccountId, state.currentUser?.id),
-            supabase.from("email_log").select("*")
+            supabase.from("email_log").select("*"),
+            state.pathfinderEnabled
+                ? supabase.from("pathfinder_candidates").select("id, status").eq("account_id", state.selectedAccountId)
+                : Promise.resolve({ data: [], error: null })
         ]);
 
         if (contactsRes.error) throw contactsRes.error;
@@ -323,6 +333,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (tasksRes.error) throw tasksRes.error;
         if (proposalsRes.error) throw proposalsRes.error;
         if (emailLogRes.error) throw emailLogRes.error;
+        if (pathfinderRes.error) throw pathfinderRes.error;
 
         const contactIds = (contactsRes.data || []).map(c => c.id);
         const sequencesRes = contactIds.length > 0
@@ -340,6 +351,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.selectedAccountDetails.tasks = filterOutOwnershipOrphanedCrmRows(tasksRes.data || [], state.accounts, contactsDetail);
         state.selectedAccountDetails.contact_sequences = sequencesRes.data || [];
         state.selectedAccountDetails.proposals = proposalsRes.data || [];
+        state.selectedAccountDetails.pathfinderCandidates = pathfinderRes.data || [];
 
         if (planResult.ok && planResult.row) {
             state.accountPlan = {
@@ -355,6 +367,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         renderAccountDetails();
+        renderPathfinderAccountControls();
         updateStrategicModeControls();
     }
     
@@ -389,6 +402,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (accountDealsCards) accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Select an account to see deals.</p>';
         if (accountProposalsList) accountProposalsList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] py-2">Select an account to see proposals.</p>';
         if (accountPendingTaskReminder) accountPendingTaskReminder.classList.add('hidden');
+        if (pathfinderAccountBtn) pathfinderAccountBtn.classList.add('hidden');
+        if (pathfinderPendingLink) pathfinderPendingLink.classList.add('hidden');
         const reassignBtnEl = document.getElementById('reassign-account-btn');
         if (reassignBtnEl) reassignBtnEl.classList.add('hidden');
 
@@ -409,7 +424,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (clearSelection) {
             state.selectedAccountId = null;
-            state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [], proposals: [] };
+            state.selectedAccountDetails = { account: null, contacts: [], activities: [], deals: [], tasks: [], contact_sequences: [], proposals: [], pathfinderCandidates: [] };
             state.accountPlan = null;
             document.querySelectorAll(".list-item.selected").forEach(item => item.classList.remove("selected"));
             state.isFormDirty = false;
@@ -419,6 +434,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         updateStrategicModeControls();
     };
+
+    function renderPathfinderAccountControls() {
+        const account = state.selectedAccountDetails.account;
+        const visible = state.pathfinderEnabled && Boolean(account);
+        if (pathfinderAccountBtn) {
+            pathfinderAccountBtn.classList.toggle('hidden', !visible);
+            pathfinderAccountBtn.disabled = !visible;
+        }
+        if (!pathfinderPendingLink) return;
+
+        const pendingCount = (state.selectedAccountDetails.pathfinderCandidates || [])
+            .filter((candidate) => candidate.status === 'pending').length;
+        pathfinderPendingLink.classList.toggle('hidden', !visible || pendingCount === 0);
+        if (visible && pendingCount > 0) {
+            pathfinderPendingLink.href = `pathfinder.html?accountId=${encodeURIComponent(account.id)}`;
+            pathfinderPendingLink.textContent = `${pendingCount} Pathfinder candidate${pendingCount === 1 ? '' : 's'}`;
+        }
+    }
 
     // --- Render Functions ---
     const getAccountFilter = () => {
@@ -3314,6 +3347,34 @@ document.addEventListener("DOMContentLoaded", async () => {
                         showModal("Success", "Task created successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
                         return true;
                     }, true, `<button id="modal-confirm-btn" class="btn-primary">Add Task</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+            });
+        }
+        if (pathfinderAccountBtn) {
+            pathfinderAccountBtn.addEventListener('click', async () => {
+                const account = state.selectedAccountDetails.account;
+                if (!state.pathfinderEnabled || !account || !state.currentUser) return;
+
+                pathfinderAccountBtn.disabled = true;
+                try {
+                    const { error } = await supabase.from('pathfinder_scan_jobs').insert({
+                        user_id: account.user_id,
+                        account_id: account.id,
+                        requested_by: state.currentUser.id,
+                        trigger: 'manual',
+                        status: 'queued'
+                    });
+                    if (error?.code === '23505') {
+                        showToast('Pathfinder already has a queued or running scan for this account.', 'info');
+                        return;
+                    }
+                    if (error) throw error;
+                    showToast(`Pathfinder scan queued for ${account.name}.`, 'success');
+                } catch (error) {
+                    console.error('[accounts] Pathfinder queue failed:', error);
+                    showToast(`Unable to queue Pathfinder: ${error.message}`, 'error');
+                } finally {
+                    pathfinderAccountBtn.disabled = false;
+                }
             });
         }
         if (aiBriefingBtn) {

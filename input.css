@@ -478,8 +478,692 @@ body.theme-green {
         contain: layout;
     }
     .dashboard-column-right .section-card {
-        @apply flex flex-col flex-1 min-h-0;
+        @apply flex flex-col min-h-0;
         overflow: clip;
+    }
+    /* Match left top row (briefing + tasks) height before internal scroll */
+    .dashboard-column-right .cc-calendar-card {
+        flex: 0 0 50vh;
+        height: 50vh;
+        max-height: 50vh;
+    }
+    .dashboard-column-right .cc-recent-activities-card {
+        @apply flex-1;
+        min-height: 0;
+    }
+    .cc-calendar-actions {
+        @apply flex items-center gap-1.5 flex-shrink-0;
+    }
+    .cc-calendar-card .btn-icon-header {
+        @apply w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+        transition: filter 0.2s, transform 0.2s;
+    }
+    .cc-calendar-card .btn-icon-header:hover {
+        filter: brightness(1.12);
+        transform: scale(1.04);
+    }
+    .cc-calendar-card .btn-secondary.btn-icon-header {
+        background-color: var(--bg-medium);
+        border: 1px solid var(--border-color);
+        color: var(--text-light);
+    }
+    .cc-calendar-list {
+        @apply flex flex-col flex-1 min-h-0 px-4 pb-3 min-w-0;
+        overflow-y: auto;
+    }
+    .cc-calendar-day-group {
+        @apply flex flex-col min-w-0;
+    }
+    .cc-calendar-day-group + .cc-calendar-day-group {
+        @apply mt-0.5;
+        border-top: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
+        padding-top: 0.25rem;
+    }
+    .cc-calendar-day-header {
+        @apply sticky top-0 z-[1] text-[0.65rem] font-semibold tracking-wide uppercase py-1 px-0.5 leading-none;
+        color: var(--text-medium);
+        background-color: var(--bg-light);
+        letter-spacing: 0.04em;
+    }
+    .cc-event-bullet {
+        flex-shrink: 0;
+        width: 0.4rem;
+        height: 0.4rem;
+        margin-top: 0.3rem;
+        border-radius: 9999px;
+        background-color: var(--cc-event-color, var(--primary-blue));
+    }
+    .cc-calendar-item {
+        @apply flex gap-2 py-1.5 border-b border-[var(--border-color)] last:border-b-0 items-start min-w-0;
+    }
+    .cc-calendar-day-group .cc-calendar-item:last-child {
+        border-bottom: 0;
+    }
+    .cc-calendar-item-when {
+        @apply flex-shrink-0 text-[0.7rem] font-medium pt-px leading-tight;
+        color: var(--text-medium);
+        min-width: 3.75rem;
+        max-width: 5rem;
+    }
+    .cc-calendar-item-body {
+        @apply flex flex-col flex-1 min-w-0 gap-px;
+    }
+    .cc-calendar-item-title {
+        @apply text-[0.8125rem] leading-tight min-w-0;
+        color: var(--text-light);
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+    .cc-calendar-item-desc {
+        @apply text-[0.7rem] mt-px leading-tight min-w-0;
+        color: var(--text-muted);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    .cc-calendar-settings-link {
+        color: var(--primary-blue);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .cc-calendar-settings-link:hover {
+        filter: brightness(1.1);
+    }
+    /* Month calendar modal (~75% viewport) */
+    .cc-month-calendar-backdrop {
+        background-color: rgba(15, 23, 42, 0.32);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        z-index: 10020;
+        padding: 1rem;
+        overflow-y: auto;
+    }
+    .cc-month-calendar-modal {
+        @apply flex flex-col rounded-2xl overflow-hidden;
+        width: min(75vw, 1100px);
+        height: min(75vh, 820px);
+        max-width: 95vw;
+        max-height: 92vh;
+        background-color: var(--bg-light);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-card);
+    }
+    .cc-month-calendar-header {
+        @apply flex items-center justify-between gap-2 px-3 py-2 flex-shrink-0;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--bg-medium);
+    }
+    .cc-month-calendar-nav {
+        @apply flex items-center gap-1.5 min-w-0;
+    }
+    .cc-month-calendar-title {
+        @apply m-0 text-sm font-semibold min-w-[8.5rem] text-center leading-tight;
+        color: var(--text-light);
+    }
+    .cc-month-nav-btn,
+    .cc-month-calendar-close {
+        @apply w-7 h-7 rounded-md flex items-center justify-center border-0 cursor-pointer text-sm;
+        background-color: transparent;
+        color: var(--text-medium);
+        transition: background-color 0.15s, color 0.15s;
+    }
+    .cc-month-nav-btn:hover,
+    .cc-month-calendar-close:hover {
+        background-color: var(--bg-light);
+        color: var(--text-light);
+    }
+    .cc-month-calendar-body {
+        @apply flex flex-1 min-h-0 overflow-hidden;
+    }
+    .cc-month-grid-wrap {
+        @apply flex flex-col flex-1 min-w-0 min-h-0 p-2;
+        border-right: 1px solid var(--border-color);
+    }
+    .cc-month-weekday-row {
+        @apply grid grid-cols-7 gap-0.5 mb-0.5 flex-shrink-0;
+    }
+    .cc-month-calendar-modal .cc-month-weekday {
+        @apply text-[0.6rem] font-semibold uppercase tracking-wide text-center py-0.5 leading-none;
+        color: var(--text-muted);
+        letter-spacing: 0.04em;
+    }
+    .cc-month-grid {
+        @apply grid grid-cols-7 gap-0.5 flex-1 min-h-0;
+        grid-auto-rows: minmax(0, 1fr);
+    }
+    .cc-month-calendar-modal .cc-month-cell {
+        @apply flex flex-col gap-px rounded-md p-0.5 min-h-0 overflow-hidden text-left cursor-pointer border;
+        background-color: var(--bg-medium);
+        border-color: transparent;
+        transition: border-color 0.15s, background-color 0.15s;
+        font-family: var(--font-main);
+        font-size: 0.7rem;
+        line-height: 1.15;
+    }
+    .cc-month-calendar-modal .cc-month-cell:hover {
+        border-color: color-mix(in srgb, var(--primary-blue) 35%, var(--border-color));
+    }
+    .cc-month-calendar-modal .cc-month-cell.is-outside {
+        opacity: 0.42;
+    }
+    .cc-month-calendar-modal .cc-month-cell.is-today {
+        background-color: color-mix(in srgb, var(--primary-blue) 10%, var(--bg-medium));
+    }
+    .cc-month-calendar-modal .cc-month-cell.is-selected {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 14%, var(--bg-medium));
+    }
+    .cc-month-calendar-modal .cc-month-cell-day {
+        @apply font-semibold flex-shrink-0 leading-none;
+        font-size: 0.7rem;
+        color: var(--text-light);
+        margin-bottom: 0.2rem;
+    }
+    .cc-month-calendar-modal .cc-month-cell-events {
+        @apply flex flex-col gap-px min-h-0 overflow-hidden flex-1;
+    }
+    .cc-month-calendar-modal .cc-month-cell-event {
+        @apply flex items-start gap-0.5 min-w-0 leading-none;
+        font-size: 0.625rem;
+        padding-block: 1px;
+        color: var(--text-light);
+    }
+    .cc-month-calendar-modal .cc-month-cell-event .cc-event-bullet {
+        width: 0.32rem;
+        height: 0.32rem;
+        margin-top: 0.14rem;
+    }
+    .cc-month-calendar-modal .cc-month-cell-event-title {
+        @apply truncate min-w-0 flex-1;
+    }
+    .cc-month-calendar-modal .cc-month-cell-more {
+        @apply font-medium leading-none;
+        font-size: 0.55rem;
+        color: var(--text-muted);
+        padding-left: 0.45rem;
+    }
+    .cc-month-calendar-modal .cc-month-cell-dots {
+        @apply flex gap-0.5 mt-auto flex-wrap;
+    }
+    .cc-month-calendar-modal .cc-month-dot {
+        @apply w-1 h-1 rounded-full;
+        background-color: var(--cc-event-color, var(--primary-blue));
+    }
+    .cc-month-day-panel {
+        @apply flex flex-col w-[38%] max-w-[22rem] min-w-[12rem] min-h-0 p-2.5;
+        background-color: var(--bg-light);
+    }
+    .cc-month-day-panel-header {
+        @apply flex items-center justify-between gap-2 mb-1.5 flex-shrink-0;
+    }
+    .cc-month-day-heading {
+        @apply m-0 text-[0.8125rem] font-semibold leading-tight min-w-0 flex-1;
+        color: var(--text-light);
+    }
+    .cc-month-day-add-btn {
+        @apply w-7 h-7 rounded-md flex items-center justify-center border-0 cursor-pointer text-xs flex-shrink-0;
+        background-color: var(--primary-blue);
+        color: #fff;
+        transition: filter 0.15s;
+    }
+    .cc-month-day-add-btn:hover {
+        filter: brightness(1.08);
+    }
+    .cc-month-day-list {
+        @apply flex flex-col flex-1 min-h-0 gap-1;
+        /* Prefer fitting the day pane; scroll only if all-day + timeline can't fit. */
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+    .cc-month-day-empty {
+        @apply text-[0.8125rem] py-1.5 leading-snug;
+        color: var(--text-medium);
+    }
+    .cc-month-day-item {
+        @apply flex items-start gap-2 py-1.5 border-b border-[var(--border-color)] last:border-b-0 min-w-0;
+    }
+    .cc-month-day-item .cc-event-bullet {
+        margin-top: 0.35rem;
+    }
+    .cc-month-day-item-main {
+        @apply flex flex-col gap-px min-w-0 flex-1;
+    }
+    .cc-month-day-item-when {
+        @apply text-[0.75rem] font-medium leading-tight;
+        color: var(--text-medium);
+    }
+    .cc-month-day-item-title {
+        @apply text-[0.875rem] leading-tight;
+        color: var(--text-light);
+        overflow-wrap: break-word;
+    }
+    .cc-month-day-item-desc {
+        @apply text-[0.75rem] leading-tight;
+        color: var(--text-muted);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+    /* Day panel timeline (7am–6pm) — compact scale so full window fits the pane */
+    .cc-day-allday {
+        @apply flex flex-col gap-0.5 flex-shrink-0 pb-1 mb-0.5;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .cc-day-allday-item {
+        @apply flex items-center gap-1.5 min-w-0 text-[0.75rem] leading-tight;
+        color: var(--text-light);
+    }
+    .cc-day-allday-item .cc-event-bullet {
+        width: 0.35rem;
+        height: 0.35rem;
+        flex-shrink: 0;
+    }
+    .cc-day-allday-when {
+        @apply font-medium flex-shrink-0;
+        color: var(--text-medium);
+        font-size: 0.7rem;
+    }
+    .cc-day-allday-title {
+        @apply truncate min-w-0;
+    }
+    .cc-day-timeline {
+        /*
+         * Outer flex shell (gets day-pane height). Columns live on .cc-day-timeline-plane:
+         * [ label rail | 1px rule | event track ].
+         * Events/hover abspos ONLY inside .cc-day-timeline-canvas (in-flow, position:relative).
+         * Never absolute-fill the canvas — a zero-height track made abspos children
+         * resolve against the fixed modal backdrop (viewport "air ball").
+         */
+        --cc-day-timeline-label-col: 2.5rem;
+        --cc-day-timeline-rule-col: 1px;
+        --cc-day-timeline-event-left: 0.25rem;
+        --cc-day-timeline-event-right: 0.7rem;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden; /* clip label overhang so parent doesn't micro-scroll */
+        font-family: var(--font-main);
+        /* Room for centered 7am/6pm labels; included in flex height via border-box */
+        padding-block: 0.55rem;
+        box-sizing: border-box;
+    }
+    /* Shared Y plane: definite height from flex so % tops resolve inside the modal. */
+    .cc-day-timeline-plane {
+        position: relative;
+        flex: 1 1 0;
+        min-height: 0;
+        display: grid;
+        grid-template-columns:
+            var(--cc-day-timeline-label-col, 2.5rem)
+            var(--cc-day-timeline-rule-col, 1px)
+            minmax(0, 1fr);
+        align-items: stretch;
+        column-gap: 0.3rem;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+    .cc-day-timeline-rail {
+        position: relative; /* hour-mark abspos only */
+        grid-column: 1;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        align-self: stretch;
+        z-index: 1;
+        pointer-events: none;
+        overflow: visible;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
+    }
+    /* Thin vertical rule separating label rail from event track. */
+    .cc-day-timeline-rule {
+        grid-column: 2;
+        width: var(--cc-day-timeline-rule-col, 1px);
+        height: 100%;
+        align-self: stretch;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        pointer-events: none;
+        background-color: color-mix(in srgb, var(--border-color) 100%, var(--text-muted) 18%);
+    }
+    .cc-day-timeline-hour {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 0;
+        margin: 0;
+        border: 0;
+        padding: 0;
+        box-shadow: none;
+        background: none;
+        display: block;
+        /* Center label on the hour mark (same Y as event/hover tops at that %). */
+        transform: translateY(-50%);
+        pointer-events: none;
+        line-height: 1;
+        box-sizing: border-box;
+        overflow: visible;
+    }
+    .cc-day-timeline-hour-label {
+        @apply text-[0.55rem] font-medium leading-none w-full text-right pr-1;
+        color: var(--text-muted);
+        display: block;
+    }
+    .cc-day-timeline-hour-line,
+    .cc-day-timeline-half {
+        display: none !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+    .cc-day-timeline-track {
+        /* Hit target + hour grid; clips. Canvas (child) is the abspos containing block. */
+        position: relative;
+        transform: translateZ(0);
+        grid-column: 3;
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
+        height: 100%;
+        align-self: stretch;
+        overflow: hidden;
+        isolation: isolate;
+        z-index: 1;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        text-align: left;
+        background-color: color-mix(in srgb, var(--bg-medium) 80%, transparent);
+        /* 11 hour slots (7am–6pm): one horizontal rule per hour — same span as TIMELINE_SPAN */
+        background-image: repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(100% / 11 - 1px),
+            color-mix(in srgb, var(--border-color) 85%, transparent) calc(100% / 11 - 1px),
+            color-mix(in srgb, var(--border-color) 85%, transparent) calc(100% / 11)
+        );
+        outline: none;
+    }
+    /*
+     * In-flow containing block for events + hover. Must be position:relative with
+     * height:100% (NOT position:absolute; inset:0) so the track keeps a real box
+     * and abspos % tops never fall through to the fixed month-calendar backdrop.
+     */
+    .cc-day-timeline-canvas {
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
+        pointer-events: none;
+    }
+    /*
+     * Overlay only — out of flow. Canvas-relative insets (ledger-safe).
+     * Visibility = .is-active background + JS hour-band height (height:0 when off).
+     * Do NOT gate with opacity: opacity:0 hides the painted background even when
+     * .is-active styles apply, and the 0→1 transition left the ghost invisible.
+     */
+    .cc-day-timeline-hover {
+        position: absolute;
+        left: var(--cc-day-timeline-event-left, 0.25rem);
+        right: var(--cc-day-timeline-event-right, 0.7rem);
+        width: auto;
+        top: 0;
+        height: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-sizing: border-box;
+        pointer-events: none;
+        z-index: 2;
+        border-radius: 0.25rem;
+        background-color: transparent;
+        box-shadow: none;
+    }
+    .cc-day-timeline-hover.is-active {
+        background-color: color-mix(in srgb, var(--primary-blue) 22%, var(--bg-light));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-blue) 40%, transparent);
+    }
+    .cc-day-timeline-track:focus-visible {
+        box-shadow: inset 0 0 0 1px var(--primary-blue);
+    }
+    .cc-day-timeline-empty-hint {
+        @apply absolute inset-x-2 top-1/2 -translate-y-1/2 text-center text-[0.75rem] pointer-events-none;
+        color: var(--text-muted);
+        z-index: 1;
+    }
+    .cc-day-timeline-event {
+        position: absolute;
+        left: var(--cc-day-timeline-event-left, 0.25rem);
+        right: var(--cc-day-timeline-event-right, 0.7rem);
+        width: auto;
+        z-index: 3;
+        /* Timed box only — height comes from inline top/height%. No padding here
+         * (padding lives on .cc-day-timeline-event-body so content inset never
+         * competes with duration geometry / preflight). */
+        display: block;
+        overflow: hidden;
+        border-radius: 0.25rem;
+        padding: 0;
+        margin: 0;
+        /* Canvas is pointer-events:none; chips must re-enable hits for click-to-edit */
+        pointer-events: auto;
+        cursor: pointer;
+        box-sizing: border-box;
+        background-color: color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 40%, var(--bg-light));
+        border-left: 3px solid var(--cc-event-color, var(--primary-blue));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cc-event-color, var(--primary-blue)) 45%, transparent);
+        min-height: 0;
+    }
+    .cc-day-timeline-event-body {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        box-sizing: border-box;
+        min-height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        /* Visible top breathing room above time|title */
+        padding: 8px 0.5rem 4px 0.55rem;
+    }
+    .cc-day-timeline-event.is-overflow-start {
+        border-top: 2px solid var(--cc-event-color, var(--primary-blue));
+    }
+    .cc-day-timeline-event.is-overflow-end {
+        border-bottom: 2px solid var(--cc-event-color, var(--primary-blue));
+    }
+    .cc-day-timeline-event-head {
+        @apply flex items-baseline gap-1.5 min-w-0;
+        flex: 0 0 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .cc-day-timeline-event-when {
+        @apply text-[0.65rem] font-normal leading-none shrink-0;
+        color: var(--text-medium);
+    }
+    .cc-day-timeline-event-title {
+        @apply text-[0.78rem] font-semibold leading-tight truncate min-w-0;
+        color: var(--text-light);
+    }
+    .cc-day-timeline-event-desc {
+        @apply text-[0.68rem] leading-tight mt-0.5;
+        color: var(--text-muted);
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    /* Add/Edit Event: Calendar picker (multi-calendar create only) */
+    .cc-event-label-field,
+    .cc-event-calendar-field {
+        @apply flex flex-col;
+    }
+    .cc-event-calendar-row {
+        @apply flex items-center gap-2;
+    }
+    .cc-event-calendar-swatch {
+        @apply w-3.5 h-3.5 rounded-sm flex-shrink-0;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-color) 60%, transparent);
+    }
+    .cc-event-calendar-row select,
+    .cc-event-calendar-field select {
+        @apply flex-1 min-w-0;
+    }
+    .cc-event-suggestions {
+        @apply mt-1 mb-1;
+    }
+    .cc-event-suggestions-label {
+        @apply text-[0.7rem] font-semibold uppercase tracking-wide mb-1;
+        color: var(--text-muted);
+        letter-spacing: 0.04em;
+    }
+    .cc-event-suggestions-list {
+        @apply flex flex-wrap gap-1.5;
+    }
+    .cc-event-suggestions-empty {
+        @apply m-0 text-[0.75rem] leading-snug;
+        color: var(--text-muted);
+    }
+    .cc-event-suggestion-btn {
+        @apply text-[0.7rem] leading-tight px-2 py-1 rounded-md border cursor-pointer;
+        background-color: var(--bg-medium);
+        border-color: var(--border-color);
+        color: var(--text-light);
+        transition: border-color 0.15s, background-color 0.15s;
+    }
+    .cc-event-suggestion-btn:hover {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
+    }
+    .cc-event-duration {
+        @apply mt-1 mb-0.5;
+    }
+    .cc-event-duration-label {
+        @apply text-[0.7rem] font-semibold uppercase tracking-wide mb-1;
+        color: var(--text-muted);
+        letter-spacing: 0.04em;
+    }
+    .cc-event-duration-pills {
+        @apply flex flex-wrap gap-1.5;
+    }
+    .cc-event-duration-pill {
+        @apply text-[0.75rem] leading-tight px-2.5 py-1.5 rounded-md border cursor-pointer;
+        background-color: var(--bg-medium);
+        border-color: var(--border-color);
+        color: var(--text-light);
+        transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+    }
+    .cc-event-duration-pill:hover {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 12%, var(--bg-medium));
+    }
+    .cc-event-duration-pill--active {
+        border-color: var(--primary-blue);
+        background-color: color-mix(in srgb, var(--primary-blue) 22%, var(--bg-medium));
+        color: var(--text-light);
+    }
+    .cc-event-time-wheels {
+        @apply grid grid-cols-2 gap-3;
+    }
+    @media (max-width: 520px) {
+        .cc-event-time-wheels {
+            grid-template-columns: 1fr;
+        }
+    }
+    .cc-event-time-wheel-label {
+        @apply text-sm font-semibold block mb-1;
+        color: var(--text-light);
+    }
+    .cc-event-time-wheel {
+        --cc-time-wheel-item-h: 2.25rem;
+        --cc-time-wheel-visible: 5;
+        position: relative;
+        height: calc(var(--cc-time-wheel-item-h) * var(--cc-time-wheel-visible));
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        background-color: var(--bg-medium);
+        overflow: hidden;
+    }
+    .cc-event-time-wheel-scroller {
+        height: 100%;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scroll-snap-type: y proximity;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-block: calc(var(--cc-time-wheel-item-h) * 2);
+    }
+    .cc-event-time-wheel-scroller::-webkit-scrollbar {
+        display: none;
+    }
+    .cc-event-time-wheel-item {
+        @apply flex items-center justify-center w-full m-0 p-0 border-0 cursor-pointer;
+        height: var(--cc-time-wheel-item-h);
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        opacity: 0.4;
+        scroll-snap-align: center;
+    }
+    .cc-event-time-wheel-item.is-selected {
+        color: var(--text-light);
+        font-weight: 600;
+        opacity: 1;
+    }
+    @media (max-width: 800px) {
+        .cc-month-calendar-modal {
+            width: 95vw;
+            height: auto;
+            max-height: 92vh;
+        }
+        .cc-month-calendar-body {
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .cc-month-grid-wrap {
+            border-right: 0;
+            border-bottom: 1px solid var(--border-color);
+            min-height: 18rem;
+            flex: 0 0 auto;
+        }
+        .cc-month-grid {
+            min-height: 16rem;
+        }
+        .cc-month-cell-events {
+            display: none;
+        }
+        .cc-month-day-panel {
+            width: 100%;
+            max-width: none;
+            min-height: 10rem;
+            flex: 1 1 auto;
+        }
+        .cc-day-timeline {
+            min-height: 14rem;
+        }
     }
     .dashboard-column-left > .section-card {
         @apply flex flex-col flex-1 min-h-0 overflow-hidden;
@@ -521,7 +1205,12 @@ body.theme-green {
         .dashboard-left-top-row .my-tasks-card {
             height: auto;
         }
-        .dashboard-column-right .section-card {
+        .dashboard-column-right .cc-calendar-card {
+            flex: 0 0 50vh;
+            height: 50vh;
+            max-height: 50vh;
+        }
+        .dashboard-column-right .cc-recent-activities-card {
             display: flex;
             flex-direction: column;
             flex: 1;
@@ -707,12 +1396,6 @@ body.theme-green {
     }
     .ai-assistant-content {
         @apply flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 pb-0;
-    }
-    .ai-toast-container {
-        @apply flex flex-col gap-2 flex-shrink-0 mb-2 min-h-0 min-w-0 w-full max-w-full;
-    }
-    .ai-toast-container .toast {
-        @apply w-full max-w-full min-w-0;
     }
     .ai-write-form {
         @apply flex flex-col flex-1 min-h-0 min-w-0 gap-0 overflow-x-hidden;
@@ -7357,7 +8040,14 @@ body.theme-green {
         @apply fixed inset-0 flex justify-center items-center z-[9999] backdrop-blur-sm;
         background-color: rgba(0, 0, 0, 0.15);
     }
-    /* Stacked above .modal-backdrop / .modal-content (z-[10000]) for external-action confirmation */
+    /*
+     * Shared Add Event / confirm modal must stack above Command Center month calendar
+     * (.cc-month-calendar-backdrop is z-index 10020).
+     */
+    #modal-backdrop {
+        z-index: 10040;
+    }
+    /* Stacked above #modal-backdrop for external-action confirmation */
     .action-success-confirm-backdrop {
         @apply fixed inset-0 flex justify-center items-center backdrop-blur-sm;
         z-index: 10050;
@@ -7556,12 +8246,22 @@ body.theme-green {
     .modal-form input[type="text"],
     .modal-form input[type="number"],
     .modal-form input[type="month"],
+    .modal-form input[type="date"],
+    .modal-form input[type="time"],
     .modal-form select,
     .modal-form textarea {
         @apply text-sm w-full rounded-lg px-3 py-2;
         background-color: var(--bg-medium);
         border: 1px solid var(--border-color);
         color: var(--text-light);
+    }
+    .modal-form .modal-form-row {
+        @apply grid grid-cols-2 gap-3;
+    }
+    @media (max-width: 520px) {
+        .modal-form .modal-form-row {
+            grid-template-columns: 1fr;
+        }
     }
     .modal-form textarea {
         @apply min-h-[4rem];
@@ -8288,52 +8988,82 @@ body:not(.theme-green) #contact-activities-list li {
         color: #00ff41;
     }
     .toast-container {
-        @apply fixed flex flex-col items-stretch gap-2 z-[9999] pointer-events-none;
-        bottom: 12rem;
-        left: 1.5rem;
-        width: min(20rem, calc(100vw - 2rem));
-        max-width: calc(100vw - 2rem);
-        min-width: 0;
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 11000;
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        gap: 10px;
+        width: max-content;
+        max-width: min(520px, calc(100vw - 2rem));
+        pointer-events: none;
     }
     .toast {
-        @apply py-2 px-2 font-bold opacity-100 transition-all duration-300 bg-transparent shadow-none;
-        color: #fff;
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
-        line-height: 1.35;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        background-color: var(--bg-medium);
+        border: 1px solid var(--primary-blue);
+        color: var(--text-light);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+        max-width: min(520px, calc(100vw - 2rem));
         overflow-wrap: anywhere;
         word-break: break-word;
+        text-align: center;
+        line-height: 1.35;
+        opacity: 0;
+        transform: translateY(100px);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+        box-sizing: border-box;
+        pointer-events: auto;
+    }
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .toast.hide {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    .toast > i {
+        font-size: 1.2rem;
+        flex-shrink: 0;
     }
     .toast-message {
         display: block;
         min-width: 0;
         overflow-wrap: anywhere;
         word-break: break-word;
+        font-weight: 600;
     }
     .toast-success {
-        color: var(--success-color);
+        border-color: var(--primary-blue);
+    }
+    .toast-success > i {
+        color: #4ade80;
     }
     .toast-error {
-        color: var(--danger-red);
+        border-color: #f87171;
+    }
+    .toast-error > i {
+        color: #f87171;
     }
     .toast-info {
+        border-color: var(--primary-blue);
+    }
+    .toast-info > i {
         color: var(--primary-blue);
     }
     .toast-warning {
+        border-color: var(--warning-color, #f59e0b);
+    }
+    .toast-warning > i {
         color: var(--warning-color, #f59e0b);
-    }
-    .toast.hide {
-        @apply opacity-0 -translate-y-2;
-    }
-    .toast-near-button {
-        @apply py-2 px-3 rounded-lg shadow-lg;
-        width: auto;
-        max-width: min(320px, calc(100vw - 1rem));
-        min-width: 0;
-        background-color: var(--bg-medium);
-        border: 1px solid var(--border-color);
     }
     .item-list-container h4 {
         @apply mt-6 mb-2 pb-2 border-b border-[var(--border-color)] text-[0.9rem];
@@ -11309,4 +12039,356 @@ body:not(.theme-green) .list-item.selected {
     outline: 2px solid var(--primary-blue, #00A1E0) !important;
     outline-offset: 4px !important;
     background: rgba(0, 161, 224, 0.1) !important;
+}
+
+/* Pathfinder contact discovery */
+.pathfinder-shell {
+    min-height: calc(100vh - 3rem);
+}
+
+.pathfinder-header {
+    align-items: flex-start;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.pathfinder-subtitle {
+    color: var(--text-medium);
+    margin-top: 0.25rem;
+}
+
+.pathfinder-content {
+    padding: 1.25rem;
+}
+
+.pathfinder-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.pathfinder-kpi {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
+.pathfinder-kpi span {
+    color: var(--primary-blue);
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.pathfinder-kpi small {
+    color: var(--text-medium);
+    margin-top: 0.2rem;
+}
+
+.pathfinder-filter-bar {
+    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+}
+
+.pathfinder-results-summary {
+    color: var(--text-medium);
+    font-size: 0.85rem;
+    margin: 0.9rem 0;
+}
+
+.pathfinder-candidate-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+}
+
+.pathfinder-candidate-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-width: 0;
+    padding: 1rem;
+}
+
+.pathfinder-candidate-top,
+.pathfinder-card-footer,
+.pathfinder-source-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+}
+
+.pathfinder-candidate-name {
+    color: var(--text-light);
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.pathfinder-candidate-title {
+    color: var(--text-medium);
+    font-size: 0.9rem;
+    margin-top: 0.2rem;
+}
+
+.pathfinder-confidence,
+.pathfinder-status {
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.3rem 0.55rem;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.pathfinder-confidence-high {
+    background: rgba(34, 197, 94, 0.14);
+    color: #22c55e;
+}
+
+.pathfinder-confidence-medium {
+    background: rgba(245, 158, 11, 0.14);
+    color: #f59e0b;
+}
+
+.pathfinder-confidence-low {
+    background: rgba(148, 163, 184, 0.14);
+    color: var(--text-medium);
+}
+
+.pathfinder-candidate-context {
+    color: var(--text-medium);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    gap: 0.45rem 0.9rem;
+}
+
+.pathfinder-candidate-context span,
+.pathfinder-evidence-links a,
+.pathfinder-email {
+    align-items: center;
+    display: flex;
+    gap: 0.4rem;
+}
+
+.pathfinder-email {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.6rem;
+    padding: 0.7rem;
+}
+
+.pathfinder-email > i {
+    color: var(--primary-blue);
+}
+
+.pathfinder-email div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pathfinder-email strong {
+    color: var(--text-light);
+    overflow-wrap: anywhere;
+}
+
+.pathfinder-email small {
+    color: var(--text-medium);
+    margin-top: 0.15rem;
+}
+
+.pathfinder-email.is-inferred {
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.pathfinder-evidence-links {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+    gap: 0.35rem;
+    min-height: 1.25rem;
+}
+
+.pathfinder-evidence-links a,
+.pathfinder-source-heading a {
+    color: var(--primary-blue);
+    overflow-wrap: anywhere;
+}
+
+.pathfinder-card-footer {
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+    padding-top: 0.8rem;
+}
+
+.pathfinder-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pathfinder-card-actions .btn-primary,
+.pathfinder-card-actions .btn-secondary {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.7rem;
+}
+
+.pathfinder-status-pending {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.pathfinder-status-approved {
+    background: rgba(34, 197, 94, 0.14);
+    color: #22c55e;
+}
+
+.pathfinder-status-rejected,
+.pathfinder-status-stale {
+    background: rgba(148, 163, 184, 0.14);
+    color: var(--text-medium);
+}
+
+.pathfinder-status-duplicate {
+    background: rgba(168, 85, 247, 0.14);
+    color: #a855f7;
+}
+
+.pathfinder-empty {
+    align-items: center;
+    color: var(--text-medium);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 280px;
+    padding: 2rem;
+    text-align: center;
+}
+
+.pathfinder-empty > i {
+    color: var(--primary-blue);
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+}
+
+.pathfinder-empty h3 {
+    color: var(--text-light);
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.pathfinder-grid-empty {
+    grid-column: 1 / -1;
+}
+
+.pathfinder-evidence-modal,
+.pathfinder-review-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.pathfinder-evidence-modal h4 {
+    color: var(--text-light);
+    font-weight: 700;
+}
+
+.pathfinder-evidence-modal ul {
+    color: var(--text-medium);
+    list-style: disc;
+    padding-left: 1.25rem;
+}
+
+.pathfinder-source {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.6rem;
+    padding: 0.8rem;
+}
+
+.pathfinder-source p {
+    color: var(--text-medium);
+    margin: 0.55rem 0;
+}
+
+.pathfinder-source small {
+    color: var(--text-medium);
+}
+
+.pathfinder-review-form label {
+    color: var(--text-medium);
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    gap: 0.35rem;
+}
+
+.pathfinder-review-form input,
+.pathfinder-review-form select {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.45rem;
+    color: var(--text-light);
+    padding: 0.65rem;
+    width: 100%;
+}
+
+.pathfinder-form-row {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr 1fr;
+}
+
+.pathfinder-review-warning {
+    align-items: flex-start;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    border-radius: 0.55rem;
+    color: #f59e0b;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+}
+
+.pathfinder-account-pending {
+    background: rgba(59, 130, 246, 0.14);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    border-radius: 999px;
+    color: #60a5fa;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.35rem 0.6rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .pathfinder-filter-bar,
+    .pathfinder-kpis {
+        grid-template-columns: 1fr;
+    }
+
+    .pathfinder-candidate-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .pathfinder-header,
+    .pathfinder-candidate-top,
+    .pathfinder-card-footer,
+    .pathfinder-form-row {
+        align-items: stretch;
+        display: flex;
+        flex-direction: column;
+    }
 }

@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
+const browserChannel = process.env.PLAYWRIGHT_CHANNEL;
 
 /**
  * Constellation-V E2E: static HTML app served locally or pointed at deployed BASE_URL.
@@ -25,8 +26,9 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || 'http://127.0.0.1:4173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: process.env.PLAYWRIGHT_SKIP_VIDEO === '1' ? 'off' : 'retain-on-failure',
     actionTimeout: 15_000,
+    ...(browserChannel ? { channel: browserChannel } : {}),
   },
   projects: [
     {
@@ -44,7 +46,7 @@ export default defineConfig({
     },
     {
       name: 'smoke-public',
-      testMatch: /smoke\/public\.spec\.ts$/,
+      testMatch: /smoke\/(public|cc-day-timeline.*)\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     {

@@ -17,7 +17,8 @@ import {
     updateLastVisited,
     checkAndSetNotifications,
     injectGlobalNavigation,
-    showToast
+    showToast,
+    applyEmailMergeFields
 } from './shared_constants.js';
 import {
     AI_FUNCTION_IDS,
@@ -46,6 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         viewMode: 'dashboard',
         initialSuggestionSubject: null,
         initialSuggestionBody: null,
+        customSuggestionSubject: null,
+        customSuggestionBody: null,
         initialSuggestionContextId: null,
         filterTriggerType: '',
         filterRelevance: '',
@@ -438,6 +441,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             customPromptInput.value = '';
             customOutreachSubjectInput.value = '';
             customOutreachBodyTextarea.value = '';
+            state.customSuggestionSubject = null;
+            state.customSuggestionBody = null;
         });
     
         cancelCustomBtn.addEventListener('click', () => {
@@ -468,8 +473,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             generateCustomBtn.textContent = 'Generate Custom Suggestion';
     
             if (customOutreachCopy) {
-                customOutreachSubjectInput.value = customOutreachCopy.subject;
-                customOutreachBodyTextarea.value = customOutreachCopy.body;
+                state.customSuggestionSubject = customOutreachCopy.subject;
+                state.customSuggestionBody = customOutreachCopy.body;
                 customSuggestionOutput.style.display = 'block';
                 handlePersonalizeOutreach({ subject: customOutreachCopy.subject, body: customOutreachCopy.body }, contactSelector.value, true);
                 const customContextId = await createPersonalContext(supabase, {
@@ -528,19 +533,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function handlePersonalizeOutreach(outreachCopy, selectedContactId, isCustomTarget = false) {
+        const targetSubjectInput = isCustomTarget ? customOutreachSubjectInput : outreachSubjectInput;
         const targetBodyTextarea = isCustomTarget ? customOutreachBodyTextarea : outreachBodyTextarea;
-        if (!targetBodyTextarea) return;
+        if (!targetBodyTextarea && !targetSubjectInput) return;
 
+        let subject = outreachCopy?.subject || '';
+        let body = outreachCopy?.body || '';
         if (selectedContactId) {
             const contact = state.contacts.find(c => c.id === Number(selectedContactId));
             if (contact) {
-                targetBodyTextarea.value = outreachCopy.body.replace(/\[FirstName\]/g, `${contact.first_name}`);
-            } else {
-                targetBodyTextarea.value = outreachCopy.body;
+                const account = contact.account_id
+                    ? state.accounts.find((acc) => acc.id === contact.account_id)
+                    : null;
+                subject = applyEmailMergeFields(subject, contact, account);
+                body = applyEmailMergeFields(body, contact, account);
             }
-        } else {
-            targetBodyTextarea.value = outreachCopy.body;
         }
+        if (targetSubjectInput) targetSubjectInput.value = subject;
+        if (targetBodyTextarea) targetBodyTextarea.value = body;
     }
 
     function buildCognitoPrompt(functionId, payload) {
@@ -649,19 +659,17 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
     // --- ACTION HANDLERS (Integration with Constellation) ---
     async function handleContactChange(e) {
         const selectedContactId = e.target.value;
-        const initialAiCopyForPersonalization = {
+        handlePersonalizeOutreach({
             subject: state.initialSuggestionSubject,
             body: state.initialSuggestionBody
-        };
-        outreachSubjectInput.value = initialAiCopyForPersonalization.subject;
-        handlePersonalizeOutreach(initialAiCopyForPersonalization, selectedContactId, false);
+        }, selectedContactId, false);
 
-        if (customSuggestionOutput && customSuggestionOutput.style.display === 'block') {
-            const currentCustomSubject = customOutreachSubjectInput.value;
-            const currentCustomBody = customOutreachBodyTextarea.value;
-            if (currentCustomSubject && currentCustomBody) {
-                handlePersonalizeOutreach({subject: currentCustomSubject, body: currentCustomBody}, selectedContactId, true);
-            }
+        if (customSuggestionOutput && customSuggestionOutput.style.display === 'block'
+            && (state.customSuggestionSubject || state.customSuggestionBody)) {
+            handlePersonalizeOutreach({
+                subject: state.customSuggestionSubject,
+                body: state.customSuggestionBody
+            }, selectedContactId, true);
         }
     }
 
@@ -677,21 +685,59 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
             return;
         }
 
-        const subject = isCustom ? customOutreachSubjectInput.value : outreachSubjectInput.value;
-        const body = isCustom ? customOutreachBodyTextarea.value : outreachBodyTextarea.value;
+        const account = contact.account_id
+            ? state.accounts.find((acc) => acc.id === contact.account_id)
+            : null;
+        const rawSubject = isCustom ? customOutreachSubjectInput.value : outreachSubjectInput.value;
+        const rawBody = isCustom ? customOutreachBodyTextarea.value : outreachBodyTextarea.value;
+        const subject = applyEmailMergeFields(rawSubject, contact, account);
+        const body = applyEmailMergeFields(rawBody, contact, account);
+        if (isCustom) {
+            if (customOutreachSubjectInput) customOutreachSubjectInput.value = subject;
+            if (customOutreachBodyTextarea) customOutreachBodyTextarea.value = body;
+        } else {
+            if (outreachSubjectInput) outreachSubjectInput.value = subject;
+            if (outreachBodyTextarea) outreachBodyTextarea.value = body;
+        }
         try {
             await sendEmail(
                 supabase,
                 { to: contact.email, subject, body },
                 { onNotice: (msg, type) => showToast(msg, type) }
             );
+            const alert = state.selectedAlert;
+            if (alert?.id != null) {
+                const activityError = await insertCognitoLinkedActivity({
+                    account_id: alert.account_id,
+                    contact_id: Number(contactId),
+                    type: 'Email',
+                    description: `Cognito outreach: [${alert.trigger_type}] ${alert.headline} — ${subject}`,
+                    user_id: getState().effectiveUserId,
+                    date: new Date().toISOString(),
+                    cognito_alert_id: alert.id,
+                });
+                if (activityError) {
+                    console.error('Error logging Cognito email activity:', activityError);
+                    showToast('Email sent, but could not log the activity.', 'warning');
+                }
+            }
         } catch (error) {
             alert(error.message || 'Could not send email.');
         }
     }
 
     function handleCopyAction(isCustom = false) { 
-        const body = isCustom ? customOutreachBodyTextarea.value : outreachBodyTextarea.value;
+        const contactId = contactSelector?.value;
+        const contact = contactId
+            ? state.contacts.find((c) => c.id === Number(contactId))
+            : null;
+        const account = contact?.account_id
+            ? state.accounts.find((acc) => acc.id === contact.account_id)
+            : null;
+        const rawBody = isCustom ? customOutreachBodyTextarea.value : outreachBodyTextarea.value;
+        const body = applyEmailMergeFields(rawBody, contact, account);
+        if (isCustom && customOutreachBodyTextarea) customOutreachBodyTextarea.value = body;
+        else if (outreachBodyTextarea) outreachBodyTextarea.value = body;
         navigator.clipboard.writeText(body).then(() => {
             alert('Email body copied to clipboard!');
         });
@@ -717,13 +763,14 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
             return;
         }
 
-        const { error } = await supabase.from('activities').insert({
+        const error = await insertCognitoLinkedActivity({
             account_id: state.selectedAlert.account_id,
             contact_id: Number(selectedContactId),
             type: 'Cognito Intelligence',
             description: `[${state.selectedAlert.trigger_type}] ${state.selectedAlert.headline} - Notes: ${notes}`,
             user_id: getState().effectiveUserId,
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            cognito_alert_id: state.selectedAlert.id,
         });
 
         if (error) {
@@ -732,6 +779,20 @@ async function generateCustomOutreachCopy(alert, account, contacts, customPrompt
             alert('Interaction logged to Constellation!');
             logInteractionNotes.value = '';
         }
+    }
+
+    /** Insert activity with cognito_alert_id; retry without if column not migrated yet. */
+    async function insertCognitoLinkedActivity(row) {
+        const { error } = await supabase.from('activities').insert(row);
+        if (!error) return null;
+        const missingCol =
+            /cognito_alert_id/i.test(error.message || '') ||
+            error.code === 'PGRST204' ||
+            error.code === '42703';
+        if (!missingCol || row.cognito_alert_id == null) return error;
+        const { cognito_alert_id, ...fallback } = row;
+        const retry = await supabase.from('activities').insert(fallback);
+        return retry.error || null;
     }
 
     async function handleCreateTask() {

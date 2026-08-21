@@ -36,8 +36,10 @@ test.describe('Insights (functional)', () => {
     guardian.step('Asserting module KPI rows render');
     await expect(insights.sequenceKpis()).toBeVisible();
     await expect(insights.campaignKpis()).toBeVisible();
+    await expect(insights.cognitoKpis()).toBeVisible();
     await expect(insights.saosKpis()).toBeVisible();
     await expect(insights.sequenceKpis().locator('.insights-kpi').first()).toBeVisible();
+    await expect(insights.cognitoKpis().locator('.insights-kpi').first()).toBeVisible();
     await expect(insights.saosKpis().locator('.insights-kpi').first()).toBeVisible();
 
     guardian.step('Asserting filters and export control are present');

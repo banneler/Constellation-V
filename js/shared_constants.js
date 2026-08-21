@@ -3,13 +3,8 @@
 // --- SHARED CONSTANTS AND FUNCTIONS ---
 import { initHUD, refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes } from './hud.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS } from './env.config.js';
-import {
-    clearIntegrationStateCache,
-    disconnectIntegration,
-    getIntegrationState,
-    handleIntegrationsQueryToast,
-    startConnect,
-} from './integrations.js';
+import { handleIntegrationsQueryToast } from './integrations.js';
+import { applyPathfinderNavigation, isPathfinderEnabled } from './pathfinder-feature.mjs';
 
 export { refreshHUDNodes, removeDealInsightsWireframe, addDealInsightsWireframe, reloadHUDWireframes };
 export { SUPABASE_URL, SUPABASE_ANON_KEY, APPROVED_SIGNUP_DOMAINS };
@@ -670,10 +665,15 @@ export function hideGlobalLoader() {
     }
 }
 
-// --- TOAST NOTIFICATIONS ---
+// --- TOAST NOTIFICATIONS (bottom-center pill) ---
 const TOAST_CONTAINER_ID = 'toast-container';
-/** Positioned over the left rail; width capped so copy wraps inside the column. */
 const TOAST_CONTAINER_CLASSES = 'toast-container pointer-events-none';
+const TOAST_ICON_BY_TYPE = {
+    success: 'fa-check-circle',
+    error: 'fa-exclamation-circle',
+    warning: 'fa-triangle-exclamation',
+    info: 'fa-circle-info',
+};
 
 function getOrCreateToastContainer() {
     let toastContainer = document.getElementById(TOAST_CONTAINER_ID);
@@ -689,30 +689,53 @@ function getOrCreateToastContainer() {
 
 /**
  * @param {string} message
- * @param {string} [type]
+ * @param {string} [type] success | error | warning | info
  * @returns {HTMLDivElement}
  */
 export function createToastElement(message, type = 'success') {
+    const normalizedType = TOAST_ICON_BY_TYPE[type] ? type : 'info';
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type} pointer-events-auto`;
+    toast.className = `toast toast-${normalizedType} pointer-events-auto`;
+    toast.setAttribute('role', normalizedType === 'error' ? 'alert' : 'status');
+
+    const icon = document.createElement('i');
+    icon.className = `fas ${TOAST_ICON_BY_TYPE[normalizedType]}`;
+    icon.setAttribute('aria-hidden', 'true');
+
     const span = document.createElement('span');
     span.className = 'toast-message';
     span.textContent = String(message ?? '');
+
+    toast.appendChild(icon);
     toast.appendChild(span);
     return toast;
 }
 
-/** durationMs 0 = stay until returned dismiss() is called (cancels auto-hide). */
-export function showToast(message, type = 'success', durationMs = 4000) {
+/**
+ * Show a bottom-center pill toast.
+ * @param {string} message
+ * @param {string} [type] success | error | warning | info
+ * @param {number} [durationMs] 0 = stay until returned dismiss() is called
+ * @returns {() => void} dismiss function
+ */
+export function showToast(message, type = 'success', durationMs = 3500) {
     const toastContainer = getOrCreateToastContainer();
-
     const toast = createToastElement(message, type);
     toastContainer.appendChild(toast);
 
+    // Enter animation on next frame so the transition from the default state plays.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+    });
+
     const dismiss = () => {
         if (!toast.isConnected) return;
+        toast.classList.remove('show');
         toast.classList.add('hide');
-        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+        const remove = () => toast.remove();
+        toast.addEventListener('transitionend', remove, { once: true });
+        // Fallback if transitionend doesn't fire (detached / reduced-motion).
+        setTimeout(remove, 500);
     };
 
     let timeoutId;
@@ -742,6 +765,39 @@ function getFirstName(fullName) {
     if (!trimmed) return 'User';
     const first = trimmed.split(/\s+/)[0];
     return first || 'User';
+}
+
+/**
+ * Replace email/sequence merge tokens with contact + account values.
+ * Supports [Token] and {Token} forms used across AI drafts, sequences, and campaigns.
+ * @param {string} template
+ * @param {{ first_name?: string, last_name?: string }|null} contact
+ * @param {{ name?: string }|null} account
+ * @returns {string}
+ */
+export function applyEmailMergeFields(template, contact = null, account = null) {
+    if (template == null) return '';
+    let result = String(template);
+    if (!result) return result;
+
+    const firstName = contact?.first_name || '';
+    const lastName = contact?.last_name || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    const accountName = account?.name || '';
+
+    const replacements = [
+        [/[\[{]FirstName[\]}]/gi, firstName],
+        [/[\[{]LastName[\]}]/gi, lastName],
+        [/[\[{]FullName[\]}]/gi, fullName],
+        [/[\[{]Name[\]}]/gi, fullName],
+        [/[\[{]AccountName[\]}]/gi, accountName],
+        [/[\[{]Account[\]}]/gi, accountName],
+    ];
+
+    for (const [pattern, value] of replacements) {
+        result = result.replace(pattern, value);
+    }
+    return result;
 }
 
 /**
@@ -926,12 +982,9 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
             return true;
 
         }, false, `<button id="modal-confirm-btn" class="btn-primary">Get Started</button>`);
-        // Still attach integrations for users who already have a profile after welcome path is skipped next load.
-    
     } else {
         await setupTheme(supabase, appState.currentUser);
         attachUserMenuListeners();
-        await setupIntegrationsMenu(supabase);
         handleIntegrationsQueryToast((msg, type) => {
             try { showToast?.(msg, type); } catch (_) { /* optional */ }
         });
@@ -951,83 +1004,6 @@ export async function setupUserMenuAndAuth(supabase, appState, options = {}) {
 
         if (userMenu) userMenu.dataset.listenerAttached = 'true';
     }
-}
-
-async function setupIntegrationsMenu(supabase) {
-    const popup = document.getElementById('user-menu-popup');
-    if (!popup) return;
-
-    document.getElementById('user-integrations-menu')?.remove();
-
-    let state;
-    try {
-        state = await getIntegrationState(supabase, { force: true });
-    } catch (error) {
-        console.warn('[integrations] menu state unavailable', error);
-        return;
-    }
-
-    if (!state.orgEnabled) return;
-
-    const section = document.createElement('div');
-    section.id = 'user-integrations-menu';
-    section.className = 'user-integrations-menu';
-
-    const providerLabel =
-        state.provider === 'microsoft' ? 'Outlook' : state.provider === 'google' ? 'Google' : '';
-    const statusText = state.connected
-        ? `Connected${providerLabel ? ` via ${providerLabel}` : ''}${state.email ? ` · ${state.email}` : ''}`
-        : 'Not connected';
-
-    section.innerHTML = `
-        <div class="user-menu-downloads">
-            <span class="user-menu-downloads-label">Integrations</span>
-            <p class="user-integrations-status" id="user-integrations-status">${statusText}</p>
-            <div class="user-integrations-actions">
-                ${
-                    state.connected
-                        ? `<button type="button" class="nav-button" id="integrations-disconnect-btn" title="Disconnect">Disconnect</button>`
-                        : `<button type="button" class="nav-button" id="integrations-connect-google-btn" title="Connect Google">Connect Google</button>
-                           <button type="button" class="nav-button" id="integrations-connect-outlook-btn" title="Connect Outlook">Connect Outlook</button>`
-                }
-            </div>
-        </div>
-    `;
-
-    const aiAdmin = popup.querySelector('a[href="ai-admin.html"]');
-    const logout = document.getElementById('logout-btn');
-    if (aiAdmin) popup.insertBefore(section, aiAdmin);
-    else if (logout) popup.insertBefore(section, logout);
-    else popup.appendChild(section);
-
-    section.querySelector('#integrations-connect-google-btn')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        try {
-            await startConnect(supabase, 'google');
-        } catch (error) {
-            alert(error.message || 'Could not start Google connection.');
-        }
-    });
-    section.querySelector('#integrations-connect-outlook-btn')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        try {
-            await startConnect(supabase, 'microsoft');
-        } catch (error) {
-            alert(error.message || 'Could not start Outlook connection.');
-        }
-    });
-    section.querySelector('#integrations-disconnect-btn')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (!confirm('Disconnect your email & calendar account?')) return;
-        try {
-            await disconnectIntegration(supabase);
-            clearIntegrationStateCache();
-            await setupIntegrationsMenu(supabase);
-            showToast?.('Disconnected email & calendar.', 'success');
-        } catch (error) {
-            alert(error.message || 'Could not disconnect.');
-        }
-    });
 }
 
 export async function loadSVGs() {
@@ -1110,6 +1086,7 @@ const GLOBAL_NAV_TEMPLATE = `
     <a href="command-center.html" class="nav-button"><i class="fa-solid fa-gauge-high nav-icon"></i><span class="nav-label-text">Command Center</span></a>
     <a href="deals.html" class="nav-button"><i class="fa-solid fa-handshake nav-icon"></i><span class="nav-label-text">Deals</span></a>
     <a href="contacts.html" class="nav-button"><i class="fa-solid fa-address-book nav-icon"></i><span class="nav-label-text">Contacts</span></a>
+    <a href="pathfinder.html" id="pathfinder-nav-button" class="nav-button hidden" aria-hidden="true"><i class="fa-solid fa-compass nav-icon"></i><span class="nav-label-text">Pathfinder</span> <i class="fa-solid fa-bell nav-notification-dot hidden" id="pathfinder-notification"></i></a>
     <a href="accounts.html" class="nav-button"><i class="fa-solid fa-building nav-icon"></i><span class="nav-label-text">Accounts</span></a>
     <a href="insights.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-chart-line nav-icon"></i><span class="nav-label-text">Insights</span></a>
     <a href="saos-dashboard.html" class="nav-button hidden" data-manager-only-nav="true" aria-hidden="true"><i class="fa-solid fa-sitemap nav-icon"></i><span class="nav-label-text">SAOS</span></a>
@@ -1141,7 +1118,7 @@ const GLOBAL_NAV_TEMPLATE = `
                 <a href="accounts_template.csv" class="user-menu-download-link" download>Accounts</a>
                 <a href="sequence_steps_template.csv" class="user-menu-download-link" download>Sequence Steps</a>
             </div>
-            <a href="ai-admin.html" class="nav-button" title="AI Admin"><span class="nav-label-text">AI Admin</span></a>
+            <a href="ai-admin.html" class="nav-button" title="User Settings"><span class="nav-label-text">User Settings</span></a>
             <button id="logout-btn" class="nav-button nav-button-logout"><i class="fa-solid fa-right-from-bracket nav-icon"></i><span class="nav-label-text">Logout</span></button>
         </div>
     </div>
@@ -1497,9 +1474,21 @@ export async function checkAndSetNotifications(supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const { data: orgSettings, error: orgSettingsError } = await supabase
+        .from('org_settings')
+        .select('pathfinder_enabled')
+        .eq('id', 1)
+        .maybeSingle();
+    if (orgSettingsError) {
+        console.warn('[notifications] failed to load Pathfinder setting:', orgSettingsError.message || orgSettingsError);
+    }
+    const pathfinderEnabled = isPathfinderEnabled(orgSettings);
+    applyPathfinderNavigation(document, pathfinderEnabled);
+
     const pagesToCheck = [
         { name: 'social_hub', table: 'social_hub_posts' },
-        { name: 'cognito', table: 'cognito_alerts' }
+        { name: 'cognito', table: 'cognito_alerts' },
+        ...(pathfinderEnabled ? [{ name: 'pathfinder', table: 'pathfinder_candidates' }] : [])
     ];
 
     const { data: visits } = await supabase
@@ -1510,13 +1499,18 @@ export async function checkAndSetNotifications(supabase) {
     const lastVisits = new Map(visits ? visits.map(v => [v.page_name, new Date(v.last_visited_at).getTime()]) : []);
 
     for (const page of pagesToCheck) {
-        const { data: latestItem } = await supabase
+        // maybeSingle: 0 rows is valid (empty table / RLS) — .single() returns HTTP 406 (PGRST116).
+        const { data: latestItem, error: latestError } = await supabase
             .from(page.table)
             .select('created_at')
             .order('created_at', { ascending: false })
             .limit(1)
-            .single();
-        
+            .maybeSingle();
+
+        if (latestError) {
+            console.warn(`[notifications] failed to check ${page.table}:`, latestError.message || latestError);
+        }
+
         const notificationDot = document.getElementById(`${page.name}-notification`);
         if (notificationDot && latestItem) {
             const lastVisitTime = lastVisits.get(page.name) || 0;

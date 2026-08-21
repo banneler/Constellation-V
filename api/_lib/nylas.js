@@ -159,10 +159,24 @@ async function sendMessage(grantId, { to, subject, body, cc, bcc }) {
   });
 }
 
+/** Google legacy event color_id ("1"…"11"), or null to clear. Undefined = omit. */
+function normalizeWritableColorId(event) {
+  if (!event || typeof event !== "object") return undefined;
+  const hasColorId = Object.prototype.hasOwnProperty.call(event, "colorId");
+  const hasColor_id = Object.prototype.hasOwnProperty.call(event, "color_id");
+  if (!hasColorId && !hasColor_id) return undefined;
+  const raw = hasColorId ? event.colorId : event.color_id;
+  if (raw == null || raw === "") return null;
+  const key = String(raw).trim();
+  if (!/^(1[01]|[1-9])$/.test(key)) return undefined;
+  return key;
+}
+
 async function createEvent(grantId, event) {
   const calendarId = event.calendarId || "primary";
   const start = event.startTime != null ? Number(event.startTime) : Math.floor(Date.now() / 1000) + 3600;
   const end = event.endTime != null ? Number(event.endTime) : start + 3600;
+  const colorId = normalizeWritableColorId(event);
   return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/events?calendar_id=${encodeURIComponent(calendarId)}`, {
     method: "POST",
     body: {
@@ -172,6 +186,7 @@ async function createEvent(grantId, event) {
         start_time: start,
         end_time: end,
       },
+      ...(colorId ? { color_id: colorId } : {}),
       ...(event.participants?.length
         ? {
             participants: event.participants.map((p) =>
@@ -183,10 +198,63 @@ async function createEvent(grantId, event) {
   });
 }
 
-async function listEvents(grantId, { calendarId = "primary", limit = 20 } = {}) {
+/** Update an existing event (Nylas PUT). Nested `when` is replaced wholesale. */
+async function updateEvent(grantId, eventId, event) {
+  const id = String(eventId || "").trim();
+  if (!id) {
+    throw Object.assign(new Error("Event id is required."), { status: 400 });
+  }
+  const calendarId = event.calendarId || "primary";
+  const body = {};
+  if (event.title != null) body.title = event.title || "Meeting";
+  if (event.description != null) body.description = event.description || "";
+  if (event.startTime != null && event.endTime != null) {
+    body.when = {
+      start_time: Number(event.startTime),
+      end_time: Number(event.endTime),
+    };
+  }
+  if (event.participants?.length) {
+    body.participants = event.participants.map((p) =>
+      typeof p === "string" ? { email: p } : { email: p.email, name: p.name }
+    );
+  }
+  const colorId = normalizeWritableColorId(event);
+  if (colorId !== undefined) {
+    // null clears Google event color; "1"…"11" sets legacy palette.
+    body.color_id = colorId;
+  }
   return nylasFetch(
-    `/v3/grants/${encodeURIComponent(grantId)}/events?calendar_id=${encodeURIComponent(calendarId)}&limit=${encodeURIComponent(limit)}`
+    `/v3/grants/${encodeURIComponent(grantId)}/events/${encodeURIComponent(id)}?calendar_id=${encodeURIComponent(calendarId)}`,
+    {
+      method: "PUT",
+      body,
+    }
   );
+}
+
+async function listEvents(grantId, { calendarId = "primary", limit = 20, start, end } = {}) {
+  const params = new URLSearchParams({
+    calendar_id: calendarId,
+    limit: String(limit),
+  });
+  if (start != null && Number.isFinite(Number(start))) params.set("start", String(Math.floor(Number(start))));
+  if (end != null && Number.isFinite(Number(end))) params.set("end", String(Math.floor(Number(end))));
+  return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/events?${params.toString()}`);
+}
+
+/** Fetch a single calendar (includes Google/Outlook `hex_color` label color). */
+async function getCalendar(grantId, calendarId = "primary") {
+  const id = calendarId || "primary";
+  return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/calendars/${encodeURIComponent(id)}`);
+}
+
+/** List calendars for a grant (name, color, primary, read_only). */
+async function listCalendars(grantId, { limit = 50 } = {}) {
+  const params = new URLSearchParams({
+    limit: String(Math.min(Math.max(Number(limit) || 50, 1), 200)),
+  });
+  return nylasFetch(`/v3/grants/${encodeURIComponent(grantId)}/calendars?${params.toString()}`);
 }
 
 async function getOrgSettings() {
@@ -210,6 +278,45 @@ async function getUserIntegration(userId) {
     { serviceRole: true }
   );
   return rows?.[0] || null;
+}
+
+async function getUserEmailSignature(userId) {
+  if (!userId) return "";
+  const rows = await supabaseRest(
+    `user_settings?user_id=eq.${encodeEq(userId)}&select=email_signature&limit=1`,
+    { serviceRole: true }
+  );
+  return String(rows?.[0]?.email_signature || "").trim();
+}
+
+function appendEmailSignature(body, signature) {
+  const sig = String(signature || "").trim();
+  if (!sig) return body || "";
+  const base = String(body || "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\s+$/g, "");
+  if (!base) return sig;
+  if (base.endsWith(sig)) return base;
+  return `${base}\n\n${sig}`;
+}
+
+/** Nylas messages/send treats `body` as HTML; plain \\n is collapsed by clients. */
+function looksLikeHtml(text) {
+  return /<[a-z][\s\S]*>/i.test(String(text || ""));
+}
+
+function plainTextToEmailHtml(text) {
+  const value = String(text ?? "");
+  if (!value) return "";
+  if (looksLikeHtml(value)) return value;
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/\r\n|\r/g, "\n")
+    .replace(/\n/g, "<br>");
 }
 
 async function upsertUserIntegration(row) {
@@ -254,16 +361,22 @@ function verifyNylasWebhookSignature(rawBody, signatureHeader) {
 }
 
 module.exports = {
+  appendEmailSignature,
+  plainTextToEmailHtml,
   assertOrgIntegrationsEnabled,
   buildHostedAuthUrl,
   createEvent,
+  updateEvent,
   deleteUserIntegration,
   destroyGrant,
   exchangeCodeForGrant,
   getAppOrigin,
+  getCalendar,
   getOrgSettings,
   getRedirectUri,
+  getUserEmailSignature,
   getUserIntegration,
+  listCalendars,
   listEvents,
   markGrantInvalid,
   nylasFetch,
