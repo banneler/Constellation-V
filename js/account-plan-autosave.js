@@ -16,6 +16,7 @@ const DEBOUNCE_MS = 2000;
 /**
  * @typedef {Object} AutosaveContext
  * @property {string} planRowId
+ * @property {number | string} accountId
  * @property {import('./account-plan-data.js').AccountPlanDocument} plan
  * @property {Record<string, unknown>} draftSections
  * @property {{ forceCommit?: boolean }} [options]
@@ -113,7 +114,7 @@ export function createAccountPlanAutosave(supabase, config = {}) {
             }
         );
 
-        const result = await savePlanDraft(supabase, context.planRowId, planToSave);
+        const result = await savePlanDraft(supabase, context.planRowId, planToSave, context.accountId);
 
         if (!result.ok) {
             setStatus('error', { error: result.error || 'Save failed.' });
@@ -167,13 +168,14 @@ export function createAccountPlanAutosave(supabase, config = {}) {
      */
     function scheduleAutosave(context) {
         if (suppress) return;
-        if (!context || !context.planRowId || !context.plan) {
+        if (!context || !context.planRowId || !context.accountId || !context.plan) {
             setStatus('error', { error: 'Invalid autosave context.' });
             return;
         }
 
         pendingContext = {
             planRowId: context.planRowId,
+            accountId: context.accountId,
             plan: deepClonePlan(context.plan),
             draftSections: context.draftSections && typeof context.draftSections === 'object'
                 ? { ...context.draftSections }

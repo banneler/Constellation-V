@@ -34,18 +34,10 @@
             <section id="saos-dashboard" class="content-view active-view saos-dashboard-shell">
                 <div class="saos-dashboard-page-header">
                     <div>
-                        <p class="saos-dashboard-eyebrow">Manager View</p>
+                        <p id="saos-view-eyebrow" class="saos-dashboard-eyebrow">My Workspace</p>
                         <h1>Strategic Account OS</h1>
                     </div>
                     <button type="button" id="saos-refresh-btn" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-                </div>
-
-                <div id="saos-access-denied" class="section-card saos-access-denied hidden">
-                    <i class="fa-solid fa-lock"></i>
-                    <div>
-                        <h2 class="section-title">Manager access required</h2>
-                        <p>This dashboard uses the same manager flag as impersonation and is only available to managers.</p>
-                    </div>
                 </div>
 
                 <div id="saos-dashboard-content" class="saos-dashboard-content hidden">
@@ -53,7 +45,7 @@
                         <div id="saos-kpi-grid" class="saos-kpi-grid" aria-label="SAOS summary metrics"></div>
                         <div class="saos-table-toolbar">
                             <div>
-                                <h2 class="section-title">Team SAOS Plans</h2>
+                                <h2 id="saos-list-title" class="section-title">My SAOS Plans</h2>
                                 <p id="saos-table-caption" class="saos-muted">Loading strategic account plans…</p>
                             </div>
                             <div class="saos-table-filters">
@@ -65,9 +57,11 @@
                                     <option value="progress_asc">Completeness low</option>
                                     <option value="name_asc">Account A-Z</option>
                                 </select>
-                                <select id="saos-owner-filter" class="saos-filter-select" aria-label="Filter by owner">
-                                    <option value="all">All owners</option>
-                                </select>
+                                <div id="saos-owner-filter-wrap">
+                                    <select id="saos-owner-filter" class="saos-filter-select" aria-label="Filter by owner">
+                                        <option value="all">All owners</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <div id="saos-account-list" class="saos-account-list" role="list"></div>

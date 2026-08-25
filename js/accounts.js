@@ -3,6 +3,8 @@ import { AI_FUNCTION_IDS, attachAIFeedbackHandler, callAiApi, mountAIFeedback, r
 import { createCalendarEvent, getIntegrationState } from './integrations.js';
 import { fetchPlanForAccount } from './account-plan-data.js';
 import { initStrategicMode, setAccountViewMode, updateStrategicModeControls, cancelPlanAutosave, flushPlanAutosave, promoteActivityToInteractionLog } from './account-plan-ui.js';
+import { resolveAccessibleAccountId } from './saos-access.mjs';
+import { getAccountMutationErrorMessage } from './account-mutation.mjs';
 
 document.addEventListener("DOMContentLoaded", async () => {
     injectGlobalNavigation();
@@ -52,6 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const bulkExportAccountsBtn = document.getElementById("bulk-export-accounts-btn");
     const accountCsvInput = document.getElementById("account-csv-input");
     const accountForm = document.getElementById("account-form");
+    const saveAccountBtn = document.getElementById("save-account-btn");
     const deleteAccountBtn = document.getElementById("delete-account-btn");
     const addDealBtn = document.getElementById("add-deal-btn");
     const addTaskAccountBtn = document.getElementById("add-task-account-btn");
@@ -143,6 +146,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     let tomSelectIndustry = null;
+    let createAccountInFlight = false;
+    let accountSaveInFlight = false;
+    let essentialAccountListenersAttached = false;
+    let pageEventListenersAttached = false;
 
     function initTomSelect(el, opts = {}) {
         if (typeof window.TomSelect === 'undefined') return null;
@@ -306,12 +313,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function loadDetailsForSelectedAccount() {
         if (!state.selectedAccountId) return;
 
+        const accessibleAccountId = resolveAccessibleAccountId(state.accounts, state.selectedAccountId);
+        if (!accessibleAccountId) {
+            cancelPlanAutosave();
+            hideAccountDetails(true);
+            return;
+        }
+        state.selectedAccountId = accessibleAccountId;
+
         if (contactListView) contactListView.innerHTML = '<ul id="account-contacts-list"><li>Loading...</li></ul>';
         if (contactOrgChartView) contactOrgChartView.innerHTML = '<p class="placeholder-text" style="text-align: center; padding: 2rem 0;">Loading...</p>';
         if (accountActivitiesList) accountActivitiesList.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Loading...</p>';
         if (accountDealsCards) accountDealsCards.innerHTML = '<p class="recent-activities-empty text-sm text-[var(--text-medium)] px-4 py-6">Loading...</p>';
         
-        const account = state.accounts.find(a => a.id === state.selectedAccountId);
+        const account = state.accounts.find(a => Number(a.id) === state.selectedAccountId);
         state.selectedAccountDetails.account = account;
 
         const [contactsRes, dealsRes, activitiesRes, tasksRes, proposalsRes, planResult, emailLogRes, pathfinderRes] = await Promise.all([
@@ -2680,8 +2695,211 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    function setButtonBusy(button, busy, busyHtml, idleHtml) {
+        if (!button) return;
+        button.disabled = busy;
+        button.setAttribute('aria-busy', String(busy));
+        button.innerHTML = busy ? busyHtml : idleHtml;
+    }
+
+    function retainCreatedAccount(createdAccount) {
+        if (!createdAccount?.id) return;
+        const existingIndex = state.accounts.findIndex((account) => Number(account.id) === Number(createdAccount.id));
+        if (existingIndex === -1) {
+            state.accounts = [...state.accounts, createdAccount];
+        } else {
+            state.accounts[existingIndex] = { ...state.accounts[existingIndex], ...createdAccount };
+        }
+        state.selectedAccountId = Number(createdAccount.id);
+    }
+
+    function openNewAccountModal() {
+        hideAccountDetails(true);
+        const body = `
+            <form id="new-account-form" class="new-account-form" novalidate>
+                <label for="modal-account-name">Account Name</label>
+                <input type="text" id="modal-account-name" name="accountName" required autofocus autocomplete="organization">
+                <p id="new-account-status" class="new-account-status" role="alert" aria-live="assertive"></p>
+            </form>`;
+        showModal(
+            "New Account",
+            body,
+            async () => {
+                if (createAccountInFlight) return false;
+                const form = document.getElementById('new-account-form');
+                const nameInput = document.getElementById("modal-account-name");
+                const status = document.getElementById('new-account-status');
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                const cancelBtn = document.getElementById('modal-cancel-btn');
+                if (!form || !nameInput || !form.reportValidity()) return false;
+
+                const name = nameInput.value.trim();
+                if (!name) {
+                    nameInput.setCustomValidity('Account name is required.');
+                    form.reportValidity();
+                    nameInput.setCustomValidity('');
+                    return false;
+                }
+
+                createAccountInFlight = true;
+                form.setAttribute('aria-busy', 'true');
+                if (status) status.textContent = '';
+                if (cancelBtn) cancelBtn.disabled = true;
+                setButtonBusy(
+                    confirmBtn,
+                    true,
+                    '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i><span>Creating…</span>',
+                    'Create Account'
+                );
+
+                try {
+                    const { data: newAccountArr, error } = await supabase
+                        .from("accounts")
+                        .insert([{ name, user_id: getState().effectiveUserId }])
+                        .select();
+                    if (error) throw error;
+
+                    const createdAccount = newAccountArr?.[0];
+                    state.isFormDirty = false;
+                    retainCreatedAccount(createdAccount);
+                    renderAccountList();
+                    hideModal();
+                    showToast(`Account “${name}” created.`, 'success');
+
+                    try {
+                        await refreshData();
+                        retainCreatedAccount(createdAccount);
+                        renderAccountList();
+                    } catch (refreshError) {
+                        console.error('[accounts] Account created but refresh failed:', refreshError);
+                        retainCreatedAccount(createdAccount);
+                        renderAccountList();
+                        showToast('Account created, but the page could not refresh. Reload the page to see the latest data.', 'warning', 7000);
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('[accounts] Account creation failed:', error);
+                    if (status) status.textContent = getAccountMutationErrorMessage(error, 'create');
+                    return false;
+                } finally {
+                    createAccountInFlight = false;
+                    if (form.isConnected) form.setAttribute('aria-busy', 'false');
+                    if (cancelBtn?.isConnected) cancelBtn.disabled = false;
+                    if (confirmBtn?.isConnected) {
+                        setButtonBusy(confirmBtn, false, '', 'Create Account');
+                    }
+                }
+            },
+            true,
+            '<button type="button" id="modal-confirm-btn" class="btn-primary" aria-busy="false">Create Account</button><button type="button" id="modal-cancel-btn" class="btn-secondary">Cancel</button>',
+            null,
+            { closeOnBackdropClick: false, closeOnEscape: false }
+        );
+
+        const form = document.getElementById('new-account-form');
+        const modalContent = form?.closest('.modal-content');
+        modalContent?.classList.add('new-account-modal-content');
+        form?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (!createAccountInFlight) document.getElementById('modal-confirm-btn')?.click();
+        });
+        requestAnimationFrame(() => document.getElementById('modal-account-name')?.focus());
+    }
+
+    function handleAddAccountClick() {
+        if (state.isFormDirty) {
+            showModal("Unsaved Changes", "You have unsaved changes. Discard and add a new account?", () => {
+                state.isFormDirty = false;
+                hideModal();
+                openNewAccountModal();
+                return false;
+            }, true, `<button type="button" id="modal-confirm-btn" class="btn-primary">Discard & Add New</button><button type="button" id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
+        } else {
+            openNewAccountModal();
+        }
+    }
+
+    async function handleAccountFormSubmit(event) {
+        event.preventDefault();
+        if (accountSaveInFlight || !accountForm) return;
+        const id = Number(accountForm.querySelector("#account-id")?.value);
+        if (!id) return;
+        const industryValue = tomSelectIndustry ? (tomSelectIndustry.getValue() || "").trim() : (accountForm.querySelector("#account-industry")?.value || "").trim();
+        const data = {
+            name: accountForm.querySelector("#account-name")?.value.trim(),
+            website: accountForm.querySelector("#account-website")?.value.trim(),
+            industry: industryValue,
+            phone: accountForm.querySelector("#account-phone")?.value.trim(),
+            address: accountForm.querySelector("#account-address")?.value.trim(),
+            notes: accountForm.querySelector("#account-notes")?.value,
+            last_saved: new Date().toISOString(),
+            quantity_of_sites: parseInt(accountForm.querySelector("#account-sites")?.value) || null,
+            employee_count: parseInt(accountForm.querySelector("#account-employees")?.value) || null,
+            is_customer: accountForm.querySelector("#account-is-customer")?.checked
+        };
+        if (!data.name) {
+            showModal("Account not saved", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+            return;
+        }
+
+        accountSaveInFlight = true;
+        accountForm.setAttribute('aria-busy', 'true');
+        setButtonBusy(
+            saveAccountBtn,
+            true,
+            '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i><span class="sr-only">Saving account</span>',
+            '<i class="fas fa-floppy-disk" aria-hidden="true"></i>'
+        );
+        try {
+            const { error } = await supabase.from("accounts").update(data).eq("id", id);
+            if (error) throw error;
+
+            state.isFormDirty = false;
+            state.selectedAccountId = id;
+            const accountIndex = state.accounts.findIndex((account) => Number(account.id) === id);
+            if (accountIndex !== -1) state.accounts[accountIndex] = { ...state.accounts[accountIndex], ...data };
+            if (Number(state.selectedAccountDetails.account?.id) === id) {
+                state.selectedAccountDetails.account = { ...state.selectedAccountDetails.account, ...data };
+            }
+            const lastSaved = document.getElementById('account-last-saved');
+            if (lastSaved) lastSaved.textContent = `Saved ${formatDate(data.last_saved)}`;
+            showToast('Account saved.', 'success');
+
+            try {
+                await refreshData();
+                state.selectedAccountId = id;
+            } catch (refreshError) {
+                console.error('[accounts] Account saved but refresh failed:', refreshError);
+                state.selectedAccountId = id;
+                renderAccountList();
+                showToast('Account saved, but the page could not refresh. Reload the page to see the latest data.', 'warning', 7000);
+            }
+        } catch (error) {
+            console.error('[accounts] Account save failed:', error);
+            showModal("Account not saved", getAccountMutationErrorMessage(error, 'save'), null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
+        } finally {
+            accountSaveInFlight = false;
+            accountForm.setAttribute('aria-busy', 'false');
+            setButtonBusy(saveAccountBtn, false, '', '<i class="fas fa-floppy-disk" aria-hidden="true"></i>');
+        }
+    }
+
+    function setupEssentialAccountListeners() {
+        if (essentialAccountListenersAttached) return;
+        essentialAccountListenersAttached = true;
+        setupModalListeners();
+        addAccountBtn?.addEventListener("click", handleAddAccountClick);
+        addAccountMobileBtn?.addEventListener("click", handleAddAccountClick);
+        accountForm?.addEventListener('input', () => {
+            state.isFormDirty = true;
+        });
+        accountForm?.addEventListener("submit", handleAccountFormSubmit);
+    }
+
     // --- Event Listener Setup ---
     function setupPageEventListeners() {
+        if (pageEventListenersAttached) return;
+        pageEventListenersAttached = true;
         setupModalListeners();
 
         if (accountIndustrySelect && !tomSelectIndustry) {
@@ -2689,12 +2907,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 placeholder: '-- Select Industry --',
                 searchField: ['text'],
                 dropdownParent: 'body'
-            });
-        }
-
-        if (accountForm) {
-            accountForm.addEventListener('input', () => {
-                state.isFormDirty = true;
             });
         }
 
@@ -2751,43 +2963,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
-        const handleAddAccountClick = () => {
-                const openNewAccountModal = () => {
-                    hideAccountDetails(true);
-                    showModal("New Account", `<label>Account Name</label><input type="text" id="modal-account-name" required>`,
-                        async () => {
-                            const name = document.getElementById("modal-account-name")?.value.trim();
-                            if (!name) {
-                                showModal("Error", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                                return false;
-                            }
-                            const { data: newAccountArr, error } = await supabase.from("accounts").insert([{ name, user_id: getState().effectiveUserId }]).select();
-                            if (error) {
-                                showModal("Error", "Error creating account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                                return false;
-                            }
-                            state.isFormDirty = false;
-                            await refreshData();
-                            state.selectedAccountId = newAccountArr?.[0]?.id;
-                            renderAccountList();
-                            await loadDetailsForSelectedAccount();
-                            hideModal();
-                            return true;
-                        }, true, `<button id="modal-confirm-btn" class="btn-primary">Create Account</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-                };
-
-                if (state.isFormDirty) {
-                    showModal("Unsaved Changes", "You have unsaved changes. Discard and add a new account?", () => {
-                        hideModal();
-                        openNewAccountModal();
-                    }, true, `<button id="modal-confirm-btn" class="btn-primary">Discard & Add New</button><button id="modal-cancel-btn" class="btn-secondary">Cancel</button>`);
-                } else {
-                    openNewAccountModal();
-                }
-        };
-        if (addAccountBtn) addAccountBtn.addEventListener("click", handleAddAccountClick);
-        if (addAccountMobileBtn) addAccountMobileBtn.addEventListener("click", handleAddAccountClick);
-
         if (accountList) {
             accountList.addEventListener("click", (e) => {
                 const item = e.target.closest(".list-item");
@@ -2811,41 +2986,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (commitCheck) {
                     handleCommitDeal(Number(commitCheck.dataset.dealId), commitCheck.checked);
                 }
-            });
-        }
-
-        if (accountForm) {
-            accountForm.addEventListener("submit", async (e) => {
-                e.preventDefault();
-                const id = Number(accountForm.querySelector("#account-id")?.value);
-                if (!id) return;
-                const industryValue = tomSelectIndustry ? (tomSelectIndustry.getValue() || "").trim() : (accountForm.querySelector("#account-industry")?.value || "").trim();
-                const data = {
-                    name: accountForm.querySelector("#account-name")?.value.trim(),
-                    website: accountForm.querySelector("#account-website")?.value.trim(),
-                    industry: industryValue,
-                    phone: accountForm.querySelector("#account-phone")?.value.trim(),
-                    address: accountForm.querySelector("#account-address")?.value.trim(),
-                    notes: accountForm.querySelector("#account-notes")?.value,
-                    last_saved: new Date().toISOString(),
-                    quantity_of_sites: parseInt(accountForm.querySelector("#account-sites")?.value) || null,
-                    employee_count: parseInt(accountForm.querySelector("#account-employees")?.value) || null,
-                    is_customer: accountForm.querySelector("#account-is-customer")?.checked
-                };
-                if (!data.name) {
-                    showModal("Error", "Account name is required.", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
-
-                const { error } = await supabase.from("accounts").update(data).eq("id", id);
-                if (error) {
-                    showModal("Error", "Error saving account: " + error.message, null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
-                    return;
-                }
-
-                state.isFormDirty = false;
-                await refreshData();
-                showModal("Success", "Account saved successfully!", null, false, `<button id="modal-ok-btn" class="btn-primary">OK</button>`);
             });
         }
 
@@ -3585,6 +3725,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
     async function initializePage() {
+        setupEssentialAccountListeners();
         await loadSVGs();
         const appState = await initializeAppState(supabase);
         if (!appState.currentUser) {
@@ -3593,6 +3734,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         state.currentUser = appState.currentUser;
         applyMobileAccountsDefaults();
+        setupPageEventListeners();
 
         try {
             await loadInitialData();
@@ -3603,11 +3745,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             const savedView = localStorage.getItem('contact_view_mode') || 'list';
             state.contactViewMode = savedView;
 
-            if (accountIdFromUrl) {
-                state.selectedAccountId = Number(accountIdFromUrl);
+            const accessibleAccountIdFromUrl = resolveAccessibleAccountId(state.accounts, accountIdFromUrl);
+            if (accessibleAccountIdFromUrl) {
+                state.selectedAccountId = accessibleAccountIdFromUrl;
                 await loadDetailsForSelectedAccount();
             } else {
                 hideAccountDetails(true);
+                if (accountIdFromUrl) {
+                    urlParams.delete('accountId');
+                    urlParams.delete('saos');
+                    urlParams.delete('mode');
+                    const safeQuery = urlParams.toString();
+                    window.history.replaceState({}, '', `accounts.html${safeQuery ? `?${safeQuery}` : ''}`);
+                    showToast('That account is not available in your current access scope.', 'error');
+                }
             }
             
             await setupUserMenuAndAuth(supabase, getState());
@@ -3637,7 +3788,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             // --- END OF FIX ---
 
             await checkAndSetNotifications(supabase);
-            setupPageEventListeners();
 
             const shouldOpenStrategicFromUrl = urlParams.get('saos') === '1' || urlParams.get('mode') === 'strategic';
             if (shouldOpenStrategicFromUrl && state.selectedAccountId && state.accountPlan) {

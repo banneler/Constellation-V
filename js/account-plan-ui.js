@@ -171,6 +171,7 @@ export async function flushPlanAutosave() {
     if (!_autosave || !_planRowId || !_planBaseline || !_liveSections) return null;
     return _autosave.flushAutosave({
         planRowId: _planRowId,
+        accountId: _options.getSelectedAccountId?.(),
         plan: _planBaseline,
         draftSections: deepClonePlan({ current_draft: { sections: _liveSections } }).current_draft.sections,
     });
@@ -5082,6 +5083,7 @@ function queueAutosave() {
 
     _autosave.scheduleAutosave({
         planRowId: _planRowId,
+        accountId: _options.getSelectedAccountId?.(),
         plan: _planBaseline,
         draftSections: deepClonePlan({ current_draft: { sections: _liveSections } }).current_draft.sections,
     });
@@ -5099,6 +5101,7 @@ async function handleForceCommit() {
     try {
         const result = await _autosave.forceCommitAutosave({
             planRowId: _planRowId,
+            accountId: _options.getSelectedAccountId?.(),
             plan: _planBaseline,
             draftSections: deepClonePlan({ current_draft: { sections: _liveSections } }).current_draft.sections,
             options: { forceCommit: true },
@@ -5235,7 +5238,12 @@ async function restoreVersionEntry(entry) {
         }).current_draft;
         next.current_draft.updated_at = new Date().toISOString();
 
-        const result = await savePlanDraft(_supabase, _planRowId, next);
+        const result = await savePlanDraft(
+            _supabase,
+            _planRowId,
+            next,
+            _options.getSelectedAccountId?.()
+        );
         if (!result.ok) {
             _options.onToast?.(result.error || 'Restore failed.', 'error');
             return;
