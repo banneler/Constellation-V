@@ -68,16 +68,21 @@ export function renderAIFeedback(contextId, label = 'Was this AI response useful
     const disabled = !contextId;
 
     return `
-        <div class="ai-feedback" data-context-id="${contextId || ''}" style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color);">
-            <label style="display: block; margin-bottom: 8px;">${escapeHtml(label)}</label>
-            <div class="ai-feedback-rating" role="group" aria-label="AI response rating" style="display: flex; gap: 6px; margin-bottom: 8px;">
+        <div class="ai-feedback" data-context-id="${contextId || ''}">
+            <div class="ai-feedback-heading">
+                <span class="ai-feedback-label">${escapeHtml(label)}</span>
+                <span class="ai-feedback-helper">Rate 1–5; add a note if useful.</span>
+            </div>
+            <div class="ai-feedback-rating" role="group" aria-label="AI response rating">
                 ${[1, 2, 3, 4, 5].map((rating) => `
-                    <button type="button" class="btn-secondary ai-feedback-rating-btn" data-rating="${rating}" title="${rating} out of 5" ${disabled ? 'disabled' : ''}>${rating}</button>
+                    <button type="button" class="btn-secondary ai-feedback-rating-btn" data-rating="${rating}" aria-label="Rate ${rating} out of 5" aria-pressed="false" title="${rating} out of 5" ${disabled ? 'disabled' : ''}>${rating}</button>
                 `).join('')}
             </div>
-            <textarea class="ai-feedback-text" rows="3" placeholder="Optional feedback to improve future AI responses..." ${disabled ? 'disabled' : ''}></textarea>
-            <button type="button" class="btn-primary ai-feedback-submit" style="width: 100%; margin-top: 8px;" ${disabled ? 'disabled' : ''}>Submit Feedback</button>
-            <p class="ai-feedback-status placeholder-text" aria-live="polite" style="margin-top: 8px;">${disabled ? 'Feedback logging is unavailable for this response.' : ''}</p>
+            <textarea class="ai-feedback-text" rows="2" aria-label="Optional AI response feedback" placeholder="Optional feedback..." ${disabled ? 'disabled' : ''}></textarea>
+            <div class="ai-feedback-footer">
+                <button type="button" class="btn-primary ai-feedback-submit" ${disabled ? 'disabled' : ''}>Submit Feedback</button>
+                <p class="ai-feedback-status" aria-live="polite">${disabled ? 'Feedback logging is unavailable for this response.' : ''}</p>
+            </div>
         </div>
     `;
 }
@@ -107,8 +112,10 @@ export function attachAIFeedbackHandler(root, supabase) {
             btn.addEventListener('click', () => {
                 selectedRating = Number(btn.dataset.rating);
                 feedbackEl.querySelectorAll('.ai-feedback-rating-btn').forEach((ratingBtn) => {
-                    ratingBtn.classList.toggle('btn-primary', ratingBtn === btn);
-                    ratingBtn.classList.toggle('btn-secondary', ratingBtn !== btn);
+                    const isSelected = ratingBtn === btn;
+                    ratingBtn.classList.toggle('btn-primary', isSelected);
+                    ratingBtn.classList.toggle('btn-secondary', !isSelected);
+                    ratingBtn.setAttribute('aria-pressed', String(isSelected));
                 });
                 if (statusEl) statusEl.textContent = '';
             });

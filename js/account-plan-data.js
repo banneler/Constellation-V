@@ -1243,9 +1243,10 @@ export async function fetchPlanForAccount(supabase, accountId, createdBy = null)
  * @param {object} supabase
  * @param {string} planRowId
  * @param {import('./account-plan-data.js').AccountPlanDocument} plan
+ * @param {number | string | null} [accountId] Canonical account ownership scope.
  * @returns {Promise<{ ok: boolean, updated_at?: string, error?: string }>}
  */
-export async function savePlanDraft(supabase, planRowId, plan) {
+export async function savePlanDraft(supabase, planRowId, plan, accountId = null) {
     if (!supabase || !planRowId) {
         return { ok: false, error: 'Missing supabase client or planRowId.' };
     }
@@ -1256,10 +1257,18 @@ export async function savePlanDraft(supabase, planRowId, plan) {
     const normalized = normalizePlan(plan);
 
     try {
-        const { data, error } = await supabase
+        let updateQuery = supabase
             .from('account_plans')
             .update({ plan: normalized })
-            .eq('id', planRowId)
+            .eq('id', planRowId);
+        if (accountId != null) {
+            const accountIdNum = Number(accountId);
+            if (!Number.isSafeInteger(accountIdNum) || accountIdNum < 1) {
+                return { ok: false, error: 'Invalid account ownership scope.' };
+            }
+            updateQuery = updateQuery.eq('account_id', accountIdNum);
+        }
+        const { data, error } = await updateQuery
             .select('updated_at')
             .single();
 

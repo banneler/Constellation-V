@@ -16,6 +16,11 @@ import {
 } from './shared_constants.js';
 import { normalizePlan } from './account-plan-data.js';
 import { PLAN_SECTIONS } from './account-plan-sections.js';
+import {
+    canUseSaosImpersonation,
+    getSaosAccountIds,
+    getSaosOwnerIds,
+} from './saos-access.mjs';
 
 const SECTION_ICON_MAP = Object.freeze({
     account_snapshot: 'fa-id-card-clip',
@@ -45,7 +50,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const els = {
         content: document.getElementById('saos-dashboard-content'),
-        denied: document.getElementById('saos-access-denied'),
+        eyebrow: document.getElementById('saos-view-eyebrow'),
+        listTitle: document.getElementById('saos-list-title'),
         kpis: document.getElementById('saos-kpi-grid'),
         caption: document.getElementById('saos-table-caption'),
         list: document.getElementById('saos-account-list'),
@@ -53,6 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         search: document.getElementById('saos-search-input'),
         sort: document.getElementById('saos-sort-select'),
         ownerFilter: document.getElementById('saos-owner-filter'),
+        ownerFilterWrap: document.getElementById('saos-owner-filter-wrap'),
         refresh: document.getElementById('saos-refresh-btn'),
     };
 
@@ -62,6 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ownerOptions: [],
         selectedAccountId: null,
         totalTeamAccounts: 0,
+        isManager: false,
     };
 
     let ownerTomSelect = null;
@@ -260,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const staleCutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
         const stale = state.rows.filter((row) => row.updatedAt && new Date(row.updatedAt).getTime() < staleCutoff).length;
         const kpis = [
-            { label: 'Team Accounts', value: state.totalTeamAccounts, icon: 'fa-building' },
+            { label: state.isManager ? 'Team Accounts' : 'My Accounts', value: state.totalTeamAccounts, icon: 'fa-building' },
             { label: 'Active SAOS', value: withPlans, icon: 'fa-sitemap' },
             { label: 'Avg Progress', value: `${avg}%`, icon: 'fa-chart-simple' },
             { label: 'Ready / Strong', value: complete, icon: 'fa-circle-check' },
@@ -278,6 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderOwnerFilter() {
+        els.ownerFilterWrap?.classList.toggle('hidden', !state.isManager);
         const currentValue = els.ownerFilter.value || 'all';
         els.ownerFilter.innerHTML = '<option value="all">All owners</option>' + state.ownerOptions.map((owner) => (
             `<option value="${escapeHtml(owner.id)}">${escapeHtml(owner.name)}</option>`
@@ -382,7 +391,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         state.filteredRows = sortRows(state.filteredRows);
 
-        els.caption.textContent = `${state.filteredRows.length} of ${state.rows.length} active SAOS plans shown (${state.totalTeamAccounts} team accounts total)`;
+        const accountScope = state.isManager ? 'team accounts' : 'owned accounts';
+        els.caption.textContent = `${state.filteredRows.length} of ${state.rows.length} active SAOS plans shown (${state.totalTeamAccounts} ${accountScope} total)`;
 
         if (!state.filteredRows.length) {
             els.list.innerHTML = '<div class="saos-empty-list">No active SAOS plans match the current filters.</div>';
@@ -612,19 +622,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         showGlobalLoader();
         try {
             const appState = getState();
-            const ownerIds = [appState.currentUser?.id, ...(appState.managedUsers || []).map((user) => user.id || user.user_id)]
-                .filter(Boolean)
-                .map(String);
-            const uniqueOwnerIds = Array.from(new Set(ownerIds));
+            const ownerIds = getSaosOwnerIds(appState);
+            state.isManager = appState.isManager === true;
+            els.eyebrow.textContent = state.isManager ? 'Manager View' : 'My Workspace';
+            els.listTitle.textContent = state.isManager ? 'Team SAOS Plans' : 'My SAOS Plans';
 
-            const [accountsRes, ownersRes, plansRes] = await Promise.all([
-                supabase.from('accounts').select('*').in('user_id', uniqueOwnerIds).order('name', { ascending: true }),
-                supabase.from('user_quotas').select('user_id, full_name').in('user_id', uniqueOwnerIds),
-                supabase.from('account_plans').select('id, account_id, plan, updated_at, created_by').order('updated_at', { ascending: false }),
+            const [accountsRes, ownersRes] = await Promise.all([
+                supabase.from('accounts').select('*').in('user_id', ownerIds).order('name', { ascending: true }),
+                supabase.from('user_quotas').select('user_id, full_name').in('user_id', ownerIds),
             ]);
 
             if (accountsRes.error) throw accountsRes.error;
             if (ownersRes.error) throw ownersRes.error;
+
+            const scopedAccountIds = getSaosAccountIds(accountsRes.data || []);
+            const plansRes = scopedAccountIds.length
+                ? await supabase
+                    .from('account_plans')
+                    .select('id, account_id, plan, updated_at, created_by')
+                    .in('account_id', scopedAccountIds)
+                    .order('updated_at', { ascending: false })
+                : { data: [], error: null };
             if (plansRes.error) throw plansRes.error;
 
             const ownerMap = new Map((ownersRes.data || []).map((owner) => [String(owner.user_id), { id: String(owner.user_id), name: owner.full_name || 'Unnamed Owner' }]));
@@ -684,7 +702,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const openLink = event.target.closest('.saos-open-account-btn');
             if (!openLink) return;
             const ownerId = openLink.dataset.ownerId;
-            if (!ownerId) return;
+            if (!canUseSaosImpersonation(getState(), ownerId)) return;
             setEffectiveUser(ownerId, openLink.dataset.ownerName || 'Selected Owner');
         });
     }
@@ -701,14 +719,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         await checkAndSetNotifications(supabase);
         bindEvents();
 
-        if (!getState().isManager) {
-            els.denied.classList.remove('hidden');
-            els.content.classList.add('hidden');
-            hideGlobalLoader();
-            return;
-        }
-
-        els.denied.classList.add('hidden');
         els.content.classList.remove('hidden');
         await loadDashboardData();
     } catch (error) {

@@ -71,13 +71,51 @@ test.describe('AI feedback memory', () => {
     await expect(feedback).toBeVisible();
     await expect(feedback).toHaveAttribute('data-context-id', 'ctx-e2e-feedback');
 
+    await guardianRun(page, 'verify compact shared styling and UI font', async () => {
+      const dimensions = await feedback.evaluate((element) => {
+        const score = element.querySelector<HTMLElement>('.ai-feedback-rating-btn');
+        const textarea = element.querySelector<HTMLTextAreaElement>('.ai-feedback-text');
+        const submitButton = element.querySelector<HTMLElement>('.ai-feedback-submit');
+        if (!score || !textarea || !submitButton) throw new Error('Feedback controls were not rendered');
+
+        const scoreStyle = getComputedStyle(score);
+        const feedbackStyle = getComputedStyle(element);
+        return {
+          fontFamily: feedbackStyle.fontFamily,
+          scoreWidth: score.getBoundingClientRect().width,
+          scoreHeight: score.getBoundingClientRect().height,
+          submitWidth: submitButton.getBoundingClientRect().width,
+          widgetWidth: element.getBoundingClientRect().width,
+          textareaRows: textarea.rows,
+          ratingWrap: getComputedStyle(score.parentElement as HTMLElement).flexWrap,
+          headingSize: parseFloat(getComputedStyle(
+            element.querySelector<HTMLElement>('.ai-feedback-label')!
+          ).fontSize),
+        };
+      });
+
+      expect(dimensions.fontFamily).toContain('Inter');
+      expect(dimensions.fontFamily).not.toContain('Orbitron');
+      expect(dimensions.scoreWidth).toBeGreaterThanOrEqual(24);
+      expect(dimensions.scoreWidth).toBeLessThanOrEqual(32);
+      expect(dimensions.scoreHeight).toBeGreaterThanOrEqual(24);
+      expect(dimensions.scoreHeight).toBeLessThanOrEqual(32);
+      expect(dimensions.submitWidth).toBeLessThan(dimensions.widgetWidth * 0.6);
+      expect(dimensions.textareaRows).toBe(2);
+      expect(dimensions.ratingWrap).toBe('wrap');
+      expect(dimensions.headingSize).toBeGreaterThanOrEqual(10);
+    });
+
     await guardianRun(page, 'require rating before submit', async () => {
       await submit.click();
       await expect(feedback.locator('.ai-feedback-status')).toContainText('Select a rating');
     });
 
     await guardianRun(page, 'save selected rating and comment', async () => {
-      await feedback.locator('.ai-feedback-rating-btn[data-rating="4"]').click();
+      const selectedRating = feedback.locator('.ai-feedback-rating-btn[data-rating="4"]');
+      await selectedRating.click();
+      await expect(selectedRating).toHaveAttribute('aria-pressed', 'true');
+      await expect(feedback.locator('.ai-feedback-rating-btn[data-rating="3"]')).toHaveAttribute('aria-pressed', 'false');
       await feedback.locator('.ai-feedback-text').fill('Keep this concise and outcome-led.');
       await submit.click();
 
