@@ -13,6 +13,7 @@
 2. **List view:** click `#list-view-btn`; expect `#deals-table` visible.
 3. **Board view:** click `#board-view-btn`; expect `#kanban-board-view` visible.
 4. **New deal:** click `#add-deal-btn`; expect `#new-deal-inline-container` to lose class `hidden` (inline composer opens).
+4a. **Persist + stage (mocked):** `tests/e2e/deals-mutation.spec.ts` fills `#modal-deal-name`, saves via `#new-deal-save-btn` (one `POST /rest/v1/deals`), then changes stage in the list (one stage `PATCH`). Run isolated: `npx playwright test tests/e2e/deals-mutation.spec.ts --project=mocked`.
 5. **Metrics:** `#metric-current-commit` (or related metric chips) present when data loads.
 6. **My vs all:** click `#view-my-deals-btn` and `#view-all-deals-btn` (UI reflects filter).
 7. **Reset filters:** if `#deals-filters-reset` exists and is enabled, click to clear filters.
