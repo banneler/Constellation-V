@@ -83,6 +83,16 @@ async function mockDealRest(page: Page, options: MockOptions = {}) {
   let lastStageUpdate: Record<string, unknown> | null = null;
   const liveRestHits: string[] = [];
 
+  // Playwright matches the last registered route first. Register the
+  // supabase.co safety net before the specific REST/auth handlers.
+  await page.route(/supabase\.co/i, async (route) => {
+    const url = route.request().url();
+    if (/\/rest\/v1\//i.test(url) || /\/auth\/v1\//i.test(url)) {
+      liveRestHits.push(`${route.request().method()} ${url}`);
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+
   await page.route(/\/auth\/v1\//i, async (route) => {
     const session = mockSession();
     const method = route.request().method();
@@ -178,14 +188,6 @@ async function mockDealRest(page: Page, options: MockOptions = {}) {
       contentType: 'application/json',
       body: method === 'GET' ? '[]' : '',
     });
-  });
-
-  await page.route(/supabase\.co/i, async (route) => {
-    const url = route.request().url();
-    if (/\/rest\/v1\//i.test(url) || /\/auth\/v1\//i.test(url)) {
-      liveRestHits.push(`${route.request().method()} ${url}`);
-    }
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
 
   return {
