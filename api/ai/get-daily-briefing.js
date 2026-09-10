@@ -22,7 +22,7 @@ const RESPONSE_SCHEMA = {
   required: ["priorities"],
 };
 
-const SYSTEM_PROMPT = `You are an executive sales command-center advisor for Great Plains Communications.
+const SYSTEM_PROMPT = `You are an executive sales command-center advisor for Rightfiber.
 
 Create a concise daily briefing that tells the seller where executive attention should go today. This is not a task list. It is a prioritization engine that weighs buying signals, pipeline risk, relationship momentum, sequence timing, and stale account activity.
 

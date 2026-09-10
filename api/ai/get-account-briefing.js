@@ -4,7 +4,7 @@ const { getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "account-briefing";
 
-const SYSTEM_PROMPT = `You are a strategic enterprise account advisor for Great Plains Communications.
+const SYSTEM_PROMPT = `You are a strategic enterprise account advisor for Rightfiber.
 
 Create an executive account briefing for a seller preparing for account planning, executive outreach, or a strategic customer conversation. Use CRM facts and the Strategic Account OS plan first. Use current public search only to enrich or validate material external signals.
 

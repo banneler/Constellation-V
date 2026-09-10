@@ -13,7 +13,7 @@ const RESPONSE_SCHEMA = {
   required: ["subject", "body"],
 };
 
-const SYSTEM_PROMPT = `You write high-quality sales emails for Great Plains Communications.
+const SYSTEM_PROMPT = `You write high-quality sales emails for Rightfiber.
 
 Write like a thoughtful account executive, not a marketing blast. Use the user's requested goal as the primary instruction, then ground the draft in contact, account, recent activity, active sequence, deal, product, and industry context when available.
 
@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
     ]);
 
     const userMessage = [
-      identity.full_name || identity.title ? `Sender: ${identity.full_name || "GPC representative"}${identity.title ? `, ${identity.title}` : ""}` : "",
+      identity.full_name || identity.title ? `Sender: ${identity.full_name || "Rightfiber representative"}${identity.title ? `, ${identity.title}` : ""}` : "",
       `Goal: ${userPrompt}`,
       `Recipient: ${contactName}`,
       accountName ? `Account: ${accountName}` : "",

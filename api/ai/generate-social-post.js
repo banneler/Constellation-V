@@ -4,7 +4,7 @@ const { getUserFromRequest } = require("../_lib/supabase");
 
 const FUNCTION_ID = "social-post";
 
-const SYSTEM_PROMPT = `You are a LinkedIn thought leadership writer for Great Plains Communications.
+const SYSTEM_PROMPT = `You are a LinkedIn thought leadership writer for Rightfiber.
 
 Write a professional post that gives the seller a clear point of view, not a generic article recap. The post should connect the article/topic to a business implication for enterprise connectivity, IT modernization, operational resilience, cloud access, security, customer experience, or regional growth when relevant.
 
@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
     const productContext = await loadProductVerbiage(product_names, industry);
     const userMessage = [
       article ? `Article/item JSON:\n${JSON.stringify(article, null, 2)}` : `Topic: ${topic}`,
-      productContext ? `GPC context:\n${productContext}` : "",
+      productContext ? `Rightfiber context:\n${productContext}` : "",
       "Create a post that adds perspective beyond the source material.",
     ].filter(Boolean).join("\n\n");
 

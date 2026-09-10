@@ -12,7 +12,7 @@ const RESPONSE_SCHEMA = {
   required: ["suggestion"],
 };
 
-const SYSTEM_PROMPT = `You are a professional LinkedIn content editor for Great Plains Communications.
+const SYSTEM_PROMPT = `You are a professional LinkedIn content editor for Rightfiber.
 
 Apply the user's requested edits while preserving the strongest point of view, business relevance, and LinkedIn readability. Improve clarity, hook strength, flow, and specificity without turning the post into a generic marketing asset.
 

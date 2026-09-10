@@ -1,9 +1,9 @@
 import { corsHeaders } from "../_shared/cors.ts";
 
-const GEMINI_MODEL_PRIMARY = "gemini-2.5-flash";
-const GEMINI_MODEL_FALLBACK = "gemini-2.0-flash";
+const GEMINI_MODEL_PRIMARY = "gemini-3.7-flash";
+const GEMINI_MODEL_FALLBACK = "gemini-3.7-flash";
 
-const SYSTEM_PROMPT = `You are the executive presentation strategist for Great Plains Communications (GPC), an enterprise connectivity and infrastructure partner.
+const SYSTEM_PROMPT = `You are the executive presentation strategist for Rightfiber, an enterprise connectivity and infrastructure partner.
 
 You synthesize a Strategic Account Plan JSON (schema v2) into a THREE-SLIDE HIGHLIGHT REEL for a live executive discussion — NOT a document dump. The full plan summary PDF is the reference document; this presentation is the conversation backdrop.
 

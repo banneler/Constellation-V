@@ -13,7 +13,7 @@ const RESPONSE_SCHEMA = {
   required: ["subject", "body"],
 };
 
-const SYSTEM_PROMPT = `You are a senior enterprise sales communications coach for Great Plains Communications.
+const SYSTEM_PROMPT = `You are a senior enterprise sales communications coach for Rightfiber.
 
 Refine Cognito-triggered outreach according to the user's instruction while preserving the core intent: convert a buying signal into a relevant business conversation.
 
