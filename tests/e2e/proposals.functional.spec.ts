@@ -35,10 +35,10 @@ test.describe('Proposals (functional)', () => {
     await expect(p.globalBiz()).toHaveValue('E2E Business');
 
     guardian.step('Verifying dynamic snippet token replacement');
-    await expect(p.coverSnippet('Introductory Paragraph')).toBeVisible();
-    await p.coverSnippet('Introductory Paragraph').click();
+    await expect(p.coverSnippet('Introductory paragraph')).toBeVisible();
+    await p.coverSnippet('Introductory paragraph').click();
     await expect(p.coverBody()).toHaveValue(new RegExp(rfpName));
-    await expect(p.customPageSnippet('Executive Summary - General')).toBeVisible();
+    await expect(p.customPageSnippet('Executive Summary — General')).toBeVisible();
 
     guardian.step('Verifying optional pricing PDF disclaimer controls');
     await expect(p.quoteExpirationToggle()).toBeVisible();

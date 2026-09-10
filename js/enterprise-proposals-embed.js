@@ -1,6 +1,13 @@
 
         const renderZones = document.getElementById('render-zones');
         const ASSETS_FOLDER = 'Proposal_Assets';
+        const BRAND_CONFIG = {
+            titleStem: 'Rightfiber_Title_Page',
+            interiorStem: 'Rightfiber_Blank_Letterhead',
+            logoFile: 'Rightfiber-Logo-White.png',
+            name: 'Rightfiber'
+        };
+        const HIDDEN_STOCK_SLIDES = new Set(['08_SPIN.pdf', '10_Leadership.pdf', '11_Escalation.pdf']);
         let ASSETS_BASE = new URL(ASSETS_FOLDER + '/', window.location.href).href;
         var brandTitleBackground = { mode: 'none' };
         var brandInteriorBackground = { mode: 'none' };
@@ -8,6 +15,52 @@
         let usePdfLetterheadUnderlay = false;
         const REFERENCES_CONTENT_MAX_WIDTH_PX = 450;
         const CUSTOM_TEXT_HEIGHT_WARN_SCROLL_PX = 900;
+        const LEGACY_MODULE_FILENAMES = {
+            '01_Title_Page.pdf': 'Rightfiber_Title_Page.svg',
+            '02_Why_GPC.pdf': '02_Why_Rightfiber.pdf',
+            '02_Why_GPC_Fiber.pdf': '02_Why_Rightfiber.pdf',
+            '03_About_GPC.pdf': '03_About_Rightfiber.pdf'
+        };
+
+        function normalizeModuleFilename(filename) {
+            return LEGACY_MODULE_FILENAMES[filename] || filename;
+        }
+
+        function restoreSavedModuleOrder(modules) {
+            const moduleList = document.getElementById('module-list');
+            if (!moduleList || !Array.isArray(modules)) return;
+            const currentItems = Array.from(moduleList.children);
+            const orderedItems = [];
+            const usedItems = new Set();
+            modules.forEach(function(module) {
+                const filename = normalizeModuleFilename(module.filename);
+                const candidates = currentItems.filter(function(li) {
+                    return li.getAttribute('data-filename') === filename && !usedItems.has(li);
+                });
+                const item = module.customIndex != null
+                    ? candidates.find(function(li) { return li.getAttribute('data-custom-index') === String(module.customIndex); })
+                    : candidates[0];
+                if (item) {
+                    orderedItems.push(item);
+                    usedItems.add(item);
+                }
+            });
+            currentItems.filter(function(li) { return !usedItems.has(li); }).forEach(function(li) {
+                orderedItems.push(li);
+            });
+            orderedItems.forEach(function(li) { moduleList.appendChild(li); });
+        }
+
+        function syncBrandModuleVisibility() {
+            document.querySelectorAll('#module-list > li[data-filename]').forEach(function(li) {
+                var hidden = HIDDEN_STOCK_SLIDES.has(li.getAttribute('data-filename'));
+                li.classList.toggle('hidden', hidden);
+                if (hidden) {
+                    var checkbox = li.querySelector('.slide-toggle');
+                    if (checkbox) checkbox.checked = false;
+                }
+            });
+        }
 
         function getAssetPath(filename) {
             return ASSETS_FOLDER + '/' + filename;
@@ -55,8 +108,8 @@
 
         async function refreshBrandBackgrounds() {
             ASSETS_BASE = new URL(ASSETS_FOLDER + '/', window.location.href).href;
-            brandTitleBackground = await resolveBrandBackground('01_Title_Page', '01_Title_Page.pdf');
-            brandInteriorBackground = await resolveBrandBackground('GPC_Blank_Letterhead', 'GPC_Blank_Letterhead.pdf');
+            brandTitleBackground = await resolveBrandBackground(BRAND_CONFIG.titleStem, BRAND_CONFIG.titleStem + '.pdf');
+            brandInteriorBackground = await resolveBrandBackground(BRAND_CONFIG.interiorStem, BRAND_CONFIG.interiorStem + '.pdf');
             usePdfLetterheadUnderlay = brandInteriorBackground.mode === 'pdf';
         }
 
@@ -67,6 +120,45 @@
                 : '';
         }
 
+        const BRAND_FONT_SPECS = [
+            '400 16px "rig-sans"',
+            '700 16px "rig-sans"',
+            '800 16px "kallisto"'
+        ];
+
+        function brandFontsAreReady() {
+            if (!document.fonts || !document.fonts.check) return true;
+            return BRAND_FONT_SPECS.every(function(spec) {
+                try { return document.fonts.check(spec); } catch (error) { return false; }
+            });
+        }
+
+        async function waitForBrandFonts() {
+            if (!document.fonts) return;
+            try {
+                await Promise.all(BRAND_FONT_SPECS.map(function(spec) { return document.fonts.load(spec); }));
+            } catch (error) {}
+            try { await document.fonts.ready; } catch (error) {}
+            const deadline = Date.now() + 4000;
+            while (!brandFontsAreReady() && Date.now() < deadline) {
+                await new Promise(function(resolve) { setTimeout(resolve, 50); });
+            }
+            await new Promise(function(resolve) {
+                requestAnimationFrame(function() { requestAnimationFrame(resolve); });
+            });
+        }
+
+        function getSnapdomCaptureOptions(extra) {
+            return Object.assign({ scale: 2, embedFonts: true, fast: false }, extra || {});
+        }
+
+        async function captureWithBrandFonts(element, extra) {
+            await waitForBrandFonts();
+            await new Promise(function(resolve) { requestAnimationFrame(resolve); });
+            return snapdom(element, getSnapdomCaptureOptions(extra));
+        }
+
+        syncBrandModuleVisibility();
         refreshBrandBackgrounds();
 
         function showToast(message, type) {
@@ -168,7 +260,7 @@
             if (!zone || !renderZones) return null;
             renderZones.classList.remove('absolute', 'top-[-9999px]', 'left-[-9999px]');
             await new Promise(r => requestAnimationFrame(r));
-            const capture = await snapdom(zone, { scale: 2, backgroundColor: 'transparent' });
+            const capture = await captureWithBrandFonts(zone, { backgroundColor: 'transparent' });
             const canvas = await capture.toCanvas();
             const imgData = canvas.toDataURL('image/png');
             renderZones.classList.add('absolute', 'top-[-9999px]', 'left-[-9999px]');
@@ -264,52 +356,22 @@
             if (e.target && e.target.classList && e.target.classList.contains('custom-text-body')) checkCustomTextHeight();
         });
 
-        var GPC_COVER_SNIPPETS = [
-            { label: 'Exceptional customer service', text: 'You gain a team of knowledgeable experts dedicated to building a tailored, endtoend solution that fits your business. From initial contact through design, turnup, testing, and ongoing maintenance, you work with a local team committed to creating solutions that support your goals. Because our teams live and work in the communities we serve, we\'re invested in helping them thrive -- including your organization.' },
-            { label: 'Scalable fiber-driven technology', text: 'Our technology is designed to meet the needs of small storefronts and medium-to-large enterprises. Our network and products are fully scalable, backed by fiber-driven technology services that will accelerate the success of your business.' },
-            { label: 'Why Us - Local Team & Custom Solutions', text: 'Experience a true partnership with GPC, a proven provider that delivers stable, future-proof solutions backed by over 100 years of expertise. Our teams are strategically placed across our network footprint that stretches Nebraska, Colorado, Iowa and Southeast Indiana. Powered by our 20,000-mile MEF-certified, high-capacity network, businesses and carriers benefit from state-of-the-art connectivity backed by custom-built strategies, expert engineering and local support.' },
-            { label: '24/7 NOC', text: 'Local network monitoring in our Blair, Nebraska Network Operations Center (NOC) provides real time and rapid response to outages and alarms, ensuring optimal up-time and operational efficiency.' },
-            { label: 'High-Performing Network - Midwest', text: 'Your business is our priority. We build reliable, scalable network solutions that meet your needs now and adapt seamlessly as they evolve. Keep operations running smoothly with the confidence that your connectivity is powered by one of the Midwest\'s largest privately owned business internet providers.' },
-            { label: 'Network Differentiators', text: 'GPC\'s fiber network spans over 20,000 miles and is 99% buried, featuring unique routes and ringed redundancy to ensure maximum uptime. The MEF-certified network delivers 99.99% core reliability, and its secure design provides scalability and flexibility. GPC maintains a strong local presence, with technicians strategically located across Nebraska and Indiana for rapid outage resolutions.' },
-            { label: 'Business Internet', text: 'GPC offers flexible business internet solutions built to meet the demands of your organization. From 10 Mbps to 400 Gbps, our high-performing network delivers the reliability and speeds your business depends on to ensure you have the bandwidth to operate efficiently and grow confidently.' },
-            { label: 'Managed Ethernet', text: 'Increase efficiency and cost savings, with scalable, secure transport across your different business locations.' }
-        ];
-        var GPC_CUSTOM_PAGE_SNIPPETS = [
-            { label: 'Executive Summary - General', text: `Great Plains Communications (GPC) is pleased to present this proposal for enterprise-grade connectivity and managed services. From small storefronts to large enterprises, our fully scalable, fiber-driven technology services are designed to accelerate the success of your business. We are one of the largest privately owned internet service providers for businesses in the Midwest, with a high-performing network built for redundancy and scalability to meet your needs today and grow with you tomorrow.
+        var COVER_SNIPPETS = [];
+        var CUSTOM_PAGE_SNIPPETS = [];
 
-What sets our company apart is our exceptional customer service. From the first customer contact through design, turn-up, testing, and maintenance, you will work with a local team committed to developing custom solutions to help you achieve your business goals. Our Nebraska- and Indiana-based teams provide a true local presence, with technicians strategically located in communities across Nebraska and Southeast Indiana. We combine a high-performing network with high-performing people and 24/7 tech support so you can focus on what matters most.
-
-Our network differentiators include 99% buried fiber, unique routes, and MEF-certified reliability with 99.99% availability on the core. We operate a 20,000+ mile fiber-optic network—including over 500 miles in the Omaha area—with a secure, fiber-ringed design built for redundancy, scalability, and flexibility. Our fully meshed transport core and 24/7 Network Operations Center in Blair, Nebraska, provide local network monitoring, rapid response to outages and alarms, and a central point of contact for network maintenance and dispatch.
-
-We offer reliable, high-performance dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet for scalable, secure transport across multiple locations with cost savings and efficiency; managed business Wi-Fi for fast, reliable wireless connectivity; and business voice solutions that combine voice, video, chat, and file sharing in a single platform. Wireless internet backup keeps your business running during outages with automatic failover and 24/7 support. GPC Managed Firewall, DDoS protection, Cloud Connect, and SD-WAN round out our portfolio for improved performance, lower cost, and always-on reliability.
-
-We look forward to working with you and helping you reach your goals. Tell one of our local team members about your business and we will help determine the solution that will best fit your needs.` },
-            { label: 'Executive Summary - Education', text: `Great Plains Communications is pleased to present this executive summary for your organization's connectivity and technology needs in the education sector. From small storefronts to large enterprises, our fully scalable, fiber-driven technology services are designed to accelerate success—and that includes enabling schools, libraries, and community learning spaces to lead in innovation and digital access.
-
-What sets our company apart is our exceptional customer service. From the first contact through design, turn-up, testing, and maintenance, you will work with a local team committed to developing custom solutions for your unique environment. Our Nebraska- and Indiana-based teams provide a true local presence, with technicians strategically located across our service footprint. We have been a key partner to education-focused organizations: for example, Do Space—one of the first community spaces in the country to offer a gigabit of bandwidth free to its members—has relied on Great Plains Communications to help enable Omaha to lead the nation in innovation. We combine a high-performing network with high-performing people and 24/7 tech support so your students, faculty, and staff can stay connected and productive.
-
-Our network is built for reliability and scale. We operate a 20,000+ mile fiber-optic network with 99% buried fiber, MEF-certified design, and 99.99% availability on the core. Our 24/7 Network Operations Center in Blair, Nebraska, provides local monitoring, rapid response to outages and alarms, and a central point of contact for maintenance and dispatch. For education, that means dependable connectivity for learning management systems, video, collaboration tools, and campus-wide Wi-Fi.
-
-We offer dedicated business internet from 10 Mbps to 400 Gbps; managed business Wi-Fi for fast, reliable coverage across campuses and buildings; managed Ethernet for secure transport between locations; and wireless internet backup to keep learning continuous during outages. Our team will work with you to design a solution that fits your budget and growth plans. We look forward to connecting with you and helping your organization reach its goals.` },
-            { label: 'Executive Summary - Healthcare', text: `Great Plains Communications is pleased to present this executive summary for your organization's connectivity and network needs in the healthcare sector. Reliable, secure, and always-on connectivity is critical for patient care, clinical workflows, and compliance. From small practices to large enterprises, our fully scalable, fiber-driven technology services are designed to support the demanding requirements of healthcare environments.
-
-What sets our company apart is our exceptional customer service. From the first contact through design, turn-up, testing, and maintenance, you will work with a local team committed to developing custom solutions that fit your workflows and security posture. Our Nebraska- and Indiana-based teams provide a true local presence, with technicians strategically located across our footprint. We combine a high-performing network with high-performing people and 24/7 tech support, so your staff can focus on patient care rather than connectivity issues.
-
-Our network is built for reliability and security. We operate a 20,000+ mile fiber-optic network with 99% buried fiber, MEF-certified design, and 99.99% availability on the core. Our 24/7 Network Operations Center in Blair, Nebraska, provides round-the-clock monitoring, rapid response to outages and alarms, and a central point of contact for network maintenance and dispatch. Our secure, fiber-ringed network is designed with redundancy, scalability, and flexibility to support critical applications and protect sensitive data.
-
-We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet for scalable, secure transport between facilities; GPC Managed Firewall for round-the-clock network protection to safeguard sensitive data; and GPC DDoS Protection to help avoid disruptions and block high-volume attacks. Wireless internet backup with automatic failover and 24/7 support helps keep your business running during outages. GPC Cloud Connect and SD-WAN can deliver improved performance, lower cost, and always-on reliability across multiple delivery methods. We look forward to working with you to design a solution that meets your clinical and operational goals.` }
-        ];
         async function loadMarketingContent() {
             try {
                 var response = await fetch('./marketing-content.json');
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 var data = await response.json();
-                GPC_COVER_SNIPPETS = Array.isArray(data.coverSnippets) ? data.coverSnippets : GPC_COVER_SNIPPETS;
-                GPC_CUSTOM_PAGE_SNIPPETS = Array.isArray(data.customPageSnippets) ? data.customPageSnippets : GPC_CUSTOM_PAGE_SNIPPETS;
+                COVER_SNIPPETS = Array.isArray(data.coverSnippets) ? data.coverSnippets : COVER_SNIPPETS;
+                CUSTOM_PAGE_SNIPPETS = Array.isArray(data.customPageSnippets) ? data.customPageSnippets : CUSTOM_PAGE_SNIPPETS;
                 var loadedProducts = Array.isArray(data.productSuggestions)
                     ? data.productSuggestions.map(function(p) { return String(p || '').trim(); }).filter(Boolean)
                     : [];
                 if (loadedProducts.length) PRODUCT_SUGGESTIONS = loadedProducts;
+                renderAdditionalStockPdfs(data.additionalStockPdfs);
+                applyStockPdfLabels(data.stockPdfLabels);
                 renderCoverSnippets();
                 renderCustomPageSnippets();
             } catch (error) {
@@ -318,6 +380,59 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 renderCustomPageSnippets();
                 showToast('Warning: Could not load dynamic text snippets.', 'error');
             }
+        }
+
+        function normalizeAdditionalStockPdfs(items) {
+            if (!Array.isArray(items)) return [];
+            const seen = new Set();
+            return items.map(function(item) {
+                return {
+                    filename: String(item && item.filename || '').trim(),
+                    displayName: String(item && item.displayName || '').trim()
+                };
+            }).filter(function(item) {
+                if (!/^Proposal_PDF_\d+\.pdf$/i.test(item.filename) || !item.displayName || seen.has(item.filename)) return false;
+                seen.add(item.filename);
+                return true;
+            });
+        }
+
+        function renderAdditionalStockPdfs(items) {
+            const anchor = document.getElementById('additional-stock-pdf-anchor');
+            if (!anchor || !anchor.parentNode) return;
+            document.querySelectorAll('#module-list > li[data-additional-stock-pdf="true"]').forEach(function(li) {
+                li.remove();
+            });
+            normalizeAdditionalStockPdfs(items).forEach(function(item) {
+                const li = document.createElement('li');
+                li.className = 'flex items-center bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm cursor-grab group';
+                li.dataset.filename = item.filename;
+                li.dataset.tocLabel = item.displayName;
+                li.dataset.additionalStockPdf = 'true';
+                li.innerHTML = '<span class="handle text-slate-400 group-hover:text-orange-500 transition cursor-grab mr-3"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"></path></svg></span><input type="checkbox" class="mr-3 w-4 h-4 text-orange-500 slide-toggle"><span class="flex-1 font-medium text-sm text-slate-700"></span><button type="button" class="text-slate-400 hover:text-orange-500 transition px-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-1.343-9.542-7z"></path></svg></button>';
+                li.querySelector('span.flex-1').textContent = item.displayName;
+                const preview = li.querySelector('button');
+                preview.title = 'Preview ' + item.displayName;
+                preview.addEventListener('click', function() { previewStockPdf(item.filename, item.displayName); });
+                anchor.parentNode.insertBefore(li, anchor);
+            });
+        }
+
+        function applyStockPdfLabels(labels) {
+            if (!labels || typeof labels !== 'object') return;
+            document.querySelectorAll('#module-list > li[data-filename]').forEach(function(li) {
+                const filename = li.dataset.filename;
+                const displayLabel = String(labels[filename] || '').trim();
+                if (!displayLabel) return;
+                const label = li.querySelector('span.flex-1');
+                if (label) label.textContent = displayLabel;
+                li.dataset.tocLabel = displayLabel;
+                const preview = li.querySelector('button[onclick*="previewStockPdf"]');
+                if (preview) {
+                    preview.onclick = function() { previewStockPdf(filename, displayLabel); };
+                    preview.title = 'Preview ' + displayLabel;
+                }
+            });
         }
 
         function resolveSnippetTokens(text) {
@@ -350,7 +465,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             const container = document.getElementById('cover-snippets');
             if (!container) return;
             container.innerHTML = '';
-            GPC_COVER_SNIPPETS.forEach(function(s) {
+            COVER_SNIPPETS.forEach(function(s) {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
@@ -396,7 +511,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 container.innerHTML = '';
                 var section = container.closest('.custom-text-section');
                 var sectionTa = section ? section.querySelector('textarea.custom-text-body') : null;
-                GPC_CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
+                CUSTOM_PAGE_SNIPPETS.forEach(function(s) {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-orange-500 hover:bg-orange-50/80 text-slate-700 text-[11px] leading-tight transition shadow-sm';
@@ -618,7 +733,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         // --- Dynamic Pricing UI (multi-option) ---
         var PRODUCT_SUGGESTIONS = [
             'Dedicated Internet Access (DIA)', 'Standard Internet Access (SIA)', 'Managed Ethernet', 'Business Voice',
-            'Managed Business Wi-Fi', 'Wireless Internet Backup', 'GPC Managed Firewall', 'DDoS Protection',
+            'Managed Business Wi-Fi', 'Wireless Internet Backup', 'Managed Firewall', 'DDoS Protection',
             'Cloud Connect', 'SD-WAN', 'SIP Trunking', 'PRI', 'Dark Fiber', 'Colocation', 'Professional Services'
         ];
         loadMarketingContent();
@@ -1685,11 +1800,27 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         syncLocationSubtotalVisibility();
 
         function updateImpactNet() {
-            var cur = parseFloat(document.getElementById('impact-current-cost').value) || 0;
-            var prop = parseFloat(document.getElementById('impact-proposed-cost').value) || 0;
-            var net = prop - cur;
-            var el = document.getElementById('impact-net');
-            if (el) el.textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(net);
+            const currentEl = document.getElementById('impact-current-cost');
+            const proposedEl = document.getElementById('impact-proposed-cost');
+            const netEl = document.getElementById('impact-net');
+            if (!currentEl || !proposedEl || !netEl) return;
+            const current = parseFloat(currentEl.value) || 0;
+            const proposed = parseFloat(proposedEl.value) || 0;
+            const diff = current - proposed;
+            if (current === 0 && proposed === 0) {
+                netEl.textContent = '$0/mo';
+                netEl.classList.remove('text-green-700', 'text-blue-700', 'border-green-300', 'border-blue-300');
+                netEl.classList.add('text-slate-800', 'border-slate-200');
+                return;
+            }
+            netEl.textContent = '$' + Math.abs(Math.round(diff)).toLocaleString() + '/mo';
+            if (diff >= 0) {
+                netEl.classList.remove('text-slate-800', 'text-blue-700', 'border-slate-200', 'border-blue-300');
+                netEl.classList.add('text-green-700', 'border-green-300');
+            } else {
+                netEl.classList.remove('text-slate-800', 'text-green-700', 'border-slate-200', 'border-green-300');
+                netEl.classList.add('text-blue-700', 'border-blue-300');
+            }
         }
         if (document.getElementById('impact-current-cost')) document.getElementById('impact-current-cost').addEventListener('input', updateImpactNet);
         if (document.getElementById('impact-proposed-cost')) document.getElementById('impact-proposed-cost').addEventListener('input', updateImpactNet);
@@ -1790,7 +1921,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = (projectData.globalBiz || 'GPC_Proposal').replace(/\s+/g, '_') + '.spec';
+            a.download = (projectData.globalBiz || 'Rightfiber_Proposal').replace(/\s+/g, '_') + '.spec';
             a.click();
             URL.revokeObjectURL(a.href);
         }
@@ -2144,7 +2275,11 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             if (data.impactProposedCost != null) document.getElementById('impact-proposed-cost').value = data.impactProposedCost;
             if (typeof updateImpactNet === 'function') updateImpactNet();
             if (data.modules && data.modules.length) {
-                data.modules.forEach(function(m) {
+                const normalizedModules = data.modules.map(function(module) {
+                    return Object.assign({}, module, { filename: normalizeModuleFilename(module.filename) });
+                });
+                restoreSavedModuleOrder(normalizedModules);
+                normalizedModules.forEach(function(m) {
                     var li = null;
                     if (m.filename === 'CUSTOM_TEXT' || m.filename === 'CUSTOM_PDF') {
                         li = document.querySelector('#module-list li[data-filename="' + m.filename + '"][data-custom-index="' + (m.customIndex || '0') + '"]');
@@ -2160,6 +2295,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 document.getElementById('toggle-references').dispatchEvent(new Event('change'));
                 document.getElementById('toggle-pricing').dispatchEvent(new Event('change'));
                 document.getElementById('toggle-usac').dispatchEvent(new Event('change'));
+                syncBrandModuleVisibility();
             }
         }
 
@@ -2239,7 +2375,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
             var a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = (projectData.globalBiz || 'GPC_Proposal').replace(/\s+/g, '_') + '.spec';
+            a.download = (projectData.globalBiz || 'Rightfiber_Proposal').replace(/\s+/g, '_') + '.spec';
             a.click();
             URL.revokeObjectURL(a.href);
             var subject = 'Proposal Proofing Request - ' + (projectData.globalBiz || 'Account');
@@ -2294,9 +2430,9 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
         function promptPdfFileName(defaultBase) {
             var suggestion = (defaultBase || '').trim();
-            if (!suggestion) suggestion = 'GPC_Proposal';
+            if (!suggestion) suggestion = 'Rightfiber_Proposal';
             suggestion = suggestion.replace(/\s+/g, '_').replace(/[<>:"/\\|?*]+/g, '');
-            if (!suggestion) suggestion = 'GPC_Proposal';
+            if (!suggestion) suggestion = 'Rightfiber_Proposal';
             var raw = window.prompt('Enter a file name for your PDF (without extension). This is required before downloading:', suggestion);
             if (raw === null) return null;
             var cleaned = String(raw).trim();
@@ -2401,6 +2537,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
     async function generatePDFDocument(payload, showPreview) {
     if (showPreview && pdfGenerateState !== 'ready') return;
+    await waitForBrandFonts();
+    if (typeof snapdom.preCache === 'function') {
+        try { await snapdom.preCache(document, { embedFonts: true }); } catch (error) {}
+    }
     const overlay = document.getElementById('loading-overlay');
     if (overlay && showPreview) overlay.classList.remove('hidden');
     const prevHtmlOverflow = document.documentElement.style.overflow;
@@ -2420,14 +2560,16 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
     const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
 
     let letterheadPdf;
-    try {
-        const letterheadRes = await fetch(getAssetPath('GPC_Blank_Letterhead.pdf'));
-        if (letterheadRes.ok) {
-            const letterheadBytes = await letterheadRes.arrayBuffer();
-            letterheadPdf = await PDFDocument.load(letterheadBytes);
+    if (usePdfLetterheadUnderlay) {
+        try {
+            const letterheadRes = await fetch(getAssetPath(BRAND_CONFIG.interiorStem + '.pdf'));
+            if (letterheadRes.ok) {
+                const letterheadBytes = await letterheadRes.arrayBuffer();
+                letterheadPdf = await PDFDocument.load(letterheadBytes);
+            }
+        } catch (error) {
+            console.warn('PDF letterhead not found. Falling back to a blank page.');
         }
-    } catch (e) {
-        console.warn("Letterhead not found. Falling back to blank page.");
     }
 
     async function getBasePage() {
@@ -2446,32 +2588,33 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    async function captureInteriorPageGPC(headerTitle, contentHtml, options) {
+    async function captureInteriorPage(headerTitle, contentHtml, options) {
         options = options || {};
         const fontWeight = options.fontWeight != null ? options.fontWeight : '';
         const extraPaddingTop = options.extraPaddingTop != null ? options.extraPaddingTop : 0;
         const fontFamily = options.fontFamily != null ? options.fontFamily : '';
         const fontSize = options.fontSize != null ? options.fontSize : '';
-        const wrapper = document.getElementById('gpc-interior-render-wrapper');
+        const lineHeight = options.lineHeight != null ? options.lineHeight : '1.4';
+        const wrapper = document.getElementById('proposal-interior-render-wrapper');
         wrapper.innerHTML = '';
         const card = document.createElement('div');
-        card.className = 'gpc-pdf-font';
+        card.className = 'proposal-pdf-font';
         card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box;' + getInteriorCardBackgroundStyle();
         const titleText = document.createElement('div');
-        titleText.style.cssText = 'position: absolute; left: 72px; top: 0.5in; color: white; font-size: 32px; font-weight: bold; white-space: nowrap;';
+        titleText.style.cssText = 'position: absolute; left: 72px; top: 0.5in; color: #203B51; font-size: 32px; font-weight: 800; white-space: nowrap; font-family: "kallisto", sans-serif;';
         titleText.textContent = (headerTitle && headerTitle.trim()) ? headerTitle : '\u00A0';
         card.appendChild(titleText);
         const contentArea = document.createElement('div');
         const contentTop = 128;
         const baseFontSize = fontSize || '11pt';
-        contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: ' + contentTop + 'px; bottom: 72px; overflow: hidden; font-size: ' + baseFontSize + '; line-height: 1.4;' + (extraPaddingTop ? ' padding-top: ' + extraPaddingTop + 'px;' : '') + (fontFamily ? ' font-family: ' + fontFamily + ';' : '');
+        contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: ' + contentTop + 'px; bottom: 72px; overflow: hidden; font-size: ' + baseFontSize + '; line-height: ' + lineHeight + ';' + (extraPaddingTop ? ' padding-top: ' + extraPaddingTop + 'px;' : '') + (fontFamily ? ' font-family: ' + fontFamily + ';' : '');
         contentArea.innerHTML = fontWeight ? ('<div style="font-weight: ' + fontWeight + ';">' + contentHtml + '</div>') : contentHtml;
         card.appendChild(contentArea);
         wrapper.appendChild(card);
         await new Promise(r => requestAnimationFrame(r));
-        const result = await snapdom(card, { scale: 2, backgroundColor: getInteriorRasterUrl() ? 'white' : 'transparent' });
+        const result = await captureWithBrandFonts(card, { backgroundColor: getInteriorRasterUrl() ? 'white' : 'transparent' });
         const canvas = await result.toCanvas();
-        canvas._gpcHeaderTitle = headerTitle || '';
+        canvas._proposalHeaderTitle = headerTitle || '';
         return canvas;
     }
 
@@ -2481,7 +2624,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         temp.innerHTML = bodyHtml;
         var paragraphs = Array.from(temp.children);
         if (paragraphs.length === 0) {
-            var canvas = await captureInteriorPageGPC(headerTitle, bodyHtml, options);
+            var canvas = await captureInteriorPage(headerTitle, bodyHtml, options);
             return [canvas];
         }
 
@@ -2489,10 +2632,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
         var fontFamily = options.fontFamily || '';
 
         function measureFit(html, extraPad) {
-            var wrapper = document.getElementById('gpc-interior-render-wrapper');
+            var wrapper = document.getElementById('proposal-interior-render-wrapper');
             wrapper.innerHTML = '';
             var card = document.createElement('div');
-            card.className = 'gpc-pdf-font';
+            card.className = 'proposal-pdf-font';
             card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box;';
             var contentArea = document.createElement('div');
             contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: ' + baseFontSize + '; line-height: 1.4;' + (extraPad ? ' padding-top: ' + extraPad + 'px;' : '') + (fontFamily ? ' font-family: ' + fontFamily + ';' : '');
@@ -2522,7 +2665,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             for (var k in options) { if (options.hasOwnProperty(k)) pageOpts[k] = options[k]; }
 
             var pageTitle = isFirstPage ? headerTitle : '';
-            var canvas = await captureInteriorPageGPC(pageTitle, pageHtml, pageOpts);
+            var canvas = await captureInteriorPage(pageTitle, pageHtml, pageOpts);
             canvases.push(canvas);
 
             remaining = remaining.slice(count);
@@ -2540,24 +2683,24 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
     // Check for custom date, default to today if empty
     const customDate = document.getElementById('global-date').value.trim();
     const displayDate = customDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        const wrapper = document.getElementById('gpc-title-render-wrapper');
+        const wrapper = document.getElementById('proposal-title-render-wrapper');
         wrapper.innerHTML = '';
         const card = document.createElement('div');
         card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box; background: url("' + getTitleRasterUrl() + '") no-repeat 0 0; background-size: 100% 100%;';
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position: absolute; right: 72px; left: calc(58% - 0.7in); bottom: calc(45px + 0.25in); color: white; font-family: Helvetica, Arial, sans-serif;';
-        overlay.innerHTML = '<div style="font-size: 31px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(bizText) + '</div><div style="font-size: 22px; font-weight: bold; margin-bottom: 6px;">' + escapeHtml(rfpText) + '</div><div style="font-size: 14px; margin-bottom: 5px;">Presented by: ' + escapeHtml(repText) + '</div><div style="font-size: 12px;">' + escapeHtml(displayDate) + '</div>';
+        overlay.style.cssText = 'position: absolute; right: 72px; left: calc(58% - 0.7in); bottom: calc(45px + 0.25in); color: white; font-family: "rig-sans", sans-serif;';
+        overlay.innerHTML = '<div style="font-family: kallisto, sans-serif; font-size: 31px; font-weight: 800; margin-bottom: 6px;">' + escapeHtml(bizText) + '</div><div style="font-family: kallisto, sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 6px;">' + escapeHtml(rfpText) + '</div><div style="font-size: 14px; font-weight: 400; margin-bottom: 5px;">Presented by: ' + escapeHtml(repText) + '</div><div style="font-size: 12px; font-weight: 400;">' + escapeHtml(displayDate) + '</div>';
         card.appendChild(overlay);
         wrapper.appendChild(card);
         await new Promise(r => requestAnimationFrame(r));
-        const result = await snapdom(card, { scale: 2, backgroundColor: 'white' });
+        const result = await captureWithBrandFonts(card, { backgroundColor: 'white' });
         const canvas = await result.toCanvas();
         return canvas;
     }
 
 
     async function buildTitlePageFromPdf() {
-        const titleBytes = await fetch(getAssetPath('01_Title_Page.pdf')).then(function (res) {
+        const titleBytes = await fetch(getAssetPath('Rightfiber_Title_Page.svg')).then(function (res) {
             if (!res.ok) throw new Error('Title page PDF not found');
             return res.arrayBuffer();
         });
@@ -2627,7 +2770,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             addr: b.querySelector('.ref-addr').value, phone: b.querySelector('.ref-phone').value, email: b.querySelector('.ref-email').value
         })).filter(r => r.name || r.org);
         refs.forEach(ref => {
-            renderBody.insertAdjacentHTML('beforeend', `<div class="mb-6 border-b-4 border-[#DE5A24] pb-6" style="line-height: 1.2;"><div class="text-2xl font-bold text-black" style="line-height: 1.4;">${ref.name}</div><div class="text-xl font-bold text-black" style="line-height: 1.4;">${ref.org}</div><div class="text-xl text-black mb-4" style="line-height: 1.4;">${ref.addr}</div><div class="text-xl text-black" style="line-height: 1.4;">${ref.phone} &nbsp;|&nbsp; ${ref.email}</div></div>`);
+            renderBody.insertAdjacentHTML('beforeend', `<div class="mb-6 border-b-4 border-[#CCD9FF] pb-6" style="line-height: 1.2;"><div class="text-2xl font-bold text-black" style="line-height: 1.4;">${ref.name}</div><div class="text-xl font-bold text-black" style="line-height: 1.4;">${ref.org}</div><div class="text-xl text-black mb-4" style="line-height: 1.4;">${ref.addr}</div><div class="text-xl text-black" style="line-height: 1.4;">${ref.phone} &nbsp;|&nbsp; ${ref.email}</div></div>`);
         });
         await new Promise(r => requestAnimationFrame(r));
     }
@@ -2646,7 +2789,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
     }
 
     for (const slideFile of payload.slides) {
-        if (slideFile === '01_Title_Page.pdf') {
+        if (slideFile === 'Rightfiber_Title_Page.svg') {
             if (brandTitleBackground.mode === 'svg' || brandTitleBackground.mode === 'png') {
                 const canvas = await buildTitlePageHybrid();
                 await addPageFromCanvas(canvas);
@@ -2665,7 +2808,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             continue;
         }
         if (slideFile === 'TOC') {
-            const tocEntries = payload.slides.filter(f => f !== 'TOC' && f !== '01_Title_Page.pdf').map((filename, idx) => {
+            const tocEntries = payload.slides.filter(f => f !== 'TOC' && f !== 'Rightfiber_Title_Page.svg').map((filename, idx) => {
                 let label;
                 if (filename.startsWith('CUSTOM_TEXT:')) {
                     const i = filename.split(':')[1];
@@ -2680,7 +2823,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                 return { num: idx + 1, label: label || filename };
             });
             const tocBodyHtml = tocEntries.length ? tocEntries.map(e => '<p style="margin-bottom: 0.6rem;">' + e.num + '. ' + escapeHtml(e.label) + '</p>').join('') : '<p style="color:#64748b;">No sections in this proposal.</p>';
-            const canvas = await captureInteriorPageGPC('Table of Contents', tocBodyHtml, { extraPaddingTop: 46 });
+            const canvas = await captureInteriorPage('Table of Contents', tocBodyHtml, { extraPaddingTop: 46 });
             await addPageFromCanvas(canvas);
             continue;
         }
@@ -2712,26 +2855,26 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             var impactHtml =
                 '<div style="margin: 0 auto; width: 640px;">' +
                     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">' +
-                        '<div style="border:1px solid #d1d5db;border-radius:12px;background:#f8fafc;padding:18px;">' +
+                        '<div style="border:1px solid #d1d5db;border-left:4px solid #CCD9FF;border-radius:0;background:#f8fafc;padding:18px;">' +
                             '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-bottom:12px;">Current State</div>' +
                             '<div style="font-size:13px;line-height:1.6;color:#0f172a;font-weight:500;">' + toHtmlLines(cur) + '</div>' +
                         '</div>' +
-                        '<div style="border:1px solid #d1d5db;border-left:4px solid #DE5A24;border-radius:12px;background:#f8fafc;padding:18px;">' +
+                        '<div style="border:1px solid #d1d5db;border-left:4px solid #CCD9FF;border-radius:0;background:#f8fafc;padding:18px;">' +
                             '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-bottom:12px;">Proposed Solution</div>' +
                             '<div style="font-size:13px;line-height:1.6;color:#0f172a;font-weight:500;">' + toHtmlLines(prop) + '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:20px;background:#12243D;color:#fff;border-radius:12px;padding:18px 20px;border:1px solid #334155;">' +
+                    '<div style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:20px;background:#203B51;color:#fff;border-radius:0;padding:18px 20px;border:1px solid #203B51;">' +
                         '<div style="text-align:center;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Current Spend</div><div style="font-size:20px;font-weight:700;">' + escapeHtml(curDollar) + '</div></div>' +
                         '<div style="font-size:20px;opacity:.55;">→</div>' +
-                        '<div style="text-align:center;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Proposed GPC Spend</div><div style="font-size:20px;font-weight:700;">' + escapeHtml(propDollar) + '</div></div>' +
-                        '<div style="text-align:center;background:#fff;color:' + impactAccent + ';padding:10px 16px;border-radius:10px;border:2px solid ' + impactAccent + ';min-width: 180px;">' +
+                        '<div style="text-align:center;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Proposed Spend</div><div style="font-size:20px;font-weight:700;">' + escapeHtml(propDollar) + '</div></div>' +
+                        '<div style="text-align:center;background:#fff;color:' + impactAccent + ';padding:10px 16px;border-radius:0;border:2px solid ' + impactAccent + ';min-width: 180px;">' +
                             '<div style="font-size:10px;font-weight:800;letter-spacing:.08em;margin-bottom:3px;text-transform:uppercase;">' + escapeHtml(impactLabel) + '</div>' +
                             '<div style="font-size:20px;font-weight:800;line-height:1.1;white-space:nowrap;">' + escapeHtml(impactAmount) + '</div>' +
                         '</div>' +
                     '</div>' +
                 '</div>';
-            const canvas = await captureInteriorPageGPC('Impact & ROI', impactHtml, { extraPaddingTop: 37 });
+            const canvas = await captureInteriorPage('Impact & ROI', impactHtml, { extraPaddingTop: 37 });
             await addPageFromCanvas(canvas);
         }
         else if (slideFile === 'CUSTOM_REFERENCES') {
@@ -2741,17 +2884,18 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             })).filter(r => r.name || r.org);
             let refsHtml = '';
             refs.forEach(ref => {
-                refsHtml += '<div style="margin-bottom: 1.75rem; padding-bottom: 1.25rem; border-bottom: 1px solid #DE5A24;"><div style="font-size: 1.5rem; font-weight: bold; color: #0f172a;">' + escapeHtml(ref.name) + '</div><div style="font-size: 1.3rem; font-weight: bold; color: #1e293b;">' + escapeHtml(ref.org) + '</div><div style="font-size: 1.1rem; color: #334155; margin-bottom: 0.75rem;">' + escapeHtml(ref.addr) + '</div><div style="font-size: 1.1rem; color: #334155;">' + escapeHtml(ref.phone) + ' &nbsp;|&nbsp; ' + escapeHtml(ref.email) + '</div></div>';
+                refsHtml += '<div style="margin-bottom: 1.75rem; padding-bottom: 1.25rem; border-bottom: 1px solid #CCD9FF;"><div style="font-size: 1.5rem; font-weight: bold; color: #0f172a;">' + escapeHtml(ref.name) + '</div><div style="font-size: 1.3rem; font-weight: bold; color: #1e293b;">' + escapeHtml(ref.org) + '</div><div style="font-size: 1.1rem; color: #334155; margin-bottom: 0.75rem;">' + escapeHtml(ref.addr) + '</div><div style="font-size: 1.1rem; color: #334155;">' + escapeHtml(ref.phone) + ' &nbsp;|&nbsp; ' + escapeHtml(ref.email) + '</div></div>';
             });
             const refsWrapped = '<div style="max-width: ' + REFERENCES_CONTENT_MAX_WIDTH_PX + 'px; margin: 0 auto;">' + (refsHtml || '<p style="color:#64748b;">No references added.</p>') + '</div>';
-            const canvas = await captureInteriorPageGPC('References', refsWrapped, { extraPaddingTop: 52 });
+            const canvas = await captureInteriorPage('References', refsWrapped, { extraPaddingTop: 52 });
             await addPageFromCanvas(canvas);
         }
         else if (slideFile === 'CUSTOM_PRICING') {
             const optionBlocks = Array.from(document.querySelectorAll('.pricing-option-block'));
             const borderClr = '#d1d5db';
             const useAmyDecimalsPdf = pricingUsesDecimalPoints();
-            const locHeaderOrange = '<div style="display: flex; background-color: #DE5A24; color: white; font-weight: bold; text-transform: uppercase; border: 1px solid ' + borderClr + '; border-bottom: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">PRODUCT</div><div style="width: 140px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">LIST PRICE</div><div style="width: 90px; padding: 12px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">QTY</div><div style="width: 140px; padding: 12px 16px; text-align: center;">TOTAL</div></div>';
+            const pricingCaptureOpts = { extraPaddingTop: 20, fontSize: '10pt', lineHeight: '1.25' };
+            const locHeaderOrange = '<div style="display: flex; background-color: #CCD9FF; color: #203B51; font-weight: bold; text-transform: uppercase; border: 1px solid ' + borderClr + '; border-bottom: none;"><div style="width: 380px; padding: 6px 12px; border-right: 1px solid ' + borderClr + ';">PRODUCT</div><div style="width: 140px; padding: 6px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">LIST PRICE</div><div style="width: 90px; padding: 6px 5px; text-align: center; border-right: 1px solid ' + borderClr + ';">QTY</div><div style="width: 140px; padding: 6px 12px; text-align: center;">TOTAL</div></div>';
             
             const rowToHtml = (item, bg) => {
                 var priceVal = formatLineListPriceDisplay(item.price);
@@ -2767,10 +2911,10 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     }
                     var nrcDesc = (item.nrcDescription || '').trim();
                     var nrcLabel = nrcDesc ? ('NRC: ' + escapeHtml(nrcDesc)) : 'NRC';
-                    nrcHtml = '<div style="font-size: 11px; color: #475569; margin-top: 6px;">' + nrcLabel + (nrcAmountText ? (' <strong style="font-size: 11px; color: #334155; margin-left: 8px;">' + escapeHtml(nrcAmountText) + '</strong>') : '') + '</div>';
+                    nrcHtml = '<div style="font-size: 10px; color: #475569; margin-top: 4px;">' + nrcLabel + (nrcAmountText ? (' <strong style="font-size: 10px; color: #334155; margin-left: 8px;">' + escapeHtml(nrcAmountText) + '</strong>') : '') + '</div>';
                 }
 
-                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 12px 16px; border-right: 1px solid ' + borderClr + ';">' + formatProdTextForPdf(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(priceVal) + '</div><div style="width: 90px; padding: 12px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 12px 16px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
+                return '<div style="display: flex; background-color: ' + bg + '; border: 1px solid ' + borderClr + '; border-top: none;"><div style="width: 380px; padding: 6px 12px; border-right: 1px solid ' + borderClr + ';">' + formatProdTextForPdf(item.prod) + nrcHtml + '</div><div style="width: 140px; padding: 6px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(priceVal) + '</div><div style="width: 90px; padding: 6px 5px; border-right: 1px solid ' + borderClr + '; text-align: center;">' + escapeHtml(item.qty) + '</div><div style="width: 140px; padding: 6px 12px; text-align: center;">' + escapeHtml(totalVal) + '</div></div>';
             };
 
             var enableLocSubtotalsPdf = !!(document.getElementById('pricing-enable-location-subtotals') && document.getElementById('pricing-enable-location-subtotals').checked);
@@ -2812,7 +2956,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                             return acc + (useAmyDecimalsPdf ? lineRaw : Math.ceil(lineRaw));
                         }, 0);
                         var subFormatted = formatPricingMoney(monthlySum, useAmyDecimalsPdf);
-                        var subHtml = '<div style="display:flex;background:#f8fafc;color:#0f172a;border:1px solid ' + borderClr + ';border-top:none;font-weight:700;font-size:12px;"><div style="width:380px;padding:10px 16px;border-right:1px solid ' + borderClr + ';">LOCATION SUBTOTAL</div><div style="width:140px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:90px;padding:10px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:140px;padding:10px 16px;text-align:center;">' + escapeHtml(subFormatted) + '</div></div>';
+                        var subHtml = '<div style="display:flex;background:#f8fafc;color:#0f172a;border:1px solid ' + borderClr + ';border-top:none;font-weight:700;font-size:10px;"><div style="width:380px;padding:6px 12px;border-right:1px solid ' + borderClr + ';">LOCATION SUBTOTAL</div><div style="width:140px;padding:6px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:90px;padding:6px 5px;border-right:1px solid ' + borderClr + ';"></div><div style="width:140px;padding:6px 12px;text-align:center;">' + escapeHtml(subFormatted) + '</div></div>';
                         allRows.push({ type: 'subtotal', html: subHtml });
                     }
                 });
@@ -2827,7 +2971,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     });
                 });
                 var grandTotalFormatted = formatPricingMoney(optTotalPdf, useAmyDecimalsPdf);
-                const totalBlockHtml = '<div style="margin-top: 20px;">' + '<div style="display: flex; background-color: #12243D; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalFormatted) + '</div></div>' + '</div>';
+                const totalBlockHtml = '<div style="margin-top: 20px;">' + '<div style="display: flex; background-color: #203B51; color: white; font-weight: bold; font-size: 1.1rem; border: 1px solid ' + borderClr + '; border-radius: 0; box-sizing: border-box;"><div style="width: 610px; padding: 16px;">TOTAL MONTHLY COST</div><div style="width: 140px; padding: 16px; text-align: center;">' + escapeHtml(grandTotalFormatted) + '</div></div>' + '</div>';
                 const termLineHtml = buildPricingTermLineHtml(contractTerm);
 
                 let baseHeader = optionBlocks.length > 1 ? `Proposed Pricing Option ${optIdx + 1}` : 'Proposed Pricing';
@@ -2837,7 +2981,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
 
                 if (allRows.length === 0) {
                     const html = totalBlockHtml + termLineHtml;
-                    const canvas = await captureInteriorPageGPC(baseHeader, html, { extraPaddingTop: 46 });
+                    const canvas = await captureInteriorPage(baseHeader, html, pricingCaptureOpts);
                     await addPageFromCanvas(canvas);
                 } else {
                     const buildPricingBody = function(rows, includeTotals, totalBlockHtml, termLineHtml) {
@@ -2846,7 +2990,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         for (const item of rows) {
                             if (item.type === 'loc') {
                                 if (!firstInChunk) body += '</div>';
-                                body += '<div style="margin-top: ' + (firstInChunk ? 0 : 16) + 'px; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">';
+                                body += '<div style="margin-top: ' + (firstInChunk ? 0 : 10) + 'px; width: 100%; max-width: 750px; box-sizing: border-box; border: 1px solid ' + borderClr + ';">';
                                 if (firstInChunk) { body += locHeaderOrange; firstInChunk = false; }
                                 body += item.html;
                             } else {
@@ -2863,13 +3007,13 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                     };
 
                     const measurePricingBody = function(bodyHtml) {
-                        const wrapper = document.getElementById('gpc-interior-render-wrapper');
+                        const wrapper = document.getElementById('proposal-interior-render-wrapper');
                         wrapper.innerHTML = '';
                         const card = document.createElement('div');
-                        card.className = 'gpc-pdf-font';
+                        card.className = 'proposal-pdf-font';
                         card.style.cssText = 'width: 8.5in; height: 11in; position: relative; box-sizing: border-box;' + getInteriorCardBackgroundStyle();
                         const contentArea = document.createElement('div');
-                        contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: 11pt; line-height: 1.4; padding-top: 46px;';
+                        contentArea.style.cssText = 'position: absolute; left: 72px; right: 72px; top: 128px; bottom: 72px; overflow: visible; font-size: 10pt; line-height: 1.25; padding-top: 20px;';
                         contentArea.innerHTML = bodyHtml;
                         card.appendChild(contentArea);
                         wrapper.appendChild(card);
@@ -3000,7 +3144,7 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
                         const isLast = (p === chunks.length - 1);
                         const body = buildPricingBody(chunks[p], isLast, totalBlockHtml, termLineHtml);
                         const headerTitle = p === 0 ? baseHeader : `${baseHeader} (Cont.)`;
-                        const canvas = await captureInteriorPageGPC(headerTitle, body, { extraPaddingTop: 46 });
+                        const canvas = await captureInteriorPage(headerTitle, body, pricingCaptureOpts);
                         await addPageFromCanvas(canvas);
                     }
                 }
@@ -3017,7 +3161,8 @@ We offer dedicated business internet from 10 Mbps to 400 Gbps; managed Ethernet 
             try {
                 const existingPdfBytes = await fetch(getAssetPath(slideFile)).then(res => res.arrayBuffer());
                 const existingPdf = await PDFDocument.load(existingPdfBytes);
-                const [page] = await finalDoc.copyPages(existingPdf, [0]);
+                const copiedPages = await finalDoc.copyPages(existingPdf, existingPdf.getPageIndices());
+                const page = copiedPages[0];
 
 // --- DATA INJECTION FOR PROJECT PLAN ---
 if (slideFile === '09_Project.pdf') {
@@ -3057,7 +3202,7 @@ if (slideFile === '09_Project.pdf') {
         color: rgb(0.1, 0.1, 0.1) 
     });
 }
-                finalDoc.addPage(page);
+                copiedPages.forEach(function(copiedPage) { finalDoc.addPage(copiedPage); });
             } catch (e) { console.warn(`Could not load ${slideFile}`); }
         }
     }
@@ -3074,7 +3219,7 @@ if (slideFile === '09_Project.pdf') {
         if (downloadBtn) {
             downloadBtn.classList.remove('hidden');
             downloadBtn.onclick = () => {
-                const defaultPdf = `${(payload.globals.biz || 'GPC').replace(/\s+/g, '_')}_Proposal`;
+                const defaultPdf = `${(payload.globals.biz || 'Rightfiber').replace(/\s+/g, '_')}_Proposal`;
                 const pdfFileName = promptPdfFileName(defaultPdf);
                 if (!pdfFileName) return;
                 const a = document.createElement('a');
