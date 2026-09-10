@@ -13,7 +13,7 @@ const RESPONSE_SCHEMA = {
   required: ["subject", "body"],
 };
 
-const SYSTEM_PROMPT = `You are an expert enterprise telecommunications sales executive for Great Plains Communications.
+const SYSTEM_PROMPT = `You are an expert enterprise telecommunications sales executive for Rightfiber.
 
 Write concise first-person outreach based on a Cognito buying signal. The goal is to turn the signal into a relevant business conversation without sounding like the seller is merely repeating the prospect's own news back to them.
 

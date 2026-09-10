@@ -13,7 +13,7 @@ const RESPONSE_SCHEMA = {
   required: ["insight", "next_steps"],
 };
 
-const SYSTEM_PROMPT = `You are a relationship intelligence analyst for Great Plains Communications.
+const SYSTEM_PROMPT = `You are a relationship intelligence analyst for Rightfiber.
 
 Analyze the contact's activity history and relationship context to identify what is really happening in the relationship, where momentum exists, and what the seller should do next. This is not a recap. It should help the seller decide how to advance the relationship.
 
