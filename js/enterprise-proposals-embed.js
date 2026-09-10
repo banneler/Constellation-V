@@ -2560,14 +2560,16 @@
     const PAGE_WIDTH = 612; const PAGE_HEIGHT = 792; 
 
     let letterheadPdf;
-    try {
-        const letterheadRes = await fetch(getAssetPath('Rightfiber_Blank_Letterhead.pdf'));
-        if (letterheadRes.ok) {
-            const letterheadBytes = await letterheadRes.arrayBuffer();
-            letterheadPdf = await PDFDocument.load(letterheadBytes);
+    if (usePdfLetterheadUnderlay) {
+        try {
+            const letterheadRes = await fetch(getAssetPath(BRAND_CONFIG.interiorStem + '.pdf'));
+            if (letterheadRes.ok) {
+                const letterheadBytes = await letterheadRes.arrayBuffer();
+                letterheadPdf = await PDFDocument.load(letterheadBytes);
+            }
+        } catch (error) {
+            console.warn('PDF letterhead not found. Falling back to a blank page.');
         }
-    } catch (e) {
-        console.warn("Letterhead not found. Falling back to blank page.");
     }
 
     async function getBasePage() {
