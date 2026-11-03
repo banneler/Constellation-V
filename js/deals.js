@@ -1775,6 +1775,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>`;
     }
 
+    function getDealCreateErrorMessage(error) {
+        const text = [error?.message, error?.details, error?.code, error?.status]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+        if (error?.code === '23505' || text.includes('duplicate key') || text.includes('unique constraint')) {
+            return 'A deal with this name already exists.';
+        }
+        if (
+            error?.status === 403
+            || error?.code === '42501'
+            || text.includes('row-level security')
+            || text.includes('permission denied')
+        ) {
+            return 'You do not have access to create this deal.';
+        }
+        return 'We could not create this deal. Please try again.';
+    }
+
     function handleAddDeal() {
         if (tsAccountInstance) { tsAccountInstance.destroy(); tsAccountInstance = null; }
         if (tsStageInstance) { tsStageInstance.destroy(); tsStageInstance = null; }
@@ -1862,7 +1881,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .insert([insertData])
                 .select('*')
                 .single();
-            if (error) { showToast('Error creating deal: ' + error.message, 'error'); return; }
+            if (error) { showToast(getDealCreateErrorMessage(error), 'error'); return; }
             if (tsAccountInstance) { tsAccountInstance.destroy(); tsAccountInstance = null; }
             exitDealFocusMode();
             container.classList.add('hidden');

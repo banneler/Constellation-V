@@ -9,6 +9,17 @@ Scripts: `test` / `test:e2e`, `test:e2e:ui`, `test:e2e:headed`.
 
 **Smoke:** `tests/smoke/public.spec.ts` (login + reset-password, no auth) and `tests/smoke/crm-pages.spec.ts` (all other root `.html` pages, requires seed). Projects: `smoke-public`, `smoke-crm`.
 
+**Mocked mutation (no seed, intercepts `/rest/v1/`, does not hit live Supabase):**
+
+```
+npx playwright test tests/e2e/deals-mutation.spec.ts --project=mocked
+```
+
+| Spec | Titles |
+| --- | --- |
+| `tests/e2e/deals-mutation.spec.ts` | `composer creates once, then a stage change patches once`; `create errors stay friendly and do not persist` |
+| `tests/e2e/accounts-mutation.spec.ts` | Account create/update hardening (chromium project; mocked REST, still uses seed session) |
+
 ## Artifacts
 
 | Path | Purpose |
