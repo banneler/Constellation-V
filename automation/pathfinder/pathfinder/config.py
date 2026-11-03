@@ -13,6 +13,24 @@ def _positive_int(name: str, default: int) -> int:
     return value
 
 
+# Keep the stock id and retired ids aligned with api/_lib/gemini.js.
+_STOCK_GEMINI_MODEL = "gemini-3.7-flash"
+_RETIRED_GEMINI_MODELS = {
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
+}
+
+
+def gemini_model_from_env() -> str:
+    model = os.getenv("GEMINI_MODEL", "").strip()
+    if not model or model in _RETIRED_GEMINI_MODELS:
+        return _STOCK_GEMINI_MODEL
+    return model
+
+
 @dataclass(frozen=True)
 class Config:
     supabase_url: str
@@ -44,7 +62,7 @@ class Config:
             google_cse_api_key=required["GOOGLE_CSE_API_KEY"],
             google_cse_id=required["GOOGLE_CSE_ID"],
             gemini_api_key=required["GEMINI_API_KEY"],
-            gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            gemini_model=gemini_model_from_env(),
             request_timeout=_positive_int("PATHFINDER_REQUEST_TIMEOUT", 15),
             max_page_bytes=_positive_int("PATHFINDER_MAX_PAGE_BYTES", 1_500_000),
             user_agent=os.getenv(

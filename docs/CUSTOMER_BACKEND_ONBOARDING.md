@@ -169,7 +169,7 @@ Set at least:
 | `SUPABASE_SERVICE_ROLE_KEY` | Server / cron |
 | `APPROVED_SIGNUP_DOMAINS` | e.g. `acme.com,acme.co` (client UX; server hook is source of truth) |
 | `GEMINI_API_KEY` | **Per-customer** Google AI key (see §3) |
-| `GEMINI_SYNTHESIS_MODEL` | Optional; match stock default |
+| `GEMINI_SYNTHESIS_MODEL` | Optional override. Unset uses the shared default in `api/_lib/gemini.js` (`gemini-3.7-flash`, or `GEMINI_MODEL` when that is set to a current model). |
 | `CRON_SECRET` | Unique per project |
 | `NYLAS_API_KEY` | Nylas API key (email/calendar integrations; see §2.4) |
 | `NYLAS_CLIENT_ID` | Nylas application client ID |

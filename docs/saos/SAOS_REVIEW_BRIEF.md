@@ -628,8 +628,8 @@ Physical slides (approximate):
 
 | Setting | Value |
 |---------|-------|
-| Primary model | `gemini-2.5-flash` |
-| Fallback | `gemini-2.0-flash` |
+| Primary model | `gemini-3.7-flash` |
+| Fallback | `gemini-3.7-flash` |
 | Output | JSON matching `PresentationHighlight` schema |
 | Storage | **None** — synthesized at export time only |
 
@@ -637,7 +637,7 @@ Physical slides (approximate):
 
 `js/account-plan-presentation-ai.js`:
 
-- `fetchPresentationHighlight()` — calls edge function
+- `fetchPresentationHighlight()` — calls `/api/ai/generate-presentation-highlight`
 - `normalizePresentationHighlight()` — extensive fallbacks from raw plan if AI fails
 
 On AI failure: warning toast, deck still generates from plan fallbacks.

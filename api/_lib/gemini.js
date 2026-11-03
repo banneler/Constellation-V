@@ -1,5 +1,26 @@
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-3.7-flash";
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.7-flash";
+const GEMINI_STOCK_MODEL = "gemini-3.7-flash";
+const RETIRED_GEMINI_MODELS = new Set([
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-flash-latest",
+]);
+const retiredModelWarnings = new Set();
+
+function resolveGeminiModel(candidate, fallback = GEMINI_STOCK_MODEL) {
+  const model = String(candidate || "").trim();
+  if (!model) return fallback;
+  if (!RETIRED_GEMINI_MODELS.has(model)) return model;
+  if (!retiredModelWarnings.has(model)) {
+    retiredModelWarnings.add(model);
+    console.warn(`[gemini] ${model} is retired; using ${fallback}.`);
+  }
+  return fallback;
+}
+
+const DEFAULT_MODEL = resolveGeminiModel(process.env.GEMINI_MODEL, GEMINI_STOCK_MODEL);
+const FALLBACK_MODEL = resolveGeminiModel(process.env.GEMINI_FALLBACK_MODEL, DEFAULT_MODEL);
 
 function requireGeminiKey() {
   if (!process.env.GEMINI_API_KEY) {
@@ -43,25 +64,53 @@ function withDynamicPrompts(basePrompt, prompts = {}) {
   ].filter(Boolean).join("\n");
 }
 
+function inlineDataParts(inlineData) {
+  if (!inlineData) return [];
+  const items = Array.isArray(inlineData) ? inlineData : [inlineData];
+  return items.map((item) => {
+    const data = String(item?.data || "").replace(/\s/g, "");
+    if (!data) {
+      throw Object.assign(new Error("Gemini image data is empty."), { status: 400 });
+    }
+    return {
+      inlineData: {
+        mimeType: String(item?.mimeType || "image/png"),
+        data,
+      },
+    };
+  });
+}
+
 async function callGeminiOnce({
   model,
   systemPrompt,
   userMessage,
+  inlineData,
   responseMimeType,
   responseSchema,
   tools,
   temperature = 0.5,
   maxOutputTokens = 2048,
 }) {
+  const userText = String(userMessage || "");
+  const parts = [
+    ...(userText.trim() ? [{ text: userText }] : []),
+    ...inlineDataParts(inlineData),
+  ];
+  if (parts.length === 0) {
+    throw Object.assign(new Error("Gemini request has no content."), { status: 400 });
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${requireGeminiKey()}`;
+  const instruction = String(systemPrompt || "").trim();
   const body = {
-    systemInstruction: {
-      parts: [{ text: systemPrompt }],
-    },
+    ...(instruction
+      ? { systemInstruction: { parts: [{ text: instruction }] } }
+      : {}),
     contents: [
       {
         role: "user",
-        parts: [{ text: userMessage }],
+        parts,
       },
     ],
     generationConfig: {
@@ -105,14 +154,16 @@ async function callGeminiOnce({
 }
 
 async function callGemini(options) {
+  const model = resolveGeminiModel(options.model, DEFAULT_MODEL);
+  const fallbackModel = resolveGeminiModel(options.fallbackModel, FALLBACK_MODEL);
   try {
-    return await callGeminiOnce({ ...options, model: options.model || DEFAULT_MODEL });
+    return await callGeminiOnce({ ...options, model });
   } catch (error) {
     const status = Number(error?.status);
     if (![400, 404, 429].includes(status) || options.disableFallback) {
       throw error;
     }
-    return callGeminiOnce({ ...options, model: options.fallbackModel || FALLBACK_MODEL });
+    return callGeminiOnce({ ...options, model: fallbackModel });
   }
 }
 
@@ -131,8 +182,12 @@ function parseJsonObject(text) {
 }
 
 module.exports = {
+  DEFAULT_MODEL,
+  FALLBACK_MODEL,
+  GEMINI_STOCK_MODEL,
   callGemini,
   parseJsonObject,
+  resolveGeminiModel,
   withDynamicPrompt,
   withDynamicPrompts,
 };
