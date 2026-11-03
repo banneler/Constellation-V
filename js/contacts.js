@@ -1012,13 +1012,9 @@ async function loadAllData() {
         showToast("Analyzing image data...", 'info');
         
         try {
-            const { data, error } = await supabase.functions.invoke('extract-contact-info', {
-                body: { image: base64Image }
+            const contactData = await callAiApi(supabase, 'extract-contact-info', {
+                image: base64Image
             });
-
-            if (error) throw error;
-            
-            const contactData = data;
 
             let accountIdToLink = null;
             if (contactData.company) {
@@ -1071,7 +1067,7 @@ async function loadAllData() {
             showToast(`Contact information for ${contactData.first_name || ''} ${contactData.last_name || ''} imported successfully!`, 'success');
 
         } catch (error) {
-            console.error("Error invoking Edge Function or saving data:", error);
+            console.error("Error extracting contact info or saving data:", error);
             showToast(`Failed to process image: ${error.message}. Please try again.`, 'error');
         } finally {
             hideModal();

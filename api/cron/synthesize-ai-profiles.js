@@ -1,8 +1,10 @@
-const { callGemini, parseJsonObject } = require("../_lib/gemini");
+const { DEFAULT_MODEL, callGemini, parseJsonObject, resolveGeminiModel } = require("../_lib/gemini");
 const { handleOptions, sendError, sendJson } = require("../_lib/http");
 const { encodeEq, supabaseRest } = require("../_lib/supabase");
 
-const SYNTHESIS_MODEL = process.env.GEMINI_SYNTHESIS_MODEL || "gemini-3.7-flash";
+function synthesisModel() {
+  return resolveGeminiModel(process.env.GEMINI_SYNTHESIS_MODEL, DEFAULT_MODEL);
+}
 const MAX_ROWS_PER_RUN = Number(process.env.AI_PROFILE_SYNTHESIS_LIMIT || 1000);
 
 const SYSTEM_PROMPT = `You synthesize raw user feedback about AI outputs into a durable, personalized system prompt for one specific AI function.
@@ -101,7 +103,7 @@ async function synthesizeForUserFunction(userId, functionId, rows) {
   ].join("\n");
 
   const result = await callGemini({
-    model: SYNTHESIS_MODEL,
+    model: synthesisModel(),
     disableFallback: true,
     systemPrompt: SYSTEM_PROMPT,
     userMessage,
@@ -121,7 +123,7 @@ async function synthesizeForUserFunction(userId, functionId, rows) {
   return { user_id: userId, function_id: functionId, processed: rows.length, model: result.model };
 }
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
   if (handleOptions(req, res)) return;
   if (!["GET", "POST"].includes(req.method)) return sendJson(res, 405, { error: "Method Not Allowed" });
 
@@ -160,4 +162,7 @@ module.exports = async function handler(req, res) {
     console.error("[api/cron/synthesize-ai-profiles]", error);
     return sendError(res, error);
   }
-};
+}
+
+handler.synthesisModel = synthesisModel;
+module.exports = handler;
