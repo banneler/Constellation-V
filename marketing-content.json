@@ -3,10 +3,14 @@
     "02_Why_Rightfiber.pdf": "Why Rightfiber",
     "03_About_Rightfiber.pdf": "About Rightfiber",
     "04_NOC_Monitoring.pdf": "24-Hour NOC Monitoring",
-    "09_Project.pdf": "Project Implementation Plan",
-    "11_Escalation.pdf": "Escalation Process"
+    "09_Project.pdf": "Project Implementation Plan"
   },
-  "additionalStockPdfs": [],
+  "additionalStockPdfs": [
+    {
+      "filename": "Proposal_PDF_1.pdf",
+      "displayName": "SPIN ID - NE and IN"
+    }
+  ],
   "coverSnippets": [
     {
       "label": "Introductory paragraph",
