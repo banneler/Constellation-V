@@ -39,9 +39,19 @@ export default defineConfig({
       name: 'chromium',
       dependencies: ['setup'],
       testMatch: /e2e\/.*\.spec\.ts$/,
+      testIgnore: /e2e\/deals-mutation\.spec\.ts$/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: path.join(__dirname, 'tests', '.auth', 'user.json'),
+      },
+    },
+    {
+      // Isolated mocked REST — no seed, no live Supabase writers.
+      name: 'mocked',
+      testMatch: /e2e\/deals-mutation\.spec\.ts$/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [] },
       },
     },
     {
