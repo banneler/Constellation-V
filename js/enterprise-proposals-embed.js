@@ -1,6 +1,7 @@
 
         const renderZones = document.getElementById('render-zones');
         const ASSETS_FOLDER = 'Proposal_Assets';
+        const REMOTE_ASSET_BASE = 'https://enterprise-proposals.vercel.app';
         const BRAND_CONFIG = {
             titleStem: 'Rightfiber_Title_Page',
             interiorStem: 'Rightfiber_Blank_Letterhead',
@@ -8,7 +9,8 @@
             name: 'Rightfiber'
         };
         const HIDDEN_STOCK_SLIDES = new Set(['08_SPIN.pdf', '10_Leadership.pdf', '11_Escalation.pdf']);
-        let ASSETS_BASE = new URL(ASSETS_FOLDER + '/', window.location.href).href;
+        let ASSETS_BASE = REMOTE_ASSET_BASE.replace(/\/$/, '') + '/' + ASSETS_FOLDER + '/';
+        const resolvedAssets = new Map();
         var brandTitleBackground = { mode: 'none' };
         var brandInteriorBackground = { mode: 'none' };
         var lastFocusedCustomTextBody = null;
@@ -62,18 +64,70 @@
             });
         }
 
-        function getAssetPath(filename) {
-            return ASSETS_FOLDER + '/' + filename;
+        function remoteAssetUrl(filename) {
+            return REMOTE_ASSET_BASE.replace(/\/$/, '') + '/' + ASSETS_FOLDER + '/' + String(filename).split('/').map(encodeURIComponent).join('/');
         }
 
-        async function assetExists(url) {
-            try {
-                var res = await fetch(url, { method: 'HEAD' });
-                if (!res.ok) res = await fetch(url, { method: 'GET', cache: 'force-cache' });
-                return res.ok;
-            } catch (e) {
-                return false;
+        function localAssetUrl(filename) {
+            return new URL(ASSETS_FOLDER + '/' + filename, window.location.href).href;
+        }
+
+        function mimeForAsset(filename) {
+            var ext = String(filename).split('.').pop().toLowerCase();
+            if (ext === 'pdf') return 'application/pdf';
+            if (ext === 'svg') return 'image/svg+xml';
+            if (ext === 'png') return 'image/png';
+            if (ext === 'webp') return 'image/webp';
+            if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+            return 'application/octet-stream';
+        }
+
+        async function resolveAsset(filename) {
+            if (resolvedAssets.has(filename)) return resolvedAssets.get(filename);
+            var candidates = [remoteAssetUrl(filename), localAssetUrl(filename)];
+            for (var i = 0; i < candidates.length; i++) {
+                try {
+                    var response = await fetch(candidates[i], { cache: 'no-store' });
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    var bytes = await response.arrayBuffer();
+                    var headerType = (response.headers.get('content-type') || '').split(';')[0].trim();
+                    var type = headerType && headerType !== 'application/octet-stream' ? headerType : mimeForAsset(filename);
+                    var resolved = {
+                        url: URL.createObjectURL(new Blob([bytes], { type: type })),
+                        bytes: bytes,
+                        source: i === 0 ? 'remote' : 'local'
+                    };
+                    resolvedAssets.set(filename, resolved);
+                    return resolved;
+                } catch (error) {
+                    if (i === 0) console.warn('Remote proposal asset failed; using local copy if present:', filename, error);
+                }
             }
+            return null;
+        }
+
+        async function fetchAssetBytes(filename) {
+            var resolved = await resolveAsset(filename);
+            if (!resolved) throw new Error('Asset not found: ' + filename);
+            return resolved.bytes;
+        }
+
+        async function getAssetPath(filename) {
+            var resolved = await resolveAsset(filename);
+            return resolved ? resolved.url : localAssetUrl(filename);
+        }
+
+        function useRemoteProposalImages() {
+            document.querySelectorAll('img[src^="' + ASSETS_FOLDER + '/"]').forEach(function(img) {
+                var localSrc = img.getAttribute('src');
+                var filename = localSrc.slice(ASSETS_FOLDER.length + 1);
+                if (!filename || img.dataset.remoteAssetBound === 'true') return;
+                img.dataset.remoteAssetBound = 'true';
+                resolveAsset(filename).then(function(resolved) {
+                    if (!resolved) return;
+                    img.src = resolved.url;
+                });
+            });
         }
 
         /** Resolve snapdom/CSS backgrounds with SVG first, PNG second, PDF fallback last. */
@@ -82,14 +136,14 @@
             for (var i = 0; i < rasterExts.length; i++) {
                 var ext = rasterExts[i];
                 var filename = stem + ext;
-                var url = getAssetPath(filename);
-                if (await assetExists(url)) {
-                    return { mode: ext === '.svg' ? 'svg' : 'png', url: url };
+                var resolved = await resolveAsset(filename);
+                if (resolved) {
+                    return { mode: ext === '.svg' ? 'svg' : 'png', url: resolved.url };
                 }
             }
-            var pdfUrl = getAssetPath(pdfLogicalFilename);
-            if (await assetExists(pdfUrl)) {
-                return { mode: 'pdf', url: pdfUrl };
+            var pdfResolved = await resolveAsset(pdfLogicalFilename);
+            if (pdfResolved) {
+                return { mode: 'pdf', url: pdfResolved.url };
             }
             return { mode: 'none' };
         }
@@ -107,7 +161,7 @@
         }
 
         async function refreshBrandBackgrounds() {
-            ASSETS_BASE = new URL(ASSETS_FOLDER + '/', window.location.href).href;
+            ASSETS_BASE = REMOTE_ASSET_BASE.replace(/\/$/, '') + '/' + ASSETS_FOLDER + '/';
             brandTitleBackground = await resolveBrandBackground(BRAND_CONFIG.titleStem, BRAND_CONFIG.titleStem + '.pdf');
             brandInteriorBackground = await resolveBrandBackground(BRAND_CONFIG.interiorStem, BRAND_CONFIG.interiorStem + '.pdf');
             usePdfLetterheadUnderlay = brandInteriorBackground.mode === 'pdf';
@@ -360,26 +414,39 @@
         var CUSTOM_PAGE_SNIPPETS = [];
 
         async function loadMarketingContent() {
-            try {
-                var response = await fetch('./marketing-content.json');
-                if (!response.ok) throw new Error('HTTP ' + response.status);
-                var data = await response.json();
-                COVER_SNIPPETS = Array.isArray(data.coverSnippets) ? data.coverSnippets : COVER_SNIPPETS;
-                CUSTOM_PAGE_SNIPPETS = Array.isArray(data.customPageSnippets) ? data.customPageSnippets : CUSTOM_PAGE_SNIPPETS;
-                var loadedProducts = Array.isArray(data.productSuggestions)
-                    ? data.productSuggestions.map(function(p) { return String(p || '').trim(); }).filter(Boolean)
-                    : [];
-                if (loadedProducts.length) PRODUCT_SUGGESTIONS = loadedProducts;
-                renderAdditionalStockPdfs(data.additionalStockPdfs);
-                applyStockPdfLabels(data.stockPdfLabels);
-                renderCoverSnippets();
-                renderCustomPageSnippets();
-            } catch (error) {
-                console.error('Failed to load marketing content:', error);
-                renderCoverSnippets();
-                renderCustomPageSnippets();
-                showToast('Warning: Could not load dynamic text snippets.', 'error');
+            var urls = [
+                REMOTE_ASSET_BASE.replace(/\/$/, '') + '/marketing-content.json',
+                new URL('marketing-content.json', window.location.href).href
+            ];
+            var data = null;
+            for (var i = 0; i < urls.length; i++) {
+                try {
+                    var response = await fetch(urls[i], { cache: 'no-store' });
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    data = await response.json();
+                    break;
+                } catch (error) {
+                    if (i === 0) {
+                        console.warn('Remote marketing-content.json failed; using local copy.', error);
+                        continue;
+                    }
+                    console.error('Failed to load marketing content:', error);
+                    renderCoverSnippets();
+                    renderCustomPageSnippets();
+                    showToast('Warning: Could not load dynamic text snippets.', 'error');
+                    return;
+                }
             }
+            COVER_SNIPPETS = Array.isArray(data.coverSnippets) ? data.coverSnippets : COVER_SNIPPETS;
+            CUSTOM_PAGE_SNIPPETS = Array.isArray(data.customPageSnippets) ? data.customPageSnippets : CUSTOM_PAGE_SNIPPETS;
+            var loadedProducts = Array.isArray(data.productSuggestions)
+                ? data.productSuggestions.map(function(p) { return String(p || '').trim(); }).filter(Boolean)
+                : [];
+            if (loadedProducts.length) PRODUCT_SUGGESTIONS = loadedProducts;
+            renderAdditionalStockPdfs(data.additionalStockPdfs);
+            applyStockPdfLabels(data.stockPdfLabels);
+            renderCoverSnippets();
+            renderCustomPageSnippets();
         }
 
         function normalizeAdditionalStockPdfs(items) {
@@ -737,6 +804,7 @@
             'Cloud Connect', 'SD-WAN', 'SIP Trunking', 'PRI', 'Dark Fiber', 'Colocation', 'Professional Services'
         ];
         loadMarketingContent();
+        useRemoteProposalImages();
 
         function getBandwidthSuggestion(text) {
             if (!text || typeof text !== 'string') return null;
@@ -2390,10 +2458,11 @@
         if (sendProofBtn) sendProofBtn.addEventListener('click', sendForProofing);
 
         // --- Stock PDF Preview Logic ---
-        function previewStockPdf(filename, title) {
+        async function previewStockPdf(filename, title) {
             document.getElementById('pdf-preview-title').innerText = title;
             // Added scrollbar=0 to the engine parameters
-            document.getElementById('pdf-preview-iframe').src = getAssetPath(filename) + '#toolbar=0&navpanes=0&scrollbar=0&view=Fit';
+            var assetUrl = await getAssetPath(filename);
+            document.getElementById('pdf-preview-iframe').src = assetUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=Fit';
             document.getElementById('pdf-preview-modal').classList.remove('hidden');
         }
 
@@ -2562,11 +2631,8 @@
     let letterheadPdf;
     if (usePdfLetterheadUnderlay) {
         try {
-            const letterheadRes = await fetch(getAssetPath(BRAND_CONFIG.interiorStem + '.pdf'));
-            if (letterheadRes.ok) {
-                const letterheadBytes = await letterheadRes.arrayBuffer();
-                letterheadPdf = await PDFDocument.load(letterheadBytes);
-            }
+            const letterheadBytes = await fetchAssetBytes(BRAND_CONFIG.interiorStem + '.pdf');
+            letterheadPdf = await PDFDocument.load(letterheadBytes);
         } catch (error) {
             console.warn('PDF letterhead not found. Falling back to a blank page.');
         }
@@ -2700,10 +2766,7 @@
 
 
     async function buildTitlePageFromPdf() {
-        const titleBytes = await fetch(getAssetPath('Rightfiber_Title_Page.svg')).then(function (res) {
-            if (!res.ok) throw new Error('Title page PDF not found');
-            return res.arrayBuffer();
-        });
+        const titleBytes = await fetchAssetBytes('Rightfiber_Title_Page.svg');
         const srcPdf = await PDFDocument.load(titleBytes);
         const [copiedPage] = await finalDoc.copyPages(srcPdf, [0]);
         finalDoc.addPage(copiedPage);
@@ -3159,7 +3222,7 @@
         else if (slideFile === 'USAC_RFP') { await appendUploadedPdf(payload.usacFile); }
         else {
             try {
-                const existingPdfBytes = await fetch(getAssetPath(slideFile)).then(res => res.arrayBuffer());
+                const existingPdfBytes = await fetchAssetBytes(slideFile);
                 const existingPdf = await PDFDocument.load(existingPdfBytes);
                 const copiedPages = await finalDoc.copyPages(existingPdf, existingPdf.getPageIndices());
                 const page = copiedPages[0];
